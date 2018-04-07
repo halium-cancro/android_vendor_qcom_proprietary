@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2015 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -87,8 +87,14 @@ when       who        what, where, why
   #define NETMGR_KIF_APPS_PORT_START   "37000" /* MODEM_PORT_END + 1 */
   #define NETMGR_KIF_APPS_PORT_END     "50000" /* DEFAULT end port */
 
-  #define NETMGR_KIF_IMS_PORT_START    "50010"
-  #define NETMGR_KIF_IMS_PORT_END      "50060"
+  #define NETMGR_KIF_IMS_AUDIO_PORT_START      "50010"
+  #define NETMGR_KIF_IMS_AUDIO_PORT_END        "50060"
+
+  #define NETMGR_KIF_IMS_EMERGENCY_PORT_START  "6000"
+  #define NETMGR_KIF_IMS_EMERGENCY_PORT_END    "7000"
+
+  #define NETMGR_KIF_IMS_IPSEC_PORT_START      "8000"
+  #define NETMGR_KIF_IMS_IPSEC_PORT_END        "9000"
 
   #define NETMGR_KIF_FWMARK            "9"
   #define NETMGR_KIF_DEFAULT_FLOW      "0"
@@ -223,6 +229,51 @@ typedef struct netmgr_kif_info_s {
 /*===========================================================================
                             GLOBAL FUNCTION DECLARATIONS
 ===========================================================================*/
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_create_link_network
+===========================================================================*/
+/*!
+@brief
+  Creates a new network type to handle specific use-cases ex. routing over
+  link-local interface
+
+@return
+  void
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+void
+netmgr_kif_create_link_network(int link);
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_remove_link_network
+===========================================================================*/
+/*!
+@brief
+  Removes network type for specified link
+
+@return
+  void
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+void
+netmgr_kif_remove_link_network(int link);
 
 /*===========================================================================
   FUNCTION  netmgr_kif_get_name
@@ -369,7 +420,7 @@ netmgr_kif_init
 */
 /*=========================================================================*/
 int
-netmgr_kif_set_mtu(int link);
+netmgr_kif_set_mtu(int link, boolean post_nl_ev);
 
 /*===========================================================================
   FUNCTION  netmgr_kif_send_icmpv6_router_solicitation
@@ -418,6 +469,32 @@ int
 netmgr_kif_ifioctl_flow_control(const char * dev, int handle, int enable);
 
 #ifdef FEATURE_DATA_IWLAN
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_install_iptables_rules
+===========================================================================*/
+/*!
+@brief
+  Installs all the static iwlan rules at powerup. This will improve the
+  call bringup time.
+
+  The static iwlan rules are used to mark packets that belong the modem
+  source port range
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - iWLAN property is enabled
+
+  - Side Effects
+    - Bootup time for netmgr may increase
+*/
+/*=========================================================================*/
+int
+netmgr_kif_iwlan_install_iptables_rules(int ip_family);
+
 /*===========================================================================
   FUNCTION  netmgr_kif_iwlan_update_dynamic_config
 ===========================================================================*/
@@ -491,6 +568,98 @@ netmgr_kif_install_sa_and_routing_rules
   int  ip_family
 );
 
+/*===========================================================================
+  FUNCTION  netmgr_kif_remove_sa_and_routing_rules
+===========================================================================*/
+/*!
+@brief
+  Removes the forwarding rules and security associations (SA) (if any)
+  for given reverse rmnet link
+
+@return
+  int - NETMGR_SUCCESS on operation success, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int
+netmgr_kif_remove_sa_and_routing_rules
+(
+  int                   link,
+  int                   ip_family,
+  netmgr_address_set_t  *addr_info_ptr
+);
+
+/*===========================================================================
+FUNCTION  netmgr_kif_install_spi_filter_rule
+===========================================================================*/
+/*!
+@brief
+  Installs SPI based marking rule in iptables
+
+@return
+  int - NETMGR_SUCCESS if link ID is valid, NETMGR_FAILURE otherwise
+@note
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_kif_install_spi_filter_rule
+(
+  int ip_family,
+  unsigned int spi
+);
+
+/*===========================================================================
+FUNCTION  netmgr_kif_remove_spi_filter_rule
+===========================================================================*/
+/*!
+@brief
+  Removes SPI based marking rule from iptables
+
+@return
+  int - NETMGR_SUCCESS if link ID is valid, NETMGR_FAILURE otherwise
+@note
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_kif_remove_spi_filter_rule
+(
+  int ip_family,
+  unsigned int spi
+);
 #endif /* FEATURE_DATA_IWLAN */
+
+/*===========================================================================
+FUNCTION  netmgr_kif_verify_link
+===========================================================================*/
+/*!
+@brief
+  Helper function to verify validity of a link ID.
+
+@return
+  int - NETMGR_SUCCESS if link ID is valid, NETMGR_FAILURE otherwise
+@note
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_kif_verify_link (int link);
 
 #endif /* __NETMGR_KIF_H__ */

@@ -53,15 +53,16 @@ when       who        what, where, why
 ===========================================================================*/
 #include "comdef.h"
 #include "ds_list.h"
+#include "netmgr_main.h"
 
 /*===========================================================================
                      GLOBAL DEFINITIONS AND DECLARATIONS
 ===========================================================================*/
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
    Constant used when QoS flow specification not available
 ---------------------------------------------------------------------------*/
-#define NETMGR_TC_DEFAULT_PRIORITY   NETMGR_TC_CLASS_PRIO_BESTEFFORT 
+#define NETMGR_TC_DEFAULT_PRIORITY   NETMGR_TC_CLASS_PRIO_BESTEFFORT
 #define NETMGR_TC_DEFAULT_DATARATE   (8UL)  /* bps units; tc rejects 0 */
 /* Maximum bandwidth for network interface root qdisc. */
 /* Note: each kernel interface will use same value, but underlying
@@ -69,7 +70,7 @@ when       who        what, where, why
 #define NETMGR_TC_MAX_DATARATE    (800000000UL)  /* bps units */
 
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
    Type representing enumeration of traffic control flow states
 ---------------------------------------------------------------------------*/
 typedef enum {
@@ -81,9 +82,9 @@ typedef enum {
 } netmgr_tc_flow_state_t;
 
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
   Type representing enumeration of TC class priority.
-  Note: Precedence values are in descending value order  
+  Note: Precedence values are in descending value order
 ---------------------------------------------------------------------------*/
 typedef enum {
   NETMGR_TC_CLASS_PRIO_MIN             = 7,
@@ -96,6 +97,15 @@ typedef enum {
 } netmgr_tc_class_priority_type_t;
 
 
+typedef struct netmgr_tc_filter_data_s
+{
+  uint32        flow_id;
+  uint8         rule_id;
+  unsigned char precedence;
+  uint8         ip_version;
+} netmgr_tc_filter_data;
+
+
 /*===========================================================================
                             GLOBAL FUNCTION DECLARATIONS
 ===========================================================================*/
@@ -104,7 +114,7 @@ typedef enum {
 ===========================================================================*/
 /*!
 @brief
- Main initialization routine of the traffic control module. 
+ Main initialization routine of the traffic control module.
 
 @return
   void
@@ -112,7 +122,7 @@ typedef enum {
 @note
 
   - Dependencies
-    - None  
+    - None
 
   - Side Effects
     - Initializes the QMI Driver
@@ -122,11 +132,39 @@ void netmgr_tc_init (int nlink, netmgr_ctl_port_config_type links[]);
 
 
 /*===========================================================================
+  FUNCTION  netmgr_tc_create_delete_dynamic_post_routing_rule
+===========================================================================*/
+/*!
+@brief
+ Adds/removes source and interface iptable rules in post routing chain of
+mangle table to reset skb->mark to zero if there are no matching rules.
+
+@return
+  void
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_tc_create_delete_dynamic_post_routing_rule
+(
+  int link,
+  int ip_family,
+  netmgr_address_info_t  *addr_info_ptr,
+  int create_chain
+);
+
+/*===========================================================================
   FUNCTION  netmgr_tc_get_qos_params_by_profile_id
 ===========================================================================*/
 /*!
 @brief
-  Lookup the datarate and priority QoS parameters based on CDMA profile ID. 
+  Lookup the datarate and priority QoS parameters based on CDMA profile ID.
 
 @return
   int - NETMGR_SUCCESS on successful operations, NETMGR_FAILURE otherwise.
@@ -134,7 +172,7 @@ void netmgr_tc_init (int nlink, netmgr_ctl_port_config_type links[]);
 @note
 
   - Dependencies
-    - None  
+    - None
 
   - Side Effects
     - Initializes the QMI Driver

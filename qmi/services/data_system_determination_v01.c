@@ -5,7 +5,7 @@
 GENERAL DESCRIPTION
   This is the file which defines the dsd service Data structures.
 
-  Copyright (c) 2012-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2012-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
@@ -16,8 +16,8 @@ GENERAL DESCRIPTION
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.6 
-   It was generated on: Wed Dec 11 2013 (Spin 0)
+/* This file was generated with Tool version 6.14 
+   It was generated on: Thu Oct 16 2014 (Spin 0)
    From IDL File: data_system_determination_v01.idl */
 
 #include "stdint.h"
@@ -78,6 +78,17 @@ static const uint8_t dsd_apn_pref_sys_type_data_v01[] = {
 static const uint8_t dsd_apn_name_type_data_v01[] = {
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_STRING,
   QMI_IDL_OFFSET8(dsd_apn_name_type_v01, apn_name),
+  QMI_DSD_MAX_APN_LEN_V01,
+
+  QMI_IDL_FLAG_END_VALUE
+};
+
+static const uint8_t dsd_apn_info_type_data_v01[] = {
+  QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(dsd_apn_info_type_v01, apn_type),
+
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(dsd_apn_info_type_v01, apn_name),
   QMI_DSD_MAX_APN_LEN_V01,
 
   QMI_IDL_FLAG_END_VALUE
@@ -518,13 +529,128 @@ static const uint8_t dsd_pdn_policy_end_txn_resp_msg_data_v01[] = {
   QMI_IDL_TYPE88(1, 0)
 };
 
+static const uint8_t dsd_set_apn_info_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dsd_set_apn_info_req_msg_v01, apn_info),
+  QMI_IDL_TYPE88(0, 5)
+};
+
+static const uint8_t dsd_set_apn_info_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dsd_set_apn_info_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
+};
+
+static const uint8_t dsd_get_apn_info_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(dsd_get_apn_info_req_msg_v01, apn_type)
+};
+
+static const uint8_t dsd_get_apn_info_resp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dsd_get_apn_info_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_get_apn_info_resp_msg_v01, apn_name) - QMI_IDL_OFFSET8(dsd_get_apn_info_resp_msg_v01, apn_name_valid)),
+  0x10,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(dsd_get_apn_info_resp_msg_v01, apn_name),
+  QMI_DSD_MAX_APN_LEN_V01
+};
+
+static const uint8_t dsd_notify_data_settings_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_notify_data_settings_req_msg_v01, data_service_switch) - QMI_IDL_OFFSET8(dsd_notify_data_settings_req_msg_v01, data_service_switch_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dsd_notify_data_settings_req_msg_v01, data_service_switch),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_notify_data_settings_req_msg_v01, data_service_roaming_switch) - QMI_IDL_OFFSET8(dsd_notify_data_settings_req_msg_v01, data_service_roaming_switch_valid)),
+  0x11,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dsd_notify_data_settings_req_msg_v01, data_service_roaming_switch)
+};
+
+static const uint8_t dsd_notify_data_settings_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dsd_notify_data_settings_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
+};
+
+/* 
+ * dsd_get_data_settings_req_msg is empty
+ * static const uint8_t dsd_get_data_settings_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t dsd_get_data_settings_resp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dsd_get_data_settings_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_get_data_settings_resp_msg_v01, data_service_switch) - QMI_IDL_OFFSET8(dsd_get_data_settings_resp_msg_v01, data_service_switch_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dsd_get_data_settings_resp_msg_v01, data_service_switch),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_get_data_settings_resp_msg_v01, data_service_roaming_switch) - QMI_IDL_OFFSET8(dsd_get_data_settings_resp_msg_v01, data_service_roaming_switch_valid)),
+  0x11,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dsd_get_data_settings_resp_msg_v01, data_service_roaming_switch)
+};
+
+static const uint8_t dsd_thermal_info_change_ind_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_thermal_info_change_ind_msg_v01, thermal_action) - QMI_IDL_OFFSET8(dsd_thermal_info_change_ind_msg_v01, thermal_action_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(dsd_thermal_info_change_ind_msg_v01, thermal_action)
+};
+
+/* 
+ * dsd_get_thermal_mitigation_info_req_msg is empty
+ * static const uint8_t dsd_get_thermal_mitigation_info_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t dsd_get_thermal_mitigation_info_resp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dsd_get_thermal_mitigation_info_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_get_thermal_mitigation_info_resp_msg_v01, thermal_action) - QMI_IDL_OFFSET8(dsd_get_thermal_mitigation_info_resp_msg_v01, thermal_action_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(dsd_get_thermal_mitigation_info_resp_msg_v01, thermal_action)
+};
+
+static const uint8_t dsd_indication_register_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dsd_indication_register_req_msg_v01, report_thermal_info_changes) - QMI_IDL_OFFSET8(dsd_indication_register_req_msg_v01, report_thermal_info_changes_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dsd_indication_register_req_msg_v01, report_thermal_info_changes)
+};
+
+static const uint8_t dsd_indication_register_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dsd_indication_register_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
+};
+
 /* Type Table */
 static const qmi_idl_type_table_entry  dsd_type_table_v01[] = {
   {sizeof(dsd_system_status_info_type_v01), dsd_system_status_info_type_data_v01},
   {sizeof(dsd_apn_avail_sys_info_type_v01), dsd_apn_avail_sys_info_type_data_v01},
   {sizeof(dsd_ipv6_addr_type_v01), dsd_ipv6_addr_type_data_v01},
   {sizeof(dsd_apn_pref_sys_type_v01), dsd_apn_pref_sys_type_data_v01},
-  {sizeof(dsd_apn_name_type_v01), dsd_apn_name_type_data_v01}
+  {sizeof(dsd_apn_name_type_v01), dsd_apn_name_type_data_v01},
+  {sizeof(dsd_apn_info_type_v01), dsd_apn_info_type_data_v01}
 };
 
 /* Message Table */
@@ -563,7 +689,20 @@ static const qmi_idl_message_table_entry dsd_message_table_v01[] = {
   {sizeof(dsd_get_pdn_policy_settings_for_apn_req_msg_v01), dsd_get_pdn_policy_settings_for_apn_req_msg_data_v01},
   {sizeof(dsd_get_pdn_policy_settings_for_apn_resp_msg_v01), dsd_get_pdn_policy_settings_for_apn_resp_msg_data_v01},
   {sizeof(dsd_pdn_policy_end_txn_req_msg_v01), dsd_pdn_policy_end_txn_req_msg_data_v01},
-  {sizeof(dsd_pdn_policy_end_txn_resp_msg_v01), dsd_pdn_policy_end_txn_resp_msg_data_v01}
+  {sizeof(dsd_pdn_policy_end_txn_resp_msg_v01), dsd_pdn_policy_end_txn_resp_msg_data_v01},
+  {sizeof(dsd_set_apn_info_req_msg_v01), dsd_set_apn_info_req_msg_data_v01},
+  {sizeof(dsd_set_apn_info_resp_msg_v01), dsd_set_apn_info_resp_msg_data_v01},
+  {sizeof(dsd_get_apn_info_req_msg_v01), dsd_get_apn_info_req_msg_data_v01},
+  {sizeof(dsd_get_apn_info_resp_msg_v01), dsd_get_apn_info_resp_msg_data_v01},
+  {sizeof(dsd_notify_data_settings_req_msg_v01), dsd_notify_data_settings_req_msg_data_v01},
+  {sizeof(dsd_notify_data_settings_resp_msg_v01), dsd_notify_data_settings_resp_msg_data_v01},
+  {sizeof(dsd_get_data_settings_req_msg_v01), 0},
+  {sizeof(dsd_get_data_settings_resp_msg_v01), dsd_get_data_settings_resp_msg_data_v01},
+  {sizeof(dsd_thermal_info_change_ind_msg_v01), dsd_thermal_info_change_ind_msg_data_v01},
+  {sizeof(dsd_get_thermal_mitigation_info_req_msg_v01), 0},
+  {sizeof(dsd_get_thermal_mitigation_info_resp_msg_v01), dsd_get_thermal_mitigation_info_resp_msg_data_v01},
+  {sizeof(dsd_indication_register_req_msg_v01), dsd_indication_register_req_msg_data_v01},
+  {sizeof(dsd_indication_register_resp_msg_v01), dsd_indication_register_resp_msg_data_v01}
 };
 
 /* Range Table */
@@ -605,7 +744,13 @@ static const qmi_idl_service_message_table_entry dsd_service_command_messages_v0
   {QMI_DSD_DELETE_PDN_POLICY_BY_APN_REQ_V01, QMI_IDL_TYPE16(0, 27), 110},
   {QMI_DSD_GET_PDN_POLICY_APN_LIST_REQ_V01, QMI_IDL_TYPE16(0, 29), 7},
   {QMI_DSD_GET_PDN_POLICY_SETTINGS_FOR_APN_REQ_V01, QMI_IDL_TYPE16(0, 31), 110},
-  {QMI_DSD_PDN_POLICY_END_TXN_REQ_V01, QMI_IDL_TYPE16(0, 33), 14}
+  {QMI_DSD_PDN_POLICY_END_TXN_REQ_V01, QMI_IDL_TYPE16(0, 33), 14},
+  {QMI_DSD_SET_APN_INFO_REQ_V01, QMI_IDL_TYPE16(0, 35), 108},
+  {QMI_DSD_GET_APN_INFO_REQ_V01, QMI_IDL_TYPE16(0, 37), 7},
+  {QMI_DSD_NOTIFY_DATA_SETTING_REQ_V01, QMI_IDL_TYPE16(0, 39), 8},
+  {QMI_DSD_GET_DATA_SETTING_REQ_V01, QMI_IDL_TYPE16(0, 41), 0},
+  {QMI_DSD_GET_THERMAL_MITIGATION_INFO_REQ_V01, QMI_IDL_TYPE16(0, 44), 0},
+  {QMI_DSD_INDICATION_REGISTER_REQ_V01, QMI_IDL_TYPE16(0, 46), 4}
 };
 
 static const qmi_idl_service_message_table_entry dsd_service_response_messages_v01[] = {
@@ -625,11 +770,18 @@ static const qmi_idl_service_message_table_entry dsd_service_response_messages_v
   {QMI_DSD_DELETE_PDN_POLICY_BY_APN_RESP_V01, QMI_IDL_TYPE16(0, 28), 7},
   {QMI_DSD_GET_PDN_POLICY_APN_LIST_RESP_V01, QMI_IDL_TYPE16(0, 30), 1526},
   {QMI_DSD_GET_PDN_POLICY_SETTINGS_FOR_APN_RESP_V01, QMI_IDL_TYPE16(0, 32), 137},
-  {QMI_DSD_PDN_POLICY_END_TXN_RESP_V01, QMI_IDL_TYPE16(0, 34), 7}
+  {QMI_DSD_PDN_POLICY_END_TXN_RESP_V01, QMI_IDL_TYPE16(0, 34), 7},
+  {QMI_DSD_SET_APN_INFO_RESP_V01, QMI_IDL_TYPE16(0, 36), 7},
+  {QMI_DSD_GET_APN_INFO_RESP_V01, QMI_IDL_TYPE16(0, 38), 110},
+  {QMI_DSD_NOTIFY_DATA_SETTING_RESP_V01, QMI_IDL_TYPE16(0, 40), 7},
+  {QMI_DSD_GET_DATA_SETTING_RESP_V01, QMI_IDL_TYPE16(0, 42), 15},
+  {QMI_DSD_GET_THERMAL_MITIGATION_INFO_RESP_V01, QMI_IDL_TYPE16(0, 45), 14},
+  {QMI_DSD_INDICATION_REGISTER_RESP_V01, QMI_IDL_TYPE16(0, 47), 7}
 };
 
 static const qmi_idl_service_message_table_entry dsd_service_indication_messages_v01[] = {
-  {QMI_DSD_SYSTEM_STATUS_IND_V01, QMI_IDL_TYPE16(0, 4), 5378}
+  {QMI_DSD_SYSTEM_STATUS_IND_V01, QMI_IDL_TYPE16(0, 4), 5378},
+  {QMI_DSD_THERMAL_INFO_CHANGE_IND_V01, QMI_IDL_TYPE16(0, 43), 7}
 };
 
 /*Service Object*/
@@ -643,7 +795,7 @@ struct qmi_idl_service_object dsd_qmi_idl_service_object_v01 = {
     sizeof(dsd_service_indication_messages_v01)/sizeof(qmi_idl_service_message_table_entry) },
   { dsd_service_command_messages_v01, dsd_service_response_messages_v01, dsd_service_indication_messages_v01},
   &dsd_qmi_idl_type_table_object_v01,
-  0x07,
+  0x0A,
   NULL
 };
 

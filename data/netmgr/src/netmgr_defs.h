@@ -82,10 +82,8 @@ when       who        what, where, why
 #define NETMGR_MTU_INVALID (0)
 #define NETMGR_MTU_MAX     (2000)
 
-#ifdef FEATURE_DATA_IWLAN
-  #define NETMGR_MAX_COMMAND_LENGTH  (512)
-  #define NETMGR_MAX_STR_LENGTH      (150)
-#endif /* FEATURE_DATA_IWLAN */
+#define NETMGR_MAX_COMMAND_LENGTH  (512)
+#define NETMGR_MAX_STR_LENGTH      (150)
 
 /*---------------------------------------------------------------------------
   Type representing network interface IP address
@@ -165,6 +163,13 @@ typedef struct netmgr_ip_address_s {
     char           sa_policy_sel[NETMGR_SA_DIR_MAX][NETMGR_MAX_STR_LENGTH];
     unsigned long  esp_spi_v4;   /* SPI to query for sequence number rollovers */
     unsigned long  esp_spi_v6;   /* SPI to query for sequence number rollovers */
+
+    struct {
+      boolean      is_valid;
+      char         local_addr[NETMGR_MAX_STR_LENGTH];
+      char         dest_addr[NETMGR_MAX_STR_LENGTH];
+      int          ip_family;
+    } tunnel_ep;
   } netmgr_ipsec_sa_t;
 #endif /* FEATURE_DATA_IWLAN */
 

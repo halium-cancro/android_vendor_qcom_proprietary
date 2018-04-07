@@ -12,7 +12,7 @@
   QoS service messages
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -235,7 +235,7 @@ static int qmi_uim_write_read_transparent_tlv
   unsigned char   * param_ptr = param_buf;
   unsigned long     size = QMI_UIM_SESSION_INFORMATION_MIN_TLV_SIZE;
   unsigned short    temp_path = 0;
-  int               i = 0;
+  unsigned short    i = 0;
 
   /* First write Session info TLV (mandatory) */
   WRITE_8_BIT_VAL (param_ptr, params->session_info.session_type);
@@ -264,17 +264,18 @@ static int qmi_uim_write_read_transparent_tlv
   WRITE_16_BIT_VAL (param_ptr, params->file_id.file_id);
   WRITE_8_BIT_VAL (param_ptr, params->file_id.path.data_len);
   /* Construct File path which is a sequence of 2 byte blocks */
-  for(i = 0; i < params->file_id.path.data_len; i+=2)
+  for(i = 0; i < params->file_id.path.data_len; )
   {
-    temp_path = (*(params->file_id.path.data_ptr + i) << 8) |
-                (*(params->file_id.path.data_ptr + i + 1));
+    temp_path = (unsigned short)((*(params->file_id.path.data_ptr + i) << 8) |
+                                 (*(params->file_id.path.data_ptr + i + 1)));
     WRITE_16_BIT_VAL (param_ptr, temp_path);
+    i = (unsigned short)(i + 2);
   }
 
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_2_TLV_ID,
-                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + params->file_id.path.data_len,
+                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + (unsigned long)params->file_id.path.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -363,15 +364,15 @@ static int qmi_uim_write_read_record_tlv
   /* Construct File path which is a sequence of 2 byte blocks */
   for(i = 0; i < params->file_id.path.data_len; i+=2)
   {
-    temp_path = (*(params->file_id.path.data_ptr + i) << 8) |
-                (*(params->file_id.path.data_ptr + i + 1));
+    temp_path = (unsigned short)((*(params->file_id.path.data_ptr + i) << 8) |
+                                 (*(params->file_id.path.data_ptr + i + 1)));
     WRITE_16_BIT_VAL (param_ptr, temp_path);
   }
 
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_2_TLV_ID,
-                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + params->file_id.path.data_len,
+                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + (unsigned long)params->file_id.path.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -462,15 +463,15 @@ static int qmi_uim_write_write_transparent_tlv
   /* Construct File path which is a sequence of 2 byte blocks */
   for(i = 0; i < params->file_id.path.data_len; i+=2)
   {
-    temp_path = (*(params->file_id.path.data_ptr + i) << 8) |
-                (*(params->file_id.path.data_ptr + i + 1));
+    temp_path = (unsigned short)((*(params->file_id.path.data_ptr + i) << 8) |
+                                 (*(params->file_id.path.data_ptr + i + 1)));
     WRITE_16_BIT_VAL (param_ptr, temp_path);
   }
 
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_2_TLV_ID,
-                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + params->file_id.path.data_len,
+                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + (unsigned long)params->file_id.path.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -491,7 +492,7 @@ static int qmi_uim_write_write_transparent_tlv
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_3_TLV_ID,
-                              QMI_UIM_WRITE_TRANSPARENT_MIN_TLV_SIZE + params->data.data_len,
+                              QMI_UIM_WRITE_TRANSPARENT_MIN_TLV_SIZE + (unsigned long)params->data.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -564,15 +565,15 @@ static int qmi_uim_write_write_record_tlv
   /* Construct File path which is a sequence of 2 byte blocks */
   for(i = 0; i < params->file_id.path.data_len; i+=2)
   {
-    temp_path = (*(params->file_id.path.data_ptr + i) << 8) |
-                (*(params->file_id.path.data_ptr + i + 1));
+    temp_path = (unsigned short)((*(params->file_id.path.data_ptr + i) << 8) |
+                                 (*(params->file_id.path.data_ptr + i + 1)));
     WRITE_16_BIT_VAL (param_ptr, temp_path);
   }
 
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_2_TLV_ID,
-                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + params->file_id.path.data_len,
+                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + (unsigned long)params->file_id.path.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -593,7 +594,7 @@ static int qmi_uim_write_write_record_tlv
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_3_TLV_ID,
-                              QMI_UIM_WRITE_RECORD_MIN_TLV_SIZE + params->data.data_len,
+                              QMI_UIM_WRITE_RECORD_MIN_TLV_SIZE + (unsigned long)params->data.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -665,15 +666,15 @@ static int qmi_uim_write_get_file_attributes_tlv
   /* Construct File path which is a sequence of 2 byte blocks */
   for(i = 0; i < params->file_id.path.data_len; i+=2)
   {
-    temp_path = (*(params->file_id.path.data_ptr + i) << 8) |
-                (*(params->file_id.path.data_ptr + i + 1));
+    temp_path = (unsigned short)((*(params->file_id.path.data_ptr + i) << 8) |
+                                 (*(params->file_id.path.data_ptr + i + 1)));
     WRITE_16_BIT_VAL (param_ptr, temp_path);
   }
 
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_2_TLV_ID,
-                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + params->file_id.path.data_len,
+                              QMI_UIM_FILE_ID_MIN_TLV_SIZE + (unsigned long)params->file_id.path.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -767,8 +768,8 @@ static int qmi_uim_write_refresh_register_tlv
       /* Construct File path which is a sequence of 2 byte blocks */
       for(j = 0; j < params->files_ptr[i].path.data_len; j+=2)
       {
-        temp_path = (*(params->files_ptr[i].path.data_ptr + j) << 8) |
-                    (*(params->files_ptr[i].path.data_ptr + j + 1));
+        temp_path = (unsigned short)((*(params->files_ptr[i].path.data_ptr + j) << 8) |
+                                     (*(params->files_ptr[i].path.data_ptr + j + 1)));
         WRITE_16_BIT_VAL (param_ptr, temp_path);
       }
       total_len += params->files_ptr[i].path.data_len;
@@ -779,8 +780,8 @@ static int qmi_uim_write_refresh_register_tlv
     }
   }
   /* Calculate total size of TLV */
-  total_len += QMI_UIM_REFRESH_REGISTER_MIN_TLV_SIZE +
-               (QMI_UIM_FILE_ID_MIN_TLV_SIZE * params->num_files);
+  total_len += (unsigned int)(QMI_UIM_REFRESH_REGISTER_MIN_TLV_SIZE +
+                              (QMI_UIM_FILE_ID_MIN_TLV_SIZE * params->num_files));
 
   if(total_len >= (param_size - size))
   {
@@ -1073,7 +1074,7 @@ static int qmi_uim_write_pin_protection_tlv
   if (qmi_util_write_std_tlv (msg,
                               msg_size,
                               QMI_UIM_MANDATORY_2_TLV_ID,
-                              QMI_UIM_SET_PIN_PROTECTION_MIN_TLV_SIZE + params->pin_data.data_len,
+                              QMI_UIM_SET_PIN_PROTECTION_MIN_TLV_SIZE + (unsigned long)params->pin_data.data_len,
                               (void *)(param_buf + size)) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -1114,7 +1115,7 @@ static int qmi_uim_write_verify_pin_tlv
   unsigned char     param_buf [QMI_UIM_VERIFY_PIN_ALL_TLV_SIZE];
   unsigned char   * param_ptr = param_buf;
   unsigned long     size = QMI_UIM_SESSION_INFORMATION_MIN_TLV_SIZE;
-  unsigned short    offset = 0;
+  unsigned long     offset = 0;
 
   /* First write Session Info TLV */
   WRITE_8_BIT_VAL (param_ptr, params->session_info.session_type);
@@ -1150,7 +1151,7 @@ static int qmi_uim_write_verify_pin_tlv
       memcpy (param_ptr, (char *)params->pin_data.data_ptr,
               params->pin_data.data_len);
       param_ptr += params->pin_data.data_len;
-      size = QMI_UIM_VERIFY_PIN_MIN_TLV_SIZE + params->pin_data.data_len;
+      size = QMI_UIM_VERIFY_PIN_MIN_TLV_SIZE + (unsigned long)params->pin_data.data_len;
     }
     else
     {
@@ -1178,13 +1179,13 @@ static int qmi_uim_write_verify_pin_tlv
   if(params->is_pin1_encrypted)
   {
     offset += size;
-    size = QMI_UIM_ENCRYPTED_PIN_MIN_TLV_SIZE + params->pin_data.data_len;
+    size = QMI_UIM_ENCRYPTED_PIN_MIN_TLV_SIZE + (unsigned long)params->pin_data.data_len;
     WRITE_8_BIT_VAL (param_ptr, params->pin_data.data_len);;
 
     memcpy (param_ptr, (char *)params->pin_data.data_ptr,
             params->pin_data.data_len);
 
-    if (size >= (QMI_UIM_VERIFY_PIN_ALL_TLV_SIZE - offset))
+    if (size + offset >= (unsigned long)QMI_UIM_VERIFY_PIN_ALL_TLV_SIZE)
     {
       return QMI_INTERNAL_ERR;
     }
@@ -1234,7 +1235,7 @@ static int qmi_uim_write_unblock_pin_tlv
   unsigned char     param_buf [QMI_UIM_UNBLOCK_PIN_ALL_TLV_SIZE];
   unsigned char   * param_ptr = param_buf;
   unsigned long     size = QMI_UIM_SESSION_INFORMATION_MIN_TLV_SIZE;
-  unsigned short    offset = 0;
+  unsigned long     offset = 0;
 
   /* First write Session Info TLV */
   WRITE_8_BIT_VAL (param_ptr, params->session_info.session_type);
@@ -1333,7 +1334,7 @@ static int qmi_uim_write_change_pin_tlv
   unsigned char     param_buf [QMI_UIM_CHANGE_PIN_ALL_TLV_SIZE];
   unsigned char   * param_ptr = param_buf;
   unsigned long     size = QMI_UIM_SESSION_INFORMATION_MIN_TLV_SIZE;
-  unsigned short    offset = 0;
+  unsigned long     offset = 0;
 
   /* First write Session Info TLV */
   WRITE_8_BIT_VAL (param_ptr, params->session_info.session_type);
@@ -4452,6 +4453,8 @@ static void qmi_uim_srvc_async_cb
   unsigned long                 length;
   unsigned char               * value_ptr;
 
+  (void) srvc_async_cb_data;
+
   QMI_DEBUG_MSG_1("qmi_uim_srvc_async_cb: msg_id = 0x%x", msg_id);
 
   memset((void*)&rsp_data, 0x0, sizeof(rsp_data));
@@ -5033,7 +5036,7 @@ int qmi_uim_read_transparent
   unsigned char    *msg = NULL;
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int               max_msg_size = 0;
+  unsigned int      max_msg_size = 0;
   int rc;
 
   if (!params)
@@ -5052,7 +5055,7 @@ int qmi_uim_read_transparent
   /* Calculate max buffer size - note that this max size should satify
      as both request & response buffers (read data + headers) */
   max_msg_size = (params->length <= 0) ? QMI_MAX_MSG_SIZE :
-                 (params->length + QMI_UIM_STD_MSG_SIZE);
+                 ((unsigned int)params->length + QMI_UIM_STD_MSG_SIZE);
 
   /* Allocate buffer for the message dynamically since it could be very large */
   msg = (unsigned char *) malloc (max_msg_size);
@@ -5069,7 +5072,7 @@ int qmi_uim_read_transparent
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
 
   /* Set message size to the complete buffer minus the header size */
-  msg_size = QMI_SRVC_PDU_SIZE(max_msg_size);
+  msg_size = (int)QMI_SRVC_PDU_SIZE(max_msg_size);
 
   /* Construct TLV for Read Transparent request */
   if (qmi_uim_write_read_transparent_tlv (&tmp_msg_ptr,
@@ -5103,7 +5106,7 @@ int qmi_uim_read_transparent
                                     (int)QMI_SRVC_PDU_SIZE(max_msg_size) - msg_size,
                                     msg,
                                     &msg_size,
-                                    max_msg_size,
+                                    (int)max_msg_size,
                                     QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                     &rsp_data->qmi_err_code);
     /* Prepare the response data */
@@ -5611,7 +5614,7 @@ int qmi_uim_refresh_register
 {
   unsigned char    *msg_ptr = NULL;
   int               msg_size;
-  int               max_msg_size = 0;
+  unsigned int      max_msg_size = 0;
   unsigned char    *tmp_msg_ptr;
   unsigned char    *param_ptr = NULL;
   unsigned int      param_size = 0;
@@ -5632,10 +5635,10 @@ int qmi_uim_refresh_register
 
   /* Calculate max buffer size needed - TLV data + headers) */
   max_msg_size = QMI_UIM_STD_MSG_SIZE +
-                   (QMI_UIM_FILE_ID_MAX_TLV_SIZE * params->num_files);
+                   (QMI_UIM_FILE_ID_MAX_TLV_SIZE * (unsigned int)params->num_files);
 
   /* Allocate buffer for the message dynamically */
-  msg_ptr = (unsigned char *) malloc (max_msg_size);
+  msg_ptr = (unsigned char *) malloc ((size_t)max_msg_size);
   if (msg_ptr == NULL)
   {
     QMI_ERR_MSG_0 ("Dynamic memory allocation failed for qmi_uim_refresh_register\n");
@@ -5649,11 +5652,11 @@ int qmi_uim_refresh_register
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg_ptr);
 
   /* Set message size to the complete buffer minus the header size */
-  msg_size = QMI_SRVC_PDU_SIZE(max_msg_size);
+  msg_size = (int)QMI_SRVC_PDU_SIZE(max_msg_size);
 
   /* Allocate memory for all TLVs needed for refresh register */
   param_size = QMI_UIM_REFRESH_REGISTER_ALL_TLV_SIZE +
-               (QMI_UIM_FILE_ID_MAX_TLV_SIZE * params->num_files);
+               (QMI_UIM_FILE_ID_MAX_TLV_SIZE * (unsigned int)params->num_files);
   param_ptr = (unsigned char *) malloc (param_size);
   if (param_ptr == NULL)
   {
@@ -5695,7 +5698,7 @@ int qmi_uim_refresh_register
                                     (int)QMI_SRVC_PDU_SIZE(max_msg_size) - msg_size,
                                     msg_ptr,
                                     &msg_size,
-                                    max_msg_size,
+                                    (int)max_msg_size,
                                     QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                     &rsp_data->qmi_err_code);
   }

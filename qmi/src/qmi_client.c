@@ -12,7 +12,7 @@
   service specific messages
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2007-2010,2012 Qualcomm Technologies, Inc. All Rights Reserved. 
+  Copyright (c) 2007-2010,2012,2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -46,7 +46,7 @@ qmi_client_decode_msg_async
   void                           *resp_buf,
   int                            resp_buf_len,
   void                           *resp_c_struct,
-  void                           *resp_c_struct_len,
+  int                            resp_c_struct_len,
   qmi_client_recv_msg_async_cb   resp_cb,
   void                           *resp_cb_data
 );
@@ -294,7 +294,7 @@ qmi_client_send_raw_msg_async
                                     NULL,
                                     user_handle,
                                     resp_buf,
-                                    &resp_buf_len,
+                                    resp_buf_len,
                                     QMI_QCCI_APIS,
                                     &txn)) < 0 )
    {
@@ -494,7 +494,7 @@ qmi_client_send_msg_async
                                     &qmi_client_decode_msg_async,
                                     user_handle,
                                     resp_c_struct,
-                                    (void*)resp_c_struct_len,
+                                    resp_c_struct_len,
                                     QMI_QCCI_APIS,
                                     &txn)) < 0 )
    {
@@ -550,7 +550,7 @@ qmi_client_decode_msg_async
   void                           *resp_buf,
   int                            resp_buf_len,
   void                           *resp_c_struct,
-  void                           *resp_c_struct_len,
+  int                            resp_c_struct_len,
   qmi_client_recv_msg_async_cb   resp_cb,
   void                           *resp_cb_data
 )
@@ -560,7 +560,7 @@ qmi_client_decode_msg_async
 
     if (!user_handle)
     {
-        return;// QMI_SERVICE_ERR_INVALID_HANDLE;
+        return;
     }
 
     if ( NULL != _qmi_service_hook_response_passthrough ) {
@@ -730,7 +730,7 @@ qmi_client_send_msg_sync
   if (rc != QMI_NO_ERR ) {
       return rc;
   }
-      
+
   max_msg_len = (req_max_msg_len >= reply_max_buf_len )? req_max_msg_len : reply_max_buf_len;
 
   msg = malloc(max_msg_len + QMI_MAX_HDR_SIZE);
@@ -761,7 +761,7 @@ qmi_client_send_msg_sync
       return rc;
   }
   }
- 
+
   if (NULL != _qmi_service_hook_request_passthrough ) {
 
       (*_qmi_service_hook_request_passthrough)( user_handle->p_service, msg_id, tmp_msg_ptr, encode_ret_val );
@@ -789,7 +789,7 @@ qmi_client_send_msg_sync
          free(msg);
          return rc;
      }
-  
+
    /* The return data is expected to be present in the (msg) buffer,
       if the qmi_service_send_msg_sync_millisec  function succeeds */
   /* Set tmp_msg_ptr to return data */
@@ -969,7 +969,7 @@ qmi_client_message_decode
  =========================================================================*/
 /*!
 @brief
-  
+
 
 @return
   QMI_NO_ERR if function is successful, error code otherwise.
@@ -990,7 +990,7 @@ qmi_client_get_service_version
     qmi_idl_service_object_type    service_obj,
     qmi_service_version_info      *service_version_info
 )
-{ 
+{
     qmi_client_error_type           rc;
     uint32_t                        service_id;
     qmi_connection_id_type          conn_id;
@@ -1003,7 +1003,7 @@ qmi_client_get_service_version
     if (service_id_rc !=  QMI_NO_ERR) {
         return service_id_rc;
     }
-  
+
     rc = qmi_service_get_version( dev_id,
                                   service_id,
                                   service_version_info,
@@ -1017,7 +1017,7 @@ qmi_client_get_service_version
  =========================================================================*/
 /*!
 @brief
-  
+
   installs internal hooks for QMI request and response bytestream traffic
 @return
   none

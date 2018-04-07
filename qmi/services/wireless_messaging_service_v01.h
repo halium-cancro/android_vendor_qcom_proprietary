@@ -1,51 +1,50 @@
-#ifndef WMS_SERVICE_H
-#define WMS_SERVICE_H
+#ifndef WMS_SERVICE_01_H
+#define WMS_SERVICE_01_H
 /**
   @file wireless_messaging_service_v01.h
-  
+
   @brief This is the public header file which defines the wms service Data structures.
 
-  This header file defines the types and structures that were defined in 
+  This header file defines the types and structures that were defined in
   wms. It contains the constant values defined, enums, structures,
-  messages, and service message IDs (in that order) Structures that were 
-  defined in the IDL as messages contain mandatory elements, optional 
-  elements, a combination of mandatory and optional elements (mandatory 
+  messages, and service message IDs (in that order) Structures that were
+  defined in the IDL as messages contain mandatory elements, optional
+  elements, a combination of mandatory and optional elements (mandatory
   always come before optionals in the structure), or nothing (null message)
-   
+
   An optional element in a message is preceded by a uint8_t value that must be
   set to true if the element is going to be included. When decoding a received
   message, the uint8_t values will be set to true or false by the decode
   routine, and should be checked before accessing the values that they
-  correspond to. 
-   
+  correspond to.
+
   Variable sized arrays are defined as static sized arrays with an unsigned
   integer (32 bit) preceding it that must be set to the number of elements
   in the array that are valid. For Example:
-   
+
   uint32_t test_opaque_len;
   uint8_t test_opaque[16];
-   
+
   If only 4 elements are added to test_opaque[] then test_opaque_len must be
   set to 4 before sending the message.  When decoding, the _len value is set 
-  by the decode routine and should be checked so that the correct number of 
-  elements in the array will be accessed. 
+  by the decode routine and should be checked so that the correct number of
+  elements in the array will be accessed.
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2009-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2009-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/wms/main/latest/api/wireless_messaging_service_v01.h#21 $
+  $Header: //source/qcom/qct/interfaces/qmi/wms/main/latest/api/wireless_messaging_service_v01.h#32 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
- *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
+ *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.1 
-   It requires encode/decode library version 5 or later
-   It was generated on: Fri Feb 15 2013 (Spin 0)
+/* This file was generated with Tool version 6.7 
+   It was generated on: Wed Mar 26 2014 (Spin 0)
    From IDL File: wireless_messaging_service_v01.idl */
 
 /** @defgroup wms_qmi_consts Constant values defined in the IDL */
@@ -65,19 +64,19 @@
 extern "C" {
 #endif
 
-/** @addtogroup wms_qmi_version 
-    @{ 
-  */ 
+/** @addtogroup wms_qmi_version
+    @{
+  */
 /** Major Version Number of the IDL used to generate this file */
 #define WMS_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define WMS_V01_IDL_MINOR_VERS 0x12
+#define WMS_V01_IDL_MINOR_VERS 0x17
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define WMS_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define WMS_V01_MAX_MESSAGE_ID 0x005F;
-/** 
-    @} 
+#define WMS_V01_MAX_MESSAGE_ID 0x0060
+/**
+    @}
   */
 
 
@@ -95,15 +94,18 @@ extern "C" {
 #define WMS_ADDRESS_TYPE_MAX_V01 3
 #define WMS_3GPP_BROADCAST_CONFIG_MAX_V01 50
 #define WMS_3GPP2_BROADCAST_CONFIG_MAX_V01 50
+#define WMS_TRANSPORT_MWI_ADDR_LENGTH_MAX_V01 200
+#define WMS_TRANSPORT_MWI_DATE_LENGTH_MAX_V01 50
+#define WMS_TRANSPORT_MWI_TUPLE_MAX_V01 50
 /**
     @}
   */
 
-/*
- * wms_reset_req_msg is empty
- * typedef struct {
- * }wms_reset_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_reset_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -139,7 +141,7 @@ typedef struct {
   /*  MO SMS Call Control Information */
   uint8_t report_call_control_info_valid;  /**< Must be set to true if report_call_control_info is being passed */
   uint8_t report_call_control_info;
-  /**<   Report MO SMS call control information. Values:\n
+  /**<   Report MO SMS call control information. Values: \n
          - 0x00 -- Disable \n
          - 0x01 -- Enable 
     */
@@ -148,7 +150,7 @@ typedef struct {
   /*  MWI Message Indicator */
   uint8_t report_mwi_message_valid;  /**< Must be set to true if report_mwi_message is being passed */
   uint8_t report_mwi_message;
-  /**<   Report new MWI messages. Values:\n
+  /**<   Report new MWI messages. Values: \n
          - 0x00 -- Disable \n
          - 0x01 -- Enable 
     */
@@ -197,7 +199,7 @@ typedef struct {
     */
 
   uint32_t storage_index;
-  /**<   MT message index*/
+  /**<   MT message index. */
 }wms_mt_message_type_v01;  /* Type */
 /**
     @}
@@ -244,7 +246,7 @@ typedef struct {
     */
 
   uint32_t transaction_id;
-  /**<   Transaction ID of the message*/
+  /**<   Transaction ID of the message. */
 
   wms_message_format_enum_v01 format;
   /**<   Message format. Values: \n
@@ -256,7 +258,7 @@ typedef struct {
 
   uint32_t data_len;  /**< Must be set to # of elements in data */
   uint8_t data[WMS_MESSAGE_LENGTH_MAX_V01];
-  /**<   Raw message data*/
+  /**<   Raw message data. */
 }wms_transfer_route_mt_message_type_v01;  /* Type */
 /**
     @}
@@ -303,7 +305,7 @@ typedef struct {
 
   uint32_t data_len;  /**< Must be set to # of elements in data */
   uint8_t data[WMS_ETWS_MESSAGE_LENGTH_MAX_V01];
-  /**<   Raw message data*/
+  /**<   Raw message data. */
 }wms_etws_message_type_v01;  /* Type */
 /**
     @}
@@ -335,7 +337,7 @@ typedef struct {
 
   uint32_t data_len;  /**< Must be set to # of elements in data */
   uint8_t data[WMS_SMSC_ADDRESS_LENGTH_MAX_V01];
-  /**<   SMSC Address*/
+  /**<   SMSC address. */
 }wms_mt_message_smsc_address_type_v01;  /* Type */
 /**
     @}
@@ -346,9 +348,9 @@ typedef struct {
   */
 typedef enum {
   WMS_MO_CONTROL_INFO_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WMS_MO_CONTROL_DISALLOW_V01 = 0x00, /**<  MO SMS control disallows the MO message.  */
-  WMS_MO_CONTROL_ALLOW_V01 = 0x01, /**<  MO SMS control allows MO message with no modification.  */
-  WMS_MO_CONTROL_ALLOW_BUT_MODIFIED_V01 = 0x02, /**<  MO SMS control allows MO message with modification.  */
+  WMS_MO_CONTROL_DISALLOW_V01 = 0x00, /**<  Disallow the MO message \n  */
+  WMS_MO_CONTROL_ALLOW_V01 = 0x01, /**<  Allow the MO message with no modification \n  */
+  WMS_MO_CONTROL_ALLOW_BUT_MODIFIED_V01 = 0x02, /**<  Allow the MO message with modification  */
   WMS_MO_CONTROL_INFO_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wms_mo_control_info_enum_v01;
 /**
@@ -361,10 +363,10 @@ typedef enum {
 typedef struct {
 
   wms_mo_control_info_enum_v01 mo_control_type;
-  /**<   MO Control Type. Values: \n
-      - WMS_MO_CONTROL_DISALLOW (0x00) --  MO SMS control disallows the MO message. 
-      - WMS_MO_CONTROL_ALLOW (0x01) --  MO SMS control allows MO message with no modification. 
-      - WMS_MO_CONTROL_ALLOW_BUT_MODIFIED (0x02) --  MO SMS control allows MO message with modification. 
+  /**<   MO SMS control. Values: \n
+      - WMS_MO_CONTROL_DISALLOW (0x00) --  Disallow the MO message \n 
+      - WMS_MO_CONTROL_ALLOW (0x01) --  Allow the MO message with no modification \n 
+      - WMS_MO_CONTROL_ALLOW_BUT_MODIFIED (0x02) --  Allow the MO message with modification 
  */
 
   uint32_t alpha_id_len;  /**< Must be set to # of elements in alpha_id */
@@ -451,7 +453,7 @@ typedef struct {
 
   uint32_t raw_message_len;  /**< Must be set to # of elements in raw_message */
   uint8_t raw_message[WMS_MESSAGE_LENGTH_MAX_V01];
-  /**<   Raw message data*/
+  /**<   Raw message data. */
 }wms_send_raw_message_data_type_v01;  /* Type */
 /**
     @}
@@ -784,7 +786,7 @@ typedef struct {
 
   uint32_t alpha_id_len;  /**< Must be set to # of elements in alpha_id */
   uint8_t alpha_id[WMS_ALPHA_ID_LENGTH_MAX_V01];
-  /**<   Alpha ID.*/
+  /**<   Alpha ID. */
 }wms_call_control_modified_info_type_v01;  /* Type */
 /**
     @}
@@ -797,13 +799,13 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Message ID */
-  uint16_t message_id;
-  /**<   WMS message ID*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Message ID */
+  uint16_t message_id;
+  /**<   WMS message ID. */
 
   /* Optional */
   /*  Cause Code* */
@@ -874,7 +876,7 @@ typedef struct {
 
   uint32_t raw_message_len;  /**< Must be set to # of elements in raw_message */
   uint8_t raw_message[WMS_MESSAGE_LENGTH_MAX_V01];
-  /**<   Raw message buffer*/
+  /**<   Raw message buffer. */
 }wms_raw_message_write_data_type_v01;  /* Type */
 /**
     @}
@@ -927,13 +929,13 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Message Memory Storage Identification */
-  uint32_t storage_index;
-  /**<   Memory index*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Message Memory Storage Identification */
+  uint32_t storage_index;
+  /**<   Memory index. */
 }wms_raw_write_resp_msg_v01;  /* Message */
 /**
     @}
@@ -951,7 +953,7 @@ typedef struct {
     */
 
   uint32_t storage_index;
-  /**<   Memory index*/
+  /**<   Memory index. */
 }wms_message_memory_storage_identification_type_v01;  /* Type */
 /**
     @}
@@ -1015,7 +1017,7 @@ typedef struct {
 
   uint32_t data_len;  /**< Must be set to # of elements in data */
   uint8_t data[WMS_MESSAGE_LENGTH_MAX_V01];
-  /**<   Raw message data*/
+  /**<   Raw message data. */
 }wms_read_raw_message_data_type_v01;  /* Type */
 /**
     @}
@@ -1029,12 +1031,12 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Raw Message Data */
-  wms_read_raw_message_data_type_v01 raw_message_data;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Raw Message Data */
+  wms_read_raw_message_data_type_v01 raw_message_data;
 }wms_raw_read_resp_msg_v01;  /* Message */
 /**
     @}
@@ -1052,7 +1054,7 @@ typedef struct {
     */
 
   uint32_t storage_index;
-  /**<   Memory index*/
+  /**<   Memory index. */
 
   wms_message_tag_type_enum_v01 tag_type;
   /**<   Message tag. Values: \n 
@@ -1123,8 +1125,8 @@ typedef struct {
   /*  Memory Index */
   uint8_t index_valid;  /**< Must be set to true if index is being passed */
   uint32_t index;
-  /**<   Indicates the storage index of the message of
- interest*/
+  /**<   Indicates the storage index of the relevant message. 
+    */
 
   /* Optional */
   /*  Message Tag */
@@ -1164,11 +1166,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_message_protocol_req_msg is empty
- * typedef struct {
- * }wms_get_message_protocol_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_message_protocol_req_msg_v01;
 
 /** @addtogroup wms_qmi_enums
     @{
@@ -1190,16 +1192,16 @@ typedef enum {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Message Protocol */
   wms_message_protocol_enum_v01 message_protocol;
   /**<   WMS message protocol. Values: \n 
          - 0x00 -- MESSAGE_PROTOCOL_ CDMA \n 
          - 0x01 -- MESSAGE_PROTOCOL_ WCDMA
     */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wms_get_message_protocol_resp_msg_v01;  /* Message */
 /**
     @}
@@ -1251,7 +1253,8 @@ typedef struct {
 typedef struct {
 
   uint32_t message_index;
-  /**<   Message index of each matched message*/
+  /**<   Message index of each matched message. 
+    */
 
   wms_message_tag_type_enum_v01 tag_type;
   /**<   Message tag. Values: \n 
@@ -1274,13 +1277,13 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Message List */
   uint32_t message_tuple_len;  /**< Must be set to # of elements in message_tuple */
   wms_message_tuple_type_v01 message_tuple[WMS_MESSAGE_TUPLE_MAX_V01];
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wms_list_messages_resp_msg_v01;  /* Message */
 /**
     @}
@@ -1439,11 +1442,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_routes_req_msg is empty
- * typedef struct {
- * }wms_get_routes_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_routes_req_msg_v01;
 
 /** @addtogroup wms_qmi_aggregates
     @{
@@ -1506,13 +1509,13 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Route List */
   uint32_t route_list_len;  /**< Must be set to # of elements in route_list */
   wms_get_route_list_tuple_type_v01 route_list[WMS_ROUTE_TUPLE_MAX_V01];
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 
   /* Optional */
   /*  Transfer Status Report** */
@@ -1531,11 +1534,22 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_smsc_address_req_msg is empty
- * typedef struct {
- * }wms_get_smsc_address_req_msg_v01;
- */
+/** @addtogroup wms_qmi_messages
+    @{
+  */
+/** Request Message; Queries the currently configured SMSC address. */
+typedef struct {
+
+  /* Optional */
+  /*  SMSC Address Index */
+  uint8_t index_valid;  /**< Must be set to true if index is being passed */
+  uint8_t index;
+  /**<   Memory index to read a SMSC address from a specific index in EF-SMSP.
+  */
+}wms_get_smsc_address_req_msg_v01;  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wms_qmi_aggregates
     @{
@@ -1566,12 +1580,12 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  SMSC Address */
-  wms_smsc_address_type_v01 smsc_address;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  SMSC Address */
+  wms_smsc_address_type_v01 smsc_address;
 }wms_get_smsc_address_resp_msg_v01;  /* Message */
 /**
     @}
@@ -1597,6 +1611,14 @@ typedef struct {
   char smsc_address_type[WMS_ADDRESS_TYPE_MAX_V01 + 1];
   /**<   NULL-terminated string containing the type of SMSC address, 
        given in ASCII digits (maximum three digits)
+  */
+
+  /* Optional */
+  /* SMSC Address Index */
+  uint8_t index_valid;  /**< Must be set to true if index is being passed */
+  uint8_t index;
+  /**<   Indicates the record index where the SMSC address needs to 
+       be written.
   */
 }wms_set_smsc_address_req_msg_v01;  /* Message */
 /**
@@ -1655,19 +1677,19 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Memory Store Size */
-  uint32_t mem_store_max_size;
-  /**<   Maximum number of messages for this memory storage*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Memory Store Size */
+  uint32_t mem_store_max_size;
+  /**<   Maximum number of messages for this memory storage. */
 
   /* Optional */
   /*  Memory Available */
   uint8_t free_slots_valid;  /**< Must be set to true if free_slots is being passed */
   uint32_t free_slots;
-  /**<   Number of slots currently available for this memory storage*/
+  /**<   Number of slots currently available for this memory storage. */
 }wms_get_store_max_size_resp_msg_v01;  /* Message */
 /**
     @}
@@ -2404,11 +2426,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_domain_pref_req_msg is empty
- * typedef struct {
- * }wms_get_domain_pref_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_domain_pref_req_msg_v01;
 
 /** @addtogroup wms_qmi_enums
     @{
@@ -2432,6 +2454,10 @@ typedef enum {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Domain Pref */
   wms_domain_pref_enum_v01 domain_pref;
   /**<   GW domain preference. Values: \n 
@@ -2440,10 +2466,6 @@ typedef struct {
        - 0x02 -- DOMAIN_PREF_CS_ONLY -- CS only \n 
        - 0x03 -- DOMAIN_PREF_PS_ONLY -- PS only
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wms_get_domain_pref_resp_msg_v01;  /* Message */
 /**
     @}
@@ -2494,7 +2516,7 @@ typedef struct {
   */
 
   uint32_t storage_index;
-  /**<   Memory Index*/
+  /**<   Memory index. */
 
   wms_message_mode_enum_v01 message_mode;
   /**<   Message mode. Value: \n 
@@ -2545,7 +2567,7 @@ typedef struct {
   /*  Message ID */
   uint8_t message_id_valid;  /**< Must be set to true if message_id is being passed */
   uint16_t message_id;
-  /**<   WMS message ID*/
+  /**<   WMS message ID. */
 
   /* Optional */
   /*  Cause Code* */
@@ -2581,11 +2603,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_message_waiting_req_msg is empty
- * typedef struct {
- * }wms_get_message_waiting_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_message_waiting_req_msg_v01;
 
 /** @addtogroup wms_qmi_enums
     @{
@@ -2611,9 +2633,9 @@ typedef struct {
   wmi_wms_message_type_enum_v01 message_type;
   /**<   Message type. Values: \n 
          - 0x00 -- MWI_MESSAGE_TYPE_ VOICEMAIL -- Voicemail \n 
-         - 0x01 -- MWI_MESSAGE_TYPE_FAX        -- Fax \n 
-         - 0x02 -- MWI_MESSAGE_TYPE_ EMAIL      -- Email \n 
-         - 0x03 -- MWI_MESSAGE_TYPE_ OTHER      -- Other \n 
+         - 0x01 -- MWI_MESSAGE_TYPE_ FAX       -- Fax \n 
+         - 0x02 -- MWI_MESSAGE_TYPE_ EMAIL     -- Email \n 
+         - 0x03 -- MWI_MESSAGE_TYPE_ OTHER     -- Other \n 
          - 0x04 -- MWI_MESSAGE_TYPE_ VIDEOMAIL -- Videomail
     */
 
@@ -2637,14 +2659,14 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Message Waiting Information */
-  uint32_t message_waiting_info_len;  /**< Must be set to # of elements in message_waiting_info */
-  wms_message_waiting_information_type_v01 message_waiting_info[WMS_MESSAGE_TUPLE_MAX_V01];
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. */
+
+  /* Mandatory */
+  /*  Message Waiting Information */
+  uint32_t message_waiting_info_len;  /**< Must be set to # of elements in message_waiting_info */
+  wms_message_waiting_information_type_v01 message_waiting_info[WMS_MESSAGE_TUPLE_MAX_V01];
 }wms_get_message_waiting_resp_msg_v01;  /* Message */
 /**
     @}
@@ -2767,6 +2789,15 @@ typedef struct {
        - 0x00 -- Disable \n
        - 0x01 -- Enable
   */
+
+  /* Optional */
+  /*  Transport Layer MWI Information Events */
+  uint8_t reg_transport_layer_mwi_info_events_valid;  /**< Must be set to true if reg_transport_layer_mwi_info_events is being passed */
+  uint8_t reg_transport_layer_mwi_info_events;
+  /**<   Values: \n
+       - 0x00 -- Disable \n
+       - 0x01 -- Enable
+  */
 }wms_indication_register_req_msg_v01;  /* Message */
 /**
     @}
@@ -2788,11 +2819,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_transport_layer_req_msg is empty
- * typedef struct {
- * }wms_get_transport_layer_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_transport_layer_req_msg_v01;
 
 /** @addtogroup wms_qmi_enums
     @{
@@ -2891,11 +2922,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_transport_nw_reg_req_msg is empty
- * typedef struct {
- * }wms_get_transport_nw_reg_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_transport_nw_reg_req_msg_v01;
 
 /** @addtogroup wms_qmi_enums
     @{
@@ -3012,11 +3043,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_indication_register_req_msg is empty
- * typedef struct {
- * }wms_get_indication_register_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_indication_register_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -3072,6 +3103,15 @@ typedef struct {
   uint8_t reg_broadcast_config_events;
   /**<   Values: \n 
        - 0x00 -- Disable \n 
+       - 0x01 -- Enable
+  */
+
+  /* Optional */
+  /*  Transport Layer MWI Information Events */
+  uint8_t reg_transport_layer_mwi_info_events_valid;  /**< Must be set to true if reg_transport_layer_mwi_info_events is being passed */
+  uint8_t reg_transport_layer_mwi_info_events;
+  /**<   Values: \n
+       - 0x00 -- Disable \n
        - 0x01 -- Enable
   */
 }wms_get_indication_register_resp_msg_v01;  /* Message */
@@ -3294,11 +3334,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_domain_pref_config_req_msg is empty
- * typedef struct {
- * }wms_get_domain_pref_config_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_domain_pref_config_req_msg_v01;
 
 /** @addtogroup wms_qmi_enums
     @{
@@ -3409,11 +3449,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_retry_period_req_msg is empty
- * typedef struct {
- * }wms_get_retry_period_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_retry_period_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -3437,11 +3477,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_retry_interval_req_msg is empty
- * typedef struct {
- * }wms_get_retry_interval_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_retry_interval_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -3465,11 +3505,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_dc_disconnect_timer_req_msg is empty
- * typedef struct {
- * }wms_get_dc_disconnect_timer_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_dc_disconnect_timer_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -3493,11 +3533,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_memory_status_req_msg is empty
- * typedef struct {
- * }wms_get_memory_status_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_memory_status_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -3522,11 +3562,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_primary_client_req_msg is empty
- * typedef struct {
- * }wms_get_primary_client_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_primary_client_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -3552,11 +3592,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_subscription_binding_req_msg is empty
- * typedef struct {
- * }wms_get_subscription_binding_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_subscription_binding_req_msg_v01;
 
 /** @addtogroup wms_qmi_messages
     @{
@@ -4013,11 +4053,11 @@ typedef struct {
     @}
   */
 
-/*
- * wms_get_service_ready_status_req_msg is empty
- * typedef struct {
- * }wms_get_service_ready_status_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wms_get_service_ready_status_req_msg_v01;
 
 /** @addtogroup wms_qmi_enums
     @{
@@ -4149,6 +4189,138 @@ typedef struct {
     @}
   */
 
+/** @addtogroup wms_qmi_enums
+    @{
+  */
+typedef enum {
+  TRANSPORT_MWI_WMS_MESSAGE_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  TRANSPORT_MWI_MESSAGE_TYPE_VOICEMAIL_V01 = 0x00, 
+  TRANSPORT_MWI_MESSAGE_TYPE_VIDEOMAIL_V01 = 0x01, 
+  TRANSPORT_MWI_MESSAGE_TYPE_FAX_V01 = 0x02, 
+  TRANSPORT_MWI_MESSAGE_TYPE_PAGER_V01 = 0x03, 
+  TRANSPORT_MWI_MESSAGE_TYPE_MULTIMEDIA_V01 = 0x04, 
+  TRANSPORT_MWI_MESSAGE_TYPE_TEXT_V01 = 0x05, 
+  TRANSPORT_MWI_WMS_MESSAGE_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}transport_mwi_wms_message_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wms_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  transport_mwi_wms_message_type_enum_v01 message_type;
+  /**<   Message type. Values: \n 
+      - TRANSPORT_MWI_MESSAGE_TYPE_VOICEMAIL (0x00) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_VIDEOMAIL (0x01) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_FAX (0x02) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_PAGER (0x03) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_MULTIMEDIA (0x04) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_TEXT (0x05) -- 
+ */
+
+  uint16_t new_msg;
+  /**<   Number of new MWI messages. */
+
+  uint16_t old_msg;
+  /**<   Number of old MWI messages. */
+
+  uint16_t new_urgent;
+  /**<   Number of urgent and new MWI messages. */
+
+  uint16_t old_urgent;
+  /**<   Number of urgent and old MWI messages. */
+}wms_mwi_summary_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wms_qmi_enums
+    @{
+  */
+typedef enum {
+  WMS_MWI_PRIORITY_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WMS_UNKNOWN_PRIORITY_V01 = 0x00, 
+  WMS_LOW_PRIORITY_V01 = 0x01, 
+  WMS_NORMAL_PRIORITY_V01 = 0x02, 
+  WMS_URGENT_PRIORITY_V01 = 0x03, 
+  WMS_MWI_PRIORITY_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wms_mwi_priority_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wms_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  transport_mwi_wms_message_type_enum_v01 message_type;
+  /**<   Message type. Values: \n
+      - TRANSPORT_MWI_MESSAGE_TYPE_VOICEMAIL (0x00) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_VIDEOMAIL (0x01) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_FAX (0x02) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_PAGER (0x03) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_MULTIMEDIA (0x04) -- 
+      - TRANSPORT_MWI_MESSAGE_TYPE_TEXT (0x05) -- 
+ */
+
+  char to_address[WMS_TRANSPORT_MWI_ADDR_LENGTH_MAX_V01 + 1];
+  /**<   Destination Address. */
+
+  char from_address[WMS_TRANSPORT_MWI_ADDR_LENGTH_MAX_V01 + 1];
+  /**<   Sender's Address. */
+
+  char subject[WMS_TRANSPORT_MWI_ADDR_LENGTH_MAX_V01 + 1];
+  /**<   Subject line. */
+
+  char date_time[WMS_TRANSPORT_MWI_DATE_LENGTH_MAX_V01 + 1];
+  /**<   Date and timestamp. */
+
+  wms_mwi_priority_type_enum_v01 priority;
+  /**<   Priority. Values: \n 
+      - WMS_UNKNOWN_PRIORITY (0x00) -- 
+      - WMS_LOW_PRIORITY (0x01) -- 
+      - WMS_NORMAL_PRIORITY (0x02) -- 
+      - WMS_URGENT_PRIORITY (0x03) -- 
+ */
+
+  char message_id[WMS_TRANSPORT_MWI_ADDR_LENGTH_MAX_V01 + 1];
+  /**<   MWI message identifier. */
+}wms_mwi_detail_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wms_qmi_messages
+    @{
+  */
+/** Indication Message; This broadcast indication is sent when the message waiting 
+             information changes. */
+typedef struct {
+
+  /* Mandatory */
+  /*  MWI Message Summary */
+  uint32_t message_waiting_summary_info_len;  /**< Must be set to # of elements in message_waiting_summary_info */
+  wms_mwi_summary_type_v01 message_waiting_summary_info[WMS_MESSAGE_TUPLE_MAX_V01];
+
+  /* Mandatory */
+  /*  Message Account Address */
+  char UE_address[WMS_TRANSPORT_MWI_ADDR_LENGTH_MAX_V01 + 1];
+  /**<   Message account address. */
+
+  /* Optional */
+  /*  MWI Message Details */
+  uint8_t message_waiting_detail_info_valid;  /**< Must be set to true if message_waiting_detail_info is being passed */
+  uint32_t message_waiting_detail_info_len;  /**< Must be set to # of elements in message_waiting_detail_info */
+  wms_mwi_detail_type_v01 message_waiting_detail_info[WMS_TRANSPORT_MWI_TUPLE_MAX_V01];
+}wms_transport_layer_mwi_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
 /*Service Message Definition*/
 /** @addtogroup wms_qmi_msg_ids
     @{
@@ -4263,6 +4435,7 @@ typedef struct {
 #define QMI_WMS_BROADCAST_CONFIG_IND_V01 0x005E
 #define QMI_WMS_SET_MESSAGE_WAITING_REQ_V01 0x005F
 #define QMI_WMS_SET_MESSAGE_WAITING_RESP_V01 0x005F
+#define QMI_WMS_TRANSPORT_LAYER_MWI_IND_V01 0x0060
 /**
     @}
   */

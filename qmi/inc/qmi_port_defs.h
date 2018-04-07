@@ -116,6 +116,10 @@ typedef enum
   QMI_CONN_ID_RMNET_MDM2_6,
   QMI_CONN_ID_RMNET_MDM2_7,
 
+  /* Identifier used for MHI ports */
+  QMI_CONN_ID_RMNET_MHI_0,
+  QMI_CONN_ID_RMNET_MHI_1,
+
   QMI_CONN_ID_PROXY,                    /* Corresponds to QMI Proxy virtual port */
 
   QMI_MAX_CONN_IDS

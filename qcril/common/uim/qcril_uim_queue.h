@@ -3,21 +3,8 @@
 
 /*===========================================================================
 
-  Copyright (c) 2010-2012 Qualcomm Technologies, Inc. All Rights Reserved
-
-  Qualcomm Technologies Proprietary
-
-  Export of this technology or software is regulated by the U.S. Government.
-  Diversion contrary to U.S. law prohibited.
-
-  All ideas, data and information contained in or disclosed by
-  this document are confidential and proprietary information of
-  Qualcomm Technologies, Inc. and all rights therein are expressly reserved.
-  By accepting this material the recipient agrees that this material
-  and the information contained therein are held in confidence and in
-  trust and will not be used, copied, reproduced in whole or in part,
-  nor its contents revealed in any manner to others without the express
-  written permission of Qualcomm Technologies, Inc.
+  Copyright (c) 2010-2012, 2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Qualcomm Technologies Proprietary and Confidential.
 
 ===========================================================================*/
 
@@ -32,6 +19,12 @@ $Header: //linux/pkgs/proprietary/qc-ril/main/source/qcril_uim_queue.h#1 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+11/12/14   at      QCRIL UIM SAP support
+08/20/14   at      Support for graceful UICC Voltage supply deactivation
+06/18/14   at      Support for SelectNext using reselect QMI command
+06/11/14   at      Support for open logical channel API
+05/14/14   yt      Support for STATUS command as part of SIM_IO request
+12/11/13   at      Switch to new QCCI framework
 10/08/12   at      Support for ISIM Authentication API
 04/09/12   at      Added support for RIL_REQUEST_SIM_GET_ATR
 04/11/11   yt      Changes to support modem restart
@@ -88,9 +81,15 @@ typedef enum
   QCRIL_UIM_REQUEST_POWER_DOWN,
   QCRIL_UIM_REQUEST_CHANGE_PROV_SESSION,
   QCRIL_UIM_REQUEST_LOGICAL_CHANNEL,
+  QCRIL_UIM_REQUEST_OPEN_LOGICAL_CHANNEL,
   QCRIL_UIM_REQUEST_SEND_APDU,
   QCRIL_UIM_REQUEST_GET_ATR,
-  QCRIL_UIM_REQUEST_AUTHENTICATE
+  QCRIL_UIM_REQUEST_AUTHENTICATE,
+  QCRIL_UIM_REQUEST_SEND_STATUS,
+  QCRIL_UIM_REQUEST_RESELECT,
+  QCRIL_UIM_REQUEST_SUPPLY_VOLTAGE,
+  QCRIL_UIM_REQUEST_SAP_CONNECTION,
+  QCRIL_UIM_REQUEST_SAP_REQUEST
 } qcril_uim_request_type;
 
 
@@ -105,7 +104,7 @@ typedef enum
 typedef struct qcril_uim_queue_request_entry_type
 {
   qcril_uim_request_type                        request_type;
-  qmi_client_handle_type                        qmi_handle;
+  qmi_client_type                               qmi_handle;
   qmi_uim_user_async_cb_type                    callback_function_ptr;
   qcril_uim_original_request_type             * original_request_ptr;
   union
@@ -127,9 +126,15 @@ typedef struct qcril_uim_queue_request_entry_type
     qmi_uim_power_down_params_type              power_down;
     qmi_uim_change_prov_session_params_type     change_prov_session;
     qmi_uim_logical_channel_params_type         logical_channel;
+    qmi_uim_open_logical_channel_params_type    open_logical_channel;
     qmi_uim_send_apdu_params_type               send_apdu;
     qmi_uim_get_atr_params_type                 get_atr;
     qmi_uim_authenticate_params_type            authenticate;
+    qmi_uim_status_cmd_params_type              send_status;
+    qmi_uim_reselect_params_type                reselect;
+    qmi_uim_supply_voltage_params_type          supply_voltage;
+    qmi_uim_sap_connection_params_type          sap_connection;
+    qmi_uim_sap_request_params_type             sap_request;
   }                                             params;
   struct qcril_uim_queue_request_entry_type   * queue_next_ptr;
 } qcril_uim_queue_request_entry_type;
@@ -156,7 +161,7 @@ typedef struct qcril_uim_queue_request_entry_type
 int qcril_uim_queue_send_request
 (
   qcril_uim_request_type                     request_type,
-  qmi_client_handle_type                     qmi_handle,
+  qmi_client_type                            qmi_handle,
   const void                               * param_data_ptr,
   qmi_uim_user_async_cb_type                 callback_function_ptr,
   const qcril_uim_original_request_type    * original_request_ptr

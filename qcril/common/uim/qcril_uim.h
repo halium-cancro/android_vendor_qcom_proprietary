@@ -30,7 +30,14 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim.h#4 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+12/04/14   at      Reselect via send APDU for backward compatibility
+12/01/14   hh      Support for get MCC and MNC
+06/17/14   tl      Added logic to better determine FCI value from AID
+06/10/14   tl      Removed array structures for slot specific parameters
+04/08/14   yt      Add macro for size of encrypted PIN1 info array
+01/21/14   at      Added support for getSelectResponse()
 01/09/14   yt      Perform silent PIN verification on SAP disconnect
+12/11/13   at      Switch to new QCCI framework
 09/11/13   yt      Add slot to encrypted PIN info structure
 08/12/13   at      Added support for Long APDU indication
 03/15/13   yt      Report SIM_STATUS only after finishing silent PIN verify
@@ -57,7 +64,7 @@ when       who     what, where, why
 
 ===========================================================================*/
 #include "qcril_uim_srvc.h"
-
+#include "qcril_qmi_client.h"
 
 /*===========================================================================
 
@@ -69,6 +76,8 @@ when       who     what, where, why
 #define QCRIL_UIM_MAX_SESSION_PRIORITY_TYPES     3
 #define QCRIL_UIM_UPIN_STATE_REPLACES_PIN1       1
 #define QCRIL_UIM_ICCID_LEN                     10
+#define QCRIL_UIM_MAX_SELECT_RESP_COUNT          5
+#define QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO         2
 
 #define QCRIL_UIM_ADD_ENTRY_TO_REQUEST_LIST(params_ptr)                        \
           {                                                                    \
@@ -155,6 +164,24 @@ typedef enum
 
 
 /* -----------------------------------------------------------------------------
+   ENUM:      QCRIL_UIM_FCI_VALUE_TYPE
+
+   DESCRIPTION:
+     Indicates the values for the template requested from the card in the SELECT
+     command when the application is selected
+-------------------------------------------------------------------------------*/
+typedef enum
+{
+  QCRIL_UIM_FCI_VALUE_NO_DATA                   = 0,
+  QCRIL_UIM_FCI_VALUE_FCP                       = 1,
+  QCRIL_UIM_FCI_VALUE_FCI                       = 2,
+  QCRIL_UIM_FCI_VALUE_FCI_WITH_INTERFACES       = 3,
+  QCRIL_UIM_FCI_VALUE_FMD                       = 4,
+  QCRIL_UIM_FCI_VALUE_FCI_FALLBACK_FCP          = 5
+} qcril_uim_fci_value_type;
+
+
+/* -----------------------------------------------------------------------------
    STRUCT:      QCRIL_UIM_PHONEBOOK_FILE_INFO_TYPE
 
    DESCRIPTION:
@@ -196,6 +223,33 @@ typedef struct
   qcril_uim_prov_session_state_type      session_state_1x_indexes[QCRIL_UIM_MAX_SESSION_PRIORITY_TYPES];
 } qcril_uim_prov_session_info_type;
 
+/* -----------------------------------------------------------------------------
+   STRUCT:      QCRIL_UIM_OPEN_CHANNEL_INFO_TYPE
+
+   DESCRIPTION:
+     Structure contains the information required to recreate an open channel
+     request from the response in case a fallback is required
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  unsigned char              aid_buffer[QMI_UIM_MAX_AID_LEN];
+  unsigned short             aid_size;
+  qcril_uim_fci_value_type   fci_value;
+  qmi_uim_slot_type          slot;
+} qcril_uim_open_channel_info_type;
+
+/* -----------------------------------------------------------------------------
+   STRUCT:      QCRIL_UIM_GET_MCC_MNC_REQ_TYPE
+
+   DESCRIPTION:
+     Structure contains the information to retrieve MCC and MNC
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  char    aid_buffer[QMI_UIM_MAX_AID_LEN+1];
+  uint8   num_mnc_digits;
+  uint16  file_id;
+} qcril_uim_get_mcc_mnc_req_type;
 
 /* -----------------------------------------------------------------------------
    STRUCT:      QCRIL_UIM_ORIGINAL_REQUEST_TYPE
@@ -207,16 +261,24 @@ typedef struct
 -------------------------------------------------------------------------------*/
 typedef struct
 {
-  qcril_instance_id_e_type          instance_id;
-  qcril_modem_id_e_type             modem_id;
-  RIL_Token                         token;
-  int                               request_id;
-  qmi_uim_session_type              session_type;
+  qcril_instance_id_e_type             instance_id;
+  qcril_modem_id_e_type                modem_id;
+  RIL_Token                            token;
+  int                                  request_id;
+  qmi_uim_session_type                 session_type;
   union
   {
-    qcril_evt_e_type                qcril_evt;
-    qmi_uim_service_status_type     fdn_status;
-  }                                 data;
+    /* Change subscription */
+    qcril_evt_e_type                   qcril_evt;
+    /* Set FDN status */
+    qmi_uim_service_status_type        fdn_status;
+    /* Open logical channel */
+    qcril_uim_open_channel_info_type   channel_info;
+    /* Get MCC and MNC info */
+    qcril_uim_get_mcc_mnc_req_type     mcc_mnc_req;
+    /* Send APDU parameter */
+    qmi_uim_send_apdu_params_type      send_apdu;
+  }                                    data;
 } qcril_uim_original_request_type;
 
 
@@ -259,6 +321,24 @@ typedef struct
 
 
 /* -----------------------------------------------------------------------------
+   STRUCT:      QCRIL_UIM_SELECT_RESPONSE_INFO_TYPE
+
+   DESCRIPTION:
+     Structure that holds the info that is required to handle the long APDU
+     transaction scenario between the modem & QCRIL.
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  boolean                             in_use;
+  uint8                               channel_id;
+  uint8                               sw1;
+  uint8                               sw2;
+  uint16                              select_resp_len;
+  uint8                             * select_resp_ptr;
+} qcril_uim_select_response_info_type;
+
+
+/* -----------------------------------------------------------------------------
    STRUCT:      QCRIL_UIM_STRUCT_TYPE
 
    DESCRIPTION:
@@ -266,14 +346,14 @@ typedef struct
 -------------------------------------------------------------------------------*/
 typedef struct
 {
-  qmi_client_handle_type                qmi_handle;
+  qmi_client_type                       qmi_handle;
   qmi_uim_card_status_type              card_status;
   qcril_uim_prov_session_info_type      prov_session_info;
   qcril_uim_refresh_info_type           refresh_info;
-  int                                   qmi_msg_lib_handle;
-  boolean                               silent_pin_verify_reqd[QMI_UIM_MAX_CARD_COUNT];
-  qcril_uim_pin1_info_type              pin1_info[2];
-  qcril_uim_long_apdu_info_type         long_apdu_info[QMI_UIM_MAX_CARD_COUNT];
+  boolean                               silent_pin_verify_reqd;
+  qcril_uim_pin1_info_type              pin1_info[QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO];
+  qcril_uim_long_apdu_info_type         long_apdu_info;
+  qcril_uim_select_response_info_type   select_response_info[QCRIL_UIM_MAX_SELECT_RESP_COUNT];
 } qcril_uim_struct_type;
 
 extern qcril_uim_struct_type   qcril_uim;
@@ -377,30 +457,6 @@ void qcril_uim_response
 /*=========================================================================*/
 void qmi_uim_callback
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
-  qmi_uim_rsp_data_type        * rsp_data_ptr,
-  void                         * user_data
-);
-
-
-/*=========================================================================
-
-  FUNCTION:  qcril_uim_get_imsi_callback
-
-===========================================================================*/
-/*!
-    @brief
-    Special case callback for RIL_REQUEST_GET_IMSI.
-
-    @return
-    None
-*/
-/*=========================================================================*/
-void qcril_uim_get_imsi_callback
-(
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   qmi_uim_rsp_data_type        * rsp_data_ptr,
   void                         * user_data
 );

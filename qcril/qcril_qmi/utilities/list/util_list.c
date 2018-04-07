@@ -284,6 +284,18 @@ int util_list_auto_unlock_list(util_list_info_type *list_info)
     return ret;
 }
 
+void util_list_default_delete_evaluator(util_list_node_data_type *to_be_deleted_data)
+{
+    if (to_be_deleted_data)
+    {
+        util_memory_free(&to_be_deleted_data->user_data);
+    }
+    else
+    {
+        UTIL_LOG_MSG("Null pointer passed");
+    }
+}
+
 /***************************************************************************************************
     @function
     util_list_delete_helper
@@ -320,6 +332,7 @@ void util_list_delete_helper(util_list_info_type *list_info,
 
         to_be_deleted_node->prev = NULL;
         to_be_deleted_node->next = NULL;
+        list_info->num_of_node--;
 
         if(is_delete_data)
         {
@@ -747,6 +760,8 @@ int util_list_add(util_list_info_type *list_info,
                 }
             }
 
+            list_info->num_of_node++;
+
             ret_code = ESUCCESS;
         } while(FALSE);
 
@@ -948,16 +963,35 @@ util_list_node_data_type* util_list_find(util_list_info_type *list_info,
     return (found_node ? &found_node->node_data : NULL);
 }
 
-/***************************************************************************************************
-    @function
-    util_list_delete
+util_list_node_data_type* util_list_find_data_in_list_with_param(const util_list_info_type *list_info, int (*find_evaluator)(const util_list_node_data_type *to_be_found_data, void *compare_data), const void* compare_data)
+{
+    util_list_node_type *iter;
+    util_list_node_type *found_node;
 
-    @implementation detail
-    None.
-***************************************************************************************************/
-void util_list_delete(util_list_info_type *list_info,
-                      util_list_node_data_type *to_be_deleted_data,
-                      delete_evaluator_type delete_evaluator)
+    iter = NULL;
+    found_node = NULL;
+
+    if(list_info && find_evaluator)
+    {
+        util_list_auto_lock_list(list_info);
+        iter = list_info->list_head;
+        while(iter && !((*find_evaluator) (&iter->node_data, compare_data)))
+        {
+            iter = iter->next;
+        }
+        util_list_auto_unlock_list(list_info);
+    }
+    found_node = iter;
+
+    return (found_node ? &found_node->node_data : NULL);
+}
+
+static void util_list_delete_compared_data_from_list(
+    util_list_info_type *list_info,
+    void *to_be_deleted_data,
+    int (*comparer)(const util_list_node_data_type *node_data, void *to_be_deleted_data),
+    void (*delete_evaluator)(util_list_node_data_type *to_be_deleted_data)
+)
 {
     util_list_node_type *iter;
     util_list_node_type *to_be_deleted_node;
@@ -969,7 +1003,7 @@ void util_list_delete(util_list_info_type *list_info,
     {
         util_list_auto_lock_list(list_info);
         iter = list_info->list_head;
-        while(iter && (&iter->node_data != to_be_deleted_data))
+        while(iter && comparer(&iter->node_data, to_be_deleted_data))
         {
             iter = iter->next;
         }
@@ -981,6 +1015,36 @@ void util_list_delete(util_list_info_type *list_info,
                                 delete_evaluator);
         util_list_auto_unlock_list(list_info);
     }
+}
+
+int util_list_compare_node_data(const util_list_node_data_type *node, void* compared_data)
+{
+    util_list_node_data_type *node_data_ptr = (util_list_node_data_type *)compared_data;
+    return node != node_data_ptr;
+}
+
+/***************************************************************************************************
+    @function
+    util_list_delete
+
+    @implementation detail
+    None.
+***************************************************************************************************/
+void util_list_delete(util_list_info_type *list_info,
+                      util_list_node_data_type *to_be_deleted_data,
+                      delete_evaluator_type delete_evaluator)
+{
+    util_list_delete_compared_data_from_list(list_info, to_be_deleted_data, util_list_compare_node_data, delete_evaluator);
+}
+
+int util_list_compare_node_user_data(const util_list_node_data_type *node, void* compared_data)
+{
+    return !node || (node->user_data != compared_data);
+}
+
+void util_list_delete_data_from_list_by_user_data(util_list_info_type *list_info, void *to_be_deleted_data, void (*delete_evaluator)(util_list_node_data_type *to_be_deleted_data))
+{
+    util_list_delete_compared_data_from_list(list_info, to_be_deleted_data, util_list_compare_node_user_data, delete_evaluator);
 }
 
 /***************************************************************************************************

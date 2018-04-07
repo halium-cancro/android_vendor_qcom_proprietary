@@ -2,49 +2,49 @@
 #define UIM_SERVICE_01_H
 /**
   @file user_identity_module_v01.h
-  
+
   @brief This is the public header file which defines the uim service Data structures.
 
-  This header file defines the types and structures that were defined in 
+  This header file defines the types and structures that were defined in
   uim. It contains the constant values defined, enums, structures,
-  messages, and service message IDs (in that order) Structures that were 
-  defined in the IDL as messages contain mandatory elements, optional 
-  elements, a combination of mandatory and optional elements (mandatory 
+  messages, and service message IDs (in that order) Structures that were
+  defined in the IDL as messages contain mandatory elements, optional
+  elements, a combination of mandatory and optional elements (mandatory
   always come before optionals in the structure), or nothing (null message)
-   
+
   An optional element in a message is preceded by a uint8_t value that must be
   set to true if the element is going to be included. When decoding a received
   message, the uint8_t values will be set to true or false by the decode
   routine, and should be checked before accessing the values that they
-  correspond to. 
-   
+  correspond to.
+
   Variable sized arrays are defined as static sized arrays with an unsigned
   integer (32 bit) preceding it that must be set to the number of elements
   in the array that are valid. For Example:
-   
+
   uint32_t test_opaque_len;
   uint8_t test_opaque[16];
-   
+
   If only 4 elements are added to test_opaque[] then test_opaque_len must be
   set to 4 before sending the message.  When decoding, the _len value is set 
-  by the decode routine and should be checked so that the correct number of 
-  elements in the array will be accessed. 
+  by the decode routine and should be checked so that the correct number of
+  elements in the array will be accessed.
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/uim/main/latest/api/user_identity_module_v01.h#34 $
+  $Header: //source/qcom/qct/interfaces/qmi/uim/main/latest/api/user_identity_module_v01.h#45 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
- *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
+ *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.5 
-   It was generated on: Sat Oct 26 2013 (Spin 0)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Tue Aug 19 2014 (Spin 0)
    From IDL File: user_identity_module_v01.idl */
 
 /** @defgroup uim_qmi_consts Constant values defined in the IDL */
@@ -64,19 +64,19 @@
 extern "C" {
 #endif
 
-/** @addtogroup uim_qmi_version 
-    @{ 
-  */ 
+/** @addtogroup uim_qmi_version
+    @{
+  */
 /** Major Version Number of the IDL used to generate this file */
 #define UIM_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define UIM_V01_IDL_MINOR_VERS 0x25
+#define UIM_V01_IDL_MINOR_VERS 0x2B
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define UIM_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define UIM_V01_MAX_MESSAGE_ID 0x004D
-/** 
-    @} 
+#define UIM_V01_MAX_MESSAGE_ID 0x0054
+/**
+    @}
   */
 
 
@@ -120,6 +120,7 @@ extern "C" {
 #define QMI_UIM_PERSO_NUM_SIM_MAX_V01 32
 #define QMI_UIM_PERSO_NUM_1X_NW2_MAX_V01 128
 #define QMI_UIM_INCREASE_DATA_MAX_V01 127
+#define QMI_UIM_PROFILES_MAX_V01 8
 #define QMI_UIM_SEC_ATTRIBUTE_PIN1_BIT_V01 0
 #define QMI_UIM_SEC_ATTRIBUTE_PIN2_BIT_V01 1
 #define QMI_UIM_SEC_ATTRIBUTE_UPIN_BIT_V01 2
@@ -389,11 +390,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -402,6 +398,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Card Result */
@@ -578,11 +579,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -591,6 +587,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Card Result */
@@ -699,11 +700,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -712,6 +708,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Card Result */
@@ -812,11 +813,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -825,6 +821,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Card Result */
@@ -1082,7 +1083,7 @@ typedef struct {
   /*  File Status */
   uint8_t file_status_valid;  /**< Must be set to true if file_status is being passed */
   uim_file_status_type_v01 file_status;
-  /**<   Indicates the status of the file. Valid values:
+  /**<   Indicates the status of the file. Valid values: \n
       - UIM_FILE_STATUS_DEACTIVATED (0x00) --  File is deactivated. 
       - UIM_FILE_STATUS_ACTIVATED (0x01) --  File is activated. 
  Other values are reserved for future use and are to be ignored by
@@ -1100,11 +1101,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -1113,6 +1109,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Card Result */
@@ -1618,11 +1619,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -1630,6 +1626,11 @@ typedef struct {
        qmi_error_type  -- Error code. Possible error code values are described
                           in the error codes section of each message definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Retries Remaining (This value is returned only when the PIN operation
@@ -1772,11 +1773,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -1785,6 +1781,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Retries Remaining (This value is returned only when the PIN operation
@@ -1923,11 +1924,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -1936,6 +1932,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Retries Remaining (This value is returned only when the PIN operation
@@ -2075,11 +2076,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -2088,6 +2084,11 @@ typedef struct {
                           in the error codes section of each message
                           definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Retries Remaining (This value is returned only when the PIN operation
@@ -2182,6 +2183,22 @@ typedef struct {
     @}
   */
 
+/** @addtogroup uim_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_SLOT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_SLOT_1_V01 = 0x01, 
+  UIM_SLOT_2_V01 = 0x02, 
+  UIM_SLOT_3_V01 = 0x03, 
+  UIM_SLOT_4_V01 = 0x04, 
+  UIM_SLOT_5_V01 = 0x05, 
+  UIM_SLOT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_slot_enum_v01;
+/**
+    @}
+  */
+
 /** @addtogroup uim_qmi_messages
     @{
   */
@@ -2191,6 +2208,18 @@ typedef struct {
   /* Mandatory */
   /*  Depersonalization */
   uim_depersonalization_type_v01 depersonalization;
+
+  /* Optional */
+  /*  Slot */
+  uint8_t slot_valid;  /**< Must be set to true if slot is being passed */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the slot to be used. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
 }uim_depersonalization_req_msg_v01;  /* Message */
 /**
     @}
@@ -2202,10 +2231,10 @@ typedef struct {
 typedef struct {
 
   uint8_t verify_left;
-  /**<   Number of the remaining attempts to verify the personalization.*/
+  /**<   Number of the remaining attempts to verify the personalization. */
 
   uint8_t unblock_left;
-  /**<   Number of the remaining attempts to unblock the personalization.*/
+  /**<   Number of the remaining attempts to unblock the personalization. */
 }uim_perso_retries_left_type_v01;  /* Type */
 /**
     @}
@@ -2228,28 +2257,13 @@ typedef struct {
   */
 
   /* Optional */
-  /*  Retries Remaining (This value is returned only when deactivation or
-      unblock fails.)
-   */
+  /*  Retries Remaining */
   uint8_t retries_left_valid;  /**< Must be set to true if retries_left is being passed */
   uim_perso_retries_left_type_v01 retries_left;
+  /**<   \n
+       This value is returned only when deactivation or unblock fails.
+  */
 }uim_depersonalization_resp_msg_v01;  /* Message */
-/**
-    @}
-  */
-
-/** @addtogroup uim_qmi_enums
-    @{
-  */
-typedef enum {
-  UIM_SLOT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  UIM_SLOT_1_V01 = 0x01, 
-  UIM_SLOT_2_V01 = 0x02, 
-  UIM_SLOT_3_V01 = 0x03, 
-  UIM_SLOT_4_V01 = 0x04, 
-  UIM_SLOT_5_V01 = 0x05, 
-  UIM_SLOT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
-}uim_slot_enum_v01;
 /**
     @}
   */
@@ -2418,15 +2432,15 @@ typedef enum {
   */
 typedef enum {
   UIM_CARD_ERROR_CODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  UIM_CARD_ERROR_CODE_UNKNOWN_V01 = 0x00, /**<  Unknown  */
-  UIM_CARD_ERROR_CODE_POWER_DOWN_V01 = 0x01, /**<  Power down  */
-  UIM_CARD_ERROR_CODE_POLL_ERROR_V01 = 0x02, /**<  Poll error  */
-  UIM_CARD_ERROR_CODE_NO_ATR_RECEIVED_V01 = 0x03, /**<  No ATR received  */
-  UIM_CARD_ERROR_CODE_VOLT_MISMATCH_V01 = 0x04, /**<  Volt mismatch  */
-  UIM_CARD_ERROR_CODE_PARITY_ERROR_V01 = 0x05, /**<  Parity error  */
-  UIM_CARD_ERROR_CODE_POSSIBLY_REMOVED_V01 = 0x06, /**<  Unknown, possibly removed  */
-  UIM_CARD_ERROR_CODE_SIM_TECHNICAL_PROBLEMS_V01 = 0x07, /**<  Card returned technical problems  */
-  UIM_CARD_ERROR_CODE_NULL_BYTES_V01 = 0x08, /**<  Card returned NULL bytes  */
+  UIM_CARD_ERROR_CODE_UNKNOWN_V01 = 0x00, /**<  Unknown\n  */
+  UIM_CARD_ERROR_CODE_POWER_DOWN_V01 = 0x01, /**<  Power down\n  */
+  UIM_CARD_ERROR_CODE_POLL_ERROR_V01 = 0x02, /**<  Poll error\n  */
+  UIM_CARD_ERROR_CODE_NO_ATR_RECEIVED_V01 = 0x03, /**<  No ATR received\n  */
+  UIM_CARD_ERROR_CODE_VOLT_MISMATCH_V01 = 0x04, /**<  Volt mismatch\n  */
+  UIM_CARD_ERROR_CODE_PARITY_ERROR_V01 = 0x05, /**<  Parity error\n  */
+  UIM_CARD_ERROR_CODE_POSSIBLY_REMOVED_V01 = 0x06, /**<  Unknown, possibly removed\n  */
+  UIM_CARD_ERROR_CODE_SIM_TECHNICAL_PROBLEMS_V01 = 0x07, /**<  Card returned technical problems\n  */
+  UIM_CARD_ERROR_CODE_NULL_BYTES_V01 = 0x08, /**<  Card returned NULL bytes\n  */
   UIM_CARD_ERROR_CODE_SAP_CONNECTED_V01 = 0x09, /**<  Terminal in SAP mode  */
   UIM_CARD_ERROR_CODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }uim_card_error_code_enum_v01;
@@ -2607,7 +2621,12 @@ typedef struct {
   */
 
   uint8_t perso_retries;
-  /**<   Indicates the number of retries remaining to disable the personalization.*/
+  /**<   Indicates the number of retries remaining to disable the personalization.
+
+       \vspace{3pt}
+       This value is set to 0xFF if the modem configuration allows unlimited
+       retries.
+  */
 
   uint8_t perso_unblock_retries;
   /**<   Indicates the number of retries remaining to unblock the personalization.*/
@@ -2650,15 +2669,15 @@ typedef struct {
   uim_card_error_code_enum_v01 error_code;
   /**<   Indicates the reason for the card error, and is valid only when the card
  state is Error. Valid values:\n
-      - UIM_CARD_ERROR_CODE_UNKNOWN (0x00) --  Unknown 
-      - UIM_CARD_ERROR_CODE_POWER_DOWN (0x01) --  Power down 
-      - UIM_CARD_ERROR_CODE_POLL_ERROR (0x02) --  Poll error 
-      - UIM_CARD_ERROR_CODE_NO_ATR_RECEIVED (0x03) --  No ATR received 
-      - UIM_CARD_ERROR_CODE_VOLT_MISMATCH (0x04) --  Volt mismatch 
-      - UIM_CARD_ERROR_CODE_PARITY_ERROR (0x05) --  Parity error 
-      - UIM_CARD_ERROR_CODE_POSSIBLY_REMOVED (0x06) --  Unknown, possibly removed 
-      - UIM_CARD_ERROR_CODE_SIM_TECHNICAL_PROBLEMS (0x07) --  Card returned technical problems 
-      - UIM_CARD_ERROR_CODE_NULL_BYTES (0x08) --  Card returned NULL bytes 
+      - UIM_CARD_ERROR_CODE_UNKNOWN (0x00) --  Unknown\n 
+      - UIM_CARD_ERROR_CODE_POWER_DOWN (0x01) --  Power down\n 
+      - UIM_CARD_ERROR_CODE_POLL_ERROR (0x02) --  Poll error\n 
+      - UIM_CARD_ERROR_CODE_NO_ATR_RECEIVED (0x03) --  No ATR received\n 
+      - UIM_CARD_ERROR_CODE_VOLT_MISMATCH (0x04) --  Volt mismatch\n 
+      - UIM_CARD_ERROR_CODE_PARITY_ERROR (0x05) --  Parity error\n 
+      - UIM_CARD_ERROR_CODE_POSSIBLY_REMOVED (0x06) --  Unknown, possibly removed\n 
+      - UIM_CARD_ERROR_CODE_SIM_TECHNICAL_PROBLEMS (0x07) --  Card returned technical problems\n 
+      - UIM_CARD_ERROR_CODE_NULL_BYTES (0x08) --  Card returned NULL bytes\n 
       - UIM_CARD_ERROR_CODE_SAP_CONNECTED (0x09) --  Terminal in SAP mode 
  \n
  Other values are possible and reserved for future use. When an
@@ -2733,15 +2752,15 @@ typedef struct {
   uim_card_error_code_enum_v01 error_code;
   /**<   Indicates the reason for the card error, and is valid only when the card
  state is Error. Valid values:\n
-      - UIM_CARD_ERROR_CODE_UNKNOWN (0x00) --  Unknown 
-      - UIM_CARD_ERROR_CODE_POWER_DOWN (0x01) --  Power down 
-      - UIM_CARD_ERROR_CODE_POLL_ERROR (0x02) --  Poll error 
-      - UIM_CARD_ERROR_CODE_NO_ATR_RECEIVED (0x03) --  No ATR received 
-      - UIM_CARD_ERROR_CODE_VOLT_MISMATCH (0x04) --  Volt mismatch 
-      - UIM_CARD_ERROR_CODE_PARITY_ERROR (0x05) --  Parity error 
-      - UIM_CARD_ERROR_CODE_POSSIBLY_REMOVED (0x06) --  Unknown, possibly removed 
-      - UIM_CARD_ERROR_CODE_SIM_TECHNICAL_PROBLEMS (0x07) --  Card returned technical problems 
-      - UIM_CARD_ERROR_CODE_NULL_BYTES (0x08) --  Card returned NULL bytes 
+      - UIM_CARD_ERROR_CODE_UNKNOWN (0x00) --  Unknown\n 
+      - UIM_CARD_ERROR_CODE_POWER_DOWN (0x01) --  Power down\n 
+      - UIM_CARD_ERROR_CODE_POLL_ERROR (0x02) --  Poll error\n 
+      - UIM_CARD_ERROR_CODE_NO_ATR_RECEIVED (0x03) --  No ATR received\n 
+      - UIM_CARD_ERROR_CODE_VOLT_MISMATCH (0x04) --  Volt mismatch\n 
+      - UIM_CARD_ERROR_CODE_PARITY_ERROR (0x05) --  Parity error\n 
+      - UIM_CARD_ERROR_CODE_POSSIBLY_REMOVED (0x06) --  Unknown, possibly removed\n 
+      - UIM_CARD_ERROR_CODE_SIM_TECHNICAL_PROBLEMS (0x07) --  Card returned technical problems\n 
+      - UIM_CARD_ERROR_CODE_NULL_BYTES (0x08) --  Card returned NULL bytes\n 
       - UIM_CARD_ERROR_CODE_SAP_CONNECTED (0x09) --  Terminal in SAP mode 
  \n
  Other values are possible and reserved for future use. When an
@@ -2894,7 +2913,10 @@ typedef struct {
         - Bit 2 -- Extended card status\n
         - Bit 3 -- Close of provisioning sessions\n
         - Bit 4 -- Physical slot status\n
-        - Bit 5 -- SIM busy status
+        - Bit 5 -- SIM busy status\n
+        - Bit 6 -- Reduced card status\n
+        - Bit 7 -- Recovery complete\n
+        - Bit 8 -- Supply Voltage Vcc status
   */
 }uim_event_reg_req_msg_v01;  /* Message */
 /**
@@ -2930,7 +2952,10 @@ typedef struct {
         - Bit 2 -- Extended card status\n
         - Bit 3 -- Close of provisioning sessions\n
         - Bit 4 -- Physical slot status\n
-        - Bit 5 -- SIM busy status
+        - Bit 5 -- SIM busy status\n
+        - Bit 6 -- Reduced card status\n
+        - Bit 7 -- Recovery complete\n
+        - Bit 8 -- Supply Voltage Vcc status
   */
 }uim_event_reg_resp_msg_v01;  /* Message */
 /**
@@ -3051,7 +3076,7 @@ typedef struct {
                 \hyperref[S4]{[S4]})\n
         - 11 -- IMS AKA security context (valid only on a ISIM application, as
                 specified in \hyperref[S10]{[S10]})\n
-        - 12 -- HTTP-digest security context valid only on an ISIM
+        - 12 -- HTTP-digest security context (valid only on an ISIM
                 application, as specified in
                 \hyperref[S10]{[S10]})\n
         - 13 -- Compute IP authentication, CHAP (valid only on RUIM or CSIM, as
@@ -3156,11 +3181,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Token of the Original Request */
-  uint32_t indication_token;
-  /**<   Indicates the token of the original request.*/
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:\n
@@ -3168,6 +3188,11 @@ typedef struct {
        qmi_error_type  -- Error code. Possible error code values are described
                           in the error codes section of each message definition.
   */
+
+  /* Mandatory */
+  /*  Token of the Original Request */
+  uint32_t indication_token;
+  /**<   Indicates the token of the original request.*/
 
   /* Optional */
   /*  Card Result */
@@ -3231,16 +3256,27 @@ typedef struct {
   /* Mandatory */
   /*  Capabilities Mask */
   uint32_t mask;
-  /**<   Bitmask of the capabilities the client retrieves from the card.
-       Additional bits are reserved for future use and are to be set to zero.
-       \begin{itemize1}
-       \item Bit 0 -- FDN status
-       \item Bit 1 -- Hidden key PIN status (for USIM cards only)
-       \item Bit 2 -- Index in the EF-DIR (for UICC cards only)
-       \item Bit 3 -- ESN status (for 1X sessions only)
-       \item Bit 4 -- ACL status (for USIM cards only)
-       \vspace{-0.18in}
-       \end{itemize1}
+  /**<   Bitmask of the capabilities that the client retrieves from the card.
+       Additional bits are reserved for future use and are to be set to zero.\n
+        - Bit 0 -- FDN status\n
+        - Bit 1 -- Hidden key PIN status (for USIM cards only)\n
+        - Bit 2 -- Index in the EF-DIR (for UICC cards only)\n
+        - Bit 3 -- ESN status (for 1X sessions only)\n
+        - Bit 4 -- ACL status (for USIM cards only)\n
+        - Bit 5 -- Service status as indicated in the service table
+  */
+
+  /* Optional */
+  /*  Service Number */
+  uint8_t service_number_valid;  /**< Must be set to true if service_number is being passed */
+  uint8_t service_number;
+  /**<   This TLV must be present if the service status bit is enabled in the mask.
+       When present, this TLV must contain a valid service number as indicated
+       in the service table per the following specifications:\n
+       - For CSIM, as specified in \hyperref[S11]{[S11]} Section 5.2.80\n
+       - For USIM, as specified in \hyperref[S4]{[S4]} Section 4.2.8\n
+       - For RUIM, as specified in \hyperref[S9]{[S9]} Section 3.4.18\n
+       - For GSM, as specified in \hyperref[S8]{[S8]} Section 10.3.7
   */
 }uim_get_service_status_req_msg_v01;  /* Message */
 /**
@@ -3363,6 +3399,15 @@ typedef struct {
         - 0 -- ACL is not available\n
         - 1 -- ACL is available and disabled\n
         - 2 -- ACL is available and enabled
+  */
+
+  /* Optional */
+  /*  Service Status */
+  uint8_t service_status_valid;  /**< Must be set to true if service_status is being passed */
+  uint8_t service_status;
+  /**<   Service status. Valid values:\n
+        - 0 -- Service is not available\n
+        - 1 -- Service is available
   */
 }uim_get_service_status_resp_msg_v01;  /* Message */
 /**
@@ -3602,6 +3647,19 @@ typedef struct {
     @}
   */
 
+/** @addtogroup uim_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  /*  Personalization Status */
+  uint32_t personalization_status_len;  /**< Must be set to # of elements in personalization_status */
+  uim_personalization_status_type_v01 personalization_status[QMI_UIM_PERSO_FEATURE_MAX_V01];
+}uim_personalization_status_other_slots_type_v01;  /* Type */
+/**
+    @}
+  */
+
 /** @addtogroup uim_qmi_messages
     @{
   */
@@ -3643,6 +3701,12 @@ typedef struct {
          - 0 -- Modem proceeds with publishing the subscription\n
          - 1 -- Modem does not publish the subscription
   */
+
+  /* Optional */
+  /*  Personalization Status of Other Slots */
+  uint8_t extended_personalization_status_valid;  /**< Must be set to true if extended_personalization_status is being passed */
+  uint32_t extended_personalization_status_len;  /**< Must be set to # of elements in extended_personalization_status */
+  uim_personalization_status_other_slots_type_v01 extended_personalization_status[QMI_UIM_EXTENDED_CARDS_MAX_V01];
 }uim_get_configuration_resp_msg_v01;  /* Message */
 /**
     @}
@@ -3746,7 +3810,9 @@ typedef struct {
   /*  Long APDU Response */
   uint8_t long_response_valid;  /**< Must be set to true if long_response is being passed */
   uim_send_apdu_long_response_type_v01 long_response;
-  /**<   Token and total length to reconstruct the APDU response from the card.*/
+  /**<   \n
+       Token and total length to reconstruct the APDU response from the card.
+  */
 }uim_send_apdu_resp_msg_v01;  /* Message */
 /**
     @}
@@ -3894,14 +3960,12 @@ typedef struct {
   /**<   Indicates the type of condition to apply during a connection request.
        When this TLV is missing, the default behavior is to block a SAP
        connection when a voice or data call is active. Valid
-       values: \begin{itemize1}
-       \item 0 -- Block a SAP connection when a voice or data call is active
-                  (Default)
-       \item 1 -- Block a SAP connection when a data call is active
-       \item 2 -- Block a SAP connection when a voice call is active
-       \item 3 -- Allow a SAP connection in all cases
-       \vspace{-0.18in}
-       \end{itemize1}
+       values:\n
+        - 0 -- Block a SAP connection when a voice or data call is active
+               (Default)\n
+        - 1 -- Block a SAP connection when a data call is active\n
+        - 2 -- Block a SAP connection when a voice call is active\n
+        - 3 -- Allow a SAP connection in all cases
   */
 }uim_sap_connection_req_msg_v01;  /* Message */
 /**
@@ -4244,8 +4308,8 @@ typedef struct {
   /*  OK for Subscription */
   uint8_t ok_for_subscription;
   /**<   Indicates whether it is OK to publish the subscription. Valid values:\n
-         - 0 -- Not OK to publish the subscription\n
-         - 1 -- OK to publish the subscription
+        - 0 -- Not OK to publish the subscription\n
+        - 1 -- OK to publish the subscription
   */
 
   /* Optional */
@@ -4417,19 +4481,19 @@ typedef struct {
   */
 typedef enum {
   UIM_SESSION_CLOSE_CAUSE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  UIM_SESSION_CLOSED_CAUSE_UNKNOWN_V01 = 0x00, /**<  Unknown cause.  */
-  UIM_SESSION_CLOSED_CAUSE_CLIENT_REQUEST_V01 = 0x01, /**<  Client requested to deactivate the session.  */
-  UIM_SESSION_CLOSED_CAUSE_CARD_ERROR_V01 = 0x02, /**<  Card error.  */
-  UIM_SESSION_CLOSED_CAUSE_CARD_POWER_DOWN_V01 = 0x03, /**<  SIM card is powered down.  */
-  UIM_SESSION_CLOSED_CAUSE_CARD_REMOVED_V01 = 0x04, /**<  SIM card is removed.  */
-  UIM_SESSION_CLOSED_CAUSE_REFRESH_V01 = 0x05, /**<  Session is deactivated as a part of a Refresh procedure.  */
-  UIM_SESSION_CLOSED_CAUSE_PIN_STATUS_FAIL_V01 = 0x06, /**<  Status of the PIN cannot be retrieved from the SIM.  */
-  UIM_SESSION_CLOSED_CAUSE_RECOVERY_V01 = 0x07, /**<  Internal card recovery.  */
+  UIM_SESSION_CLOSED_CAUSE_UNKNOWN_V01 = 0x00, /**<  Unknown cause\n  */
+  UIM_SESSION_CLOSED_CAUSE_CLIENT_REQUEST_V01 = 0x01, /**<  Client requested to deactivate the session\n  */
+  UIM_SESSION_CLOSED_CAUSE_CARD_ERROR_V01 = 0x02, /**<  Card error\n  */
+  UIM_SESSION_CLOSED_CAUSE_CARD_POWER_DOWN_V01 = 0x03, /**<  SIM card is powered down\n  */
+  UIM_SESSION_CLOSED_CAUSE_CARD_REMOVED_V01 = 0x04, /**<  SIM card is removed\n  */
+  UIM_SESSION_CLOSED_CAUSE_REFRESH_V01 = 0x05, /**<  Session is deactivated as a part of a Refresh procedure\n  */
+  UIM_SESSION_CLOSED_CAUSE_PIN_STATUS_FAIL_V01 = 0x06, /**<  Status of the PIN cannot be retrieved from the SIM\n  */
+  UIM_SESSION_CLOSED_CAUSE_RECOVERY_V01 = 0x07, /**<  Internal card recovery\n  */
   UIM_SESSION_CLOSED_CAUSE_FDN_SRV_ENABLED_WITH_NO_FDN_SUPPORT_V01 = 0x08, /**<  FDN service is enabled on the SIM, but the terminal does not support
-       it.  */
-  UIM_SESSION_CLOSED_CAUSE_PERSO_OPERATION_FAIL_V01 = 0x09, /**<  Personalzation failure.  */
-  UIM_SESSION_CLOSED_CAUSE_FILE_CONTENT_INVALID_V01 = 0x0A, /**<  Content of the file is invalid.  */
-  UIM_SESSION_CLOSED_CAUSE_MANDATORY_FILE_MISSING_V01 = 0x0B, /**<  Mandatory file is missing.  */
+       it\n  */
+  UIM_SESSION_CLOSED_CAUSE_PERSO_OPERATION_FAIL_V01 = 0x09, /**<  Personalzation failure\n  */
+  UIM_SESSION_CLOSED_CAUSE_FILE_CONTENT_INVALID_V01 = 0x0A, /**<  Content of the file is invalid\n  */
+  UIM_SESSION_CLOSED_CAUSE_MANDATORY_FILE_MISSING_V01 = 0x0B, /**<  Mandatory file is missing  */
   UIM_SESSION_CLOSE_CAUSE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }uim_session_close_cause_enum_v01;
 /**
@@ -4526,8 +4590,8 @@ typedef struct {
   /**<   Indicates whether to vote for initialization when there is a
        refresh. When the Vote for Initialization TLV is missing, the default
        behavior is to not wait for the client vote. Valid values:\n
-         - 0 -- Client does not vote for initialization (Default)\n
-         - 1 -- Client votes for initialization
+        - 0 -- Client does not vote for initialization (Default)\n
+        - 1 -- Client votes for initialization
   */
 }uim_refresh_register_all_req_msg_v01;  /* Message */
 /**
@@ -4693,8 +4757,8 @@ typedef enum {
   */
 typedef enum {
   UIM_PHYSICAL_CARD_STATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  UIM_PHYSICAL_CARD_STATE_UNKNOWN_V01 = 0x00, /**<  Unknown  */
-  UIM_PHYSICAL_CARD_STATE_ABSENT_V01 = 0x01, /**<  Absent  */
+  UIM_PHYSICAL_CARD_STATE_UNKNOWN_V01 = 0x00, /**<  Unknown\n  */
+  UIM_PHYSICAL_CARD_STATE_ABSENT_V01 = 0x01, /**<  Absent\n  */
   UIM_PHYSICAL_CARD_STATE_PRESENT_V01 = 0x02, /**<  Present  */
   UIM_PHYSICAL_CARD_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }uim_physical_card_state_enum_v01;
@@ -4709,8 +4773,8 @@ typedef struct {
 
   uim_physical_card_state_enum_v01 physical_card_status;
   /**<   Status of the card in the physical slot. Valid values:\n
-      - UIM_PHYSICAL_CARD_STATE_UNKNOWN (0x00) --  Unknown 
-      - UIM_PHYSICAL_CARD_STATE_ABSENT (0x01) --  Absent 
+      - UIM_PHYSICAL_CARD_STATE_UNKNOWN (0x00) --  Unknown\n 
+      - UIM_PHYSICAL_CARD_STATE_ABSENT (0x01) --  Absent\n 
       - UIM_PHYSICAL_CARD_STATE_PRESENT (0x02) --  Present 
  */
 
@@ -4721,13 +4785,13 @@ typedef struct {
  */
 
   uim_slot_enum_v01 logical_slot;
-  /**<   Logical slot associated with this physical slot. This is 
+  /**<   Logical slot associated with this physical slot. This is
        valid only if the physical slot is active. Valid values:\n
-       - 1 -- Slot 1\n
-       - 2 -- Slot 2\n
-       - 3 -- Slot 3\n
-       - 4 -- Slot 4\n
-       - 5 -- Slot 5
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
   */
 
   uint32_t iccid_len;  /**< Must be set to # of elements in iccid */
@@ -4761,7 +4825,7 @@ typedef struct {
   uim_physical_slot_status_type_v01 physical_slot_status[QMI_UIM_PHYSICAL_SLOTS_MAX_V01];
   /**<   \n
        Information regarding the various physical slots on the device.\n
-       The number of elements correspond with the number of physical slots 
+       The number of elements correspond with the number of physical slots
        on the device.
   */
 }uim_get_slots_status_resp_msg_v01;  /* Message */
@@ -4829,8 +4893,8 @@ typedef struct {
   uint8_t encryption;
   /**<   Indicates whether the data from the card passed in read_result is
        encrypted. Valid values:\n
-         - 0 -- Data in read_result is unencrypted \n
-         - 1 -- Data in read_result is encrypted \n
+        - 0 -- Data in read_result is unencrypted \n
+        - 1 -- Data in read_result is encrypted \n
        If the Encrypted Data TLV is missing, the read_result data is in
        unencrypted format.
   */
@@ -4871,7 +4935,7 @@ typedef struct {
   */
 typedef enum {
   UIM_PLMN_NAME_TABLE_SOURCE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  UIM_PLMN_NAME_TABLE_SOURCE_HARDCODED_V01 = 0x01, /**<  Table is hardcoded in the modem source code  */
+  UIM_PLMN_NAME_TABLE_SOURCE_HARDCODED_V01 = 0x01, /**<  Table is hardcoded in the modem source code\n  */
   UIM_PLMN_NAME_TABLE_SOURCE_EFS_V01 = 0x02, /**<  Table is fetched from the modem file system  */
   UIM_PLMN_NAME_TABLE_SOURCE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }uim_plmn_name_table_source_enum_v01;
@@ -4885,13 +4949,13 @@ typedef enum {
 typedef struct {
 
   uint8_t month;
-  /**<   Month */
+  /**<   Month. */
 
   uint8_t day;
-  /**<   Day of the month */
+  /**<   Day of the month. */
 
   uint16_t year;
-  /**<   Year */
+  /**<   Year. */
 }uim_plmn_name_release_date_info_type_v01;  /* Type */
 /**
     @}
@@ -4928,7 +4992,7 @@ typedef struct {
   uim_plmn_name_table_source_enum_v01 table_source;
   /**<   Information regarding the source of the used SE.13 table database.\n
  Valid values:\n
-      - UIM_PLMN_NAME_TABLE_SOURCE_HARDCODED (0x01) --  Table is hardcoded in the modem source code 
+      - UIM_PLMN_NAME_TABLE_SOURCE_HARDCODED (0x01) --  Table is hardcoded in the modem source code\n 
       - UIM_PLMN_NAME_TABLE_SOURCE_EFS (0x02) --  Table is fetched from the modem file system 
  \n
  Other values are reserved for future use and are to be ignored by
@@ -4945,11 +5009,11 @@ typedef struct {
 typedef struct {
 
   char mcc[QMI_UIM_MCC_LEN_V01];
-  /**<   MCC value in ASCII characters.*/
+  /**<   MCC value in ASCII characters. */
 
   uint32_t mnc_len;  /**< Must be set to # of elements in mnc */
   char mnc[QMI_UIM_MNC_MAX_V01];
-  /**<   MNC value in ASCII characters.*/
+  /**<   MNC value in ASCII characters. */
 }uim_network_perso_type_v01;  /* Type */
 /**
     @}
@@ -4964,10 +5028,10 @@ typedef struct {
   /**<   MCC and MNC network information.*/
 
   char digit6;
-  /**<   Digit 6 of the IMSI in ASCII character.*/
+  /**<   Digit 6 of the IMSI in ASCII characters. */
 
   char digit7;
-  /**<   Digit 7 of the IMSI in ASCII character.*/
+  /**<   Digit 7 of the IMSI in ASCII characters. */
 }uim_gw_network_subset_perso_type_v01;  /* Type */
 /**
     @}
@@ -4982,7 +5046,7 @@ typedef struct {
   /**<   MCC and MNC network information.*/
 
   uint8_t gid1;
-  /**<   Service provider code found in GID1.*/
+  /**<   Service provider code found in GID1. */
 }uim_gw_sp_perso_type_v01;  /* Type */
 /**
     @}
@@ -4997,10 +5061,10 @@ typedef struct {
   /**<   MCC and MNC network information.*/
 
   uint8_t gid1;
-  /**<   Service provider code found in GID1.*/
+  /**<   Service provider code found in GID1. */
 
   uint8_t gid2;
-  /**<   Corporate customer code found in GID2.*/
+  /**<   Corporate customer code found in GID2. */
 }uim_gw_corporate_perso_type_v01;  /* Type */
 /**
     @}
@@ -5012,11 +5076,12 @@ typedef struct {
 typedef struct {
 
   uim_network_perso_type_v01 network;
-  /**<   MCC and MNC network information.*/
+  /**<    MCC and MNC network information.*/
 
   uint32_t msin_len;  /**< Must be set to # of elements in msin */
   char msin[QMI_UIM_MSIN_MAX_V01];
-  /**<   MSIN value stored on the card in ASCII characters.*/
+  /**<   MSIN value stored on the card in ASCII characters.
+  */
 }uim_sim_perso_type_v01;  /* Type */
 /**
     @}
@@ -5028,7 +5093,7 @@ typedef struct {
 typedef struct {
 
   char irm_code[QMI_UIM_IRM_CODE_LEN_V01];
-  /**<   First 4 digits of the IRM based MIN of IMSI_M in ASCII characters.*/
+  /**<   First four digits of the IRM-based MIN of IMSI_M in ASCII characters. */
 }uim_1x_network_type2_perso_type_v01;  /* Type */
 /**
     @}
@@ -5037,14 +5102,14 @@ typedef struct {
 /** @addtogroup uim_qmi_messages
     @{
   */
-/** Request Message; Activates and sets the personalization data on the phone */
+/** Request Message; Activates and sets the personalization data on the phone. */
 typedef struct {
 
   /* Mandatory */
   /*  Control Key */
   uint32_t ck_value_len;  /**< Must be set to # of elements in ck_value */
   char ck_value[QMI_UIM_CK_MAX_V01];
-  /**<   Control key value. This value is a sequence of ASCII characters. 
+  /**<   Control key value. This value is a sequence of ASCII characters.
   */
 
   /* Optional */
@@ -5084,7 +5149,7 @@ typedef struct {
   uim_network_perso_type_v01 feature_1x_network1_perso[QMI_UIM_PERSO_NUM_NW_MAX_V01];
 
   /* Optional */
-  /*  1X Network type 2 Personalization */
+  /*  1X Network Type 2 Personalization */
   uint8_t feature_1x_network2_perso_valid;  /**< Must be set to true if feature_1x_network2_perso is being passed */
   uint32_t feature_1x_network2_perso_len;  /**< Must be set to # of elements in feature_1x_network2_perso */
   uim_1x_network_type2_perso_type_v01 feature_1x_network2_perso[QMI_UIM_PERSO_NUM_1X_NW2_MAX_V01];
@@ -5094,6 +5159,33 @@ typedef struct {
   uint8_t feature_1x_ruim_perso_valid;  /**< Must be set to true if feature_1x_ruim_perso is being passed */
   uint32_t feature_1x_ruim_perso_len;  /**< Must be set to # of elements in feature_1x_ruim_perso */
   uim_sim_perso_type_v01 feature_1x_ruim_perso[QMI_UIM_PERSO_NUM_SIM_MAX_V01];
+
+  /* Optional */
+  /*  Slot */
+  uint8_t slot_valid;  /**< Must be set to true if slot is being passed */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the slot to be used. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+
+  /* Optional */
+  /*  Number of Iterations */
+  uint8_t num_iterations_valid;  /**< Must be set to true if num_iterations is being passed */
+  uint32_t num_iterations;
+  /**<   The number of iterations to be used in the personalization algorithm.
+  */
+
+  /* Optional */
+  /*  Number of Retries */
+  uint8_t num_retries_valid;  /**< Must be set to true if num_retries is being passed */
+  uint32_t num_retries;
+  /**<   The number of retries allowed for depersonalization.
+       Setting the value to 0 allows unlimited retries.
+  */
 }uim_personalization_req_msg_v01;  /* Message */
 /**
     @}
@@ -5102,7 +5194,7 @@ typedef struct {
 /** @addtogroup uim_qmi_messages
     @{
   */
-/** Response Message; Activates and sets the personalization data on the phone */
+/** Response Message; Activates and sets the personalization data on the phone. */
 typedef struct {
 
   /* Mandatory */
@@ -5116,12 +5208,13 @@ typedef struct {
   */
 
   /* Optional */
-  /*  Retries Remaining (This value is returned only when activation and
-      setting perso data fails.)
-  
- Retries Remaining */
+  /*  Retries Remaining */
   uint8_t retries_left_valid;  /**< Must be set to true if retries_left is being passed */
   uim_perso_retries_left_type_v01 retries_left;
+  /**<   \n
+       This value is returned only when activation and setting personalization
+       data fails.
+  */
 }uim_personalization_resp_msg_v01;  /* Message */
 /**
     @}
@@ -5130,8 +5223,8 @@ typedef struct {
 /** @addtogroup uim_qmi_messages
     @{
   */
-/** Request Message; Perform increase operation for any file on the card and provides 
-             access by the path. */
+/** Request Message; Performs an increase operation for any file on the card and
+             provides access by the path. */
 typedef struct {
 
   /* Mandatory */
@@ -5146,6 +5239,8 @@ typedef struct {
   /*  Value to be Added */
   uint32_t increase_data_len;  /**< Must be set to # of elements in increase_data */
   uint8_t increase_data[QMI_UIM_INCREASE_DATA_MAX_V01];
+  /**<   Increase data.
+  */
 
   /* Optional */
   /*  Response in Indication */
@@ -5162,8 +5257,8 @@ typedef struct {
 /** @addtogroup uim_qmi_messages
     @{
   */
-/** Response Message; Perform increase operation for any file on the card and provides 
-             access by the path. */
+/** Response Message; Performs an increase operation for any file on the card and
+             provides access by the path. */
 typedef struct {
 
   /* Mandatory */
@@ -5182,10 +5277,12 @@ typedef struct {
   uim_card_result_type_v01 card_result;
 
   /* Optional */
-  /*  Value of the Increase Record */
+  /*  Value of Increase Record */
   uint8_t increase_result_valid;  /**< Must be set to true if increase_result is being passed */
   uint32_t increase_result_len;  /**< Must be set to # of elements in increase_result */
   uint8_t increase_result[QMI_UIM_INCREASE_DATA_MAX_V01];
+  /**<   Increase result.
+  */
 
   /* Optional */
   /*  Response in Indication */
@@ -5202,14 +5299,139 @@ typedef struct {
 /** @addtogroup uim_qmi_messages
     @{
   */
-/** Indication Message; Indicates clients with increase confirmation */
+/** Indication Message; Indicates the clients with an increase confirmation. */
 typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:\n
+       qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE.\n
+       qmi_error_type  -- Error code. Possible error code values are described
+                          in the error codes section of each message
+                          definition.
+  */
 
   /* Mandatory */
   /*  Token of the Original Request */
   uint32_t indication_token;
   /**<   Indicates the token of the original request.
   */
+
+  /* Optional */
+  /*  Card Result */
+  uint8_t card_result_valid;  /**< Must be set to true if card_result is being passed */
+  uim_card_result_type_v01 card_result;
+
+  /* Optional */
+  /*  Value of Increase Record */
+  uint8_t increase_result_valid;  /**< Must be set to true if increase_result is being passed */
+  uint32_t increase_result_len;  /**< Must be set to # of elements in increase_result */
+  uint8_t increase_result[QMI_UIM_INCREASE_DATA_MAX_V01];
+  /**<   Increase result.
+  */
+}uim_increase_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Request Message; Performs recovery on an identified slot. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Slot */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the slot to be used. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+}uim_recovery_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Response Message; Performs recovery on an identified slot. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:\n
+       qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE.\n
+       qmi_error_type  -- Error code. Possible error code values are described
+                          in the error codes section of each message
+                          definition.
+  */
+}uim_recovery_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_SELECT_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_SELECT_MODE_FIRST_OR_ONLY_V01 = 0x00, /**<  First or only occurrence of the AID\n  */
+  UIM_SELECT_MODE_LAST_V01 = 0x01, /**<  Last occurrence of the AID\n  */
+  UIM_SELECT_MODE_NEXT_V01 = 0x02, /**<  Next occurrence of the AID\n  */
+  UIM_SELECT_MODE_PREVIOUS_V01 = 0x03, /**<  Previous occurrence of the AID  */
+  UIM_SELECT_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_select_mode_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Request Message; Performs a SELECT of an application on the specified logical channel. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Slot */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the slot to be used. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+
+  /* Mandatory */
+  /*  Channel ID */
+  uint8_t channel_id;
+  /**<   ID of the logical channel on which to perform the SELECT.*/
+
+  /* Mandatory */
+  /*  Selection Mode */
+  uim_select_mode_enum_v01 select_mode;
+  /**<   SELECT command mode. Valid values:\n
+      - UIM_SELECT_MODE_FIRST_OR_ONLY (0x00) --  First or only occurrence of the AID\n 
+      - UIM_SELECT_MODE_LAST (0x01) --  Last occurrence of the AID\n 
+      - UIM_SELECT_MODE_NEXT (0x02) --  Next occurrence of the AID\n 
+      - UIM_SELECT_MODE_PREVIOUS (0x03) --  Previous occurrence of the AID 
+ */
+}uim_reselect_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Response Message; Performs a SELECT of an application on the specified logical channel. */
+typedef struct {
 
   /* Mandatory */
   /*  Result Code */
@@ -5227,14 +5449,451 @@ typedef struct {
   uim_card_result_type_v01 card_result;
 
   /* Optional */
-  /*  Value of the Increase Record */
-  uint8_t increase_result_valid;  /**< Must be set to true if increase_result is being passed */
-  uint32_t increase_result_len;  /**< Must be set to # of elements in increase_result */
-  uint8_t increase_result[QMI_UIM_INCREASE_DATA_MAX_V01];
-}uim_increase_ind_msg_v01;  /* Message */
+  /*  Response to SELECT */
+  uint8_t select_response_valid;  /**< Must be set to true if select_response is being passed */
+  uint32_t select_response_len;  /**< Must be set to # of elements in select_response */
+  uint8_t select_response[QMI_UIM_SELECT_RESPONSE_MAX_V01];
+  /**<   Raw value of the response sent by the card to the SELECT command.
+  */
+}uim_reselect_resp_msg_v01;  /* Message */
 /**
     @}
   */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates that a SIM recovery completed successfully. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Slot */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the recovered slot. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+}uim_recovery_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_STATUS_CMD_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_STATUS_CMD_NO_INDICATION_V01 = 0x00, /**<  No indication \n  */
+  UIM_STATUS_CMD_APP_INITIALIZED_V01 = 0x01, /**<  Current application is initialized in the terminal \n  */
+  UIM_STATUS_CMD_WILL_TERMNATE_APP_V01 = 0x02, /**<  Terminal initiates the termination of the current application  */
+  UIM_STATUS_CMD_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_status_cmd_mode_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_STATUS_CMD_RESP_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_STATUS_CMD_FCP_RESP_V01 = 0x00, /**<  Response is identical to the SELECT command, i.e., FCP \n  */
+  UIM_STATUS_CMD_AID_RESP_V01 = 0x01, /**<  DF name TLV-object (AID) of the current application is returned \n  */
+  UIM_STATUS_CMD_NO_DATA_RESP_V01 = 0x02, /**<  No data is returned  */
+  UIM_STATUS_CMD_RESP_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_status_cmd_resp_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Request Message; Sends a STATUS command. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Session Information */
+  uim_session_information_type_v01 session_information;
+
+  /* Optional */
+  /*  Status Command Mode */
+  uint8_t status_cmd_mode_valid;  /**< Must be set to true if status_cmd_mode is being passed */
+  uim_status_cmd_mode_enum_v01 status_cmd_mode;
+  /**<   Mode for the STATUS command. Valid values:\n
+      - UIM_STATUS_CMD_NO_INDICATION (0x00) --  No indication \n 
+      - UIM_STATUS_CMD_APP_INITIALIZED (0x01) --  Current application is initialized in the terminal \n 
+      - UIM_STATUS_CMD_WILL_TERMNATE_APP (0x02) --  Terminal initiates the termination of the current application 
+
+ \vspace{3pt}
+ This value defaults to UIM_STATUS_CMD_NO_INDICATION if the TLV is missing.
+ */
+
+  /* Optional */
+  /*  Response Requested */
+  uint8_t status_cmd_resp_valid;  /**< Must be set to true if status_cmd_resp is being passed */
+  uim_status_cmd_resp_enum_v01 status_cmd_resp;
+  /**<   Response required for the STATUS command. Valid values:\n
+      - UIM_STATUS_CMD_FCP_RESP (0x00) --  Response is identical to the SELECT command, i.e., FCP \n 
+      - UIM_STATUS_CMD_AID_RESP (0x01) --  DF name TLV-object (AID) of the current application is returned \n 
+      - UIM_STATUS_CMD_NO_DATA_RESP (0x02) --  No data is returned 
+
+ \vspace{3pt}
+ This value defaults to UIM_STATUS_CMD_NO_DATA_RESP if the TLV is missing.
+ */
+}uim_send_status_cmd_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Response Message; Sends a STATUS command. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:\n
+       qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE.\n
+       qmi_error_type  -- Error code. Possible error code values are described
+                          in the error codes section of each message
+                          definition.
+  */
+
+  /* Optional */
+  /*  STATUS Response */
+  uint8_t status_response_valid;  /**< Must be set to true if status_response is being passed */
+  uint32_t status_response_len;  /**< Must be set to # of elements in status_response */
+  uint8_t status_response[QMI_UIM_SELECT_RESPONSE_MAX_V01];
+  /**<   Depending on the parameters in the request, this value is either
+       identical to the SELECT command response or it is the AID.
+  */
+
+  /* Optional */
+  /*  Card Result */
+  uint8_t card_result_valid;  /**< Must be set to true if card_result is being passed */
+  uim_card_result_type_v01 card_result;
+}uim_send_status_cmd_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Request Message; Queries the profile information from the card. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Slot */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the recovered slot. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+}uim_get_sim_profile_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_PROFILE_ID_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_PROFILE_ID_1_V01 = 0x01, /**<  Profile 1\n  */
+  UIM_PROFILE_ID_2_V01 = 0x02, /**<  Profile 2\n  */
+  UIM_PROFILE_ID_3_V01 = 0x03, /**<  Profile 3\n  */
+  UIM_PROFILE_ID_4_V01 = 0x04, /**<  Profile 4\n  */
+  UIM_PROFILE_ID_5_V01 = 0x05, /**<  Profile 5\n  */
+  UIM_PROFILE_ID_6_V01 = 0x06, /**<  Profile 6\n  */
+  UIM_PROFILE_ID_7_V01 = 0x07, /**<  Profile 7\n  */
+  UIM_PROFILE_ID_8_V01 = 0x08, /**<  Profile 8 */
+  UIM_PROFILE_ID_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_profile_id_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_PROFILE_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_PROFILE_TYPE_REGULAR_V01 = 0x00, /**<  Regular Profile type\n */
+  UIM_PROFILE_TYPE_EMERGENCY_V01 = 0x01, /**<  Emergency Profile type */
+  UIM_PROFILE_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_profile_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uim_profile_id_enum_v01 profile_id;
+  /**<   Indicates the profile id of the card. Valid values:\n
+      - UIM_PROFILE_ID_1 (0x01) --  Profile 1\n 
+      - UIM_PROFILE_ID_2 (0x02) --  Profile 2\n 
+      - UIM_PROFILE_ID_3 (0x03) --  Profile 3\n 
+      - UIM_PROFILE_ID_4 (0x04) --  Profile 4\n 
+      - UIM_PROFILE_ID_5 (0x05) --  Profile 5\n 
+      - UIM_PROFILE_ID_6 (0x06) --  Profile 6\n 
+      - UIM_PROFILE_ID_7 (0x07) --  Profile 7\n 
+      - UIM_PROFILE_ID_8 (0x08) --  Profile 8
+ \n
+ */
+
+  uim_profile_type_enum_v01 profile_type;
+  /**<   Indicates the profile id of the card. Valid values:\n
+      - UIM_PROFILE_TYPE_REGULAR (0x00) --  Regular Profile type\n
+      - UIM_PROFILE_TYPE_EMERGENCY (0x01) --  Emergency Profile type
+ \n
+ */
+}profile_info_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Response Message; Queries the profile information from the card. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:\n
+       qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE.\n
+       qmi_error_type  -- Error code. Possible error code values are described
+                          in the error codes section of each message
+                          definition.
+  */
+
+  /* Optional */
+  /*  Profile information */
+  uint8_t profile_info_valid;  /**< Must be set to true if profile_info is being passed */
+  uint32_t profile_info_len;  /**< Must be set to # of elements in profile_info */
+  profile_info_type_v01 profile_info[QMI_UIM_PROFILES_MAX_V01];
+
+  /* Optional */
+  /*  Present active profile information */
+  uint8_t active_profile_info_valid;  /**< Must be set to true if active_profile_info is being passed */
+  profile_info_type_v01 active_profile_info;
+}uim_get_sim_profile_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Request Message; Switches the profile on the SIM card. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Slot */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the recovered slot. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+
+  /* Mandatory */
+  /*  Profile ID */
+  uim_profile_id_enum_v01 profile_id;
+  /**<   Indicates the profile ID to switch */
+}uim_set_sim_profile_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Response Message; Switches the profile on the SIM card. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:\n
+       qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE.\n
+       qmi_error_type  -- Error code. Possible error code values are described
+                          in the error codes section of each message
+                          definition.
+  */
+}uim_set_sim_profile_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Request Message; Informs the modem to proceed with Supply Voltage Vcc deactivation */
+typedef struct {
+
+  /* Mandatory */
+  /*  Slot */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the slot where Supply Voltage Vcc can be deactivated. Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+}uim_supply_voltage_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Response Message; Informs the modem to proceed with Supply Voltage Vcc deactivation */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:\n
+       qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE.\n
+       qmi_error_type  -- Error code. Possible error code values are described
+                          in the error codes section of each message definition.
+  */
+}uim_supply_voltage_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_VCC_COMMAND_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_SUPPLY_VOLTAGE_ACTIVATE_V01 = 0x00, /**<  Supply Voltage Vcc activated\n  */
+  UIM_SUPPLY_VOLTAGE_DEACTIVATE_V01 = 0x01, /**<  Supply Voltage Vcc needs to be deactivated\n  */
+  UIM_VCC_COMMAND_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_vcc_command_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup uim_qmi_messages
+    @{
+  */
+/** Indication Message; Indication that modem needs to deactivate or activate the Supply
+             Voltage Vcc line of the UICC. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Slot */
+  uim_slot_enum_v01 slot;
+  /**<   Indicates the slot where Supply Voltage Vcc line needs to be activated or
+       deactivated.
+       Valid values:\n
+        - 1 -- Slot 1\n
+        - 2 -- Slot 2\n
+        - 3 -- Slot 3\n
+        - 4 -- Slot 4\n
+        - 5 -- Slot 5
+  */
+
+  /* Mandatory */
+  /*  Vcc command type */
+  uim_vcc_command_enum_v01 vcc_command;
+  /**<   Indicates whether supply Voltage Vcc is to be deactivated or activated. */
+}uim_supply_voltage_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_UIM_AUTHENTICATE_V01 
+//#define REMOVE_QMI_UIM_AUTHENTICATE_IND_V01 
+//#define REMOVE_QMI_UIM_CHANGE_PIN_V01 
+//#define REMOVE_QMI_UIM_CHANGE_PIN_IND_V01 
+//#define REMOVE_QMI_UIM_CHANGE_PROVISIONING_SESSION_V01 
+//#define REMOVE_QMI_UIM_CLOSE_SESSION_V01 
+//#define REMOVE_QMI_UIM_DEPERSONALIZATION_V01 
+//#define REMOVE_QMI_UIM_EVENT_REG_V01 
+//#define REMOVE_QMI_UIM_GET_ATR_V01 
+//#define REMOVE_QMI_UIM_GET_CARD_STATUS_V01 
+//#define REMOVE_QMI_UIM_GET_CONFIGURATION_V01 
+//#define REMOVE_QMI_UIM_GET_FILE_ATTRIBUTES_V01 
+//#define REMOVE_QMI_UIM_GET_FILE_ATTRIBUTES_IND_V01 
+//#define REMOVE_QMI_UIM_GET_LABEL_V01 
+//#define REMOVE_QMI_UIM_GET_PLMN_NAME_TABLE_INFO_V01 
+//#define REMOVE_QMI_UIM_GET_SERVICE_STATUS_V01 
+//#define REMOVE_QMI_UIM_GET_SIM_PROFILE_V01 
+//#define REMOVE_QMI_UIM_GET_SLOTS_STATUS_V01 
+//#define REMOVE_QMI_UIM_GET_SUPPORTED_FIELDS_V01 
+//#define REMOVE_QMI_UIM_GET_SUPPORTED_MSGS_V01 
+//#define REMOVE_QMI_UIM_INCREASE_V01 
+//#define REMOVE_QMI_UIM_INCREASE_IND_V01 
+//#define REMOVE_QMI_UIM_LOGICAL_CHANNEL_V01 
+//#define REMOVE_QMI_UIM_OPEN_LOGICAL_CHANNEL_V01 
+//#define REMOVE_QMI_UIM_PERSONALIZATION_V01 
+//#define REMOVE_QMI_UIM_POWER_DOWN_V01 
+//#define REMOVE_QMI_UIM_POWER_UP_V01 
+//#define REMOVE_QMI_UIM_READ_RECORD_V01 
+//#define REMOVE_QMI_UIM_READ_RECORD_IND_V01 
+//#define REMOVE_QMI_UIM_READ_TRANSPARENT_V01 
+//#define REMOVE_QMI_UIM_READ_TRANSPARENT_IND_V01 
+//#define REMOVE_QMI_UIM_READ_TRANSPARENT_LONG_IND_V01 
+//#define REMOVE_QMI_UIM_RECOVERY_V01 
+//#define REMOVE_QMI_UIM_RECOVERY_IND_V01 
+//#define REMOVE_QMI_UIM_REFRESH_COMPLETE_V01 
+//#define REMOVE_QMI_UIM_REFRESH_GET_LAST_EVENT_V01 
+//#define REMOVE_QMI_UIM_REFRESH_IND_V01 
+//#define REMOVE_QMI_UIM_REFRESH_OK_V01 
+//#define REMOVE_QMI_UIM_REFRESH_REGISTER_V01 
+//#define REMOVE_QMI_UIM_REFRESH_REGISTER_ALL_V01 
+//#define REMOVE_QMI_UIM_RESELECT_V01 
+//#define REMOVE_QMI_UIM_RESET_V01 
+//#define REMOVE_QMI_UIM_SAP_CONNECTION_V01 
+//#define REMOVE_QMI_UIM_SAP_CONNECTION_IND_V01 
+//#define REMOVE_QMI_UIM_SAP_REQUEST_V01 
+//#define REMOVE_QMI_UIM_SEND_APDU_V01 
+//#define REMOVE_QMI_UIM_SEND_APDU_IND_V01 
+//#define REMOVE_QMI_UIM_SEND_STATUS_V01 
+//#define REMOVE_QMI_UIM_SESSION_CLOSED_IND_V01 
+//#define REMOVE_QMI_UIM_SET_FILE_STATUS_V01 
+//#define REMOVE_QMI_UIM_SET_PIN_PROTECTION_V01 
+//#define REMOVE_QMI_UIM_SET_PIN_PROTECTION_IND_V01 
+//#define REMOVE_QMI_UIM_SET_SERVICE_STATUS_V01 
+//#define REMOVE_QMI_UIM_SET_SIM_PROFILE_V01 
+//#define REMOVE_QMI_UIM_SIM_BUSY_STATUS_IND_V01 
+//#define REMOVE_QMI_UIM_SLOT_STATUS_CHANGE_IND_V01 
+//#define REMOVE_QMI_UIM_STATUS_CHANGE_IND_V01 
+//#define REMOVE_QMI_UIM_SUBSCRIPTION_OK_V01 
+//#define REMOVE_QMI_UIM_SUPPLY_VOLTAGE_V01 
+//#define REMOVE_QMI_UIM_SUPPLY_VOLTAGE_IND_V01 
+//#define REMOVE_QMI_UIM_SWITCH_SLOT_V01 
+//#define REMOVE_QMI_UIM_UNBLOCK_PIN_V01 
+//#define REMOVE_QMI_UIM_UNBLOCK_PIN_IND_V01 
+//#define REMOVE_QMI_UIM_VERIFY_PIN_V01 
+//#define REMOVE_QMI_UIM_VERIFY_PIN_IND_V01 
+//#define REMOVE_QMI_UIM_WRITE_RECORD_V01 
+//#define REMOVE_QMI_UIM_WRITE_RECORD_IND_V01 
+//#define REMOVE_QMI_UIM_WRITE_TRANSPARENT_V01 
+//#define REMOVE_QMI_UIM_WRITE_TRANSPARENT_IND_V01 
 
 /*Service Message Definition*/
 /** @addtogroup uim_qmi_msg_ids
@@ -5343,6 +6002,20 @@ typedef struct {
 #define QMI_UIM_INCREASE_REQ_V01 0x004D
 #define QMI_UIM_INCREASE_RESP_V01 0x004D
 #define QMI_UIM_INCREASE_IND_V01 0x004D
+#define QMI_UIM_RECOVERY_REQ_V01 0x004E
+#define QMI_UIM_RECOVERY_RESP_V01 0x004E
+#define QMI_UIM_RESELECT_REQ_V01 0x004F
+#define QMI_UIM_RESELECT_RESP_V01 0x004F
+#define QMI_UIM_RECOVERY_IND_V01 0x0050
+#define QMI_UIM_SEND_STATUS_REQ_V01 0x0051
+#define QMI_UIM_SEND_STATUS_RESP_V01 0x0051
+#define QMI_UIM_GET_SIM_PROFILE_REQ_V01 0x0052
+#define QMI_UIM_GET_SIM_PROFILE_RESP_V01 0x0052
+#define QMI_UIM_SET_SIM_PROFILE_REQ_V01 0x0053
+#define QMI_UIM_SET_SIM_PROFILE_RESP_V01 0x0053
+#define QMI_UIM_SUPPLY_VOLTAGE_REQ_V01 0x0054
+#define QMI_UIM_SUPPLY_VOLTAGE_RESP_V01 0x0054
+#define QMI_UIM_SUPPLY_VOLTAGE_IND_V01 0x0054
 /**
     @}
   */

@@ -19,20 +19,33 @@
 #include "utils_common.h"
 #include "cri_core.h"
 
-typedef struct cri_rule_handler_rule_info_type
+typedef struct cri_rule_handler_user_rule_info_type
 {
-    cri_core_context_type context;
-    int timer_id;
-    void *hlos_resp_cb_data;
-    hlos_resp_cb_type hlos_resp_cb;
     void *rule_data;
     int (*rule_check_handler)(void *rule_data);
     void (*rule_data_free_handler)(void *rule_data);
+    void *cri_resp_util_data;
+    void* (*cri_resp_data_calculator)(cri_core_error_type cri_core_error,
+                                        void *cri_resp_util_data);
+    void (*cri_resp_util_data_free_handler)(void *cri_resp_util_data);
+    void (*cri_resp_data_free_handler)(void *cri_resp_data);
+}cri_rule_handler_user_rule_info_type;
 
+typedef struct cri_rule_handler_core_rule_info_type
+{
+    cri_core_context_type context;
+    int timer_id;
+    const void *hlos_resp_cb_data;
+    hlos_resp_cb_type hlos_resp_cb;
     void *qmi_resp_data;
     void *qmi_cb_data;
-}cri_rule_handler_rule_info_type;
+}cri_rule_handler_core_rule_info_type;
 
+typedef struct cri_rule_handler_rule_info_type
+{
+    cri_rule_handler_core_rule_info_type core_rule_info;
+    cri_rule_handler_user_rule_info_type user_rule_info;
+}cri_rule_handler_rule_info_type;
 
 
 

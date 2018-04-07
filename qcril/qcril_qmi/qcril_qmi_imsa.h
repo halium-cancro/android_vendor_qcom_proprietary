@@ -42,19 +42,19 @@ void qcril_qmi_imsa_request_query_ims_srv_status
 void qcril_qmi_imsa_unsol_ind_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 );
 
 void qcril_qmi_imsa_command_cb
 (
    qmi_client_type              user_handle,
-   unsigned long                msg_id,
-   void                         *resp_c_struct,
-   int                          resp_c_struct_len,
-   void                         *resp_cb_data,
+   unsigned int                 msg_id,
+   void                        *resp_c_struct,
+   unsigned int                 resp_c_struct_len,
+   void                        *resp_cb_data,
    qmi_client_error_type        transp_err
 );
 

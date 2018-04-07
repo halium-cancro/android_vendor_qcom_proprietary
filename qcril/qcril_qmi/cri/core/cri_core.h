@@ -19,10 +19,125 @@
 #include "common_v01.h"
 #include "qmi_client.h"
 
+struct cri_rule_handler_user_rule_info_type;
 typedef uint32_t cri_core_hlos_token_id_type;
 typedef uint16_t cri_core_token_id_type;
 typedef uint64_t cri_core_context_type;
-typedef qmi_error_type_v01 cri_core_error_type; //TODO : Can be a enum
+
+typedef enum {
+  CRI_ERROR_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  CRI_ERR_NONE_V01 = 0x0000,
+  CRI_ERR_MALFORMED_MSG_V01 = 0x0001,
+  CRI_ERR_NO_MEMORY_V01 = 0x0002,
+  CRI_ERR_INTERNAL_V01 = 0x0003,
+  CRI_ERR_ABORTED_V01 = 0x0004,
+  CRI_ERR_CLIENT_IDS_EXHAUSTED_V01 = 0x0005,
+  CRI_ERR_UNABORTABLE_TRANSACTION_V01 = 0x0006,
+  CRI_ERR_INVALID_CLIENT_ID_V01 = 0x0007,
+  CRI_ERR_NO_THRESHOLDS_V01 = 0x0008,
+  CRI_ERR_INVALID_HANDLE_V01 = 0x0009,
+  CRI_ERR_INVALID_PROFILE_V01 = 0x000A,
+  CRI_ERR_INVALID_PINID_V01 = 0x000B,
+  CRI_ERR_INCORRECT_PIN_V01 = 0x000C,
+  CRI_ERR_NO_NETWORK_FOUND_V01 = 0x000D,
+  CRI_ERR_CALL_FAILED_V01 = 0x000E,
+  CRI_ERR_OUT_OF_CALL_V01 = 0x000F,
+  CRI_ERR_NOT_PROVISIONED_V01 = 0x0010,
+  CRI_ERR_MISSING_ARG_V01 = 0x0011,
+  CRI_ERR_ARG_TOO_LONG_V01 = 0x0013,
+  CRI_ERR_INVALID_TX_ID_V01 = 0x0016,
+  CRI_ERR_DEVICE_IN_USE_V01 = 0x0017,
+  CRI_ERR_OP_NETWORK_UNSUPPORTED_V01 = 0x0018,
+  CRI_ERR_OP_DEVICE_UNSUPPORTED_V01 = 0x0019,
+  CRI_ERR_NO_EFFECT_V01 = 0x001A,
+  CRI_ERR_NO_FREE_PROFILE_V01 = 0x001B,
+  CRI_ERR_INVALID_PDP_TYPE_V01 = 0x001C,
+  CRI_ERR_INVALID_TECH_PREF_V01 = 0x001D,
+  CRI_ERR_INVALID_PROFILE_TYPE_V01 = 0x001E,
+  CRI_ERR_INVALID_SERVICE_TYPE_V01 = 0x001F,
+  CRI_ERR_INVALID_REGISTER_ACTION_V01 = 0x0020,
+  CRI_ERR_INVALID_PS_ATTACH_ACTION_V01 = 0x0021,
+  CRI_ERR_AUTHENTICATION_FAILED_V01 = 0x0022,
+  CRI_ERR_PIN_BLOCKED_V01 = 0x0023,
+  CRI_ERR_PIN_PERM_BLOCKED_V01 = 0x0024,
+  CRI_ERR_SIM_NOT_INITIALIZED_V01 = 0x0025,
+  CRI_ERR_MAX_QOS_REQUESTS_IN_USE_V01 = 0x0026,
+  CRI_ERR_INCORRECT_FLOW_FILTER_V01 = 0x0027,
+  CRI_ERR_NETWORK_QOS_UNAWARE_V01 = 0x0028,
+  CRI_ERR_INVALID_ID_V01 = 0x0029,
+  CRI_ERR_INVALID_QOS_ID_V01 = 0x0029,
+  CRI_ERR_REQUESTED_NUM_UNSUPPORTED_V01 = 0x002A,
+  CRI_ERR_INTERFACE_NOT_FOUND_V01 = 0x002B,
+  CRI_ERR_FLOW_SUSPENDED_V01 = 0x002C,
+  CRI_ERR_INVALID_DATA_FORMAT_V01 = 0x002D,
+  CRI_ERR_GENERAL_V01 = 0x002E,
+  CRI_ERR_UNKNOWN_V01 = 0x002F,
+  CRI_ERR_INVALID_ARG_V01 = 0x0030,
+  CRI_ERR_INVALID_INDEX_V01 = 0x0031,
+  CRI_ERR_NO_ENTRY_V01 = 0x0032,
+  CRI_ERR_DEVICE_STORAGE_FULL_V01 = 0x0033,
+  CRI_ERR_DEVICE_NOT_READY_V01 = 0x0034,
+  CRI_ERR_NETWORK_NOT_READY_V01 = 0x0035,
+  CRI_ERR_CAUSE_CODE_V01 = 0x0036,
+  CRI_ERR_MESSAGE_NOT_SENT_V01 = 0x0037,
+  CRI_ERR_MESSAGE_DELIVERY_FAILURE_V01 = 0x0038,
+  CRI_ERR_INVALID_MESSAGE_ID_V01 = 0x0039,
+  CRI_ERR_ENCODING_V01 = 0x003A,
+  CRI_ERR_AUTHENTICATION_LOCK_V01 = 0x003B,
+  CRI_ERR_INVALID_TRANSITION_V01 = 0x003C,
+  CRI_ERR_NOT_A_MCAST_IFACE_V01 = 0x003D,
+  CRI_ERR_MAX_MCAST_REQUESTS_IN_USE_V01 = 0x003E,
+  CRI_ERR_INVALID_MCAST_HANDLE_V01 = 0x003F,
+  CRI_ERR_INVALID_IP_FAMILY_PREF_V01 = 0x0040,
+  CRI_ERR_SESSION_INACTIVE_V01 = 0x0041,
+  CRI_ERR_SESSION_INVALID_V01 = 0x0042,
+  CRI_ERR_SESSION_OWNERSHIP_V01 = 0x0043,
+  CRI_ERR_INSUFFICIENT_RESOURCES_V01 = 0x0044,
+  CRI_ERR_DISABLED_V01 = 0x0045,
+  CRI_ERR_INVALID_OPERATION_V01 = 0x0046,
+  CRI_ERR_INVALID_QMI_CMD_V01 = 0x0047,
+  CRI_ERR_TPDU_TYPE_V01 = 0x0048,
+  CRI_ERR_SMSC_ADDR_V01 = 0x0049,
+  CRI_ERR_INFO_UNAVAILABLE_V01 = 0x004A,
+  CRI_ERR_SEGMENT_TOO_LONG_V01 = 0x004B,
+  CRI_ERR_SEGMENT_ORDER_V01 = 0x004C,
+  CRI_ERR_BUNDLING_NOT_SUPPORTED_V01 = 0x004D,
+  CRI_ERR_OP_PARTIAL_FAILURE_V01 = 0x004E,
+  CRI_ERR_POLICY_MISMATCH_V01 = 0x004F,
+  CRI_ERR_SIM_FILE_NOT_FOUND_V01 = 0x0050,
+  CRI_ERR_EXTENDED_INTERNAL_V01 = 0x0051,
+  CRI_ERR_ACCESS_DENIED_V01 = 0x0052,
+  CRI_ERR_HARDWARE_RESTRICTED_V01 = 0x0053,
+  CRI_ERR_ACK_NOT_SENT_V01 = 0x0054,
+  CRI_ERR_INJECT_TIMEOUT_V01 = 0x0055,
+  CRI_ERR_INCOMPATIBLE_STATE_V01 = 0x005A,
+  CRI_ERR_FDN_RESTRICT_V01 = 0x005B,
+  CRI_ERR_SUPS_FAILURE_CAUSE_V01 = 0x005C,
+  CRI_ERR_NO_RADIO_V01 = 0x005D,
+  CRI_ERR_NOT_SUPPORTED_V01 = 0x005E,
+  CRI_ERR_NO_SUBSCRIPTION_V01 = 0x005F,
+  CRI_ERR_CARD_CALL_CONTROL_FAILED_V01 = 0x0060,
+  CRI_ERR_NETWORK_ABORTED_V01 = 0x0061,
+  CRI_ERR_MSG_BLOCKED_V01 = 0x0062,
+  CRI_ERR_INVALID_SESSION_TYPE_V01 = 0x0064,
+  CRI_ERR_INVALID_PB_TYPE_V01 = 0x0065,
+  CRI_ERR_NO_SIM_V01 = 0x0066,
+  CRI_ERR_PB_NOT_READY_V01 = 0x0067,
+  CRI_ERR_PIN_RESTRICTION_V01 = 0x0068,
+  CRI_ERR_PIN2_RESTRICTION_V01 = 0x0069,
+  CRI_ERR_PUK_RESTRICTION_V01 = 0x006A,
+  CRI_ERR_PUK2_RESTRICTION_V01 = 0x006B,
+  CRI_ERR_PB_ACCESS_RESTRICTED_V01 = 0x006C,
+  CRI_ERR_PB_DELETE_IN_PROG_V01 = 0x006D,
+  CRI_ERR_PB_TEXT_TOO_LONG_V01 = 0x006E,
+  CRI_ERR_PB_NUMBER_TOO_LONG_V01 = 0x006F,
+  CRI_ERR_PB_HIDDEN_KEY_RESTRICTION_V01 = 0x0070,
+  CRI_ERR_DIAL_MODIFIED_TO_DIAL = 0x0100,
+  CRI_ERR_DIAL_MODIFIED_TO_SS = 0x0101,
+  CRI_ERR_DIAL_MODIFIED_TO_USSD = 0x0102,
+  CRI_ERR_DIAL_FDN_CHECK_FAILURE = 0x0103,
+  CRI_ERROR_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+} cri_core_error_type;
 
 typedef void (*hlos_ind_cb_type)(unsigned long message_id,
                                  void *ind_data,
@@ -44,6 +159,49 @@ typedef enum {
 #define CRI_CORE_MINIMAL_TIMEOUT (5)
 #define CRI_CORE_STANDARD_TIMEOUT (30)
 #define CRI_CORE_MAX_TIMEOUT (60)
+
+/* Enum for services.  */
+typedef enum
+{
+  QMI_CRI_FIRST_SERVICE                       = 0x01,
+  QMI_CRI_WDS_SERVICE                         = QMI_FIRST_SERVICE,
+  QMI_CRI_DMS_SERVICE                         = 0x02,
+  QMI_CRI_NAS_SERVICE                         = 0x03,
+  QMI_CRI_QOS_SERVICE                         = 0x04,
+  QMI_CRI_WMS_SERVICE                         = 0x05,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_1       = 0x06,
+  QMI_CRI_EAP_SERVICE                         = 0x07,
+  QMI_CRI_ATCOP_SERVICE                       = 0x08,
+  QMI_CRI_VOICE_SERVICE                       = 0x09,
+  QMI_CRI_CAT_SERVICE                         = 0x0A,
+  QMI_CRI_SIM_SERVICE                         = 0x0B,
+  QMI_CRI_PBM_SERVICE                         = 0x0C,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_2       = 0x0D,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_3       = 0x0E,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_4       = 0x0F,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_5       = 0x10,
+  QMI_CRI_SAR_SERVICE                         = 0x11,
+  QMI_CRI_IMS_VIDEO_SERVICE                   = 0x12,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_6       = 0x13,
+  QMI_CRI_CSD_SERVICE                         = 0x14,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_7       = 0x15,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_8       = 0x16,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_9       = 0x17,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_10      = 0x18,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_11      = 0x19,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_12      = 0x1A,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_13      = 0x1B,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_14      = 0x1C,
+  QMI_CRI_CSVT_SERVICE                        = 0x1D,
+  QMI_CRI_IMS_VT_SERVICE,
+  QMI_CRI_IMS_PRESENCE_SERVICE                = 0x1F,
+  QMI_CRI_RFPE_SERVICE                        = 0x29,
+  QMI_CRI_DSD_SERVICE                         = 0x2A,
+  QMI_CRI_SERVICE_NOT_YET_IMPLEMENTED_15      = 0x2B,
+  QMI_CRI_FIRST_VS_SERVICE,
+  QMI_CRI_RF_SAR_SERVICE                      = QMI_FIRST_VS_SERVICE,
+  QMI_CRI_MAX_SERVICES
+} qmi_cri_service_id_type;
 
 typedef enum cri_core_message_category_type
 {
@@ -124,6 +282,46 @@ int cri_core_start();
     otherwise
 ***************************************************************************************************/
 qmi_error_type_v01 cri_core_cri_client_init(cri_core_cri_client_init_info_type *client_init_info);
+
+/***************************************************************************************************
+    @function
+    cri_core_cri_client_reset
+
+    @brief
+    Reset the QMI services to clear the subscription binding
+
+    @param[in]
+        client_init_info
+            contains information about all the services that need to be reset.
+
+    @param[out]
+        none
+
+    @retval
+    QMI_ERR_NONE_V01 if CRI framework has been successfully reset, appropriate error code
+    otherwise
+***************************************************************************************************/
+qmi_error_type_v01 cri_core_cri_client_reset(cri_core_cri_client_init_info_type *client_init_info);
+
+/***************************************************************************************************
+    @function
+    cri_core_cri_client_reinit
+
+    @brief
+    Re-initialize the QMI services to update the subscription binding
+
+    @param[in]
+        client_init_info
+            contains information about all the services that need to be initialized.
+
+    @param[out]
+        none
+
+    @retval
+    QMI_ERR_NONE_V01 if CRI framework has been successfully re-initialized, appropriate error code
+    otherwise
+***************************************************************************************************/
+qmi_error_type_v01 cri_core_cri_client_reinit(cri_core_cri_client_init_info_type *client_init_info);
 
 
 
@@ -304,11 +502,11 @@ char* cri_core_create_loggable_context(cri_core_context_type cri_core_context);
         none
 
     @retval
-    QMI_ERR_NONE_V01 if message has been sent succesfully and response is also successful,
+    CRI_ERR_NONE_V01 if message has been sent succesfully and response is also successful,
     appropriate error code otherwise
 ***************************************************************************************************/
-qmi_error_type_v01 cri_core_retrieve_err_code(qmi_client_error_type transport_error,
-                                              qmi_response_type_v01* resp_err);
+cri_core_error_type cri_core_retrieve_err_code(qmi_error_type_v01 transport_error,
+                                               qmi_response_type_v01* resp_err);
 
 
 
@@ -487,13 +685,9 @@ qmi_error_type_v01 cri_core_qmi_send_msg_sync(int qmi_service_client_id,
            user callback that needs to be called when the rule has been met
         timeout_secs
            number of seconds to wait for the rule to be met
-        rule_data
-           pointer to data that needs to be used for checking If corresponding rule has been met
-        rule_check_handler
-           pointer to function that needs to be used checking If corresponding rule has been met
-        rule_data_free_handler
-           pointer to function that needs to be used for freeing rule data once the rule has been
-           met
+        user_rule_info
+           pointer to user specific rule data that needs to be used for checking If corresponding
+           rule has been met
 
     @param[out]
         none
@@ -508,13 +702,12 @@ qmi_error_type_v01 cri_core_qmi_send_msg_async(cri_core_context_type cri_core_co
                                                void *req_message,
                                                int req_message_len,
                                                int resp_message_len,
-                                               void *hlos_cb_data,
+                                               const void *hlos_cb_data,
                                                hlos_resp_cb_type hlos_resp_cb,
                                                int timeout_secs,
-                                               void *rule_data,
-                                               int (*rule_check_handler)(void *rule_data),
-                                               void (*rule_data_free_handler)(void *rule_data));
-
+                                               struct cri_rule_handler_user_rule_info_type
+                                                                            *user_rule_info
+                                               );
 
 
 

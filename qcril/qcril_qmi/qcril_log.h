@@ -32,12 +32,12 @@
 #include <msg.h>
 #elif defined QMI_RIL_UTF
 #include <msg.h>
+#include "ril_utf_log.h"
 #else
 #include <msgcfg.h>
 #include <msg.h>
 #include <diag_lsm.h>
 #include <diag/include/log.h>
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -48,6 +48,9 @@
 #include <netdb.h>
 #include <pthread.h>
 #endif /* FEATURE_UNIT_TEST */
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
+#include <stdarg.h>
 
 typedef enum
 {
@@ -58,7 +61,7 @@ typedef enum
 int qcril_multiple_rild_ipc_send_func(ipc_message_id_type message_id, void * payload, int payload_length, int dest_rild_instance_id);
 
 #ifdef QMI_RIL_UTF
-#define MSG_SPRINTF_1(ignore_1, ignore_2, xx_fmt, xx_arg1)   printf(xx_fmt,xx_arg1 )
+//#define MSG_SPRINTF_1(ignore_1, ignore_2, xx_fmt, xx_arg1)   printf(xx_fmt,xx_arg1 )
 #endif
 
 
@@ -71,6 +74,9 @@ int qcril_multiple_rild_ipc_send_func(ipc_message_id_type message_id, void * pay
 /* Persistent System Property that controls whether QCRIL messages to be logged to ADB */
 #define QCRIL_LOG_ADB_ON                      "persist.radio.adb_log_on"
 
+/* Persistent System Property that controls whether QCRIL messages to be dumped to QXDM log */
+#define QCRIL_LOG_RIL_PAYLOAD_LOG_ON          "persist.radio.ril_payload_on"
+
 /* Maximum length of log message */
 #define QCRIL_MAX_IPC_PAYLOAD_SIZE            600
 #define QCRIL_MAX_LOG_MSG_SIZE                512
@@ -80,6 +86,9 @@ int qcril_multiple_rild_ipc_send_func(ipc_message_id_type message_id, void * pay
 #define MSG_INTERNAL_LEGACY_BASE             ( MSG_LEGACY_LOW + MSG_LEGACY_MED + MSG_LEGACY_HIGH + MSG_LEGACY_ERROR + MSG_LEGACY_FATAL )
 #define MSG_LEGACY_ESSENTIAL                 ( MSG_INTERNAL_LEGACY_BASE + 1 )
 
+#define RIL_REQUEST_SIM_GET_ATR 127
+
+extern FILE *rild_fp;
 extern char log_buf[ QCRIL_MAX_LOG_MSG_SIZE ];
 extern char log_fmt[ QCRIL_MAX_LOG_MSG_SIZE ];
 extern pthread_mutex_t log_lock_mutex;
@@ -119,6 +128,12 @@ typedef struct
   char * event_name;
 }qcril_qmi_event_log_type;
 
+typedef enum _RIL__MsgType {
+  RIL__MSG_TYPE__REQUEST = 1,
+  RIL__MSG_TYPE__RESPONSE = 2,
+  RIL__MSG_TYPE__UNSOL_RESPONSE = 3
+} RIL__MsgType;
+
 #if (!defined FEATURE_UNIT_TEST) && (!defined QMI_RIL_UTF)
 /* Call flow log packet */
 typedef struct
@@ -132,6 +147,9 @@ typedef struct
 #endif /* FEATURE_UNIT_TEST */
 
 void qcril_log_init( void );
+void qcril_log_timer_init( void );
+void qcril_log_cancel_log_timer();
+void qcril_log_cleanup( void );
 const char *qcril_log_lookup_event_name( int event_id );
 int qcril_log_get_token_id( RIL_Token t );
 void qcril_format_log_msg( char *buf_ptr, int buf_size, char *fmt, ... );
@@ -143,6 +161,12 @@ void qcril_ipc_init();
 void qcril_ipc_release();
 void qcril_multiple_rild_ipc_radio_power_propagation_helper_func(int is_genuine_signal);
 void qcril_qmi_nas_handle_multiple_rild_radio_power_state_propagation(int is_genuine_signal);
+
+inline void qcril_log_print_ril_message_payload(const char* format, ...);
+void qcril_log_print_ril_message(int message_id, RIL__MsgType message_type,
+                                  void* data, size_t datalen, RIL_Errno error);
+
+void qcril_log_timer_setup( void );
 
 #ifdef QMI_RIL_UTL
 uint32 qcril_get_time_milliseconds();
@@ -193,11 +217,11 @@ extern char log_buf_raw[ QCRIL_MAX_LOG_MSG_SIZE ];
         qcril_log_msg_to_adb( lvl, log_buf );                                                                                   \
         if( MSG_LEGACY_ESSENTIAL == lvl )          \
         {                                                                                                                       \
-          MSG_SPRINTF_1( MSG_SSID_ANDROID_QCRIL, MSG_LEGACY_HIGH, "%s", log_buf );                                              \
+          RIL_UTF_SIMPLE_LOG("%s", log_buf); \
         }                                                                                                                       \
         else                                                                                                                    \
         {                                                                                                                       \
-          MSG_SPRINTF_1( MSG_SSID_ANDROID_QCRIL, lvl, "%s", log_buf );                                                          \
+          RIL_UTF_SIMPLE_LOG("%s", log_buf); \
         }                                                                                                                       \
     }                                                                                                                           \
     (void) pthread_mutex_unlock(&log_lock_mutex);                                                                               \
@@ -205,7 +229,7 @@ extern char log_buf_raw[ QCRIL_MAX_LOG_MSG_SIZE ];
 
 #define QCRIL_LOG_MSG_LVL_BUF( lvl, buf )                                                                                       \
   {                                                                                                                             \
-        MSG_SPRINTF_1( MSG_SSID_ANDROID_QCRIL, lvl, "%s", buf );                                                                \
+          RIL_UTF_SIMPLE_LOG("%s", log_buf); \
   }                                                                                                                             \
 
 /* Log assertion level message */
@@ -249,6 +273,10 @@ extern char log_buf_raw[ QCRIL_MAX_LOG_MSG_SIZE ];
         }\
       }\
       qcril_log_msg_to_adb( lvl, log_buf );\
+      if(rild_fp)\
+      {\
+          fprintf(rild_fp, "%s\n", log_buf);\
+      }\
       (void) pthread_mutex_unlock(&log_lock_mutex);\
     }\
   }\
@@ -297,7 +325,7 @@ extern char log_buf_raw[ QCRIL_MAX_LOG_MSG_SIZE ];
 #define QCRIL_LOG_FUNC_RETURN()  QCRIL_LOG_MSG( MSG_LEGACY_LOW, "function exit" )
 
 /* Log function exit message */
-#define QCRIL_LOG_FUNC_RETURN_WITH_RET( ... ) QCRIL_LOG_MSG( MSG_LEGACY_LOW, "function exit with ret %d", __VA_ARGS__ )
+#define QCRIL_LOG_FUNC_RETURN_WITH_RET( ... ) QCRIL_LOG_MSG( MSG_LEGACY_LOW, "function exit with ret %PRIdPTR", __VA_ARGS__ )
 
 #define QCRIL_LOG_QMI_RESP_STATUS(qmi_client_error, qmi_service_response_ptr, ril_error) \
   QCRIL_LOG_MSG( MSG_LEGACY_LOW, "QMI response status - qmi_client_error: %d, " \

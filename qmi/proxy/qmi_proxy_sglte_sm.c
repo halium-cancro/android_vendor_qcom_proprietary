@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Technologies, Inc.  All Rights Reserved.
+ * Copyright (c) 2012, 2014 Qualcomm Technologies, Inc.  All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -635,6 +635,7 @@ qmi_proxy_sglte_state_id qmi_proxy_sglte_transition_table[SGLTE_STATE_MAX][SGLTE
                                  [SGLTE_SM_EVENT_PS_ACTIVE_ON_REMOTE]        = SGLTE_STATE_SGLTE_MODE_PS_ON_G,
                                  [SGLTE_SM_EVENT_CAMP_ONLY_SVC_ON_LOCAL]     = SGLTE_STATE_SGLTE_MODE_TRANS_PS_TO_LT,
                                  [SGLTE_SM_EVENT_VOICE_CALL_ACTIVE_NO_DTM]   = SGLTE_STATE_TRANS_PS_TO_G_MOVING_PS,
+                                 [SGLTE_SM_EVENT_NO_SVC_ON_REMOTE]           = SGLTE_STATE_TRANS_PS_TO_LT_MOVING_PS,
   },
   [SGLTE_STATE_SGLTE_MODE_PS_ON_G] = {
                                  [SGLTE_SM_EVENT_CAMP_ONLY_SVC_ON_LOCAL]     = SGLTE_STATE_SGLTE_MODE_TRANS_PS_TO_LT,
@@ -1233,6 +1234,11 @@ void sglte_sm_power_up_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 
@@ -1243,6 +1249,11 @@ void sglte_sm_proc_lpm_req_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 void sglte_sm_sglte_coverage_enter
@@ -1252,6 +1263,11 @@ void sglte_sm_sglte_coverage_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 void sglte_sm_sglte_coverage_leave
@@ -1261,6 +1277,11 @@ void sglte_sm_sglte_coverage_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 
 }
@@ -1277,6 +1298,10 @@ void sglte_sm_sglte_mode_enter
   int send_async = FALSE;
   qmi_proxy_conn_type cs_active_modem, ps_active_modem;
   int is_mode_pref_required = (evt_id != SGLTE_SM_EVENT_SGLTE_MODE);
+
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) user;
 
   QMI_PLATFORM_MUTEX_LOCK(&qmi_proxy_internal_info.cache_mutex);
   qmi_proxy_update_cs_active_ps_active_sglte();
@@ -1306,6 +1331,9 @@ void sglte_sm_sglte_coverage_non_sglte_mode_enter
   qmi_proxy_conn_type cs_active_modem, ps_active_modem;
   int is_mode_pref_required = (evt_id != SGLTE_SM_EVENT_NON_SGLTE_MODE);
 
+  /* Supress compiler warnings for unused variables */
+  (void) user;
+  
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 
   QMI_PLATFORM_MUTEX_LOCK(&qmi_proxy_internal_info.cache_mutex);
@@ -1372,6 +1400,11 @@ void sglte_sm_sglte_coverage_non_sglte_mode_waiting_svc_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) user;
+  (void) evt_id;
+  (void) sm;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_create_timer(qmi_proxy_sglte_hystersis_timer_info.sglte_rat_timer_value,
           sglte_sm_full_svc_timer_expired);
@@ -1385,6 +1418,11 @@ void sglte_sm_sglte_coverage_non_sglte_mode_waiting_svc_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) user;
+  (void) evt_id;
+  (void) sm;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_cancel_timer();
 }
@@ -1402,6 +1440,11 @@ void sglte_sm_non_sglte_coverage_enter
   int send_async = FALSE;
   qmi_proxy_conn_type cs_active_modem, ps_active_modem;
   int is_mode_pref_required = TRUE;
+
+  /* Supress compiler warnings for unused variables */
+  (void) user;
+  (void) evt_id;
+  (void) sm;
 
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 
@@ -1429,6 +1472,11 @@ void sglte_sm_non_sglte_coverage_waiting_svc_enter
 {
   qmi_proxy_mode_pref_type sglte_user_mode;
 
+  /* Supress compiler warnings for unused variables */
+  (void) user;
+  (void) evt_id;
+  (void) sm;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_create_timer(qmi_proxy_sglte_hystersis_timer_info.non_sglte_rat_timer_value,
           sglte_sm_full_svc_timer_expired);
@@ -1440,6 +1488,11 @@ void sglte_sm_non_sglte_coverage_waiting_svc_leave
   unsigned evt_id,
   void *user)
 {
+  /* Supress compiler warnings for unused variables */
+  (void) user;
+  (void) evt_id;
+  (void) sm;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_cancel_timer();
 
@@ -1462,6 +1515,10 @@ void sglte_sm_complete_oos_enter
   int in_sglte_coverage;
   int rc;
 
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) user;
+  
   QMI_PROXY_DEBUG_MSG("%s (evt_id: %d)\n", __FUNCTION__, evt_id);
 
   QMI_PLATFORM_MUTEX_LOCK(&qmi_proxy_internal_info.cache_mutex);
@@ -1541,6 +1598,10 @@ void sglte_validate_service_and_call_status
   unsigned evt_id
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 
   if (qmi_proxy_internal_info.is_dtm_supported[QMI_PROXY_REMOTE_CONN_TYPE] <= 0 &&
@@ -1578,6 +1639,11 @@ void sglte_mode_substate_active_enter
   unsigned evt_id,
   void *user)
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   sglte_validate_service_and_call_status(sm, evt_id);
 }
@@ -1589,6 +1655,11 @@ void sglte_mode_substate_active_waiting_svc_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_create_timer(
           qmi_proxy_sglte_hystersis_timer_info.sglte_rat_timer_value,
@@ -1602,6 +1673,9 @@ void sglte_mode_substate_active_waiting_svc_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_cancel_timer();
   sglte_validate_service_and_call_status(sm, evt_id);
@@ -1614,6 +1688,11 @@ void sglte_mode_substate_active_no_svc_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_create_timer(
           qmi_proxy_sglte_hystersis_timer_info.sglte_rat_timer_value,
@@ -1627,6 +1706,10 @@ void sglte_mode_substate_active_no_svc_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   if (SGLTE_SM_EVENT_FULL_SVC_TIMER_EXPIRED == evt_id)
   {
@@ -1646,6 +1729,11 @@ void sglte_mode_substate_trans_ps_to_g_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 
@@ -1656,6 +1744,11 @@ void sglte_mode_substate_trans_ps_to_g_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 
@@ -1666,6 +1759,11 @@ void trans_ps_to_g_timer_started_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   /* Start timer */
   qmi_proxy_create_timer(
@@ -1679,6 +1777,11 @@ void trans_ps_to_g_timer_started_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   /* Stop Timer */
   qmi_proxy_cancel_timer();
@@ -1785,6 +1888,11 @@ void trans_ps_to_g_setting_camp_only_enter
 {
   int rc;
 
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_force_srv_restriction(QMI_PROXY_LOCAL_CONN_TYPE,
           NAS_SRV_REG_RESTRICTION_CAMPED_ONLY_V01,
@@ -1799,6 +1907,10 @@ void trans_ps_to_g_setting_camp_only_leave
 )
 {
   int rc;
+
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) user;
 
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   if (evt_id == SGLTE_SM_EVENT_FULL_SVC_ON_LOCAL ||
@@ -1818,6 +1930,11 @@ void trans_ps_to_g_moving_ps_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 
   /* Set CS+PS on remote - not persistently*/
@@ -1838,6 +1955,10 @@ void trans_ps_to_g_moving_ps_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   if (evt_id == SGLTE_SM_EVENT_VOICE_CALL_ACTIVE_NO_DTM)
   {
@@ -1857,6 +1978,11 @@ void sglte_mode_substate_ps_on_g_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   //qmi_proxy_sglte_ps_to_g_timer_exp_handler();
 }
@@ -1868,6 +1994,11 @@ void sglte_mode_substate_trans_ps_to_lt_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 
@@ -1878,6 +2009,11 @@ void sglte_mode_substate_trans_ps_to_lt_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 
@@ -1888,6 +2024,11 @@ void trans_ps_to_lt_timer_started_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_create_timer(
           qmi_proxy_sglte_hystersis_timer_info.hyst_ps_to_lt_timer_value,
@@ -1901,6 +2042,11 @@ void trans_ps_to_lt_timer_started_leave
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_cancel_timer();
 }
@@ -1912,6 +2058,11 @@ void trans_ps_to_lte_moving_ps_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   /* Detach - This removes PS from domain pref as well */
   qmi_proxy_force_srv_domain_pref(QMI_PROXY_REMOTE_CONN_TYPE,
@@ -1934,6 +2085,11 @@ void trans_ps_to_lt_removing_camp_only_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
   qmi_proxy_force_srv_restriction(QMI_PROXY_LOCAL_CONN_TYPE,
           NAS_SRV_REG_RESTRICTION_UNRESTRICTED_V01,
@@ -1947,6 +2103,11 @@ void sglte_mode_substate_no_svc_on_qsc_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 
@@ -1957,6 +2118,11 @@ void sglte_mode_substate_no_svc_on_local_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 
@@ -1967,6 +2133,11 @@ void sglte_mode_voice_on_remote_no_dtm_enter
   void *user
 )
 {
+  /* Supress compiler warnings for unused variables */
+  (void) sm;
+  (void) evt_id;
+  (void) user;
+
   QMI_PROXY_DEBUG_MSG("%s", __FUNCTION__);
 }
 #endif

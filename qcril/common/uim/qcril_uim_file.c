@@ -1,6 +1,6 @@
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc.  All Rights Reserved.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc.  All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
   Export of this technology or software is regulated by the U.S. Government.
@@ -28,6 +28,27 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim_file.c#6 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+01/28/15   vdc     Clear select response cache entry upon channel close
+01/12/15   hh      memset read_params before checking data length
+12/04/14   at      Reselect via send APDU for backward compatibility
+12/01/14   hh      Support for get MCC and MNC
+11/13/14   at      Select response support for RIL_REQUEST_SIM_OPEN_CHANNEL
+08/13/14   tkl     Fixed session mapping for ISIM Auth
+07/24/14   tkl     Use RIL_SIM_IO_Response instead of RIL_SimAuthenticationResponse
+06/18/14   at      Support for SelectNext using reselect QMI command
+06/11/14   at      Support for open logical channel API
+06/17/14   tl      Added logic to better determine FCI value from AID
+06/10/14   tl      Removed array structures for slot specific parameters
+05/14/14   yt      Support for STATUS command as part of SIM_IO request
+05/02/14   tkl     Added support for RIL_REQUEST_SIM_AUTHENTICATION
+04/24/14   yt      Return 6D 00 for invalid instruction in APDU
+04/18/14   tl      Add check for mastercard AID
+01/21/14   at      Added support for getSelectResponse()
+01/17/14   at      Changed the feature check in qcril_uim_request_send_apdu
+01/28/14   at      Do not terminate app when closing logical channel
+01/17/14   at      Updated function definition for verify pin2 cb
+12/10/13   at      Updated feature checks with new ones for APDU APIs
+11/19/13   at      Changed the feature checks for streaming APDU APIs
 10/08/13   vdc     Return FALSE when pointer is NULL while composing APDU data
 08/29/13   yt      Allow P3 value to be more than 255 for READ/WRITE requests
 08/12/13   at      Added support for Long APDU indication
@@ -99,31 +120,49 @@ when       who     what, where, why
 
 ===========================================================================*/
 /* SIM IO commands */
-#define SIM_CMD_READ_BINARY                 176
-#define SIM_CMD_READ_RECORD                 178
-#define SIM_CMD_GET_RESPONSE                192
-#define SIM_CMD_UPDATE_BINARY               214
-#define SIM_CMD_RETRIEVE_DATA               203
-#define SIM_CMD_SET_DATA                    219
-#define SIM_CMD_UPDATE_RECORD               220
-#define SIM_CMD_STATUS                      242
+#define SIM_CMD_READ_BINARY                         176
+#define SIM_CMD_READ_RECORD                         178
+#define SIM_CMD_GET_RESPONSE                        192
+#define SIM_CMD_UPDATE_BINARY                       214
+#define SIM_CMD_RETRIEVE_DATA                       203
+#define SIM_CMD_SET_DATA                            219
+#define SIM_CMD_UPDATE_RECORD                       220
+#define SIM_CMD_STATUS                              242
 
-#define QCRIL_UIM_IMSI_PATH_SIZE            4
-#define QCRIL_UIM_FILEID_EF_IMSI            0x6F07
-#define QCRIL_UIM_FILEID_EF_IMSI_M          0x6F22
-#define QCRIL_UIM_IMSI_M_RAW_SIZE           10
-#define QCRIL_UIM_IMSI_M_PARSED_SIZE        16
+#define QCRIL_UIM_IMSI_PATH_SIZE                    4
+#define QCRIL_UIM_FILEID_EF_IMSI                    0x6F07
+#define QCRIL_UIM_FILEID_EF_IMSI_M                  0x6F22
+#define QCRIL_UIM_FILEID_EF_AD                      0x6FAD
+#define QCRIL_UIM_IMSI_M_RAW_SIZE                   10
+#define QCRIL_UIM_IMSI_M_PARSED_SIZE                16
 
-#define QCRIL_UIM_APDU_MIN_SIZE             4
-#define QCRIL_UIM_APDU_MIN_SIZE_PLUS_P3     5
+#define QCRIL_UIM_APDU_MIN_SIZE                     4
+#define QCRIL_UIM_APDU_MIN_SIZE_PLUS_P3             5
+#define QCRIL_UIM_INS_BYTE_GET_RESPONSE             0xC0
+#define QCRIL_UIM_CHANNEL_ID_MAX_VAL                19
+#define QCRIL_UIM_INVALID_INS_BYTE_MASK             0x60
+#define QCRIL_UIM_SW1_INS_CODE_NOT_SUPPORTED        0x6D
+#define QCRIL_UIM_SW2_NORMAL_END                    0x00
+#define QCRIL_UIM_INS_BYTE_SELECT                   0xA4
+#define QCRIL_UIM_P1_VALUE_SELECT_BY_DF_NAME        0x04
+#define QCRIL_UIM_P2_MASK_SELECT_NEXT               0x02
 
 /* Get file attributes response defines */
 /* Default value: not invalidated, readable and updatable when invalidated */
-#define QCRIL_UIM_GET_RESPONSE_MIN_SIZE     14
-#define QCRIL_UIM_GET_RESPONSE_FILE_STATUS  0X05
-#define QCRIL_UIM_TAG_FCP_TEMPLATE          0x62
-#define QCRIL_UIM_TAG_LIFE_CYCLE_STATUS     0x8A
+#define QCRIL_UIM_GET_RESPONSE_MIN_SIZE             14
+#define QCRIL_UIM_GET_RESPONSE_FILE_STATUS          0X05
+#define QCRIL_UIM_TAG_FCP_TEMPLATE                  0x62
+#define QCRIL_UIM_TAG_LIFE_CYCLE_STATUS             0x8A
 
+#define QCRIL_UIM_AUTH_GSM_CONTEXT                  0x80
+#define QCRIL_UIM_AUTH_3G_CONTEXT                   0x81
+#define QCRIL_UIM_AUTH_VGCS_VBS_SECURITY_CONTEXT    0x82
+
+#define QCRIL_UIM_AUTH_IMS_AKA                      0x81
+#define QCRIL_UIM_AUTH_HTTP_DIGEST_SECURITY_CONTEXT 0x82
+
+#define QCRIL_UIM_SW1_WRONG_PARAMS                  0x6A
+#define QCRIL_UIM_SW2_BAD_PARAMS_P1_P2              0x86
 
 /*===========================================================================
 
@@ -652,17 +691,12 @@ static qcril_uim_pin2_original_request_type* qcril_uim_clone_set_fdn_status_requ
 /*=========================================================================*/
 static void qmi_uim_internal_pin2_callback
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   qmi_uim_rsp_data_type        * rsp_data,
   void                         * user_data
 )
 {
   qcril_uim_pin2_original_request_type * original_request_ptr = NULL;
   IxErrnoType                            result               = E_FAILURE;
-
-  (void)user_handle;
-  (void)service_id;
 
   if(rsp_data == NULL || user_data == NULL)
   {
@@ -836,7 +870,8 @@ static uint8 qcril_uim_get_file_status_byte
 } /* qcril_uim_get_file_status_byte */
 
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
 /*=========================================================================
 
   FUNCTION:  qcril_uim_compose_apdu_data
@@ -854,14 +889,18 @@ static uint8 qcril_uim_get_file_status_byte
 static boolean qcril_uim_compose_apdu_data
 (
   qmi_uim_data_type       * apdu_data_ptr,
-  const RIL_SIM_IO_v6     * request_io_ptr
+  int                       cla,
+  int                       ins,
+  int                       p1,
+  int                       p2,
+  int                       p3,
+  const char              * data_ptr
 )
 {
   qmi_uim_data_type     binary_apdu_data;
   uint16                total_apdu_len = 0;
 
-  if ((request_io_ptr == NULL) ||
-      (apdu_data_ptr == NULL) ||
+  if ((apdu_data_ptr == NULL) ||
       (apdu_data_ptr->data_ptr == NULL) ||
       (apdu_data_ptr->data_len == 0))
   {
@@ -878,30 +917,30 @@ static boolean qcril_uim_compose_apdu_data
   /* Update mandatory parameters - CLA, INS, P1 & P2 */
   if (total_apdu_len >= QCRIL_UIM_APDU_MIN_SIZE)
   {
-    apdu_data_ptr->data_ptr[0] = (uint8)(request_io_ptr->cla & 0xFF);
-    apdu_data_ptr->data_ptr[1] = (uint8)(request_io_ptr->command & 0xFF);
-    apdu_data_ptr->data_ptr[2] = (uint8)(request_io_ptr->p1 & 0xFF);
-    apdu_data_ptr->data_ptr[3] = (uint8)(request_io_ptr->p2 & 0xFF);
+    apdu_data_ptr->data_ptr[0] = (uint8)(cla & 0xFF);
+    apdu_data_ptr->data_ptr[1] = (uint8)(ins & 0xFF);
+    apdu_data_ptr->data_ptr[2] = (uint8)(p1 & 0xFF);
+    apdu_data_ptr->data_ptr[3] = (uint8)(p2 & 0xFF);
     apdu_data_ptr->data_len = QCRIL_UIM_APDU_MIN_SIZE;
   }
 
   /* Update P3 parameter if valid */
   if (total_apdu_len >= QCRIL_UIM_APDU_MIN_SIZE_PLUS_P3)
   {
-    apdu_data_ptr->data_ptr[4] = (uint8)(request_io_ptr->p3 & 0xFF);
+    apdu_data_ptr->data_ptr[4] = (uint8)(p3 & 0xFF);
     apdu_data_ptr->data_len = QCRIL_UIM_APDU_MIN_SIZE_PLUS_P3;
   }
 
   /* Update data parameter if valid */
   if (total_apdu_len > QCRIL_UIM_APDU_MIN_SIZE_PLUS_P3)
   {
-    if ((request_io_ptr->data == NULL) || (strlen(request_io_ptr->data) == 0))
+    if ((data_ptr == NULL) || (strlen(data_ptr) == 0))
     {
       QCRIL_LOG_ERROR("%s", "Mismatch in total_apdu_len & input APDU data!");
       return FALSE;
     }
 
-    binary_apdu_data.data_ptr = qcril_uim_alloc_hexstring_to_bin(request_io_ptr->data,
+    binary_apdu_data.data_ptr = qcril_uim_alloc_hexstring_to_bin(data_ptr,
                                                                  &binary_apdu_data.data_len);
     if (binary_apdu_data.data_ptr == NULL)
     {
@@ -923,7 +962,191 @@ static boolean qcril_uim_compose_apdu_data
 
   return TRUE;
 } /* qcril_uim_compose_apdu_data */
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_remove_select_response_info_entry
+
+===========================================================================*/
+/*!
+    @brief
+    Function that clears the select response data corresponding to the client
+    id.
+
+    @return
+    void
+*/
+/*=========================================================================*/
+static void qcril_uim_remove_select_response_info_entry
+(
+  int channel_id
+)
+{
+  uint8  i                 = 0;
+
+  if ((channel_id == 0) ||
+      (channel_id > QCRIL_UIM_CHANNEL_ID_MAX_VAL))
+  {
+    QCRIL_LOG_ERROR("Invalid channel_id: 0x%x", channel_id);
+    return;
+  }
+
+  QCRIL_LOG_INFO("%s", "Clearing select response info entry channel_id: 0x%x",
+                 channel_id);
+
+  for (i = 0; i < QCRIL_UIM_MAX_SELECT_RESP_COUNT; i++)
+  {
+    if (qcril_uim.select_response_info[i].in_use == TRUE &&
+        qcril_uim.select_response_info[i].channel_id == channel_id)
+    {
+      if (qcril_uim.select_response_info[i].select_resp_ptr != NULL)
+      {
+        qcril_free(qcril_uim.select_response_info[i].select_resp_ptr);
+        qcril_uim.select_response_info[i].select_resp_ptr = NULL;
+      }
+
+      memset(&qcril_uim.select_response_info[i],
+             0x00,
+             sizeof(qcril_uim_select_response_info_type));
+    }
+  }
+} /* qcril_uim_remove_select_response_info_entry */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_store_select_response_info
+
+===========================================================================*/
+/*!
+    @brief
+    Function that temporarily caches the select response data if available in
+    a global variable. It is cleaned upon the next APDU request by the client
+    in any circumstance.
+
+    @return
+    RIL_E_SUCCESS if successful, RIL_E_GENERIC_FAILURE otherwise.
+*/
+/*=========================================================================*/
+static RIL_Errno qcril_uim_store_select_response_info
+(
+  const qmi_uim_logical_channel_rsp_type   * logical_ch_rsp_ptr
+)
+{
+  uint8  i                 = 0;
+  uint8  select_resp_index = QCRIL_UIM_MAX_SELECT_RESP_COUNT;
+
+  if ((logical_ch_rsp_ptr->channel_id == 0) ||
+      (logical_ch_rsp_ptr->channel_id > QCRIL_UIM_CHANNEL_ID_MAX_VAL))
+  {
+    QCRIL_LOG_ERROR("Invalid channel_id: 0x%x", logical_ch_rsp_ptr->channel_id);
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  for (i = 0; i < QCRIL_UIM_MAX_SELECT_RESP_COUNT; i++)
+  {
+    if (qcril_uim.select_response_info[i].in_use == FALSE)
+    {
+      select_resp_index = i;
+      break;
+    }
+  }
+
+  if (select_resp_index == QCRIL_UIM_MAX_SELECT_RESP_COUNT)
+  {
+    QCRIL_LOG_ERROR("%s", "Couldnt get select resp array index !");
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  /* Allocate & save the data */
+  QCRIL_LOG_INFO("Storing logical_channel_rsp for select_resp_index 0x%x, select_resp_len: 0x%x",
+                 select_resp_index, logical_ch_rsp_ptr->select_response.data_len);
+
+  memset(&qcril_uim.select_response_info[select_resp_index],
+         0,
+         sizeof(qcril_uim_select_response_info_type));
+
+  /* In some cases, we may have no actual select response,
+     so store only the channel & SW info */
+  if ((logical_ch_rsp_ptr->select_response.data_len > 0) &&
+      (logical_ch_rsp_ptr->select_response.data_ptr != NULL))
+  {
+    qcril_uim.select_response_info[select_resp_index].select_resp_ptr =
+      qcril_malloc(logical_ch_rsp_ptr->select_response.data_len);
+    if (qcril_uim.select_response_info[select_resp_index].select_resp_ptr == NULL)
+    {
+      QCRIL_LOG_ERROR("%s", "Couldnt allocate select resp array index !");
+      return RIL_E_GENERIC_FAILURE;
+    }
+    qcril_uim.select_response_info[select_resp_index].select_resp_len =
+      logical_ch_rsp_ptr->select_response.data_len;
+    memcpy(qcril_uim.select_response_info[select_resp_index].select_resp_ptr,
+           logical_ch_rsp_ptr->select_response.data_ptr,
+           logical_ch_rsp_ptr->select_response.data_len);
+  }
+
+  qcril_uim.select_response_info[select_resp_index].in_use     = TRUE;
+  qcril_uim.select_response_info[select_resp_index].sw1        = logical_ch_rsp_ptr->sw1;
+  qcril_uim.select_response_info[select_resp_index].sw2        = logical_ch_rsp_ptr->sw2;
+  qcril_uim.select_response_info[select_resp_index].channel_id = logical_ch_rsp_ptr->channel_id;
+
+  return RIL_E_SUCCESS;
+} /* qcril_uim_store_select_response_info */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_update_get_response_apdu
+
+===========================================================================*/
+/*!
+    @brief
+    Function to compose a get response APDU command based on what is cached
+    in the global select response info data.
+
+    @return
+    RIL_E_SUCCESS if successful, RIL_E_GENERIC_FAILURE otherwise.
+*/
+/*=========================================================================*/
+static RIL_Errno qcril_uim_update_get_response_apdu
+(
+  uint8                    select_resp_index,
+  RIL_SIM_IO_Response    * ril_response_ptr
+)
+{
+  if (ril_response_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid input, cannot proceed");
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  if (select_resp_index >= QCRIL_UIM_MAX_SELECT_RESP_COUNT)
+  {
+    QCRIL_LOG_ERROR("Invalid input, select_resp_index: 0x%x", select_resp_index);
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  QCRIL_LOG_INFO("Updating get_response from select_resp_index 0x%x, select_resp_len: 0x%x",
+                 select_resp_index,
+                 qcril_uim.select_response_info[select_resp_index].select_resp_len);
+
+  /* Fill RIL_SIM_IO_Response with necesary info */
+  ril_response_ptr->sw1 = qcril_uim.select_response_info[select_resp_index].sw1;
+  ril_response_ptr->sw2 = qcril_uim.select_response_info[select_resp_index].sw2;
+
+  if ((qcril_uim.select_response_info[select_resp_index].select_resp_ptr != NULL) &&
+      (qcril_uim.select_response_info[select_resp_index].select_resp_len != 0))
+  {
+    ril_response_ptr->simResponse = qcril_uim_alloc_bin_to_hexstring(
+      qcril_uim.select_response_info[select_resp_index].select_resp_ptr,
+      qcril_uim.select_response_info[select_resp_index].select_resp_len);
+  }
+
+  return RIL_E_SUCCESS;
+} /* qcril_uim_update_get_response_apdu */
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
 
 
 /*=========================================================================
@@ -2416,7 +2639,7 @@ void qcril_uim_request_set_fdn_status
   /* Sanity checks
      in_ptr[0]: facility string code
      in_ptr[1]: lock/unlock
-	 in_ptr[2]: password
+         in_ptr[2]: password
      in_ptr[3]: service class bit (unused)
      in_ptr[4]: AID value */
   if(in_ptr == NULL || in_ptr[0] == NULL || in_ptr[1] == NULL)
@@ -2633,6 +2856,17 @@ static void qcril_uim_get_status
   const RIL_SIM_IO_v6*      request_io_ptr
 )
 {
+  qcril_modem_id_e_type             modem_id = QCRIL_MAX_MODEM_ID - 1;
+  int                               res;
+  RIL_Errno                         err;
+  qmi_uim_status_cmd_params_type    status_params;
+  uint8                             aid[QCRIL_UIM_MAX_AID_SIZE];
+  qcril_uim_original_request_type * callback_request_ptr = NULL;
+  uint8                             slot =  QCRIL_UIM_INVALID_SLOT_INDEX_VALUE;
+#ifndef FEATURE_QCRIL_UIM_QMI_SIMIO_ASYNC_CALL
+  qcril_uim_callback_params_type    callback_params;
+#endif /* FEATURE_QCRIL_UIM_QMI_SIMIO_ASYNC_CALL */
+
   if(request_io_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "Invalid input, cannot proceed");
@@ -2640,10 +2874,163 @@ static void qcril_uim_get_status
     return;
   }
 
-  /* Currently not supported */
-  QCRIL_LOG_ERROR( "%s", "NOTIMPL: qcril_uim_get_status\n");
-  qcril_uim_response(instance_id, token,
-                     RIL_E_REQUEST_NOT_SUPPORTED, NULL, 0, TRUE, NULL);
+  memset(&status_params, 0, sizeof(qmi_uim_status_cmd_params_type));
+
+  /* Fetch slot info */
+  slot = qcril_uim_instance_id_to_slot(instance_id);
+  if(slot >= QMI_UIM_MAX_CARD_COUNT)
+  {
+    QCRIL_LOG_ERROR("Invalid slot %d", slot);
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  /* Extract command mode and response type */
+  switch (request_io_ptr->p1)
+  {
+    case 0:
+      status_params.mode = QMI_UIM_STATUS_CMD_MODE_NO_INDICATION;
+      break;
+    case 1:
+      status_params.mode = QMI_UIM_STATUS_CMD_MODE_APP_INITIALIZED;
+      break;
+    case 2:
+      status_params.mode = QMI_UIM_STATUS_CMD_MODE_WILL_TERMINATE_APP;
+      break;
+    default:
+      QCRIL_LOG_ERROR("Unsupported case, P1: 0x%X\n",request_io_ptr->p1);
+      qcril_uim_response(instance_id, token, RIL_E_REQUEST_NOT_SUPPORTED,
+                         NULL, 0, TRUE, NULL);
+      return;
+  }
+
+  switch (request_io_ptr->p2)
+  {
+    case 0:
+      status_params.resp_type = QMI_UIM_STATUS_CMD_FCP_RSP;
+      break;
+    case 1:
+      status_params.resp_type = QMI_UIM_STATUS_CMD_AID_RSP;
+      break;
+    case 12:
+      status_params.resp_type = QMI_UIM_STATUS_CMD_NO_DATA_RSP;
+      break;
+    default:
+      QCRIL_LOG_ERROR("Unsupported case, P2: 0x%X\n",request_io_ptr->p2);
+      qcril_uim_response(instance_id, token, RIL_E_REQUEST_NOT_SUPPORTED,
+                         NULL, 0, TRUE, NULL);
+      return;
+  }
+
+  /* Extract session information */
+  if (request_io_ptr->aidPtr == NULL)
+  {
+    /* In case of NULL AID, use a GW session if it is active,
+       else use a 1x session */
+    err = qcril_uim_extract_session_type(slot,
+                                         NULL,
+                                         QCRIL_UIM_FILEID_DF_GSM,
+                                         &status_params.session_info,
+                                         NULL,
+                                         0);
+    if ((err != RIL_E_SUCCESS) ||
+        (status_params.session_info.session_type != QMI_UIM_SESSION_TYPE_PRI_GW_PROV &&
+         status_params.session_info.session_type != QMI_UIM_SESSION_TYPE_SEC_GW_PROV &&
+         status_params.session_info.session_type != QMI_UIM_SESSION_TYPE_TER_GW_PROV))
+    {
+      err = qcril_uim_extract_session_type(slot,
+                                           NULL,
+                                           QCRIL_UIM_FILEID_DF_CDMA,
+                                           &status_params.session_info,
+                                           NULL,
+                                           0);
+    }
+  }
+  else
+  {
+    err = qcril_uim_extract_session_type(slot,
+                                         request_io_ptr->aidPtr,
+                                         QCRIL_UIM_FILEID_ADF_USIM_CSIM,
+                                         &status_params.session_info,
+                                         aid,
+                                         sizeof(aid));
+  }
+  if (err != RIL_E_SUCCESS)
+  {
+    qcril_uim_response(instance_id, token, err, NULL, 0, TRUE,
+                       "error in qcril_uim_extract_session_type");
+    return;
+  }
+
+  QCRIL_LOG_INFO( "Session type found: %d", status_params.session_info.session_type);
+
+  /* Keep track of non-prov session, will be removed in response handling */
+  if ((status_params.session_info.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_1) ||
+      (status_params.session_info.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_2) ||
+      (status_params.session_info.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_3))
+  {
+    err = qcril_uim_add_non_provisioning_session(&status_params.session_info,
+                                                 token);
+    if (err != RIL_E_SUCCESS)
+    {
+      QCRIL_LOG_ERROR("%s", "Error in adding non prov session!");
+    }
+  }
+
+  /* Allocate original request, it is freed in qmi_uim_callback */
+  callback_request_ptr = qcril_uim_allocate_orig_request(instance_id,
+                                                         modem_id,
+                                                         token,
+                                                         request_io_ptr->command,
+                                                         status_params.session_info.session_type);
+  if (callback_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "error allocating memory for callback_request_ptr!");
+    goto send_status_error;
+  }
+
+  QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "status" );
+#ifdef FEATURE_QCRIL_UIM_QMI_SIMIO_ASYNC_CALL
+  if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_SEND_STATUS,
+                                   qcril_uim.qmi_handle,
+                                   &status_params,
+                                   qmi_uim_callback,
+                                   (void*)callback_request_ptr) >= 0)
+  {
+    return;
+  }
+#else
+  memset(&callback_params, 0, sizeof(qcril_uim_callback_params_type));
+
+  if (qcril_qmi_uim_send_status(qcril_uim.qmi_handle,
+                                &status_params,
+                                NULL,
+                                (void*)callback_request_ptr,
+                                &callback_params.qmi_rsp_data) >= 0)
+  {
+    callback_params.orig_req_data = callback_request_ptr;
+    qcril_uim_send_status_resp(&callback_params);
+
+    /* Client needs to free the memory for raw data */
+    if(callback_params.qmi_rsp_data.rsp_data.send_status_rsp.status_response.data_ptr)
+    {
+      qcril_free(callback_params.qmi_rsp_data.rsp_data.send_status_rsp.status_response.data_ptr);
+    }
+    return;
+  }
+#endif /* FEATURE_QCRIL_UIM_QMI_SIMIO_ASYNC_CALL */
+
+send_status_error:
+  /* Remove the non-prov session based on the last token */
+  qcril_uim_remove_non_provisioning_session(token);
+  qcril_uim_response(instance_id, token, RIL_E_GENERIC_FAILURE,
+                     NULL, 0, TRUE, "error in qcril_uim_get_status");
+  /* Clean up any original request if allocated */
+  if (callback_request_ptr)
+  {
+    qcril_free(callback_request_ptr);
+    callback_request_ptr = NULL;
+  }
 } /* qcril_uim_get_status */
 
 
@@ -3781,7 +4168,7 @@ void qcril_uim_set_fdn_status_resp
 } /* qcril_uim_set_fdn_status_resp */
 
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#if defined(RIL_REQUEST_SIM_OPEN_CHANNEL) || defined(RIL_REQUEST_SIM_CLOSE_CHANNEL)
 /*=========================================================================
 
   FUNCTION:  qcril_uim_logical_channel_resp
@@ -3802,7 +4189,6 @@ void qcril_uim_logical_channel_resp
 {
   RIL_Token                         token;
   RIL_Errno                         ril_err;
-  int                               channel_id           = 0;
   qcril_uim_original_request_type * original_request_ptr = NULL;
 
   if(params_ptr == NULL)
@@ -3832,25 +4218,121 @@ void qcril_uim_logical_channel_resp
   /* No need to call qcril_uim_remove_non_provisioning_session since we do not try
      to open one in the request, continue to generate response */
 
-  /* For open channel request, we send channel id in response, for
+  /* For open channel request, we send channel id & select response, for
         close channel request, we send NULL in response */
   if (original_request_ptr->request_id == RIL_REQUEST_SIM_OPEN_CHANNEL)
   {
     if (params_ptr->qmi_rsp_data.qmi_err_code == 0)
     {
-      channel_id = params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.channel_id;
-      QCRIL_LOG_DEBUG( "qcril_uim_logical_channel_resp: channel_id=%d \n",
-                       channel_id );
+      uint16   open_ch_rsp_len = 0;
+      int    * open_ch_rsp_ptr = NULL;
+
+      QCRIL_LOG_DEBUG("qcril_uim_logical_channel_resp: channel_id=%d, SW1=0x%x, SW2=0x%x",
+                      params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.channel_id,
+                      params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.sw1,
+                      params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.sw2);
+
+      /* Note that we are supporting both types of clients by this response:
+         1. Clients who expects only channel id in the response. So, we have to store select
+            response data if available so we can send it in the next GET RESPONSE APDU request by client
+         2. Client who expects both channel id & select response as an int array -
+            as per the L release support in ATEL */
+      (void)qcril_uim_store_select_response_info(
+              &params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp);
+
+      /* Create the data in the form of an int array:
+         0th index is the channel id,
+         1 to 'len-2' indexes are the select response bytes, one byte per integer array index,
+         'len-1' index is SW1, 'len' index is SW2 (last 2 bytes) */
+      if ((params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_len >  0) &&
+          (params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_ptr != NULL))
+      {
+        open_ch_rsp_len = sizeof(int) *
+          params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_len;
+      }
+
+      /* Allocate the total response bytes. Note that even if there are no resp bytes,
+         we still have the channel id, SW1/SW2 bytes to return, hence the 3 bytes */
+      open_ch_rsp_len += sizeof(int) * 3;
+      open_ch_rsp_ptr = (int*)qcril_malloc(open_ch_rsp_len);
+      if (open_ch_rsp_ptr == NULL)
+      {
+        open_ch_rsp_len = 0;
+        ril_err = RIL_E_GENERIC_FAILURE;
+        QCRIL_LOG_ERROR( "Error allocating open_ch_rsp_ptr for 0x%x bytes", open_ch_rsp_len);
+      }
+      else
+      {
+        uint16 int_idx  = 0;
+        uint16 byte_idx = 0;
+
+        /* Update the response with necessary info: Channel id, Select resp bytes & SW1/SW2 bytes */
+        open_ch_rsp_ptr[int_idx++] = params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.channel_id;
+        if ((params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_len >  0) &&
+            (params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_ptr != NULL))
+        {
+          while ((byte_idx <  params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_len) &&
+                 (int_idx  <= params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_len))
+          {
+            open_ch_rsp_ptr[int_idx++] =
+              params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_ptr[byte_idx++];
+          }
+        }
+        open_ch_rsp_ptr[int_idx++] = params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.sw1;
+        open_ch_rsp_ptr[int_idx]   = params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.sw2;
+      }
+
+      /* If select response data wasnt present or not allocated, pass only channel id */
       qcril_uim_response(original_request_ptr->instance_id,
                          token,
                          ril_err,
-                         &channel_id,
-                         sizeof(int),
+                         open_ch_rsp_ptr,
+                         open_ch_rsp_len,
                          TRUE,
                          NULL);
+      if (open_ch_rsp_ptr)
+      {
+        qcril_free(open_ch_rsp_ptr);
+        open_ch_rsp_ptr = NULL;
+      }
     }
     else
     {
+      /* In the cases that open channel fails due to incorrect P1/P2 (this generally
+         means that the FCI value was incorrect), retry opening the channel but with
+         an alternative FCI value. */
+      if (params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.sw1 == QCRIL_UIM_SW1_WRONG_PARAMS &&
+          params_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.sw2 == QCRIL_UIM_SW2_BAD_PARAMS_P1_P2 &&
+          original_request_ptr->data.channel_info.fci_value == QCRIL_UIM_FCI_VALUE_FCI_FALLBACK_FCP)
+      {
+        qmi_uim_open_logical_channel_params_type  open_logical_ch_params;
+
+        QCRIL_LOG_ERROR( "%s\n", "Entering fallback to retry SELECT with alternative FCI value");
+
+        memset(&open_logical_ch_params, 0, sizeof(qmi_uim_open_logical_channel_params_type));
+
+        open_logical_ch_params.aid_present  = QMI_UIM_TRUE;
+        open_logical_ch_params.aid.data_ptr = original_request_ptr->data.channel_info.aid_buffer;
+        open_logical_ch_params.aid.data_len = original_request_ptr->data.channel_info.aid_size;
+        open_logical_ch_params.slot         = original_request_ptr->data.channel_info.slot;
+        open_logical_ch_params.file_control_information.is_valid  = QMI_UIM_TRUE;
+        open_logical_ch_params.file_control_information.fci_value = QMI_UIM_FCI_VALUE_FCP;
+
+        /* Update new original request FCI value */
+        original_request_ptr->data.channel_info.fci_value =
+          open_logical_ch_params.file_control_information.fci_value;
+
+        /* Proceed with open logical channel request */
+        if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_OPEN_LOGICAL_CHANNEL,
+                                         qcril_uim.qmi_handle,
+                                         &open_logical_ch_params,
+                                         qmi_uim_callback,
+                                         (void*)original_request_ptr) >= 0)
+        {
+          return;
+        }
+      }
+
       /* On error, map to appropriate ril error code */
       switch (params_ptr->qmi_rsp_data.qmi_err_code)
       {
@@ -3894,6 +4376,129 @@ void qcril_uim_logical_channel_resp
   original_request_ptr = NULL;
 
 } /* qcril_uim_logical_channel_resp */
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL || RIL_REQUEST_SIM_CLOSE_CHANNEL */
+
+
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_reselect_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Process the response for reselect. Note that this request comes via the
+    send apdu API, hence the response uses that data type.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_reselect_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+)
+{
+  RIL_Token                         token;
+  RIL_Errno                         ril_err;
+  unsigned short                    select_resp_len = 0;
+  RIL_SIM_IO_Response               ril_response;
+  qcril_uim_original_request_type * original_request_ptr = NULL;
+  uint8                             slot = QCRIL_UIM_INVALID_SLOT_INDEX_VALUE;
+
+  if(params_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL params_ptr");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  /* Retrieve original request */
+  original_request_ptr = (qcril_uim_original_request_type*)params_ptr->orig_req_data;
+  if(original_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL original_request_ptr");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  ril_err = (params_ptr->qmi_rsp_data.qmi_err_code == 0) ? RIL_E_SUCCESS : RIL_E_GENERIC_FAILURE;
+  token   = original_request_ptr->token;
+
+  QCRIL_LOG_DEBUG( "qcril_uim_reselect_resp: token=%d qmi_err_code=%d \n",
+                    qcril_log_get_token_id(token),
+                    params_ptr->qmi_rsp_data.qmi_err_code );
+
+  /* If the error code was 'QMI_SERVICE_ERR_INVALID_QMI_CMD' it means that the reselect QMI API
+     is not supported by modem, send reselect cmd via QM_UIM_SEND_APDU to be b/w compatible.
+     For any other error code, send the error back to the client */
+  if (params_ptr->qmi_rsp_data.qmi_err_code == QMI_SERVICE_ERR_INVALID_QMI_CMD)
+  {
+    QCRIL_LOG_ERROR( "%s\n", "Fallback to reselect via QMI_UIM_SEND_APDU");
+
+    /* Proceed with send APDU request */
+    QCRIL_LOG_QMI( original_request_ptr->modem_id, "qmi_uim_service", "Send APDU" );
+    if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_SEND_APDU,
+                                     qcril_uim.qmi_handle,
+                                     &original_request_ptr->data.send_apdu,
+                                     qmi_uim_callback,
+                                     (void*)original_request_ptr) >= 0)
+    {
+      /* Upon success, free APDU data pointer here but re-use original_request_ptr */
+      if (original_request_ptr->data.send_apdu.apdu.data_ptr)
+      {
+        qcril_free(original_request_ptr->data.send_apdu.apdu.data_ptr);
+        original_request_ptr->data.send_apdu.apdu.data_ptr = NULL;
+      }
+      return;
+    }
+  }
+
+  memset(&ril_response, 0, sizeof(RIL_SIM_IO_Response));
+
+  /* SW1 & SW2 are the last 2 bytes of the APDU response */
+  ril_response.sw1 = params_ptr->qmi_rsp_data.rsp_data.reselect_rsp.sw1;
+  ril_response.sw2 = params_ptr->qmi_rsp_data.rsp_data.reselect_rsp.sw2;
+  if (params_ptr->qmi_rsp_data.rsp_data.reselect_rsp.select_response.data_len > 0)
+  {
+    select_resp_len = params_ptr->qmi_rsp_data.rsp_data.reselect_rsp.select_response.data_len;
+    ril_response.simResponse = qcril_uim_alloc_bin_to_hexstring(
+                                  params_ptr->qmi_rsp_data.rsp_data.reselect_rsp.select_response.data_ptr,
+                                  select_resp_len);
+  }
+
+  QCRIL_LOG_DEBUG( "RIL_SIM_IO_Response: sw1=0x%X sw2=0x%X data=%s\n",
+                    ril_response.sw1, ril_response.sw2,
+                    ril_response.simResponse != NULL ? ril_response.simResponse : "NULL");
+
+  /* No need to call qcril_uim_remove_non_provisioning_session since we do not try
+     to open one in the request, continue to generate response */
+  qcril_uim_response(original_request_ptr->instance_id,
+                     token,
+                     ril_err,
+                     &ril_response,
+                     sizeof(RIL_SIM_IO_Response),
+                     TRUE,
+                     NULL);
+
+  if (ril_response.simResponse)
+  {
+    qcril_free(ril_response.simResponse);
+    ril_response.simResponse = NULL;
+  }
+
+  /* Free APDU data pointer if needed */
+  if (original_request_ptr->data.send_apdu.apdu.data_ptr)
+  {
+    qcril_free(original_request_ptr->data.send_apdu.apdu.data_ptr);
+    original_request_ptr->data.send_apdu.apdu.data_ptr = NULL;
+  }
+
+  /* Free memory allocated originally in the request */
+  qcril_free(original_request_ptr);
+  original_request_ptr = NULL;
+} /* qcril_uim_reselect_resp */
 
 
 /*=========================================================================
@@ -3919,7 +4524,6 @@ void qcril_uim_send_apdu_resp
   unsigned short                    apdu_len = 0;
   RIL_SIM_IO_Response               ril_response;
   qcril_uim_original_request_type * original_request_ptr = NULL;
-  uint8                             slot = QCRIL_UIM_INVALID_SLOT_INDEX_VALUE;
 
   if(params_ptr == NULL)
   {
@@ -3952,24 +4556,15 @@ void qcril_uim_send_apdu_resp
                      params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.total_len,
                      params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.token );
 
-    /* Fetch slot info */
-    slot = qcril_uim_instance_id_to_slot(original_request_ptr->instance_id);
-    if(slot >= QMI_UIM_MAX_CARD_COUNT)
-    {
-      QCRIL_LOG_ERROR("Invalid slot %d, cannot store IND", slot);
-      QCRIL_ASSERT(0);
-      return;
-    }
-
     /* Store only if the Long APDU response TLV is valid. We also need to check
        and handle cases where the INDs might have come earlier than this response.
        Note that original_request_ptr will be freed when we get SEND_APDU_INDs */
-    if (qcril_uim.long_apdu_info[slot].in_use == TRUE)
+    if (qcril_uim.long_apdu_info.in_use == TRUE)
     {
       /* If Indication already came, we need to check incoming info */
-      if ((qcril_uim.long_apdu_info[slot].token          ==
+      if ((qcril_uim.long_apdu_info.token          ==
              params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.token) &&
-          (qcril_uim.long_apdu_info[slot].total_apdu_len ==
+          (qcril_uim.long_apdu_info.total_apdu_len ==
              params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.total_len))
       {
         /* If Indication already came & incoming info matches,
@@ -3980,21 +4575,21 @@ void qcril_uim_send_apdu_resp
       /* Error condition - mismatch in data, send error if there was any previous
          request & store the current response's token */
       QCRIL_LOG_ERROR("Mismatch with global data, token: 0x%x, total_apdu_len: 0x%x",
-                      qcril_uim.long_apdu_info[slot].token,
-                      qcril_uim.long_apdu_info[slot].total_apdu_len);
+                      qcril_uim.long_apdu_info.token,
+                      qcril_uim.long_apdu_info.total_apdu_len);
       /* Send error for any pending response & proceed to store current resp info */
-      qcril_uim_cleanup_long_apdu_info(slot);
+      qcril_uim_cleanup_long_apdu_info();
     }
 
     /* Store response info. We return after successfully storing since
        we expect subsequent INDs */
     if (params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.total_len > 0)
     {
-      QCRIL_LOG_INFO("Storing long_apdu_info for slot:0x%x", slot);
-      qcril_uim.long_apdu_info[slot].in_use = TRUE;
-      qcril_uim.long_apdu_info[slot].token = params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.token;
-      qcril_uim.long_apdu_info[slot].total_apdu_len = params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.total_len;
-      qcril_uim.long_apdu_info[slot].original_request_ptr = original_request_ptr;
+      QCRIL_LOG_INFO("Storing long_apdu_info");
+      qcril_uim.long_apdu_info.in_use = TRUE;
+      qcril_uim.long_apdu_info.token = params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.token;
+      qcril_uim.long_apdu_info.total_apdu_len = params_ptr->qmi_rsp_data.rsp_data.send_apdu_rsp.total_len;
+      qcril_uim.long_apdu_info.original_request_ptr = original_request_ptr;
       return;
     }
   }
@@ -4075,20 +4670,10 @@ void qcril_uim_process_send_apdu_ind
   uint16                            stored_len    = 0;
   boolean                           send_response = FALSE;
   qmi_uim_send_apdu_ind_type      * apdu_ind_ptr  = NULL;
-  uint8                             slot = QCRIL_UIM_INVALID_SLOT_INDEX_VALUE;
 
   if(ind_param_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "NULL pointer");
-    QCRIL_ASSERT(0);
-    return;
-  }
-
-  /* Fetch slot info */
-  slot = qcril_uim_instance_id_to_slot(ind_param_ptr->instance_id);
-  if(slot >= QMI_UIM_MAX_CARD_COUNT)
-  {
-    QCRIL_LOG_ERROR("Invalid slot %d, cannot store IND", slot);
     QCRIL_ASSERT(0);
     return;
   }
@@ -4101,73 +4686,73 @@ void qcril_uim_process_send_apdu_ind
                  apdu_ind_ptr->offset,
                  apdu_ind_ptr->apdu.data_len);
 
-  if (qcril_uim.long_apdu_info[slot].in_use == TRUE)
+  if (qcril_uim.long_apdu_info.in_use == TRUE)
   {
     /* If Response already came, we need to check incoming info */
-    if ((qcril_uim.long_apdu_info[slot].token          != apdu_ind_ptr->token) ||
-        (qcril_uim.long_apdu_info[slot].total_apdu_len != apdu_ind_ptr->total_len))
+    if ((qcril_uim.long_apdu_info.token          != apdu_ind_ptr->token) ||
+        (qcril_uim.long_apdu_info.total_apdu_len != apdu_ind_ptr->total_len))
     {
       /* Error condition - mismatch in data, discrd the response */
       QCRIL_LOG_ERROR("Mismatch with global data, token: 0x%x, total_apdu_len: 0x%x",
-                    qcril_uim.long_apdu_info[slot].token,
-                    qcril_uim.long_apdu_info[slot].total_apdu_len);
-      qcril_uim_cleanup_long_apdu_info(slot);
+                    qcril_uim.long_apdu_info.token,
+                    qcril_uim.long_apdu_info.total_apdu_len);
+      qcril_uim_cleanup_long_apdu_info();
       return;
     }
   }
   else
   {
     /* Response hasn't come yet, we can still store IND info */
-    QCRIL_LOG_INFO("long_apdu_info[%d].in_use is FALSE, storing info", slot);
-    qcril_uim.long_apdu_info[slot].in_use         = TRUE;
-    qcril_uim.long_apdu_info[slot].token          = apdu_ind_ptr->token;
-    qcril_uim.long_apdu_info[slot].total_apdu_len = apdu_ind_ptr->total_len;
+    QCRIL_LOG_INFO("long_apdu_info.in_use is FALSE, storing info");
+    qcril_uim.long_apdu_info.in_use         = TRUE;
+    qcril_uim.long_apdu_info.token          = apdu_ind_ptr->token;
+    qcril_uim.long_apdu_info.total_apdu_len = apdu_ind_ptr->total_len;
   }
 
   /* If this is the first chunk, allocate the buffer. This buffer will
      only be freed at the end of the receiving all the INDs */
-  if (qcril_uim.long_apdu_info[slot].apdu_ptr == NULL)
+  if (qcril_uim.long_apdu_info.apdu_ptr == NULL)
   {
-    qcril_uim.long_apdu_info[slot].rx_len = 0;
-    qcril_uim.long_apdu_info[slot].apdu_ptr = qcril_malloc(apdu_ind_ptr->total_len);
-    if (qcril_uim.long_apdu_info[slot].apdu_ptr == NULL)
+    qcril_uim.long_apdu_info.rx_len = 0;
+    qcril_uim.long_apdu_info.apdu_ptr = qcril_malloc(apdu_ind_ptr->total_len);
+    if (qcril_uim.long_apdu_info.apdu_ptr == NULL)
     {
       QCRIL_LOG_ERROR("%s", "Couldnt allocate apdu_ptr pointer !");
-      qcril_uim.long_apdu_info[slot].in_use = FALSE;
+      qcril_uim.long_apdu_info.in_use = FALSE;
       return;
     }
   }
 
   /* Find out the remaining APDU buffer length */
-  stored_len    = qcril_uim.long_apdu_info[slot].rx_len;
-  remaining_len = qcril_uim.long_apdu_info[slot].total_apdu_len - stored_len;
+  stored_len    = qcril_uim.long_apdu_info.rx_len;
+  remaining_len = qcril_uim.long_apdu_info.total_apdu_len - stored_len;
 
   /* If this chunk cannot fit in our global buffer, discard the IND */
   if ((apdu_ind_ptr->apdu.data_len > remaining_len) ||
-      (apdu_ind_ptr->offset  >= qcril_uim.long_apdu_info[slot].total_apdu_len) ||
-      ((apdu_ind_ptr->offset + apdu_ind_ptr->apdu.data_len) > qcril_uim.long_apdu_info[slot].total_apdu_len))
+      (apdu_ind_ptr->offset  >= qcril_uim.long_apdu_info.total_apdu_len) ||
+      ((apdu_ind_ptr->offset + apdu_ind_ptr->apdu.data_len) > qcril_uim.long_apdu_info.total_apdu_len))
   {
     QCRIL_LOG_ERROR("Mismatch with global data, total_apdu_len: 0x%x stored_len: 0x%x, remaining_len: 0x%x",
-                    qcril_uim.long_apdu_info[slot].total_apdu_len,
+                    qcril_uim.long_apdu_info.total_apdu_len,
                     stored_len,
                     remaining_len);
-    qcril_uim.long_apdu_info[slot].in_use = FALSE;
+    qcril_uim.long_apdu_info.in_use = FALSE;
     return;
   }
 
   /* Save the data & update the data length */
-  memcpy(qcril_uim.long_apdu_info[slot].apdu_ptr + apdu_ind_ptr->offset,
+  memcpy(qcril_uim.long_apdu_info.apdu_ptr + apdu_ind_ptr->offset,
          apdu_ind_ptr->apdu.data_ptr,
          apdu_ind_ptr->apdu.data_len);
-  qcril_uim.long_apdu_info[slot].rx_len += apdu_ind_ptr->apdu.data_len;
+  qcril_uim.long_apdu_info.rx_len += apdu_ind_ptr->apdu.data_len;
 
   /* If it is the last one, send the response back & clean up global buffer */
-  if (qcril_uim.long_apdu_info[slot].total_apdu_len == qcril_uim.long_apdu_info[slot].rx_len)
+  if (qcril_uim.long_apdu_info.total_apdu_len == qcril_uim.long_apdu_info.rx_len)
   {
-    if (qcril_uim.long_apdu_info[slot].original_request_ptr != NULL)
+    if (qcril_uim.long_apdu_info.original_request_ptr != NULL)
     {
-      RIL_Token           token = qcril_uim.long_apdu_info[slot].original_request_ptr->token;
-      unsigned short      apdu_len = qcril_uim.long_apdu_info[slot].rx_len;
+      RIL_Token           token = qcril_uim.long_apdu_info.original_request_ptr->token;
+      unsigned short      apdu_len = qcril_uim.long_apdu_info.rx_len;
       RIL_SIM_IO_Response ril_response;
 
       QCRIL_LOG_DEBUG("qcril_uim_process_send_apdu_ind: token=0x%x apdu_len=0x%x",
@@ -4175,10 +4760,10 @@ void qcril_uim_process_send_apdu_ind
                        apdu_len);
 
       memset(&ril_response, 0, sizeof(RIL_SIM_IO_Response));
-      ril_response.sw1 = qcril_uim.long_apdu_info[slot].apdu_ptr[apdu_len-2];
-      ril_response.sw2 = qcril_uim.long_apdu_info[slot].apdu_ptr[apdu_len-1];
+      ril_response.sw1 = qcril_uim.long_apdu_info.apdu_ptr[apdu_len-2];
+      ril_response.sw2 = qcril_uim.long_apdu_info.apdu_ptr[apdu_len-1];
       ril_response.simResponse = qcril_uim_alloc_bin_to_hexstring(
-                                   qcril_uim.long_apdu_info[slot].apdu_ptr,
+                                   qcril_uim.long_apdu_info.apdu_ptr,
                                    apdu_len - 2);
 
       QCRIL_LOG_DEBUG( "RIL_SIM_IO_Response: sw1=0x%X sw2=0x%X data=%s",
@@ -4186,7 +4771,7 @@ void qcril_uim_process_send_apdu_ind
                        ril_response.simResponse != NULL ? ril_response.simResponse : "NULL");
 
       /* Generate long APDU response */
-      qcril_uim_response(qcril_uim.long_apdu_info[slot].original_request_ptr->instance_id,
+      qcril_uim_response(qcril_uim.long_apdu_info.original_request_ptr->instance_id,
                          token,
                          RIL_E_SUCCESS,
                          &ril_response,
@@ -4201,14 +4786,15 @@ void qcril_uim_process_send_apdu_ind
       }
       /* Free memory allocated originally in the request and set the pointer to
          NULL so that error response is not sent again in the cleanup routine */
-      qcril_free(qcril_uim.long_apdu_info[slot].original_request_ptr);
-      qcril_uim.long_apdu_info[slot].original_request_ptr = NULL;
+      qcril_free(qcril_uim.long_apdu_info.original_request_ptr);
+      qcril_uim.long_apdu_info.original_request_ptr = NULL;
     }
     /* Also clean up the global APDU data */
-    qcril_uim_cleanup_long_apdu_info(slot);
+    qcril_uim_cleanup_long_apdu_info();
   }
 } /* qcril_uim_process_send_apdu_ind */
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
 
 
 /*===========================================================================
@@ -4228,23 +4814,17 @@ void qcril_uim_process_send_apdu_ind
 /*=========================================================================*/
 void qcril_uim_cleanup_long_apdu_info
 (
-  uint8       slot_index
+  void
 )
 {
-  if (slot_index >= QMI_UIM_MAX_CARD_COUNT)
-  {
-    QCRIL_LOG_ERROR("Invalid slot_index %d", slot_index);
-    return;
-  }
-
   /* Free any internal buffers we might have */
-  if (qcril_uim.long_apdu_info[slot_index].apdu_ptr != NULL)
+  if (qcril_uim.long_apdu_info.apdu_ptr != NULL)
   {
-    qcril_free(qcril_uim.long_apdu_info[slot_index].apdu_ptr);
-    qcril_uim.long_apdu_info[slot_index].apdu_ptr = NULL;
+    qcril_free(qcril_uim.long_apdu_info.apdu_ptr);
+    qcril_uim.long_apdu_info.apdu_ptr = NULL;
   }
   /* Send error response if request is still pending */
-  if (qcril_uim.long_apdu_info[slot_index].original_request_ptr != NULL)
+  if (qcril_uim.long_apdu_info.original_request_ptr != NULL)
   {
     RIL_SIM_IO_Response ril_response;
 
@@ -4255,38 +4835,75 @@ void qcril_uim_cleanup_long_apdu_info
                        ril_response.simResponse != NULL ? ril_response.simResponse : "NULL");
 
     /* Generate response */
-    qcril_uim_response(qcril_uim.long_apdu_info[slot_index].original_request_ptr->instance_id,
-                       qcril_uim.long_apdu_info[slot_index].original_request_ptr->token,
+    qcril_uim_response(qcril_uim.long_apdu_info.original_request_ptr->instance_id,
+                       qcril_uim.long_apdu_info.original_request_ptr->token,
                        RIL_E_GENERIC_FAILURE,
                        &ril_response,
                        sizeof(RIL_SIM_IO_Response),
                        TRUE,
                        NULL);
 
-    qcril_free(qcril_uim.long_apdu_info[slot_index].original_request_ptr);
-    qcril_uim.long_apdu_info[slot_index].original_request_ptr = NULL;
+    qcril_free(qcril_uim.long_apdu_info.original_request_ptr);
+    qcril_uim.long_apdu_info.original_request_ptr = NULL;
   }
 
-  memset(&qcril_uim.long_apdu_info[slot_index],
+  memset(&qcril_uim.long_apdu_info,
          0,
          sizeof(qcril_uim_long_apdu_info_type));
 } /* qcril_uim_cleanup_long_apdu_info */
 
 
-/*=========================================================================
+/*===========================================================================
 
-  FUNCTION:  qcril_uim_isim_authenticate_resp
+  FUNCTION:  qcril_uim_cleanup_select_response_info
 
 ===========================================================================*/
 /*!
     @brief
-    Process the response for ISIM authenticate command.
+    Cleans the global select response info structure & frees any memory
+    allocated for the raw response data.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_uim_cleanup_select_response_info
+(
+  void
+)
+{
+  uint8  select_resp_index = 0;
+
+  /* Loop thorough all the entries for the particular slot &
+     free any cached info we might have */
+  for (select_resp_index = 0; select_resp_index < QCRIL_UIM_MAX_SELECT_RESP_COUNT; select_resp_index++)
+  {
+    if (qcril_uim.select_response_info[select_resp_index].select_resp_ptr != NULL)
+    {
+      qcril_free(qcril_uim.select_response_info[select_resp_index].select_resp_ptr);
+      qcril_uim.select_response_info[select_resp_index].select_resp_ptr = NULL;
+    }
+    memset(&qcril_uim.select_response_info[select_resp_index],
+           0,
+           sizeof(qcril_uim_select_response_info_type));
+  }
+} /* qcril_uim_cleanup_select_response_info */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_sim_authenticate_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Process the response for SIM authenticate command.
 
     @return
     None
 */
 /*=========================================================================*/
-void qcril_uim_isim_authenticate_resp
+void qcril_uim_sim_authenticate_resp
 (
   const qcril_uim_callback_params_type * const params_ptr
 )
@@ -4294,6 +4911,117 @@ void qcril_uim_isim_authenticate_resp
   RIL_Token                         token         = 0;
   RIL_Errno                         ril_err       = RIL_E_GENERIC_FAILURE;
   char                            * auth_resp_ptr = NULL;
+  RIL_SIM_IO_Response               ril_response;
+  qcril_uim_original_request_type * original_request_ptr = NULL;
+
+  if(params_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL params_ptr");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  /* Retrieve original request */
+  original_request_ptr = (qcril_uim_original_request_type*)params_ptr->orig_req_data;
+  if(original_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL original_request_ptr");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(&ril_response, 0, sizeof(RIL_SIM_IO_Response));
+
+  ril_err = (params_ptr->qmi_rsp_data.qmi_err_code == 0) ? RIL_E_SUCCESS : RIL_E_GENERIC_FAILURE;
+  token   = (RIL_Token)original_request_ptr->token;
+
+  QCRIL_LOG_DEBUG( "qcril_sim_authenticate_resp: token=%d, qmi_err_code=%d, request_id=0x%x\n",
+                    qcril_log_get_token_id(token),
+                    params_ptr->qmi_rsp_data.qmi_err_code,
+                    original_request_ptr->request_id);
+
+  if (ril_err == RIL_E_SUCCESS)
+  {
+    if (original_request_ptr->request_id == RIL_REQUEST_ISIM_AUTHENTICATION)
+    {
+      auth_resp_ptr = qcril_uim_alloc_bin_to_base64string(
+                        params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.auth_response.data_ptr,
+                        params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.auth_response.data_len);
+      ril_err = (auth_resp_ptr == NULL) ? RIL_E_GENERIC_FAILURE : RIL_E_SUCCESS;
+    }
+    else
+    {
+      ril_response.simResponse = qcril_uim_alloc_bin_to_base64string(
+         params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.auth_response.data_ptr,
+         params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.auth_response.data_len);
+      ril_err = (ril_response.simResponse == NULL) ? RIL_E_GENERIC_FAILURE : RIL_E_SUCCESS;
+      ril_response.sw1 = params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.sw1;
+      ril_response.sw2 = params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.sw2;
+    }
+  }
+
+  /* Generate response */
+  if (original_request_ptr->request_id == RIL_REQUEST_ISIM_AUTHENTICATION)
+  {
+    /* No need to call qcril_uim_remove_non_provisioning_session since this
+       response happens only for a prov session, continue to generate response */
+    qcril_uim_response(original_request_ptr->instance_id,
+                       token,
+                       ril_err,
+                       auth_resp_ptr,
+                       (auth_resp_ptr == NULL) ? 0 : strlen((const char *)auth_resp_ptr),
+                       TRUE,
+                       NULL);
+
+    if (auth_resp_ptr)
+    {
+      qcril_free(auth_resp_ptr);
+      auth_resp_ptr = NULL;
+    }
+  }
+  else
+  {
+    qcril_uim_response(original_request_ptr->instance_id,
+                       token,
+                       ril_err,
+                       &ril_response,
+                       sizeof(ril_response),
+                       TRUE,
+                       NULL);
+    if (ril_response.simResponse)
+    {
+      qcril_free(ril_response.simResponse);
+      ril_response.simResponse = NULL;
+    }
+  }
+
+  /* Free memory allocated originally in the request */
+  qcril_free(original_request_ptr);
+  original_request_ptr = NULL;
+} /* qcril_uim_sim_authenticate_resp */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_send_status_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Process the response for STATUS command.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_send_status_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+)
+{
+  RIL_Token                         token;
+  RIL_Errno                         ril_err;
+  RIL_SIM_IO_Response               ril_response;
   qcril_uim_original_request_type * original_request_ptr = NULL;
 
   if(params_ptr == NULL)
@@ -4313,40 +5041,545 @@ void qcril_uim_isim_authenticate_resp
   }
 
   ril_err = (params_ptr->qmi_rsp_data.qmi_err_code == 0) ? RIL_E_SUCCESS : RIL_E_GENERIC_FAILURE;
-  token   = (RIL_Token)original_request_ptr->token;
+  token   = original_request_ptr->token;
 
-  QCRIL_LOG_DEBUG( "qcril_isim_authenticate_resp: token=%d, qmi_err_code=%d\n",
+  QCRIL_LOG_DEBUG( "qcril_uim_send_status_resp: token=%d qmi_err_code=%d \n",
                     qcril_log_get_token_id(token),
                     params_ptr->qmi_rsp_data.qmi_err_code);
 
-  if (ril_err == RIL_E_SUCCESS)
+  memset(&ril_response, 0, sizeof(RIL_SIM_IO_Response));
+
+  if (params_ptr->qmi_rsp_data.rsp_data.send_status_rsp.status_response.data_len > 0)
   {
-    auth_resp_ptr = qcril_uim_alloc_bin_to_base64string(
-                      params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.auth_response.data_ptr,
-                      params_ptr->qmi_rsp_data.rsp_data.authenticate_rsp.auth_response.data_len);
-    ril_err = (auth_resp_ptr == NULL) ? RIL_E_GENERIC_FAILURE : RIL_E_SUCCESS;
+    ril_response.simResponse = qcril_uim_alloc_bin_to_hexstring(
+                                  params_ptr->qmi_rsp_data.rsp_data.send_status_rsp.status_response.data_ptr,
+                                  params_ptr->qmi_rsp_data.rsp_data.send_status_rsp.status_response.data_len);
   }
 
-  /* No need to call qcril_uim_remove_non_provisioning_session since this
-     response happens only for a prov session, continue to generate response */
+  if (ril_err == RIL_E_SUCCESS)
+  {
+    ril_response.sw1 = 0x90;
+    ril_response.sw1 = 0x00;
+  }
+
+  QCRIL_LOG_DEBUG( "RIL_SIM_IO_Response: sw1=0x%X sw2=0x%X data=%s",
+                   ril_response.sw1, ril_response.sw2,
+                   ril_response.simResponse != NULL ? ril_response.simResponse : "NULL");
+
+  /* Remove the non-prov session based on the last token */
+  qcril_uim_remove_non_provisioning_session(token);
+
+  /* Generate response */
   qcril_uim_response(original_request_ptr->instance_id,
                      token,
                      ril_err,
-                     auth_resp_ptr,
-                     (auth_resp_ptr == NULL) ? 0 : strlen((const char *)auth_resp_ptr),
+                     &ril_response,
+                     sizeof(RIL_SIM_IO_Response),
                      TRUE,
                      NULL);
 
-  if (auth_resp_ptr)
+  if (ril_response.simResponse)
   {
-    qcril_free(auth_resp_ptr);
-    auth_resp_ptr = NULL;
+    qcril_free(ril_response.simResponse);
+    ril_response.simResponse = NULL;
   }
 
   /* Free memory allocated originally in the request */
   qcril_free(original_request_ptr);
   original_request_ptr = NULL;
-} /* qcril_uim_isim_authenticate_resp */
+} /* qcril_uim_send_status_resp */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_file_get_mcc_mnc_get_path_and_session_info
+
+===========================================================================*/
+/*!
+    @brief
+    Helper function to get Path and Session info based on AID
+
+    @return
+    RIL_Errno
+*/
+/*=========================================================================*/
+static RIL_Errno qcril_uim_file_get_mcc_mnc_get_path_and_session_info
+(
+   const char                 *ril_aid_ptr,
+   qmi_uim_data_type          *file_path_ptr,
+   qmi_uim_session_info_type  *session_info_ptr
+)
+{
+  RIL_Errno  ret_err             = RIL_E_GENERIC_FAILURE;
+  uint16     first_level_df_path = 0;
+  uint32     slot                = QCRIL_UIM_INVALID_SLOT_INDEX_VALUE;
+  uint8      file_path[2][4]     = {
+                                    {0x3F, 0x00, 0x7F, 0x20}, /* DF GSM        */
+                                    {0x3F, 0x00, 0x7F, 0xFF}  /* ADF USIM/CSIM */
+                                   };
+
+  /* Sanity check */
+  if (NULL == file_path_ptr || NULL == session_info_ptr)
+  {
+    QCRIL_LOG_ERROR("NULL pointer, file_path_ptr=0x%x, session_info_ptr=0x%x",
+                    file_path_ptr, session_info_ptr);
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  /* Get slot info */
+  slot = qmi_ril_get_sim_slot();
+  if(slot >= QMI_UIM_MAX_CARD_COUNT)
+  {
+    QCRIL_LOG_ERROR("Invalid slot value 0x%x", slot);
+    QCRIL_ASSERT(0);
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  /* Update the file path based on passed aid pointer */
+  QCRIL_UIM_FREE_IF_NOT_NULL(file_path_ptr->data_ptr);
+  if (ril_aid_ptr && strlen(ril_aid_ptr) > 0)
+  {
+    QCRIL_UIM_DUPLICATE(file_path_ptr->data_ptr,
+                        file_path[1],
+                        QCRIL_UIM_IMSI_PATH_SIZE);
+    first_level_df_path = QCRIL_UIM_FILEID_ADF_USIM_CSIM;
+  }
+  else if (qcril_uim_find_app_in_slot(slot, QMI_UIM_APP_SIM))
+  {
+    /* If SIM App is present we always get EF-AD or EF-IMSI from DF GSM */
+    QCRIL_UIM_DUPLICATE(file_path_ptr->data_ptr,
+                        file_path[0],
+                        QCRIL_UIM_IMSI_PATH_SIZE);
+    first_level_df_path = QCRIL_UIM_FILEID_DF_GSM;
+  }
+  file_path_ptr->data_len = file_path_ptr->data_ptr ? QCRIL_UIM_IMSI_PATH_SIZE : 0;
+
+  if (file_path_ptr->data_ptr)
+  {
+    /* Extract session information */
+    ret_err = qcril_uim_extract_session_type(slot,
+                                             ril_aid_ptr,
+                                             first_level_df_path,
+                                             session_info_ptr,
+                                             NULL,
+                                             0);
+    QCRIL_LOG_INFO("extract_session_type status=0x%x, session_type=0x%x\n",
+                   ret_err, session_info_ptr->session_type);
+
+    /* Free allocated memory in case of error */
+    if (ret_err != RIL_E_SUCCESS)
+    {
+      QCRIL_UIM_FREE_IF_NOT_NULL(file_path_ptr->data_ptr);
+    }
+  }
+
+  return ret_err;
+}/* qcril_uim_file_get_mcc_mnc_get_path_and_session_info */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_request_get_mcc_mnc
+
+===========================================================================*/
+/*!
+    @brief
+    Process the request to get MCC and MNC
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_request_get_mcc_mnc
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type       *const ret_ptr /*!< Output parameter */
+)
+{
+  RIL_Errno                             ret_err              = RIL_E_SUCCESS;
+  qcril_uim_original_request_type      *original_request_ptr = NULL;
+  qmi_uim_read_transparent_params_type  read_params;
+  qcril_mcc_mnc_info_type               mcc_mnc_info;
+
+  /* Sanity check */
+  if(NULL == params_ptr || NULL == ret_ptr)
+  {
+    QCRIL_LOG_ERROR("Invalid input, cannot process response");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  QCRIL_LOG_INFO("instance_id: 0x%x, modem_id: 0x%x, datalen=0x%x, strlen=0x%x\n",
+                 params_ptr->instance_id,
+                 params_ptr->modem_id,
+                 params_ptr->datalen,
+                 params_ptr->data ? strlen((const char *)params_ptr->data) : 0);
+
+  if ((params_ptr->instance_id >= QCRIL_MAX_INSTANCE_ID) ||
+      (params_ptr->modem_id    >= QCRIL_MAX_MODEM_ID))
+  {
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(&read_params, 0, sizeof(qmi_uim_read_transparent_params_type));
+
+  if ((NULL == params_ptr->data && params_ptr->datalen != 0 )                                 ||
+      (params_ptr->data && params_ptr->datalen != strlen((const char *)params_ptr->data) + 1) ||
+      params_ptr->datalen > QMI_UIM_MAX_AID_LEN + 1)
+  {
+    ret_err = RIL_E_GENERIC_FAILURE;
+    goto send_resp;
+  }
+
+  /* Get file path and session type info */
+  ret_err = qcril_uim_file_get_mcc_mnc_get_path_and_session_info(
+                                        (char *)params_ptr->data,
+                                        &read_params.file_id.path,
+                                        &read_params.session_info);
+  if (ret_err != RIL_E_SUCCESS)
+  {
+    goto send_resp;
+  }
+
+  /* Check session type & update file_id */
+  if((read_params.session_info.session_type == QMI_UIM_SESSION_TYPE_PRI_GW_PROV) ||
+     (read_params.session_info.session_type == QMI_UIM_SESSION_TYPE_SEC_GW_PROV) ||
+     (read_params.session_info.session_type == QMI_UIM_SESSION_TYPE_TER_GW_PROV))
+  {
+    read_params.file_id.file_id = QCRIL_UIM_FILEID_EF_AD;
+  }
+  else
+  {
+    QCRIL_LOG_ERROR("Not proper session type 0x%x for UIM_GET_MCC_MNC",
+                    read_params.session_info.session_type);
+    ret_err = RIL_E_REQUEST_NOT_SUPPORTED;
+    goto send_resp;
+  }
+
+  /* Allocate original request */
+  original_request_ptr = qcril_uim_allocate_orig_request(params_ptr->instance_id,
+                                                         params_ptr->modem_id,
+                                                         params_ptr->t,
+                                                         params_ptr->event_id,
+                                                         read_params.session_info.session_type);
+  if (original_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("error allocating memory for callback_request_ptr!");
+    ret_err = RIL_E_GENERIC_FAILURE;
+    goto send_resp;
+  }
+
+  /* Save AID, File ID in qcril_uim_original_request_type.data */
+  memcpy(original_request_ptr->data.mcc_mnc_req.aid_buffer,
+         params_ptr->data,
+         params_ptr->datalen);
+  original_request_ptr->data.mcc_mnc_req.file_id = QCRIL_UIM_FILEID_EF_AD;
+
+  /* Proceed with read transparent  */
+  QCRIL_LOG_QMI(params_ptr->modem_id, "qmi_uim_service", "read transparent EF-AD");
+  if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_READ_TRANSPARENT,
+                                   qcril_uim.qmi_handle,
+                                   &read_params,
+                                   qmi_uim_callback,
+                                   (void*)original_request_ptr) >= 0)
+  {
+    /* Free allocated memory for file path */
+    QCRIL_UIM_FREE_IF_NOT_NULL(read_params.file_id.path.data_ptr);
+    return;
+  }
+  else
+  {
+    QCRIL_LOG_ERROR("Error queueing READ_TRANSPARENT for EF AD");
+    ret_err = RIL_E_GENERIC_FAILURE;
+  }
+
+send_resp:
+  QCRIL_LOG_DEBUG( "qcril_uim_get_mcc_mnc: ret_err=0x%x\n", ret_err);
+  memset(&mcc_mnc_info, 0x00, sizeof(mcc_mnc_info));
+  mcc_mnc_info.err_code = ret_err;
+  (void)qcril_event_queue(params_ptr->instance_id,
+                          params_ptr->modem_id,
+                          QCRIL_DATA_ON_STACK,
+                          QCRIL_EVT_UIM_MCC_MNC_INFO,
+                          (void *) &mcc_mnc_info,
+                          sizeof(mcc_mnc_info),
+                          (RIL_Token) QCRIL_TOKEN_ID_INTERNAL);
+
+  /* Free allocated memory for file path */
+  QCRIL_UIM_FREE_IF_NOT_NULL(read_params.file_id.path.data_ptr);
+
+  /* Clean up any original request if allocated */
+  QCRIL_UIM_FREE_IF_NOT_NULL(original_request_ptr);
+}/* qcril_uim_request_get_mcc_mnc */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_get_mcc_mnc_resp_ad
+
+===========================================================================*/
+/*!
+    @brief
+    Process the response for reading EF-AD
+
+    @return
+    RIL_Errno
+*/
+/*=========================================================================*/
+static RIL_Errno qcril_uim_get_mcc_mnc_resp_ad
+(
+   const qmi_uim_data_type          *rsp_data_ptr,
+   qcril_uim_original_request_type  *original_request_ptr
+)
+{
+  qcril_mcc_mnc_info_type               mcc_mnc_info;
+  qmi_uim_read_transparent_params_type  read_params;
+  RIL_Errno                             ret_err = RIL_E_GENERIC_FAILURE;
+
+  /* Basic sanity check, should not happen, check anyway */
+  if (NULL == rsp_data_ptr || NULL == original_request_ptr)
+  {
+    QCRIL_LOG_ERROR("NULL pointer, original_request_ptr=0x%x, rsp_data_ptr=0x%x",
+                    original_request_ptr, rsp_data_ptr);
+    return ret_err;
+  }
+
+  QCRIL_LOG_DEBUG("data_ptr: 0x%x, data_len: 0x%x\n",
+                  rsp_data_ptr->data_ptr,
+                  rsp_data_ptr->data_len);
+
+  /* Read EF IMSI */
+  memset(&read_params, 0x00, sizeof(read_params));
+  ret_err = qcril_uim_file_get_mcc_mnc_get_path_and_session_info(
+                      original_request_ptr->data.mcc_mnc_req.aid_buffer,
+                      &read_params.file_id.path,
+                      &read_params.session_info);
+
+  if (RIL_E_SUCCESS == ret_err)
+  {
+    /* Check session type & update file_id */
+    if((read_params.session_info.session_type == QMI_UIM_SESSION_TYPE_PRI_GW_PROV) ||
+       (read_params.session_info.session_type == QMI_UIM_SESSION_TYPE_SEC_GW_PROV) ||
+       (read_params.session_info.session_type == QMI_UIM_SESSION_TYPE_TER_GW_PROV))
+    {
+      read_params.file_id.file_id = QCRIL_UIM_FILEID_EF_IMSI;
+      original_request_ptr->data.mcc_mnc_req.file_id = QCRIL_UIM_FILEID_EF_IMSI;
+
+      /* Check length of EF AD */
+      if (rsp_data_ptr->data_len > 3  &&
+          rsp_data_ptr->data_ptr      &&
+          (2 == rsp_data_ptr->data_ptr[3] || 3 == rsp_data_ptr->data_ptr[3]))
+      {
+        original_request_ptr->data.mcc_mnc_req.num_mnc_digits = rsp_data_ptr->data_ptr[3];
+      }
+
+      /* Proceed with read transparent  */
+      QCRIL_LOG_QMI(original_request_ptr->modem_id, "qmi_uim_service", "read transparent EF-IMSI" );
+      if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_READ_TRANSPARENT,
+                                       qcril_uim.qmi_handle,
+                                       &read_params,
+                                       qmi_uim_callback,
+                                       (void*)original_request_ptr) < 0)
+      {
+        QCRIL_LOG_ERROR("Error queueing READ_TRANSPARENT for IMSI");
+        ret_err = RIL_E_GENERIC_FAILURE;
+      }
+    }
+    else
+    {
+      QCRIL_LOG_ERROR("Not proper session type 0x%x for UIM_GET_MCC_MNC",
+                      read_params.session_info.session_type);
+      ret_err = RIL_E_REQUEST_NOT_SUPPORTED;
+    }
+  }
+
+  /* Free allocated memory for file path */
+  QCRIL_UIM_FREE_IF_NOT_NULL(read_params.file_id.path.data_ptr);
+
+  return ret_err;
+}/* qcril_uim_get_mcc_mnc_resp_ad */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_get_mcc_mnc_resp_imsi
+
+===========================================================================*/
+/*!
+    @brief
+    Process the response for reading EF-IMSI
+
+    @return
+    RIL_Errno
+*/
+/*=========================================================================*/
+static RIL_Errno qcril_uim_get_mcc_mnc_resp_imsi
+(
+   qmi_uim_data_type                *rsp_data_ptr,
+   qcril_uim_original_request_type  *original_request_ptr,
+   qcril_mcc_mnc_info_type          *mcc_mnc_info_ptr
+)
+{
+  uint16      mcc_pcs1900_na_list[] = {302, 310, 311, 312, 313, 314, 315, 316, 334, 348};
+  uint16      imsi_mcc              = 0;
+  uint8       i                     = 0;
+  uint8       imsi_num_mnc_digits   = 2;
+
+  /* Basic sanity check, should not happen, check anyway */
+  if (NULL == rsp_data_ptr ||
+      NULL == original_request_ptr ||
+      NULL == mcc_mnc_info_ptr)
+  {
+    QCRIL_LOG_ERROR("NULL pointer, original_request_ptr=0x%x, rsp_data_ptr=0x%x, mcc_mnc_info_ptr=0x%x",
+                    original_request_ptr, rsp_data_ptr, mcc_mnc_info_ptr);
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  QCRIL_LOG_DEBUG("rsp_data_ptr->data_ptr=0x%x, rsp_data_ptr->data_len=0x%x\n",
+                  rsp_data_ptr->data_ptr, rsp_data_ptr->data_len);
+  if (NULL == rsp_data_ptr->data_ptr ||
+      rsp_data_ptr->data_len    != 9 ||
+      rsp_data_ptr->data_ptr[0] != 8)
+  {
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  /* Extract MCC */
+  imsi_mcc  = (uint16)((rsp_data_ptr->data_ptr[1] >> 4) & 0x0F) * 100;
+  imsi_mcc += (uint16)((rsp_data_ptr->data_ptr[2]) & 0x0F) * 10;
+  imsi_mcc += (uint16)((rsp_data_ptr->data_ptr[2] >> 4) & 0x0F);
+
+  mcc_mnc_info_ptr->mcc[0] = qcril_uim_bin_to_hexchar((rsp_data_ptr->data_ptr[1] >> 4) & 0x0F);
+  mcc_mnc_info_ptr->mcc[1] = qcril_uim_bin_to_hexchar(rsp_data_ptr->data_ptr[2] & 0x0F);
+  mcc_mnc_info_ptr->mcc[2] = qcril_uim_bin_to_hexchar((rsp_data_ptr->data_ptr[2] >> 4) & 0x0F);
+
+  /* The number of digits of MNC depends on the 4th byte of EF-AD.
+     hardcoded table is used in case EF-AD has only 3 bytes.*/
+  if (0 == original_request_ptr->data.mcc_mnc_req.num_mnc_digits)
+  {
+    for (i = 0; i < sizeof(mcc_pcs1900_na_list) / sizeof(mcc_pcs1900_na_list[0]); i++)
+    {
+      if (imsi_mcc == mcc_pcs1900_na_list[i])
+      {
+        imsi_num_mnc_digits = 3;
+        break;
+      }
+    }
+  }
+  else
+  {
+    imsi_num_mnc_digits = original_request_ptr->data.mcc_mnc_req.num_mnc_digits;
+  }
+
+  /* Extract MNC */
+  mcc_mnc_info_ptr->mnc[0] = qcril_uim_bin_to_hexchar(rsp_data_ptr->data_ptr[3] & 0x0F);
+  mcc_mnc_info_ptr->mnc[1] = qcril_uim_bin_to_hexchar((rsp_data_ptr->data_ptr[3] >> 4) & 0x0F);
+  if (imsi_num_mnc_digits == 3)
+  {
+    mcc_mnc_info_ptr->mnc[2] = qcril_uim_bin_to_hexchar(rsp_data_ptr->data_ptr[4] & 0x0F);
+  }
+
+  QCRIL_LOG_DEBUG("mcc[%s], mnc[%s], imsi_mcc=%d, imsi_num_mnc_digits=%d\n",
+                  mcc_mnc_info_ptr->mcc,
+                  mcc_mnc_info_ptr->mnc,
+                  imsi_mcc,
+                  imsi_num_mnc_digits);
+
+  return RIL_E_SUCCESS;
+}/* qcril_uim_get_mcc_mnc_resp_imsi */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_get_mcc_mnc_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Processes the response for QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_get_mcc_mnc_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+)
+{
+  RIL_Token                         token                = 0;
+  RIL_Errno                         ret_err              = RIL_E_GENERIC_FAILURE;
+  qcril_uim_original_request_type  *original_request_ptr = NULL;
+  qmi_uim_data_type                *rsp_data_ptr         = NULL;
+  qcril_mcc_mnc_info_type           mcc_mnc_info;
+
+  if(NULL == params_ptr)
+  {
+    QCRIL_LOG_ERROR("NULL params_ptr");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  /* Retrieve original request */
+  original_request_ptr = (qcril_uim_original_request_type*)params_ptr->orig_req_data;
+  if(NULL == original_request_ptr)
+  {
+    QCRIL_LOG_ERROR("NULL original_request_ptr");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(&mcc_mnc_info, 0x00, sizeof(mcc_mnc_info));
+  ret_err = (params_ptr->qmi_rsp_data.qmi_err_code == 0) ? RIL_E_SUCCESS : RIL_E_GENERIC_FAILURE;
+  token   = (RIL_Token)original_request_ptr->token;
+  QCRIL_LOG_DEBUG("qcril_uim_get_mcc_mnc_resp: token=%d, qmi_err_code=%d, session_type=%d, file_id=0x%x\n",
+                  qcril_log_get_token_id(token),
+                  params_ptr->qmi_rsp_data.qmi_err_code,
+                  original_request_ptr->session_type,
+                  original_request_ptr->data.mcc_mnc_req.file_id);
+
+  if (RIL_E_SUCCESS == ret_err)
+  {
+    rsp_data_ptr = &(params_ptr->qmi_rsp_data.rsp_data.read_transparent_rsp.content);
+
+    if (QCRIL_UIM_FILEID_EF_AD == original_request_ptr->data.mcc_mnc_req.file_id)
+    {
+      ret_err = qcril_uim_get_mcc_mnc_resp_ad(rsp_data_ptr, original_request_ptr);
+      if (RIL_E_SUCCESS == ret_err)
+      {
+        /* In the successful case, original request is used in READ_TRANSPARENT
+           request for reading IMSI, no need to free */
+        return;
+      }
+    }/* EF-AD */
+    else if (QCRIL_UIM_FILEID_EF_IMSI == original_request_ptr->data.mcc_mnc_req.file_id)
+    {
+      ret_err = qcril_uim_get_mcc_mnc_resp_imsi(rsp_data_ptr,
+                                                original_request_ptr,
+                                                &mcc_mnc_info);
+    }/* EF-IMSI */
+    else
+    {
+      ret_err = RIL_E_GENERIC_FAILURE;
+    }
+  }
+
+  QCRIL_LOG_DEBUG("ret_err=0x%x\n", ret_err);
+
+  /* Generate QCRIL_EVT_UIM_MCC_MNC_INFO */
+  mcc_mnc_info.err_code = ret_err;
+  (void)qcril_event_queue(params_ptr->orig_req_data->instance_id,
+                          params_ptr->orig_req_data->modem_id,
+                          QCRIL_DATA_ON_STACK,
+                          QCRIL_EVT_UIM_MCC_MNC_INFO,
+                          (void *)&mcc_mnc_info,
+                          sizeof(mcc_mnc_info),
+                          (RIL_Token)QCRIL_TOKEN_ID_INTERNAL);
+
+  /* Free memory allocated originally in the request */
+  QCRIL_UIM_FREE_IF_NOT_NULL(original_request_ptr);
+}/* qcril_uim_get_mcc_mnc_resp */
 
 
 /*===========================================================================
@@ -4758,6 +5991,7 @@ void qcril_uim_request_isim_authenticate
   auth_params.auth_data.data_ptr = qcril_uim_alloc_base64string_to_bin(
                                      in_ptr,
                                      &auth_params.auth_data.data_len);
+
   if (auth_params.auth_data.data_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "Unable to convert input ISIM auth data!");
@@ -4811,7 +6045,446 @@ isim_auth_error:
 } /* qcril_uim_request_isim_authenticate */
 
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#ifdef RIL_REQUEST_SIM_AUTHENTICATION
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_request_sim_authenticate
+
+===========================================================================*/
+/*!
+    @brief
+    Handler for RIL_REQUEST_SIM_AUTHENTICATION.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_request_sim_authenticate
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type       *const ret_ptr /*!< Output parameter */
+)
+{
+  qcril_modem_id_e_type                 modem_id             = QCRIL_MAX_MODEM_ID - 1;
+  const RIL_SimAuthentication         * in_ptr               = NULL;
+  uint8                                 slot                 = 0;
+  uint8                                 sim_index            = 0;
+  qcril_uim_original_request_type     * original_request_ptr = NULL;
+  qmi_uim_authenticate_params_type      auth_params;
+  uint8                                 computed_aid[QMI_UIM_MAX_AID_LEN];
+
+  QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
+
+  if(params_ptr == NULL || ret_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid input, cannot process response");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(&auth_params, 0, sizeof(qmi_uim_authenticate_params_type));
+
+  /* Add entry to ReqList */
+  QCRIL_UIM_ADD_ENTRY_TO_REQUEST_LIST(params_ptr);
+
+  in_ptr = (RIL_SimAuthentication*)params_ptr->data;
+
+  /* Return with error if data was not provided */
+  if (in_ptr == NULL || in_ptr->authData == NULL)
+  {
+    QCRIL_LOG_ERROR( "%s", " Invalid input for data \n");
+    goto sim_auth_error;
+  }
+
+  slot = qcril_uim_instance_id_to_slot(params_ptr->instance_id);
+
+  if (in_ptr->aid != NULL)
+  {
+    /* update session_type */
+    if (qcril_uim_extract_session_type(slot,
+                                       in_ptr->aid,
+                                       QCRIL_UIM_FILEID_ADF_USIM_CSIM,
+                                       &auth_params.session_info,
+                                       computed_aid,
+                                       QMI_UIM_MAX_AID_LEN)
+        != RIL_E_SUCCESS)
+    {
+      QCRIL_LOG_ERROR( "app not found for instance_id: 0x%x, slot: 0x%x",
+                       params_ptr->instance_id, slot);
+      goto sim_auth_error;
+    }
+
+    /* Update auth parameters */
+    if ((auth_params.session_info.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_1 ||
+         auth_params.session_info.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_2 ||
+         auth_params.session_info.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_3 ) &&
+        (qcril_uim_check_aid_with_app_type((const qmi_uim_data_type *)&auth_params.session_info.aid,
+                                           QMI_UIM_APP_ISIM)))
+    {
+      if (in_ptr->authContext == QCRIL_UIM_AUTH_IMS_AKA)
+      {
+        auth_params.auth_context = QMI_UIM_AUTH_CONTEXT_IMS_AKA_SECURITY;
+      }
+      else if (in_ptr->authContext == QCRIL_UIM_AUTH_HTTP_DIGEST_SECURITY_CONTEXT)
+      {
+        auth_params.auth_context = QMI_UIM_AUTH_CONTEXT_HTTP_DIGEST_SECURITY;
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("security context not supported for ISIM: 0x%x", in_ptr->authContext);
+        goto sim_auth_error;
+      }
+    }
+    else if (auth_params.session_info.session_type == QMI_UIM_SESSION_TYPE_PRI_GW_PROV ||
+             auth_params.session_info.session_type == QMI_UIM_SESSION_TYPE_SEC_GW_PROV ||
+             auth_params.session_info.session_type == QMI_UIM_SESSION_TYPE_TER_GW_PROV ||
+             (qcril_uim_check_aid_with_app_type((const qmi_uim_data_type *)&auth_params.session_info.aid,
+                                                QMI_UIM_APP_USIM)))
+    {
+      if (in_ptr->authContext == QCRIL_UIM_AUTH_GSM_CONTEXT)
+      {
+        auth_params.auth_context = QMI_UIM_AUTH_CONTEXT_GSM_SECURITY;
+      }
+      else if (in_ptr->authContext == QCRIL_UIM_AUTH_3G_CONTEXT)
+      {
+        auth_params.auth_context = QMI_UIM_AUTH_CONTEXT_3G_SECURITY;
+      }
+      else if (in_ptr->authContext == QCRIL_UIM_AUTH_VGCS_VBS_SECURITY_CONTEXT)
+      {
+        auth_params.auth_context = QMI_UIM_AUTH_CONTEXT_VGCS_VBS_SECURITY;
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("security context not supported for USIM: 0x%x", in_ptr->authContext);
+        goto sim_auth_error;
+      }
+    }
+    else /* for CSIM and invalid AID */
+    {
+      QCRIL_LOG_ERROR("authentication not supported for AID: %s at this point", in_ptr->aid);
+      goto sim_auth_error;
+    }
+  }
+  else /* in_ptr->aid == NULL, AID is NULL for 2g card */
+  {
+    if(qcril_uim_find_app_in_slot(slot, QMI_UIM_APP_SIM))
+    {
+      /* update session_type */
+      qcril_uim_extract_session_type(slot,
+                                     NULL,
+                                     QCRIL_UIM_FILEID_DF_GSM,
+                                     &auth_params.session_info,
+                                     NULL,
+                                     0);
+
+      if (auth_params.session_info.session_type != QMI_UIM_SESSION_TYPE_PRI_GW_PROV ||
+          auth_params.session_info.session_type != QMI_UIM_SESSION_TYPE_SEC_GW_PROV ||
+          auth_params.session_info.session_type != QMI_UIM_SESSION_TYPE_TER_GW_PROV)
+      {
+        QCRIL_LOG_ERROR("provisioning session not available for run GSM ALGOR: 0x%x",
+                        auth_params.session_info.session_type);
+        goto sim_auth_error;
+      }
+
+      if (in_ptr->authContext == 0)
+      {
+        auth_params.auth_context = QMI_UIM_AUTH_CONTEXT_RUN_GSM_ALGO;
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("Invalid authContext for run GSM ALGOR: 0x%x",
+                        in_ptr->authContext);
+        goto sim_auth_error;
+      }
+    }
+    else if (qcril_uim_find_app_in_slot(slot, QMI_UIM_APP_RUIM))
+    {
+      /* update session_type */
+      qcril_uim_extract_session_type(slot,
+                                     NULL,
+                                     QCRIL_UIM_FILEID_DF_CDMA,
+                                     &auth_params.session_info,
+                                     NULL,
+                                     0);
+
+      if (auth_params.session_info.session_type != QMI_UIM_SESSION_TYPE_PRI_1X_PROV ||
+          auth_params.session_info.session_type != QMI_UIM_SESSION_TYPE_SEC_1X_PROV ||
+          auth_params.session_info.session_type != QMI_UIM_SESSION_TYPE_TER_1X_PROV)
+      {
+        QCRIL_LOG_ERROR("provisioning session not available for run CAVE: 0x%x",
+                        auth_params.session_info.session_type);
+        goto sim_auth_error;
+      }
+
+      if (in_ptr->authContext == 0)
+      {
+        auth_params.auth_context = QMI_UIM_AUTH_CONTEXT_RUN_CAVE_ALGO;
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("Invalid authContext for run CAVE ALGO: 0x%x",
+                        in_ptr->authContext);
+        goto sim_auth_error;
+      }
+    }
+  }
+
+  auth_params.auth_data.data_ptr = qcril_uim_alloc_base64string_to_bin(
+                                     in_ptr->authData,
+                                     &auth_params.auth_data.data_len);
+
+  if (auth_params.auth_data.data_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "Unable to convert input SIM auth data!");
+    goto sim_auth_error;
+  }
+
+  /* Allocate original request, it is freed in qmi_uim_callback */
+  original_request_ptr = qcril_uim_allocate_orig_request(params_ptr->instance_id,
+                                                         modem_id,
+                                                         params_ptr->t,
+                                                         params_ptr->event_id,
+                                                         auth_params.session_info.session_type);
+  if (original_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "error allocating memory for original_request_ptr!");
+    goto sim_auth_error;
+  }
+
+  /* Proceed with logical channel request */
+  QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "authenticate" );
+  if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_AUTHENTICATE,
+                                   qcril_uim.qmi_handle,
+                                   &auth_params,
+                                   qmi_uim_callback,
+                                   (void*)original_request_ptr) >= 0)
+  {
+    /* For success case, free AID & data buffer & return */
+
+    qcril_free(auth_params.auth_data.data_ptr);
+    auth_params.auth_data.data_ptr = NULL;
+    return;
+  }
+
+sim_auth_error:
+  qcril_uim_response(params_ptr->instance_id, params_ptr->t, RIL_E_GENERIC_FAILURE,
+                       NULL, 0, TRUE, "error in qcril_qmi_uim_authentication");
+
+  /* Clean up any original request if allocated */
+  if (original_request_ptr)
+  {
+    qcril_free(original_request_ptr);
+    original_request_ptr = NULL;
+  }
+
+  /* Free data buffer that was allocated */
+  if (auth_params.auth_data.data_ptr)
+  {
+    qcril_free(auth_params.auth_data.data_ptr);
+    auth_params.auth_data.data_ptr = NULL;
+  }
+} /* qcril_uim_request_sim_authenticate */
+#endif /* RIL_REQUEST_SIM_AUTHENTICATION */
+
+
+#if defined(RIL_REQUEST_SIM_OPEN_CHANNEL) || defined(RIL_REQUEST_SIM_CLOSE_CHANNEL)
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_send_open_logical_ch_req
+
+===========================================================================*/
+/*!
+    @brief
+    Responsible to send QMI Open channel request to the modem. Note that
+    we are using the QMI_UIM_OPEN_LOGICAL_CHANNEL command now since we have
+    to support the opening of logical channel without specifying the AID TLV.
+
+    @return
+    TRUE if successful, FALSE otherwise
+*/
+/*=========================================================================*/
+static boolean qcril_uim_send_open_logical_ch_req
+(
+  qcril_instance_id_e_type      instance_id,
+  const char                  * in_ptr,
+  RIL_Token                     token,
+  int                           request_id,
+  qmi_uim_slot_type             slot
+)
+{
+  qcril_uim_original_request_type        * original_request_ptr = NULL;
+  qmi_uim_open_logical_channel_params_type open_logical_ch_params;
+  uint16                                   aid_size             = 0;
+  uint8                                    aid_buffer[QMI_UIM_MAX_AID_LEN];
+  qcril_uim_fci_value_type                 qcril_fci_value      = QCRIL_UIM_FCI_VALUE_FCP;
+
+  memset(&open_logical_ch_params, 0, sizeof(qmi_uim_open_logical_channel_params_type));
+
+  QCRIL_LOG_INFO( "qcril_uim_request_logical_channel(aid: %s)\n", in_ptr != NULL ? in_ptr : "NULL");
+
+  open_logical_ch_params.slot = slot;
+
+  /* If AID is provided, add the AID info to be sent to modem.
+     If AID pointer is NULL or empty string, skip the AID TLV since we need to
+     open the channel to MF with no select on any DF. */
+  if ((in_ptr != NULL) && (strlen(in_ptr) > 0))
+  {
+    /* Convert AID string into binary */
+    aid_size = qcril_uim_hexstring_to_bin(in_ptr,
+                                          aid_buffer,
+                                          QMI_UIM_MAX_AID_LEN);
+    if (aid_size == 0 || aid_size > QMI_UIM_MAX_AID_LEN)
+    {
+      QCRIL_LOG_ERROR("%s", "Error converting AID string into binary");
+      return FALSE;
+    }
+
+    /* Update AID info */
+    open_logical_ch_params.aid_present = QMI_UIM_TRUE;
+    open_logical_ch_params.aid.data_ptr = (unsigned char*)aid_buffer;
+    open_logical_ch_params.aid.data_len = (unsigned short)aid_size;
+  }
+
+  open_logical_ch_params.file_control_information.is_valid = QMI_UIM_TRUE;
+
+  /* When opening the channel, ask for appropriate template depending upon
+     whether the it is an ICC card or a specific AID */
+  if (qcril_uim_find_app_in_slot(slot, QMI_UIM_APP_SIM) ||
+      qcril_uim_find_app_in_slot(slot, QMI_UIM_APP_RUIM))
+  {
+    qcril_fci_value = QCRIL_UIM_FCI_VALUE_FCP;
+    open_logical_ch_params.file_control_information.fci_value = QMI_UIM_FCI_VALUE_FCP;
+  }
+  else
+  {
+    qcril_fci_value = qcril_uim_determine_select_template_from_aid(in_ptr);
+
+    open_logical_ch_params.file_control_information.fci_value =
+      qcril_uim_convert_fci_value(qcril_fci_value);
+  }
+
+  /* Allocate original request, it is freed in qmi_uim_callback */
+  original_request_ptr = qcril_uim_allocate_orig_request(instance_id,
+                                                         QCRIL_MAX_MODEM_ID - 1,
+                                                         token,
+                                                         request_id,
+                                                         0);
+  if (original_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "error allocating memory for original_request_ptr!");
+    return FALSE;
+  }
+
+  /* Save original request AID data, FCI value and slot in case
+     open channel fails due to invalid P1/P2 and a second fallback
+     open channel attempt needs to be made. */
+  original_request_ptr->data.channel_info.fci_value = qcril_fci_value;
+  original_request_ptr->data.channel_info.aid_size = (unsigned short)aid_size;
+  original_request_ptr->data.channel_info.slot = open_logical_ch_params.slot;
+  memcpy(original_request_ptr->data.channel_info.aid_buffer,
+         (unsigned char*)aid_buffer,
+         aid_size);
+
+  /* Proceed with logical channel request */
+  QCRIL_LOG_QMI( QCRIL_MAX_MODEM_ID - 1, "qmi_uim_service", "logical channel" );
+  if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_OPEN_LOGICAL_CHANNEL,
+                                   qcril_uim.qmi_handle,
+                                   &open_logical_ch_params,
+                                   qmi_uim_callback,
+                                   (void*)original_request_ptr) >= 0)
+  {
+    return TRUE;
+  }
+
+  /* In case or error, clean up any original request allocated */
+  if (original_request_ptr)
+  {
+    qcril_free(original_request_ptr);
+    original_request_ptr = NULL;
+  }
+
+  return FALSE;
+} /* qcril_uim_send_open_logical_ch_req */
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_send_close_logical_ch_req
+
+===========================================================================*/
+/*!
+    @brief
+    Responsible to send QMI Close channel request to the modem.
+
+    @return
+    TRUE if successful, FALSE otherwise
+*/
+/*=========================================================================*/
+static boolean qcril_uim_send_close_logical_ch_req
+(
+  qcril_instance_id_e_type      instance_id,
+  const char                  * in_ptr,
+  RIL_Token                     token,
+  int                           request_id,
+  qmi_uim_slot_type             slot
+)
+{
+  qcril_uim_original_request_type     * original_request_ptr = NULL;
+  qmi_uim_logical_channel_params_type   logical_channel_params;
+
+  /* Return with error if input pointer was not provided */
+  if (in_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR( "%s", " Invalid input pointer \n");
+    return FALSE;
+  }
+
+  QCRIL_LOG_INFO( "qcril_uim_request_logical_channel(channel id: 0x%X)", *in_ptr);
+
+  /* Fill QMI parameter */
+  memset(&logical_channel_params, 0, sizeof(qmi_uim_logical_channel_params_type));
+  logical_channel_params.slot = slot;
+  logical_channel_params.operation_type = QMI_UIM_LOGICAL_CHANNEL_CLOSE;
+  logical_channel_params.channel_data.close_channel_info.channel_id = *in_ptr;
+  logical_channel_params.channel_data.close_channel_info.terminate_app = FALSE;
+
+  /* Allocate original request, it is freed in qmi_uim_callback */
+  original_request_ptr = qcril_uim_allocate_orig_request(instance_id,
+                                                         QCRIL_MAX_MODEM_ID - 1,
+                                                         token,
+                                                         request_id,
+                                                         0);
+  if (original_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "error allocating memory for original_request_ptr!");
+    return FALSE;
+  }
+
+  qcril_uim_remove_select_response_info_entry(
+    logical_channel_params.channel_data.close_channel_info.channel_id);
+
+  /* Proceed with logical channel request */
+  QCRIL_LOG_QMI( QCRIL_MAX_MODEM_ID - 1, "qmi_uim_service", "logical channel" );
+  if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_LOGICAL_CHANNEL,
+                                   qcril_uim.qmi_handle,
+                                   &logical_channel_params,
+                                   qmi_uim_callback,
+                                   (void*)original_request_ptr) >= 0)
+  {
+    return TRUE;
+  }
+
+  /* In case or error, clean up any original request allocated */
+  if (original_request_ptr)
+  {
+    qcril_free(original_request_ptr);
+    original_request_ptr = NULL;
+  }
+
+  return FALSE;
+} /* qcril_uim_send_close_logical_ch_req */
+
+
 /*===========================================================================
 
   FUNCTION:  qcril_uim_request_logical_channel
@@ -4832,11 +6505,8 @@ void qcril_uim_request_logical_channel
   qcril_request_return_type       *const ret_ptr /*!< Output parameter */
 )
 {
-  qcril_modem_id_e_type                 modem_id             = QCRIL_MAX_MODEM_ID - 1;
-  uint16                                aid_size             = 0;
-  uint8                                 aid_buffer[QMI_UIM_MAX_AID_LEN];
-  qcril_uim_original_request_type     * original_request_ptr = NULL;
-  qmi_uim_logical_channel_params_type   logical_channel_params;
+  qmi_uim_slot_type      slot   = QMI_UIM_SLOT_1;
+  boolean                result = FALSE;
 
   if(params_ptr == NULL || ret_ptr == NULL)
   {
@@ -4845,7 +6515,28 @@ void qcril_uim_request_logical_channel
     return;
   }
 
-  memset(&logical_channel_params, 0, sizeof(qmi_uim_logical_channel_params_type));
+  /* Find slot info */
+  if ( ril_to_uim_is_tsts_enabled() && (params_ptr->instance_id == QCRIL_THIRD_INSTANCE_ID) )
+  {
+    slot = QMI_UIM_SLOT_3;
+  }
+  else if ( (ril_to_uim_is_tsts_enabled() ||
+             ril_to_uim_is_dsds_enabled()) &&
+            (params_ptr->instance_id == QCRIL_SECOND_INSTANCE_ID) )
+  {
+    slot = QMI_UIM_SLOT_2;
+  }
+  else if (params_ptr->instance_id == QCRIL_DEFAULT_INSTANCE_ID)
+  {
+    slot = QMI_UIM_SLOT_1;
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( " Invalid instance_id in input: 0x%x\n", params_ptr->instance_id);
+    qcril_uim_response(params_ptr->instance_id, params_ptr->t, RIL_E_GENERIC_FAILURE,
+                       NULL, 0, TRUE, "error in qcril_qmi_uim_logical_channel");
+    return;
+  }
 
   /* Add entry to ReqList */
   QCRIL_UIM_ADD_ENTRY_TO_REQUEST_LIST(params_ptr);
@@ -4853,120 +6544,114 @@ void qcril_uim_request_logical_channel
   /* Parse input info based on the request type */
   if (params_ptr->event_id == RIL_REQUEST_SIM_OPEN_CHANNEL)
   {
-    uint8        slot   = qcril_uim_instance_id_to_slot(params_ptr->instance_id);
-    const char * in_ptr = NULL;
-    in_ptr = params_ptr->data;
-    QCRIL_LOG_INFO( "qcril_uim_request_logical_channel(aid: %s)\n", in_ptr != NULL ? in_ptr : "NULL");
-
-    /* Return with error if AID was not provided */
-    if ((in_ptr == NULL) || (strlen(in_ptr) == 0))
-    {
-      QCRIL_LOG_ERROR( "%s", " Invalid input for AID \n");
-      goto logical_channel_error;
-    }
-
-    logical_channel_params.operation_type = QMI_UIM_LOGICAL_CHANNEL_OPEN;
-
-    /* Convert AID string into binary */
-    aid_size = qcril_uim_hexstring_to_bin(in_ptr,
-                                          aid_buffer,
-                                          QMI_UIM_MAX_AID_LEN);
-    if (aid_size == 0)
-    {
-      QCRIL_LOG_ERROR("%s", "Error converting AID string into binary");
-      goto logical_channel_error;
-    }
-
-    /* Update AID info */
-    logical_channel_params.channel_data.aid.data_ptr = (unsigned char*)aid_buffer;
-    logical_channel_params.channel_data.aid.data_len = (unsigned short)aid_size;
-
-    /* If it is an ICC card, ask for FCI template when opening the channel */
-    if (qcril_uim_find_app_in_slot(slot, QMI_UIM_APP_SIM) ||
-        qcril_uim_find_app_in_slot(slot, QMI_UIM_APP_RUIM))
-    {
-      logical_channel_params.file_control_information.is_valid  = QMI_UIM_TRUE;
-      logical_channel_params.file_control_information.fci_value = QMI_UIM_FCI_VALUE_FCP;
-    }
+    result = qcril_uim_send_open_logical_ch_req(params_ptr->instance_id,
+                                                params_ptr->data,
+                                                params_ptr->t,
+                                                params_ptr->event_id,
+                                                slot);
   }
   else if (params_ptr->event_id == RIL_REQUEST_SIM_CLOSE_CHANNEL)
   {
-    const int * in_ptr = NULL;
-    in_ptr = params_ptr->data;
-
-    /* Return with error if input pointer was not provided */
-    if (in_ptr == NULL)
-    {
-      QCRIL_LOG_ERROR( "%s", " Invalid input pointer \n");
-      goto logical_channel_error;
-    }
-
-    QCRIL_LOG_INFO( "qcril_uim_request_logical_channel(channel id: 0x%X)\n", *in_ptr);
-
-    logical_channel_params.operation_type = QMI_UIM_LOGICAL_CHANNEL_CLOSE;
-    logical_channel_params.channel_data.channel_id = *in_ptr;
+    result = qcril_uim_send_close_logical_ch_req(params_ptr->instance_id,
+                                                 params_ptr->data,
+                                                 params_ptr->t,
+                                                 params_ptr->event_id,
+                                                 slot);
   }
   else
   {
     QCRIL_LOG_ERROR( " Invalid input event_id: 0x%x\n", params_ptr->event_id);
-    goto logical_channel_error;
   }
 
-  /* Find slot info */
-  if ( ril_to_uim_is_tsts_enabled() && (params_ptr->instance_id == QCRIL_THIRD_INSTANCE_ID) )
+  /* Upon failure to send request to modem, send result error back */
+  if (!result)
   {
-    logical_channel_params.slot = QMI_UIM_SLOT_3;
+    qcril_uim_response(params_ptr->instance_id, params_ptr->t, RIL_E_GENERIC_FAILURE,
+                       NULL, 0, TRUE, "error in qcril_qmi_uim_logical_channel");
   }
-  else if ( (ril_to_uim_is_tsts_enabled() ||
-             ril_to_uim_is_dsds_enabled()) &&
-            (params_ptr->instance_id == QCRIL_SECOND_INSTANCE_ID) )
+} /* qcril_uim_request_logical_channel */
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL || RIL_REQUEST_SIM_CLOSE_CHANNEL */
+
+
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_send_reselect_req
+
+===========================================================================*/
+/*!
+    @brief
+    Responsible to send QMI reselect request to the modem.
+
+    @return
+    TRUE if successful, FALSE otherwise
+*/
+/*=========================================================================*/
+static boolean qcril_uim_send_reselect_req
+(
+  qcril_instance_id_e_type        instance_id,
+  RIL_Token                       token,
+  int                             request_id,
+  int                             channel_id,
+  qmi_uim_slot_type               slot,
+  qmi_uim_send_apdu_params_type * apdu_params_ptr
+)
+{
+  qcril_uim_original_request_type     * original_request_ptr = NULL;
+  qmi_uim_reselect_params_type          reselect_params;
+
+  if (apdu_params_ptr == NULL)
   {
-    logical_channel_params.slot = QMI_UIM_SLOT_2;
+    return FALSE;
   }
-  else if (params_ptr->instance_id == QCRIL_DEFAULT_INSTANCE_ID)
-  {
-    logical_channel_params.slot = QMI_UIM_SLOT_1;
-  }
-  else
-  {
-    QCRIL_LOG_ERROR( " Invalid instance_id in input: 0x%x\n", params_ptr->instance_id);
-    goto logical_channel_error;
-  }
+
+  QCRIL_LOG_INFO( "qcril_uim_send_reselect_req (channel id: 0x%x)", channel_id);
+
+  /* Fill QMI parameter */
+  memset(&reselect_params, 0, sizeof(qmi_uim_reselect_params_type));
+  reselect_params.slot = slot;
+  reselect_params.channel_id = channel_id;
+  reselect_params.select_mode = QMI_UIM_SELECT_MODE_NEXT;
 
   /* Allocate original request, it is freed in qmi_uim_callback */
-  original_request_ptr = qcril_uim_allocate_orig_request(params_ptr->instance_id,
-                                                         modem_id,
-                                                         params_ptr->t,
-                                                         params_ptr->event_id,
+  original_request_ptr = qcril_uim_allocate_orig_request(instance_id,
+                                                         QCRIL_MAX_MODEM_ID - 1,
+                                                         token,
+                                                         request_id,
                                                          0);
   if (original_request_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "error allocating memory for original_request_ptr!");
-    goto logical_channel_error;
+    return FALSE;
   }
 
+  /* Update the original req ptr with the send APDU parameters.
+     The internal APDU data_ptr will be freed in the reselect cb */
+  memcpy(&original_request_ptr->data.send_apdu,
+         apdu_params_ptr,
+         sizeof(qmi_uim_send_apdu_params_type));
+
   /* Proceed with logical channel request */
-  QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "logical channel" );
-  if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_LOGICAL_CHANNEL,
+  QCRIL_LOG_QMI( QCRIL_MAX_MODEM_ID - 1, "qmi_uim_service", "reselect" );
+  if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_RESELECT,
                                    qcril_uim.qmi_handle,
-                                   &logical_channel_params,
+                                   &reselect_params,
                                    qmi_uim_callback,
                                    (void*)original_request_ptr) >= 0)
   {
-    return;
+    return TRUE;
   }
 
-logical_channel_error:
-  qcril_uim_response(params_ptr->instance_id, params_ptr->t, RIL_E_GENERIC_FAILURE,
-                       NULL, 0, TRUE, "error in qcril_qmi_uim_logical_channel");
-
-  /* Clean up any original request if allocated */
+  /* In case or error, clean up any original request allocated */
   if (original_request_ptr)
   {
     qcril_free(original_request_ptr);
     original_request_ptr = NULL;
   }
-} /* qcril_uim_request_logical_channel */
+
+  return FALSE;
+} /* qcril_uim_send_reselect_req */
 
 
 /*===========================================================================
@@ -4976,8 +6661,12 @@ logical_channel_error:
 ===========================================================================*/
 /*!
     @brief
-    Handles RIL_REQUEST_SIM_APDU or RIL_REQUEST_SIM_TRANSMIT_CHANNEL
-    request from QCRIL.
+    Handles these RIL requests:
+
+    RIL_REQUEST_SIM_APDU
+    RIL_REQUEST_SIM_TRANSMIT_CHANNEL
+    RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC
+    RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL
 
     @return
     None
@@ -4990,10 +6679,31 @@ void qcril_uim_request_send_apdu
 )
 {
   qcril_modem_id_e_type             modem_id             = QCRIL_MAX_MODEM_ID - 1;
-  const RIL_SIM_IO_v6             * request_io_ptr       = NULL;
   uint16                            in_apdu_length       = 0;
   qcril_uim_original_request_type * original_request_ptr = NULL;
   qmi_uim_send_apdu_params_type     send_apdu_params;
+  int                               cla                  = 0;
+  int                               ins                  = 0;
+  int                               p1                   = 0;
+  int                               p2                   = 0;
+  int                               p3                   = 0;
+  const char                      * data_ptr             = NULL;
+  int                               channel_id           = 0;
+  boolean                           channel_id_present   = FALSE;
+  uint8                             i                    = 0;
+  boolean                           send_select_rsp_data = FALSE;
+  RIL_SIM_IO_Response               ril_response;
+  RIL_Errno                         ril_err              = RIL_E_GENERIC_FAILURE;
+  uint8                             select_resp_index    = QCRIL_UIM_MAX_SELECT_RESP_COUNT;
+  qmi_uim_slot_type                 slot                 = QMI_UIM_SLOT_1;
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL)
+  boolean                           check_simio_params   = FALSE;
+  const RIL_SIM_IO_v6             * request_simio_ptr    = NULL;
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL */
+#if defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+  boolean                           check_apdu_params    = FALSE;
+  const RIL_SIM_APDU              * request_apdu_ptr     = NULL;
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
 
   if(params_ptr == NULL || ret_ptr == NULL)
   {
@@ -5002,69 +6712,179 @@ void qcril_uim_request_send_apdu
     return;
   }
 
-  request_io_ptr = (const RIL_SIM_IO_v6*)params_ptr->data;
-  if(request_io_ptr == NULL)
+  /* Note: Due to the way code is strctured below, both types of APIs can coexist */
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL)
+#if defined(RIL_REQUEST_SIM_APDU)
+  if (params_ptr->event_id == RIL_REQUEST_SIM_APDU)
   {
-    qcril_uim_response(params_ptr->instance_id,
-                       params_ptr->t,
-                       RIL_E_GENERIC_FAILURE,
-                       NULL,
-                       0,
-                       TRUE,
-                       "NULL request_io_ptr");
-    QCRIL_ASSERT(0);
-    return;
+    check_simio_params = TRUE;
   }
+#endif /* RIL_REQUEST_SIM_APDU */
+#if defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL)
+  if (params_ptr->event_id == RIL_REQUEST_SIM_TRANSMIT_CHANNEL)
+  {
+    check_simio_params = TRUE;
+  }
+#endif /* RIL_REQUEST_SIM_TRANSMIT_CHANNEL */
+  if (check_simio_params)
+  {
+    request_simio_ptr = (const RIL_SIM_IO_v6*)params_ptr->data;
+    if(request_simio_ptr == NULL)
+    {
+      qcril_uim_response(params_ptr->instance_id,
+                         params_ptr->t,
+                         RIL_E_GENERIC_FAILURE,
+                         NULL,
+                         0,
+                         TRUE,
+                         "NULL request pointer");
+      QCRIL_ASSERT(0);
+      return;
+    }
 
+    /* Update parameters from input pointer */
+    cla        = request_simio_ptr->cla;
+    ins        = request_simio_ptr->command;
+    channel_id = request_simio_ptr->fileid;
+    p1         = request_simio_ptr->p1;
+    p2         = request_simio_ptr->p2;
+    p3         = request_simio_ptr->p3;
+    data_ptr   = request_simio_ptr->data;
 
-  /* Note - An ADPU is constructed from input RIL_SIM_IO_v6 as follows:
-     CLA + INS + P1 + P2 + P3 + data
-     Mapping for these in input RIL_SIM_IO_v6:
-     channel_id: fileid, CLA: cla, INS: command, P1: p1, P2: p2, P3: p3, data: data
-     Only RIL_REQUEST_SIM_TRANSMIT_CHANNEL has the valid channel_id */
+#if defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL)
+    /* If request is RIL_REQUEST_SIM_TRANSMIT_CHANNEL, update channel_id also */
+    if (params_ptr->event_id == RIL_REQUEST_SIM_TRANSMIT_CHANNEL)
+    {
+      channel_id_present = TRUE;
+    }
+#endif /* RIL_REQUEST_SIM_TRANSMIT_CHANNEL */
+  }
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL */
+
+#if defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+#if defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC)
+  if (params_ptr->event_id == RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC)
+  {
+    check_apdu_params = TRUE;
+  }
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC */
+#if defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+  if (params_ptr->event_id == RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+  {
+    check_apdu_params = TRUE;
+  }
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+  if (check_apdu_params)
+  {
+    request_apdu_ptr = (const RIL_SIM_APDU*)params_ptr->data;
+    if(request_apdu_ptr == NULL)
+    {
+      qcril_uim_response(params_ptr->instance_id,
+                         params_ptr->t,
+                         RIL_E_GENERIC_FAILURE,
+                         NULL,
+                         0,
+                         TRUE,
+                         "NULL request pointer");
+      QCRIL_ASSERT(0);
+      return;
+    }
+
+    /* Update parameters from input pointer */
+    cla        = request_apdu_ptr->cla;
+    ins        = request_apdu_ptr->instruction;
+    channel_id = request_apdu_ptr->sessionid;
+    p1         = request_apdu_ptr->p1;
+    p2         = request_apdu_ptr->p2;
+    p3         = request_apdu_ptr->p3;
+    data_ptr   = request_apdu_ptr->data;
+
+#if defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+    /* If request is RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL, update channel_id also */
+    if (params_ptr->event_id == RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+    {
+      channel_id_present = TRUE;
+    }
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+  }
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+
+  /* Note - An ADPU is constructed from input APIs as follows:
+     RIL_REQUEST_SIM_APDU or RIL_REQUEST_SIM_TRANSMIT_CHANNEL: RIL_SIM_IO_v6
+     RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC or RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL: RIL_SIM_APDU
+     Mapping for these input structs to CLA + INS + P1 + P2 + P3 + data:
+     channel_id: fileid or sessionid, CLA: cla, INS: command or instruction,
+     P1: p1, P2: p2, P3: p3, data: data
+     Only RIL_REQUEST_SIM_TRANSMIT_CHANNEL & RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL
+     have the valid channel_id */
   QCRIL_LOG_INFO( "qcril_uim_request_sim_io(0x%X, 0x%X, 0x%X, 0x%X, 0x%X, 0x%X, %s)\n",
-                  request_io_ptr->cla,
-                  request_io_ptr->command,
-                  request_io_ptr->fileid,
-                  request_io_ptr->p1,
-                  request_io_ptr->p2,
-                  request_io_ptr->p3,
-                  request_io_ptr->data != NULL ? request_io_ptr->data : "NULL" );
-
-  memset(&send_apdu_params, 0, sizeof(qmi_uim_send_apdu_params_type));
+                  cla,
+                  ins,
+                  channel_id,
+                  p1,
+                  p2,
+                  p3,
+                  data_ptr != NULL ? data_ptr : "NULL" );
 
   /* Add entry to ReqList */
   QCRIL_UIM_ADD_ENTRY_TO_REQUEST_LIST(params_ptr);
 
   /* Sanity check */
-  if ((request_io_ptr->p1      < 0)    || (request_io_ptr->p1      > 0xFF) ||
-      (request_io_ptr->p2      < 0)    || (request_io_ptr->p2      > 0xFF) ||
-      (request_io_ptr->p3      > 0xFF) ||
-      (request_io_ptr->cla     < 0)    || (request_io_ptr->cla     > 0xFF) ||
-      (request_io_ptr->command < 0)    || (request_io_ptr->command > 0xFF))
+  if ((p1  < 0)    || (p1  > 0xFF) ||
+      (p2  < 0)    || (p2  > 0xFF) ||
+      (p3  > 0xFF) ||
+      (cla < 0)    || (cla > 0xFF) ||
+      (ins < 0)    || (ins > 0xFF))
   {
-    QCRIL_LOG_ERROR( "Unsupported case, P1: 0x%X, P2: 0x%X, P3: 0x%X, cla: 0x%X, command: 0x%X \n",
-                     request_io_ptr->p1, request_io_ptr->p2, request_io_ptr->p3,
-                     request_io_ptr->cla, request_io_ptr->command);
+    QCRIL_LOG_ERROR( "Unsupported case, P1: 0x%X, P2: 0x%X, P3: 0x%X, cla: 0x%X, ins: 0x%X \n",
+                     p1, p2, p3, cla, ins);
     qcril_uim_response(params_ptr->instance_id, params_ptr->t, RIL_E_REQUEST_NOT_SUPPORTED,
                        NULL, 0, TRUE, "error in qcril_qmi_uim_send_apdu");
     return;
   }
 
+  if ((ins & 0xF0) == QCRIL_UIM_INVALID_INS_BYTE_MASK)
+  {
+    memset(&ril_response, 0, sizeof(RIL_SIM_IO_Response));
+
+    QCRIL_LOG_ERROR( "Invalid INS byte 0x%X", ins);
+    ril_response.sw1 = QCRIL_UIM_SW1_INS_CODE_NOT_SUPPORTED;
+    ril_response.sw2 = QCRIL_UIM_SW2_NORMAL_END;
+    qcril_uim_response(params_ptr->instance_id, params_ptr->t,
+                       RIL_E_SUCCESS, &ril_response,
+                       sizeof(RIL_SIM_IO_Response), TRUE, NULL);
+    return;
+  }
+
+  if (channel_id_present == FALSE)
+  {
+    /* Calculate channel id based on the type of the logical channel:
+       Standard logical channel: 0 -  3 in b1 & b2
+       Extended logical channel: 4 - 19 in b1 - b4 represented from 0000 - 1111 */
+    if (cla & 0x40)
+    {
+      channel_id = (cla & 0x0F) + 4;
+    }
+    else
+    {
+      channel_id = (cla & 0x03);
+    }
+  }
+
   /* Find slot info */
   if ( ril_to_uim_is_tsts_enabled() && (params_ptr->instance_id == QCRIL_THIRD_INSTANCE_ID) )
   {
-    send_apdu_params.slot = QMI_UIM_SLOT_3;
+    slot = QMI_UIM_SLOT_3;
   }
   else if ( (ril_to_uim_is_tsts_enabled() ||
              ril_to_uim_is_dsds_enabled()) &&
             (params_ptr->instance_id == QCRIL_SECOND_INSTANCE_ID))
   {
-    send_apdu_params.slot = QMI_UIM_SLOT_2;
+    slot = QMI_UIM_SLOT_2;
   }
   else if (params_ptr->instance_id == QCRIL_DEFAULT_INSTANCE_ID)
   {
-    send_apdu_params.slot = QMI_UIM_SLOT_1;
+    slot = QMI_UIM_SLOT_1;
   }
   else
   {
@@ -5072,10 +6892,77 @@ void qcril_uim_request_send_apdu
     goto send_apdu_error;
   }
 
-  /* If request is RIL_REQUEST_SIM_TRANSMIT_CHANNEL, update channel_id also */
-  if (params_ptr->event_id == RIL_REQUEST_SIM_TRANSMIT_CHANNEL)
+  /* First, we loop through to find if there is a select response data
+     that matches the incoming channel id  */
+  for (i = 0; i < QCRIL_UIM_MAX_SELECT_RESP_COUNT; i++)
   {
-    send_apdu_params.channel_id         = request_io_ptr->fileid;
+    if ((qcril_uim.select_response_info[i].in_use) &&
+        (qcril_uim.select_response_info[i].channel_id == channel_id))
+    {
+      select_resp_index = i;
+      break;
+    }
+  }
+
+  /* Next if the APDU request was a GET RESPONSE to a previous OPEN CHANNEL,
+     we respond immediately with the stored response select response data. */
+  if ((ins               == QCRIL_UIM_INS_BYTE_GET_RESPONSE) &&
+      (p1                == 0)                               &&
+      (p2                == 0)                               &&
+      (p3                == 0)                               &&
+      (select_resp_index < QCRIL_UIM_MAX_SELECT_RESP_COUNT))
+  {
+    memset(&ril_response, 0, sizeof(RIL_SIM_IO_Response));
+    ril_err = qcril_uim_update_get_response_apdu(select_resp_index,
+                                                 &ril_response);
+    send_select_rsp_data = TRUE;
+  }
+
+  /* In any case cleanup select response info if it was stored previously
+     for a particular channel id */
+  if (select_resp_index < QCRIL_UIM_MAX_SELECT_RESP_COUNT)
+  {
+    /* Free the cached buffer, if available*/
+    if (qcril_uim.select_response_info[select_resp_index].select_resp_ptr)
+    {
+      qcril_free(qcril_uim.select_response_info[select_resp_index].select_resp_ptr);
+      qcril_uim.select_response_info[select_resp_index].select_resp_ptr = NULL;
+    }
+    /* Also clean up the entire entry */
+    memset(&qcril_uim.select_response_info[select_resp_index],
+           0,
+           sizeof(qcril_uim_select_response_info_type));
+  }
+
+  if (send_select_rsp_data)
+  {
+    QCRIL_LOG_DEBUG( "RIL_SIM_IO_Response: sw1=0x%X sw2=0x%X data=%s\n",
+                      ril_response.sw1, ril_response.sw2,
+                      ril_response.simResponse != NULL ? ril_response.simResponse : "NULL");
+
+    qcril_uim_response(params_ptr->instance_id,
+                       params_ptr->t,
+                       ril_err,
+                       &ril_response,
+                       sizeof(RIL_SIM_IO_Response),
+                       TRUE,
+                       NULL);
+
+    if (ril_response.simResponse)
+    {
+      qcril_free(ril_response.simResponse);
+      ril_response.simResponse = NULL;
+    }
+    return;
+  }
+
+  /* Compose the Send APDU parameters */
+  memset(&send_apdu_params, 0, sizeof(qmi_uim_send_apdu_params_type));
+  send_apdu_params.slot = slot;
+
+  if (channel_id_present)
+  {
+    send_apdu_params.channel_id         = channel_id;
     send_apdu_params.channel_id_present = QMI_UIM_TRUE;
   }
   else
@@ -5084,9 +6971,9 @@ void qcril_uim_request_send_apdu
   }
 
   /* Calculate total buffer size for APDU data */
-  if ((request_io_ptr->data == NULL) || (strlen(request_io_ptr->data) == 0))
+  if ((data_ptr == NULL) || (strlen(data_ptr) == 0))
   {
-    if (request_io_ptr->p3 < 0)
+    if (p3 < 0)
     {
       in_apdu_length = QCRIL_UIM_APDU_MIN_SIZE;
     }
@@ -5097,7 +6984,7 @@ void qcril_uim_request_send_apdu
   }
   else
   {
-    in_apdu_length = QCRIL_UIM_APDU_MIN_SIZE_PLUS_P3 + strlen(request_io_ptr->data);
+    in_apdu_length = QCRIL_UIM_APDU_MIN_SIZE_PLUS_P3 + strlen(data_ptr);
   }
 
   /* Allocate memory and compose the raw APDU data */
@@ -5111,9 +6998,34 @@ void qcril_uim_request_send_apdu
   send_apdu_params.apdu.data_len = in_apdu_length;
 
   if (qcril_uim_compose_apdu_data(&send_apdu_params.apdu,
-                                  request_io_ptr) == FALSE)
+                                  cla,
+                                  ins,
+                                  p1,
+                                  p2,
+                                  p3,
+                                  data_ptr) == FALSE)
   {
     QCRIL_LOG_ERROR("%s", "Error composing APDU data!");
+    goto send_apdu_error;
+  }
+
+  /* Check for SelectNext request via streaming APDU. If so, use reselect QMI API.
+     Also note that for backward compatibility with older modems that doesnt support
+     reselect QMI API, this incoming APDU request is stored & used in reselect cb */
+  if ((ins         == QCRIL_UIM_INS_BYTE_SELECT)            &&
+      (p1          == QCRIL_UIM_P1_VALUE_SELECT_BY_DF_NAME) &&
+      ((p2 & 0x03) == QCRIL_UIM_P2_MASK_SELECT_NEXT))
+  {
+    if (qcril_uim_send_reselect_req(params_ptr->instance_id,
+                                    params_ptr->t,
+                                    params_ptr->event_id,
+                                    channel_id,
+                                    slot,
+                                    &send_apdu_params))
+    {
+      return;
+    }
+    /* Upon error, send error response back to client */
     goto send_apdu_error;
   }
 
@@ -5129,8 +7041,8 @@ void qcril_uim_request_send_apdu
     goto send_apdu_error;
   }
 
-  /* Proceed with logical channel request */
-  QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "logical channel" );
+  /* Proceed with send APDU request */
+  QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "send APDU" );
   if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_SEND_APDU,
                                    qcril_uim.qmi_handle,
                                    &send_apdu_params,
@@ -5160,7 +7072,8 @@ send_apdu_error:
     send_apdu_params.apdu.data_ptr = NULL;
   }
 } /* qcril_uim_request_send_apdu */
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
 
 
 /*===========================================================================

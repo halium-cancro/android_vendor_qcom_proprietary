@@ -34,6 +34,9 @@
 #include "qcril_qmi_voice.h"
 #include "qcril_qmi_imsa.h"
 #include "ip_multimedia_subsystem_application_v01.h"
+#include "qcril_qmi_sms.h"
+
+#define RIL_E_UNUSED 16
 
 Ims__MsgId qcril_qmi_ims_map_event_to_request(int event);
 
@@ -55,14 +58,26 @@ void qcril_qmi_ims_translate_ril_callmodify_to_ims_callmodify(const RIL_Call_Mod
 void qcril_qmi_ims_translate_ril_calldetails_to_ims_calldetails(const RIL_Call_Details* ril_data, Ims__CallDetails* ims_data);
 void qcril_qmi_ims_translate_ims_calldetails_to_ril_calldetails(const Ims__CallDetails *ims_data, RIL_Call_Details* ril_data);
 
-void qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo(const qcril_qmi_voice_callforwd_info_param_u_type* ril_data, int num, Ims__CallForwardInfoList* ims_data);
+void qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo
+(
+ const qcril_qmi_voice_callforwd_info_param_u_type* ril_data, int num,
+ voice_time_type_v02 *call_fwd_start_time,
+ voice_time_type_v02 *call_fwd_end_time,
+ Ims__CallForwardInfoList* ims_data
+);
 
 void qcril_qmi_ims_translate_ril_service_status_class_to_ims_callwaitinginfo(int service_status, int service_class, Ims__CallWaitingInfo* ims_data);
 Ims__Registration__RegState qcril_qmi_ims_map_qmi_ims_reg_state_to_ims_reg_state(uint8_t ims_registered);
 
 void qcril_qmi_ims_translate_ril_suppsvcnotification_to_ims_suppsvcnotification(const RIL_SuppSvcNotification* ril_data, Ims__SuppSvcNotification* ims_data);
 
-void qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(const voice_ip_call_capabilities_info_type_v02* ril_data, Ims__SrvStatusList* ims_data);
+void qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo
+(
+ const voice_ip_call_capabilities_info_type_v02* ril_data,
+ Ims__SrvStatusList* ims_data,
+ Ims__CallType current_call_type,
+ call_mode_enum_v02 call_mode
+);
 
 Ims__Info* qcril_qmi_ims_create_ims_info(
     Ims__CallType type,
@@ -80,9 +95,50 @@ void qcril_qmi_ims_free_ims_handover(Ims__Handover* ims_handover_ptr);
 
 Ims__CallFailCause qcril_qmi_ims_map_ril_failcause_to_ims_failcause(RIL_LastCallFailCause ril_failcause, int ims_extended_error_code);
 
+boolean qcril_qmi_ims_map_qmi_call_state_to_ims_conf_call_state(call_state_enum_v02 qmi_state, Ims__ConfCallState *ims_state_ptr);
+
 Ims__SuppSvcFacilityType qcril_qmi_voice_map_qmi_reason_to_ims_facility
 (
   /* Reason code from QMI Voice Get Call Barring response message */
   voice_cc_sups_result_reason_enum_v02 reason
 );
+
+Ims__CallSubstate qcril_qmi_ims_map_ril_call_substate_to_ims_call_substate
+(
+ RIL_Call_Sub_State  ril_call_substate
+);
+
+Ims__MwiPriority qcril_qmi_sms_map_qmi_mwi_priority_to_ims_priority
+(
+ wms_mwi_priority_type_enum_v01 wms_mwi_priority
+);
+
+Ims__MwiMessageType qcril_qmi_sms_map_qmi_mwi_msg_type_to_ims_msg_type
+(
+ transport_mwi_wms_message_type_enum_v01 mwi_wms_msg_type
+);
+
+boolean qcril_qmi_ims_translate_ims_ttymodetype_to_qmi_tty_mode
+(
+ Ims__TtyModeType mode,
+ tty_mode_enum_v02 *tty_mode
+);
+
+boolean qcril_qmi_ims_translate_ims_callfwdtimerinfo_to_voice_time_type
+(
+ const Ims__CallFwdTimerInfo *callfwdtimerinfo,
+ voice_time_type_v02 *call_fwd_timer
+);
+
+boolean qcril_qmi_ims_translate_voice_time_type_to_ims_callfwdtimerinfo
+(
+ const voice_time_type_v02 *call_fwd_timer,
+ Ims__CallFwdTimerInfo *callfwdtimerinfo
+);
+
+int32_t qcril_qmi_ims_map_ims_failcause_qmi_reject_cause
+(
+  Ims__CallFailCause failcause
+);
+
 #endif /* QCRIL_QMI_IMS_MISC_H */

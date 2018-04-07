@@ -99,6 +99,9 @@ static boolean                        event_reports_enabled = FALSE;
 static boolean is_version_list_cached[QMI_MAX_CONN_IDS];
 static qmi_service_version_list_type version_list_cache[QMI_MAX_CONN_IDS];
 
+/* Global mutex to protect competing qmi_qmux_if operations */
+QMI_PLATFORM_MUTEX_CREATE_AND_INIT_STATIC_MUTEX(qmi_qmux_if_mutex);
+
 /*===========================================================================
                             LOCAL FUNCTION DEFINITIONS
 ===========================================================================*/
@@ -113,7 +116,8 @@ qmi_qmux_if_send_to_qmux
   qmi_service_id_type        qmi_service_id,
   qmi_client_id_type         qmi_client_id,
   unsigned char              *msg,
-  int                        msg_len
+  int                        msg_len,
+  qmi_qmux_clnt_id_t         *qmux_client_id_ptr
 )
 {
   qmi_qmux_if_msg_hdr_type hdr;
@@ -144,6 +148,11 @@ qmi_qmux_if_send_to_qmux
     return QMI_INTERNAL_ERR;
   }
 
+  if (NULL != qmux_client_id_ptr)
+  {
+    *qmux_client_id_ptr = qmux_client_id;
+  }
+
   /* Set up message for sending */
   memset(&hdr, 0, sizeof(qmi_qmux_if_msg_hdr_type));
 
@@ -157,7 +166,7 @@ qmi_qmux_if_send_to_qmux
 
   /* Decrement msg pointer and increment msg_len */
   msg -= QMI_QMUX_IF_HDR_SIZE;
-  msg_len += QMI_QMUX_IF_HDR_SIZE;
+  msg_len += (int)QMI_QMUX_IF_HDR_SIZE;
 
   /* Copy header into message buffer */
   memcpy ((void *)msg, (void *)&hdr, QMI_QMUX_IF_HDR_SIZE);
@@ -222,6 +231,59 @@ qmi_qmux_if_cmp_txn
   return rc;
 }
 
+/*===========================================================================
+  FUNCTION  qmi_qmux_if_complete_sync_txns
+===========================================================================*/
+/*!
+@brief
+  Cleans up any pending sync messages at the IF layer and unblocks the
+  thread waiting for the sync txn completion
+
+@return
+  None
+
+@note
+
+  - Side Effects
+    -
+
+*/
+/*=========================================================================*/
+static
+void qmi_qmux_if_complete_sync_txns
+(
+  qmi_connection_id_type  conn_id
+)
+{
+  qmi_txn_hdr_type  *txn = NULL, *prev_txn = NULL, *head_txn = NULL;
+
+  QMI_PLATFORM_MUTEX_LOCK(&qmi_qmux_if_txn_list_mutex);
+
+  head_txn = qmi_qmux_if_txn_list;
+  QMI_SLL_FIND(txn,prev_txn,head_txn,(((qmi_qmux_if_txn_type *)txn)->qmux_hdr.qmi_conn_id == conn_id));
+
+  while (txn)
+  {
+    QMI_ERR_MSG_4("qmi_qmux_if_complete_sync_txns: completing txn conn_id=%d, qmux_client_id=0x%x, msg_id=0x%02x, txn=0x%x",
+                  conn_id,
+                  ((qmi_qmux_if_txn_type *)txn)->qmux_hdr.qmux_client_id,
+                  ((qmi_qmux_if_txn_type *)txn)->qmux_hdr.msg_id,
+                  ((qmi_qmux_if_txn_type *)txn)->qmux_hdr.qmux_txn_id);
+
+    ((qmi_qmux_if_txn_type *)txn)->qmux_hdr.sys_err_code = QMI_TIMEOUT_ERR;
+
+    QMI_DEBUG_MSG_0("qmi_qmux_if_complete_sync_txns: Sending signal ...... to read cmd data \n");
+
+    /* Send signal to calling thread to unblock */
+    QMI_PLATFORM_SEND_SIGNAL (((qmi_qmux_if_txn_type *)txn)->qmux_hdr.qmi_conn_id,
+                              &(((qmi_qmux_if_txn_type *)txn)->signal_data));
+
+    head_txn = txn->next;
+    QMI_SLL_FIND(txn,prev_txn,head_txn,(((qmi_qmux_if_txn_type *)txn)->qmux_hdr.qmi_conn_id == conn_id));
+  }
+
+  QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_txn_list_mutex);
+}
 
 /*===========================================================================
   FUNCTION  qmi_qmux_if_handle_sys_ind_msg
@@ -272,10 +334,10 @@ void qmi_qmux_if_handle_sys_ind_msg
   QMI_PLATFORM_MUTEX_UNLOCK (&qmi_qmux_if_client_list_mutex);
 
   /* Make sure we have a non-NULL system event indication handler */
-  if ((!(client)) || !(tmp_client_data.sys_event_rx_hdlr))
+  if (!(client))
   {
     QMI_ERR_MSG_2 ("qmi_qmux_if_handle_sys_ind_msg: got indication msg_id=%d, "
-                   "but no hanlder registered for qmux_client_id=%d\n",
+                   "for an invalid qmux_client_id=0x%x\n",
                    msg_hdr->msg_id, msg_hdr->qmux_client_id);
     return;
   }
@@ -322,6 +384,9 @@ void qmi_qmux_if_handle_sys_ind_msg
     /* Reset the whole service cache, legacy targets do not support per-port SSR. */
     memset(&is_version_list_cached, 0, sizeof(is_version_list_cached));
     memset(&version_list_cache, 0, sizeof(version_list_cache));
+
+    /* Clean up any pending sync qmi_qmux_if transactions on this connection */
+    qmi_qmux_if_complete_sync_txns(ind_data.qmi_modem_service_ind.conn_id);
   }
   else if (msg_hdr->msg_id == QMI_QMUX_IF_MODEM_IN_SERVICE_MSG_ID)
   {
@@ -347,7 +412,7 @@ void qmi_qmux_if_handle_sys_ind_msg
 
       if (client != NULL)
       {
-        QMI_DEBUG_MSG_2 ("qmi_qmux_if_handle_sys_ind_msg: updating qmux_client_id old=%x, new=%x",
+        QMI_DEBUG_MSG_2 ("qmi_qmux_if_handle_sys_ind_msg: updating qmux_client_id old=0x%x, new=0x%x",
                          msg_hdr->qmux_client_id,
                          cmd_data.qmi_qmux_if_sub_sys_restart_ind.qmux_client_id);
 
@@ -355,7 +420,7 @@ void qmi_qmux_if_handle_sys_ind_msg
       }
       else
       {
-        QMI_ERR_MSG_1 ("qmi_qmux_if_handle_sys_ind_msg: failed to find qmux_client_id %x",
+        QMI_ERR_MSG_1 ("qmi_qmux_if_handle_sys_ind_msg: failed to find qmux_client_id=0x%x",
                        msg_hdr->qmux_client_id);
       }
       QMI_PLATFORM_MUTEX_UNLOCK (&qmi_qmux_if_client_list_mutex);
@@ -367,7 +432,7 @@ void qmi_qmux_if_handle_sys_ind_msg
         cmd_data.qmi_qmux_add_delete_qmux_client_req_rsp.qmux_client_id = client->qmux_client_id;
         cmd_data.qmi_qmux_add_delete_qmux_client_req_rsp.qmux_client_mode = client->qmux_client_mode;
 
-        QMI_DEBUG_MSG_1("qmi_qmux_if_handle_sys_ind_msg: adding new client [%d] to qmuxd",
+        QMI_DEBUG_MSG_1("qmi_qmux_if_handle_sys_ind_msg: adding new qmux_client_id=0x%x to qmuxd",
                          client->qmux_client_id);
 
         if (qmi_qmux_if_send_if_msg_to_qmux(client,
@@ -377,15 +442,26 @@ void qmi_qmux_if_handle_sys_ind_msg
                                             &qmi_err_code,
                                             QMI_SYNC_MSG_DEFAULT_TIMEOUT) < 0)
         {
-          QMI_ERR_MSG_2 ("qmi_qmux_if_handle_sys_ind_msg: Could not add qmux_client %x to qmuxd [%d]",
+          QMI_ERR_MSG_2 ("qmi_qmux_if_handle_sys_ind_msg: Could not add qmux_client_id=0x%x to qmuxd [%d]",
                          client->qmux_client_id,
                          qmi_err_code);
         }
       }
     }
+    else if(msg_hdr->msg_id == QMI_QMUX_IF_PORT_WRITE_FAIL_IND_MSG_ID)
+    {
+      ind_event = QMI_SYS_EVENT_PORT_WRITE_FAIL_IND;
+      ind_data.qmi_sys_port_write_failed_ind.conn_id = cmd_data.qmi_qmux_if_port_write_failed_ind.conn_id;
+      ind_data.qmi_sys_port_write_failed_ind.write_err_code = cmd_data.qmi_qmux_if_port_write_failed_ind.write_err_code;
+
+      QMI_DEBUG_MSG_2("qmi_qmux_if_handle_sys_ind_msg: sending QMI_SYS_EVENT_PORT_WRITE_FAIL_IND on conn_id [%d] "
+                      "to client_id [%d]",
+                      ind_data.qmi_sys_port_write_failed_ind.conn_id,
+                      client->qmux_client_id);
+    }
     else
     {
-      QMI_DEBUG_MSG_1 ("qmi_qmux_if_handle_sys_ind_msg: not updating qmux_client_id %x",
+      QMI_DEBUG_MSG_1 ("qmi_qmux_if_handle_sys_ind_msg: not updating qmux_client_id=0x%x",
                        msg_hdr->qmux_client_id);
     }
   }
@@ -395,13 +471,23 @@ void qmi_qmux_if_handle_sys_ind_msg
     return;
   }
 
-  QMI_DEBUG_MSG_1 ("qmi_qmux_if_handle_sys_ind_msg: Sending system event indication %d\n",
-                   ind_event);
-
   /* Make system event callback */
-  tmp_client_data.sys_event_rx_hdlr (ind_event,
-                                     &ind_data,
-                                     tmp_client_data.sys_event_user_data);
+  if (tmp_client_data.sys_event_rx_hdlr)
+  {
+    QMI_DEBUG_MSG_2 ("qmi_qmux_if_handle_sys_ind_msg: Sending system event indication %d for qmux_client_id=0x%x\n",
+                     ind_event,
+                     msg_hdr->qmux_client_id);
+
+    tmp_client_data.sys_event_rx_hdlr (ind_event,
+                                       &ind_data,
+                                       tmp_client_data.sys_event_user_data);
+  }
+  else
+  {
+    QMI_ERR_MSG_2 ("qmi_qmux_if_handle_sys_ind_msg: got indication msg_id=%d, "
+                   "but no handler registered for qmux_client_id=0x%x\n",
+                   msg_hdr->msg_id, msg_hdr->qmux_client_id);
+  }
 }
 
 
@@ -539,7 +625,7 @@ qmi_qmux_if_rx_msg
 
   /* Advance msg pointer and decrement msg_len */
   msg += QMI_QMUX_IF_HDR_SIZE;
-  msg_len -= QMI_QMUX_IF_HDR_SIZE;
+  msg_len -= (int)QMI_QMUX_IF_HDR_SIZE;
 
   if (msg_hdr.msg_id == QMI_QMUX_IF_QMI_MSG_ID)
   {
@@ -708,6 +794,8 @@ qmi_qmux_if_send_if_msg_to_qmux
     ++qmi_qmux_if_qmux_txn_id;
   }
   txn->qmux_hdr.qmux_txn_id = qmi_qmux_if_qmux_txn_id;
+  txn->qmux_hdr.qmi_conn_id = conn_id;
+  txn->qmux_hdr.msg_id = msg_id;
 
   QMI_PLATFORM_MUTEX_UNLOCK (&qmi_qmux_if_txn_list_mutex);
 
@@ -726,7 +814,8 @@ qmi_qmux_if_send_if_msg_to_qmux
                                  (qmi_service_id_type)0,   /* Not used */
                                  0,   /* Not used */
                                  (unsigned char *)(tx_buf + QMI_QMUX_IF_MSG_HDR_SIZE),
-                                 sizeof (qmi_qmux_if_cmd_rsp_type));
+                                 sizeof (qmi_qmux_if_cmd_rsp_type),
+                                 &txn->qmux_hdr.qmux_client_id);
 
   if (rc == QMI_NO_ERR)
   {
@@ -734,10 +823,11 @@ qmi_qmux_if_send_if_msg_to_qmux
     /* If we get a timeout, indicate so accordingly */
     if ( QMI_PLATFORM_WAIT_FOR_SIGNAL( conn_id,
                                        &txn->signal_data,
-                                       timeout * 1000 ) == QMI_TIMEOUT_ERR )
+                                       (int)timeout * 1000 ) == QMI_TIMEOUT_ERR )
     {
       QMI_DEBUG_MSG_0("Timeout error.............\n");
-      QMI_DEBUG_MSG_2("client %d, msg 0x%02x", qmux_if_client_handle, msg_id);
+      QMI_DEBUG_MSG_4("conn_id=%d, qmux_client_id=0x%x, msg=0x%02x, txid=0x%x",
+                      conn_id, txn->qmux_hdr.qmux_client_id, msg_id, txn->qmux_hdr.qmux_txn_id);
       rc = QMI_TIMEOUT_ERR;
       if (qmi_err_code)
       {
@@ -747,6 +837,8 @@ qmi_qmux_if_send_if_msg_to_qmux
     }
     else
     {
+      QMI_DEBUG_MSG_4("conn_id=%d, qmux_client_id=0x%x, msg=0x%02x, txid=0x%x",
+                      conn_id, txn->qmux_hdr.qmux_client_id, msg_id, txn->qmux_hdr.qmux_txn_id);
 
       if (qmi_err_code)
       {
@@ -1173,6 +1265,7 @@ qmi_qmux_if_is_conn_active
 )
 {
   (void)qmux_if_client_handle;
+  (void) conn_id;
 
 #ifndef QMI_MSGLIB_MULTI_PD
   return qmi_qmux_is_connection_active (conn_id);
@@ -1219,7 +1312,8 @@ qmi_qmux_if_send_qmi_msg
                                  service_id,
                                  client_id,
                                  msg_buf,
-                                 msg_buf_size);
+                                 msg_buf_size,
+                                 NULL);
   return rc;
 }
 
@@ -1273,6 +1367,7 @@ qmi_qmux_if_pwr_up_init_ex
 
   *qmi_qmux_handle = QMI_QMUX_IF_INVALID_HNDL;
 
+  QMI_PLATFORM_MUTEX_LOCK(&qmi_qmux_if_mutex);
   /* Initialize internal use port ID if specified by platform */
 #ifdef QMI_PLATFORM_INTERNAL_USE_PORT_ID
   qmi_qmux_if_internal_use_conn_id = QMI_PLATFORM_DEV_NAME_TO_CONN_ID (QMI_PLATFORM_INTERNAL_USE_PORT_ID);
@@ -1280,6 +1375,7 @@ qmi_qmux_if_pwr_up_init_ex
   if (qmi_qmux_if_internal_use_conn_id == QMI_CONN_ID_INVALID)
   {
     QMI_ERR_MSG_1 ("Unable to initialize internal use conn_id, dev_name=%s\n",QMI_PLATFORM_INTERNAL_USE_PORT_ID);
+    QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_mutex);
     return QMI_INTERNAL_ERR;
   }
 #endif
@@ -1291,6 +1387,10 @@ qmi_qmux_if_pwr_up_init_ex
   {
     QMI_PLATFORM_MUTEX_INIT (&qmi_qmux_if_tx_mutex);
     QMI_PLATFORM_MUTEX_INIT (&qmi_qmux_if_txn_list_mutex);
+
+    /* Initialize the cache */
+    memset(&is_version_list_cached, 0, sizeof(is_version_list_cached));
+    memset(&version_list_cache, 0, sizeof(version_list_cache));
 
 #ifndef QMI_MSGLIB_MULTI_PD
     /* Call qmux powerup init function */
@@ -1310,6 +1410,7 @@ qmi_qmux_if_pwr_up_init_ex
   if (!qmi_qmux_if_rx_buf)
   {
     QMI_ERR_MSG_1 ("qmi_qmux_if_pwr_up_init_ex: Unable to allocate dynamic memory for RX buf, sz = %d\n",QMI_QMUX_IF_BUF_SIZE);
+    QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_mutex);
     return QMI_INTERNAL_ERR;
   }
 
@@ -1323,6 +1424,7 @@ qmi_qmux_if_pwr_up_init_ex
   {
     QMI_ERR_MSG_1 ("qmi_qmux_if_pwr_up_init_ex:  Initialization failed, rc = %d\n",rc);
     free (qmi_qmux_if_rx_buf);
+    QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_mutex);
     return rc;
   }
 
@@ -1332,6 +1434,7 @@ qmi_qmux_if_pwr_up_init_ex
   if (!qmi_qmux_if_client_data)
   {
     QMI_DEBUG_MSG_0 ("qmi_qmux_if_pwr_up_init_ex:  Malloc failed, returning error\n");
+    QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_mutex);
     return QMI_INTERNAL_ERR;
   }
 
@@ -1372,6 +1475,7 @@ qmi_qmux_if_pwr_up_init_ex
                      qmi_qmux_if_qmux_client_id);
   }
 
+  QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_mutex);
   return rc;
 }
 
@@ -1452,6 +1556,7 @@ qmi_qmux_if_pwr_down_release
     return QMI_INTERNAL_ERR;
   }
 
+  QMI_PLATFORM_MUTEX_LOCK(&qmi_qmux_if_mutex);
   /* Remove client data from qmi_qmux_if list */
   QMI_PLATFORM_MUTEX_LOCK (&qmi_qmux_if_client_list_mutex);
   QMI_SLL_FIND (item,
@@ -1470,6 +1575,7 @@ qmi_qmux_if_pwr_down_release
   {
     QMI_ERR_MSG_1 ("qmi_qmux_if_pwr_down_release: qmux_if_client_handle 0x%x not found in list\n",
                    qmux_if_client_handle);
+    QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_mutex);
     return QMI_INTERNAL_ERR;
   }
 
@@ -1530,6 +1636,7 @@ qmi_qmux_if_pwr_down_release
     QMI_DEBUG_MSG_0 ("qmi_qmux_if_pwr_down_release: More clients in list, no de-init performed\n");
   }
 
+  QMI_PLATFORM_MUTEX_UNLOCK(&qmi_qmux_if_mutex);
   return rc;
 }
 
@@ -1559,6 +1666,7 @@ qmi_qmux_if_open_connection
 )
 {
   (void)qmux_if_client_handle;
+  (void)conn_id;
 
 #ifndef QMI_MSGLIB_MULTI_PD
 
@@ -1637,7 +1745,7 @@ int qmi_qmux_if_qmi_proxy_send_to_qmux
 
   /* Decrement msg pointer and increment msg_len */
   msg -= QMI_QMUX_IF_HDR_SIZE;
-  msg_len += QMI_QMUX_IF_HDR_SIZE;
+  msg_len += (int)QMI_QMUX_IF_HDR_SIZE;
 
   /* Copy header into message buffer */
   memcpy( (void *)msg, (void *)&hdr, QMI_QMUX_IF_HDR_SIZE );
@@ -1906,7 +2014,7 @@ qmi_qmux_if_send_raw_qmi_cntl_msg
 
   /* Decrement msg pointer and increment msg_len */
   msg -= QMI_QMUX_IF_HDR_SIZE;
-  msg_len += QMI_QMUX_IF_HDR_SIZE;
+  msg_len += (int)QMI_QMUX_IF_HDR_SIZE;
 
   /* Copy header into message buffer */
   memcpy ((void *)msg, (void *)&hdr, QMI_QMUX_IF_HDR_SIZE);

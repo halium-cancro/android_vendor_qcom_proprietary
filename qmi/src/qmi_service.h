@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2007-2012 Qualcomm Technologies, Inc. All Rights Reserved. 
+** Copyright (c) 2007-2012,2014 Qualcomm Technologies, Inc. All Rights Reserved.
 ** Qualcomm Technologies Proprietary and Confidential.
 */
 #ifndef QMI_SERVICE_H
@@ -39,7 +39,7 @@ typedef void (*qmi_client_decode_msg_async_cb)
   void                           *resp_buf,
   int                            resp_buf_len,
   void                           *resp_c_struct,
-  void                           *resp_c_struct_len,
+  int                            resp_c_struct_len,
   qmi_client_recv_msg_async_cb   resp_cb,
   void                           *resp_cb_data
 );
@@ -47,8 +47,8 @@ typedef void (*qmi_client_decode_msg_async_cb)
 /* Asynchronous callback function prototype.  Individual services will
 ** register functions of this prototype when they send an asynchronous
 ** message
-*/ 
-typedef void (*srvc_async_cb_fn_type) 
+*/
+typedef void (*srvc_async_cb_fn_type)
 (
   int                     user_handle,
   qmi_service_id_type     service_id,
@@ -67,7 +67,7 @@ typedef void (*srvc_async_cb_fn_type)
 ** initialization time.  The registered function will be called each
 ** time an indication message is recieved
 */
-typedef void (*qmi_service_ind_rx_hdlr) 
+typedef void (*qmi_service_ind_rx_hdlr)
 (
   int                     user_handle,
   qmi_service_id_type     service_id,
@@ -80,7 +80,7 @@ typedef void (*qmi_service_ind_rx_hdlr)
 typedef struct  qmi_service_txn_info_type *qmi_service_txn_info_type_ptr;
 
 
-/* Asynchronous transaction information.  Pointer to a 
+/* Asynchronous transaction information.  Pointer to a
 ** service-specific callback that will be called, as well as
 ** client callback functions that will be called by the service-specific
 ** callback after decoding the reply message
@@ -95,13 +95,13 @@ typedef struct qmi_async_client_txn_info_type
   qmi_client_decode_msg_async_cb    user_decode_cb;
   void                              *user_decode_handle;
   void                              *user_buf;
-  void                              *user_buf_len;
+  int                               user_buf_len;
 } qmi_async_client_txn_info_type;
 
 
 /* Synchronous transaction information.  The information needed
-** is a pointer to a service-specific reply buffer, 
-** a pointer to indicate the size of the reply buffer, and a 
+** is a pointer to a service-specific reply buffer,
+** a pointer to indicate the size of the reply buffer, and a
 ** pointer to the returned message ID
 */
 typedef struct
@@ -130,10 +130,10 @@ typedef struct
 } qmi_service_txn_cmp_type;
 
 /* Transaction information.  This information will be filled out by
-** service-specific functions and passed into the common service 
+** service-specific functions and passed into the common service
 ** send message routine.  The service specific functions will determine
 ** whether the transaction is synchronous or asynchronous and fill out
-** the relevant information 
+** the relevant information
 */
 typedef struct
 {
@@ -179,7 +179,7 @@ int  qmi_service_setup_txn
   qmi_client_decode_msg_async_cb     user_decode_cb,
   void                               *user_decode_handle,
   void                               *user_buf,
-  void                               *user_buf_len,
+  int                                user_buf_len,
   int                                api_flag,
   qmi_service_txn_info_type          **txn
 );
@@ -221,12 +221,12 @@ int qmi_service_send_msg_sync_millisec (
   FUNCTION  qmi_service_pwr_down_release
 ===========================================================================*/
 /*!
-@brief 
-  Should be called once when process using the QMI library is started.  
+@brief
+  Should be called once when process using the QMI library is started.
   No QMI functions can be sucessfully called until this function has been
   called.
-  
-@return 
+
+@return
   0 if successful, negative number if not successful
 
 @note
@@ -236,7 +236,7 @@ int qmi_service_send_msg_sync_millisec (
 
   - Side Effects
     - QMI connection is opened
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_pwr_up_init
@@ -250,10 +250,10 @@ qmi_service_pwr_up_init
   FUNCTION  qmi_service_pwr_down_release
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Should be called once when process using the QMI library is exiting
-  
-@return 
+
+@return
   0 if successful, negative number if not successful
 
 @note
@@ -263,7 +263,7 @@ qmi_service_pwr_up_init
 
   - Side Effects
     - QMI connection is opened
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_pwr_down_release
@@ -271,15 +271,15 @@ qmi_service_pwr_down_release
   void
 );
 
-                                         
+
 /*===========================================================================
   FUNCTION  qmi_service_init
 ===========================================================================*/
 /*!
-@brief 
-  Initializes a QMI connection 
-  
-@return 
+@brief
+  Initializes a QMI connection
+
+@return
   0 if successful, negative number if not successful
 
 @note
@@ -289,7 +289,7 @@ qmi_service_pwr_down_release
 
   - Side Effects
     - QMI connection is opened
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_connection_init
@@ -302,12 +302,12 @@ qmi_service_connection_init
   FUNCTION  qmi_service_set_srvc_functions
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Routine that should be called once by each service to set the calback
   called to recieve indications, and service-specific write/read transaction
-  header routines if they exist 
-  
-@return 
+  header routines if they exist
+
+@return
   QMI_NO_ERR if success, negative value if not
 
 @note
@@ -316,9 +316,9 @@ qmi_service_connection_init
     - None
 
   - Side Effects
-    - 
-    
-*/    
+    -
+
+*/
 /*=========================================================================*/
 extern int
 qmi_service_set_srvc_functions
@@ -331,11 +331,11 @@ qmi_service_set_srvc_functions
   FUNCTION  qmi_service_init
 ===========================================================================*/
 /*!
-@brief 
-  Initializes a specified service on a specified connection.  Upon 
-  successful return, the service may be used on the connection. 
-  
-@return 
+@brief
+  Initializes a specified service on a specified connection.  Upon
+  successful return, the service may be used on the connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -346,7 +346,7 @@ qmi_service_set_srvc_functions
   - Side Effects
     - Calls into CTL service to obtain a client ID.  This is a blocking
     call which will suspend the calling thread.
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_init
@@ -364,10 +364,10 @@ qmi_service_init
   FUNCTION  qmi_service_release
 ===========================================================================*/
 /*!
-@brief 
-  Sends a synchronous QMI service message on the specified connection. 
-  
-@return 
+@brief
+  Sends a synchronous QMI service message on the specified connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -379,9 +379,9 @@ qmi_service_init
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
+*/
 /*=========================================================================*/
-extern int 
+extern int
 qmi_service_release
 (
   int                   user_handle,
@@ -393,10 +393,10 @@ qmi_service_release
   FUNCTION  qmi_service_send_msg_sync
 ===========================================================================*/
 /*!
-@brief 
-  Sends a synchronous QMI service message on the specified connection. 
-  
-@return 
+@brief
+  Sends a synchronous QMI service message on the specified connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -408,7 +408,7 @@ qmi_service_release
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_send_msg_sync
@@ -429,10 +429,10 @@ qmi_service_send_msg_sync
   FUNCTION  qmi_service_send_msg_async
 ===========================================================================*/
 /*!
-@brief 
-  Sends an asynchronous QMI service message on the specified connection. 
-  
-@return 
+@brief
+  Sends an asynchronous QMI service message on the specified connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -444,8 +444,8 @@ qmi_service_send_msg_sync
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
-/*=========================================================================*/                         
+*/
+/*=========================================================================*/
 extern int
 qmi_service_send_msg_async
 (
@@ -466,11 +466,11 @@ qmi_service_send_msg_async
   FUNCTION  qmi_service_validate_client_handle
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Validates that a user handle is valid and belongs to the passed
-  in service type   
-  
-@return 
+  in service type
+
+@return
   TRUE if handle is valid, FALSE if not
 
 @note
@@ -480,10 +480,10 @@ qmi_service_send_msg_async
 
   - Side Effects
     - None
-*/    
+*/
 /*=========================================================================*/
-extern int 
-qmi_service_validate_client_handle 
+extern int
+qmi_service_validate_client_handle
 (
   int                  user_handle,
   qmi_service_id_type  service_id
@@ -493,11 +493,11 @@ qmi_service_validate_client_handle
   FUNCTION  qmi_service_delete_async_txn
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Deletes an asynchronous transaction so that it will free resources
-  associated with transaction   
-  
-@return 
+  associated with transaction
+
+@return
    QMI_NO_ERR if successful, negative otherwise
 @note
 
@@ -506,10 +506,10 @@ qmi_service_validate_client_handle
 
   - Side Effects
     - Async response will not be delivered
-*/    
+*/
 /*=========================================================================*/
 extern int
-qmi_service_delete_async_txn 
+qmi_service_delete_async_txn
 (
   int user_handle,
   int async_txn_handle
@@ -519,11 +519,11 @@ qmi_service_delete_async_txn
   FUNCTION  qmi_service_set_data_format
 ===========================================================================*/
 /*!
-@brief 
-    Sets the data format to the specified value for the specified 
-    connection ID.   
-  
-@return 
+@brief
+    Sets the data format to the specified value for the specified
+    connection ID.
+
+@return
    QMI_NO_ERR if successful, negative otherwise
 @note
 
@@ -532,7 +532,7 @@ qmi_service_delete_async_txn
 
   - Side Effects
     - Async response will not be delivered
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_set_data_format
@@ -547,21 +547,21 @@ qmi_service_set_data_format
   FUNCTION  qmi_service_reg_pwr_save_mode
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is used to register/de-register for power state change
   events.  Calls relevant QMI_QMUX function
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_reg_pwr_save_mode
@@ -575,21 +575,21 @@ qmi_service_reg_pwr_save_mode
   FUNCTION  qmi_service_config_pwr_save_settings
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Configures the power state indication filter for each connection.
-  Calls relevant QMI QMUX function. 
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+  Calls relevant QMI QMUX function.
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_config_pwr_save_settings
@@ -606,21 +606,21 @@ qmi_service_config_pwr_save_settings
   FUNCTION  qmi_service_set_pwr_state
 ===========================================================================*/
 /*!
-@brief 
-  Sets power state.  Calls relevant QMI QMUX function to do so 
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+@brief
+  Sets power state.  Calls relevant QMI QMUX function to do so
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-    - Modem will not send filtered indications until later power state change. 
-*/    
+    - Modem will not send filtered indications until later power state change.
+*/
 /*=========================================================================*/
 extern int
 qmi_service_set_pwr_state
@@ -633,20 +633,20 @@ qmi_service_set_pwr_state
   FUNCTION  qmi_service_get_pwr_state
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Gets power state.  Calls relevant QMI QMUX function to do so.
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 extern int
 qmi_service_get_pwr_state
@@ -661,10 +661,10 @@ qmi_service_get_pwr_state
   FUNCTION  qmi_service_get_qmux_if_client_handle
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Returns the QMUX IF client handle
 
-@return 
+@return
   0 if operation was sucessful, < 0 if not.  If return code is
   QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.

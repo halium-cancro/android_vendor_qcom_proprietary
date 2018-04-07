@@ -1457,6 +1457,80 @@ void   qcril_qmi_ims__last_fail_cause__free_unpacked
 #endif
 }
 
+void   qcril_qmi_ims__extra__init
+(
+    Ims__Extra         *message
+)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__extra__init(message);
+#else
+  return;
+#endif
+}
+
+size_t qcril_qmi_ims__extra__get_packed_size
+(
+    const Ims__Extra *message
+)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__extra__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__extra__pack
+(
+    const Ims__Extra *message,
+    uint8_t       *out
+)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__extra__pack(message, out);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__extra__pack_to_buffer
+(
+    const Ims__Extra *message,
+    ProtobufCBuffer *buffer
+)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__extra__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+
+Ims__Extra *qcril_qmi_ims__extra__unpack
+(
+    ProtobufCAllocator  *allocator,
+    size_t               len,
+    const uint8_t       *data
+)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__extra__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+}
+void   qcril_qmi_ims__extra__free_unpacked
+(
+    Ims__Extra *message,
+    ProtobufCAllocator *allocator
+)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__extra__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+
 void   qcril_qmi_ims__status_for_access_tech__init
 (
     Ims__StatusForAccessTech         *message
@@ -2108,6 +2182,72 @@ void   qcril_qmi_ims__call_forward_info_list__free_unpacked
 #endif
 }
 
+void   qcril_qmi_ims__call_fwd_timer_info__init
+                     (Ims__CallFwdTimerInfo         *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__call_fwd_timer_info__init(message);
+#else
+  return;
+#endif
+}
+
+size_t qcril_qmi_ims__call_fwd_timer_info__get_packed_size
+                     (const Ims__CallFwdTimerInfo   *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__call_fwd_timer_info__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+
+size_t qcril_qmi_ims__call_fwd_timer_info__pack
+                     (const Ims__CallFwdTimerInfo   *message,
+                      uint8_t             *out)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__call_fwd_timer_info__pack(message, out);
+#else
+  return 0;
+#endif
+}
+
+size_t qcril_qmi_ims__call_fwd_timer_info__pack_to_buffer
+                     (const Ims__CallFwdTimerInfo   *message,
+                      ProtobufCBuffer     *buffer)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__call_fwd_timer_info__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+
+Ims__CallFwdTimerInfo *
+       qcril_qmi_ims__call_fwd_timer_info__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__call_fwd_timer_info__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+}
+
+void   qcril_qmi_ims__call_fwd_timer_info__free_unpacked
+                     (Ims__CallFwdTimerInfo *message,
+                      ProtobufCAllocator *allocator)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__call_fwd_timer_info__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+
 void   qcril_qmi_ims__conf_info__init
                      (Ims__ConfInfo         *message)
 {
@@ -2576,6 +2716,372 @@ void   qcril_qmi_ims__video_call_quality__free_unpacked
 {
 #ifdef QCRIL_PROTOBUF_BUILD_ENABLED
   return ims__video_call_quality__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+
+void   qcril_qmi_ims__colr__init
+                     (Ims__Colr         *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__colr__init(message);
+#else
+  return;
+#endif
+}
+size_t qcril_qmi_ims__colr__get_packed_size
+                     (const Ims__Colr *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__colr__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__colr__pack
+                     (const Ims__Colr *message,
+                      uint8_t       *out)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__colr__pack(message, out);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__colr__pack_to_buffer
+                     (const Ims__Colr *message,
+                      ProtobufCBuffer *buffer)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__colr__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+Ims__Colr *
+       qcril_qmi_ims__colr__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__colr__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+}
+void   qcril_qmi_ims__colr__free_unpacked
+                     (Ims__Colr *message,
+                      ProtobufCAllocator *allocator)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__colr__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+
+/* Ims__MwiMessageSummary methods */
+void   qcril_qmi_ims__mwi_message_summary__init
+                     (Ims__MwiMessageSummary         *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_summary__init(message);
+#else
+  return;
+#endif
+}
+size_t qcril_qmi_ims__mwi_message_summary__get_packed_size
+                     (const Ims__MwiMessageSummary   *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_summary__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__mwi_message_summary__pack
+                     (const Ims__MwiMessageSummary   *message,
+                      uint8_t             *out)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_summary__pack(message, out);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__mwi_message_summary__pack_to_buffer
+                     (const Ims__MwiMessageSummary   *message,
+                      ProtobufCBuffer     *buffer)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_summary__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+Ims__MwiMessageSummary *
+       qcril_qmi_ims__mwi_message_summary__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_summary__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+}
+void   qcril_qmi_ims__mwi_message_summary__free_unpacked
+                     (Ims__MwiMessageSummary *message,
+                      ProtobufCAllocator *allocator)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_summary__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+/* Ims__MwiMessageDetails methods */
+void   qcril_qmi_ims__mwi_message_details__init
+                     (Ims__MwiMessageDetails         *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_details__init(message);
+#else
+  return;
+#endif
+}
+size_t qcril_qmi_ims__mwi_message_details__get_packed_size
+                     (const Ims__MwiMessageDetails   *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_details__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__mwi_message_details__pack
+                     (const Ims__MwiMessageDetails   *message,
+                      uint8_t             *out)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_details__pack(message, out);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__mwi_message_details__pack_to_buffer
+                     (const Ims__MwiMessageDetails   *message,
+                      ProtobufCBuffer     *buffer)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_details__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+Ims__MwiMessageDetails *
+       qcril_qmi_ims__mwi_message_details__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_details__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+}
+void   qcril_qmi_ims__mwi_message_details__free_unpacked
+                     (Ims__MwiMessageDetails *message,
+                      ProtobufCAllocator *allocator)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi_message_details__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+/* Ims__Mwi methods */
+void   qcril_qmi_ims__mwi__init
+                     (Ims__Mwi         *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi__init(message);
+#else
+  return;
+#endif
+}
+size_t qcril_qmi_ims__mwi__get_packed_size
+                     (const Ims__Mwi   *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__mwi__pack
+                     (const Ims__Mwi   *message,
+                      uint8_t             *out)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi__pack(message, out);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__mwi__pack_to_buffer
+                     (const Ims__Mwi   *message,
+                      ProtobufCBuffer     *buffer)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+Ims__Mwi *
+       qcril_qmi_ims__mwi__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+}
+void   qcril_qmi_ims__mwi__free_unpacked
+                     (Ims__Mwi *message,
+                      ProtobufCAllocator *allocator)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__mwi__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+void   qcril_qmi_ims__hold__init
+                     (Ims__Hold         *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__hold__init(message);
+#else
+  return;
+#endif
+}
+size_t qcril_qmi_ims__hold__get_packed_size
+                     (const Ims__Hold *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__hold__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__hold__pack
+                     (const Ims__Hold *message,
+                      uint8_t       *out)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__hold__pack(message, out);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__hold__pack_to_buffer
+                     (const Ims__Hold *message,
+                      ProtobufCBuffer *buffer)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__hold__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+Ims__Hold *
+       qcril_qmi_ims__hold__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__hold__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+
+}
+void   qcril_qmi_ims__hold__free_unpacked
+                     (Ims__Hold *message,
+                      ProtobufCAllocator *allocator)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__hold__free_unpacked(message, allocator);
+#else
+  return;
+#endif
+}
+void   qcril_qmi_ims__resume__init
+                     (Ims__Resume         *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__resume__init(message);
+#else
+  return;
+#endif
+}
+size_t qcril_qmi_ims__resume__get_packed_size
+                     (const Ims__Resume *message)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__resume__get_packed_size(message);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__resume__pack
+                     (const Ims__Resume *message,
+                      uint8_t       *out)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__resume__pack(message, out);
+#else
+  return 0;
+#endif
+}
+size_t qcril_qmi_ims__resume__pack_to_buffer
+                     (const Ims__Resume *message,
+                      ProtobufCBuffer *buffer)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__resume__pack_to_buffer(message, buffer);
+#else
+  return 0;
+#endif
+}
+Ims__Resume *
+       qcril_qmi_ims__resume__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__resume__unpack(allocator, len, data);
+#else
+  return NULL;
+#endif
+}
+void   qcril_qmi_ims__resume__free_unpacked
+                     (Ims__Resume *message,
+                      ProtobufCAllocator *allocator)
+{
+#ifdef QCRIL_PROTOBUF_BUILD_ENABLED
+  return ims__resume__free_unpacked(message, allocator);
 #else
   return;
 #endif

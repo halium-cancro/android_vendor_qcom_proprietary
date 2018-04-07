@@ -689,6 +689,56 @@ qmi_wds_utils_encode_3gpp2_params
       node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
       break;
 
+    case QMI_WDS_CDMA_PROFILE_APN_ENABLED_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_APN_ENABLED_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_PDN_INACTIVITY_TIMEOUT_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_PDN_INACTIVITY_TIMEOUT_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_32_BIT_VAL;
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_APN_CLASS_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_APN_CLASS_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_TLV_ID;
+      node_ptr->profile_element.len  = (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1);
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_TLV_ID;
+      node_ptr->profile_element.len  = (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1);
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_PDN_LABEL_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_PDN_LABEL_TLV_ID;
+      node_ptr->profile_element.len  = (QMI_WDS_MAX_APN_STR_SIZE-1);
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_OPERATOR_RESERVED_PCO_ID_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_OPERATOR_RESERVED_PCO_ID_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_16_BIT_VAL;
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_MCC_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_MCC_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_16_BIT_VAL;
+      break;
+
+    case QMI_WDS_CDMA_PROFILE_MNC_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_CDMA_PROFILE_MNC_TLV_ID;
+      node_ptr->profile_element.len  = sizeof(qmi_wds_mnc_type);
+      break;
+
     case QMI_WDS_CDMA_PROFILE_PASSWORD_PARAM_MASK:
     default:
       QMI_ERR_MSG_1("qmi_wds_utils_encode_3gpp2_params: unsupported profile parameter[0x%x]\n", param_mask);
@@ -704,6 +754,205 @@ qmi_wds_utils_encode_3gpp2_params
   return QMI_NO_ERR;
 }
 
+/*===========================================================================
+  FUNCTION  qmi_wds_utils_encode_epc_params
+===========================================================================*/
+/*!
+@brief
+  Takes EPC profile parameter mask and value, and encodes node with
+  TLV values
+
+@return
+  QMI_INTERNAL_ERR if an error occurred, QMI_NO_ERR if not
+
+@note
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+static int
+qmi_wds_utils_encode_epc_params
+(
+  uint64_t                    param_mask,
+  void                      * val_ptr,
+  qmi_wds_profile_node_type * node_ptr
+)
+{
+  if (!val_ptr || !node_ptr )
+  {
+    QMI_ERR_MSG_0("qmi_wds_utils_encode_cdma_params: Bad Input received\n");
+    return QMI_INTERNAL_ERR;
+  }
+
+  memset( node_ptr, 0x0, sizeof(qmi_wds_profile_node_type) );
+
+  switch( param_mask )
+  {
+
+    case QMI_WDS_EPC_PROFILE_NAME_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_UMTS_PROFILE_NAME_TLV_ID;
+      node_ptr->profile_element.len  = (QMI_WDS_MAX_PROFILE_STR_SIZE-1);
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_DNS_SERVER_PREF_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_DNS_SERVER_PREF_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_DO_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_DO_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_32_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_1X_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_1X_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_32_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_ALLOW_LINGER_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_ALLOW_LINGER_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_LCP_ACK_TIMEOUT_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_LCP_ACK_TIMEOUT_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_16_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_AUTH_TIMEOUT_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_AUTH_TIMEOUT_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_16_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_LCP_CONFIG_RETRY_RECOUNT_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_LCP_CONFIG_RETRY_RECOUNT_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_AUTH_RETRY_RECOUNT_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_AUTH_RETRY_RECOUNT_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_AUTH_PROTOCOL_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_PROFILE_USERNAME_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_USERNAME_TLV_ID;
+      node_ptr->profile_element.len  = (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1);
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_DATA_RATE_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_DATA_RATE_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_DATA_MODE_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_DATA_MODE_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_APP_TYPE_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_APP_TYPE_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_32_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_APP_PRIORITY_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_APP_PRIORITY_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_PROFILE_APN_NAME_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_APN_STRING_TLV_ID;
+      node_ptr->profile_element.len  = (QMI_WDS_MAX_APN_STR_SIZE-1);
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_PDN_TYPE_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_PDN_TYPE_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_IS_PCSCF_ADDR_NEEDED_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_IS_PCSCF_ADDR_NEEDED_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_PRIM_V4_DNS_ADDR_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_PRIM_V4_DNS_ADDR_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_32_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_SEC_V4_DNS_ADDR_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_SEC_V4_DNS_ADDR_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_32_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_PRIM_V6_DNS_ADDR_TLV_ID;
+      node_ptr->profile_element.len  = QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES;
+      break;
+
+    case QMI_WDS_EPC_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_SEC_V6_DNS_ADDR_TLV_ID;
+      node_ptr->profile_element.len  = QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_IPCP_ACK_TIMEOUT_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_IPCP_ACK_TIMEOUT_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_16_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_IPCP_CONFIG_RETRY_RECOUNT_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_IPCP_CONFIG_RETRY_RECOUNT_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_RAT_TYPE_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_CDMA_PROFILE_RAT_TYPE_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_COMMON_AUTH_PROTOCOL_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_COMMON_AUTH_PROTOCOL_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_COMMON_USER_ID_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_COMMON_USER_ID_TLV_ID;
+      node_ptr->profile_element.len  = (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1);
+      break;
+
+    case QMI_WDS_EPC_COMMON_APN_CLASS_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_COMMON_APN_CLASS_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+   case QMI_WDS_EPC_COMMON_APN_DISABLED_PARAM_MASK:
+      node_ptr->profile_element.type = QMI_WDS_EPC_COMMON_APN_DISABLED_FLAG_TLV_ID;
+      node_ptr->profile_element.len  = SIZE_8_BIT_VAL;
+      break;
+
+    case QMI_WDS_EPC_PROFILE_PASSWORD_PARAM_MASK:
+    case QMI_WDS_EPC_COMMON_AUTH_PASSWORD_PARAM_MASK:/* TBD? */
+    default:
+      QMI_ERR_MSG_1("qmi_wds_utils_encode_epc_params: unsupported profile parameter[0x%x]\n", param_mask);
+      return QMI_INTERNAL_ERR;
+
+  }
+
+  if( node_ptr->profile_element.len )
+  {
+    /* Assign address value */
+    node_ptr->profile_element.data = val_ptr;
+  }
+
+  return QMI_NO_ERR;
+}
 
 /*===========================================================================
   List version WDS Profile API's
@@ -796,7 +1045,7 @@ qmi_wds_utils_create_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_CREATE_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -809,7 +1058,7 @@ qmi_wds_utils_create_profile
   /* Get profile ID information */
   if (rc == QMI_NO_ERR)
   {
-    rc = qmi_wds_read_profile_id_tlv (tmp_msg_ptr,msg_size,profile_id,TRUE);
+    rc = qmi_wds_read_profile_id_tlv (tmp_msg_ptr,(unsigned long)msg_size,profile_id,TRUE);
   }
   /* Retrieve the extended error code if it exists */
   else if (rc == QMI_SERVICE_ERR && *qmi_err_code == QMI_SERVICE_ERR_EXTENDED_INTERNAL)
@@ -909,7 +1158,7 @@ qmi_wds_utils_modify_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_MODIFY_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -1017,7 +1266,7 @@ qmi_wds_utils_query_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_PROFILE_DATA_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -1159,7 +1408,7 @@ qmi_wds_utils_get_profile_list
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_PROFILE_LIST_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -1210,11 +1459,11 @@ qmi_wds_utils_get_profile_list
 
         /* Read the profile index */
         READ_8_BIT_VAL (value_ptr,temp);
-        profile_list->profile_index = temp;
+        profile_list->profile_index = (unsigned long)temp;
 
         /* Read the length of the profile ID string and copy it into client data */
         READ_8_BIT_VAL (value_ptr,temp);
-        memcpy (profile_list->profile_name, (void *)value_ptr, temp);
+        memcpy (profile_list->profile_name, (void *)value_ptr, (size_t)temp);
         profile_list->profile_name[temp] = '\0';
         value_ptr += temp;
 
@@ -1291,6 +1540,7 @@ qmi_wds_utils_get_profile_list2
 {
   qmi_wds_profile_node_list_type prof_param_list;
   qmi_wds_profile_node_type node;
+  qmi_wds_profile_node_type *node_ptr = &node;
   int rc = QMI_NO_ERR;
 
   if( !profile_list || !num_profile_list_elements || !qmi_err_code )
@@ -1304,10 +1554,13 @@ qmi_wds_utils_get_profile_list2
   switch( profile_tech )
   {
     case QMI_WDS_PROFILE_TECH_3GPP:
-      rc = qmi_wds_utils_encode_3gpp_params( param_mask, param_value, &node );
+      rc = qmi_wds_utils_encode_3gpp_params( param_mask, param_value, node_ptr );
       break;
     case QMI_WDS_PROFILE_TECH_3GPP2:
-      rc = qmi_wds_utils_encode_3gpp2_params( param_mask, param_value, &node );
+      rc = qmi_wds_utils_encode_3gpp2_params( param_mask, param_value, node_ptr );
+      break;
+    case QMI_WDS_PROFILE_TECH_EPC:
+      rc = qmi_wds_utils_encode_epc_params( param_mask, param_value, node_ptr );
       break;
     default:
       QMI_DEBUG_MSG_0("qmi_wds_utils_get_profile_list2: no profile tech specified\n");
@@ -1320,7 +1573,7 @@ qmi_wds_utils_get_profile_list2
   }
 
   /* Build list of key-value pairs.  Note only one pair supported at this time. */
-  list_push_back( &prof_param_list, (qmi_wds_list_link_type*)&node );
+  list_push_back( &prof_param_list, (qmi_wds_list_link_type*)node_ptr );
 
   rc = qmi_wds_utils_get_profile_list( user_handle,
                                        &profile_tech,

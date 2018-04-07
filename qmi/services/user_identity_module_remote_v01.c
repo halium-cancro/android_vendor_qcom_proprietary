@@ -10,14 +10,14 @@ GENERAL DESCRIPTION
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/uimrmt/main/latest/src/user_identity_module_remote_v01.c#3 $
+  $Header: //source/qcom/qct/interfaces/qmi/uimrmt/main/latest/src/user_identity_module_remote_v01.c#4 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 /* This file was generated with Tool version 6.7
-   It was generated on: Sat Mar  1 2014 (Spin 0)
+   It was generated on: Wed May 21 2014 (Spin 0)
    From IDL File: user_identity_module_remote_v01.idl */
 
 #include "stdint.h"
@@ -166,9 +166,19 @@ static const uint8_t uim_remote_card_power_down_ind_msg_data_v01[] = {
 };
 
 static const uint8_t uim_remote_card_power_up_ind_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+  0x01,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, slot)
+  QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, slot),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, response_timeout) - QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, response_timeout_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, response_timeout),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, voltage_class) - QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, voltage_class_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_remote_card_power_up_ind_msg_v01, voltage_class)
 };
 
 static const uint8_t uim_remote_card_reset_ind_msg_data_v01[] = {
@@ -241,7 +251,7 @@ static const qmi_idl_service_message_table_entry uim_remote_service_indication_m
   {QMI_UIM_REMOTE_APDU_IND_V01, QMI_IDL_TYPE16(0, 6), 280},
   {QMI_UIM_REMOTE_CONNECT_IND_V01, QMI_IDL_TYPE16(0, 7), 7},
   {QMI_UIM_REMOTE_DISCONNECT_IND_V01, QMI_IDL_TYPE16(0, 8), 7},
-  {QMI_UIM_REMOTE_CARD_POWER_UP_IND_V01, QMI_IDL_TYPE16(0, 10), 7},
+  {QMI_UIM_REMOTE_CARD_POWER_UP_IND_V01, QMI_IDL_TYPE16(0, 10), 21},
   {QMI_UIM_REMOTE_CARD_POWER_DOWN_IND_V01, QMI_IDL_TYPE16(0, 9), 14},
   {QMI_UIM_REMOTE_CARD_RESET_IND_V01, QMI_IDL_TYPE16(0, 11), 7}
 };
@@ -257,7 +267,7 @@ struct qmi_idl_service_object uim_remote_qmi_idl_service_object_v01 = {
     sizeof(uim_remote_service_indication_messages_v01)/sizeof(qmi_idl_service_message_table_entry) },
   { uim_remote_service_command_messages_v01, uim_remote_service_response_messages_v01, uim_remote_service_indication_messages_v01},
   &uim_remote_qmi_idl_type_table_object_v01,
-  0x01,
+  0x02,
   NULL
 };
 

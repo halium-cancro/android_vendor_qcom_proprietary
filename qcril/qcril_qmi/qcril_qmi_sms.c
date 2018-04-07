@@ -22,6 +22,11 @@
 #include <string.h>
 #include <limits.h>
 #include <cutils/properties.h>
+
+#ifdef QMI_RIL_UTF
+#include <errno.h>
+#endif
+
 #include "IxErrno.h"
 #include "comdef.h"
 #include "qcrili.h"
@@ -32,6 +37,9 @@
 #include "qcril_qmi_nas.h"
 #include "qcril_qmi_sms_errors.h"
 #include "qmi_errors.h"
+#include "qcril_qmi_voice.h"
+#include "qcril_cm_ss.h"
+#include "qmi_ril_platform_dep.h"
 
 /*===========================================================================
 
@@ -48,6 +56,8 @@
 
 #define QCRIL_MT_SMS_ACK_EXPRY_WINDOW       "persist.radio.mt_sms_ack"
 #define QCRIL_SMS_LINK_TIMER                "persist.radio.sms_link_timer"
+#define QCRIL_ACCEPT_ALL_BC_MSG             "all_bc_msg"
+#define QCRIL_FORCE_ON_DC                   "persist.radio.force_on_dc"
 
 
 /*===========================================================================
@@ -64,6 +74,13 @@ static int feature_ims_3gpp2_retry = 1; /// accept/reject ims sms retries on 3gp
 static int qmi_ril_sms_mt_expiry_window_len;
 static int qmi_ril_sms_mt_expiry_window_len_set;
 static int qmi_ril_sms_link_timer;
+static int feature_all_bc_msg_3gpp = 0; /*accept all BroadCast msg for only 3GPP technology.*/
+static int feature_all_bc_msg_3gpp2 = 0; /*accept all BroadCast msg for only 3GPP2 technology.*/
+
+/* "is_force_on_dc" is only applicable for 3GPP2. Force the message to be sent on the CDMA dedicated channel.
+Values: 0x00 - Do not care about the channel on which the message is sent
+        0x01 - Request to send the message over the dedicated channel.*/
+static int is_force_on_dc = 0;
 
 static pthread_mutex_t cache_mutex; /// Mutex for SMS cache data
 static wms_service_ready_status_enum_v01 wms_service_state; ///< WMS service state
@@ -103,10 +120,15 @@ int wms_ready_supported(void);
 void query_wms_ready_status(void);
 
 /// callback handler for async wms get ready status msg
-void wms_get_ready_status_cb(qmi_client_type user_handle, unsigned long msg_id,
-                             void* resp_c_struct, int resp_c_struct_len,
-                             void* resp_cb_data,
-                             qmi_client_error_type transp_err);
+void wms_get_ready_status_cb
+(
+    qmi_client_type user_handle,
+    unsigned int    msg_id,
+    void           *resp_c_struct,
+    unsigned int    resp_c_struct_len,
+    void           *resp_cb_data,
+    qmi_client_error_type transp_err
+);
 
 /// Check that wms service is ready for <expected_tech> and return a boolean
 /// @return 0 | 1 --> not ready, ready
@@ -117,6 +139,12 @@ void send_generic_failure(RIL_Token token, int event);
 
 /// Convert sms service state to string for logging
 const char* sms_state_str(wms_service_ready_status_enum_v01 service_state);
+
+void qcril_qmi_sms_transfer_sim_ucs2_alpha_to_std_ucs2_alpha
+(
+    const wms_call_control_modified_info_type_v01 *sim_alpha,
+    wms_call_control_modified_info_type_v01       *std_alpha
+);
 
 //============================================================================
 // FUNCTION: qcril_qmi_sms_pre_init
@@ -253,6 +281,47 @@ qmi_client_error_type qcril_qmi_sms_init
      // set properties
      feature_ims_3gpp_retry = qmi_ril_is_feature_supported(QMI_RIL_FEATURE_IMS_RETRY_3GPP);
      feature_ims_3gpp2_retry = qmi_ril_is_feature_supported(QMI_RIL_FEATURE_IMS_RETRY_3GPP2);
+
+     memset(args,'\0', PROPERTY_VALUE_MAX);
+     qcril_db_query_properties_table(QCRIL_ACCEPT_ALL_BC_MSG, args);
+
+     if( !strcmp(args,"all") )
+     {
+        feature_all_bc_msg_3gpp = 1;
+        feature_all_bc_msg_3gpp2 = 1;
+     }
+     else if( !strcmp(args,"gsm") )
+     {
+        feature_all_bc_msg_3gpp = 1;
+        feature_all_bc_msg_3gpp2 = 0;
+     }
+     else if( !strcmp(args,"cdma") )
+     {
+        feature_all_bc_msg_3gpp = 0;
+        feature_all_bc_msg_3gpp2 = 1;
+     }
+     else
+     {
+        feature_all_bc_msg_3gpp = 0;
+        feature_all_bc_msg_3gpp2 = 0;
+     }
+
+     QCRIL_LOG_DEBUG( "All Broadcast Msg in 3GPP = %d, 3GPP2 = %d", feature_all_bc_msg_3gpp, feature_all_bc_msg_3gpp2 );
+
+     memset(args,'\0', PROPERTY_VALUE_MAX);
+     QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QCRIL_FORCE_ON_DC );
+     property_get( property_name, args, "" );
+
+     if( !strcmp(args,"true") )
+     {
+        is_force_on_dc = 1;
+     }
+     else
+     {
+        is_force_on_dc = 0;
+     }
+
+     QCRIL_LOG_DEBUG( "IS FORCE ON DC = %d", is_force_on_dc );
   }
 
    QCRIL_LOG_FUNC_RETURN_WITH_RET(qmi_err);
@@ -316,7 +385,7 @@ void qcril_sms_perform_transport_layer_info_initialization()
     QCRIL_LOG_DEBUG( "BLOCK_SMS_ON_1X=%d", i_ptr->transport_layer_info.block_sms_on_1x);
 
     memset(&wms_get_transport_layer_resp_msg, 0, sizeof(wms_get_transport_layer_resp_msg));
-    qmi_err = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
+    qmi_err = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
                                                        QMI_WMS_GET_TRANSPORT_LAYER_INFO_REQ_V01,
                                                        NULL,
                                                        QMI_RIL_ZERO,
@@ -386,7 +455,7 @@ qmi_client_error_type qcril_sms_perform_initial_configuration
   primary_request_msg.primary_client = TRUE;
 
 
-  qmi_err = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
+  qmi_err = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
                                                      QMI_WMS_SET_PRIMARY_CLIENT_REQ_V01,
                                                      (void*) &primary_request_msg,
                                                      sizeof( primary_request_msg ),
@@ -437,7 +506,7 @@ qmi_client_error_type qcril_sms_perform_initial_configuration
     routes_request_msg.transfer_ind_valid = TRUE;
     routes_request_msg.transfer_ind = WMS_TRANSFER_IND_CLIENT_V01;
 
-    qmi_err = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
+    qmi_err = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
                                                        QMI_WMS_SET_ROUTES_REQ_V01,
                                                        (void*) &routes_request_msg,
                                                        sizeof( routes_request_msg ),
@@ -467,7 +536,10 @@ qmi_client_error_type qcril_sms_perform_initial_configuration
     event_report_request_msg.report_mwi_message_valid = TRUE;
     event_report_request_msg.report_mwi_message = 0x01;
 
-    qmi_err = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
+    event_report_request_msg.report_call_control_info_valid = TRUE;
+    event_report_request_msg.report_call_control_info = 0x01;
+
+    qmi_err = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
                                                        QMI_WMS_SET_EVENT_REPORT_REQ_V01,
                                                        (void*) &event_report_request_msg,
                                                        sizeof( event_report_request_msg ),
@@ -495,8 +567,10 @@ qmi_client_error_type qcril_sms_perform_initial_configuration
     indication_register_req_msg.reg_transport_nw_reg_info_events = TRUE;
     indication_register_req_msg.reg_service_ready_events_valid = TRUE;
     indication_register_req_msg.reg_service_ready_events = 0x01; // Enable
+    indication_register_req_msg.reg_transport_layer_mwi_info_events_valid = TRUE;
+    indication_register_req_msg.reg_transport_layer_mwi_info_events = 0x01; // Enable
 
-    qmi_err = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
+    qmi_err = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
                                                        QMI_WMS_INDICATION_REGISTER_REQ_V01,
                                                        (void*) &indication_register_req_msg,
                                                        sizeof( indication_register_req_msg ),
@@ -562,6 +636,8 @@ void qcril_sms_perform_initial_configuration_evt_handler
   qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
 {
+  QCRIL_NOTUSED(params_ptr);
+  QCRIL_NOTUSED(ret_ptr);
   (void)qcril_sms_perform_initial_configuration();
 } /*qcril_sms_perform_initial_configuration_evt_handler*/
 
@@ -794,12 +870,17 @@ void qcril_sms_request_send_gw_sms
   qcril_request_resp_params_type resp;
   wms_raw_send_req_msg_v01 request_msg;
   wms_raw_send_resp_msg_v01* response_msg;
+  nas_sms_status_enum_type_v01 lte_sms_status;
+  uint8_t lte_sms_status_valid;
 
   QCRIL_LOG_FUNC_ENTRY();
 
   do
   {
-    if (!wms_ready(WMS_SERVICE_READY_STATUS_3GPP_V01)) {
+    qcril_qmi_nas_fetch_lte_sms_status( &lte_sms_status_valid, &lte_sms_status);
+    if (!wms_ready(WMS_SERVICE_READY_STATUS_3GPP_V01) &&
+        !(lte_sms_status_valid && (NAS_SMS_STATUS_3GPP_V01 == lte_sms_status))
+       ) {
        send_generic_failure(params_ptr->t, params_ptr->event_id);
        break;
     }
@@ -890,7 +971,7 @@ void qcril_sms_request_send_gw_sms
                                         sizeof(wms_raw_send_req_msg_v01),
                                         response_msg,
                                         sizeof(wms_raw_send_resp_msg_v01),
-                                        (void *) user_data) != QMI_NO_ERR)
+                                        (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed in getting the response message from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -928,7 +1009,11 @@ void qcril_mo_sms_cb
   qcril_request_resp_params_type resp;
   wms_raw_send_resp_msg_v01 *raw_send_resp;
   boolean retry_status = FALSE;
-  RIL_Errno ril_err;
+  RIL_Errno ril_err = RIL_E_GENERIC_FAILURE;
+  uint8 coding_scheme;
+  wms_call_control_modified_info_type_v01 wms_call_control_alpha_info;
+  char buf_str[WMS_ALPHA_ID_LENGTH_MAX_V01 + 2];
+  qcril_unsol_resp_params_type unsol_resp;
 
   /*-----------------------------------------------------------------------*/
 
@@ -992,6 +1077,19 @@ void qcril_mo_sms_cb
       {
         retry_status = TRUE;
       }
+      else if ((raw_send_resp->gw_cause_info_valid) &&
+          (raw_send_resp->gw_cause_info.rp_cause == WMS_RP_CAUSE_SMS_TRANSFER_REJECTED_V01) &&
+          (raw_send_resp->gw_cause_info.tp_cause == WMS_TP_CAUSE_SM_REJECTED_OR_DUPLICATE_V01))
+      {
+        /* This case will happen when first MO SMS has been delivered to network,
+        but WMS didn't got response from network during certain amount of time,
+        then WMS will send Temporary Failue, but in actual Network is still trying
+        to deliver and it got delivered. During RETRY, if RIL gets rp_cause=21 and
+        tp_cause= -59 that means SMS Rejected-Duplicate SMS that means same SMS has
+        already been received by network. So, RIL should send SUCCESS to Telephony.*/
+
+        ril_err = RIL_E_SUCCESS;
+      }
     }
     else if (raw_send_resp->resp.error == QMI_ERR_MESSAGE_DELIVERY_FAILURE_V01)
     {
@@ -1016,10 +1114,6 @@ void qcril_mo_sms_cb
     {
       ril_err = RIL_E_FDN_CHECK_FAILURE;
     }
-    else
-    {
-      ril_err = RIL_E_GENERIC_FAILURE;
-    }
 
     qcril_default_request_resp_params( instance_id,
                                        params_ptr->t,
@@ -1032,8 +1126,185 @@ void qcril_mo_sms_cb
     qcril_send_request_response( &resp );
   }
 
+  if( ( TRUE == raw_send_resp->call_control_modified_info_valid ) &&
+      ( raw_send_resp->call_control_modified_info.alpha_id_len > 0 ) )
+  {
+    memset(buf_str, 0 , WMS_ALPHA_ID_LENGTH_MAX_V01 + 2);
+    coding_scheme = raw_send_resp->call_control_modified_info.alpha_id[0];
+    if( coding_scheme == 0x80 || coding_scheme == 0x81 || coding_scheme == 0x82 ) //UCS2
+    {
+        QCRIL_LOG_INFO("Coding scheme is %x, ucs2 data",coding_scheme);
+        qcril_qmi_sms_transfer_sim_ucs2_alpha_to_std_ucs2_alpha ( &raw_send_resp->call_control_modified_info, &wms_call_control_alpha_info);
+        qcril_cm_ss_convert_ussd_string_to_utf8(  QCRIL_QMI_VOICE_USSD_DCS_UCS2,
+                                                    wms_call_control_alpha_info.alpha_id_len,
+                                                    wms_call_control_alpha_info.alpha_id,
+                                                    buf_str );
+    }
+    else //gsm8
+    {
+        QCRIL_LOG_INFO("Coding scheme is %x, gsm8 data",coding_scheme);
+        if( raw_send_resp->call_control_modified_info.alpha_id < WMS_ALPHA_ID_LENGTH_MAX_V01 )
+        {
+            qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (char*) raw_send_resp->call_control_modified_info.alpha_id,
+                                                                raw_send_resp->call_control_modified_info.alpha_id_len,
+                                                                buf_str );
+        }
+    }
+
+    if ( *buf_str )
+    {
+        qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_STK_CC_ALPHA_NOTIFY, &unsol_resp );
+        unsol_resp.resp_pkt    = (void*)buf_str;
+        unsol_resp.resp_len    = sizeof( buf_str );
+
+        qcril_send_unsol_response( &unsol_resp );
+    }
+  }
+
+   QCRIL_LOG_FUNC_RETURN();
 } /* qcril_mo_sms_cb */
 
+void qcril_qmi_sms_transfer_sim_ucs2_alpha_to_std_ucs2_alpha(const wms_call_control_modified_info_type_v01 *sim_alpha, wms_call_control_modified_info_type_v01 *std_alpha)
+{
+  uint8 idx;
+  uint8 coding_scheme;
+  uint8 num_of_char;
+  uint16 base_val;
+  uint16 ucs2_val;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  memset(std_alpha, 0, sizeof(*std_alpha));
+
+  do
+  {
+    if ( sim_alpha->alpha_id_len > 0)
+    {
+      coding_scheme = sim_alpha->alpha_id[0];
+    }
+    else
+    {
+      QCRIL_LOG_ERROR("alpha_id_len is 0");
+      break;
+    }
+    QCRIL_LOG_INFO("coding scheme %x", (int)coding_scheme);
+
+    idx = 1;
+    switch (coding_scheme)
+    {
+      case 0x80:
+        while ( (uint32)(idx+1) < sim_alpha->alpha_id_len )
+        {
+          std_alpha->alpha_id[idx-1] = sim_alpha->alpha_id[idx+1];
+          std_alpha->alpha_id[idx] = sim_alpha->alpha_id[idx];
+          idx += 2;
+        }
+
+        if ( (uint32)(idx+1) == sim_alpha->alpha_id_len && 0 != sim_alpha->alpha_id[idx] )
+        {
+          QCRIL_LOG_ERROR("an unexpected extra non-zero byte in source alpha buffer");
+        }
+
+        std_alpha->alpha_id_len = idx-1;
+        break;
+
+      case 0x81:
+        if ( sim_alpha->alpha_id_len < 3 )
+        {
+          QCRIL_LOG_ERROR("sim_alpha->alpha_id_len (%d) less than 3", sim_alpha->alpha_id_len);
+        }
+        else
+        {
+          num_of_char = sim_alpha->alpha_id[1];
+          base_val = sim_alpha->alpha_id[2];
+          base_val <<= 7;
+          idx = 3;
+
+          if ( idx + num_of_char > sim_alpha->alpha_id_len )
+          {
+            QCRIL_LOG_DEBUG("num_of_char > sim_alpha->alpha_id_len - 3");
+            num_of_char = sim_alpha->alpha_id_len - idx;
+          }
+
+          if (num_of_char * 2 > WMS_ALPHA_ID_LENGTH_MAX_V01)
+          {
+            QCRIL_LOG_DEBUG("num_of_char * 2 > WMS_ALPHA_ID_LENGTH_MAX_V01");
+            num_of_char = WMS_ALPHA_ID_LENGTH_MAX_V01 / 2;
+          }
+
+          int i;
+          for ( i = 0; i< num_of_char; i++, idx++ )
+          {
+            ucs2_val = sim_alpha->alpha_id[idx];
+
+            if ( ucs2_val >= 0x80 )
+            {
+              ucs2_val &= 0x7F;
+              ucs2_val |= base_val;
+            }
+
+            std_alpha->alpha_id[2*i]   = (uint8) (ucs2_val);
+            std_alpha->alpha_id[2*i+1] = (uint8) (ucs2_val >> 8);
+          }
+
+          std_alpha->alpha_id_len = num_of_char * 2;
+        }
+
+        break;
+
+      case 0x82:
+        if ( sim_alpha->alpha_id_len < 4 )
+        {
+          QCRIL_LOG_DEBUG("sim_alpha->alpha_id_len (%d) less than 4", sim_alpha->alpha_id_len);
+        }
+        else
+        {
+          num_of_char = sim_alpha->alpha_id[1];
+          base_val = sim_alpha->alpha_id[2];
+          base_val <<= 8;
+          base_val += sim_alpha->alpha_id[3];
+          idx = 4;
+
+          if ( idx + num_of_char > sim_alpha->alpha_id_len )
+          {
+            QCRIL_LOG_DEBUG("num_of_char > sim_alpha->alpha_id_len - 4");
+            num_of_char = sim_alpha->alpha_id_len - idx;
+          }
+
+          if (num_of_char * 2 > WMS_ALPHA_ID_LENGTH_MAX_V01)
+          {
+            QCRIL_LOG_DEBUG("num_of_char * 2 > WMS_ALPHA_ID_LENGTH_MAX_V01");
+            num_of_char = WMS_ALPHA_ID_LENGTH_MAX_V01 / 2;
+          }
+
+          int i;
+          for ( i = 0; i< num_of_char; i++, idx++ )
+          {
+            ucs2_val = sim_alpha->alpha_id[idx];
+
+            if ( ucs2_val >= 0x80 )
+            {
+              ucs2_val &= 0x7F;
+              ucs2_val += base_val;
+            }
+
+            std_alpha->alpha_id[2*i]   = (uint8) (ucs2_val);
+            std_alpha->alpha_id[2*i+1] = (uint8) (ucs2_val >> 8);
+          }
+
+          std_alpha->alpha_id_len = num_of_char * 2;
+        }
+
+        break;
+
+      default:
+        QCRIL_LOG_ERROR("unknown SIM coding scheme");
+    }
+
+  } while ( FALSE );
+
+  QCRIL_LOG_FUNC_RETURN();
+}
 
 /*===========================================================================
 
@@ -1175,7 +1446,7 @@ void qcril_sms_request_sms_acknowledge
                                         sizeof(wms_send_ack_req_msg_v01),
                                         response_msg,
                                         sizeof(wms_send_ack_resp_msg_v01),
-                                        (void *) user_data) != QMI_NO_ERR)
+                                        (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response message from qmi for acknowledgement request.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -1198,7 +1469,7 @@ void qcril_sms_request_sms_acknowledge
       if ( QMI_RIL_ZERO != qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr )
       {
          QCRIL_LOG_INFO( "resetting MT SMS ack tmr per ack reception" );
-         qcril_cancel_timed_callback( (void*)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
+         qcril_cancel_timed_callback( (void*)(uintptr_t)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
          qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr = QMI_RIL_ZERO;
       }
   }
@@ -1381,6 +1652,7 @@ void qcril_sms_request_write_sms_to_uim
 
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED(message_mode);
   if ( write_request_msg != NULL )
   {
     // Check WMS_SERVICE_READY
@@ -1537,7 +1809,7 @@ void qcril_sms_request_delete_sms_on_sim
                                         sizeof(wms_delete_req_msg_v01),
                                         response_msg,
                                         sizeof(wms_delete_resp_msg_v01),
-                                        (void *) user_data) != QMI_NO_ERR)
+                                        (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to receive response message for RIL_REQUEST_DELETE_SMS_ON_SIM.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -1666,7 +1938,7 @@ void qcril_sms_request_get_smsc_address
                                      0,
                                      response_msg,
                                      sizeof(wms_get_smsc_address_resp_msg_v01),
-                                     (void *) user_data );
+                                     (void *)(uintptr_t) user_data );
       if ( result != QMI_NO_ERR )
       {
          QCRIL_LOG_ERROR("Failed to get response from qmi for getting SMSC Address");
@@ -1829,7 +2101,7 @@ void qcril_sms_request_set_smsc_address
                                      sizeof(wms_set_smsc_address_req_msg_v01),
                                      response_msg,
                                      sizeof(wms_set_smsc_address_resp_msg_v01),
-                                     (void *) user_data) != QMI_NO_ERR)
+                                     (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of setting the smsc address from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -1984,7 +2256,7 @@ void qcril_sms_request_report_sms_memory_status
                                     sizeof(wms_set_memory_status_req_msg_v01),
                                     response_msg,
                                     sizeof(wms_set_memory_status_resp_msg_v01),
-                                    (void *) user_data) != QMI_NO_ERR)
+                                    (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of sms memory status from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -2119,7 +2391,7 @@ void qcril_sms_request_gsm_get_broadcast_sms_config
                                  sizeof(wms_get_broadcast_config_req_msg_v01),
                                  response_msg,
                                  sizeof(wms_get_broadcast_config_resp_msg_v01),
-                                 (void *) user_data) != QMI_NO_ERR)
+                                 (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of broadcast sms config from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -2389,7 +2661,7 @@ void qcril_sms_request_gsm_set_broadcast_sms_config
                                  sizeof(wms_set_broadcast_config_req_msg_v01),
                                  response_msg,
                                  sizeof(wms_set_broadcast_config_resp_msg_v01),
-                                 (void *) user_data) != QMI_NO_ERR)
+                                 (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of setting the broadcast sms config from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -2515,6 +2787,12 @@ void qcril_sms_request_gsm_sms_broadcast_activation
     request_msg.broadcast_activation_info.message_mode = WMS_MESSAGE_MODE_GW_V01;
     request_msg.broadcast_activation_info.bc_activate = !(( (int *) params_ptr->data)[ 0 ]);
 
+    if( feature_all_bc_msg_3gpp )
+    {
+        request_msg.activate_all_valid = TRUE;
+        request_msg.activate_all = 0x01;
+    }
+
     user_data = QCRIL_COMPOSE_USER_DATA( instance_id, QCRIL_DEFAULT_MODEM_ID,
                                          reqlist_entry.req_id );
 
@@ -2533,7 +2811,7 @@ void qcril_sms_request_gsm_sms_broadcast_activation
                              sizeof(wms_set_broadcast_activation_req_msg_v01),
                              response_msg,
                              sizeof(wms_set_broadcast_activation_resp_msg_v01),
-                             (void *) user_data) != QMI_NO_ERR)
+                             (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of sms broadcast activation.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -2624,12 +2902,17 @@ void qcril_sms_request_cdma_send_sms
   wms_raw_send_resp_msg_v01* response_msg;
   qcril_reqlist_public_type reqlist_entry;
   qcril_sms_struct_type *i_ptr;
+  nas_sms_status_enum_type_v01 lte_sms_status;
+  uint8_t lte_sms_status_valid;
 
   QCRIL_LOG_FUNC_ENTRY();
 
   do
   {
-    if (!wms_ready(WMS_SERVICE_READY_STATUS_3GPP2_V01)) {
+    qcril_qmi_nas_fetch_lte_sms_status( &lte_sms_status_valid, &lte_sms_status);
+    if (!wms_ready(WMS_SERVICE_READY_STATUS_3GPP2_V01) &&
+        !(lte_sms_status_valid && (NAS_SMS_STATUS_1X_V01 == lte_sms_status))
+       ) {
        send_generic_failure(params_ptr->t, params_ptr->event_id);
        break;
     }
@@ -2690,6 +2973,13 @@ void qcril_sms_request_cdma_send_sms
     request_msg.sms_on_ims_valid = TRUE;
     request_msg.sms_on_ims = FALSE;
 
+    QCRIL_LOG_DEBUG( "IS FORCE ON DC = %d", is_force_on_dc );
+    if(is_force_on_dc)
+    {
+        request_msg.force_on_dc_valid = TRUE;
+        request_msg.force_on_dc.force_on_dc = 0x01;
+    }
+
     /* Compose the user data */
     user_data = QCRIL_COMPOSE_USER_DATA( instance_id, QCRIL_DEFAULT_MODEM_ID,
                                          reqlist_entry.req_id );
@@ -2708,7 +2998,7 @@ void qcril_sms_request_cdma_send_sms
                                         sizeof(wms_raw_send_req_msg_v01),
                                         response_msg,
                                         sizeof(wms_raw_send_resp_msg_v01),
-                                        (void *) user_data) != QMI_NO_ERR)
+                                        (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of cdma sms from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -2862,7 +3152,7 @@ void qcril_sms_request_cdma_sms_acknowledge
                                         sizeof(wms_send_ack_req_msg_v01),
                                         response_msg,
                                         sizeof(wms_send_ack_resp_msg_v01),
-                                        (void *) user_data) != QMI_NO_ERR)
+                                        (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response for acknowledgement of cdma sms.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -2886,7 +3176,7 @@ void qcril_sms_request_cdma_sms_acknowledge
       if ( QMI_RIL_ZERO != qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr )
       {
         QCRIL_LOG_INFO( "resetting MT SMS ack tmr per ack reception" );
-        qcril_cancel_timed_callback( (void*)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
+        qcril_cancel_timed_callback( (void*)(uintptr_t)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
         qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr = QMI_RIL_ZERO;
       }
   }
@@ -3069,7 +3359,7 @@ void qcril_sms_request_cdma_delete_sms_on_ruim
                                         sizeof(wms_delete_req_msg_v01),
                                         response_msg,
                                         sizeof(wms_delete_resp_msg_v01),
-                                        (void *) user_data) != QMI_NO_ERR)
+                                        (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of deleting cdma sms on RUIM from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -3156,7 +3446,7 @@ void qcril_sms_request_cdma_get_broadcast_sms_config
                                  sizeof(wms_get_broadcast_config_req_msg_v01),
                                  response_msg,
                                  sizeof(wms_get_broadcast_config_resp_msg_v01),
-                                 (void *) user_data) != QMI_NO_ERR)
+                                 (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of cdma broadcast sms config from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -3273,7 +3563,7 @@ void qcril_sms_request_cdma_set_broadcast_sms_config
                                  sizeof(wms_set_broadcast_config_req_msg_v01),
                                  response_msg,
                                  sizeof(wms_set_broadcast_config_resp_msg_v01),
-                                 (void *) user_data) != QMI_NO_ERR)
+                                 (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of setting cdma broadcast sms config from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -3350,6 +3640,12 @@ void qcril_sms_request_cdma_sms_broadcast_activation
     request_msg.broadcast_activation_info.message_mode = WMS_MESSAGE_MODE_CDMA_V01;
     request_msg.broadcast_activation_info.bc_activate = !(( (int *) params_ptr->data)[ 0 ]);
 
+    if( feature_all_bc_msg_3gpp2 )
+    {
+        request_msg.activate_all_valid = TRUE;
+        request_msg.activate_all = 0x01;
+    }
+
     user_data = QCRIL_COMPOSE_USER_DATA( instance_id, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
 
     response_msg = qcril_malloc( sizeof(*response_msg) );
@@ -3367,7 +3663,7 @@ void qcril_sms_request_cdma_sms_broadcast_activation
                              sizeof(wms_set_broadcast_activation_req_msg_v01),
                              response_msg,
                              sizeof(wms_set_broadcast_activation_resp_msg_v01),
-                             (void *) user_data) != QMI_NO_ERR)
+                             (void *)(uintptr_t) user_data) != QMI_NO_ERR)
     {
       QCRIL_LOG_ERROR("Failed to get the response of cdma sms broadcast activation from qmi.");
       send_generic_failure(params_ptr->t, params_ptr->event_id);
@@ -3399,7 +3695,6 @@ void qcril_sms_request_ims_registration_state
   qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
 {
-#ifndef QMI_RIL_UTF
   qcril_instance_id_e_type instance_id;
   qcril_sms_struct_type *i_ptr;
   uint32 user_data;
@@ -3524,8 +3819,8 @@ void qcril_sms_request_ims_registration_state
   } while(0);
 
   QCRIL_LOG_FUNC_RETURN();
-#endif
 } /* qcril_sms_request_ims_registration_state() */
+
 
 /*===========================================================================
 
@@ -3546,7 +3841,6 @@ void qcril_sms_request_ims_send_sms
    qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
 {
-#ifndef QMI_RIL_UTF
    qcril_instance_id_e_type instance_id;
    qcril_request_resp_params_type resp;
    uint32 user_data;
@@ -3558,6 +3852,8 @@ void qcril_sms_request_ims_send_sms
    boolean sms_payload_in_cdma_format;
    const char *smsc_address = NULL;
    const char *gw_pdu = NULL;
+   nas_sms_status_enum_type_v01 lte_sms_status;
+   uint8_t lte_sms_status_valid;
    QCRIL_NOTUSED( ret_ptr );
 
    QCRIL_LOG_FUNC_ENTRY();
@@ -3567,6 +3863,7 @@ void qcril_sms_request_ims_send_sms
 
    do
    {
+      qcril_qmi_nas_fetch_lte_sms_status( &lte_sms_status_valid, &lte_sms_status);
       if ( ( 0 == params_ptr->datalen ) || ( NULL == params_ptr->data ) )
       {
          QCRIL_LOG_ERROR("Data not valid");
@@ -3577,7 +3874,9 @@ void qcril_sms_request_ims_send_sms
       // Check for WMS SERVICE READY
       if (ims_sms_msg->tech == RADIO_TECH_3GPP)
       {
-         if (!wms_ready(WMS_SERVICE_READY_STATUS_3GPP_V01) )
+         if ( ims_sms_msg->retry && (!wms_ready(WMS_SERVICE_READY_STATUS_3GPP_V01) &&
+              !(lte_sms_status_valid && (NAS_SMS_STATUS_3GPP_V01 == lte_sms_status) ) )
+            )
          {
             send_generic_failure(params_ptr->t, params_ptr->event_id);
             break;
@@ -3586,13 +3885,16 @@ void qcril_sms_request_ims_send_sms
       else if (ims_sms_msg->tech == RADIO_TECH_3GPP2)
       {
          // tech is 3GPP2
-         if (!wms_ready(WMS_SERVICE_READY_STATUS_3GPP2_V01) )
+         if ( ims_sms_msg->retry && ( !wms_ready(WMS_SERVICE_READY_STATUS_3GPP2_V01) &&
+              !(lte_sms_status_valid && (NAS_SMS_STATUS_1X_V01 == lte_sms_status)) )
+            )
          {
             send_generic_failure(params_ptr->t, params_ptr->event_id);
             break;
          }
       }
-      else {
+      else
+      {
          QCRIL_LOG_ERROR("unsupported radio tech %d", ims_sms_msg->tech);
          send_generic_failure(params_ptr->t, params_ptr->event_id);
          break;
@@ -3686,6 +3988,13 @@ void qcril_sms_request_ims_send_sms
          /* Indicate the message must NOT go on IMS */
          request_msg.sms_on_ims_valid = TRUE;
          request_msg.sms_on_ims = FALSE;
+
+         QCRIL_LOG_DEBUG( "IS FORCE ON DC = %d", is_force_on_dc );
+         if((ims_sms_msg->tech == RADIO_TECH_3GPP2) && is_force_on_dc)
+         {
+            request_msg.force_on_dc_valid = TRUE;
+            request_msg.force_on_dc.force_on_dc = 0x01;
+         }
       }
       else
       {
@@ -3713,7 +4022,7 @@ void qcril_sms_request_ims_send_sms
                                              sizeof(wms_raw_send_req_msg_v01),
                                              response_msg,
                                              sizeof(wms_raw_send_resp_msg_v01),
-                                             (void *) user_data);
+                                             (void *)(uintptr_t) user_data);
       if (result == QMI_NO_ERR)
       {
          QCRIL_LOG_INFO("Sent QMI_WMS_RAW_SEND_REQ_V01");
@@ -3728,7 +4037,6 @@ void qcril_sms_request_ims_send_sms
    } while(0);
 
    QCRIL_LOG_FUNC_RETURN();
-#endif
 } /* qcril_sms_request_ims_send_sms() */
 
 /*===========================================================================
@@ -3752,10 +4060,10 @@ void qcril_sms_request_ims_send_sms
 void qcril_qmi_sms_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 msg_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
@@ -3769,9 +4077,9 @@ void qcril_qmi_sms_command_cb
   // resp_cb_data is not a pointer, do not check for NULL
   QCRIL_ASSERT( resp_c_struct != NULL );
   QCRIL_ASSERT( user_handle != NULL );
-  instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( (uint32) resp_cb_data );
-  modem_id = QCRIL_EXTRACT_MODEM_ID_FROM_USER_DATA( (uint32) resp_cb_data );
-  req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( (uint32) resp_cb_data );
+  instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( (uint32)(uintptr_t) resp_cb_data );
+  modem_id = QCRIL_EXTRACT_MODEM_ID_FROM_USER_DATA( (uint32)(uintptr_t) resp_cb_data );
+  req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( (uint32)(uintptr_t) resp_cb_data );
   req_data.modem_id = modem_id;
   req_data.instance_id = instance_id;
   req_data.datalen = resp_c_struct_len;
@@ -4127,7 +4435,7 @@ void qcril_sms_process_mt_cdma_sms
       // ack expiry tmr
       if ( QMI_RIL_ZERO != qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr )
       {
-        qcril_cancel_timed_callback( (void*)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
+        qcril_cancel_timed_callback( (void*)(uintptr_t)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
         qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr = QMI_RIL_ZERO;
       }
 
@@ -4406,7 +4714,7 @@ void qcril_sms_process_mt_gw_sms
       // ack expiry tmr
       if ( QMI_RIL_ZERO != qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr )
       {
-        qcril_cancel_timed_callback( (void*)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
+        qcril_cancel_timed_callback( (void*)(uintptr_t)qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr );
         qcril_sms[QCRIL_DEFAULT_INSTANCE_ID].mt_pending_ack_expry_tmr = QMI_RIL_ZERO;
       }
 
@@ -4599,10 +4907,17 @@ void qcril_sms_process_event_report_ind
   int index_on_sim;
   uint8 *data;
   qcril_unsol_resp_params_type unsol_resp;
+  uint8 coding_scheme;
+  wms_call_control_modified_info_type_v01 src_wms_call_control_alpha_info;
+  wms_call_control_modified_info_type_v01 wms_call_control_alpha_info;
+  char buf_str[WMS_ALPHA_ID_LENGTH_MAX_V01 + 2];
+  qcril_unsol_resp_params_type unsol_resp1;
 
   /*-----------------------------------------------------------------------*/
 
   QCRIL_LOG_FUNC_ENTRY();
+  memset(&src_wms_call_control_alpha_info, 0, sizeof(src_wms_call_control_alpha_info));
+  memset(&wms_call_control_alpha_info, 0, sizeof(wms_call_control_alpha_info));
 
   if( event_report_ind != NULL)
   {
@@ -4707,6 +5022,44 @@ void qcril_sms_process_event_report_ind
     unsol_resp.resp_len = event_report_ind->etws_message.data_len;
     qcril_send_unsol_response( &unsol_resp );
   }
+  /* Alpha Info */
+  else if( ( TRUE == event_report_ind->call_control_info_valid ) &&
+    ( event_report_ind->call_control_info.alpha_id_len > 0 ) )
+  {
+    memset(buf_str, 0 , WMS_ALPHA_ID_LENGTH_MAX_V01 + 2);
+    coding_scheme = event_report_ind->call_control_info.alpha_id[0];
+    if( coding_scheme == 0x80 || coding_scheme == 0x81 || coding_scheme == 0x82 ) //UCS2
+    {
+        src_wms_call_control_alpha_info.alpha_id_len = event_report_ind->call_control_info.alpha_id_len;
+        memcpy(src_wms_call_control_alpha_info.alpha_id,event_report_ind->call_control_info.alpha_id,WMS_ALPHA_ID_LENGTH_MAX_V01);
+        QCRIL_LOG_INFO("Coding scheme is %x, ucs2 data",coding_scheme);
+        qcril_qmi_sms_transfer_sim_ucs2_alpha_to_std_ucs2_alpha ( &src_wms_call_control_alpha_info, &wms_call_control_alpha_info);
+        qcril_cm_ss_convert_ussd_string_to_utf8(  QCRIL_QMI_VOICE_USSD_DCS_UCS2,
+                                                wms_call_control_alpha_info.alpha_id_len,
+                                                wms_call_control_alpha_info.alpha_id,
+                                                buf_str );
+    }
+    else //gsm8
+    {
+        QCRIL_LOG_INFO("Coding scheme is %x, gsm8 data",coding_scheme);
+        if( event_report_ind->call_control_info.alpha_id < WMS_ALPHA_ID_LENGTH_MAX_V01 )
+        {
+            qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (char*) event_report_ind->call_control_info.alpha_id,
+                                                            event_report_ind->call_control_info.alpha_id_len,
+                                                            buf_str );
+        }
+    }
+
+    if ( *buf_str )
+    {
+        qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_STK_CC_ALPHA_NOTIFY, &unsol_resp1 );
+        unsol_resp1.resp_pkt    = (void*)buf_str;
+        unsol_resp1.resp_len    = sizeof( buf_str );
+
+        qcril_send_unsol_response( &unsol_resp1 );
+    }
+  }
+
   }
 
   QCRIL_LOG_FUNC_RETURN();
@@ -4866,8 +5219,149 @@ void qcril_sms_process_service_ready_ind
   // send indication to telephony via oem hook, rilwms
   unsigned char data = (unsigned char)(service_msg->ready_status);
   qcril_hook_unsol_response(QCRIL_DEFAULT_INSTANCE_ID,
-                    QCRIL_EVT_HOOK_UNSOL_WMS_READY, &data, 1);
+                            QCRIL_EVT_HOOK_UNSOL_WMS_READY,
+                            (char*)&data, 1);
 
+
+  QCRIL_LOG_FUNC_RETURN();
+}
+
+//=========================================================================
+// FUNCTION: qcril_sms_process_transport_layer_mwi_ind
+//
+// DESCRIPTION:
+// Message waiting indication handler
+//
+// RETURN: None
+//=========================================================================
+void qcril_sms_process_transport_layer_mwi_ind
+(
+  wms_transport_layer_mwi_ind_msg_v01 *mwi_msg
+)
+{
+  Ims__Mwi ims_mwi = IMS__MWI__INIT;
+  Ims__MwiMessageSummary *mwimsgsummary = NULL;
+  Ims__MwiMessageDetails *mwimsgdetails = NULL;
+  boolean send_unsol = FALSE;
+  int i = 0;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  if (!mwi_msg) {
+     QCRIL_LOG_FATAL("mwi_msg was NULL!");
+     QCRIL_ASSERT(0);
+     return;
+  }
+
+  do
+  {
+    ims_mwi.n_mwimsgsummary = mwi_msg->message_waiting_summary_info_len;
+    QCRIL_LOG_INFO( "n_mwimsgsummary = %d", ims_mwi.n_mwimsgsummary);
+    if (ims_mwi.n_mwimsgsummary > 0)
+    {
+      ims_mwi.mwimsgsummary = qcril_malloc(sizeof (Ims__MwiMessageSummary *) *
+                                             ims_mwi.n_mwimsgsummary);
+      mwimsgsummary         = qcril_malloc(sizeof (Ims__MwiMessageSummary) *
+                                             ims_mwi.n_mwimsgsummary);
+      if (ims_mwi.mwimsgsummary == NULL || mwimsgsummary == NULL)
+      {
+        QCRIL_LOG_FATAL("malloc failed");
+        break;
+      }
+      else
+      {
+        for ( i = 0; i < ims_mwi.n_mwimsgsummary; i++)
+        {
+          ims_mwi.mwimsgsummary[i] = &mwimsgsummary[i];
+          Ims__MwiMessageSummary mwimsgsummary_tmp = IMS__MWI_MESSAGE_SUMMARY__INIT;
+          memcpy(&(mwimsgsummary[i]), &mwimsgsummary_tmp, sizeof(Ims__MwiMessageSummary));
+
+          mwimsgsummary[i].has_messagetype = TRUE;
+          mwimsgsummary[i].messagetype     = qcril_qmi_sms_map_qmi_mwi_msg_type_to_ims_msg_type(
+                  mwi_msg->message_waiting_summary_info[i].message_type);
+          mwimsgsummary[i].has_newmessage  = TRUE;
+          mwimsgsummary[i].newmessage      = mwi_msg->message_waiting_summary_info[i].new_msg;
+          mwimsgsummary[i].has_oldmessage  = TRUE;
+          mwimsgsummary[i].oldmessage      = mwi_msg->message_waiting_summary_info[i].old_msg;
+          mwimsgsummary[i].has_newurgent   = TRUE;
+          mwimsgsummary[i].newurgent       = mwi_msg->message_waiting_summary_info[i].new_urgent;
+          mwimsgsummary[i].has_oldurgent   = TRUE;
+          mwimsgsummary[i].oldurgent       = mwi_msg->message_waiting_summary_info[i].old_urgent;
+        }
+      }
+    }
+    ims_mwi.ueaddress = qmi_ril_util_str_clone(mwi_msg->UE_address);
+    if (mwi_msg->message_waiting_detail_info_valid &&
+        mwi_msg->message_waiting_detail_info_len > 0)
+    {
+      ims_mwi.n_mwimsgdetail = mwi_msg->message_waiting_detail_info_len;
+      ims_mwi.mwimsgdetail   = qcril_malloc(sizeof (Ims__MwiMessageDetails *) *
+                                           ims_mwi.n_mwimsgdetail);
+      mwimsgdetails          = qcril_malloc(sizeof (Ims__MwiMessageDetails) *
+                                           ims_mwi.n_mwimsgdetail);
+
+      if (ims_mwi.mwimsgdetail == NULL || mwimsgdetails == NULL)
+      {
+        QCRIL_LOG_FATAL("malloc failed");
+        break;
+      }
+      else
+      {
+        QCRIL_LOG_INFO( "n_mwimsgdetail = %d", ims_mwi.n_mwimsgdetail);
+        for ( i = 0; i < ims_mwi.n_mwimsgdetail; i++)
+        {
+          ims_mwi.mwimsgdetail[i] = &mwimsgdetails[i];
+          Ims__MwiMessageDetails mwimsgdetail_tmp = IMS__MWI_MESSAGE_DETAILS__INIT;
+          memcpy(&(mwimsgdetails[i]), &mwimsgdetail_tmp, sizeof(Ims__MwiMessageDetails));
+
+          ims_mwi.mwimsgdetail[i]->toaddress = qmi_ril_util_str_clone(
+                  mwi_msg->message_waiting_detail_info[i].to_address);
+          ims_mwi.mwimsgdetail[i]->fromaddress = qmi_ril_util_str_clone(
+                  mwi_msg->message_waiting_detail_info[i].from_address);
+          ims_mwi.mwimsgdetail[i]->subject = qmi_ril_util_str_clone(
+                  mwi_msg->message_waiting_detail_info[i].subject);
+          ims_mwi.mwimsgdetail[i]->date = qmi_ril_util_str_clone(
+                  mwi_msg->message_waiting_detail_info[i].date_time);
+          ims_mwi.mwimsgdetail[i]->has_priority = TRUE;
+          ims_mwi.mwimsgdetail[i]->priority = qcril_qmi_sms_map_qmi_mwi_priority_to_ims_priority(
+                  mwi_msg->message_waiting_detail_info[i].priority);
+          ims_mwi.mwimsgdetail[i]->messageid = qmi_ril_util_str_clone(
+                  mwi_msg->message_waiting_detail_info[i].message_id);
+          ims_mwi.mwimsgdetail[i]->has_messagetype = TRUE;
+          ims_mwi.mwimsgdetail[i]->messagetype = qcril_qmi_sms_map_qmi_mwi_msg_type_to_ims_msg_type(
+                  mwi_msg->message_waiting_detail_info[i].message_type);
+        }
+      }
+    }
+    send_unsol = TRUE;
+  } while (0);
+
+  if (send_unsol)
+  {
+    qcril_qmi_ims_socket_send(0,
+            IMS__MSG_TYPE__UNSOL_RESPONSE,
+            IMS__MSG_ID__UNSOL_MWI,
+            IMS__ERROR__E_SUCCESS,
+            &ims_mwi,
+            sizeof (ims_mwi));
+  }
+
+  qcril_free(ims_mwi.mwimsgsummary);
+  qcril_free(mwimsgsummary);
+  qcril_free(ims_mwi.ueaddress);
+  if (ims_mwi.mwimsgdetail)
+  {
+    for ( i = 0; i < ims_mwi.n_mwimsgdetail; i++)
+    {
+      qcril_free(ims_mwi.mwimsgdetail[i]->toaddress);
+      qcril_free(ims_mwi.mwimsgdetail[i]->fromaddress);
+      qcril_free(ims_mwi.mwimsgdetail[i]->subject);
+      qcril_free(ims_mwi.mwimsgdetail[i]->date);
+      qcril_free(ims_mwi.mwimsgdetail[i]->messageid);
+    }
+  }
+  qcril_free(ims_mwi.mwimsgdetail);
+  qcril_free(mwimsgdetails);
 
   QCRIL_LOG_FUNC_RETURN();
 }
@@ -4894,7 +5388,9 @@ void qcril_sms_post_ready_status_update(void)
 
       QCRIL_LOG_INFO("..posting wms_ready status %d (%s)", (int)state, sms_state_str(state) );
 
-      qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_EVT_HOOK_UNSOL_WMS_READY, &state, sizeof(state) );
+      qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID,
+                                 QCRIL_EVT_HOOK_UNSOL_WMS_READY,
+                                 (char*)&state, sizeof(state) );
    }
 
    QCRIL_LOG_FUNC_RETURN();
@@ -4916,80 +5412,144 @@ void qcril_sms_post_ready_status_update(void)
 //============================================================================
 void qcril_qmi_sms_unsol_ind_cb
 (
-   qmi_client_type    user_handle,
-   unsigned long      msg_id,
-   unsigned char      *ind_buf,
-   int                ind_buf_len,
-   void               *ind_cb_data
+  qmi_client_type                user_handle,
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
+)
+{
+  qmi_ind_callback_type qmi_callback;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  memset(&qmi_callback,0,sizeof(qmi_callback));
+  qmi_callback.data_buf = qcril_malloc(ind_buf_len);
+
+  if( qmi_callback.data_buf )
+  {
+    qmi_callback.user_handle = user_handle;
+    qmi_callback.msg_id = msg_id;
+    memcpy(qmi_callback.data_buf,ind_buf,ind_buf_len);
+    qmi_callback.data_buf_len = ind_buf_len;
+    qmi_callback.cb_data = ind_cb_data;
+
+    qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
+                   QCRIL_DEFAULT_MODEM_ID,
+                   QCRIL_DATA_ON_STACK,
+                   QCRIL_EVT_QMI_SMS_HANDLE_INDICATIONS,
+                   (void*) &qmi_callback,
+                   sizeof(qmi_callback),
+                   (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+  }
+  else
+  {
+    QCRIL_LOG_FATAL("malloc failed");
+  }
+
+  QCRIL_LOG_FUNC_RETURN();
+}
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_sms_unsolicited_indication_cb_helper
+
+===========================================================================*/
+/*!
+    @brief
+    helper function for handling sms indication
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_sms_unsolicited_indication_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
 )
 {
    qcril_instance_id_e_type instance_id;
    void* decoded_payload = NULL;
+   qmi_ind_callback_type *qmi_callback = (qmi_ind_callback_type*) params_ptr->data;
 
    QCRIL_LOG_FUNC_ENTRY();
 
-   QCRIL_ASSERT( user_handle != NULL );
-   QCRIL_ASSERT( ind_buf != NULL );
-   QCRIL_ASSERT( ind_cb_data != NULL );
+   do
+   {
+      if( !qmi_callback )
+      {
+        QCRIL_LOG_ERROR("qmi_callback is NULL");
+        QCRIL_ASSERT(0); // this is a noop in release build
+        break;
+      }
+      QCRIL_LOG_INFO("msg_id (0x%04x) %s", qmi_callback->msg_id,
+                qcril_sms_lookup_ind_name(qmi_callback->msg_id));
 
-   QCRIL_LOG_INFO("msg_id (0x%04x) %s", msg_id,
-                   qcril_sms_lookup_ind_name(msg_id));
-
-   qmi_ril_gen_operational_status_type op_status
+      qmi_ril_gen_operational_status_type op_status
                                             = qmi_ril_get_operational_status();
 
-   if ( op_status != QMI_RIL_GEN_OPERATIONAL_STATUS_UNRESTRICTED )
-   {
-      QCRIL_LOG_INFO("operation state is restricted - %d,"
+      if ( op_status != QMI_RIL_GEN_OPERATIONAL_STATUS_UNRESTRICTED )
+      {
+        QCRIL_LOG_INFO("operation state is restricted - %d,"
                      " ignoring QMI-WMS msg", (int) op_status );
-      QCRIL_LOG_FUNC_RETURN();
-      return;
-   }
+        break;
+      }
 
-   decoded_payload = qcril_sms_decode_ind(msg_id, ind_buf, ind_buf_len);
-   if (!decoded_payload) {
-      QCRIL_LOG_ERROR("Failed to decode sms unsol indication");
-      QCRIL_LOG_FUNC_RETURN();
-      return;
-   }
+      decoded_payload = qcril_sms_decode_ind(qmi_callback->msg_id, qmi_callback->data_buf, qmi_callback->data_buf_len);
+      if (!decoded_payload)
+      {
+        QCRIL_LOG_ERROR("Failed to decode sms unsol indication");
+        break;
+      }
 
-   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+      instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
-   switch (msg_id)
-   {
-      case QMI_WMS_EVENT_REPORT_IND_V01: {
-         qcril_sms_process_event_report_ind(
+      switch (qmi_callback->msg_id)
+      {
+        case QMI_WMS_EVENT_REPORT_IND_V01: {
+           qcril_sms_process_event_report_ind(
                  (wms_event_report_ind_msg_v01*) decoded_payload, instance_id);
-         break;
-      }
-      case QMI_WMS_MEMORY_FULL_IND_V01: {
-         qcril_sms_process_memory_full_ind(
+           break;
+           }
+        case QMI_WMS_MEMORY_FULL_IND_V01: {
+           qcril_sms_process_memory_full_ind(
                   (wms_memory_full_ind_msg_v01*) decoded_payload, instance_id);
-         break;
-      }
-      case QMI_WMS_TRANSPORT_LAYER_INFO_IND_V01: {
-         qcril_sms_process_transport_layer_info_ind(
-         (wms_transport_layer_info_ind_msg_v01*) decoded_payload, instance_id);
-         break;
-      }
-      case QMI_WMS_TRANSPORT_NW_REG_INFO_IND_V01: {
-         qcril_sms_process_transport_nw_reg_info_ind(
-         (wms_transport_nw_reg_info_ind_msg_v01*) decoded_payload, instance_id);
-         break;
-      }
-      case QMI_WMS_SERVICE_READY_IND_V01: {
-         qcril_sms_process_service_ready_ind(
+           break;
+           }
+        case QMI_WMS_TRANSPORT_LAYER_INFO_IND_V01: {
+           qcril_sms_process_transport_layer_info_ind(
+              (wms_transport_layer_info_ind_msg_v01*) decoded_payload, instance_id);
+           break;
+           }
+        case QMI_WMS_TRANSPORT_NW_REG_INFO_IND_V01: {
+           qcril_sms_process_transport_nw_reg_info_ind(
+              (wms_transport_nw_reg_info_ind_msg_v01*) decoded_payload, instance_id);
+           break;
+           }
+        case QMI_WMS_SERVICE_READY_IND_V01: {
+           qcril_sms_process_service_ready_ind(
                 (wms_service_ready_ind_msg_v01*) decoded_payload);
-         break;
+           break;
+           }
+        case QMI_WMS_TRANSPORT_LAYER_MWI_IND_V01: {
+           qcril_sms_process_transport_layer_mwi_ind(
+                (wms_transport_layer_mwi_ind_msg_v01*) decoded_payload);
+           break;
+           }
+        default: {
+           QCRIL_LOG_INFO("Unexpected, ignoring QMI WMS indication 0x%04x",
+                         qmi_callback->msg_id);
+           break;
+           }
       }
-      default: {
-         QCRIL_LOG_INFO("Unexpected, ignoring QMI WMS indication 0x%04x",
-                         msg_id);
-         break;
-      }
-   }
 
-   qcril_free(decoded_payload);
+      qcril_free(decoded_payload);
+   }while(FALSE);
+
+   if( qmi_callback && qmi_callback->data_buf )
+   {
+      qcril_free(qmi_callback->data_buf);
+   }
    QCRIL_LOG_FUNC_RETURN();
 }
 
@@ -5458,6 +6018,9 @@ const char *qcril_sms_lookup_ind_name
 
     case QMI_WMS_SERVICE_READY_IND_V01:
       return "QMI_WMS_SERVICE_READY_IND";
+
+    case QMI_WMS_TRANSPORT_LAYER_MWI_IND_V01:
+      return "QMI_WMS_TRANSPORT_LAYER_MWI_IND";
 
     default:
       return "Unknown QMI WMS indication";
@@ -7242,7 +7805,7 @@ int wms_ready_supported(void) {
    wms_get_indication_register_resp_msg_v01 wms_resp;
    bzero(&wms_resp, sizeof(wms_resp));
 
-   qmi_err = qmi_client_send_msg_sync(
+   qmi_err = qmi_client_send_msg_sync_with_shm(
                       qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_WMS ),
                       QMI_WMS_GET_INDICATION_REGISTER_REQ_V01,
                       NULL,
@@ -7336,15 +7899,25 @@ void query_wms_ready_status(void)
 //
 // RETURN: None
 //============================================================================
-void wms_get_ready_status_cb(qmi_client_type user_handle, unsigned long msg_id,
-                             void* resp_c_struct, int resp_c_struct_len,
-                             void* resp_cb_data,
-                             qmi_client_error_type transp_err)
+void wms_get_ready_status_cb
+(
+    qmi_client_type       user_handle,
+    unsigned int          msg_id,
+    void                 *resp_c_struct,
+    unsigned int          resp_c_struct_len,
+    void                 *resp_cb_data,
+    qmi_client_error_type transp_err
+)
 {
    QCRIL_LOG_FUNC_ENTRY();
 
    QCRIL_ASSERT( resp_c_struct != NULL );
    QCRIL_ASSERT( user_handle != NULL );
+
+   QCRIL_NOTUSED(transp_err);
+   QCRIL_NOTUSED(resp_cb_data);
+   QCRIL_NOTUSED(resp_c_struct_len);
+   QCRIL_NOTUSED(msg_id);
 
    wms_get_service_ready_status_resp_msg_v01* wms_resp
               = (wms_get_service_ready_status_resp_msg_v01*) resp_c_struct;

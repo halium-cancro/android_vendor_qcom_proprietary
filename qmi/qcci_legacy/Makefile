@@ -16,6 +16,7 @@ CFLAGS += -fPIC
 LDFLAGS := -shared -Wl,-soname,$(TARGET)
 LDFLAGS += -Wl,-rpath,../lib
 
+LIBS := -lpthread
 LIBS += -lidl
 LIBS += -lqmi_client_qmux
 LIBS += -lqmi

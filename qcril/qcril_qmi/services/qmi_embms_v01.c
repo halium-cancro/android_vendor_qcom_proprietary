@@ -16,8 +16,8 @@ GENERAL DESCRIPTION
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2
-   It was generated on: Mon Aug  5 2013 (Spin 0)
+/* This file was generated with Tool version 6.14.1
+   It was generated on: Thu Nov 13 2014 (Spin 0)
    From IDL File: qmi_embms_v01.idl */
 
 #include "stdint.h"
@@ -32,6 +32,16 @@ static const uint8_t embms_tmgi_type_data_v01[] = {
   QMI_IDL_OFFSET8(embms_tmgi_type_v01, tmgi),
   TMGI_LENGTH_MAX_V01,
   QMI_IDL_OFFSET8(embms_tmgi_type_v01, tmgi) - QMI_IDL_OFFSET8(embms_tmgi_type_v01, tmgi_len),
+
+  QMI_IDL_FLAG_END_VALUE
+};
+
+static const uint8_t embms_content_desc_type_data_v01[] = {
+  QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_content_desc_type_v01, paramCode),
+
+  QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_content_desc_type_v01, paramValue),
 
   QMI_IDL_FLAG_END_VALUE
 };
@@ -666,9 +676,95 @@ static const uint8_t embms_get_utc_time_resp_msg_data_v01[] = {
   QMI_IDL_OFFSET8(embms_get_utc_time_resp_msg_v01, local_time_offset)
 };
 
+static const uint8_t embms_get_e911_state_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_get_e911_state_req_msg_v01, dbg_trace_id)
+};
+
+static const uint8_t embms_get_e911_state_resp_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_get_e911_state_resp_msg_v01, dbg_trace_id),
+
+  0x02,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_get_e911_state_resp_msg_v01, resp_code),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(embms_get_e911_state_resp_msg_v01, e911_state) - QMI_IDL_OFFSET8(embms_get_e911_state_resp_msg_v01, e911_state_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_get_e911_state_resp_msg_v01, e911_state)
+};
+
+static const uint8_t embms_unsol_e911_state_ind_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_unsol_e911_state_ind_msg_v01, dbg_trace_id),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_unsol_e911_state_ind_msg_v01, e911_state)
+};
+
+static const uint8_t embms_update_content_desc_req_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, dbg_trace_id),
+
+  0x02,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, call_id),
+
+  0x03,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, tmgi_info),
+  QMI_IDL_TYPE88(0, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, content_desc) - QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, content_desc_valid)),
+  0x10,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, content_desc),
+  CONTENT_PARAM_NUM_MAX_V01,
+  QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, content_desc) - QMI_IDL_OFFSET8(embms_update_content_desc_req_msg_v01, content_desc_len),
+  QMI_IDL_TYPE88(0, 1)
+};
+
+static const uint8_t embms_update_content_desc_resp_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_update_content_desc_resp_msg_v01, dbg_trace_id),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_update_content_desc_resp_msg_v01, resp_code)
+};
+
+static const uint8_t embms_unsol_content_desc_update_per_obj_ind_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, dbg_trace_id),
+
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, tmgi_info),
+  QMI_IDL_TYPE88(0, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, per_object_content_ctrl) - QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, per_object_content_ctrl_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, per_object_content_ctrl),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, per_object_status_ctrl) - QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, per_object_status_ctrl_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(embms_unsol_content_desc_update_per_obj_ind_msg_v01, per_object_status_ctrl)
+};
+
 /* Type Table */
 static const qmi_idl_type_table_entry  embms_type_table_v01[] = {
-  {sizeof(embms_tmgi_type_v01), embms_tmgi_type_data_v01}
+  {sizeof(embms_tmgi_type_v01), embms_tmgi_type_data_v01},
+  {sizeof(embms_content_desc_type_v01), embms_content_desc_type_data_v01}
 };
 
 /* Message Table */
@@ -716,7 +812,13 @@ static const qmi_idl_message_table_entry embms_message_table_v01[] = {
   {sizeof(embms_get_sib16_coverage_resp_msg_v01), embms_get_sib16_coverage_resp_msg_data_v01},
   {sizeof(embms_unsol_sib16_coverage_ind_msg_v01), embms_unsol_sib16_coverage_ind_msg_data_v01},
   {sizeof(embms_get_utc_time_req_msg_v01), embms_get_utc_time_req_msg_data_v01},
-  {sizeof(embms_get_utc_time_resp_msg_v01), embms_get_utc_time_resp_msg_data_v01}
+  {sizeof(embms_get_utc_time_resp_msg_v01), embms_get_utc_time_resp_msg_data_v01},
+  {sizeof(embms_get_e911_state_req_msg_v01), embms_get_e911_state_req_msg_data_v01},
+  {sizeof(embms_get_e911_state_resp_msg_v01), embms_get_e911_state_resp_msg_data_v01},
+  {sizeof(embms_unsol_e911_state_ind_msg_v01), embms_unsol_e911_state_ind_msg_data_v01},
+  {sizeof(embms_update_content_desc_req_msg_v01), embms_update_content_desc_req_msg_data_v01},
+  {sizeof(embms_update_content_desc_resp_msg_v01), embms_update_content_desc_resp_msg_data_v01},
+  {sizeof(embms_unsol_content_desc_update_per_obj_ind_msg_v01), embms_unsol_content_desc_update_per_obj_ind_msg_data_v01}
 };
 
 /* Range Table */
@@ -755,10 +857,12 @@ static const qmi_idl_service_message_table_entry embms_service_command_messages_
   {QMI_EMBMS_GET_EMBMS_SERVICE_STATE_REQ_V01, QMI_IDL_TYPE16(0, 22), 0},
   {QMI_EMBMS_ACTIVATE_DEACTIVATE_TMGI_REQ_V01, QMI_IDL_TYPE16(0, 8), 430},
   {QMI_EMBMS_GET_ACTIVE_LOG_PACKET_IDS_REQ_V01, QMI_IDL_TYPE16(0, 33), 1036},
-  {QMI_EMBMS_DELIVER_LOG_PACKET_REQ_V01, QMI_IDL_TYPE16(0, 35), 531},
+  {QMI_EMBMS_DELIVER_LOG_PACKET_REQ_V01, QMI_IDL_TYPE16(0, 35), 2067},
   {QMI_EMBMS_SET_SNTP_TIME_REQ_V01, QMI_IDL_TYPE16(0, 37), 26},
   {QMI_EMBMS_GET_SIB16_COVERAGE_REQ_V01, QMI_IDL_TYPE16(0, 39), 0},
-  {QMI_EMBMS_GET_UTC_TIME_REQ_V01, QMI_IDL_TYPE16(0, 42), 7}
+  {QMI_EMBMS_GET_UTC_TIME_REQ_V01, QMI_IDL_TYPE16(0, 42), 7},
+  {QMI_EMBMS_GET_E911_STATE_REQ_V01, QMI_IDL_TYPE16(0, 44), 7},
+  {QMI_EMBMS_UPDATE_CONTENT_DESC_REQ_V01, QMI_IDL_TYPE16(0, 47), 537}
 };
 
 static const qmi_idl_service_message_table_entry embms_service_response_messages_v01[] = {
@@ -778,7 +882,9 @@ static const qmi_idl_service_message_table_entry embms_service_response_messages
   {QMI_EMBMS_DELIVER_LOG_PACKET_RESP_V01, QMI_IDL_TYPE16(0, 36), 7},
   {QMI_EMBMS_SET_SNTP_TIME_RESP_V01, QMI_IDL_TYPE16(0, 38), 0},
   {QMI_EMBMS_GET_SIB16_COVERAGE_RESP_V01, QMI_IDL_TYPE16(0, 40), 4},
-  {QMI_EMBMS_GET_UTC_TIME_RESP_V01, QMI_IDL_TYPE16(0, 43), 37}
+  {QMI_EMBMS_GET_UTC_TIME_RESP_V01, QMI_IDL_TYPE16(0, 43), 37},
+  {QMI_EMBMS_GET_E911_STATE_RESP_V01, QMI_IDL_TYPE16(0, 45), 21},
+  {QMI_EMBMS_UPDATE_CONTENT_DESC_RESP_V01, QMI_IDL_TYPE16(0, 48), 14}
 };
 
 static const qmi_idl_service_message_table_entry embms_service_indication_messages_v01[] = {
@@ -791,7 +897,9 @@ static const qmi_idl_service_message_table_entry embms_service_indication_messag
   {QMI_EMBMS_CELL_INFO_CHANGED_IND_V01, QMI_IDL_TYPE16(0, 30), 26},
   {QMI_EMBMS_RADIO_STATE_IND_V01, QMI_IDL_TYPE16(0, 31), 14},
   {QMI_EMBMS_SAI_IND_V01, QMI_IDL_TYPE16(0, 32), 2616},
-  {QMI_EMBMS_UNSOL_SIB16_COVERAGE_IND_V01, QMI_IDL_TYPE16(0, 41), 4}
+  {QMI_EMBMS_UNSOL_SIB16_COVERAGE_IND_V01, QMI_IDL_TYPE16(0, 41), 4},
+  {QMI_EMBMS_E911_STATE_IND_V01, QMI_IDL_TYPE16(0, 46), 14},
+  {QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND_V01, QMI_IDL_TYPE16(0, 49), 31}
 };
 
 /*Service Object*/

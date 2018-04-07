@@ -2,7 +2,7 @@
 #define QCRIL_UIM_FILE_H
 /*===========================================================================
 
-  Copyright (c) 2010-2012 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -31,6 +31,14 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim_file.h#1 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+12/01/14   hh      Support for get MCC and MNC
+06/18/14   at      Support for SelectNext using reselect QMI command
+06/10/14   tl      Removed array structures for slot specific parameters
+05/14/14   yt      Support for STATUS command as part of SIM_IO request
+04/18/14   tkl     Added support for RIL_REQUEST_SIM_AUTHENTICATION
+01/21/14   at      Added support for getSelectResponse()
+12/10/13   at      Updated feature checks with new ones for APDU APIs
+11/19/13   at      Changed the feature checks for streaming APDU APIs
 08/12/13   at      Added support for Long APDU indication
 10/08/12   at      Support for ISIM Authentication API
 03/30/11   at      Support for logical channel & send apdu commands
@@ -198,7 +206,7 @@ void qcril_uim_set_fdn_status_resp
 );
 
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#if defined(RIL_REQUEST_SIM_OPEN_CHANNEL) || defined(RIL_REQUEST_SIM_CLOSE_CHANNEL)
 /*=========================================================================
 
   FUNCTION:  qcril_uim_logical_channel_resp
@@ -213,6 +221,29 @@ void qcril_uim_set_fdn_status_resp
 */
 /*=========================================================================*/
 void qcril_uim_logical_channel_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+);
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL || RIL_REQUEST_SIM_CLOSE_CHANNEL */
+
+
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_reselect_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Process the response for reselect. Note that this request comes via the
+    send apdu API, hence the response uses that data type.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_reselect_resp
 (
   const qcril_uim_callback_params_type * const params_ptr
 );
@@ -258,23 +289,80 @@ void qcril_uim_process_send_apdu_ind
   const qcril_uim_indication_params_type  * ind_param_ptr,
   qcril_request_return_type               * const ret_ptr /*!< Output parameter */
 );
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
-
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
 
 /*=========================================================================
 
-  FUNCTION:  qcril_uim_isim_authenticate_resp
+  FUNCTION:  qcril_uim_sim_authenticate_resp
 
 ===========================================================================*/
 /*!
     @brief
-    Process the response for ISIM authenticate command.
+    Process the response for SIM authenticate command.
 
     @return
     None
 */
 /*=========================================================================*/
-void qcril_uim_isim_authenticate_resp
+void qcril_uim_sim_authenticate_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+);
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_send_status_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Process the response for STATUS command.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_send_status_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+);
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_request_get_mcc_mnc
+
+===========================================================================*/
+/*!
+    @brief
+    Process the request to get MCC and MNC
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_request_get_mcc_mnc
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type       *const ret_ptr /*!< Output parameter */
+);
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_get_mcc_mnc_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Processes the response for QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_get_mcc_mnc_resp
 (
   const qcril_uim_callback_params_type * const params_ptr
 );
@@ -361,7 +449,27 @@ void qcril_uim_process_internal_verify_pin_command_callback
 /*=========================================================================*/
 void qcril_uim_cleanup_long_apdu_info
 (
-  uint8       slot_index
+  void
+);
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_cleanup_select_response_info
+
+===========================================================================*/
+/*!
+    @brief
+    Cleans the global select response info structure & frees any memory
+    allocated for the raw response data.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_uim_cleanup_select_response_info
+(
+  void
 );
 
 #endif /* QCRIL_UIM_FILE_H */

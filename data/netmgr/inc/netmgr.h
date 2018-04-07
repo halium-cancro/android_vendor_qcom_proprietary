@@ -88,6 +88,7 @@ typedef enum netmgr_nl_events_e {
   NETMGR_READY_REQ,                /* NETMGR readiness query               */
   NETMGR_READY_RESP,               /* NETMGR readiness response            */
   NETMGR_USER_CMD,                 /* NETMGR user generated command        */
+  NET_PLATFORM_MTU_UPDATE_EV,      /* Network interface MTU updated        */
   NET_PLATFORM_MAX_EV              /* Internal value                       */
 } netmgr_nl_events_t;
 
@@ -149,6 +150,9 @@ typedef enum netmgr_link_id_e {
 ---------------------------------------------------------------------------*/
 #define NETMGR_USER_CMD_SCREEN_OFF 0
 #define NETMGR_USER_CMD_SCREEN_ON  1
+#define NETMGR_USER_CMD_ENABLE_PORT_FORWARDING  2
+#define NETMGR_USER_CMD_DISABLE_PORT_FORWARDING 3
+#define NETMGR_USER_CMD_QUERY_PORT_FORWARDING   4
 
 /*---------------------------------------------------------------------------
    Type representing NetLink event indication payload
@@ -162,6 +166,8 @@ typedef enum netmgr_link_id_e {
 #define NETMGR_EVT_PARAM_DNSSADDR     (0x0020)
 #define NETMGR_EVT_PARAM_DEVNAME      (0x0040)
 #define NETMGR_EVT_PARAM_USER_CMD     (0x0080)
+#define NETMGR_EVT_PARAM_CMD_DATA     (0x0100)
+#define NETMGR_EVT_PARAM_MTU          (0x0200)
 #define NETMGR_EVT_PARAM_MASK         ( NETMGR_EVT_PARAM_LINK     | \
                                         NETMGR_EVT_PARAM_FLOW     | \
                                         NETMGR_EVT_PARAM_ADDRINFO | \
@@ -169,7 +175,8 @@ typedef enum netmgr_link_id_e {
                                         NETMGR_EVT_PARAM_DNSPINFO | \
                                         NETMGR_EVT_PARAM_DNSSINFO | \
                                         NETMGR_EVT_PARAM_DEVNAME  | \
-                                        NETMGR_EVT_PARAM_USR_CMD )
+                                        NETMGR_EVT_PARAM_USR_CMD  | \
+                                        NETMGR_EVT_PARAM_MTU )
 #define NETMGR_EVT_PARAM_IPADDR       (0x1000 | NETMGR_EVT_PARAM_ADDRINFO)
 #define NETMGR_EVT_PARAM_CACHE        (0x2000 | NETMGR_EVT_PARAM_ADDRINFO)
 
@@ -199,6 +206,30 @@ typedef struct netmgr_nl_flowinfo_s {
   char                             flow_type;
 } netmgr_nl_flowinfo_t;
 
+#define  NETMGR_USER_CMD_STATUS_FAILED   -1
+#define  NETMGR_USER_CMD_STATUS_SUCCESS  1
+
+typedef struct netmgr_usr_cmd_txn_s
+{
+  unsigned int pid;
+  unsigned int txn_id;
+  int txn_status;
+}netmgr_usr_cmd_txn_t;
+
+typedef struct netmgr_user_cmd_data_s {
+  netmgr_usr_cmd_txn_t txn;
+  unsigned int cmd_id;
+
+  union{
+    struct {
+      /* ip_family to enable or disable forwarding
+         For QUERY_PORT_FORWARDING cmd it stores the family
+              for which forwarding is enabled */
+      int ip_family;
+    }port_forwarding_data;
+  }data;
+}netmgr_user_cmd_data_t;
+
 typedef struct netmgr_nl_event_info_s {
   unsigned int                     param_mask;
   netmgr_nl_events_t               event;
@@ -209,7 +240,9 @@ typedef struct netmgr_nl_event_info_s {
   struct sockaddr_storage          dnsp_addr;
   struct sockaddr_storage          dnss_addr;
   char                             dev_name[ NETMGR_IF_NAME_MAX_LEN ];
+  unsigned int                     mtu;
   unsigned int                     user_cmd;
+  netmgr_user_cmd_data_t           cmd_data;
 } netmgr_nl_event_info_t;
 
 typedef unsigned int  netmgr_client_hdl_t;
@@ -310,7 +343,8 @@ int netmgr_client_send_ping_msg();
 
 */
 /*=========================================================================*/
-int netmgr_client_send_user_cmd(int cmd);
+int netmgr_client_send_user_cmd(int cmd,
+                                netmgr_user_cmd_data_t *cmd_data);
 
 
 #endif /* __NETMGR_H__ */

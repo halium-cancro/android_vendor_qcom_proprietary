@@ -4,18 +4,6 @@
   Copyright (c) 2010-2014 Qualcomm Technologies, Inc.  All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
-  Export of this technology or software is regulated by the U.S. Government.
-  Diversion contrary to U.S. law prohibited.
-
-  All ideas, data and information contained in or disclosed by
-  this document are confidential and proprietary information of
-  Qualcomm Technologies, Inc. and all rights therein are expressly reserved.
-  By accepting this material the recipient agrees that this material
-  and the information contained therein are held in confidence and in
-  trust and will not be used, copied, reproduced in whole or in part,
-  nor its contents revealed in any manner to others without the express
-  written permission of QUALCOMM Technologies, Inc.
-
 ===========================================================================*/
 
 /*===========================================================================
@@ -29,7 +17,24 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim.c#8 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+12/01/14   hh      Support for get MCC and MNC
+11/12/14   at      Support for RIL SAP
+09/12/14   at      Change the Vcc property name to persist
+08/20/14   at      Support for graceful UICC Voltage supply deactivation
+06/18/14   at      Support for SelectNext using reselect QMI command
+06/12/14   at      Support for auto device configuration
+06/11/14   at      Support for open logical channel API
+06/10/14   tl      Removed array structures for slot specific parameters
+06/05/14   tl      Add support for recovery indication
+05/14/14   yt      Support for STATUS command as part of SIM_IO request
+04/18/14   tkl     Added support for RIL_REQUEST_SIM_AUTHENTICATION
+01/21/14   at      Added support for getSelectResponse()
+01/17/14   at      Changed the feature checks for RIL_REQUEST_SIM_GET_ATR
 01/15/14   at      Added QMI UIM initialization retry mechanism
+12/23/13   at      Support for Fusion 4.5 device configuration
+12/10/13   at      Updated feature checks with new ones for APDU APIs
+11/19/13   at      Changed the feature checks for streaming APDU APIs
+12/11/13   at      Switch to new QCCI framework
 09/11/13   yt      Initialize slot in encrypted PIN info structure
 08/12/13   at      Added support for Long APDU indication
 02/28/13   at      Support for SGLTE2 device configuration
@@ -91,11 +96,18 @@ when       who     what, where, why
 #include "qcril_uim_util.h"
 #include "qcril_uim_restart.h"
 #include "qcril_uim_qcci.h"
+#include "qmi_client_instance_defs.h"
+#include "qmi_cci_target_ext.h"
+#include "qcril_uim_sap.h"
 #include <string.h>
 #include <cutils/properties.h>
 
 /* Android system property for fetching the modem type */
 #define QCRIL_UIM_PROPERTY_BASEBAND               "ro.baseband"
+
+/* Android property to enable supply voltage feature */
+#define QCRIL_UIM_PROPERTY_FEATURE_VCC             "persist.qcril_uim_vcc_feature"
+#define QCRIL_UIM_PROP_FEATURE_VCC_ENABLED_VALUE   "1"
 
 /* Android system property values for various modem types */
 #define QCRIL_UIM_PROP_BASEBAND_VALUE_SVLTE_1     "svlte1"
@@ -108,6 +120,8 @@ when       who     what, where, why
 #define QCRIL_UIM_PROP_BASEBAND_VALUE_MDMUSB      "mdm"
 #define QCRIL_UIM_PROP_BASEBAND_VALUE_DSDA        "dsda"
 #define QCRIL_UIM_PROP_BASEBAND_VALUE_DSDA_2      "dsda2"
+#define QCRIL_UIM_PROP_BASEBAND_VALUE_FUSION_4_5  "mdm2"
+#define QCRIL_UIM_PROP_BASEBAND_VALUE_AUTO        "auto"
 
 /* QMI init retry related defines */
 #define QCRIL_UIM_QMI_INIT_MAX_RETRIES            10
@@ -331,6 +345,23 @@ static qcril_uim_callback_params_type* qcril_uim_copy_callback
       *total_size_ptr += rsp_data_ptr->rsp_data.get_atr_rsp.atr_response.data_len;
       break;
 
+    case QMI_UIM_SRVC_LOGICAL_CHANNEL_RSP_MSG:
+    case QMI_UIM_SRVC_OPEN_LOGICAL_CHANNEL_RSP_MSG:
+      *total_size_ptr += rsp_data_ptr->rsp_data.logical_channel_rsp.select_response.data_len;
+      break;
+
+    case QMI_UIM_SRVC_SEND_STATUS_RSP_MSG:
+      *total_size_ptr += rsp_data_ptr->rsp_data.send_status_rsp.status_response.data_len;
+      break;
+
+    case QMI_UIM_SRVC_RESELECT_RSP_MSG:
+      *total_size_ptr += rsp_data_ptr->rsp_data.reselect_rsp.select_response.data_len;
+      break;
+
+    case QMI_UIM_SRVC_SAP_REQUEST_RSP_MSG:
+      *total_size_ptr += rsp_data_ptr->rsp_data.sap_response_rsp.sap_response.data_len;
+      break;
+
     default:
       break;
   }
@@ -444,6 +475,45 @@ static qcril_uim_callback_params_type* qcril_uim_copy_callback
              rsp_data_ptr->rsp_data.get_atr_rsp.atr_response.data_len);
       break;
 
+    case QMI_UIM_SRVC_LOGICAL_CHANNEL_RSP_MSG:
+    case QMI_UIM_SRVC_OPEN_LOGICAL_CHANNEL_RSP_MSG:
+      out_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_ptr =
+        (uint8*)&out_ptr->payload;
+      memcpy(out_ptr->qmi_rsp_data.rsp_data.logical_channel_rsp.select_response.data_ptr,
+             rsp_data_ptr->rsp_data.logical_channel_rsp.select_response.data_ptr,
+             rsp_data_ptr->rsp_data.logical_channel_rsp.select_response.data_len);
+      break;
+
+    case QMI_UIM_SRVC_SEND_STATUS_RSP_MSG:
+      if (rsp_data_ptr->rsp_data.send_status_rsp.status_response.data_len > 0)
+      {
+        out_ptr->qmi_rsp_data.rsp_data.send_status_rsp.status_response.data_ptr =
+          (uint8*)&out_ptr->payload;
+        memcpy(out_ptr->qmi_rsp_data.rsp_data.send_status_rsp.status_response.data_ptr,
+               rsp_data_ptr->rsp_data.send_status_rsp.status_response.data_ptr,
+               rsp_data_ptr->rsp_data.send_status_rsp.status_response.data_len);
+      }
+      break;
+
+    case QMI_UIM_SRVC_RESELECT_RSP_MSG:
+      if (rsp_data_ptr->rsp_data.reselect_rsp.select_response.data_len > 0)
+      {
+        out_ptr->qmi_rsp_data.rsp_data.reselect_rsp.select_response.data_ptr =
+          (uint8*)&out_ptr->payload;
+        memcpy(out_ptr->qmi_rsp_data.rsp_data.reselect_rsp.select_response.data_ptr,
+               rsp_data_ptr->rsp_data.reselect_rsp.select_response.data_ptr,
+               rsp_data_ptr->rsp_data.reselect_rsp.select_response.data_len);
+      }
+      break;
+
+    case QMI_UIM_SRVC_SAP_REQUEST_RSP_MSG:
+      out_ptr->qmi_rsp_data.rsp_data.sap_response_rsp.sap_response.data_ptr =
+        (uint8*)&out_ptr->payload;
+      memcpy(out_ptr->qmi_rsp_data.rsp_data.sap_response_rsp.sap_response.data_ptr,
+             rsp_data_ptr->rsp_data.sap_response_rsp.sap_response.data_ptr,
+             rsp_data_ptr->rsp_data.sap_response_rsp.sap_response.data_len);
+      break;
+
     default:
       break;
   }
@@ -467,8 +537,6 @@ static qcril_uim_callback_params_type* qcril_uim_copy_callback
 /*=========================================================================*/
 void qcril_uim_indication_cb
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   void                         * user_data,
   qmi_uim_indication_id_type     ind_id,
   qmi_uim_indication_data_type * ind_data_ptr
@@ -495,6 +563,8 @@ void qcril_uim_indication_cb
     case QMI_UIM_SRVC_STATUS_CHANGE_IND_MSG:
     case QMI_UIM_SRVC_REFRESH_IND_MSG:
     case QMI_UIM_SRVC_SEND_APDU_IND_MSG:
+    case QMI_UIM_SRVC_RECOVERY_IND_MSG:
+    case QMI_UIM_SRVC_SUPPLY_VOLTAGE_IND_MSG:
       ind_params_ptr =
           qcril_uim_copy_indication(ind_id,
                                     ind_data_ptr,
@@ -547,8 +617,6 @@ void qcril_uim_indication_cb
 /*=========================================================================*/
 void qmi_uim_callback
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   qmi_uim_rsp_data_type        * rsp_data_ptr,
   void                         * user_data
 )
@@ -612,8 +680,6 @@ void qmi_uim_callback
 /*=========================================================================*/
 void qmi_uim_card_init_callback
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   qmi_uim_rsp_data_type        * rsp_data_ptr,
   void                         * user_data
 )
@@ -641,9 +707,7 @@ void qmi_uim_card_init_callback
 
       ind_data.status_change_ind.card_status_validity = rsp_data_ptr->rsp_data.get_card_status_rsp.card_status_validity;
 
-      qcril_uim_indication_cb(user_handle,
-                              service_id,
-                              user_data,
+      qcril_uim_indication_cb(user_data,
                               QMI_UIM_SRVC_STATUS_CHANGE_IND_MSG,
                               &ind_data);
   }
@@ -665,19 +729,19 @@ void qmi_uim_card_init_callback
     Mapped port string value defined by QMI service.
 */
 /*=========================================================================*/
-static char * qcril_uim_find_modem_port
+static qmi_client_qmux_instance_type qcril_uim_find_modem_port
 (
   char   * prop_value_ptr
 )
 {
-  char  * qmi_modem_port_ptr = QMI_PORT_RMNET_0;
+  qmi_client_qmux_instance_type qmi_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
 
   /* Sanity check */
   if (prop_value_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "NULL prop_value_ptr, using default port");
     QCRIL_ASSERT(0);
-    return qmi_modem_port_ptr;
+    return qmi_modem_port;
   }
 
   QCRIL_LOG_INFO("Baseband property value read: %s\n", prop_value_ptr);
@@ -687,51 +751,58 @@ static char * qcril_uim_find_modem_port
       (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_SVLTE_2A) == 0) ||
       (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_CSFB)     == 0))
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_SDIO_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_SDIO_INSTANCE_0;
   }
   else if ((strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_MDMUSB) == 0) ||
-           (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_SGLTE2) == 0))
+           (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_SGLTE2) == 0) ||
+           (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_AUTO)   == 0))
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_USB_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
   }
   else if ((strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_MSM)    == 0) ||
            (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_APQ)    == 0) ||
-           (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_SGLTE) == 0))
+           (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_SGLTE)  == 0))
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
   }
   else if (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_DSDA) == 0)
   {
     /* If it is a DSDA configuration, ports are set based on RILD instance */
     if (qmi_ril_get_process_instance_id() == QCRIL_DEFAULT_INSTANCE_ID)
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET_USB_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
     }
     else
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET_SMUX_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_SMUX_INSTANCE_0;
     }
   }
   else if (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_DSDA_2) == 0)
   {
-    /* If it is a DSDA2 configuration, ports are set based on RILD instance */
+    /* If it is a DSDA2 configuration, ports are set based on RILD instance.
+       Note that there is no support of RMNET2 over USB on mainline since that
+       config is not supported. Need to revisit this config for future support */
     if (qmi_ril_get_process_instance_id() == QCRIL_DEFAULT_INSTANCE_ID)
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET_USB_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
     }
     else
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET2_USB_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_1;
     }
+  }
+  else if (strcmp(prop_value_ptr, QCRIL_UIM_PROP_BASEBAND_VALUE_FUSION_4_5) == 0)
+  {
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_MHI_INSTANCE_0;
   }
   else
   {
     QCRIL_LOG_ERROR("%s", "Property value does not match, using default port");
   }
 
-  QCRIL_LOG_INFO("QMI port found for modem: %s\n", qmi_modem_port_ptr);
+  QCRIL_LOG_INFO("QMI port found for modem: 0x%x\n", qmi_modem_port);
 
-  return qmi_modem_port_ptr;
+  return qmi_modem_port;
 } /* qcril_uim_find_modem_port */
 
 
@@ -753,16 +824,12 @@ void qcril_uim_reset_state
   void
 )
 {
-  uint8   slot_index = 0;
-
   /* Clean up refresh info */
   qcril_uim_init_refresh_info();
 
-  /* Clean up Long APDU info, if any */
-  for (slot_index = 0; slot_index < QMI_UIM_MAX_CARD_COUNT; slot_index++)
-  {
-    qcril_uim_cleanup_long_apdu_info(slot_index);
-  }
+  /* Clean up Long APDU & select response info, if any */
+  qcril_uim_cleanup_long_apdu_info();
+  qcril_uim_cleanup_select_response_info();
 
   /* Initialize global variables */
   memset(&qcril_uim, 0, sizeof(qcril_uim_struct_type));
@@ -778,8 +845,6 @@ void qcril_uim_reset_state
                                 QCRIL_UIM_PROV_SESSION_NOT_ACTIVATED;
   qcril_uim.prov_session_info.session_state_1x_indexes[2] =
                                 QCRIL_UIM_PROV_SESSION_NOT_ACTIVATED;
-
-  qcril_uim.qmi_msg_lib_handle = QMI_INVALID_CLIENT_HANDLE;
 
   qcril_uim_init_card_status(&qcril_uim.card_status);
 
@@ -811,19 +876,23 @@ void qcril_uim_init_state
   int                            qmi_err_code    = QMI_NO_ERR;
   qmi_uim_event_reg_params_type  event_reg_params;
   qmi_uim_rsp_data_type          rsp_data;
-  char                           prop_value[PROPERTY_VALUE_MAX];
-  char                         * qmi_modem_port = NULL;
+  char                           baseband_prop_value[PROPERTY_VALUE_MAX];
+  char                           vcc_prop_value[PROPERTY_VALUE_MAX];
+  qmi_client_qmux_instance_type  qmi_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
   uint8                          num_retries    = 0;
 
   /* Initialize QMI service */
   QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "init" );
 
   /* Find out the modem type */
-  memset(prop_value, 0x00, sizeof(prop_value));
-  property_get(QCRIL_UIM_PROPERTY_BASEBAND, prop_value, "");
+  memset(baseband_prop_value, 0x00, sizeof(baseband_prop_value));
+  property_get(QCRIL_UIM_PROPERTY_BASEBAND, baseband_prop_value, "");
+
+  memset(vcc_prop_value, 0x00, sizeof(vcc_prop_value));
+  property_get(QCRIL_UIM_PROPERTY_FEATURE_VCC, vcc_prop_value, "");
 
   /* Map to a respective QMI port */
-  qmi_modem_port = qcril_uim_find_modem_port(prop_value);
+  qmi_modem_port = qcril_uim_find_modem_port(baseband_prop_value);
   QCRIL_ASSERT(qmi_modem_port != NULL);
 
   do
@@ -839,22 +908,30 @@ void qcril_uim_init_state
                                                           NULL,
                                                           &qmi_err_code);
     num_retries++;
-  } while ((qcril_uim.qmi_handle < 0) &&
+  } while ((qcril_uim.qmi_handle == NULL) &&
            (qmi_err_code != QMI_NO_ERR)   &&
            (num_retries < QCRIL_UIM_QMI_INIT_MAX_RETRIES));
 
-  if (qcril_uim.qmi_handle < 0)
+  if ((qcril_uim.qmi_handle == NULL) || (qmi_err_code != QMI_NO_ERR))
   {
     QCRIL_LOG_ERROR("Could not register successfully with QMI UIM Service. Error: %d\n",
                     qmi_err_code);
+    return;
   }
-  QCRIL_ASSERT(qcril_uim.qmi_handle >= 0);
 
   /* Register for both legacy and extended card status events to accomodate
      modems supporting either event. */
   memset(&event_reg_params, 0, sizeof(qmi_uim_event_reg_params_type));
-  event_reg_params.card_status = QMI_UIM_TRUE;
+  event_reg_params.card_status          = QMI_UIM_TRUE;
   event_reg_params.extended_card_status = QMI_UIM_TRUE;
+  if (strcmp(vcc_prop_value, QCRIL_UIM_PROP_FEATURE_VCC_ENABLED_VALUE)  == 0)
+  {
+    event_reg_params.supply_voltage_status = QMI_UIM_TRUE;
+  }
+
+#if defined (FEATURE_QCRIL_UIM_REMOTE_SERVER) || defined (FEATURE_QCRIL_UIM_SAP_SERVER_MODE)
+  event_reg_params.sap_connection       = QMI_UIM_TRUE;
+#endif /* FEATURE_QCRIL_UIM_REMOTE_SERVER || FEATURE_QCRIL_UIM_SAP_SERVER_MODE */
 
   QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "event register" );
   qmi_err_code = qcril_qmi_uim_event_reg(qcril_uim.qmi_handle,
@@ -888,9 +965,9 @@ void qcril_uim_init
  void
 )
 {
-  int                       qmi_err_code;
-  char                      prop_value[PROPERTY_VALUE_MAX];
-  char                    * qmi_modem_port = NULL;
+  int                            qmi_err_code;
+  char                           prop_value[PROPERTY_VALUE_MAX];
+  qmi_client_qmux_instance_type  qmi_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
 
   QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
 
@@ -903,26 +980,15 @@ void qcril_uim_init
 
   /* Map to a respective QMI port */
   qmi_modem_port = qcril_uim_find_modem_port(prop_value);
-  QCRIL_ASSERT(qmi_modem_port != NULL);
-
-  qcril_uim.qmi_msg_lib_handle = qmi_init(NULL, NULL);
-  if (qcril_uim.qmi_msg_lib_handle  < 0)
-  {
-    QCRIL_LOG_ERROR("%s","Could not initialize qmi message library");
-    qcril_uim.qmi_handle = -1;
-  }
-  QCRIL_ASSERT(qcril_uim.qmi_handle >= 0);
 
   /* Initialize QMI connenction only once during power up */
 #ifdef FEATURE_QCRIL_UIM_QMI_RPC_QCRIL
   if (qmi_connection_init(qmi_modem_port, &qmi_err_code) < 0)
   {
     QCRIL_LOG_ERROR("Could not connect with QMI Interface. Error: %d\n", qmi_err_code);
-    qcril_uim.qmi_handle = -1;
+    qcril_uim.qmi_handle = NULL;
   }
 #endif /* FEATURE_QCRIL_UIM_QMI_RPC_QCRIL */
-
-  QCRIL_ASSERT(qcril_uim.qmi_handle >= 0);
 
   /* Get QMI handle and initialize card status */
   qcril_uim_init_state();
@@ -940,34 +1006,23 @@ void qcril_uim_release
 )
 {
   int                   qmi_err_code = 0;
-  uint8                 slot_index   = 0;
   qcril_modem_id_e_type modem_id     = QCRIL_MAX_MODEM_ID - 1;
 
   QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
-  if (qcril_uim.qmi_msg_lib_handle < 0)
-  {
-    QCRIL_LOG_ERROR( "%s qmi message library was never "
-                     "initialized\n", __FUNCTION__);
-    return;
-  }
+
   /* Deinitialize QMI interface */
-  if (qcril_uim.qmi_handle != 0)
+  if (qcril_uim.qmi_handle != NULL)
   {
     QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "release" );
     qcril_qmi_uim_srvc_release_client(qcril_uim.qmi_handle, &qmi_err_code);
   }
 
-  qmi_release(qcril_uim.qmi_msg_lib_handle);
-  qcril_uim.qmi_msg_lib_handle = QMI_INVALID_CLIENT_HANDLE;
-
   /* Cleanup refresh data */
   qcril_uim_cleanup_refresh_info();
 
-  /* Clean up Long APDU info, if any */
-  for (slot_index = 0; slot_index < QMI_UIM_MAX_CARD_COUNT; slot_index++)
-  {
-    qcril_uim_cleanup_long_apdu_info(slot_index);
-  }
+  /* Clean up Long APDU info & select response info, if any */
+  qcril_uim_cleanup_long_apdu_info();
+  qcril_uim_cleanup_select_response_info();
 } /* qcril_uim_release */
 
 
@@ -1029,6 +1084,10 @@ void qcril_uim_process_qmi_callback
       {
         qcril_uim_get_imsi_resp(callback_params_ptr);
       }
+      else if (callback_params_ptr->orig_req_data->request_id == QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC)
+      {
+        qcril_uim_get_mcc_mnc_resp(callback_params_ptr);
+      }
       else
       {
         qcril_uim_read_binary_resp(callback_params_ptr);
@@ -1084,24 +1143,50 @@ void qcril_uim_process_qmi_callback
       break;
 
      case QMI_UIM_SRVC_AUTHENTICATE_RSP_MSG:
-      qcril_uim_isim_authenticate_resp(callback_params_ptr);
+      qcril_uim_sim_authenticate_resp(callback_params_ptr);
       break;
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#if defined(RIL_REQUEST_SIM_OPEN_CHANNEL) || defined(RIL_REQUEST_SIM_CLOSE_CHANNEL)
     case QMI_UIM_SRVC_LOGICAL_CHANNEL_RSP_MSG:
+    case QMI_UIM_SRVC_OPEN_LOGICAL_CHANNEL_RSP_MSG:
       qcril_uim_logical_channel_resp(callback_params_ptr);
       break;
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL || RIL_REQUEST_SIM_CLOSE_CHANNEL */
 
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
     case QMI_UIM_SRVC_SEND_APDU_RSP_MSG:
       qcril_uim_send_apdu_resp(callback_params_ptr);
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
+#if defined RIL_REQUEST_SIM_GET_ATR
     case QMI_UIM_SRVC_GET_ATR_RSP_MSG:
       qcril_uim_get_atr_resp(callback_params_ptr);
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+#endif /* RIL_REQUEST_SIM_GET_ATR */
+
+    case QMI_UIM_SRVC_SEND_STATUS_RSP_MSG:
+      qcril_uim_send_status_resp(callback_params_ptr);
+      break;
+
+    case QMI_UIM_SRVC_RESELECT_RSP_MSG:
+      qcril_uim_reselect_resp(callback_params_ptr);
+      break;
+
+    case QMI_UIM_SRVC_SUPPLY_VOLTAGE_RSP_MSG:
+      qcril_uim_voltage_supply_resp(callback_params_ptr);
+
+#if defined (FEATURE_QCRIL_UIM_REMOTE_SERVER) || defined (FEATURE_QCRIL_UIM_SAP_SERVER_MODE)
+    case QMI_UIM_SRVC_SAP_CONNECTION_RSP_MSG:
+      qcril_uim_sap_qmi_handle_sap_connection_resp(callback_params_ptr);
+      break;
+
+    case QMI_UIM_SRVC_SAP_REQUEST_RSP_MSG:
+      qcril_uim_sap_qmi_handle_sap_request_resp(callback_params_ptr);
+      break;
+#endif /* FEATURE_QCRIL_UIM_REMOTE_SERVER || FEATURE_QCRIL_UIM_SAP_SERVER_MODE */
 
     case QMI_UIM_SRVC_POWER_DOWN_RSP_MSG:
     case QMI_UIM_SRVC_POWER_UP_RSP_MSG:
@@ -1171,11 +1256,21 @@ void qcril_uim_process_qmi_indication
       qcril_uim_process_refresh_ind(ind_param_ptr, ret_ptr);
       break;
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
     case QMI_UIM_SRVC_SEND_APDU_IND_MSG:
       qcril_uim_process_send_apdu_ind(ind_param_ptr, ret_ptr);
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+
+    case QMI_UIM_SRVC_RECOVERY_IND_MSG:
+      qcril_uim_process_recovery_ind(ind_param_ptr, ret_ptr);
+      break;
+
+    case QMI_UIM_SRVC_SUPPLY_VOLTAGE_IND_MSG:
+      qcril_uim_process_supply_voltage_ind(ind_param_ptr, ret_ptr);
+      break;
 
     default:
       QCRIL_LOG_ERROR("Unsupported indication! 0x%x\n", ind_param_ptr->ind_id);
@@ -1186,7 +1281,7 @@ void qcril_uim_process_qmi_indication
   qcril_free(ind_param_ptr);
   ind_param_ptr = NULL;
 
-} /* qcril_mmgsdi_process_qmi_indication */
+} /* qcril_uim_process_qmi_indication */
 
 
 /*=========================================================================
@@ -1290,6 +1385,10 @@ void qcril_uim_process_internal_command
 
     case QCRIL_EVT_INTERNAL_MMGSDI_MODEM_RESTART_COMPLETE:
       qcril_uim_process_modem_restart_complete(params_ptr, ret_ptr);
+      break;
+
+    case QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC:
+      qcril_uim_request_get_mcc_mnc(params_ptr, ret_ptr);
       break;
 
     default:

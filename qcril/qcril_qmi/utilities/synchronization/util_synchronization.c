@@ -12,6 +12,8 @@
 #include "util_synchronization.h"
 #include "util_log.h"
 
+int qmi_shutdown_sync_thread = 0;
+
 static const char* util_sync_bit_field_names[] =
 {
     "COND_VAR_USED",
@@ -148,6 +150,12 @@ int util_sync_data_wait_on_cond(util_sync_data_type *sync_data,
         {
             ret = pthread_cond_wait(&sync_data->sync_cond,
                                     &sync_data->sync_mutex);
+#ifdef QMI_RIL_UTF
+            if ( qmi_shutdown_sync_thread != 0 )
+            {
+              pthread_exit(NULL);
+            }
+#endif
         }
     }
 

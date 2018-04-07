@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2015 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -42,7 +42,6 @@
 when       who        what, where, why
 --------   ---        -------------------------------------------------------
 02/11/10   ar         Initial version (derived from DSC file)
-12/10/12   harouth    Added DNS route adding feature
 
 ******************************************************************************/
 
@@ -95,6 +94,8 @@ when       who        what, where, why
 #include "netmgr_exec.h"
 #include "netmgr_kif.h"
 #include "netmgr_main.h"
+#include "netmgr_tc.h"
+#include "netmgr_qmi_dfs.h"
 
 #ifdef NETMGR_OFFTARGET
 #include "netmgr_stubs.h"
@@ -103,8 +104,6 @@ when       who        what, where, why
 #define NETMGR_KIF_IPV6_MULTICAST_ROUTER_ADDR  "FF02::2"
 #define NETMGR_KIF_MAX_COMMAND_LENGTH   200
 #define NETMGR_KIF_ARR_SIZE(x)  (sizeof(x)/sizeof(x[0]))
-
-#define NETMGR_NUMBER_OF_INT32_IN_IPV6_ADDR 4
 
 #define NETMGR_KIF_DROP_SSDP_CMD_FORMAT "iptables -I OUTPUT 1 -o %s -p udp --dport 1900 -j DROP -m comment --comment \"Drop SSDP on WWAN\""
 /* Defined in libnetutils.  These are not declared in any header file. */
@@ -174,6 +173,11 @@ extern int ifc_reset_connections(const char *ifname);
 #define NETMGR_KIF_SYSCMD_FLUSHADDR "/bin/ip addr flush dev %s"
 #else
 #define NETMGR_KIF_SYSCMD_FLUSHADDR "/system/bin/ip addr flush dev %s"
+
+#define NETMGR_KIF_SYSCMD_V6_FLUSHADDR "/system/bin/ip -6 addr flush dev %s"
+
+#define NETMGR_KIF_SYSCMD_V6_FLUSH_GLOBAL_ADDR "/system/bin/ip -6 addr flush dev %s scope global"
+
 #endif
 #define NETMGR_KIF_SYSCMD_SIZ  (256)
 
@@ -209,6 +213,11 @@ static char addr_buf[PROPERTY_VALUE_MAX];
 #define NETMGR_KIF_PROPERTY_MTU_SIZE     (4)
 #define NETMGR_KIF_PROPERTY_MTU_DEFAULT  NETMGR_MTU_INVALID
 
+#define NETMGR_KIF_WLAN_DEFAULT_ROUTE_ADD_MAX_RETRY  (3)
+
+#define NETMGR_KIF_LINK_LOCAL_NETWORK    "oem10"
+
+boolean link_local_network_created = FALSE;
 #endif /* FEATURE_DS_LINUX_ANDROID */
 
 /*---------------------------------------------------------------------------
@@ -224,31 +233,390 @@ static char addr_buf[PROPERTY_VALUE_MAX];
 
 #define NETMGR_KIF_GET_FORWARDING_ENABLED(family) \
   ((AF_INET == family) ?                          \
-   netmgr_kif_cfg.xfrm.is_v4_forwarding_enabled : \
-   netmgr_kif_cfg.xfrm.is_v6_forwarding_enabled)
+   netmgr_kif_cfg.iwlan.is_v4_forwarding_enabled : \
+   netmgr_kif_cfg.iwlan.is_v6_forwarding_enabled)
 
 #define NETMGR_KIF_SET_FORWARDING_ENABLED(family, status)    \
   *(((AF_INET == family) ?                                   \
-    &netmgr_kif_cfg.xfrm.is_v4_forwarding_enabled :          \
-    &netmgr_kif_cfg.xfrm.is_v6_forwarding_enabled)) = status
+    &netmgr_kif_cfg.iwlan.is_v4_forwarding_enabled :         \
+    &netmgr_kif_cfg.iwlan.is_v6_forwarding_enabled)) = status
 
-#define NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(family) \
-  ((AF_INET == family) ?                                \
-   netmgr_kif_cfg.xfrm.is_v4_policy_routing_installed : \
-   netmgr_kif_cfg.xfrm.is_v6_policy_routing_installed)
+#define NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(family)  \
+  ((AF_INET == family) ?                                 \
+   netmgr_kif_cfg.iwlan.is_v4_policy_routing_installed : \
+   netmgr_kif_cfg.iwlan.is_v6_policy_routing_installed)
 
 #define NETMGR_KIF_SET_POLICY_ROUTING_INSTALLED(family, status)    \
   *(((AF_INET == family) ?                                         \
-    &netmgr_kif_cfg.xfrm.is_v4_policy_routing_installed :          \
-    &netmgr_kif_cfg.xfrm.is_v6_policy_routing_installed)) = status
+    &netmgr_kif_cfg.iwlan.is_v4_policy_routing_installed :         \
+    &netmgr_kif_cfg.iwlan.is_v6_policy_routing_installed)) = status
 
-typedef struct{
+#define NETMGR_KIF_GET_LB_POLICY_ROUTING_INSTALLED(family)  \
+  ((AF_INET == family) ?                                    \
+   netmgr_kif_cfg.iwlan.is_v4_lb_policy_routing_installed : \
+   netmgr_kif_cfg.iwlan.is_v6_lb_policy_routing_installed)
+
+#define NETMGR_KIF_SET_LB_POLICY_ROUTING_INSTALLED(family, status)  \
+  *(((AF_INET == family) ?                                          \
+    &netmgr_kif_cfg.iwlan.is_v4_lb_policy_routing_installed :       \
+    &netmgr_kif_cfg.iwlan.is_v6_lb_policy_routing_installed)) = status
+
+#define NETMGR_KIF_GET_S2B_POLICY_ROUTING_INSTALLED(family)  \
+  ((AF_INET == family) ?                                     \
+   netmgr_kif_cfg.iwlan.is_v4_s2b_policy_routing_installed : \
+   netmgr_kif_cfg.iwlan.is_v6_s2b_policy_routing_installed)
+
+#define NETMGR_KIF_SET_S2B_POLICY_ROUTING_INSTALLED(family, status)  \
+  *(((AF_INET == family) ?                                           \
+    &netmgr_kif_cfg.iwlan.is_v4_s2b_policy_routing_installed :       \
+    &netmgr_kif_cfg.iwlan.is_v6_s2b_policy_routing_installed)) = status
+
+#define NETMGR_KIF_GET_IPTABLE_RULES_INSTALLED(family)  \
+  ((AF_INET == family) ?                                \
+   netmgr_kif_cfg.iwlan.is_v4_iptable_rules_installed : \
+   netmgr_kif_cfg.iwlan.is_v6_iptable_rules_installed)
+
+#define NETMGR_KIF_SET_IPTABLE_RULES_INSTALLED(family, status)     \
+  *(((AF_INET == family) ?                                         \
+    &netmgr_kif_cfg.iwlan.is_v4_iptable_rules_installed :          \
+    &netmgr_kif_cfg.iwlan.is_v6_iptable_rules_installed)) = status
+
+#define NETMGR_KIF_GET_IPTABLE_JUMP_RULES_INSTALLED(family)   \
+  ((AF_INET == family) ?                                      \
+   netmgr_kif_cfg.iwlan.is_v4_iptable_jump_rules_installed :  \
+   netmgr_kif_cfg.iwlan.is_v6_iptable_jump_rules_installed)
+
+#define NETMGR_KIF_SET_IPTABLE_JUMP_RULES_INSTALLED(family, status)       \
+  *(((AF_INET == family) ?                                                \
+    &netmgr_kif_cfg.iwlan.is_v4_iptable_jump_rules_installed :            \
+    &netmgr_kif_cfg.iwlan.is_v6_iptable_jump_rules_installed)) = status
+
+#define NETMGR_KIF_GET_FORWARDING_RULES_INSTALLED(family)  \
+  ((AF_INET == family) ?                                   \
+   netmgr_kif_cfg.iwlan.is_v4_forwarding_rules_installed : \
+   netmgr_kif_cfg.iwlan.is_v6_forwarding_rules_installed)
+
+#define NETMGR_KIF_SET_FORWARDING_RULES_INSTALLED(family, status)  \
+  *(((AF_INET == family) ?                                         \
+    &netmgr_kif_cfg.iwlan.is_v4_forwarding_rules_installed :       \
+    &netmgr_kif_cfg.iwlan.is_v6_forwarding_rules_installed)) = status
+
+typedef struct
+{
   boolean is_v4_forwarding_enabled;
   boolean is_v6_forwarding_enabled;
   boolean is_v4_policy_routing_installed;
   boolean is_v6_policy_routing_installed;
-} netmgr_kif_xfrm_cfg_t;
+  boolean is_v4_lb_policy_routing_installed;
+  boolean is_v6_lb_policy_routing_installed;
+  boolean is_v4_s2b_policy_routing_installed;
+  boolean is_v6_s2b_policy_routing_installed;
+  boolean is_v4_iptable_rules_installed;
+  boolean is_v6_iptable_rules_installed;
+  boolean is_v4_iptable_jump_rules_installed;
+  boolean is_v6_iptable_jump_rules_installed;
+  boolean is_v4_forwarding_rules_installed;
+  boolean is_v6_forwarding_rules_installed;
+  boolean is_v4_audio_forwarding_rules_installed;
+  boolean is_v6_audio_forwarding_rules_installed;
+  boolean is_v4_audio_forwarding_rules_install_preference;
+  boolean is_v6_audio_forwarding_rules_install_preference;
+} netmgr_kif_iwlan_cfg_t;
 
+#define IPTABLES  "iptables -w"
+#define IP6TABLES "ip6tables -w"
+
+/* Create tables for iwlan iptable rules */
+typedef struct iwlan_iptables_cmd_s
+{
+  char* rule;
+} iwlan_iptables_cmd_t;
+
+LOCAL int
+netmgr_kif_disable_forwarding(void);
+
+LOCAL int
+netmgr_kif_cleanup_policy_routing_rules(int ip_family, boolean force);
+
+LOCAL int
+netmgr_kif_cleanup_custom_iwlan_chains(int ip_family, boolean force);
+
+LOCAL int
+netmgr_kif_cleanup_forwarding_rules(int ip_family, boolean force);
+
+LOCAL int
+netmgr_kif_cleanup_lb_policy_routing_rule(int link, int ip_family, boolean force);
+
+LOCAL int
+netmgr_kif_cleanup_s2b_policy_routing_rule
+(
+  int link,
+  const char *local_addr,
+  const char* dest_addr,
+  int tunnel_family,
+  boolean force
+);
+
+LOCAL int
+netmgr_kif_install_iptable_rules_ex(int link, int ip_family);
+
+LOCAL int
+netmgr_kif_remove_iptable_rules_ex(int link, int ip_family);
+
+LOCAL int
+netmgr_kif_iwlan_remove_jump_iptable_rules(int ip_family);
+
+/* Install protocol specific XFRM policies */
+#define NETMGR_KIF_UTIL_INSTALL_IPSEC_XFRM_POLICY_EX(ipsec_dir)              \
+do                                                                           \
+{                                                                            \
+  char xfrm_policy_cmd[NETMGR_MAX_COMMAND_LENGTH] = "";                      \
+  char err_str[NETMGR_MAX_COMMAND_LENGTH] = "";                              \
+  int cmd_length = 0;                                                        \
+  /* Installs policies specific to protocol and message type */              \
+  /* These rules will be installed at a higher priority than the legacy */   \
+  /* policies */                                                             \
+  /* 'proto' 58 - ICMPv6 */                                                  \
+  /* 'type' 135 - ICMPv6 Neighbor solicitation */                            \
+  /* 'type' 136 - ICMPv6 Neighbor advertisement */                           \
+  /* 'priority'  - any priority higher than the legacy policies */           \
+  /* src and dst address are generic to allow for both link-local */         \
+  /* and global addresses*/                                                  \
+  cmd_length = snprintf(  xfrm_policy_cmd,                                   \
+                          sizeof(xfrm_policy_cmd),                           \
+                          "ip xfrm policy add dir "#ipsec_dir" priority 10"  \
+                            " src ::/0 dst ::/0 proto 58 type 135;");        \
+                                                                             \
+  cmd_length += snprintf( (xfrm_policy_cmd + cmd_length),                    \
+                          (sizeof(xfrm_policy_cmd) - cmd_length),            \
+                          "ip xfrm policy add dir "#ipsec_dir" priority 10"  \
+                            " src ::/0 dst ::/0 proto 58 type 136");         \
+                                                                             \
+  if (ds_system_call3(  xfrm_policy_cmd,                                     \
+                        std_strlen(xfrm_policy_cmd),                         \
+                        err_str,                                             \
+                        sizeof(err_str),                                     \
+                        function_debug) != NETMGR_SUCCESS ||                 \
+      std_strlen(err_str) != 0)                                              \
+  {                                                                          \
+    netmgr_log_err("Failed to install v6 special policies, err: %s",         \
+                   err_str);                                                 \
+    break;                                                                   \
+  }                                                                          \
+} while (0)
+
+/* Remove protocol specific XFRM policies */
+#define NETMGR_KIF_UTIL_REMOVE_IPSEC_XFRM_POLICY_EX(ipsec_dir)               \
+do                                                                           \
+{                                                                            \
+  char xfrm_policy_cmd[NETMGR_MAX_COMMAND_LENGTH] = "";                      \
+  char err_str[NETMGR_MAX_COMMAND_LENGTH] = "";                              \
+  int cmd_length = 0;                                                        \
+  /* Removes policies specific to protocol and message type */               \
+  /* 'proto' 58 - ICMPv6 */                                                  \
+  /* 'type' 135 - ICMPv6 Neighbor solicitation */                            \
+  /* 'type' 136 - ICMPv6 Neighbor advertisement */                           \
+  /* src and dst address are generic to allow for both link-local */         \
+  /* and global addresses */                                                 \
+  cmd_length = snprintf(  xfrm_policy_cmd,                                   \
+                          sizeof(xfrm_policy_cmd),                           \
+                          "ip xfrm policy delete dir "#ipsec_dir" src ::/0"  \
+                            " dst ::/0 proto 58 type 135;");                 \
+                                                                             \
+  cmd_length += snprintf(  (xfrm_policy_cmd + cmd_length),                   \
+                           (sizeof(xfrm_policy_cmd) - cmd_length),           \
+                           "ip xfrm policy delete dir "#ipsec_dir" src ::/0" \
+                             " dst ::/0 proto 58 type 136");                 \
+                                                                             \
+  if (ds_system_call3(xfrm_policy_cmd,                                       \
+                      std_strlen(xfrm_policy_cmd),                           \
+                      err_str,                                               \
+                      sizeof(err_str),                                       \
+                      function_debug) != NETMGR_SUCCESS ||                   \
+      std_strlen(err_str) != 0)                                              \
+  {                                                                          \
+    netmgr_log_err("Failed to install v6 special policies, err: %s",         \
+                   err_str);                                                 \
+    break;                                                                   \
+  }                                                                          \
+} while (0)
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_process_rules
+===========================================================================*/
+/*!
+@brief
+  This utility function will be used to process the given set of rules
+
+@return
+  NETMGR_FAILURE
+  NETMGR_SUCCESS
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_iwlan_process_rules
+(
+  iwlan_iptables_cmd_t    *rules,
+  unsigned int            num_rules,
+  boolean                 retry
+)
+{
+  unsigned int i = 0, retry_count = 0;
+  char err_str[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  int rc = NETMGR_FAILURE;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (!rules || num_rules == 0)
+  {
+    netmgr_log_err("%s(): Invalid param!\n", __func__);
+    goto ret;
+  }
+
+  for (i = 0; i < num_rules; i++)
+  {
+    if (NETMGR_SUCCESS != ds_system_call3(rules[i].rule,
+                                          strlen(rules[i].rule),
+                                          err_str,
+                                          sizeof(err_str),
+                                          function_debug) ||
+        strlen(err_str) != 0)
+    {
+      netmgr_log_err("%s(): cmd: %s failed with err: %s\n",
+                     __func__, rules[i].rule, err_str);
+
+      if (TRUE == retry && retry_count == 0)
+      {
+        memset(err_str, 0, sizeof(err_str));
+        retry_count++;
+        i = i - 1;
+        continue;
+      }
+
+      rc = NETMGR_FAILURE;
+      goto ret;
+    }
+
+    /* Reset retry count */
+    retry_count == 0;
+  }
+
+  rc = NETMGR_SUCCESS;
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_get_cmd_obj
+===========================================================================*/
+/*!
+@brief
+  This utility function will be allocate a command object of
+  iwlan_iptables_cmd_t type
+
+@return
+  iwlan_iptables_cmd_t type object
+  NULL otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL iwlan_iptables_cmd_t*
+netmgr_kif_iwlan_get_cmd_obj(void)
+{
+  iwlan_iptables_cmd_t *cmd = NULL;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  cmd = malloc(sizeof(iwlan_iptables_cmd_t));
+
+  if (NULL == cmd)
+  {
+    netmgr_log_err("%s(): Failed to allocate command memory!\n",
+                   __func__);
+    return NULL;
+  }
+  memset(cmd, 0, sizeof(iwlan_iptables_cmd_t));
+
+  cmd->rule = malloc(NETMGR_MAX_COMMAND_LENGTH);
+  if (NULL == cmd->rule)
+  {
+    netmgr_log_err("%s(): Failed to allocate memory for command string!\n",
+                   __func__);
+
+    /* Free the cmd object */
+    if (NULL != cmd)
+    {
+      free(cmd);
+    }
+
+    return NULL;
+  }
+
+  /* Memset rule string to empty */
+  memset(cmd->rule, 0, (size_t) NETMGR_MAX_COMMAND_LENGTH);
+
+  NETMGR_LOG_FUNC_EXIT;
+  return cmd;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_release_cmd_obj
+===========================================================================*/
+/*!
+@brief
+  This utility function releases the command object of
+  iwlan_iptables_cmd_t type
+
+@return
+  iwlan_iptables_cmd_t type object
+  NULL otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL void
+netmgr_kif_iwlan_release_cmd_obj(iwlan_iptables_cmd_t* cmd)
+{
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (NULL != cmd)
+  {
+    if (NULL != cmd->rule)
+    {
+      free(cmd->rule);
+    }
+
+    free(cmd);
+  }
+
+  cmd = NULL;
+
+  NETMGR_LOG_FUNC_EXIT;
+  return;
+}
 #endif /* FEATURE_DATA_IWLAN */
 
 /*---------------------------------------------------------------------------
@@ -266,7 +634,7 @@ typedef struct {
   char    modscript[NETMGR_KIF_FILENAME_MAX_LEN];    /* module load script */
 
 #ifdef FEATURE_DATA_IWLAN
-  netmgr_kif_xfrm_cfg_t  xfrm;                  /* XFRM configuration */
+  netmgr_kif_iwlan_cfg_t  iwlan;                  /* iWLAN configuration */
 #endif /* FEATURE_DATA_IWLAN */
 } netmgr_kif_cfg_t;
 
@@ -314,6 +682,12 @@ netmgr_kif_sk_info netmgr_kif_sk_xfrm;
 
 LOCAL int natt_fd = -1;
 #endif /* FEATURE_DATA_IWLAN */
+
+/*---------------------------------------------------------------------------
+   Macros needed for ipv6 duplicate address detection
+   Time is in milli seconds.
+---------------------------------------------------------------------------*/
+#define NETMGR_KIF_IPV6_DAD_RETRANSMIT_TIME  100
 
 /*---------------------------------------------------------------------------
    Inline accessor for getting kif state for a given link
@@ -383,6 +757,32 @@ netmgr_kif_set_clnt_hdl (int link, void * clnt_hdl)
   netmgr_kif_info[link].clnt_hdl = clnt_hdl;
 }
 
+#ifdef FEATURE_DATA_IWLAN
+/*---------------------------------------------------------------------------
+  Set the audio_port_forwarding preference for the IP family
+---------------------------------------------------------------------------*/
+LOCAL void
+netmgr_kif_set_audio_port_forwarding_rules_preference
+(
+   int ip_family,
+   boolean preference
+)
+{
+  switch(ip_family)
+  {
+    case AF_INET:
+      netmgr_kif_cfg.iwlan.is_v4_audio_forwarding_rules_install_preference = preference;
+      break;
+    case AF_INET6:
+      netmgr_kif_cfg.iwlan.is_v6_audio_forwarding_rules_install_preference = preference;
+      break;
+    default:
+      netmgr_log_med("%s: invalid IP family", __func__);
+  }
+  return;
+}
+#endif
+
 /*===========================================================================
                             LOCAL FUNCTION DEFINITIONS
 ===========================================================================*/
@@ -395,12 +795,29 @@ LOCAL int netmgr_kif_close( int link,
 LOCAL void netmgr_kif_open_cnf (int link);
 
 LOCAL int
-netmgr_kif_remove_sa_and_routing_rules
-(
-  int                   link,
-  int                   ip_family,
-  netmgr_address_set_t  *addr_info_ptr
-);
+netmgr_kif_nl_post_mtu_update_msg( int link, unsigned int mtu );
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_get_active_iwlan_calls
+===========================================================================*/
+/*!
+@brief
+  Returns the number of active iWLAN calls for the given family
+
+@return
+  The number of active iWLAN calls
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL unsigned int
+netmgr_kif_get_active_iwlan_calls(int ip_family);
 
 /*===========================================================================
   FUNCTION  netmgr_kif_verify_link
@@ -421,7 +838,7 @@ netmgr_kif_remove_sa_and_routing_rules
     - None
 */
 /*=========================================================================*/
-LOCAL int
+int
 netmgr_kif_verify_link (int link)
 {
 
@@ -628,6 +1045,58 @@ netmgr_kif_ifioctl_set_mtu( const char * dev, unsigned int mtu )
 }
 
 /*===========================================================================
+  FUNCTION  netmgr_kif_get_mtu
+===========================================================================*/
+/*!
+@brief
+  Helper function to retrieve MTU on a given link.
+
+@return
+  int - link MTU if successfully queried,
+        -1 otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int
+netmgr_kif_get_mtu(int link)
+{
+  int fd;
+  struct ifreq if_mtu;
+  const char *ifname = netmgr_kif_get_name(link);
+
+  if ( ifname == NULL ) {
+    netmgr_log_err("netmgr_kif_get_mtu: invalid link [%d]", link);
+    return -1;
+  }
+
+  fd = socket(AF_INET, SOCK_STREAM, 0);
+  if ( fd < 0 ) {
+    netmgr_log_err("netmgr_kif_get_mtu: socket open failed [%d]", fd);
+    return -1;
+  }
+
+  strlcpy(if_mtu.ifr_name, ifname, IFNAMSIZ);
+  if_mtu.ifr_name[IFNAMSIZ - 1] = '\0';
+
+  if ( ioctl(fd, SIOCGIFMTU, &if_mtu) < 0 ) {
+    netmgr_log_err("netmgr_kif_get_mtu: ioctl failed to get mtu");
+    close(fd);
+    return -1;
+  }
+
+  netmgr_log_high("netmgr_kif_get_mtu: mtu=[%d]", if_mtu.ifr_mtu);
+  close(fd);
+  return if_mtu.ifr_mtu;
+}
+
+/*===========================================================================
   FUNCTION  netmgr_kif_set_mtu
 ===========================================================================*/
 /*!
@@ -648,7 +1117,7 @@ netmgr_kif_ifioctl_set_mtu( const char * dev, unsigned int mtu )
 */
 /*=========================================================================*/
 int
-netmgr_kif_set_mtu(int link)
+netmgr_kif_set_mtu(int link, boolean post_nl_ev)
 {
   /* any "failed" case below is not failing to set mtu because MTU will
      be assigned a default value, BUT we follow the same pattern as other
@@ -702,6 +1171,14 @@ netmgr_kif_set_mtu(int link)
     } else {
       netmgr_log_high( "netmgr_kif_cfg_cnf assigned MTU %d on %s\n",
                        mtu,netmgr_kif_get_name(link) );
+    }
+  }
+
+  if (TRUE == post_nl_ev)
+  {
+    if (NETMGR_SUCCESS != netmgr_kif_nl_post_mtu_update_msg(link, mtu))
+    {
+      netmgr_log_err( "failed to post MTU update netlink event\n" );
     }
   }
 
@@ -1307,6 +1784,8 @@ netmgr_kif_purge_address( int link, netmgr_ip_address_t * addr_ptr, unsigned int
   char buff[INET6_ADDRSTRLEN+1];
   int ret = NETMGR_FAILURE;
   int rc;
+  char cmd[NETMGR_KIF_SYSCMD_SIZ];
+  unsigned int cmdlen = 0;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -1379,13 +1858,14 @@ netmgr_kif_purge_address( int link, netmgr_ip_address_t * addr_ptr, unsigned int
       }
     }
 
-    /* Remove address from network interface */
-    netmgr_log_med("deleting address [%s] from iface[%s]\n", buff, netmgr_kif_info[ link ].name );
-    rc = ifc_del_address( netmgr_kif_info[ link ].name, buff, mask );
-    if( 0 > rc )
-    {
-      netmgr_log_sys_err("error on ifc_del_address():\n");
-      break;
+    cmdlen = snprintf( cmd, sizeof(cmd), NETMGR_KIF_SYSCMD_V6_FLUSH_GLOBAL_ADDR,
+                                  netmgr_kif_info[ link ].name );
+
+    rc = ds_system_call( cmd, cmdlen );
+    if( 0 > rc ) {
+         netmgr_log_sys_err("failed system call:\n");
+         ret = NETMGR_FAILURE;
+         break;
     }
 
     ret = NETMGR_SUCCESS;
@@ -1425,6 +1905,7 @@ netmgr_kif_clear_iface( int link )
   unsigned int cmdlen = 0;
   int ret = NETMGR_SUCCESS;
   int rc;
+  const char *iface_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -1459,12 +1940,21 @@ netmgr_kif_clear_iface( int link )
   union netmgr_ip_address_u  null_addr;
   memset( &null_addr, 0x0, sizeof(null_addr) );
 
-  netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, netmgr_kif_get_name(link), ".dns1",
-                            &null_addr );
-  netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, netmgr_kif_get_name(link), ".dns2",
-                            &null_addr );
-  netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, netmgr_kif_get_name(link), ".gw",
-                            &null_addr );
+  iface_name = netmgr_kif_get_name(link);
+  if(NULL == iface_name)
+  {
+    netmgr_log_err("unable to determine name for link=%d\n", link);
+    ret = NETMGR_FAILURE;
+  }
+  else
+  {
+    netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, iface_name, ".dns1",
+                              &null_addr );
+    netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, iface_name, ".dns2",
+                              &null_addr );
+    netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, iface_name, ".gw",
+                              &null_addr );
+  }
 #endif /* FEATURE_DS_LINUX_ANDROID */
 
   NETMGR_LOG_FUNC_EXIT;
@@ -1494,6 +1984,7 @@ LOCAL int
 netmgr_kif_nl_post_addr_msg( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
 {
   netmgr_nl_event_info_t event_info;
+  const char *iface_name;
 
   NETMGR_ASSERT( nlmsg_info_ptr );
 
@@ -1516,9 +2007,16 @@ netmgr_kif_nl_post_addr_msg( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
     event_info.link = link;
     event_info.param_mask |= NETMGR_EVT_PARAM_LINK;
 
-    memcpy( &event_info.dev_name,
-            netmgr_kif_get_name(link),
-            sizeof(event_info.dev_name) );
+    iface_name = netmgr_kif_get_name(link);
+    if(NULL == iface_name)
+    {
+      netmgr_log_err("netmgr_kif_nl_post_addr_msg unable to determine name for link=%d\n", link);
+      return NETMGR_FAILURE;
+    }
+
+    strlcpy( event_info.dev_name,
+             iface_name,
+             sizeof(event_info.dev_name) );
     event_info.param_mask |= NETMGR_EVT_PARAM_DEVNAME;
 
     memcpy( &event_info.addr_info.addr.ip_addr,
@@ -1538,6 +2036,9 @@ netmgr_kif_nl_post_addr_msg( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
       netmgr_log_med("netmgr_kif_nl_post_addr_msg no address cacheinfo in NEWADDR indication\n" );
     }
 
+    event_info.mtu = netmgr_kif_get_mtu(link);
+    event_info.param_mask |= NETMGR_EVT_PARAM_MTU;
+
     if( NETMGR_SUCCESS != netmgr_kif_send_event_msg( &event_info ) ) {
       netmgr_log_err("failed on send NET_PLATFORM_xxxADDR_EV\n");
       return NETMGR_FAILURE;
@@ -1550,6 +2051,285 @@ netmgr_kif_nl_post_addr_msg( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
   NETMGR_LOG_FUNC_EXIT;
   return NETMGR_SUCCESS;
 }
+
+#ifdef FEATURE_DS_LINUX_ANDROID
+/*===========================================================================
+  FUNCTION  netmgr_kif_nl_post_mtu_update_msg
+===========================================================================*/
+/*!
+@brief
+  Post MTU update event message to NetLink clients
+
+@return
+  int - NETMGR_SUCCESS on operation success, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_nl_post_mtu_update_msg( int link, unsigned int mtu )
+{
+  netmgr_nl_event_info_t event_info;
+  const char *iface_name;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  event_info.event = NET_PLATFORM_MTU_UPDATE_EV;
+
+  /* Populate attributes */
+  event_info.link = link;
+  event_info.param_mask |= NETMGR_EVT_PARAM_LINK;
+
+  iface_name = netmgr_kif_get_name(link);
+  if(NULL == iface_name)
+  {
+    netmgr_log_err("unable to determine name for link=%d\n", link);
+    return NETMGR_FAILURE;
+  }
+
+  strlcpy( event_info.dev_name,
+           iface_name,
+           sizeof(event_info.dev_name) );
+  event_info.param_mask |= NETMGR_EVT_PARAM_DEVNAME;
+
+  event_info.mtu = mtu;
+  event_info.param_mask |= NETMGR_EVT_PARAM_MTU;
+
+  if( NETMGR_SUCCESS != netmgr_kif_send_event_msg( &event_info ) ) {
+    netmgr_log_err("failed on send NET_PLATFORM_MTU_UPDATE_EV\n");
+    return NETMGR_FAILURE;
+  }
+
+  NETMGR_LOG_FUNC_EXIT;
+  return NETMGR_SUCCESS;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_create_link_network
+===========================================================================*/
+/*!
+@brief
+  Creates a new network type to handle specific use-cases ex. routing over
+  link-local interface
+
+@return
+  void
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+void
+netmgr_kif_create_link_network( int link )
+{
+  NETMGR_LOG_FUNC_ENTRY;
+
+  char ndc_create_cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
+  char ndc_add_cmd[NETMGR_MAX_COMMAND_LENGTH]    = "";
+  char error_string[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  const char *link_name = NULL;
+  int rc;
+  size_t size;
+
+  /* Return if it's a reverse link */
+  if (NETMGR_KIF_IS_REV_RMNET_LINK(link))
+  {
+    netmgr_log_med("%s(): ignoring request for reverse link=%d\n", __func__, link);
+    goto bail;
+  }
+
+  link_name = netmgr_kif_get_name(link);
+
+  if (NULL == link_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto bail;
+  }
+
+  if (QMI_WDS_IFACE_NAME_MODEM_LINK_LOCAL == netmgr_qmi_wds_get_tech_name(link))
+  {
+    /* Check if link-local network was created, if not retry creation */
+    if (!link_local_network_created)
+    {
+      snprintf(ndc_create_cmd,
+               sizeof(ndc_create_cmd),
+               "ndc network create %s",
+               NETMGR_KIF_LINK_LOCAL_NETWORK);
+
+      rc = ds_system_call3(ndc_create_cmd,
+                           (unsigned int) std_strlen(ndc_create_cmd),
+                           error_string,
+                           sizeof(error_string),
+                           function_debug);
+
+      if (NETMGR_SUCCESS != rc)
+      {
+        netmgr_log_err("%s(): Failed to create new link-local network!\n",
+                       __func__);
+        goto bail;
+      }
+
+      /* Check the buffer for the return status of the command */
+      if (std_strlen(error_string) != 0)
+      {
+        /* ndc print the string 200 0 success on successful
+         * execution of the command. We need so search
+         * for this keyword to check if the command succeeded */
+        if (NULL == strcasestr(error_string, "200 0 success"))
+        {
+          /* Command failed */
+          netmgr_log_err("%s(): Failed to create new link-local network!\n",
+                         __func__);
+          goto bail;
+        }
+      }
+
+      netmgr_log_med("%s(): Successfully created new link-local network!\n", __func__);
+      memset(error_string, 0, sizeof(error_string));
+      link_local_network_created = TRUE;
+    }
+
+    /* Add link-local interface to the network */
+    snprintf(ndc_add_cmd,
+             sizeof(ndc_add_cmd),
+             "ndc network interface add %s %s",
+             NETMGR_KIF_LINK_LOCAL_NETWORK,
+             link_name);
+
+    rc = ds_system_call3(ndc_add_cmd,
+                         (unsigned int) std_strlen(ndc_add_cmd),
+                         error_string,
+                         sizeof(error_string),
+                         function_debug);
+
+    if (NETMGR_SUCCESS != rc)
+    {
+      netmgr_log_err("%s(): Failed to add link-local network!\n", __func__);
+      goto bail;
+    }
+
+    /* Check the buffer for the return status of the command */
+    if (std_strlen(error_string) != 0)
+    {
+      /* See above */
+      if (NULL == strcasestr(error_string, "200 0 success"))
+      {
+        netmgr_log_err("%s(): Failed to add interface to link-local network for link=%d\n",
+                       __func__, link);
+        goto bail;
+      }
+    }
+
+    netmgr_log_med( "%s(): successfully added link-local network for link=%d\n", __func__, link);
+  }
+  else
+  {
+    netmgr_log_med("%s(): Link [%d] not a link-local iface, ignoring\n", __func__, link);
+  }
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_remove_link_network
+===========================================================================*/
+/*!
+@brief
+  Removes network type for specified link
+
+@return
+  void
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+void
+netmgr_kif_remove_link_network( int link )
+{
+  NETMGR_LOG_FUNC_ENTRY;
+
+  char ndc_remove_cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
+  char error_string[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  const char *link_name = NULL;
+  int rc;
+  size_t size;
+
+  /* Return if it's a reverse link */
+  if (NETMGR_KIF_IS_REV_RMNET_LINK(link))
+  {
+    netmgr_log_med("%s(): ignoring request for reverse link=%d\n", __func__, link);
+    goto bail;
+  }
+
+  link_name = netmgr_kif_get_name(link);
+
+  if (NULL == link_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto bail;
+  }
+
+  if (QMI_WDS_IFACE_NAME_MODEM_LINK_LOCAL == netmgr_qmi_wds_get_tech_name(link))
+  {
+    snprintf(ndc_remove_cmd,
+             sizeof(ndc_remove_cmd),
+             "ndc network interface remove %s %s ",
+             NETMGR_KIF_LINK_LOCAL_NETWORK,
+             link_name);
+
+    rc = ds_system_call3(ndc_remove_cmd,
+                         (unsigned int) std_strlen(ndc_remove_cmd),
+                         error_string,
+                         sizeof(error_string),
+                         function_debug);
+
+    if (NETMGR_SUCCESS != rc)
+    {
+      netmgr_log_err("%s(): Failed to remove link-local network!\n", __func__);
+      goto bail;
+    }
+
+    /* Check the buffer for the return status of the command */
+    if (std_strlen(error_string) != 0)
+    {
+      /* See above */
+      if (NULL == strcasestr(error_string, "200 0 success"))
+      {
+        netmgr_log_err("%s(): Failed to remove link-local network!\n",
+                       __func__);
+        goto bail;
+      }
+    }
+
+    netmgr_log_med( "%s(): successfully removed link-local network for link=%d\n", __func__, link);
+  }
+  else
+  {
+    netmgr_log_med("%s(): Link [%d] not a link-local iface, ignoring\n", __func__, link);
+  }
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
+}
+#endif /* FEATURE_DS_LINUX_ANDROID */
 
 /*===========================================================================
   FUNCTION  netmgr_kif_open_req
@@ -1599,6 +2379,10 @@ netmgr_kif_open_req( int link, netmgr_address_set_t * addr_info_ptr )
   }
   else
   {
+#ifdef FEATURE_DS_LINUX_ANDROID
+    netmgr_kif_create_link_network(link);
+#endif /* FEATURE_DS_LINUX_ANDROID */
+
     /* To bring up interface, issue ioctl to set IFF_UP flag to 1 */
     if( netmgr_kif_ifioctl_set_flags( netmgr_kif_get_name(link), IFF_UP, IFF_UP ) < 0 ) {
       NETMGR_ABORT("netmgr_kif_open_req: open req failed, aborting!\n");
@@ -1632,6 +2416,10 @@ LOCAL void
 netmgr_kif_close_req (int link)
 {
   NETMGR_LOG_FUNC_ENTRY;
+
+#ifdef FEATURE_DS_LINUX_ANDROID
+  netmgr_kif_remove_link_network(link);
+#endif /* FEATURE_DS_LINUX_ANDROID */
 
   netmgr_log_high("bring down kernel interface for link %d\n", link );
   /* To bring down interface, issue ioctl to set IFF_UP flag to 0 */
@@ -1777,6 +2565,18 @@ netmgr_kif_rev_rmnet_cfg_req
     netmgr_log_err("failed installing SAs and routing rules\n");
   }
 
+  /* Don't assign an address when configuring the WLAN LB interface.
+     This interface will share the same address with WLAN and if this
+     interface is brought down (with WLAN address assigned) then all
+     applications using the WLAN interface will see their sockets
+     reset due to the shared address and hence fail. This was observed
+     during VPN + iWLAN concurrency */
+  if (QMI_WDS_IFACE_NAME_WLAN_LOCAL_BRKOUT == netmgr_qmi_wds_get_tech_name(link))
+  {
+    result = NETMGR_SUCCESS;
+    goto bail;
+  }
+
   if (NETMGR_SUCCESS != netmgr_util_convert_ip_addr_to_str(ip_addr,
                                                            prefix_len,
                                                            addr_buf,
@@ -1836,7 +2636,7 @@ bail:
 */
 /*=========================================================================*/
 LOCAL int
-netmgr_kif_cfg_req (int link, netmgr_ip_addr_t addr_type)
+netmgr_kif_cfg_req (int link, netmgr_ip_addr_t addr_type, boolean is_reconfig)
 {
   int result = NETMGR_SUCCESS;
   netmgr_address_info_t * addr_info_ptr = NULL;
@@ -1855,24 +2655,33 @@ netmgr_kif_cfg_req (int link, netmgr_ip_addr_t addr_type)
   {
     struct ifreq ifr;
     struct sockaddr_in ipv4_addr;
+    char v4_addr[INET_ADDRSTRLEN], v4_netmask[INET_ADDRSTRLEN];
+    char cmd[NETMGR_KIF_MAX_COMMAND_LENGTH];
+    const char *ifname = netmgr_kif_get_name(link);
+
+    if (ifname == NULL)
+    {
+       netmgr_log_err("%s() invalid link [%d]", __func__, link);
+       return NETMGR_FAILURE;
+    }
 
     addr_info_ptr = netmgr_qmi_get_addr_info( link );
 
-    if( !addr_info_ptr ) {
-      netmgr_log_err("netmgr_kif_cfg_req: cannot get address info\n");
+    if(!addr_info_ptr)
+    {
+      netmgr_log_err("%s() cannot get address info\n", __func__);
       return NETMGR_FAILURE;
     }
 
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
-    if (sockfd  < 0) {
+    if (sockfd  < 0)
+    {
       netmgr_log_sys_err("netmgr_kif_cfg_req: socket failed:");
       return NETMGR_FAILURE;
     }
 
-    (void)strlcpy(ifr.ifr_name,
-                      netmgr_kif_info[link].name,
-                      sizeof(ifr.ifr_name));
+    (void)strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 
     /* reset IP address */
     ipv4_addr.sin_family = AF_INET;
@@ -1886,43 +2695,57 @@ netmgr_kif_cfg_req (int link, netmgr_ip_addr_t addr_type)
     if (ioctl(sockfd, SIOCSIFADDR, &ifr) < 0)
     {
       netmgr_log_sys_err("netmgr_kif_cfg_req: Cannot clear ipv4 address:");
-      perror(ifr.ifr_name);
-      result = NETMGR_FAILURE;
-    }
-
-    ipv4_addr.sin_addr.s_addr =
-           addr_info_ptr->ipv4.if_addr.addr.v4;
-
-    /*configure new IP address*/
-    memcpy(&ifr.ifr_addr,
-           &ipv4_addr,
-           sizeof(struct sockaddr));
-
-    NETMGR_LOG_IPV4_ADDR( med, "netmgr_kif_cfg_req ",
-                          addr_info_ptr->ipv4.if_addr.addr.v4);
-
-    if (ioctl(sockfd, SIOCSIFADDR, &ifr) < 0)
-    {
-      netmgr_log_sys_err("netmgr_kif_cfg_req: Cannot set ipv4 address:");
-      perror(ifr.ifr_name);
-      result = NETMGR_FAILURE;
-    }
-
-    ipv4_addr.sin_addr.s_addr =
-           addr_info_ptr->ipv4.if_mask;
-
-    memcpy(&ifr.ifr_addr,
-           &ipv4_addr,
-           sizeof(struct sockaddr));
-
-    if (ioctl(sockfd, SIOCSIFNETMASK, &ifr) < 0)
-    {
-      netmgr_log_sys_err("netmgr_kif_cfg_req: Cannot set Netmask:");
-      perror(ifr.ifr_name);
-      result = NETMGR_FAILURE;
+      perror(ifname);
+      close(sockfd);
+      return NETMGR_FAILURE;
     }
 
     close(sockfd);
+
+    /*configure new IP address*/
+    memset(v4_addr, 0, INET_ADDRSTRLEN);
+    memset(v4_netmask, 0, INET_ADDRSTRLEN);
+
+    if (!inet_ntop(AF_INET, &(addr_info_ptr->ipv4.if_addr.addr.v4), v4_addr, INET_ADDRSTRLEN))
+    {
+      netmgr_log_sys_err("netmgr_kif_cfg_req: Cannot cast ipv4 address:");
+      perror(ifname);
+      return NETMGR_FAILURE;
+    }
+    if (!inet_ntop(AF_INET, &(addr_info_ptr->ipv4.if_mask), v4_netmask, INET_ADDRSTRLEN))
+    {
+      netmgr_log_sys_err("netmgr_kif_cfg_req: Cannot cast ipv4 netmask:");
+      perror(ifname);
+      return NETMGR_FAILURE;
+    }
+
+    memset(cmd, 0, NETMGR_KIF_MAX_COMMAND_LENGTH);
+    snprintf(cmd,
+             sizeof(cmd),
+             "/system/bin/ip addr add %s/%s dev %s",
+             v4_addr,
+             v4_netmask,
+             ifname);
+
+    if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
+    {
+      netmgr_log_err("cmd: %s failed, unable to assign ipv4 address\n", cmd);
+      return NETMGR_FAILURE;
+    }
+    netmgr_log_med("%s() Assigned ipv4 address: %s netmask: %s dev %s",
+                   __func__,
+                   v4_addr,
+                   v4_netmask,
+                   ifname);
+
+  }
+  else if (NETMGR_IPV6_ADDR == addr_type && TRUE == is_reconfig)
+  {
+    netmgr_log_med("Initiating V6 router solicitation on link=%d\n", link);
+    if (NETMGR_SUCCESS != netmgr_kif_send_icmpv6_router_solicitation( link ))
+    {
+      netmgr_log_err("netmgr_kif_send_icmpv6_router_solicitation failed on link=%d\n", link);
+    }
   }
 
   return result;
@@ -2025,6 +2848,7 @@ netmgr_kif_cfg_cnf( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
   netmgr_address_set_t  * addr_ptr = NULL;
   const struct sockaddr_storage *sa_ptr = NULL;
   unsigned int mtu;
+  const char *iface_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -2036,6 +2860,133 @@ netmgr_kif_cfg_cnf( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
     return;
   }
 
+  if (nlmsg_info_ptr->addr_info.attr_info.param_mask & NETMGR_NLA_PARAM_CACHEINFO)
+  {
+    struct ifa_cacheinfo *cache_ptr = &nlmsg_info_ptr->addr_info.attr_info.cache_info;
+
+    if (0 == cache_ptr->ifa_prefered || 0 == cache_ptr->ifa_valid)
+    {
+      netmgr_log_med("netmgr_kif_cfg_cnf: ignoring NEWADDR event with lifetimes "
+                     "prefered=%d valid=%d on link=%d\n",
+                     cache_ptr->ifa_prefered, cache_ptr->ifa_valid, link);
+      return;
+    }
+  }
+
+  sa_ptr = &nlmsg_info_ptr->addr_info.attr_info.prefix_addr;
+
+  /* Fetch the runtime settings before the address caches get updated with
+     the Kernel provided address below */
+  if(AF_INET6 == sa_ptr->ss_family)
+  {
+    if (netmgr_kif_info[link].dns_v6_queried == FALSE)
+    {
+      netmgr_log_high("netmgr_kif_cfg_cnf: fetching runtime settings\n");
+      netmgr_qmi_get_modem_link_info(link, QMI_IP_FAMILY_PREF_IPV6);
+      netmgr_kif_info[link].dns_v6_queried = TRUE;
+    }
+
+    /* Fix IPv6 call, set the mtu after getting the modem link info */
+    (void)netmgr_kif_set_mtu(link, FALSE);
+  }
+
+  /* Update address cache for later use */
+  addr_info_ptr = netmgr_qmi_get_addr_info(link);
+  if (!addr_info_ptr)
+  {
+    netmgr_log_err("netmgr_kif_cfg_cnf cannot get address info\n");
+    return;
+  }
+
+  if ( AF_INET == sa_ptr->ss_family )
+  {
+    /* Compare the incoming netlink address with the cached address and save the
+     * address only if they are different */
+    if (0 != memcmp(&addr_info_ptr->ipv4.if_addr.addr.v4,
+                    SASTORAGE_DATA(*sa_ptr),
+                    sizeof(addr_info_ptr->ipv4.if_addr.addr.v4))
+        || !netmgr_kif_cfg.link_array[link].v4_qos_rules_enabled)
+    {
+#ifdef NETMGR_QOS_ENABLED
+       /* Flush any existing rules */
+       if (netmgr_main_get_qos_enabled())
+       {
+         netmgr_tc_create_delete_dynamic_post_routing_rule(link,
+                   AF_INET,
+                   addr_info_ptr,
+                   FALSE);
+         netmgr_kif_cfg.link_array[link].v4_qos_rules_enabled = FALSE;
+       }
+#endif
+
+       /* Update cache address */
+       memcpy( &addr_info_ptr->ipv4.if_addr.addr.v4,
+               SASTORAGE_DATA(*sa_ptr),
+               sizeof(addr_info_ptr->ipv4.if_addr.addr.v4) );
+       NETMGR_LOG_IPV4_ADDR( med, "updated cached ",
+                             addr_info_ptr->ipv4.if_addr.addr.v4 );
+
+#ifdef NETMGR_QOS_ENABLED
+       /* Add iptables rules with the new address on the link */
+       if (netmgr_main_get_qos_enabled())
+       {
+         netmgr_tc_create_delete_dynamic_post_routing_rule(link,
+                   AF_INET,
+                   addr_info_ptr,
+                   TRUE);
+         netmgr_kif_cfg.link_array[link].v4_qos_rules_enabled = TRUE;
+       }
+#endif
+    }
+  }
+  else if( AF_INET6 == sa_ptr->ss_family )
+  {
+    /* Compare the incoming netlink address with the cached address and save the
+     * address only if they are different */
+    if (0 != memcmp(&addr_info_ptr->ipv6.if_addr.addr.v6_addr8,
+                    SASTORAGE_DATA(*sa_ptr),
+                    sizeof(addr_info_ptr->ipv6.if_addr.addr.v6_addr8))
+        || !netmgr_kif_cfg.link_array[link].v6_qos_rules_enabled)
+    {
+#ifdef NETMGR_QOS_ENABLED
+       /* Flush any existing rules */
+       if (netmgr_main_get_qos_enabled())
+       {
+         netmgr_tc_create_delete_dynamic_post_routing_rule(link,
+                   AF_INET6,
+                   addr_info_ptr,
+                   FALSE);
+         netmgr_kif_cfg.link_array[link].v6_qos_rules_enabled = FALSE;
+       }
+#endif
+
+       /* Update the cache */
+       memcpy( addr_info_ptr->ipv6.if_addr.addr.v6_addr8,
+               SASTORAGE_DATA(*sa_ptr),
+               sizeof(addr_info_ptr->ipv6.if_addr.addr.v6_addr8) );
+       NETMGR_LOG_IPV6_ADDR( med, "updated cached ",
+                             addr_info_ptr->ipv6.if_addr.addr.v6_addr64 );
+
+#ifdef NETMGR_QOS_ENABLED
+       /* Add iptables rules with the new address on the link */
+       if (netmgr_main_get_qos_enabled())
+       {
+         netmgr_tc_create_delete_dynamic_post_routing_rule(link,
+                   AF_INET6,
+                   addr_info_ptr,
+                   TRUE);
+         netmgr_kif_cfg.link_array[link].v6_qos_rules_enabled = TRUE;
+       }
+#endif
+    }
+  }
+  else
+  {
+    netmgr_log_err("netmgr_kif_cfg_cnf unsupported address family[%d]\n",
+                   sa_ptr->ss_family );
+    return;
+  }
+
   /* Process based on current interface state */
   switch( state = netmgr_kif_get_state( link ) ) {
     case NETMGR_KIF_OPENING:
@@ -2043,7 +2994,7 @@ netmgr_kif_cfg_cnf( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
       netmgr_kif_set_state( link, NETMGR_KIF_OPEN );
       event = NETMGR_KIF_CONFIGURED_EV;
 
-      (void)netmgr_kif_set_mtu(link);
+      (void)netmgr_kif_set_mtu(link, FALSE);
 
       /* Call registered client handler to indicate that the interface has
       ** come up.
@@ -2059,37 +3010,6 @@ netmgr_kif_cfg_cnf( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
       netmgr_kif_set_state(link, NETMGR_KIF_OPEN);
       event = NETMGR_KIF_RECONFIGURED_EV;
 
-      /* Update address cache for later use */
-      addr_info_ptr = netmgr_qmi_get_addr_info( link );
-      if( !addr_info_ptr ) {
-        netmgr_log_err("netmgr_kif_cfg_cnf cannot get address info\n");
-        return;
-      }
-
-      sa_ptr = &nlmsg_info_ptr->addr_info.attr_info.prefix_addr;
-      if( AF_INET == sa_ptr->ss_family )
-      {
-        memcpy( &addr_info_ptr->ipv4.if_addr.addr.v4,
-                SASTORAGE_DATA(*sa_ptr),
-                sizeof(addr_info_ptr->ipv4.if_addr.addr.v4) );
-        NETMGR_LOG_IPV4_ADDR( med, "updated cached ",
-                              addr_info_ptr->ipv4.if_addr.addr.v4 );
-      }
-      else if( AF_INET6 == sa_ptr->ss_family )
-      {
-        memcpy( addr_info_ptr->ipv6.if_addr.addr.v6_addr8,
-                SASTORAGE_DATA(*sa_ptr),
-                sizeof(addr_info_ptr->ipv6.if_addr.addr.v6_addr8) );
-        NETMGR_LOG_IPV6_ADDR( med, "updated cached ",
-                              addr_info_ptr->ipv6.if_addr.addr.v6_addr64 );
-      }
-      else
-      {
-        netmgr_log_err("netmgr_kif_cfg_cnf unsupported address family[%d]\n",
-                       sa_ptr->ss_family );
-        return;
-      }
-
       clntcb = netmgr_kif_get_clntcb(link);
       if( clntcb ) {
         clnt_hdl = netmgr_kif_get_clnt_hdl(link);
@@ -2098,37 +3018,6 @@ netmgr_kif_cfg_cnf( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
       break;
 
     case NETMGR_KIF_OPEN:
-      /* Update address cache for later use */
-      addr_info_ptr = netmgr_qmi_get_addr_info( link );
-      if( !addr_info_ptr ) {
-        netmgr_log_err("netmgr_kif_cfg_cnf cannot get address info\n");
-        return;
-      }
-
-      sa_ptr = &nlmsg_info_ptr->addr_info.attr_info.prefix_addr;
-      if( AF_INET == sa_ptr->ss_family )
-      {
-        memcpy( &addr_info_ptr->ipv4.if_addr.addr.v4,
-                SASTORAGE_DATA(*sa_ptr),
-                sizeof(addr_info_ptr->ipv4.if_addr.addr.v4) );
-        NETMGR_LOG_IPV4_ADDR( med, "updated cached ",
-                              addr_info_ptr->ipv4.if_addr.addr.v4 );
-      }
-      else if( AF_INET6 == sa_ptr->ss_family )
-      {
-        memcpy( addr_info_ptr->ipv6.if_addr.addr.v6_addr8,
-                SASTORAGE_DATA(*sa_ptr),
-                sizeof(addr_info_ptr->ipv6.if_addr.addr.v6_addr8) );
-        NETMGR_LOG_IPV6_ADDR( med, "updated cached ",
-                              addr_info_ptr->ipv6.if_addr.addr.v6_addr64 );
-      }
-      else
-      {
-        netmgr_log_err("netmgr_kif_cfg_cnf unsupported address family[%d]\n",
-                       sa_ptr->ss_family );
-        return;
-      }
-
       /* Post event to NetLink clients for local processing */
       if( NETMGR_SUCCESS != netmgr_kif_nl_post_addr_msg( link, nlmsg_info_ptr ) ) {
         netmgr_log_err("netmgr_kif_cfg_cnf failed on posting address event for link %d\n", link);
@@ -2142,19 +3031,6 @@ netmgr_kif_cfg_cnf( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
       /* Ignore in all other states */
       netmgr_log_high("netmgr_kif_cfg_cnf called in state %d, ignoring!\n", state);
       break;
-  }
-
-  sa_ptr = &nlmsg_info_ptr->addr_info.attr_info.prefix_addr;
-
-  if((AF_INET6 == sa_ptr->ss_family)  &&
-        netmgr_kif_info[link].dns_v6_queried == FALSE)
-  {
-    netmgr_log_high("netmgr_kif_cfg_cnf: fetching runtime settings\n");
-    netmgr_qmi_get_modem_link_info(link, QMI_IP_FAMILY_PREF_IPV6);
-    netmgr_kif_info[link].dns_v6_queried = TRUE;
-
-    /* Fix IPv6 call, set the mtu after getting the modem link info */
-    (void)netmgr_kif_set_mtu(link);
   }
 
   /* Check for successful indication processing */
@@ -2180,25 +3056,31 @@ netmgr_kif_cfg_cnf( int link, const netmgr_nl_msg_t * nlmsg_info_ptr )
       Configure Android DNS server properties
     -------------------------------------------------------------------------*/
     if( NETMGR_KIF_OPEN == netmgr_kif_get_state( link ) ) {
+      iface_name = netmgr_kif_get_name(link);
+      if( NULL == iface_name)
+      {
+        netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+        return;
+      }
       /* Format based on address family type */
       switch( addr_ptr->if_addr.type ) {
         case NETMGR_IPV4_ADDR:
           /* Set iface-specific values */
-          netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, netmgr_kif_get_name(link), ".dns1",
+          netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, iface_name, ".dns1",
                                     &addr_ptr->dns_primary.addr );
-          netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, netmgr_kif_get_name(link), ".dns2",
+          netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, iface_name, ".dns2",
                                     &addr_ptr->dns_secondary.addr );
-          netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, netmgr_kif_get_name(link), ".gw",
+          netmgr_kif_set_addr_prop( NETMGR_IPV4_ADDR, iface_name, ".gw",
                                     &addr_ptr->gateway.addr );
           break;
 
         case NETMGR_IPV6_ADDR:
           /* Set iface-specific values */
-          netmgr_kif_set_addr_prop( NETMGR_IPV6_ADDR, netmgr_kif_get_name(link), ".dns1",
+          netmgr_kif_set_addr_prop( NETMGR_IPV6_ADDR, iface_name, ".dns1",
                                     &addr_ptr->dns_primary.addr );
-          netmgr_kif_set_addr_prop( NETMGR_IPV6_ADDR, netmgr_kif_get_name(link), ".dns2",
+          netmgr_kif_set_addr_prop( NETMGR_IPV6_ADDR, iface_name, ".dns2",
                                     &addr_ptr->dns_secondary.addr );
-          netmgr_kif_set_addr_prop( NETMGR_IPV6_ADDR, netmgr_kif_get_name(link), ".gw",
+          netmgr_kif_set_addr_prop( NETMGR_IPV6_ADDR, iface_name, ".gw",
                                     &addr_ptr->gateway.addr );
           break;
 
@@ -2277,6 +3159,26 @@ netmgr_kif_cfg_fail (int link, const netmgr_nl_msg_t * nlmsg_info_ptr)
         return;
       }
 
+#ifdef NETMGR_QOS_ENABLED
+      /* Flush the iptables created on RTM_DELADDR */
+      if (netmgr_main_get_qos_enabled())
+      {
+        netmgr_tc_create_delete_dynamic_post_routing_rule(link,
+                   SASTORAGE_FAMILY(nlmsg_info_ptr->addr_info.attr_info.prefix_addr),
+                   addr_info_ptr,
+                   FALSE);
+        /* Reset QoS flag */
+        if (AF_INET == SASTORAGE_FAMILY(nlmsg_info_ptr->addr_info.attr_info.prefix_addr))
+        {
+          netmgr_kif_cfg.link_array[link].v4_qos_rules_enabled = FALSE;
+        }
+        else if (AF_INET6 == SASTORAGE_FAMILY(nlmsg_info_ptr->addr_info.attr_info.prefix_addr))
+        {
+          netmgr_kif_cfg.link_array[link].v6_qos_rules_enabled = FALSE;
+        }
+      }
+#endif
+
       sa_ptr = &nlmsg_info_ptr->addr_info.attr_info.prefix_addr;
       if( AF_INET == sa_ptr->ss_family )
       {
@@ -2303,7 +3205,7 @@ netmgr_kif_cfg_fail (int link, const netmgr_nl_msg_t * nlmsg_info_ptr)
 
       /* Post event to NetLink clients for local processing */
       if( NETMGR_SUCCESS != netmgr_kif_nl_post_addr_msg( link, nlmsg_info_ptr ) ) {
-        netmgr_log_err("netmgr_kif_cfg_cnf failed on posting address event for link %d\n", link);
+        netmgr_log_err("netmgr_kif_cfg_fail failed on posting address event for link %d\n", link);
         return;
       }
       break;
@@ -2763,169 +3665,6 @@ ret:
   return;
 }
 
-#ifdef FEATURE_ADD_DNS_ROUTES
-/*===========================================================================
-  FUNCTION netmgr_check_ip_not_empty
-===========================================================================*/
-/*!
-@brief
- Checks for non-zero IP addresses
-
-@return
-  int: 0 if empty, 1 otherwise
-*/
-/*=========================================================================*/
-
-static int netmgr_check_ip_not_empty(uint32 *ip, int af)
-{
-  int i;
-  int retval = 0;
-
-  if(ip)
-  {
-    switch (af)
-    {
-    case AF_INET:
-      retval = (*ip != 0);
-      break;
-    case AF_INET6:
-      for (i = 0; i < NETMGR_NUMBER_OF_INT32_IN_IPV6_ADDR; i++)
-        if (ip[i] != 0)
-        {
-          retval = 1;
-          break;
-        }
-      break;
-    }
-  }
-
-  if (!retval)
-  {
-    netmgr_log_low("%s(): Caught empty IP\n", __func__);
-  }
-  return retval;
-}
-
-/*===========================================================================
-  FUNCTION netmgr_ip_route_add
-===========================================================================*/
-/*!
-@brief
- Prepares and makes system call to add routes to the routing table
-
-@return
-  void
-*/
-/*=========================================================================*/
-static void netmgr_ip_route_add(int addrtype,
-                                netmgr_ip_address_t dns,
-                                netmgr_ip_address_t gateway,
-                                netmgr_ip_address_t if_addr)
-{
-   /* Something to store the presentation of the addresses. INET6 > INET4 */
-   char addr[3][INET6_ADDRSTRLEN];
-   char cmd[NETMGR_KIF_SYSCMD_SIZ];
-   int cmd_result = -1;
-   int valid = 0;
-   const char *ipv4_ip_cmd = "/system/bin/ip route add %s/32 via %s src %s";
-   const char *ipv6_ip_cmd = "/system/bin/ip -6 route add %s/128 via %s src %s";
-
-   memset(cmd, 0, NETMGR_KIF_SYSCMD_SIZ);
-
-   switch(addrtype)
-   {
-   case  NETMGR_ADDRSET_MASK_IPV4:
-      if (netmgr_check_ip_not_empty(&(dns.addr.v4), AF_INET)
-          && netmgr_check_ip_not_empty(&(gateway.addr.v4), AF_INET)
-          && netmgr_check_ip_not_empty(&(if_addr.addr.v4), AF_INET))
-      {
-         inet_ntop(AF_INET, &(dns.addr.v4),     addr[0], INET_ADDRSTRLEN);
-         inet_ntop(AF_INET, &(gateway.addr.v4), addr[1], INET_ADDRSTRLEN);
-         inet_ntop(AF_INET, &(if_addr.addr.v4), addr[2], INET_ADDRSTRLEN);
-         snprintf(cmd, NETMGR_KIF_SYSCMD_SIZ, ipv4_ip_cmd, addr[0], addr[1], addr[2]);
-         valid = 1;
-      }
-      break;
-
-   case  NETMGR_ADDRSET_MASK_IPV6:
-      if (netmgr_check_ip_not_empty(dns.addr.v6_addr32, AF_INET6)
-          && netmgr_check_ip_not_empty(gateway.addr.v6_addr32, AF_INET6)
-          && netmgr_check_ip_not_empty(if_addr.addr.v6_addr32, AF_INET6))
-      {
-         inet_ntop(AF_INET6, dns.addr.v6_addr8,     addr[0], INET6_ADDRSTRLEN);
-         inet_ntop(AF_INET6, gateway.addr.v6_addr8, addr[1], INET6_ADDRSTRLEN);
-         inet_ntop(AF_INET6, if_addr.addr.v6_addr8, addr[2], INET6_ADDRSTRLEN);
-         snprintf(cmd, NETMGR_KIF_SYSCMD_SIZ, ipv6_ip_cmd, addr[0], addr[1], addr[2]);
-         valid = 1;
-      }
-      break;
-
-   default:
-      netmgr_log_err("%s(): Unkown address type %d\n", __func__, addrtype);
-      return;
-   }
-
-   if (valid)
-   {
-      netmgr_log_med("%s(): Adding DNS route: %s\n", __func__, cmd);
-
-      cmd_result = ds_system_call(cmd, strlen(cmd));
-      /* Log error and continue */
-      if (cmd_result != 0)
-      {
-         netmgr_log_err("%s(): Route add failed. Command: %s\n", __func__, cmd);
-      }
-   }
-   else
-   {
-      netmgr_log_med("%s(): Can't add invalid route."
-                     " One or more IPs are empty", __func__);
-   }
-}
-
-/*===========================================================================
-  FUNCTION netmgr_set_dns_routes
-===========================================================================*/
-/*!
-@brief
- Sets routes for DNS servers associated with a particular interface. This
- ensures that DNS packets are sent over the correct interface.
-
-@return
-  void
-*/
-/*=========================================================================*/
-static void netmgr_set_dns_routes(netmgr_address_info_t *iface_conf)
-{
-
-  if (!iface_conf)
-  {
-    netmgr_log_err("%s(): called with null iface_conf", __func__);
-    /* Nothing we can do here, just return */
-    return;
-  }
-
-  /* Set IPv4 name servers if we have IPv4 */
-  if (iface_conf->valid_mask & NETMGR_ADDRSET_MASK_IPV4)
-  {
-    netmgr_ip_route_add(NETMGR_ADDRSET_MASK_IPV4, iface_conf->ipv4.dns_primary,
-                        iface_conf->ipv4.gateway, iface_conf->ipv4.if_addr);
-    netmgr_ip_route_add(NETMGR_ADDRSET_MASK_IPV4, iface_conf->ipv4.dns_secondary,
-                        iface_conf->ipv4.gateway, iface_conf->ipv4.if_addr);
-  }
-
-  /* Set IPv6 name servers if we have IPv6 */
-  if (iface_conf->valid_mask & NETMGR_ADDRSET_MASK_IPV6)
-  {
-    netmgr_ip_route_add(NETMGR_ADDRSET_MASK_IPV6, iface_conf->ipv6.dns_primary,
-                        iface_conf->ipv6.gateway, iface_conf->ipv6.if_addr);
-    netmgr_ip_route_add(NETMGR_ADDRSET_MASK_IPV6, iface_conf->ipv6.dns_secondary,
-                        iface_conf->ipv6.gateway, iface_conf->ipv6.if_addr);
-  }
-}
-
-#endif /* FEATURE_ADD_DNS_ROUTES */
-
 /*===========================================================================
   FUNCTION  netmgr_kif_nl_recv_addr_msg
 ===========================================================================*/
@@ -3009,9 +3748,6 @@ netmgr_kif_nl_recv_addr_msg( const netmgr_nl_msg_t * nlmsg_info_ptr )
       netmgr_log_high("address configuration update on link %d\n", link);
       netmgr_kif_cfg_cnf( link, nlmsg_info_ptr );
     }
-#ifdef FEATURE_ADD_DNS_ROUTES
-    netmgr_set_dns_routes(netmgr_qmi_get_addr_info(link));
-#endif /* FEATURE_ADD_DNS_ROUTES */
   }
   else if( nlmsg_info_ptr->type == RTM_DELADDR ) {
     /* An IP address was deleted from the interface. Process based on the
@@ -3456,6 +4192,253 @@ netmgr_kif_nl_recv_xfrm_msg (int fd)
   NETMGR_LOG_FUNC_EXIT;
   return NETMGR_SUCCESS;
 }
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_remove_dynamic_audio_iptable_rules
+===========================================================================*/
+/*!
+@brief
+  This function unblocks audio ports and deletes the marking rules
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+static int
+netmgr_kif_remove_dynamic_audio_iptable_rules
+(
+  unsigned int ip_family
+)
+{
+  int rc = NETMGR_SUCCESS;
+  static const iwlan_iptables_cmd_t ims_iptable_ipv4_rules[] =
+  {
+    /* Remove tcp rule */
+    { IPTABLES " -t mangle -D qcom_iwlan_ip4_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    /* Remove udp rule */
+    { IPTABLES " -t mangle -D qcom_iwlan_ip4_mangle_pre -p udp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK }
+  };
+
+  static const iwlan_iptables_cmd_t ims_iptable_ipv6_rules[] =
+  {
+    /* Remove tcp rule */
+    { IP6TABLES " -t mangle -D qcom_iwlan_ip6_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    /* Remove udp rule */
+    { IP6TABLES " -t mangle -D qcom_iwlan_ip6_mangle_pre -p udp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK }
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (TRUE == netmgr_main_get_iwlan_ims_enabled())
+  {
+    switch(ip_family)
+    {
+      case AF_INET:
+        if( TRUE == netmgr_kif_cfg.iwlan.is_v4_audio_forwarding_rules_installed)
+        {
+          /* Remove IMS Audio iptable rules for IPV4 */
+          rc = netmgr_kif_iwlan_process_rules(ims_iptable_ipv4_rules,
+                                              NETMGR_KIF_ARR_SIZE(ims_iptable_ipv4_rules),
+                                              TRUE);
+
+          /* Check whether the rules were removed successfully */
+          if (NETMGR_SUCCESS != rc)
+          {
+            netmgr_log_err("%s(): Failed to remove dynamic audio rules for V4!\n",
+                           __func__);
+            rc = NETMGR_FAILURE;
+            break;
+          }
+
+          netmgr_kif_cfg.iwlan.is_v4_audio_forwarding_rules_installed = FALSE;
+          netmgr_log_med("%s: AF_INET rules removed successfully",__func__);
+        }
+        else
+        {
+          netmgr_log_med("%s: V4 audio rules not installed", __func__);
+        }
+        break;
+      case AF_INET6:
+        if( TRUE == netmgr_kif_cfg.iwlan.is_v6_audio_forwarding_rules_installed )
+        {
+          /* Remove IMS Audio iptable rules for IPV6 */
+          rc = netmgr_kif_iwlan_process_rules(ims_iptable_ipv6_rules,
+                                              NETMGR_KIF_ARR_SIZE(ims_iptable_ipv6_rules),
+                                              TRUE);
+
+          /* Check whether the rules were removed successfully */
+          if (NETMGR_SUCCESS != rc)
+          {
+            netmgr_log_err("%s(): Failed to remove dynamic audio rules for V6!\n",
+                           __func__);
+            rc = NETMGR_FAILURE;
+            break;
+          }
+
+          netmgr_kif_cfg.iwlan.is_v6_audio_forwarding_rules_installed = FALSE;
+          netmgr_log_med("%s: AF_INET6 rules removed successfully", __func__);
+        }
+        else
+        {
+          netmgr_log_med("%s: V6 audio rules not installed",__func__);
+        }
+        break;
+      default:
+        netmgr_log_err("%s: invalid ip_faimly received [%d]", __func__, ip_family);
+        rc =  NETMGR_FAILURE;
+        break;
+    }
+  }
+  else
+  {
+    netmgr_log_err("%s: ims disabled", __func__);
+    rc = NETMGR_FAILURE;
+  }
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_install_dynamic_audio_iptable_rules
+===========================================================================*/
+/*!
+@brief
+  This function dynamically blocks ims ports and installs the marking rules
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+static int
+netmgr_kif_install_dynamic_audio_iptable_rules
+(
+  unsigned int ip_family
+)
+{
+  int rc = NETMGR_SUCCESS;
+
+  static const iwlan_iptables_cmd_t ims_iptable_ipv4_rules[] =
+  {
+    /* Add tcp rule */
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    /* Add udp rule */
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p udp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK }
+  };
+
+  static const iwlan_iptables_cmd_t ims_iptable_ipv6_rules[] =
+  {
+    /* Add tcp rule */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    /* Add udp rule */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p udp --dport " NETMGR_KIF_IMS_AUDIO_PORT_START ":" NETMGR_KIF_IMS_AUDIO_PORT_END
+      " -j MARK --set-mark " NETMGR_KIF_FWMARK }
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (TRUE == netmgr_main_get_iwlan_ims_enabled())
+  {
+    switch(ip_family)
+    {
+      case AF_INET:
+        if(FALSE == netmgr_kif_cfg.iwlan.is_v4_audio_forwarding_rules_install_preference)
+        {
+          netmgr_log_med("%s: V4 install preference set to FALSE, not installing rules", __func__);
+        }
+        else if( TRUE == netmgr_kif_cfg.iwlan.is_v4_audio_forwarding_rules_installed)
+        {
+          netmgr_log_med("%s: V4 audio rules already installed", __func__);
+        }
+        else
+        {
+          /* Install IMS audio iptable rules for IPV4 */
+          rc = netmgr_kif_iwlan_process_rules(ims_iptable_ipv4_rules,
+                                              NETMGR_KIF_ARR_SIZE(ims_iptable_ipv4_rules),
+                                              TRUE);
+
+          /* Check whether rules were installed correctly*/
+          if (NETMGR_SUCCESS != rc)
+          {
+            netmgr_log_err("%s(): Failed to install dynamic audio rules for V4!\n",
+                           __func__);
+            rc = NETMGR_FAILURE;
+            break;
+          }
+
+          netmgr_kif_cfg.iwlan.is_v4_audio_forwarding_rules_installed = TRUE;
+          netmgr_log_med("%s: AF_INET rules installed successfully", __func__);
+        }
+        break;
+      case AF_INET6:
+        if(FALSE == netmgr_kif_cfg.iwlan.is_v6_audio_forwarding_rules_install_preference)
+        {
+          netmgr_log_med("%s: V6 install preference set to FALSE, not installing rules", __func__);
+        }
+        else if( TRUE == netmgr_kif_cfg.iwlan.is_v6_audio_forwarding_rules_installed)
+        {
+          netmgr_log_med("%s: V6 audio rules already installed", __func__);
+        }
+        else
+        {
+          /* Install IMS audio iptable rules for IPV6 */
+          rc = netmgr_kif_iwlan_process_rules(ims_iptable_ipv6_rules,
+                                              NETMGR_KIF_ARR_SIZE(ims_iptable_ipv6_rules),
+                                              TRUE);
+
+          /* Check whether rules were installed correctly*/
+          if (NETMGR_SUCCESS != rc)
+          {
+            netmgr_log_err("%s(): Failed to install dynamic audio rules for V6!\n",
+                           __func__);
+            rc = NETMGR_FAILURE;
+            break;
+          }
+
+          netmgr_kif_cfg.iwlan.is_v6_audio_forwarding_rules_installed = TRUE;
+          netmgr_log_med("%s: AF_INET6 rules installed successfully",__func__);
+        }
+        break;
+      default:
+        netmgr_log_err("%s: invalid ip_family received [%d]", __func__, ip_family);
+        rc = NETMGR_FAILURE;
+        break;
+    }
+  }
+  else
+  {
+    netmgr_log_err("%s: ims disabled", __func__);
+    rc = NETMGR_FAILURE;
+  }
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
 #endif /* FEATURE_DATA_IWLAN */
 
 /*===========================================================================
@@ -3530,11 +4513,15 @@ netmgr_kif_send_event
 static int
 netmgr_kif_process_user_cmd
 (
-  int user_cmd
+  int user_cmd,
+  netmgr_user_cmd_data_t *cmd_data
 )
 {
   char cmd[NETMGR_KIF_MAX_COMMAND_LENGTH];
-  int result;
+  int result = NETMGR_SUCCESS;
+  netmgr_nl_event_info_t *event_info = NULL;
+
+  NETMGR_LOG_FUNC_ENTRY;
 
   netmgr_log_high("Process user command: %d\n", user_cmd);
 
@@ -3551,10 +4538,125 @@ netmgr_kif_process_user_cmd
       strlcpy(cmd, NETMGR_IPTABLES_RULE_DEL_DROP_TCP_RST_PKTS, sizeof(cmd));
       (void) ds_system_call(cmd, std_strlen(cmd));
       break;
+
+#if FEATURE_DATA_IWLAN
+    case NETMGR_USER_CMD_ENABLE_PORT_FORWARDING:
+    {
+      netmgr_log_med("netmgr_kif_process_user_cmd: Received ENABLE_PORT_FORWARDING cmd for ip_family[%d]", cmd_data->data.port_forwarding_data.ip_family);
+
+      event_info = (netmgr_nl_event_info_t*) malloc(sizeof(netmgr_nl_event_info_t));
+      if(NULL == event_info)
+      {
+        netmgr_log_err("netmgr_kif_process_user_cmd: Out of memory error ");
+        return NETMGR_FAILURE;
+      }
+      memset(event_info, 0x0, sizeof(netmgr_nl_event_info_t));
+      event_info->event = NETMGR_USER_CMD;
+      event_info->param_mask |= NETMGR_EVT_PARAM_USER_CMD;
+      event_info->user_cmd = (int)user_cmd;
+      event_info->param_mask |= NETMGR_EVT_PARAM_CMD_DATA;
+      memcpy(&event_info->cmd_data, cmd_data, sizeof(netmgr_user_cmd_data_t));
+
+      netmgr_kif_set_audio_port_forwarding_rules_preference(cmd_data->data.port_forwarding_data.ip_family,
+                                                            TRUE );
+      /* install port_forwarding rules for the ip_version */
+      result = netmgr_kif_install_dynamic_audio_iptable_rules(cmd_data->data.port_forwarding_data.ip_family);
+      if(result != NETMGR_SUCCESS)
+      {
+        netmgr_log_err("netmgr_kif_process_user_cmd: Failed to install ims iptable_rules");
+        event_info->cmd_data.txn.txn_status = NETMGR_USER_CMD_STATUS_FAILED;
+      }
+      else
+      {
+        netmgr_log_med("netmgr_kif_process_user_cmd: Successfully installed ims iptable_rules");
+        event_info->cmd_data.txn.txn_status = NETMGR_USER_CMD_STATUS_SUCCESS;
+      }
+      netmgr_kif_send_event(event_info);
+      break;
+    }
+    case NETMGR_USER_CMD_DISABLE_PORT_FORWARDING:
+    {
+      netmgr_log_med("netmgr_kif_process_user_cmd: Received DISABLE_PORT_FORWARDING cmd for ip_family[%d]", cmd_data->data.port_forwarding_data.ip_family);
+
+      event_info = (netmgr_nl_event_info_t*) malloc(sizeof(netmgr_nl_event_info_t));
+      if(NULL == event_info)
+      {
+        netmgr_log_err("netmgr_kif_process_user_cmd: Out of memory error ");
+        return NETMGR_FAILURE;
+      }
+      memset(event_info, 0x0, sizeof(netmgr_nl_event_info_t));
+      event_info->event = NETMGR_USER_CMD;
+      event_info->param_mask |= NETMGR_EVT_PARAM_USER_CMD;
+      event_info->user_cmd = (int)user_cmd;
+      event_info->param_mask |= NETMGR_EVT_PARAM_CMD_DATA;
+      memcpy(&event_info->cmd_data, cmd_data, sizeof(netmgr_user_cmd_data_t));
+
+      netmgr_kif_set_audio_port_forwarding_rules_preference(cmd_data->data.port_forwarding_data.ip_family,
+                                                            FALSE );
+      /* remove port_forwarding rules for the ip_version */
+      result = netmgr_kif_remove_dynamic_audio_iptable_rules(cmd_data->data.port_forwarding_data.ip_family);
+      if(result != NETMGR_SUCCESS)
+      {
+        netmgr_log_err("netmgr_kif_process_user_cmd: Failed to remove ims iptable_rules");
+        event_info->cmd_data.txn.txn_status = NETMGR_USER_CMD_STATUS_FAILED;
+      }
+      else
+      {
+        netmgr_log_med("Successfully removed ims iptable_rules");
+        event_info->cmd_data.txn.txn_status = NETMGR_USER_CMD_STATUS_SUCCESS;
+      }
+      netmgr_kif_send_event(event_info);
+      break;
+    }
+    case NETMGR_USER_CMD_QUERY_PORT_FORWARDING:
+    {
+      netmgr_log_med("netmgr_kif_process_user_cmd: Received QUERY_PORT_FORWARDING cmd for ip_family[%d]", cmd_data->data.port_forwarding_data.ip_family);
+
+      event_info = (netmgr_nl_event_info_t*) malloc(sizeof(netmgr_nl_event_info_t));
+      if(NULL == event_info)
+      {
+        netmgr_log_err("netmgr_kif_process_user_cmd: Out of memory error ");
+        return NETMGR_FAILURE;
+      }
+      memset(event_info, 0x0, sizeof(netmgr_nl_event_info_t));
+      event_info->event = NETMGR_USER_CMD;
+      event_info->param_mask |= NETMGR_EVT_PARAM_USER_CMD;
+      event_info->user_cmd = (int)user_cmd;
+      event_info->param_mask |= NETMGR_EVT_PARAM_CMD_DATA;
+      memcpy(&event_info->cmd_data, cmd_data, sizeof(netmgr_user_cmd_data_t));
+
+      /* reset ip_version */
+      event_info->cmd_data.data.port_forwarding_data.ip_family = 0;
+
+      if( (AF_INET == cmd_data->data.port_forwarding_data.ip_family) &&
+           netmgr_kif_cfg.iwlan.is_v4_audio_forwarding_rules_install_preference )
+      {
+        event_info->cmd_data.data.port_forwarding_data.ip_family = AF_INET;
+        netmgr_log_med("%s: ims AF_INET rules preference [install]", __func__);
+      }
+      else if((AF_INET6 == cmd_data->data.port_forwarding_data.ip_family) &&
+               netmgr_kif_cfg.iwlan.is_v6_audio_forwarding_rules_install_preference )
+      {
+        event_info->cmd_data.data.port_forwarding_data.ip_family = AF_INET6;
+        netmgr_log_med("%s: ims AF_INET6 rules preference  [install]", __func__);
+      }
+
+      event_info->cmd_data.txn.txn_status = NETMGR_USER_CMD_STATUS_SUCCESS;
+
+      /* send response back to client */
+      netmgr_kif_send_event(event_info);
+      break;
+    }
+#endif /* FEATURE_DATA_IWLAN */
+  }
+
+  if(NULL != event_info)
+  {
+    free(event_info);
   }
 
   NETMGR_LOG_FUNC_EXIT;
-  return NETMGR_SUCCESS;
+  return result;
 }
 
 
@@ -3641,7 +4743,7 @@ netmgr_kif_nl_recv_ping_msg (int fd)
     }
     else if (NETMGR_USER_CMD == nlmsg->event_info.event) {
       netmgr_log_med("netmgr_kif_nl_recv_ping_msg: Received user command!\n");
-      netmgr_kif_process_user_cmd(nlmsg->event_info.user_cmd);
+      netmgr_kif_process_user_cmd((int)nlmsg->event_info.user_cmd, &(nlmsg->event_info.cmd_data));
     }
     else {
       netmgr_log_low("Unknown event message received %d\n", nlmsg->event_info.event);
@@ -3702,24 +4804,15 @@ netmgr_kif_configure( int link, netmgr_ip_addr_t addr_type )
     /* Process based on current interface state */
     switch( state = netmgr_kif_get_state(link) ) {
       case NETMGR_KIF_OPENING:
+      case NETMGR_KIF_OPEN:
         netmgr_log_med("Starting address type %d configuration on link %d\n",
                        addr_type, link);
-        if( NETMGR_SUCCESS == (ret = netmgr_kif_cfg_req(link, addr_type)) ) {
+        if( NETMGR_SUCCESS == (ret = netmgr_kif_cfg_req(link, addr_type, FALSE)) ) {
           ret = NETMGR_SUCCESS;
         } else {
           netmgr_log_err("netmgr_kif_cfg_req failed for link %d\n", link);
         }
         break; /* breaks from switch */
-
-      case NETMGR_KIF_OPEN:
-        netmgr_log_med("Starting address type %d configuration on link %d\n",
-                       addr_type, link);
-        if( NETMGR_SUCCESS == (ret = netmgr_kif_cfg_req(link, addr_type)) ) {
-          ret = NETMGR_SUCCESS;
-        } else {
-          netmgr_log_err("netmgr_kif_cfg_req failed for link %d\n", link);
-        }
-        break;
 
       default:
         netmgr_log_err("netmgr_kif_configure not allowed in state %d link %d\n",
@@ -3786,8 +4879,9 @@ netmgr_kif_reconfigure( int link,
         {
           netmgr_kif_purge_address( link, &addr_info_ptr->if_addr, addr_info_ptr->if_mask );
 
-          netmgr_log_med("Starting address reconfiguration on link %d\n", link);
-          if( NETMGR_SUCCESS == (ret = netmgr_kif_cfg_req(link, addr_info_ptr->if_addr.type)) ) {
+          netmgr_log_med("Starting address reconfiguration on link=%d, family=%d\n",
+                         link, addr_info_ptr->if_addr.type);
+          if( NETMGR_SUCCESS == (ret = netmgr_kif_cfg_req(link, addr_info_ptr->if_addr.type, TRUE)) ) {
             netmgr_kif_set_state(link, NETMGR_KIF_RECONFIGURING);
             ret = NETMGR_SUCCESS;
           } else {
@@ -3918,6 +5012,15 @@ netmgr_kif_close( int link,
 {
   int rval = NETMGR_FAILURE;
   netmgr_kif_state_t state;
+  netmgr_address_info_t * address_info = NULL;
+  int ip_family = AF_INET;
+
+  if( addr_info_ptr != NULL)
+  {
+    ip_family = (NETMGR_IPV4_ADDR == addr_info_ptr->if_addr.type) ?
+                  AF_INET :
+                  AF_INET6;
+  }
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -3932,11 +5035,6 @@ netmgr_kif_close( int link,
   {
     int assoc_link;
     int ret;
-    int ip_family;
-
-    ip_family = (NETMGR_IPV4_ADDR == addr_info_ptr->if_addr.type) ?
-                AF_INET :
-                AF_INET6;
 
     /* Attempt to remove the SA and routing rules for a reverse rmnet link */
     ret = netmgr_kif_remove_sa_and_routing_rules(link, ip_family, addr_info_ptr);
@@ -3994,6 +5092,32 @@ netmgr_kif_close( int link,
     }
   }
 #endif /* FEATURE_DATA_IWLAN */
+
+#ifdef NETMGR_QOS_ENABLED
+    if (netmgr_main_get_qos_enabled())
+    {
+      /* Remove iptable rules corresponding to this I/F */
+      if (!(address_info = netmgr_qmi_get_addr_info(link)))
+      {
+        netmgr_log_err(" invalid addr_info_ptr");
+      }
+      else
+      {
+        netmgr_tc_create_delete_dynamic_post_routing_rule(link,
+                                                    ip_family,
+                                                     address_info,
+                                                     FALSE);
+        if (AF_INET == ip_family)
+        {
+          netmgr_kif_cfg.link_array[link].v4_qos_rules_enabled = FALSE;
+        }
+        else if (AF_INET6 == ip_family)
+        {
+          netmgr_kif_cfg.link_array[link].v6_qos_rules_enabled = FALSE;
+        }
+      }
+    }
+#endif
 
   /* Process based on current interface state */
   switch (state = netmgr_kif_get_state(link)) {
@@ -4110,6 +5234,70 @@ netmgr_kif_netlink_init( void )
 }
 
 /*===========================================================================
+  FUNCTION  netmgr_kif_enable_ipv6_optimistic_dad
+===========================================================================*/
+/*!
+@brief
+  Enables optimistic duplicate address detection for ipv6 on a given interface
+@note
+  - Dependencies
+    - None
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL void
+netmgr_kif_enable_ipv6_optimistic_dad(int link_id)
+{
+  unsigned int i;
+  char cmd[NETMGR_KIF_MAX_COMMAND_LENGTH];
+  memset(cmd, 0, NETMGR_KIF_MAX_COMMAND_LENGTH);
+  const char *link_name = NULL;
+  if (netmgr_kif_cfg.link_array[link_id].enabled)
+  {
+    if (NULL == (link_name = netmgr_kif_get_name(link_id)))
+    {
+      netmgr_log_err("failed to obtain link name for link=%d\n",
+                     link_id);
+      return;
+    }
+    netmgr_log_low("%s(): Enabling ipv6 optimistic dad on link %s\n",
+                   __func__,
+                   link_name);
+    snprintf(cmd,
+             sizeof(cmd),
+             "echo 1 > /proc/sys/net/ipv6/conf/%s/optimistic_dad",
+             link_name);
+    if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
+    {
+      netmgr_log_err("cmd: %s failed\n", cmd);
+      netmgr_log_err("%s(): Failed to enable ipv6 optimistic dad on link %s\n",
+                     __func__,
+                    link_name);
+    }
+    else
+    {
+      netmgr_log_low("%s(): Setting retrans timer %d ms on link %s\n",
+                     __func__,
+                     NETMGR_KIF_IPV6_DAD_RETRANSMIT_TIME,
+                     link_name);
+      snprintf(cmd,
+               sizeof(cmd),
+               "echo %d >  /proc/sys/net/ipv6/neigh/%s/retrans_time_ms",
+               NETMGR_KIF_IPV6_DAD_RETRANSMIT_TIME,
+               link_name);
+      if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
+      {
+        netmgr_log_err("cmd: %s failed\n", cmd);
+        netmgr_log_err("%s(): Failed to set retrans timer on link %s\n",
+                       __func__,
+                      link_name);
+      }
+    }
+  }
+}
+
+/*===========================================================================
   FUNCTION  netmgr_kif_init_iface
 ===========================================================================*/
 /*!
@@ -4164,6 +5352,8 @@ netmgr_kif_init_iface( int link )
     /* mark the status */
     netmgr_kif_set_link_powerup_state(link, NETMGR_KIF_LINK_POWERUP_STATE_UP);
   }
+
+  netmgr_kif_enable_ipv6_optimistic_dad(link);
 
 #ifndef FEATURE_DS_LINUX_DRIVER_LEGACY
   /* Set driver link-layer protcol mode */
@@ -4263,7 +5453,7 @@ netmgr_kif_init_ifaces( void )
     if (NETMGR_FAILURE == ret)
     {
       netmgr_log_err( "initing KIF link[%d] failed\n", i );
-      netmgr_kif_cfg.link_array[i].enabled = FALSE;
+      netmgr_kif_cfg.link_array[i].initialized= FALSE;
     }
   }
 
@@ -4319,6 +5509,170 @@ netmgr_kif_update_link_config(void)
   }
 }
 
+#ifdef FEATURE_DATA_IWLAN
+/*===========================================================================
+  FUNCTION  netmgr_kif_xfrm_cleanup
+===========================================================================*/
+/*!
+@brief
+  Perform clean-up of IPSec SAs and policies
+
+@return
+  None
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL void
+netmgr_kif_xfrm_cleanup(void)
+{
+  unsigned int i;
+  int rc = NETMGR_SUCCESS;
+  const char *xfrm_rules[] =
+  {
+    /* Flush any stale SAs and policies*/
+    "ip xfrm state flush" ";"
+    "ip xfrm policy flush"
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  for (i = 0; i < NETMGR_KIF_ARR_SIZE(xfrm_rules); ++i)
+  {
+    if (ds_system_call2(xfrm_rules[i], strlen(xfrm_rules[i]), function_debug))
+    {
+      netmgr_log_err("cmd: %s failed\n", xfrm_rules[i]);
+      rc = NETMGR_FAILURE;
+      break;
+    }
+  }
+
+  if (NETMGR_SUCCESS == rc)
+  {
+    netmgr_log_med("netmgr_kif_xfrm_cleanup: cleanup complete\n");
+  }
+
+  NETMGR_LOG_FUNC_EXIT;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_common_cleanup
+===========================================================================*/
+/*!
+@brief
+  Perform iWLAN common clean-up
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise.
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL void
+netmgr_kif_iwlan_common_cleanup
+(
+  boolean  force
+)
+{
+  NETMGR_LOG_FUNC_ENTRY;
+
+  (void)netmgr_kif_cleanup_policy_routing_rules(AF_INET, force);
+  (void)netmgr_kif_cleanup_policy_routing_rules(AF_INET6, force);
+
+  if (TRUE == force)
+  {
+    /* 'force' will be set to TRUE during kif powerup init
+     * We need to cleanup rules only at that point */
+    /* In SSR case we need not delete the static rules */
+    (void)netmgr_kif_cleanup_custom_iwlan_chains(AF_INET, force);
+    (void)netmgr_kif_cleanup_custom_iwlan_chains(AF_INET6, force);
+  }
+
+  /* Remove 'jump' rules from main chains */
+  (void)netmgr_kif_iwlan_remove_jump_iptable_rules(AF_INET);
+  (void)netmgr_kif_iwlan_remove_jump_iptable_rules(AF_INET6);
+
+  (void)netmgr_kif_cleanup_forwarding_rules(AF_INET, force);
+  (void)netmgr_kif_cleanup_forwarding_rules(AF_INET6, force);
+
+  NETMGR_LOG_FUNC_EXIT;
+}
+#endif
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_oos_cleanup
+===========================================================================*/
+/*!
+@brief
+  Perform iWLAN clean-up on Modem OOS
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise.
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL void
+netmgr_kif_oos_cleanup
+(
+  int  link
+)
+{
+  NETMGR_LOG_FUNC_ENTRY;
+
+#ifdef FEATURE_DATA_IWLAN
+  if (NETMGR_KIF_IS_REV_RMNET_LINK(link))
+  {
+    netmgr_address_info_t *addr_info = netmgr_qmi_get_addr_info(link);
+
+    if (!addr_info)
+    {
+      netmgr_log_err("netmgr_kif_oos_cleanup: invalid addr_info for link=%d\n", link);
+    }
+    else
+    {
+      /* Perform link specific clean-up */
+      netmgr_kif_remove_sa_and_routing_rules(link, AF_INET, &addr_info->ipv4);
+      netmgr_kif_remove_sa_and_routing_rules(link, AF_INET6, &addr_info->ipv6);
+
+      /* Remove XFRM policies which handle specific use-cases
+       * Ex. skip encryption of NS and NA */
+      NETMGR_KIF_UTIL_REMOVE_IPSEC_XFRM_POLICY_EX(out);
+
+      /* Perform common clean-up */
+      netmgr_kif_iwlan_common_cleanup(FALSE);
+    }
+  }
+#else
+  (void) link;
+#endif /* FEATURE_DATA_IWLAN */
+
+  /* Call the function to remove the link-local interface from the
+   * custom network. This is done so that the old route is removed
+   * during SSR cleanup */
+  netmgr_kif_remove_link_network(link);
+
+  NETMGR_LOG_FUNC_EXIT;
+}
+
 /*===========================================================================
   FUNCTION  netmgr_kif_reset_link
 ===========================================================================*/
@@ -4362,7 +5716,7 @@ netmgr_kif_reset_link
     else
     {
       NETMGR_ABORT("netmgr_kif_reset_link: cannot init iface[%d]\n", link);
-      netmgr_kif_cfg.link_array[link].enabled = FALSE;
+      netmgr_kif_cfg.link_array[link].initialized = FALSE;
       return NETMGR_FAILURE;
     }
   }
@@ -4419,7 +5773,8 @@ LOCAL void netmgr_kif_cleanup( void )
 ===========================================================================*/
 /*!
 @brief
-  Enable IP forwarding
+  Enable IP forwarding by calling 'ndc ipfwd enable iwlan'. Netd will always
+  enabled both IPv6 and IPv4 forwarding at the same time.
 
 @return
   int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
@@ -4434,58 +5789,43 @@ LOCAL void netmgr_kif_cleanup( void )
 */
 /*=========================================================================*/
 LOCAL int
-netmgr_kif_enable_forwarding(int ip_family)
+netmgr_kif_enable_forwarding(void)
 {
-  unsigned int i, num_rules = 0;
-  int rc = NETMGR_SUCCESS;
-  const char **forwarding_rules = NULL;
-  const char *ip4_forwarding_rules[] =
-  {
-    /* Enable IPv4 forwarding */
-    "echo 1 > /proc/sys/net/ipv4/ip_forward"
-  };
-  const char *ip6_forwarding_rules[] =
-  {
-    /* Enable IPv6 forwarding */
-    "echo 1 > /proc/sys/net/ipv6/conf/all/forwarding"
-  };
 
-  if (TRUE == NETMGR_KIF_GET_FORWARDING_ENABLED(ip_family))
+  unsigned int active_calls = 0;
+  int rc = NETMGR_SUCCESS;
+  const char *cmd = "ndc ipfwd enable iwlan";
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  /* Count the total active iwlan calls, enable forwarding
+   * only if the count is one. We will enable
+   * forwarding when the first iwlan call comes up */
+  active_calls = netmgr_kif_get_active_iwlan_calls(AF_INET)
+                   + netmgr_kif_get_active_iwlan_calls(AF_INET6);
+
+  if (active_calls != 1)
   {
-    netmgr_log_med("netmgr_kif_enable_forwarding: already enabled for family=%d!\n",
-                   ip_family);
+    netmgr_log_med("%s(): forwarding already enabled!", __func__);
     goto ret;
   }
 
-  if (AF_INET == ip_family)
+  if(ds_system_call2(cmd, (unsigned int)strlen(cmd), 1))
   {
-    forwarding_rules = ip4_forwarding_rules;
-    num_rules = NETMGR_KIF_ARR_SIZE(ip4_forwarding_rules);
-  }
-  else
-  {
-    forwarding_rules = ip6_forwarding_rules;
-    num_rules = NETMGR_KIF_ARR_SIZE(ip6_forwarding_rules);
-  }
-
-  for (i = 0; i < num_rules; ++i)
-  {
-    if (ds_system_call2(forwarding_rules[i], strlen(forwarding_rules[i]), function_debug))
-    {
-      netmgr_log_err("cmd: %s failed\n", forwarding_rules[i]);
-      rc = NETMGR_FAILURE;
-      break;
-    }
+    netmgr_log_err("cmd: %s failed\n", cmd);
+    rc = NETMGR_FAILURE;
   }
 
   if (NETMGR_SUCCESS == rc)
   {
-    NETMGR_KIF_SET_FORWARDING_ENABLED(ip_family, TRUE);
-    netmgr_log_med("netmgr_kif_enable_forwarding: enable complete for family=%d\n",
-                   ip_family);
+    /* The 'ndc' command will be setting both forwarding flags at the same time */
+    NETMGR_KIF_SET_FORWARDING_ENABLED(AF_INET, TRUE);
+    NETMGR_KIF_SET_FORWARDING_ENABLED(AF_INET6, TRUE);
+    netmgr_log_med("%s(): complete\n", __func__);
   }
 
 ret:
+  NETMGR_LOG_FUNC_EXIT;
   return rc;
 }
 
@@ -4509,58 +5849,43 @@ ret:
 */
 /*=========================================================================*/
 LOCAL int
-netmgr_kif_disable_forwarding(int ip_family)
+netmgr_kif_disable_forwarding(void)
 {
-  unsigned int i, num_rules = 0;
+  unsigned int active_calls = 0;
   int rc = NETMGR_SUCCESS;
-  const char **forwarding_rules = NULL;
-  const char *ip4_forwarding_rules[] =
-  {
-    /* Disable IPv4 forwarding */
-    "echo 0 > /proc/sys/net/ipv4/ip_forward"
-  };
-  const char *ip6_forwarding_rules[] =
-  {
-    /* Disable IPv6 forwarding */
-    "echo 0 > /proc/sys/net/ipv6/conf/all/forwarding"
-  };
+  const char *cmd = "ndc ipfwd disable iwlan";
 
-  if (FALSE == NETMGR_KIF_GET_FORWARDING_ENABLED(ip_family))
+  NETMGR_LOG_FUNC_ENTRY;
+
+  /* Count the total active iwlan calls, disable forwarding
+   * only if the count is zero. We will disable
+   * forwarding when the last iwlan call goes down */
+  active_calls = netmgr_kif_get_active_iwlan_calls(AF_INET)
+                   + netmgr_kif_get_active_iwlan_calls(AF_INET6);
+
+  if (active_calls != 0)
   {
-    netmgr_log_med("netmgr_kif_disable_forwarding: already disabled for family=%d!\n",
-                   ip_family);
+    netmgr_log_med("%s(): iwlan calls still active,"
+                   " cannot disable forwarding!", __func__);
     goto ret;
   }
 
-  if (AF_INET == ip_family)
+  if (ds_system_call2(cmd, (unsigned int)strlen(cmd), 1))
   {
-    forwarding_rules = ip4_forwarding_rules;
-    num_rules = NETMGR_KIF_ARR_SIZE(ip4_forwarding_rules);
-  }
-  else
-  {
-    forwarding_rules = ip6_forwarding_rules;
-    num_rules = NETMGR_KIF_ARR_SIZE(ip6_forwarding_rules);
-  }
-
-  for (i = 0; i < num_rules; ++i)
-  {
-    if (ds_system_call2(forwarding_rules[i], strlen(forwarding_rules[i]), function_debug))
-    {
-      netmgr_log_err("cmd: %s failed\n", forwarding_rules[i]);
-      rc = NETMGR_FAILURE;
-      break;
-    }
+    netmgr_log_err("cmd: %s failed\n", cmd);
+    rc = NETMGR_FAILURE;
   }
 
   if (NETMGR_SUCCESS == rc)
   {
-    NETMGR_KIF_SET_FORWARDING_ENABLED(ip_family, FALSE);
-    netmgr_log_med("netmgr_kif_disable_forwarding: disable complete for family=%d\n",
-                   ip_family);
+    /* The 'ndc' command will be clearing both forwarding flags at the same time */
+    NETMGR_KIF_SET_FORWARDING_ENABLED(AF_INET, FALSE);
+    NETMGR_KIF_SET_FORWARDING_ENABLED(AF_INET6, FALSE);
+    netmgr_log_med("%s(): complete\n", __func__);
   }
 
 ret:
+  NETMGR_LOG_FUNC_EXIT;
   return rc;
 }
 
@@ -4592,28 +5917,33 @@ netmgr_kif_install_policy_routing_rules(int ip_family)
   const char *ip4_rules[] =
   {
     /* IPv4 rules */
-    "ip rule add from all lookup local prio 1",
-    "ip rule del from all lookup local prio 0",
-    "ip rule add fwmark " NETMGR_KIF_FWMARK " table " NETMGR_KIF_FWMARK " prio 0",
-    "ip rule add from all lookup local prio 0",
-    "ip rule del from all lookup local prio 1"
+    "ip rule add from all lookup local prio 1" ";"
+    "ip rule del from all lookup local prio 0" ";"
+    "ip rule add fwmark " NETMGR_KIF_FWMARK " table " NETMGR_KIF_FWMARK " prio 0" ";"
+    "ip rule add from all lookup local prio 0" ";"
+    "ip rule del from all lookup local prio 1" ";"
   };
   const char *ip6_rules[] =
   {
     /* IPv6 rules */
-    "ip -6 rule add from all lookup local prio 1",
-    "ip -6 rule del from all lookup local prio 0",
-    "ip -6 rule add fwmark " NETMGR_KIF_FWMARK " table " NETMGR_KIF_FWMARK " prio 0",
-    "ip -6 rule add from all lookup local prio 0",
-    "ip -6 rule del from all lookup local prio 1"
+    "ip -6 rule add from all lookup local prio 1" ";"
+    "ip -6 rule del from all lookup local prio 0" ";"
+    "ip -6 rule add fwmark " NETMGR_KIF_FWMARK " table " NETMGR_KIF_FWMARK " prio 0" ";"
+    "ip -6 rule add from all lookup local prio 0" ";"
+    "ip -6 rule del from all lookup local prio 1" ";"
   };
+
+  NETMGR_LOG_FUNC_ENTRY;
 
   if (TRUE == NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(ip_family))
   {
-    netmgr_log_med("netmgr_kif_install_policy_routing_rules: already installed for family=%d!\n",
+    netmgr_log_med("netmgr_kif_install_policy_routing_rules: already installed for ip_family=%d!\n",
                    ip_family);
     goto ret;
   }
+
+  /* Attempt to clean-up any dangling rules */
+  (void) netmgr_kif_cleanup_policy_routing_rules(ip_family, TRUE);
 
   if (AF_INET == ip_family)
   {
@@ -4639,11 +5969,273 @@ netmgr_kif_install_policy_routing_rules(int ip_family)
   if (NETMGR_SUCCESS == rc)
   {
     NETMGR_KIF_SET_POLICY_ROUTING_INSTALLED(ip_family, TRUE);
-    netmgr_log_med("netmgr_kif_install_policy_routing_rules: installation complete for family=%d\n",
+    netmgr_log_med("netmgr_kif_install_policy_routing_rules: installation complete for ip_family=%d\n",
                    ip_family);
   }
 
 ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_install_lb_policy_routing_rule
+===========================================================================*/
+/*!
+@brief
+  Install routing policy rules for local breakout interface to always use
+  wlan0 table for local breakout traffic
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_install_lb_policy_routing_rule(int link, int ip_family)
+{
+  char cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
+  char err_str[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  const char *ip_type = NULL, *link_name = NULL;
+  int rc = NETMGR_SUCCESS;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (TRUE == NETMGR_KIF_GET_LB_POLICY_ROUTING_INSTALLED(ip_family))
+  {
+    netmgr_log_med("%s(): already installed for ip_family=%d!\n",
+                   __func__, ip_family);
+    goto ret;
+  }
+
+  /* Attempt to clean-up any dangling rules */
+  (void) netmgr_kif_cleanup_lb_policy_routing_rule(link, ip_family, TRUE);
+
+  if (AF_INET == ip_family)
+  {
+    ip_type = "-4";
+  }
+  else
+  {
+    ip_type = "-6";
+  }
+
+  if (NULL == (link_name = netmgr_kif_get_name(link)))
+  {
+    netmgr_log_err("failed to obtain link name for link=%d\n",
+                   link);
+    goto ret;
+  }
+
+  snprintf(cmd,
+           sizeof(cmd),
+           "ip %s rule add from all iif %s lookup wlan0 prio 0",
+           ip_type,
+           link_name);
+
+  if ((ds_system_call3(cmd,
+                      (unsigned int)std_strlen(cmd),
+                      err_str,
+                      sizeof(err_str),
+                      function_debug) != NETMGR_SUCCESS) ||
+      std_strlen(err_str) != 0)
+  {
+    netmgr_log_err("cmd: %s failed with err=%s for link=%d\n",
+                   cmd,
+                   err_str,
+                   link);
+    rc = NETMGR_FAILURE;
+  }
+
+  if (NETMGR_SUCCESS == rc)
+  {
+    NETMGR_KIF_SET_LB_POLICY_ROUTING_INSTALLED(ip_family, TRUE);
+    netmgr_log_med("%s(): installation complete for ip_family=%d\n",
+                   __func__, ip_family);
+  }
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_install_s2b_policy_routing_rule
+===========================================================================*/
+/*!
+@brief
+  Install routing policy rules for iWLAN S2B interface to always use
+  wlan0 table for tunneled traffic
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_install_s2b_policy_routing_rule
+(
+  int link,
+  const char *local_addr,
+  const char *dest_addr,
+  int tunnel_family
+)
+{
+  char cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
+  char err_str[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  const char *ip_type = NULL;
+  int rc = NETMGR_SUCCESS;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  netmgr_log_med("%s(): tunnel endpoints for link=%d tunnel_family=%d local=%s dest=%s!\n",
+                 __func__, link, tunnel_family, local_addr, dest_addr);
+
+  if (TRUE == NETMGR_KIF_GET_S2B_POLICY_ROUTING_INSTALLED(tunnel_family))
+  {
+    netmgr_log_med("%s(): already installed for tunnel_family=%d!\n",
+                   __func__, tunnel_family);
+    goto ret;
+  }
+
+  /* Attempt to clean-up any dangling rules */
+  (void) netmgr_kif_cleanup_s2b_policy_routing_rule(link, local_addr, dest_addr, tunnel_family, TRUE);
+
+  if (AF_INET == tunnel_family)
+  {
+    ip_type = "-4";
+  }
+  else
+  {
+    ip_type = "-6";
+  }
+
+  snprintf(cmd,
+           sizeof(cmd),
+           "ip %s rule add from %s to %s lookup wlan0 prio 0",
+           ip_type,
+           local_addr,
+           dest_addr);
+
+  if ((ds_system_call3(cmd,
+                      (unsigned int)std_strlen(cmd),
+                      err_str,
+                      sizeof(err_str),
+                      function_debug) != NETMGR_SUCCESS) ||
+      std_strlen(err_str) != 0)
+  {
+    netmgr_log_err("cmd: %s failed with err=%s for link=%d\n",
+                   cmd,
+                   err_str,
+                   link);
+    rc = NETMGR_FAILURE;
+  }
+
+  if (NETMGR_SUCCESS == rc)
+  {
+    NETMGR_KIF_SET_S2B_POLICY_ROUTING_INSTALLED(tunnel_family, TRUE);
+    netmgr_log_med("%s(): installation complete for tunnel_family=%d\n",
+                   __func__, tunnel_family);
+  }
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_cleanup_forwarding_rules
+===========================================================================*/
+/*!
+@brief
+  Cleanup routing rules in the forwarding table
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_cleanup_forwarding_rules
+(
+  int      ip_family,
+  boolean  force
+)
+{
+  unsigned int i, num_rules = 0;
+  int rc = NETMGR_SUCCESS;
+  const char **ip_rules = NULL;
+  const char *ip4_rules[] =
+  {
+    /* Flush the IPv4 forwarding table */
+    "ip -4 route flush table " NETMGR_KIF_FWMARK
+  };
+  const char *ip6_rules[] =
+  {
+    /* Flush the IPv6 forwarding table */
+    "ip -6 route flush table " NETMGR_KIF_FWMARK
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (FALSE == force && FALSE == NETMGR_KIF_GET_FORWARDING_RULES_INSTALLED(ip_family))
+  {
+    netmgr_log_med("netmgr_kif_cleanup_forwarding_rules: already cleaned-up for ip_family=%d!\n",
+                   ip_family);
+    goto ret;
+  }
+
+  if (AF_INET == ip_family)
+  {
+    ip_rules = ip4_rules;
+    num_rules = NETMGR_KIF_ARR_SIZE(ip4_rules);
+  }
+  else
+  {
+    ip_rules = ip6_rules;
+    num_rules = NETMGR_KIF_ARR_SIZE(ip6_rules);
+  }
+
+  for (i = 0; i < NETMGR_KIF_ARR_SIZE(ip_rules); ++i)
+  {
+    if (ds_system_call2(ip_rules[i], strlen(ip_rules[i]), function_debug))
+    {
+      netmgr_log_err("cmd: %s failed\n", ip_rules[i]);
+      rc = NETMGR_FAILURE;
+      break;
+    }
+  }
+
+  if (NETMGR_SUCCESS == rc)
+  {
+    NETMGR_KIF_SET_FORWARDING_RULES_INSTALLED(ip_family, FALSE);
+    netmgr_log_med("netmgr_kif_cleanup_forwarding_rules: clean-up complete for ip_family=%d\n",
+                   ip_family);
+  }
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
   return rc;
 }
 
@@ -4667,7 +6259,11 @@ ret:
 */
 /*=========================================================================*/
 LOCAL int
-netmgr_kif_cleanup_policy_routing_rules(int ip_family)
+netmgr_kif_cleanup_policy_routing_rules
+(
+  int      ip_family,
+  boolean  force
+)
 {
   unsigned int i, num_rules = 0;
   int rc = NETMGR_SUCCESS;
@@ -4683,9 +6279,11 @@ netmgr_kif_cleanup_policy_routing_rules(int ip_family)
     "ip -6 rule del fwmark " NETMGR_KIF_FWMARK " table " NETMGR_KIF_FWMARK " prio 0"
   };
 
-  if (FALSE == NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(ip_family))
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (FALSE == force && FALSE == NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(ip_family))
   {
-    netmgr_log_med("netmgr_kif_cleanup_policy_routing_rules: already cleaned up for family=%d!\n",
+    netmgr_log_med("netmgr_kif_cleanup_policy_routing_rules: already cleaned-up for ip_family=%d!\n",
                    ip_family);
     goto ret;
   }
@@ -4714,11 +6312,186 @@ netmgr_kif_cleanup_policy_routing_rules(int ip_family)
   if (NETMGR_SUCCESS == rc)
   {
     NETMGR_KIF_SET_POLICY_ROUTING_INSTALLED(ip_family, FALSE);
-    netmgr_log_med("netmgr_kif_cleanup_policy_routing_rules: clean-up complete for family=%d\n",
+    netmgr_log_med("netmgr_kif_cleanup_policy_routing_rules: clean-up complete for ip_family=%d\n",
                    ip_family);
   }
 
 ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_cleanup_lb_policy_routing_rule
+===========================================================================*/
+/*!
+@brief
+  Cleanup routing policy rules for local breakout interface to always use
+  wlan0 table for local breakout traffic
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_cleanup_lb_policy_routing_rule(int link, int ip_family, boolean force)
+{
+  char cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
+  char err_str[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  const char *ip_type = NULL, *link_name = NULL;
+  int rc = NETMGR_SUCCESS;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (FALSE == force && FALSE == NETMGR_KIF_GET_LB_POLICY_ROUTING_INSTALLED(ip_family))
+  {
+    netmgr_log_med("%s(): already cleaned-up for ip_family=%d!\n",
+                   __func__, ip_family);
+    goto ret;
+  }
+
+  if (AF_INET == ip_family)
+  {
+    ip_type = "-4";
+  }
+  else
+  {
+    ip_type = "-6";
+  }
+
+  if (NULL == (link_name = netmgr_kif_get_name(link)))
+  {
+    netmgr_log_err("failed to obtain link name for link=%d\n",
+                   link);
+    goto ret;
+  }
+
+  snprintf(cmd,
+           sizeof(cmd),
+           "ip %s rule del from all iif %s prio 0",
+           ip_type,
+           link_name);
+
+  if ((ds_system_call3(cmd,
+                      (unsigned int)std_strlen(cmd),
+                      err_str,
+                      sizeof(err_str),
+                      function_debug) != NETMGR_SUCCESS) ||
+      std_strlen(err_str) != 0)
+  {
+    netmgr_log_err("cmd: %s failed with err=%s for link=%d\n",
+                   cmd,
+                   err_str,
+                   link);
+    rc = NETMGR_FAILURE;
+  }
+
+  if (NETMGR_SUCCESS == rc)
+  {
+    NETMGR_KIF_SET_LB_POLICY_ROUTING_INSTALLED(ip_family, FALSE);
+    netmgr_log_med("%s(): clean-up complete for ip_family=%d\n",
+                   __func__, ip_family);
+  }
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_cleanup_s2b_policy_routing_rule
+===========================================================================*/
+/*!
+@brief
+  Cleanup routing policy rules for iWLAN S2B interface to always use
+  wlan0 table for tunneled traffic
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_cleanup_s2b_policy_routing_rule
+(
+  int link,
+  const char *local_addr,
+  const char *dest_addr,
+  int tunnel_family,
+  boolean force
+)
+{
+  char cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
+  char err_str[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  const char *ip_type = NULL;
+  int rc = NETMGR_SUCCESS;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  netmgr_log_med("%s(): tunnel endpoints for link=%d tunnel_family=%d local=%s dest=%s!\n",
+                 __func__, link, tunnel_family, local_addr, dest_addr);
+
+  if (FALSE == force && FALSE == NETMGR_KIF_GET_S2B_POLICY_ROUTING_INSTALLED(tunnel_family))
+  {
+    netmgr_log_med("%s(): already cleaned-up for tunnel_family=%d!\n",
+                   __func__, tunnel_family);
+    goto ret;
+  }
+
+  if (AF_INET == tunnel_family)
+  {
+    ip_type = "-4";
+  }
+  else
+  {
+    ip_type = "-6";
+  }
+
+  snprintf(cmd,
+           sizeof(cmd),
+           "ip %s rule del from %s to %s prio 0",
+           ip_type,
+           local_addr,
+           dest_addr);
+
+  if ((ds_system_call3(cmd,
+                      (unsigned int)std_strlen(cmd),
+                      err_str,
+                      sizeof(err_str),
+                      function_debug) != NETMGR_SUCCESS) ||
+      std_strlen(err_str) != 0)
+  {
+    netmgr_log_err("cmd: %s failed with err=%s for link=%d\n",
+                   cmd,
+                   err_str,
+                   link);
+    rc = NETMGR_FAILURE;
+  }
+
+  if (NETMGR_SUCCESS == rc)
+  {
+    NETMGR_KIF_SET_S2B_POLICY_ROUTING_INSTALLED(tunnel_family, FALSE);
+    netmgr_log_med("%s(): clean-up complete for tunnel_family=%d\n",
+                   __func__, tunnel_family);
+  }
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
   return rc;
 }
 
@@ -4749,6 +6522,8 @@ netmgr_kif_get_active_iwlan_calls(int ip_family)
 
   addrset_mask = (AF_INET == ip_family) ? NETMGR_ADDRSET_MASK_IPV4 : NETMGR_ADDRSET_MASK_IPV6;
 
+  NETMGR_LOG_FUNC_ENTRY;
+
   for (i = 0; i < NETMGR_MAX_LINK; i++)
   {
     if (TRUE == netmgr_kif_cfg.link_array[i].enabled &&
@@ -4763,6 +6538,72 @@ netmgr_kif_get_active_iwlan_calls(int ip_family)
       }
     }
   }
+
+  NETMGR_LOG_FUNC_EXIT;
+
+  return active_calls;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_get_active_iwlan_calls_by_tech
+===========================================================================*/
+/*!
+@brief
+  Returns the number of active iWLAN calls for the given family and technology
+
+@return
+  The number of active iWLAN calls
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL unsigned int
+netmgr_kif_get_active_iwlan_calls_by_tech(int ip_family, unsigned short tech)
+{
+  int i;
+  unsigned int active_calls = 0, addrset_mask = 0;
+
+  addrset_mask = (AF_INET == ip_family) ? NETMGR_ADDRSET_MASK_IPV4 : NETMGR_ADDRSET_MASK_IPV6;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (QMI_WDS_IFACE_NAME_WLAN_LOCAL_BRKOUT != tech && QMI_WDS_IFACE_NAME_IWLAN_EPDG != tech)
+  {
+    netmgr_log_err("%s(): Unsupported tech=0x%x\n", __func__, tech);
+    goto bail;
+  }
+
+  /* For ePDG call, look for both address families as the same tunnel will be
+     shared */
+  if (QMI_WDS_IFACE_NAME_IWLAN_EPDG == tech)
+  {
+    addrset_mask = NETMGR_ADDRSET_MASK_IPV4V6;
+  }
+
+  for (i = 0; i < NETMGR_MAX_LINK; i++)
+  {
+    if (TRUE == netmgr_kif_cfg.link_array[i].enabled &&
+        NETMGR_KIF_IS_REV_RMNET_LINK(i))
+    {
+      netmgr_address_info_t *addr_info = netmgr_qmi_get_addr_info(i);
+
+      if (NULL != addr_info &&
+          0 != (addr_info->valid_mask & addrset_mask) &&
+          tech == netmgr_qmi_wds_get_tech_name(i))
+      {
+        ++active_calls;
+      }
+    }
+  }
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
 
   return active_calls;
 }
@@ -4806,7 +6647,9 @@ netmgr_kif_update_config_and_routing_rules(void)
   const char *modem_ims_port_rng =
     "echo \"" NETMGR_KIF_MODEM_PORT_START "-" NETMGR_KIF_MODEM_PORT_END ","
               NETMGR_KIF_IMS_SIP_PORT ","
-              NETMGR_KIF_IMS_PORT_START "-" NETMGR_KIF_IMS_PORT_END "\" > /proc/sys/net/ipv4/ip_local_reserved_ports";
+              NETMGR_KIF_IMS_AUDIO_PORT_START "-" NETMGR_KIF_IMS_AUDIO_PORT_END ","
+              NETMGR_KIF_IMS_EMERGENCY_PORT_START "-" NETMGR_KIF_IMS_EMERGENCY_PORT_END ","
+              NETMGR_KIF_IMS_IPSEC_PORT_START "-" NETMGR_KIF_IMS_IPSEC_PORT_END "\" > /proc/sys/net/ipv4/ip_local_reserved_ports";
 
   const char *resv_ports = NULL;
 
@@ -4829,10 +6672,12 @@ netmgr_kif_update_config_and_routing_rules(void)
   memset( args, 0x0, sizeof(args) );
   memset( def, 0x0, sizeof(def) );
 
+  NETMGR_LOG_FUNC_ENTRY;
+
   if (TRUE != netmgr_main_get_iwlan_enabled())
   {
     netmgr_kif_update_link_config();
-    return NETMGR_SUCCESS;
+    goto ret;
   }
 
   snprintf( def, sizeof(def), "%u", UINT32_MAX );
@@ -4878,6 +6723,12 @@ netmgr_kif_update_config_and_routing_rules(void)
     netmgr_log_err("cmd: %s failed\n", xfrm_timer_thresh);
     rc = NETMGR_FAILURE;
   }
+
+  /* Perform XFRM clean-up at power-up */
+  netmgr_kif_xfrm_cleanup();
+
+  /* Perform iWLAN clean-up at power-up */
+  netmgr_kif_iwlan_common_cleanup(TRUE);
 
   resv_ports = (TRUE == netmgr_main_get_iwlan_ims_enabled()) ?
                modem_ims_port_rng :
@@ -4925,7 +6776,7 @@ netmgr_kif_update_config_and_routing_rules(void)
         netmgr_log_err("cmd: %s failed, disabling link=%d\n",
                        cmd,
                        i);
-        netmgr_kif_cfg.link_array[i].enabled = FALSE;
+        netmgr_kif_cfg.link_array[i].initialized = FALSE;
         continue;
       }
 
@@ -4941,7 +6792,7 @@ netmgr_kif_update_config_and_routing_rules(void)
           netmgr_log_err("cmd: %s failed, disabling link=%d\n",
                          cmd,
                          i);
-          netmgr_kif_cfg.link_array[i].enabled = FALSE;
+          netmgr_kif_cfg.link_array[i].initialized = FALSE;
         }
 
         /* Disable DAD on reverse Rmnets to speed up iface bring-up */
@@ -4955,18 +6806,127 @@ netmgr_kif_update_config_and_routing_rules(void)
           netmgr_log_err("cmd: %s failed, disabling link=%d\n",
                          cmd,
                          i);
+          netmgr_kif_cfg.link_array[i].initialized = FALSE;
+        }
+
+        /* Disable autoconf and DAD on reverse Rmnets to speed up iface bring-up */
+        snprintf(cmd,
+                 sizeof(cmd),
+                 "echo 0 > /proc/sys/net/ipv6/conf/%s/autoconf",
+                 link_name);
+
+        if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
+        {
+          netmgr_log_err("cmd: %s failed, disabling link=%d\n",
+                         cmd,
+                         i);
           netmgr_kif_cfg.link_array[i].enabled = FALSE;
         }
       }
     }
   }
 
+ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_cleanup_custom_iwlan_chains
+===========================================================================*/
+/*!
+@brief
+  Cleans up the custom iWLAN chains
+
+@return
+  None
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_cleanup_custom_iwlan_chains
+(
+   int      ip_family,
+   boolean  force
+)
+{
+  int rc = NETMGR_SUCCESS;
+
+  static const iwlan_iptables_cmd_t clear_ip4_custom_chains[] =
+  {
+    /* Flush V4 custom chains */
+    { IPTABLES " -t mangle -F qcom_iwlan_ip4_mangle_pre"  },
+    { IPTABLES " -t mangle -F qcom_iwlan_ip4_mangle_post" },
+    { IPTABLES " -t raw    -F qcom_iwlan_ip4_raw_pre"     },
+
+    /* Delete the custom chains */
+    { IPTABLES " -t mangle -X qcom_iwlan_ip4_mangle_pre"  },
+    { IPTABLES " -t mangle -X qcom_iwlan_ip4_mangle_post" },
+    { IPTABLES " -t raw    -X qcom_iwlan_ip4_raw_pre"     }
+  };
+
+  static const iwlan_iptables_cmd_t clear_ip6_custom_chains[] =
+  {
+    /* Flush the custom chains */
+    { IP6TABLES " -t mangle -F qcom_iwlan_ip6_mngl_pre_spi" },
+    { IP6TABLES " -t mangle -F qcom_iwlan_ip6_mangle_pre"   },
+    { IP6TABLES " -t mangle -F qcom_iwlan_ip6_mangle_post"  },
+    { IP6TABLES " -t raw    -F qcom_iwlan_ip6_raw_pre"      },
+
+    /* Delete the custom chains */
+    { IP6TABLES " -t mangle -X qcom_iwlan_ip6_mngl_pre_spi" },
+    { IP6TABLES " -t mangle -X qcom_iwlan_ip6_mangle_pre"   },
+    { IP6TABLES " -t mangle -X qcom_iwlan_ip6_mangle_post"  },
+    { IP6TABLES " -t raw    -X qcom_iwlan_ip6_raw_pre"      }
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (FALSE == force && FALSE == NETMGR_KIF_GET_IPTABLE_RULES_INSTALLED(ip_family))
+  {
+    netmgr_log_med("%s(): already cleaned-up for ip_family=%d!\n",
+                   __func__, ip_family);
+    goto ret;
+  }
+
+  if (AF_INET == ip_family)
+  {
+    rc = netmgr_kif_iwlan_process_rules(clear_ip4_custom_chains,
+                                        NETMGR_KIF_ARR_SIZE(clear_ip4_custom_chains),
+                                        FALSE);
+  }
+  else
+  {
+    rc = netmgr_kif_iwlan_process_rules(clear_ip6_custom_chains,
+                                        NETMGR_KIF_ARR_SIZE(clear_ip6_custom_chains),
+                                        FALSE);
+  }
+
+  /* Cleanup dynamic port forwarding rules */
+  netmgr_kif_remove_dynamic_audio_iptable_rules(ip_family);
+
+  if (NETMGR_SUCCESS == rc)
+  {
+    NETMGR_KIF_SET_IPTABLE_RULES_INSTALLED(ip_family, FALSE);
+    netmgr_log_med("%s(): clean-up complete for ip_family=%d\n",
+                   __func__, ip_family);
+  }
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
   return rc;
 }
 
 
 /*===========================================================================
-  FUNCTION  netmgr_kif_install_iptable_rules
+  FUNCTION  netmgr_kif_create_custom_iwlan_chains
 ===========================================================================*/
 /*!
 @brief
@@ -4985,176 +6945,286 @@ netmgr_kif_update_config_and_routing_rules(void)
     - None
 */
 /*=========================================================================*/
-LOCAL int
-netmgr_kif_install_iptable_rules(void)
+LOCAL void
+netmgr_kif_create_custom_iwlan_chains(int ip_family)
+{
+  static const iwlan_iptables_cmd_t install_ip4_custom_chains[] =
+  {
+    /* Create V4 custom chains */
+    { IPTABLES " -t mangle -N qcom_iwlan_ip4_mangle_pre"  },
+    { IPTABLES " -t mangle -N qcom_iwlan_ip4_mangle_post" },
+    { IPTABLES " -t raw    -N qcom_iwlan_ip4_raw_pre"     }
+  };
+
+  static const iwlan_iptables_cmd_t install_ip6_custom_chains[] =
+  {
+    /* Create V6 custom chains */
+    { IP6TABLES " -t mangle -N qcom_iwlan_ip6_mangle_pre"   },
+    { IP6TABLES " -t mangle -N qcom_iwlan_ip6_mngl_pre_spi" },
+    { IP6TABLES " -t mangle -N qcom_iwlan_ip6_mangle_post"  },
+    { IP6TABLES " -t raw    -N qcom_iwlan_ip6_raw_pre"      }
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  /* First attempt a clean-up */
+  netmgr_kif_cleanup_custom_iwlan_chains(ip_family, TRUE);
+
+  if (AF_INET == ip_family)
+  {
+    (void) netmgr_kif_iwlan_process_rules(install_ip4_custom_chains,
+                                          NETMGR_KIF_ARR_SIZE(install_ip4_custom_chains),
+                                          TRUE);
+  }
+  else
+  {
+    (void) netmgr_kif_iwlan_process_rules(install_ip6_custom_chains,
+                                          NETMGR_KIF_ARR_SIZE(install_ip6_custom_chains),
+                                          TRUE);
+  }
+
+  netmgr_log_med("%s(): creation complete for ip_family=%d\n",
+                 __func__, ip_family);
+  NETMGR_LOG_FUNC_EXIT;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_install_iptables_rules
+===========================================================================*/
+/*!
+@brief
+  Installs all the static iwlan rules at powerup. This will improve the
+  call bringup time.
+
+  The static iwlan rules are used to mark packets that belong the modem
+  source port range
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - iWLAN property is enabled
+
+  - Side Effects
+    - Bootup time for netmgr may increase
+*/
+/*=========================================================================*/
+int
+netmgr_kif_iwlan_install_iptables_rules(int ip_family)
 {
   int rc = NETMGR_SUCCESS;
-  unsigned int i;
-  static boolean iptable_rules_installed = FALSE;
 
-  /*
-     Handling of modem destined fragmented UDP packets
-     * Fragmented IPv4 UDP packets are automatically reassembled by the Linux connection
-       tracking module before being forwarded.
-     * Fragmented IPv6 UDP packets are not reassembled as routers (in this case AP) are
-       not supposed to do so. In order to properly forward such packets we use connection
-       marking mechanism via CONNMARK target.
-       - Use the connection mark (if exists) on the packets belonging to that connection
-       - Accept the packets which are marked (i.e. belong to an existing connection)
-       - Mark the remaining traffic that is destined to modem  port range
-       - Save the packet mark to the connection mark (for future traffic on the connection)
-  */
-  static const char *connmark_iptable_rules_begin[] =
+  static const iwlan_iptables_cmd_t install_ip4_common_rules[] =
   {
-    /* Restore the connection mark to the packet if it exists */
-    "ip6tables -t mangle -A PREROUTING -j CONNMARK --restore-mark",
-    /* Accept all packets belonging to existing connections belonging to Modem traffic */
-    "ip6tables -t mangle -A PREROUTING --match mark --mark " NETMGR_KIF_FWMARK
-      " -j ACCEPT"
-  };
-
-  static const char *connmark_iptable_rules_end[] =
-  {
-    /* Save the packet mark to the connection mark */
-    "ip6tables -t mangle -A PREROUTING -j CONNMARK --save-mark"
-  };
-
-  static const char *iptable_rules[] =
-  {
-    /* IPv4 iptable rules */
-
-    /* All IKE in UDP packets must be sent to the Modem and ESP in UDP to the
-       AP network stack for decryption and subsequent forwarding based on innner
-       packet contents. This is how we can differentiate between the two:
-       the first 4 bytes of the UDP payload of IKE in UDP is always 0 and
-       non-zero for ESP in UDP packets (contains SPI) */
+    /* All IKE in UDP packets destined to the Modem NATT port must be sent to the
+       Modem and other IKE/ESP in UDP to the AP network stack for decryption and
+       subsequent forwarding based on innner packet contents. This is how we can
+       differentiate between the two: the first 4 bytes of the UDP payload of
+       IKE in UDP is always 0 and non-zero for ESP in UDP packets (contains SPI) */
 
     /* Start at the IP header, extract IHL and add the offset to get to the
        start of UDP header and then offset 8 (UDP header) bytes to get to the
        payload. If the 4 bytes are 0 then mark the packet so that it gets
        forwarded to the Modem */
-    "iptables -t mangle -A PREROUTING -p udp --sport " TO_XSTR(NETMGR_KIF_NATT_SERVER_PORT)
-      " -m u32 --u32 \"0>>22 & 0x3C @ 8 = 0\" -j MARK --set-mark " NETMGR_KIF_FWMARK,
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p udp --sport " TO_XSTR(NETMGR_KIF_NATT_SERVER_PORT)
+        " --dport " TO_XSTR(NETMGR_KIF_NATT_MODEM_PORT) " -m u32 --u32 \"0>>22 & 0x3C @ 8 = 0\" -j MARK --set-mark " NETMGR_KIF_FWMARK },
 
     /* Send the rest of the ESP in UDP packets originating from NATT server port
-       up the networking stack */
-    "iptables -t mangle -A PREROUTING -p udp --sport " TO_XSTR(NETMGR_KIF_NATT_SERVER_PORT)
-      " -j ACCEPT",
+         up the networking stack */
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p udp --sport " TO_XSTR(NETMGR_KIF_NATT_SERVER_PORT)
+        " -j ACCEPT" },
 
-    "iptables -t mangle -A PREROUTING -p tcp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "iptables -t mangle -A PREROUTING -p udp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p tcp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    {  IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p udp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
 
-    /* Remove marking from iWLAN marked packets to prevent confusion with QoS marking */
-    "iptables -t mangle -A POSTROUTING -m mark --mark " NETMGR_KIF_FWMARK
-      " -j MARK --set-mark " NETMGR_KIF_DEFAULT_FLOW,
-
-    /* IPv6 iptable rules */
-    "ip6tables -t mangle -A PREROUTING -p tcp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "ip6tables -t mangle -A PREROUTING -p udp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-
-    /* Remove marking from iWLAN marked packets to prevent confusion with QoS marking */
-    "ip6tables -t mangle -A POSTROUTING -m mark --mark " NETMGR_KIF_FWMARK
-      " -j MARK --set-mark " NETMGR_KIF_DEFAULT_FLOW
+    { /* Remove marking from iWLAN marked packets to prevent confusion with QoS marking */
+      IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_post -m mark --mark " NETMGR_KIF_FWMARK
+        " -j MARK --set-mark " NETMGR_KIF_DEFAULT_FLOW }
   };
 
-  static const char *ims_iptable_rules[] =
+  static const iwlan_iptables_cmd_t install_ip4_ims_rules[] =
   {
-    /* IPv4 iptable rules */
-    "iptables -t mangle -A PREROUTING -p tcp --dport " NETMGR_KIF_IMS_PORT_START ":" NETMGR_KIF_IMS_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "iptables -t mangle -A PREROUTING -p tcp --dport " NETMGR_KIF_IMS_SIP_PORT
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "iptables -t mangle -A PREROUTING -p udp --dport " NETMGR_KIF_IMS_PORT_START ":" NETMGR_KIF_IMS_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "iptables -t mangle -A PREROUTING -p udp --dport " NETMGR_KIF_IMS_SIP_PORT
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_EMERGENCY_PORT_START ":" NETMGR_KIF_IMS_EMERGENCY_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_IPSEC_PORT_START ":" NETMGR_KIF_IMS_IPSEC_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_SIP_PORT
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p udp --dport " NETMGR_KIF_IMS_EMERGENCY_PORT_START ":" NETMGR_KIF_IMS_EMERGENCY_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p udp --dport " NETMGR_KIF_IMS_IPSEC_PORT_START ":" NETMGR_KIF_IMS_IPSEC_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p udp --dport " NETMGR_KIF_IMS_SIP_PORT
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
     /* Disable connection tracking on SIP port */
-    "iptables -t raw -A PREROUTING -p tcp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK",
-    "iptables -t raw -A PREROUTING -p udp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK",
-
-    /* IPv6 iptable rules */
-    "ip6tables -t mangle -A PREROUTING -p tcp --dport " NETMGR_KIF_IMS_PORT_START ":" NETMGR_KIF_IMS_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "ip6tables -t mangle -A PREROUTING -p tcp --dport " NETMGR_KIF_IMS_SIP_PORT
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "ip6tables -t mangle -A PREROUTING -p udp --dport " NETMGR_KIF_IMS_PORT_START ":" NETMGR_KIF_IMS_PORT_END
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    "ip6tables -t mangle -A PREROUTING -p udp --dport " NETMGR_KIF_IMS_SIP_PORT
-      " -j MARK --set-mark " NETMGR_KIF_FWMARK,
-    /* Disable connection tracking on SIP port */
-    "ip6tables -t raw -A PREROUTING -p tcp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK",
-    "ip6tables -t raw -A PREROUTING -p udp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK"
+    { IPTABLES " -t raw -A qcom_iwlan_ip4_raw_pre -p tcp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK" },
+    { IPTABLES " -t raw -A qcom_iwlan_ip4_raw_pre -p udp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK" }
   };
 
-  NETMGR_LOG_FUNC_ENTRY;
-
-  if (iptable_rules_installed)
+  static const iwlan_iptables_cmd_t ip6_connmark_rules_begin[] =
   {
-    netmgr_log_low("netmgr_kif_install_iptable_rules: iptable rules already installed\n");
+    /*
+      Handling of modem destined fragmented UDP packets
+      * Fragmented IPv4 UDP packets are automatically reassembled by the Linux connection
+        tracking module before being forwarded.
+      * Fragmented IPv6 UDP packets are not reassembled as routers (in this case AP) are
+        not supposed to do so. In order to properly forward such packets we use connection
+        marking mechanism via CONNMARK target.
+        - Use the connection mark (if exists) on the packets belonging to that connection
+        - Accept the packets which are marked (i.e. belong to an existing connection)
+        - Mark the remaining traffic that is destined to modem  port range
+        - Save the packet mark to the connection mark (for future traffic on the connection)
+    */
+    /* Restore the connection mark to the packet if it exists */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -j CONNMARK --restore-mark" },
+    /* Accept all packets belonging to existing connections belonging to Modem traffic */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre --match mark --mark " NETMGR_KIF_FWMARK
+        " -j ACCEPT" },
+    /* Insert a new table for IPv6 SPI based filters */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -j qcom_iwlan_ip6_mngl_pre_spi" }
+  };
+
+  static const iwlan_iptables_cmd_t ip6_connmark_rules_end[] =
+  {
+    /* Save the packet mark to the connection mark */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -j CONNMARK --save-mark" }
+  };
+
+  static const iwlan_iptables_cmd_t install_ip6_common_rules[] =
+  {
+    /* IPv6 iptable rules */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p tcp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p udp --dport " NETMGR_KIF_MODEM_PORT_START ":" NETMGR_KIF_MODEM_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    /* Remove marking from iWLAN marked packets to prevent confusion with QoS marking */
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_post -m mark --mark " NETMGR_KIF_FWMARK
+        " -j MARK --set-mark " NETMGR_KIF_DEFAULT_FLOW }
+  };
+
+  static const iwlan_iptables_cmd_t install_ip6_ims_rules[] =
+  {
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_EMERGENCY_PORT_START ":" NETMGR_KIF_IMS_EMERGENCY_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_IPSEC_PORT_START ":" NETMGR_KIF_IMS_IPSEC_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p tcp --dport " NETMGR_KIF_IMS_SIP_PORT
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p udp --dport " NETMGR_KIF_IMS_EMERGENCY_PORT_START ":" NETMGR_KIF_IMS_EMERGENCY_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p udp --dport " NETMGR_KIF_IMS_IPSEC_PORT_START ":" NETMGR_KIF_IMS_IPSEC_PORT_END
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    { IP6TABLES " -t mangle -A qcom_iwlan_ip6_mangle_pre -p udp --dport " NETMGR_KIF_IMS_SIP_PORT
+        " -j MARK --set-mark " NETMGR_KIF_FWMARK },
+    /* Disable connection tracking on SIP port */
+    { IP6TABLES " -t raw -A qcom_iwlan_ip6_raw_pre -p tcp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK" },
+    { IP6TABLES " -t raw -A qcom_iwlan_ip6_raw_pre -p udp --match multiport --ports " NETMGR_KIF_IMS_SIP_PORT " -j NOTRACK" }
+  };
+
+  if (TRUE == NETMGR_KIF_GET_IPTABLE_RULES_INSTALLED(ip_family))
+  {
+    netmgr_log_med("%s(): already installed for ip_family=%d!\n",
+                   __func__, ip_family);
     goto bail;
   }
 
-  netmgr_log_low("netmgr_kif_install_iptable_rules: installing iptables marking rules\n");
+  netmgr_log_low("%s(): Install static iwlan rules at powerup for ip_family=%d\n",
+                 __func__, ip_family);
 
+  netmgr_kif_create_custom_iwlan_chains(ip_family);
 
-  /* Connection marking iptable rules to install at the beginning */
-  for (i = 0; i < NETMGR_KIF_ARR_SIZE(connmark_iptable_rules_begin); ++i)
+  if (AF_INET == ip_family)
   {
-    if (ds_system_call2(connmark_iptable_rules_begin[i], strlen(connmark_iptable_rules_begin[i]), function_debug))
+    /* Install common iptable rules */
+    if ( NETMGR_SUCCESS
+          != netmgr_kif_iwlan_process_rules(install_ip4_common_rules,
+                                            NETMGR_KIF_ARR_SIZE(install_ip4_common_rules),
+                                            TRUE) )
     {
-      netmgr_log_err("netmgr_kif_install_iptable_rules: iptable cmd %s failed\n",
-                     connmark_iptable_rules_begin[i]);
+      netmgr_log_err("%s(): Failed to install the common IPv4 rules!\n", __func__);
       rc = NETMGR_FAILURE;
-      break;
+      goto bail;
     }
-  }
 
-  /* Install common iptable rules */
-  for (i = 0; i < NETMGR_KIF_ARR_SIZE(iptable_rules); ++i)
-  {
-    if (ds_system_call2(iptable_rules[i], strlen(iptable_rules[i]), function_debug))
+    if (TRUE == netmgr_main_get_iwlan_ims_enabled())
     {
-      netmgr_log_err("netmgr_kif_install_iptable_rules: iptable cmd %s failed\n",
-                     iptable_rules[i]);
-      rc = NETMGR_FAILURE;
-      break;
-    }
-  }
-
-  if (TRUE == netmgr_main_get_iwlan_ims_enabled())
-  {
-    /* Install IMS iptable rules */
-    for (i = 0; i < NETMGR_KIF_ARR_SIZE(ims_iptable_rules); ++i)
-    {
-      if (ds_system_call2(ims_iptable_rules[i], strlen(ims_iptable_rules[i]), function_debug))
+      /* Install common IMS iptable rules */
+      if ( NETMGR_SUCCESS
+           != netmgr_kif_iwlan_process_rules(install_ip4_ims_rules,
+                                             NETMGR_KIF_ARR_SIZE(install_ip4_ims_rules),
+                                             TRUE) )
       {
-        netmgr_log_err("netmgr_kif_install_iptable_rules: iptable cmd %s failed\n",
-                       ims_iptable_rules[i]);
+        netmgr_log_err("%s(): Failed to install the common IPv4 rules!\n", __func__);
         rc = NETMGR_FAILURE;
-        break;
+        goto bail;
       }
     }
-  }
 
-  /* Connection marking iptable rules to install at the end */
-  for (i = 0; i < NETMGR_KIF_ARR_SIZE(connmark_iptable_rules_end); ++i)
+    /* Install dynamic ims IP table rules */
+    netmgr_kif_install_dynamic_audio_iptable_rules(AF_INET);
+  }
+  else
   {
-    if (ds_system_call2(connmark_iptable_rules_end[i], strlen(connmark_iptable_rules_end[i]), function_debug))
+    /* Connection marking iptable rules to install at the beginning */
+    if ( NETMGR_SUCCESS
+          != netmgr_kif_iwlan_process_rules(ip6_connmark_rules_begin,
+                                            NETMGR_KIF_ARR_SIZE(ip6_connmark_rules_begin),
+                                            TRUE) )
     {
-      netmgr_log_err("netmgr_kif_install_iptable_rules: iptable cmd %s failed\n",
-                     connmark_iptable_rules_end[i]);
+      netmgr_log_err("%s(): Failed to install the common IPv4 rules!\n", __func__);
       rc = NETMGR_FAILURE;
-      break;
+      goto bail;
     }
+
+    /* IPv6 common rules */
+    if ( NETMGR_SUCCESS
+          != netmgr_kif_iwlan_process_rules(install_ip6_common_rules,
+                                            NETMGR_KIF_ARR_SIZE(install_ip6_common_rules),
+                                            TRUE) )
+    {
+      netmgr_log_err("%s(): Failed to install the common IPv4 rules!\n", __func__);
+      rc = NETMGR_FAILURE;
+      goto bail;
+    }
+
+    /* Install IMS common rules */
+    if (TRUE == netmgr_main_get_iwlan_ims_enabled())
+    {
+      if ( NETMGR_SUCCESS
+           != netmgr_kif_iwlan_process_rules(install_ip6_ims_rules,
+                                             NETMGR_KIF_ARR_SIZE(install_ip6_ims_rules),
+                                             TRUE) )
+      {
+        netmgr_log_err("%s(): Failed to install the common IPv4 rules!\n", __func__);
+        rc = NETMGR_FAILURE;
+        goto bail;
+      }
+    }
+
+    /* Connection marking iptable rules to install at the end */
+    if ( NETMGR_SUCCESS
+          != netmgr_kif_iwlan_process_rules(ip6_connmark_rules_end,
+                                            NETMGR_KIF_ARR_SIZE(ip6_connmark_rules_end),
+                                            TRUE) )
+    {
+      netmgr_log_err("%s(): Failed to install the common IPv4 rules!\n", __func__);
+      rc = NETMGR_FAILURE;
+      goto bail;
+    }
+
+    /* Install dynamic IMS iptable rules */
+    netmgr_kif_install_dynamic_audio_iptable_rules(AF_INET6);
   }
 
   if (NETMGR_SUCCESS == rc)
   {
-    iptable_rules_installed = TRUE;
+    NETMGR_KIF_SET_IPTABLE_RULES_INSTALLED(ip_family, TRUE);
+    netmgr_log_med("%s(): installation complete for ip_family=%d\n",
+                   __func__, ip_family);
   }
 
 bail:
@@ -5162,6 +7232,176 @@ bail:
   return rc;
 }
 
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_install_jump_iptable_rules
+===========================================================================*/
+/*!
+@brief
+  Installs IP table rules specific to call bringup. These will add jump
+  rules within the main chains.
+
+@return
+  int - NETMGR_SUCCESS on operation success, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_iwlan_install_jump_iptable_rules(int ip_family)
+{
+  int rc = NETMGR_SUCCESS;
+
+  static const iwlan_iptables_cmd_t ip4_qcom_iwlan_jump_rules[] =
+  {
+    /* Install rules to jump to the custom chains */
+    {
+      IPTABLES " -t mangle -I PREROUTING -i wlan0 -j qcom_iwlan_ip4_mangle_pre"  ";"
+      IPTABLES " -t mangle -I POSTROUTING -j qcom_iwlan_ip4_mangle_post" ";"
+      IPTABLES " -t raw    -I PREROUTING  -j qcom_iwlan_ip4_raw_pre"     ";"
+    }
+  };
+
+  static const iwlan_iptables_cmd_t ip6_qcom_iwlan_jump_rules[] =
+  {
+    /* Install rules to jump to the custom chains */
+    {
+      IP6TABLES " -t mangle -I PREROUTING  -i wlan0 -j qcom_iwlan_ip6_mangle_pre"  ";"
+      IP6TABLES " -t mangle -I POSTROUTING -j qcom_iwlan_ip6_mangle_post" ";"
+      IP6TABLES " -t raw    -I PREROUTING  -j qcom_iwlan_ip6_raw_pre"     ";"
+    }
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (TRUE == NETMGR_KIF_GET_IPTABLE_JUMP_RULES_INSTALLED(ip_family))
+  {
+    netmgr_log_med("%s(): already installed for ip_family=%d!\n",
+                   __func__, ip_family);
+    goto bail;
+  }
+
+  netmgr_log_med("%s(): Installing iptables jump rules for family=%d",
+                 __func__, ip_family);
+
+  if (AF_INET == ip_family)
+  {
+    rc = netmgr_kif_iwlan_process_rules(ip4_qcom_iwlan_jump_rules,
+                                        NETMGR_KIF_ARR_SIZE(ip4_qcom_iwlan_jump_rules),
+                                        FALSE);
+  }
+  else
+  {
+    rc = netmgr_kif_iwlan_process_rules(ip6_qcom_iwlan_jump_rules,
+                                        NETMGR_KIF_ARR_SIZE(ip6_qcom_iwlan_jump_rules),
+                                        FALSE);
+  }
+
+  if (NETMGR_SUCCESS != rc)
+  {
+    netmgr_log_err("%s(): Failed to install jump rules for custom chains!\n",
+                   __func__);
+    goto bail;
+  }
+
+  netmgr_log_med("%s(): installation complete for ip_family=%d\n",
+                 __func__, ip_family);
+  NETMGR_KIF_SET_IPTABLE_JUMP_RULES_INSTALLED(ip_family, TRUE);
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_kif_iwlan_remove_jump_iptable_rules
+===========================================================================*/
+/*!
+@brief
+  Removes IP table rules specific to call bringup.
+
+@return
+  int - NETMGR_SUCCESS on operation success, NETMGR_FAILURE otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_kif_iwlan_remove_jump_iptable_rules(int ip_family)
+{
+  int rc = NETMGR_SUCCESS;
+
+  static const iwlan_iptables_cmd_t ip4_qcom_iwlan_jump_rules[] =
+  {
+    /* Delete the jump rules from the main table */
+    {
+      IPTABLES " -t mangle -D PREROUTING  -i wlan0 -j qcom_iwlan_ip4_mangle_pre"  ";"
+      IPTABLES " -t mangle -D POSTROUTING -j qcom_iwlan_ip4_mangle_post" ";"
+      IPTABLES " -t raw    -D PREROUTING  -j qcom_iwlan_ip4_raw_pre"     ";"
+    }
+  };
+
+  static const iwlan_iptables_cmd_t ip6_qcom_iwlan_jump_rules[] =
+  {
+    /* Delete the jump rules from the main table */
+    {
+      IP6TABLES " -t mangle -D PREROUTING  -i wlan0 -j qcom_iwlan_ip6_mangle_pre"  ";"
+      IP6TABLES " -t mangle -D POSTROUTING -j qcom_iwlan_ip6_mangle_post" ";"
+      IP6TABLES " -t raw    -D PREROUTING  -j qcom_iwlan_ip6_raw_pre"     ";"
+    }
+  };
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (FALSE == NETMGR_KIF_GET_IPTABLE_JUMP_RULES_INSTALLED(ip_family))
+  {
+    netmgr_log_med("%s(): already removed for ip_family=%d!\n",
+                   __func__, ip_family);
+    goto ret;
+  }
+
+  netmgr_log_med("%s(): Removing iptables jump rules for family=%d",
+                 __func__, ip_family);
+
+  if (AF_INET == ip_family)
+  {
+    rc = netmgr_kif_iwlan_process_rules(ip4_qcom_iwlan_jump_rules,
+                                        NETMGR_KIF_ARR_SIZE(ip4_qcom_iwlan_jump_rules),
+                                        FALSE);
+  }
+  else
+  {
+    rc = netmgr_kif_iwlan_process_rules(ip6_qcom_iwlan_jump_rules,
+                                        NETMGR_KIF_ARR_SIZE(ip6_qcom_iwlan_jump_rules),
+                                        FALSE);
+  }
+
+  if (NETMGR_SUCCESS != rc)
+  {
+    netmgr_log_err("%s(): Failed to install jump rules for custom chains!\n",
+                   __func__);
+    goto ret;
+  }
+
+  netmgr_log_med("%s(): Removal complete for ip_family=%d",
+                 __func__, ip_family);
+  NETMGR_KIF_SET_IPTABLE_JUMP_RULES_INSTALLED(ip_family, FALSE);
+
+ret:
+  NETMGR_LOG_FUNC_EXIT;
+  return rc;
+}
 
 /*===========================================================================
   FUNCTION  netmgr_kif_install_iptable_rules_ex
@@ -5188,81 +7428,96 @@ bail:
 LOCAL int
 netmgr_kif_install_iptable_rules_ex
 (
-  int link
+  int link,
+  int ip_family
 )
 {
-  char cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
   const char *link_name = NULL;
   int rc = NETMGR_FAILURE;
+  int cmd_length = 0;
+  iwlan_iptables_cmd_t  *install_cmd = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
-  do
+  if (NULL == (link_name = netmgr_kif_get_name(link)))
   {
-    netmgr_log_low("netmgr_kif_install_iptable_rules_ex: Installing IP rules for link=%d",
-                     link);
+    netmgr_log_err("%s(): failed to obtain link name for link=%d\n", __func__, link);
+    goto bail;
+  }
 
-    if (NULL == (link_name = netmgr_kif_get_name(link)))
+  netmgr_log_low("%s(): Installing IP rules for link=%d", __func__, link);
+
+  /* Install forwarding rules between rev_rmnet and wlan0 as the first rules in the
+   * FORWARD chain of filter table to override any packet drop rules */
+  if (AF_INET == ip_family)
+  {
+    /* Get cmd object */
+    install_cmd = netmgr_kif_iwlan_get_cmd_obj();
+    if (NULL == install_cmd)
     {
-      netmgr_log_err("netmgr_kif_install_forwarding_rules: failed to obtain link name for link=%d\n",
-                     link);
-      break;
+      netmgr_log_err("%s(): Failed to get command object!\n",
+                     __func__);
+      goto bail;
     }
 
-    /* Install forwarding rules between rev_rmnet and wlan0 as the first rules in the
-     * FORWARD chain of filter table to override any packet drop rules */
-    /* V4 rules */
-    snprintf(cmd,
-             sizeof(cmd),
-             "iptables -t filter -I FORWARD -i %s -o wlan0 -j ACCEPT",
-             link_name);
+    cmd_length = snprintf( install_cmd->rule,
+                           ( (size_t) NETMGR_MAX_COMMAND_LENGTH ),
+                           IPTABLES " -t filter -I FORWARD -i %s -o wlan0 -j ACCEPT;",
+                           link_name );
 
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
+    cmd_length += snprintf( (install_cmd->rule + cmd_length),
+                            ( ( (size_t) NETMGR_MAX_COMMAND_LENGTH ) - cmd_length ),
+                            IPTABLES " -t filter -I FORWARD -i wlan0 -o %s -j ACCEPT",
+                            link_name );
+
+    if (NETMGR_SUCCESS !=
+         netmgr_kif_iwlan_process_rules(install_cmd, 1, FALSE))
     {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
+      netmgr_log_err("%s(): Failed to install rule for ip_family [%d]!",
+                     __func__, ip_family);
+      goto bail;
+    }
+  }
+  else if (AF_INET6 == ip_family)
+  {
+    /* Get cmd object */
+    install_cmd = netmgr_kif_iwlan_get_cmd_obj();
+    if (NULL == install_cmd)
+    {
+      netmgr_log_err("%s(): Failed to get command object!\n",
+                     __func__);
+      goto bail;
     }
 
-    snprintf(cmd,
-             sizeof(cmd),
-             "iptables -t filter -I FORWARD -i wlan0 -o %s -j ACCEPT",
-             link_name);
+    cmd_length = snprintf( install_cmd->rule,
+                           ( (size_t) NETMGR_MAX_COMMAND_LENGTH ),
+                           IP6TABLES " -t filter -I FORWARD -i %s -o wlan0 -j ACCEPT;",
+                           link_name );
 
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
+    cmd_length += snprintf( (install_cmd->rule + cmd_length),
+                            ( ( (size_t) NETMGR_MAX_COMMAND_LENGTH ) - cmd_length ),
+                            IP6TABLES " -t filter -I FORWARD -i wlan0 -o %s -j ACCEPT",
+                            link_name );
+
+    if (NETMGR_SUCCESS !=
+         netmgr_kif_iwlan_process_rules(install_cmd, 1, FALSE))
     {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
+      netmgr_log_err("%s(): Failed to install rule for ip_family [%d]!",
+                     __func__, ip_family);
+      goto bail;
     }
+  }
 
-    /* V6 rules */
-    snprintf(cmd,
-             sizeof(cmd),
-             "ip6tables -t filter -I FORWARD -i %s -o wlan0 -j ACCEPT",
-             link_name);
+  rc = NETMGR_SUCCESS;
 
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
-    {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
-    }
+bail:
+  NETMGR_LOG_FUNC_EXIT;
 
-    snprintf(cmd,
-             sizeof(cmd),
-             "ip6tables -t filter -I FORWARD -i wlan0 -o %s -j ACCEPT",
-             link_name);
-
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
-    {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
-    }
-
-    rc = NETMGR_SUCCESS;
-  } while (0);
+  /* Free the allocated command object */
+  netmgr_kif_iwlan_release_cmd_obj(install_cmd);
 
   return rc;
 }
-
 
 /*===========================================================================
   FUNCTION  netmgr_kif_remove_iptable_rules_ex
@@ -5289,74 +7544,90 @@ netmgr_kif_install_iptable_rules_ex
 LOCAL int
 netmgr_kif_remove_iptable_rules_ex
 (
-  int link
+  int link,
+  int ip_family
 )
 {
-  char cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
   const char *link_name = NULL;
   int rc = NETMGR_FAILURE;
+  int cmd_length = 0;
+  iwlan_iptables_cmd_t  *remove_cmd = NULL;
 
-  do
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (NULL == (link_name = netmgr_kif_get_name(link)))
   {
-    netmgr_log_low("netmgr_kif_install_iptable_rules_ex: Removing IP rules for link=%d",
-                     link);
+    netmgr_log_err("%s(): failed to obtain link name for link=%d\n", __func__, link);
+    goto bail;
+  }
 
-    if (NULL == (link_name = netmgr_kif_get_name(link)))
+  netmgr_log_low("%s(): Removing IP rules for link=%d", __func__, link);
+
+  /* Remove forwarding rules between rev_rmnet and wlan0 */
+  if (AF_INET == ip_family)
+  {
+    /* Get the command object */
+    remove_cmd = netmgr_kif_iwlan_get_cmd_obj();
+    if (NULL == remove_cmd)
     {
-      netmgr_log_err("netmgr_kif_install_forwarding_rules: failed to obtain link name for link=%d\n",
-                     link);
-      break;
+      netmgr_log_err("%s(): Failed to allocate cmd object!\n", __func__);
+      goto bail;
     }
 
-    /* Remove forwarding rules between rev_rmnet and wlan0 */
-    /* V4 rules */
-    snprintf(cmd,
-             sizeof(cmd),
-             "iptables -t filter -D FORWARD -i %s -o wlan0 -j ACCEPT",
-             link_name);
+    cmd_length = snprintf( remove_cmd->rule,
+                           ( (size_t) NETMGR_MAX_COMMAND_LENGTH ),
+                           IPTABLES " -t filter -D FORWARD -i %s -o wlan0 -j ACCEPT;",
+                           link_name );
 
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
+    cmd_length += snprintf( (remove_cmd->rule + cmd_length),
+                            ( ( (size_t) NETMGR_MAX_COMMAND_LENGTH ) - cmd_length ),
+                            IPTABLES " -t filter -D FORWARD -i wlan0 -o %s -j ACCEPT",
+                            link_name );
+
+    if (NETMGR_SUCCESS !=
+         netmgr_kif_iwlan_process_rules(remove_cmd, 1, FALSE))
     {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
+      netmgr_log_err("%s(): Failed to remove rule for ip_family [%d]!\n",
+                     __func__, ip_family);
+      goto bail;
+    }
+  }
+  else if (AF_INET6 == ip_family)
+  {
+    /* Get the command object */
+    remove_cmd = netmgr_kif_iwlan_get_cmd_obj();
+    if (NULL == remove_cmd)
+    {
+      netmgr_log_err("%s(): Failed to allocate cmd object!\n", __func__);
+      goto bail;
     }
 
-    snprintf(cmd,
-             sizeof(cmd),
-             "iptables -t filter -D FORWARD -i wlan0 -o %s -j ACCEPT",
-             link_name);
+    cmd_length = snprintf( remove_cmd->rule,
+                           ( (size_t) NETMGR_MAX_COMMAND_LENGTH ),
+                           IP6TABLES " -t filter -D FORWARD -i %s -o wlan0 -j ACCEPT;",
+                           link_name );
 
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
+    cmd_length += snprintf( (remove_cmd->rule + cmd_length),
+                            ( ( (size_t) NETMGR_MAX_COMMAND_LENGTH ) - cmd_length ),
+                            IP6TABLES " -t filter -D FORWARD -i wlan0 -o %s -j ACCEPT",
+                            link_name );
+
+    if (NETMGR_SUCCESS !=
+         netmgr_kif_iwlan_process_rules(remove_cmd, 1, FALSE))
     {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
+      netmgr_log_err("%s(): Failed to remove rule for ip_family [%d]!\n",
+                     __func__, ip_family);
+      goto bail;
     }
+  }
 
-    /* V6 rules */
-    snprintf(cmd,
-             sizeof(cmd),
-             "ip6tables -t filter -D FORWARD -i %s -o wlan0 -j ACCEPT",
-             link_name);
+  rc = NETMGR_SUCCESS;
 
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
-    {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
-    }
+bail:
+  NETMGR_LOG_FUNC_EXIT;
 
-    snprintf(cmd,
-             sizeof(cmd),
-             "ip6tables -t filter -D FORWARD -i wlan0 -o %s -j ACCEPT",
-             link_name);
-
-    if (ds_system_call2(cmd, std_strlen(cmd), function_debug) != NETMGR_SUCCESS)
-    {
-      netmgr_log_err("netmgr_kif_install_iptable_rules_ex: ds_system_call() failed\n");
-      break;
-    }
-
-    rc = NETMGR_SUCCESS;
-  } while (0);
+  /* Free the allocated command object */
+  netmgr_kif_iwlan_release_cmd_obj(remove_cmd);
 
   return rc;
 }
@@ -5455,6 +7726,7 @@ netmgr_kif_install_forwarding_rules
     goto bail;
   }
 
+  NETMGR_KIF_SET_FORWARDING_RULES_INSTALLED(ip_family, TRUE);
   rc = NETMGR_SUCCESS;
 
 bail:
@@ -5954,33 +8226,36 @@ do                                                                              
 }                                                                                      \
 while (0)
 
-#define NETMGR_KIF_UTIL_INSTALL_IPSEC_XFRM_POLICY(DIR,ipsec_dir,mode,state_id,policy_sel) \
-do                                                                                        \
-{                                                                                         \
-  if (*policy_sel[NETMGR_SA_DIR_##DIR] != '\0' && *state_id[NETMGR_SA_DIR_##DIR] != '\0') \
-  {                                                                                       \
-    char xfrm_policy_cmd[NETMGR_MAX_COMMAND_LENGTH] = "";                                 \
-    snprintf(xfrm_policy_cmd,                                                             \
-             sizeof(xfrm_policy_cmd),                                                     \
-             "ip xfrm policy add dir "#ipsec_dir" %s tmpl %s mode %s",                    \
-             policy_sel[NETMGR_SA_DIR_##DIR],                                             \
-             state_id[NETMGR_SA_DIR_##DIR],                                               \
-             mode);                                                                       \
-                                                                                          \
-    if (ds_system_call2(xfrm_policy_cmd,                                                  \
-                        std_strlen(xfrm_policy_cmd),                                      \
-                        function_debug) != NETMGR_SUCCESS)                                \
-    {                                                                                     \
-      netmgr_log_err("ip xfrm policy cmd failed");                                        \
-      goto bail;                                                                          \
-    }                                                                                     \
-  }                                                                                       \
-  else                                                                                    \
-  {                                                                                       \
-    netmgr_log_err("ip xfrm policy cmd failed, invalid policy/state\n");                  \
-    goto bail;                                                                            \
-  }                                                                                       \
-}                                                                                         \
+#define NETMGR_KIF_UTIL_INSTALL_IPSEC_XFRM_POLICY(DIR,ipsec_dir,mode,state_id,policy_sel)  \
+do                                                                                         \
+{                                                                                          \
+  if (*policy_sel[NETMGR_SA_DIR_##DIR] != '\0' && *state_id[NETMGR_SA_DIR_##DIR] != '\0')  \
+  {                                                                                        \
+    char xfrm_policy_cmd[NETMGR_MAX_COMMAND_LENGTH] = "";                                  \
+    /* 'priority' - Specify priority option for legacy policies */                         \
+    /* The priority is required in order to install other specific policies which */       \
+    /* should be enforced before the legacy rules. Higher the value lower the priority */  \
+    snprintf(xfrm_policy_cmd,                                                              \
+             sizeof(xfrm_policy_cmd),                                                      \
+             "ip xfrm policy add dir "#ipsec_dir" priority 100 %s tmpl %s mode %s",        \
+             policy_sel[NETMGR_SA_DIR_##DIR],                                              \
+             state_id[NETMGR_SA_DIR_##DIR],                                                \
+             mode);                                                                        \
+                                                                                           \
+    if (ds_system_call2(xfrm_policy_cmd,                                                   \
+                        std_strlen(xfrm_policy_cmd),                                       \
+                        function_debug) != NETMGR_SUCCESS)                                 \
+    {                                                                                      \
+      netmgr_log_err("ip xfrm policy cmd failed");                                         \
+      goto bail;                                                                           \
+    }                                                                                      \
+  }                                                                                        \
+  else                                                                                     \
+  {                                                                                        \
+    netmgr_log_err("ip xfrm policy cmd failed, invalid policy/state\n");                   \
+    goto bail;                                                                             \
+  }                                                                                        \
+}                                                                                          \
 while (0)
 
 /*===========================================================================
@@ -6010,8 +8285,6 @@ netmgr_kif_install_sa_rules
   int ip_family
 )
 {
-  char dest_addr_buf[NETMGR_MAX_STR_LENGTH]  = "";
-  char local_addr_buf[NETMGR_MAX_STR_LENGTH] = "";
   char encryption[NETMGR_MAX_STR_LENGTH]     = "";
   char authentication[NETMGR_MAX_STR_LENGTH] = "";
   char encap[NETMGR_SA_DIR_MAX][NETMGR_MAX_STR_LENGTH] = {"",""};
@@ -6073,24 +8346,28 @@ netmgr_kif_install_sa_rules
   }
 
   if (NETMGR_SUCCESS != netmgr_util_convert_qmi_ip_addr_to_str(&sa_config.dest_addr,
-                                                               dest_addr_buf,
-                                                               sizeof(dest_addr_buf)))
+                                                               sa->tunnel_ep.dest_addr,
+                                                               sizeof(sa->tunnel_ep.dest_addr)))
   {
     netmgr_log_err("netmgr_kif_install_sa_rules: failed to convert dest IP addr to string");
     goto bail;
   }
 
-  netmgr_log_med("netmgr_kif_install_sa_rules: dest_addr=%s", dest_addr_buf);
+  netmgr_log_med("netmgr_kif_install_sa_rules: dest_addr=%s", sa->tunnel_ep.dest_addr);
 
   if (NETMGR_SUCCESS != netmgr_util_convert_qmi_ip_addr_to_str(&sa_config.local_addr,
-                                                               local_addr_buf,
-                                                               sizeof(local_addr_buf)))
+                                                               sa->tunnel_ep.local_addr,
+                                                               sizeof(sa->tunnel_ep.local_addr)))
   {
     netmgr_log_err("netmgr_kif_install_sa_rules: failed to convert local IP addr to string");
     goto bail;
   }
 
-  netmgr_log_med("netmgr_kif_install_sa_rules: local_addr=%s", local_addr_buf);
+  netmgr_log_med("netmgr_kif_install_sa_rules: local_addr=%s", sa->tunnel_ep.local_addr);
+
+  sa->tunnel_ep.ip_family = (QMI_WDS_IPV4_TYPE == sa_config.local_addr.family) ? AF_INET :
+                                                                                 AF_INET6;
+  sa->tunnel_ep.is_valid = TRUE;
 
   /* Get the protocol string */
   if (!(proto = netmgr_util_get_ipsec_proto_str(sa_config.proto)))
@@ -6136,8 +8413,8 @@ netmgr_kif_install_sa_rules
     snprintf(sa->sa_state_id[sa_dir],
              NETMGR_MAX_STR_LENGTH,
              "src %s dst %s proto %s spi 0x%lx",
-             local_addr_buf,
-             dest_addr_buf,
+             sa->tunnel_ep.local_addr,
+             sa->tunnel_ep.dest_addr,
              proto,
              sa_config.spi_tx);
 
@@ -6194,8 +8471,8 @@ netmgr_kif_install_sa_rules
     snprintf(sa->sa_state_id[sa_dir],
              NETMGR_MAX_STR_LENGTH,
              "src %s dst %s proto %s spi 0x%lx",
-             dest_addr_buf,
-             local_addr_buf,
+             sa->tunnel_ep.dest_addr,
+             sa->tunnel_ep.local_addr,
              proto,
              sa_config.spi_rx);
 
@@ -6357,7 +8634,7 @@ netmgr_kif_remove_sa_rules
   {
     snprintf(xfrm_policy_cmd,
              sizeof(xfrm_policy_cmd),
-             "ip xfrm policy deleteall dir out %s",
+             "ip xfrm policy delete dir out %s",
              sa_policy_sel[NETMGR_SA_DIR_TX]);
 
     netmgr_log_med("netmgr_kif_remove_sa_rules: removing TX SA policy for link=%d, family=%d",
@@ -6399,7 +8676,7 @@ netmgr_kif_remove_sa_rules
   {
     snprintf(xfrm_policy_cmd,
              sizeof(xfrm_policy_cmd),
-             "ip xfrm policy deleteall dir in %s",
+             "ip xfrm policy delete dir in %s",
              sa_policy_sel[NETMGR_SA_DIR_RX]);
 
     netmgr_log_med("netmgr_kif_remove_sa_rules: removing RX SA policy for link=%d, family=%d",
@@ -6413,7 +8690,7 @@ netmgr_kif_remove_sa_rules
 
     snprintf(xfrm_policy_cmd,
              sizeof(xfrm_policy_cmd),
-             "ip xfrm policy deleteall dir fwd %s",
+             "ip xfrm policy delete dir fwd %s",
              sa_policy_sel[NETMGR_SA_DIR_RX]);
 
     netmgr_log_med("netmgr_kif_remove_sa_rules: removing FWD SA policy for link=%d, family=%d",
@@ -6435,6 +8712,7 @@ bail:
   NETMGR_LOG_FUNC_EXIT;
   return rc;
 }
+
 #endif /* FEATURE_DATA_IWLAN */
 
 /*===========================================================================
@@ -6462,6 +8740,9 @@ netmgr_kif_set_ssdp_rule_on_iface
 {
   char cmd[NETMGR_KIF_SYSCMD_SIZ];
   int cmdlen, rc;
+
+  if(!netmgr_main_cfg.dropssdp)
+    return;
 
   cmdlen = snprintf(cmd,
                     sizeof(cmd),
@@ -6614,7 +8895,7 @@ netmgr_kif_powerup_init
         {
           netmgr_log_err("netmgr_kif_ifioctl_open_port() failed for %s\n",
                          netmgr_kif_info[i].name);
-          netmgr_kif_cfg.link_array[i].enabled = FALSE;
+          netmgr_kif_cfg.link_array[i].initialized = FALSE;
           modem_status = NETMGR_KIF_OPEN_FAILURE;
         }
         else
@@ -6631,7 +8912,7 @@ netmgr_kif_powerup_init
         {
           netmgr_log_err("netmgr_kif_ifioctl_open_port() failed for %s\n",
                          netmgr_kif_info[i].name);
-          netmgr_kif_cfg.link_array[i].enabled = FALSE;
+          netmgr_kif_cfg.link_array[i].initialized = FALSE;
         }
         else
         {
@@ -6793,6 +9074,14 @@ netmgr_kif_send_icmpv6_router_solicitation (int link)
   struct sockaddr_in6 dest6;
   int ret = NETMGR_FAILURE;
   int hop_limit = 255;
+  const char *link_name = netmgr_kif_get_name(link);
+
+  if (NULL == link_name)
+  {
+    netmgr_log_err("router solicitation unable to determine name for link=%d\n",
+                    link);
+    goto bail;
+  }
 
   if ((sock_fd = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0)
   {
@@ -6801,7 +9090,7 @@ netmgr_kif_send_icmpv6_router_solicitation (int link)
   }
 
   netmgr_log_med("router solicitation setting hoplimit[%d] interface[%s]",
-                 hop_limit, netmgr_kif_get_name( link ));
+                 hop_limit, link_name );
 
   /* Set the multicast hop limit */
   if( -1 == setsockopt( sock_fd,
@@ -6818,8 +9107,8 @@ netmgr_kif_send_icmpv6_router_solicitation (int link)
   if( -1 == setsockopt( sock_fd,
                         SOL_SOCKET,
                         SO_BINDTODEVICE,
-                        (char *)netmgr_kif_get_name( link ),
-                        (strlen(netmgr_kif_get_name( link ))+1) ))
+                        link_name,
+                        (socklen_t)(strlen(link_name)+1) ) )
   {
     netmgr_log_sys_err("router solicitation setsockopt() failed on iface bind:");
     goto bail;
@@ -6884,21 +9173,22 @@ bail:
 void
 netmgr_kif_iwlan_update_dynamic_config (int link, int ip_family)
 {
-  unsigned int active_calls = netmgr_kif_get_active_iwlan_calls(ip_family);
+  NETMGR_LOG_FUNC_ENTRY;
 
-  netmgr_log_med("netmgr_kif_iwlan_update_dynamic_config: link=%d, family=%d, "
-                 "active_calls=%u, forwarding=%d, policy_routing=%d\n",
-                 link,
-                 ip_family,
-                 active_calls,
-                 NETMGR_KIF_GET_FORWARDING_ENABLED(ip_family),
-                 NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(ip_family));
+  unsigned int active_calls = netmgr_kif_get_active_iwlan_calls(ip_family);
+  unsigned short tech = netmgr_qmi_wds_get_tech_name(link);
+  unsigned int active_calls_by_tech = netmgr_kif_get_active_iwlan_calls_by_tech(ip_family, tech);
 
   /* If a first iWLAN call is being brought up, enable forwarding and update
      the policy routing rules*/
   if (1 == active_calls)
   {
-    if (NETMGR_SUCCESS != netmgr_kif_enable_forwarding(ip_family))
+    if (NETMGR_SUCCESS != netmgr_kif_iwlan_install_jump_iptable_rules(ip_family))
+    {
+      netmgr_log_err("netmgr_kif_iwlan_update_dynamic_config: failed to install iptable rules\n");
+    }
+
+    if (NETMGR_SUCCESS != netmgr_kif_enable_forwarding())
     {
       netmgr_log_err("netmgr_kif_iwlan_update_dynamic_config: failed to enable forwarding\n");
     }
@@ -6907,7 +9197,69 @@ netmgr_kif_iwlan_update_dynamic_config (int link, int ip_family)
     {
       netmgr_log_err("netmgr_kif_iwlan_update_dynamic_config: failed to install policy routing rules\n");
     }
+
+    /* For V6 case we need to install additional specific policies */
+    if (AF_INET6 == ip_family)
+    {
+      NETMGR_KIF_UTIL_INSTALL_IPSEC_XFRM_POLICY_EX(out);
+    }
   }
+
+  netmgr_log_med("netmgr_kif_iwlan_update_dynamic_config: link=%d, family=%d, "
+                 "active_calls=%u, iptable_rules=%d, jump_rules=%d, "
+                 "forwarding=%d, policy_routing=%d\n",
+                 link,
+                 ip_family,
+                 active_calls,
+                 NETMGR_KIF_GET_IPTABLE_RULES_INSTALLED(ip_family),
+                 NETMGR_KIF_GET_IPTABLE_JUMP_RULES_INSTALLED(ip_family),
+                 NETMGR_KIF_GET_FORWARDING_ENABLED(ip_family),
+                 NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(ip_family));
+
+  if (QMI_WDS_IFACE_NAME_WLAN_LOCAL_BRKOUT == tech)
+  {
+    if (1 == active_calls_by_tech)
+    {
+      netmgr_kif_install_lb_policy_routing_rule(link, ip_family);
+    }
+
+    netmgr_log_med("netmgr_kif_iwlan_update_dynamic_config: link=%d, family=%d, tech=0x%x, "
+                   "active_calls_by_tech=%u, lb_policy_routing=%d\n",
+                   link,
+                   ip_family,
+                   tech,
+                   active_calls_by_tech,
+                   NETMGR_KIF_GET_LB_POLICY_ROUTING_INSTALLED(ip_family));
+  }
+  else if (QMI_WDS_IFACE_NAME_IWLAN_EPDG == tech)
+  {
+    const char *local_addr = NULL, *dest_addr = NULL;
+    int tunnel_family;
+
+    if (NETMGR_SUCCESS != netmgr_qmi_get_ipsec_tunnel_endpoints(link,
+                                                                ip_family,
+                                                                &local_addr,
+                                                                &dest_addr,
+                                                                &tunnel_family))
+    {
+      netmgr_log_err("%s(): failed to get tunnel ep addresses for link=%d ip_family=%d!\n",
+                     __func__, link, ip_family);
+    }
+    else if (1 == active_calls_by_tech)
+    {
+      netmgr_kif_install_s2b_policy_routing_rule(link, local_addr, dest_addr, tunnel_family);
+    }
+
+    netmgr_log_med("netmgr_kif_iwlan_update_dynamic_config: link=%d, family=%d, tech=0x%x, "
+                   "active_calls_by_tech=%u, s2b_policy_routing=%d\n",
+                   link,
+                   tunnel_family,
+                   tech,
+                   active_calls_by_tech,
+                   NETMGR_KIF_GET_S2B_POLICY_ROUTING_INSTALLED(tunnel_family));
+  }
+
+  NETMGR_LOG_FUNC_EXIT;
 }
 
 /*===========================================================================
@@ -6933,30 +9285,100 @@ netmgr_kif_iwlan_update_dynamic_config (int link, int ip_family)
 void
 netmgr_kif_iwlan_cleanup_dynamic_config(int link, int ip_family)
 {
-  unsigned int active_calls = netmgr_kif_get_active_iwlan_calls(ip_family);
+  NETMGR_LOG_FUNC_ENTRY;
 
-  netmgr_log_med("netmgr_kif_iwlan_cleanup_dynamic_config: link=%d, family=%d, "
-                 "active_calls=%u, forwarding=%d, policy_routing=%d\n",
-                 link,
-                 ip_family,
-                 active_calls,
-                 NETMGR_KIF_GET_FORWARDING_ENABLED(ip_family),
-                 NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(ip_family));
+  unsigned int active_calls = netmgr_kif_get_active_iwlan_calls(ip_family);
+  unsigned short tech = netmgr_qmi_wds_get_tech_name(link);
+  unsigned int active_calls_by_tech = netmgr_kif_get_active_iwlan_calls_by_tech(ip_family, tech);
 
   /* If the last iWLAN call is being brought down, disable forwarding and cleanup
      the policy routing rules*/
   if (0 == active_calls)
   {
-    if (NETMGR_SUCCESS != netmgr_kif_disable_forwarding(ip_family))
+    if (NETMGR_SUCCESS != netmgr_kif_cleanup_forwarding_rules(ip_family, TRUE))
+    {
+      netmgr_log_err("netmgr_kif_iwlan_cleanup_dynamic_config: failed to cleanup forwarding table\n");
+    }
+
+    if (NETMGR_SUCCESS != netmgr_kif_iwlan_remove_jump_iptable_rules(ip_family))
+    {
+      netmgr_log_err("netmgr_kif_iwlan_cleanup_dynamic_config: failed to cleanup iptable rules\n");
+    }
+
+    if (NETMGR_SUCCESS != netmgr_kif_disable_forwarding())
     {
       netmgr_log_err("netmgr_kif_iwlan_cleanup_dynamic_config: failed to disable forwarding\n");
     }
 
-    if (NETMGR_SUCCESS != netmgr_kif_cleanup_policy_routing_rules(ip_family))
+    if (NETMGR_SUCCESS != netmgr_kif_cleanup_policy_routing_rules(ip_family, FALSE))
     {
       netmgr_log_err("netmgr_kif_iwlan_cleanup_dynamic_config: failed to cleanup policy routing rules\n");
     }
+
+    /* Remove protocol specific IPSec policies */
+    if (AF_INET6 == ip_family)
+    {
+      NETMGR_KIF_UTIL_REMOVE_IPSEC_XFRM_POLICY_EX(out);
+    }
   }
+
+  netmgr_log_med("netmgr_kif_iwlan_cleanup_dynamic_config: link=%d, family=%d, "
+                 "active_calls=%u, iptable_rules=%d, jump_rules=%d "
+                 "forwarding=%d, policy_routing=%d\n",
+                 link,
+                 ip_family,
+                 active_calls,
+                 NETMGR_KIF_GET_IPTABLE_RULES_INSTALLED(ip_family),
+                 NETMGR_KIF_GET_IPTABLE_JUMP_RULES_INSTALLED(ip_family),
+                 NETMGR_KIF_GET_FORWARDING_ENABLED(ip_family),
+                 NETMGR_KIF_GET_POLICY_ROUTING_INSTALLED(ip_family));
+
+
+  if (QMI_WDS_IFACE_NAME_WLAN_LOCAL_BRKOUT == tech)
+  {
+    if (0 == active_calls_by_tech)
+    {
+      netmgr_kif_cleanup_lb_policy_routing_rule(link, ip_family, FALSE);
+    }
+
+    netmgr_log_med("netmgr_kif_iwlan_cleanup_dynamic_config: link=%d, family=%d, tech=0x%x, "
+                   "active_calls_by_tech=%u, lb_policy_routing=%d\n",
+                   link,
+                   ip_family,
+                   tech,
+                   active_calls_by_tech,
+                   NETMGR_KIF_GET_LB_POLICY_ROUTING_INSTALLED(ip_family));
+
+  }
+  else if (QMI_WDS_IFACE_NAME_IWLAN_EPDG == tech)
+  {
+    const char *local_addr = NULL, *dest_addr = NULL;
+    int tunnel_family;
+
+    if (NETMGR_SUCCESS != netmgr_qmi_get_ipsec_tunnel_endpoints(link,
+                                                                ip_family,
+                                                                &local_addr,
+                                                                &dest_addr,
+                                                                &tunnel_family))
+    {
+      netmgr_log_err("%s(): failed to get tunnel ep addresses for link=%d ip_family=%d!\n",
+                     __func__, link, ip_family);
+    }
+    else if (0 == active_calls_by_tech)
+    {
+      netmgr_kif_cleanup_s2b_policy_routing_rule(link, local_addr, dest_addr, tunnel_family, FALSE);
+    }
+
+    netmgr_log_med("netmgr_kif_iwlan_cleanup_dynamic_config: link=%d, family=%d, tech=0x%x, "
+                   "active_calls_by_tech=%u, s2b_policy_routing=%d\n",
+                   link,
+                   tunnel_family,
+                   tech,
+                   active_calls_by_tech,
+                   NETMGR_KIF_GET_S2B_POLICY_ROUTING_INSTALLED(tunnel_family));
+  }
+
+  NETMGR_LOG_FUNC_EXIT;
 }
 
 /*===========================================================================
@@ -6991,6 +9413,7 @@ netmgr_kif_install_sa_and_routing_rules
   netmgr_ipsec_sa_t  *v4_sa = NULL;
   netmgr_ipsec_sa_t  *v6_sa = NULL;
   netmgr_ip_address_t  *ip_addr = NULL;
+  netmgr_qmi_client_type_t  clnt;
 
 
   NETMGR_LOG_FUNC_ENTRY;
@@ -7021,15 +9444,8 @@ netmgr_kif_install_sa_and_routing_rules
     goto bail;
   }
 
-  /* Install iptable rules */
-  if (NETMGR_SUCCESS != netmgr_kif_install_iptable_rules())
-  {
-    netmgr_log_err("netmgr_kif_install_sa_and_routing_rules: install iptable rules failed");
-    goto bail;
-  }
-
   /* Install specific rules */
-  if (NETMGR_SUCCESS != netmgr_kif_install_iptable_rules_ex(link))
+  if (NETMGR_SUCCESS != netmgr_kif_install_iptable_rules_ex(link, ip_family))
   {
     netmgr_log_err("netmgr_kif_install_sa_and_routing_rules: install iptable ex rules failed");
     goto bail;
@@ -7192,7 +9608,7 @@ bail:
     - None
 */
 /*=========================================================================*/
-static int
+int
 netmgr_kif_remove_sa_and_routing_rules
 (
   int                   link,
@@ -7235,7 +9651,7 @@ netmgr_kif_remove_sa_and_routing_rules
   }
 
    /* Remove traffic specific IP table rules */
-  if (NETMGR_SUCCESS != netmgr_kif_remove_iptable_rules_ex(link))
+  if (NETMGR_SUCCESS != netmgr_kif_remove_iptable_rules_ex(link, ip_family))
   {
     netmgr_log_err("netmgr_kif_remove_iptable_rules_ex: failed to remove IP table rules");
     goto bail;
@@ -7263,6 +9679,175 @@ bail:
   NETMGR_LOG_FUNC_EXIT;
   return ret;
 }
+
+/*===========================================================================
+FUNCTION  netmgr_kif_install_spi_filter_rule
+===========================================================================*/
+/*!
+@brief
+  Installs SPI based marking rule in iptables for the given family
+
+@return
+  int - NETMGR_SUCCESS if link ID is valid, NETMGR_FAILURE otherwise
+@note
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_kif_install_spi_filter_rule
+(
+  int           ip_family,
+  unsigned int  spi
+)
+{
+  int rc = NETMGR_FAILURE;
+  iwlan_iptables_cmd_t *install_cmd = NULL;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (AF_INET != ip_family && AF_INET6 != ip_family)
+  {
+    netmgr_log_err("netmgr_kif_install_spi_filter_rule: invalid input\n");
+    goto bail;
+  }
+  else if (0 == netmgr_kif_get_active_iwlan_calls(ip_family))
+  {
+    netmgr_log_err("netmgr_kif_install_spi_filter_rule: no active iWLAN calls\n");
+    goto bail;
+  }
+
+  /* Get the command object */
+  install_cmd = netmgr_kif_iwlan_get_cmd_obj();
+  if (NULL == install_cmd)
+  {
+    netmgr_log_err("%s(): Failed to allocate cmd object!\n", __func__);
+    goto bail;
+  }
+
+  if (AF_INET == ip_family)
+  {
+    snprintf(install_cmd->rule,
+             (size_t) NETMGR_MAX_COMMAND_LENGTH,
+             IPTABLES " -t mangle -A qcom_iwlan_ip4_mangle_pre -p 50 -m esp --espspi 0x%x"
+               " -j MARK --set-mark " NETMGR_KIF_FWMARK,
+             spi);
+  }
+  else
+  {
+    snprintf(install_cmd->rule,
+             (size_t) NETMGR_MAX_COMMAND_LENGTH,
+             IP6TABLES " -t mangle -A qcom_iwlan_ip6_mngl_pre_spi -p 50 -m esp --espspi 0x%x"
+               " -j MARK --set-mark " NETMGR_KIF_FWMARK,
+             spi);
+  }
+
+  /* Install the rule */
+  if(NETMGR_SUCCESS !=
+      netmgr_kif_iwlan_process_rules(install_cmd, 1, FALSE))
+  {
+    netmgr_log_err("%s(): Failed to install SPI rule for family [%d]!\n",
+                   __func__, ip_family);
+    goto bail;
+  }
+
+  rc = NETMGR_SUCCESS;
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
+
+  /* Release the allocated command object */
+  netmgr_kif_iwlan_release_cmd_obj(install_cmd);
+
+  return rc;
+}
+
+/*===========================================================================
+FUNCTION  netmgr_kif_remove_spi_filter_rule
+===========================================================================*/
+/*!
+@brief
+  Removes SPI based marking rule from iptables for the given IP family
+
+@return
+  int - NETMGR_SUCCESS if link ID is valid, NETMGR_FAILURE otherwise
+@note
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_kif_remove_spi_filter_rule
+(
+  int           ip_family,
+  unsigned int  spi
+)
+{
+  int rc = NETMGR_FAILURE;
+  iwlan_iptables_cmd_t *remove_cmd = NULL;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (AF_INET != ip_family && AF_INET6 != ip_family)
+  {
+    netmgr_log_err("netmgr_kif_remove_spi_filter_rule: invalid input\n");
+    goto bail;
+  }
+  else if (0 == netmgr_kif_get_active_iwlan_calls(ip_family))
+  {
+    netmgr_log_err("netmgr_kif_remove_spi_filter_rule: no active iWLAN calls\n");
+    goto bail;
+  }
+
+  /* Get the command object */
+  remove_cmd = netmgr_kif_iwlan_get_cmd_obj();
+  if (NULL == remove_cmd)
+  {
+    netmgr_log_err("%s(): Failed to allocate cmd object!\n", __func__);
+    goto bail;
+  }
+
+  if (AF_INET == ip_family)
+  {
+    snprintf(remove_cmd->rule,
+             (size_t) NETMGR_MAX_COMMAND_LENGTH,
+             IPTABLES " -t mangle -D qcom_iwlan_ip4_mangle_pre -p 50 -m esp --espspi 0x%x"
+               " -j MARK --set-mark " NETMGR_KIF_FWMARK,
+             spi);
+  }
+  else
+  {
+    snprintf(remove_cmd->rule,
+             (size_t) NETMGR_MAX_COMMAND_LENGTH,
+             IP6TABLES " -t mangle -D qcom_iwlan_ip6_mngl_pre_spi -p 50 -m esp --espspi 0x%x"
+               " -j MARK --set-mark " NETMGR_KIF_FWMARK,
+             spi);
+  }
+
+  /* Remove the rule */
+  if(NETMGR_SUCCESS !=
+      netmgr_kif_iwlan_process_rules(remove_cmd, 1, FALSE))
+  {
+    netmgr_log_err("%s(): Failed to install SPI rule for family [%d]!\n",
+                   __func__, ip_family);
+    goto bail;
+  }
+
+  rc = NETMGR_SUCCESS;
+
+bail:
+  NETMGR_LOG_FUNC_EXIT;
+
+  /* Release the command object */
+  netmgr_kif_iwlan_release_cmd_obj(remove_cmd);
+
+  return rc;
+}
+
 #endif /* FEATURE_DATA_IWLAN */
 
 
@@ -7297,6 +9882,12 @@ netmgr_kif_init
   struct kif_vtbl vtable;
   pthread_mutexattr_t attr;
 
+#ifdef FEATURE_DS_LINUX_ANDROID
+  char ndc_create_cmd[NETMGR_MAX_COMMAND_LENGTH] = "";
+  char error_string[NETMGR_MAX_COMMAND_LENGTH * 3] = "";
+  int rc;
+#endif /* FEATURE_DS_LINUX_ANDROID */
+
   NETMGR_LOG_FUNC_ENTRY;
 
   /* Set number of interfaces in the configuration blob */
@@ -7312,6 +9903,7 @@ netmgr_kif_init
   netmgr_kif_init_paths(dirpath, modscript);
 
   /* Register with Platform layer */
+  vtable.out_of_service    = netmgr_kif_oos_cleanup;
   vtable.reset             = netmgr_kif_reset_link;
   vtable.dispatch          = netmgr_kif_nl_msg_recv_cmd_exec;
   vtable.send_event        = netmgr_kif_send_event;
@@ -7338,6 +9930,15 @@ netmgr_kif_init
     return;
   }
 
+#ifdef FEATURE_DATA_IWLAN
+  /* If IWLAN is enabled set the default forwarding preference to TRUE */
+  if (TRUE == netmgr_main_get_iwlan_enabled())
+  {
+    netmgr_kif_set_audio_port_forwarding_rules_preference(AF_INET, TRUE);
+    netmgr_kif_set_audio_port_forwarding_rules_preference(AF_INET6, TRUE);
+  }
+#endif
+
   /* Initialize device interfaces. Of course, this must be done after
   ** the devices are created, i.e. the module is loaded.
   */
@@ -7345,6 +9946,47 @@ netmgr_kif_init
     NETMGR_ABORT("netmgr_kif_init: cannot init ifaces\n");
     return;
   }
+
+#ifdef FEATURE_DS_LINUX_ANDROID
+  snprintf(ndc_create_cmd,
+             sizeof(ndc_create_cmd),
+             "ndc network create %s",
+             NETMGR_KIF_LINK_LOCAL_NETWORK);
+
+    /* Try creating the link local network during netmgr
+     * powerup. If the command fails, possibly due netd
+     * being unavailable, we will try once more during
+     * link-local interface bringup */
+    rc = ds_system_call3(ndc_create_cmd,
+                         (unsigned int) std_strlen(ndc_create_cmd),
+                         error_string,
+                         sizeof(error_string),
+                         function_debug);
+
+    if (NETMGR_SUCCESS != rc)
+    {
+      netmgr_log_err("netmgr_kif_init: Failed to create new link-local network\n");
+      link_local_network_created = FALSE;
+    }
+
+    /* Check the buffer for the return status of the command */
+    if (std_strlen(error_string) != 0)
+    {
+      /* See above */
+      if (NULL == strcasestr(error_string, "200 0 success"))
+      {
+        netmgr_log_err("netmgr_kif_init:: Failed to create new link-local network!\n");
+
+        link_local_network_created = FALSE;
+      }
+      else
+      {
+        netmgr_log_med("netmgr_kif_init: Successfully created new link-local network!\n");
+        link_local_network_created = TRUE;
+      }
+    }
+
+#endif /* FEATURE_DS_LINUX_ANDROID */
 
   /* Register process termination cleanup handler */
   atexit( netmgr_kif_cleanup );

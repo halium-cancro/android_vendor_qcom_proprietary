@@ -80,6 +80,9 @@ extern int dsi_mni_embms_tmgi_activate_deactivate(int pi, dsi_store_t *st_hndl);
 /* query active/available EMBMS TMGI list */
 extern int dsi_mni_embms_tmgi_list_query(int pi, dsi_store_t *st_hndl);
 
+/* Content desc update EMBMS TMGI */
+extern int dsi_mni_embms_tmgi_content_desc_update(int pi, dsi_store_t *st_hndl);
+
 /* can be called to release qmi client */
 extern void dsi_mni_release_client(int conn_id);
 

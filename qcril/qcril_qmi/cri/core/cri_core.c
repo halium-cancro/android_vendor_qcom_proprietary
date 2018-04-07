@@ -11,11 +11,18 @@
 
 #include "cri_core.h"
 #include "core_handler.h"
-#include "cri_rule_handler.h"
 #include "qmi_idl_lib.h"
 #include "circuit_switched_video_telephony_v01.h"
 #include "cri_csvt_core.h"
+#include "cri_rule_handler.h"
 
+#include "cri_nas.h"
+#include "cri_wms.h"
+#include "cri_dms_core.h"
+
+#include "voice_service_v02.h"
+#include "cri_voice_core.h"
+#include "qmi_ril_platform_dep.h"
 #define CRI_CORE_MAX_TRIES_FOR_QMI_INIT (10)
 #define CRI_CORE_DELAY_FOR_QMI_INIT (1)
 
@@ -72,7 +79,7 @@ static char cri_core_log_context_buffer[CRI_CORE_MAX_LOG_CONTEXT_BUFFER_SIZE];
     @retval
     string containing the port name
 ***************************************************************************************************/
-static char* cri_core_get_qmi_port();
+static qmi_client_qmux_instance_type cri_core_get_qmi_port();
 
 
 
@@ -210,13 +217,11 @@ static cri_core_token_id_type cri_core_generate_cri_token_id();
     @implementation detail
     None.
 ***************************************************************************************************/
-char* cri_core_get_qmi_port()
+qmi_client_qmux_instance_type cri_core_get_qmi_port()
 {
-    char *qmi_port;
+    qmi_client_qmux_instance_type qmi_port;
 
-    qmi_port = NULL;
-
-    qmi_port = QMI_PORT_RMNET_0;
+    qmi_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
 
     return qmi_port;
 }
@@ -284,7 +289,7 @@ qmi_error_type_v01 cri_core_cri_client_init(cri_core_cri_client_init_info_type *
         {
             switch(client_init_info->service_info[iter_client_init].cri_service_id)
             {
-                case QMI_CSVT_SERVICE:
+                case QMI_CRI_CSVT_SERVICE:
                     client_init_error = cri_csvt_utils_init_client(
                                             client_init_info->subscription_id,
                                             client_init_info->service_info
@@ -294,6 +299,56 @@ qmi_error_type_v01 cri_core_cri_client_init(cri_core_cri_client_init_info_type *
                                  client_init_info->service_info[iter_client_init].cri_service_id,
                                  client_init_error);
                     break;
+
+                case QMI_CRI_NAS_SERVICE:
+                    client_init_error = cri_nas_init_client(
+                                            client_init_info->service_info
+                                            [iter_client_init].hlos_ind_cb
+                                        );
+                    UTIL_LOG_MSG("service initialization, service id %d,  error %d",
+                                 client_init_info->service_info[iter_client_init].cri_service_id,
+                                 client_init_error);
+                    break;
+
+                case QMI_CRI_VOICE_SERVICE:
+                     client_init_error = cri_voice_core_init(
+                                            client_init_info->service_info
+                                            [iter_client_init].hlos_ind_cb
+                                        );
+                     UTIL_LOG_MSG("service initialization, service id %d, error %d",
+                                  client_init_info->service_info[iter_client_init].cri_service_id,
+                                  client_init_error);
+
+                 case QMI_CRI_DMS_SERVICE:
+                     client_init_error = cri_dms_utils_init_client(
+                                            client_init_info->service_info
+                                            [iter_client_init].hlos_ind_cb
+                                        );
+                     UTIL_LOG_MSG("service initialization, service id %d, error %d",
+                                  client_init_info->service_info[iter_client_init].cri_service_id,
+                                  client_init_error);
+                     break;
+
+                case QMI_CRI_WMS_SERVICE:
+                    client_init_error = cri_wms_init_client(
+                                            client_init_info->service_info
+                                            [iter_client_init].hlos_ind_cb
+                                        );
+                    UTIL_LOG_MSG("service initialization, service id %d,  error %d",
+                                 client_init_info->service_info[iter_client_init].cri_service_id,
+                                 client_init_error);
+                    break;
+
+                case QMI_CRI_DSD_SERVICE:
+                    client_init_error = cri_data_init_client(
+                                            client_init_info->service_info
+                                            [iter_client_init].hlos_ind_cb
+                                        );
+                    UTIL_LOG_MSG("service initialization, service id %d,  error %d",
+                                 client_init_info->service_info[iter_client_init].cri_service_id,
+                                 client_init_error);
+                    break;
+
 
                 default:
                     UTIL_LOG_MSG("service to be initialized unhandled, service id %d",
@@ -323,6 +378,119 @@ qmi_error_type_v01 cri_core_cri_client_init(cri_core_cri_client_init_info_type *
 
 /***************************************************************************************************
     @function
+    cri_core_cri_client_reinit
+
+    @implementation detail
+    Re-initialize the QMI services to update the subscription binding
+***************************************************************************************************/
+qmi_error_type_v01 cri_core_cri_client_reinit(cri_core_cri_client_init_info_type *client_init_info)
+{
+    qmi_error_type_v01 client_init_error = QMI_ERR_NONE_V01;
+    qmi_error_type_v01 ret_val           = QMI_ERR_INTERNAL_V01;
+    int iter_client_init = NIL;
+    int services_num     = NIL;
+
+    UTIL_LOG_MSG("entry");
+
+    if(client_init_info)
+    {
+        services_num = client_init_info->number_of_cri_services_to_be_initialized;
+        for(iter_client_init = 0; iter_client_init < services_num; iter_client_init++)
+        {
+            switch(client_init_info->service_info[iter_client_init].cri_service_id)
+            {
+                case QMI_CRI_CSVT_SERVICE:
+                    client_init_error = cri_csvt_utils_reinit_client(
+                            client_init_info->subscription_id);
+                    UTIL_LOG_MSG("service re-initialization, service id %d, error %d.",
+                                 client_init_info->service_info[iter_client_init].cri_service_id,
+                                 client_init_error);
+                    break;
+
+                default:
+                    UTIL_LOG_MSG("service to be re-initialized unhandled, service id %d",
+                                 client_init_info->service_info[iter_client_init].cri_service_id);
+                    client_init_error = QMI_ERR_INTERNAL_V01;
+                    break;
+            }
+            if(QMI_ERR_NONE_V01 != client_init_error)
+            {
+                break;
+            }
+        }
+        if(services_num == iter_client_init)
+        {
+            ret_val = QMI_ERR_NONE_V01;
+            UTIL_LOG_MSG("all requested services have been re-initialized");
+        }
+        else
+        {
+        }
+    }
+
+    UTIL_LOG_MSG("exit");
+
+    return ret_val;
+}
+
+/***************************************************************************************************
+    @function
+    cri_core_cri_client_reset
+
+    @implementation detail
+    Re-initialize the QMI services to update the subscription binding
+***************************************************************************************************/
+qmi_error_type_v01 cri_core_cri_client_reset(cri_core_cri_client_init_info_type *client_init_info)
+{
+    qmi_error_type_v01 client_init_error = QMI_ERR_NONE_V01;
+    qmi_error_type_v01 ret_val           = QMI_ERR_INTERNAL_V01;
+    int iter_client_init = NIL;
+    int services_num     = NIL;
+
+    UTIL_LOG_MSG("entry");
+
+    if(client_init_info)
+    {
+        services_num = client_init_info->number_of_cri_services_to_be_initialized;
+        for(iter_client_init = 0; iter_client_init < services_num; iter_client_init++)
+        {
+            switch(client_init_info->service_info[iter_client_init].cri_service_id)
+            {
+                case QMI_CRI_CSVT_SERVICE:
+                    client_init_error = cri_csvt_utils_reset_client();
+                    UTIL_LOG_MSG("service reset, service id %d, error %d.",
+                                 client_init_info->service_info[iter_client_init].cri_service_id,
+                                 client_init_error);
+                    break;
+
+                default:
+                    UTIL_LOG_MSG("service to be re-initialized unhandled, service id %d",
+                                 client_init_info->service_info[iter_client_init].cri_service_id);
+                    client_init_error = QMI_ERR_INTERNAL_V01;
+                    break;
+            }
+            if(QMI_ERR_NONE_V01 != client_init_error)
+            {
+                break;
+            }
+        }
+        if(services_num == iter_client_init)
+        {
+            ret_val = QMI_ERR_NONE_V01;
+        }
+        else
+        {
+            UTIL_LOG_MSG("all requested services have been initialized");
+        }
+    }
+
+    UTIL_LOG_MSG("exit");
+
+    return ret_val;
+}
+
+/***************************************************************************************************
+    @function
     cri_core_cri_client_release
 
     @implementation detail
@@ -340,8 +508,31 @@ void cri_core_cri_client_release()
         {
             switch(qmi_service_client_info[iter_client_release].service_id)
             {
-                case QMI_CSVT_SERVICE:
+                case QMI_CRI_CSVT_SERVICE:
                     cri_csvt_utils_release_client(iter_client_release);
+                    UTIL_LOG_MSG("service release, service id %d",
+                                 qmi_service_client_info[iter_client_release].service_id);
+                    break;
+                case QMI_CRI_NAS_SERVICE:
+                    cri_nas_release_client(iter_client_release);
+                    UTIL_LOG_MSG("service release, service id %d",
+                                 qmi_service_client_info[iter_client_release].service_id);
+                    break;
+
+                case QMI_CRI_DMS_SERVICE:
+                    cri_dms_utils_release_client(iter_client_release);
+                    UTIL_LOG_MSG("service release, service id %d",
+                                 qmi_service_client_info[iter_client_release].service_id);
+                    break;
+
+                case QMI_CRI_WMS_SERVICE:
+                    cri_wms_release_client(iter_client_release);
+                    UTIL_LOG_MSG("service release, service id %d",
+                                 qmi_service_client_info[iter_client_release].service_id);
+                    break;
+
+                case QMI_CRI_DSD_SERVICE:
+                    cri_data_release_client(iter_client_release);
                     UTIL_LOG_MSG("service release, service id %d",
                                  qmi_service_client_info[iter_client_release].service_id);
                     break;
@@ -442,7 +633,9 @@ int cri_core_create_qmi_service_client(qmi_service_id_type service_id,
     int iter_client;
     int is_allocation_success;
     qmi_client_error_type client_allocation_err;
-    char *qmi_port;
+    qmi_client_qmux_instance_type   qmi_port;
+    qmi_client_os_params            os_params;
+    int                             time_out = 4;
 
     iter_client = NIL;
     is_allocation_success = FALSE;
@@ -474,8 +667,27 @@ int cri_core_create_qmi_service_client(qmi_service_id_type service_id,
         qmi_service_client_info[iter_client].hlos_ind_cb = hlos_ind_cb;
         switch(service_id)
         {
-            case QMI_CSVT_SERVICE:
+            case QMI_CRI_CSVT_SERVICE:
               qmi_service_client_info[iter_client].service_obj = csvt_get_service_object_v01();
+              break;
+            case QMI_CRI_NAS_SERVICE:
+              qmi_service_client_info[iter_client].service_obj = nas_get_service_object_v01();
+              break;
+
+            case QMI_CRI_DMS_SERVICE:
+            qmi_service_client_info[iter_client].service_obj = dms_get_service_object_v01();
+            break;
+
+            case QMI_CRI_VOICE_SERVICE:
+            qmi_service_client_info[iter_client].service_obj = voice_get_service_object_v02();
+            break;
+
+            case QMI_CRI_WMS_SERVICE:
+              qmi_service_client_info[iter_client].service_obj = wms_get_service_object_v01();
+              break;
+
+            case QMI_CRI_DSD_SERVICE:
+              qmi_service_client_info[iter_client].service_obj = dsd_get_service_object_v01();
               break;
 
             default:
@@ -490,10 +702,12 @@ int cri_core_create_qmi_service_client(qmi_service_id_type service_id,
         }
 
         qmi_service_client_info[iter_client].service_id = service_id;
-        client_allocation_err = qmi_client_init(qmi_port,
-                                                qmi_service_client_info[iter_client].service_obj,
+        client_allocation_err = qmi_client_init_instance(qmi_service_client_info[iter_client].service_obj,
+                                                qmi_port,
                                                 cri_core_qmi_service_unsol_ind_cb,
-                                                qmi_service_client_info[iter_client].service_obj,
+                                                NULL,
+                                                &os_params,
+                                                time_out,
                                                 &qmi_service_client_info[iter_client].user_handle );
 
         if (client_allocation_err)
@@ -682,14 +896,55 @@ void cri_core_unsol_ind_handler(void *event_data)
                                );
                   }
 
-                  if (QMI_NO_ERR == err_code)
+                  if (QMI_NO_ERR == err_code && decoded_payload)
                   {
                       //TODO: pass SUB ID to ind handler since we do not have context
 
                       switch(qmi_service_client_info[iter_client].service_id)
                       {
-                          case QMI_CSVT_SERVICE:
+                          case QMI_CRI_CSVT_SERVICE:
                             cri_csvt_core_unsol_ind_handler(
+                                iter_client,
+                                core_handler_qmi_service_unsol_ind_data->event_id,
+                                decoded_payload,
+                                decoded_payload_len
+                            );
+                            break;
+                            case QMI_CRI_NAS_SERVICE:
+                                cri_nas_unsol_ind_handler(
+                                    iter_client,
+                                    core_handler_qmi_service_unsol_ind_data->event_id,
+                                    decoded_payload,
+                                    decoded_payload_len
+                                    );
+                                break;
+                            case QMI_CRI_VOICE_SERVICE:
+                                cri_voice_core_unsol_ind_handler(iter_client,
+                                    core_handler_qmi_service_unsol_ind_data->event_id,
+                                    decoded_payload,
+                                    decoded_payload_len
+                                    );
+                            break;
+
+                            case QMI_CRI_DMS_SERVICE:
+                                cri_dms_core_unsol_ind_handler(iter_client,
+                                    core_handler_qmi_service_unsol_ind_data->event_id,
+                                    decoded_payload,
+                                    decoded_payload_len
+                                    );
+                            break;
+
+                          case QMI_CRI_WMS_SERVICE:
+                            cri_wms_unsol_ind_handler(
+                                iter_client,
+                                core_handler_qmi_service_unsol_ind_data->event_id,
+                                decoded_payload,
+                                decoded_payload_len
+                            );
+                            break;
+
+                          case QMI_CRI_DSD_SERVICE:
+                            cri_data_unsol_ind_handler(
                                 iter_client,
                                 core_handler_qmi_service_unsol_ind_data->event_id,
                                 decoded_payload,
@@ -782,7 +1037,7 @@ void cri_core_async_resp_handler(void *event_data)
 
                 switch(qmi_service_client_info[iter_client].service_id)
                 {
-                    case QMI_CSVT_SERVICE:
+                    case QMI_CRI_CSVT_SERVICE:
                       cri_csvt_core_async_resp_handler(
                           iter_client,
                           core_handler_qmi_service_async_resp_data->event_id,
@@ -790,6 +1045,54 @@ void cri_core_async_resp_handler(void *event_data)
                           core_handler_qmi_service_async_resp_data->data_len,
                           cri_core_context
                       );
+                      break;
+                    case QMI_CRI_NAS_SERVICE:
+                        cri_nas_async_resp_handler(
+                            iter_client,
+                            core_handler_qmi_service_async_resp_data->event_id,
+                            core_handler_qmi_service_async_resp_data->data,
+                            core_handler_qmi_service_async_resp_data->data_len,
+                            cri_core_context
+                        );
+                      break;
+
+                    case QMI_CRI_VOICE_SERVICE:
+                        cri_voice_core_async_resp_handler(
+                            iter_client,
+                            core_handler_qmi_service_async_resp_data->event_id,
+                            core_handler_qmi_service_async_resp_data->data,
+                            core_handler_qmi_service_async_resp_data->data_len,
+                            cri_core_context
+                        );
+                       break;
+
+                    case QMI_CRI_DMS_SERVICE:
+                        cri_dms_core_async_resp_handler(iter_client,
+                            core_handler_qmi_service_async_resp_data->event_id,
+                            core_handler_qmi_service_async_resp_data->data,
+                            core_handler_qmi_service_async_resp_data->data_len,
+                            cri_core_context
+                        );
+                    break;
+
+                    case QMI_CRI_WMS_SERVICE:
+                      cri_wms_async_resp_handler(
+                          iter_client,
+                          core_handler_qmi_service_async_resp_data->event_id,
+                          core_handler_qmi_service_async_resp_data->data,
+                          core_handler_qmi_service_async_resp_data->data_len,
+                          cri_core_context
+                      );
+                      break;
+
+                    case QMI_CRI_DSD_SERVICE:
+                        cri_data_async_resp_handler(
+                            iter_client,
+                            core_handler_qmi_service_async_resp_data->event_id,
+                            core_handler_qmi_service_async_resp_data->data,
+                            core_handler_qmi_service_async_resp_data->data_len,
+                            cri_core_context
+                        );
                       break;
 
                     default:
@@ -845,7 +1148,7 @@ qmi_error_type_v01 cri_core_qmi_send_msg_sync(int qmi_service_client_id,
     if(qmi_service_client_id >= NIL && qmi_service_client_id < CRI_CORE_MAX_CLIENTS &&
        TRUE == qmi_service_client_info[qmi_service_client_id].is_valid)
     {
-        transport_error = qmi_client_send_msg_sync(
+        transport_error = qmi_client_send_msg_sync_with_shm(
                               qmi_service_client_info[qmi_service_client_id].user_handle,
                               message_id,
                               req_message,
@@ -890,12 +1193,11 @@ qmi_error_type_v01 cri_core_qmi_send_msg_async(cri_core_context_type cri_core_co
                                                void *req_message,
                                                int req_message_len,
                                                int resp_message_len,
-                                               void *hlos_cb_data,
+                                               const void *hlos_cb_data,
                                                hlos_resp_cb_type hlos_resp_cb,
                                                int timeout_secs,
-                                               void *rule_data,
-                                               int (*rule_check_handler)(void *rule_data),
-                                               void (*rule_data_free_handler)(void *rule_data))
+                                               cri_rule_handler_user_rule_info_type *user_rule_info
+                                               )
 {
     cri_core_token_id_type cri_core_token_id;
     cri_core_context_type temp_cri_core_context;
@@ -945,14 +1247,18 @@ qmi_error_type_v01 cri_core_qmi_send_msg_async(cri_core_context_type cri_core_co
                                         );
 
                 *context_cb_data = temp_cri_core_context;
-                cri_rule_handler_rule_info.context = temp_cri_core_context;
-                cri_rule_handler_rule_info.qmi_resp_data = resp_message;
-                cri_rule_handler_rule_info.qmi_cb_data = context_cb_data;
-                cri_rule_handler_rule_info.hlos_resp_cb = hlos_resp_cb;
-                cri_rule_handler_rule_info.hlos_resp_cb_data = hlos_cb_data;
-                cri_rule_handler_rule_info.rule_check_handler = rule_check_handler;
-                cri_rule_handler_rule_info.rule_data = rule_data;
-                cri_rule_handler_rule_info.rule_data_free_handler = rule_data_free_handler;
+                cri_rule_handler_rule_info.core_rule_info.context = temp_cri_core_context;
+                cri_rule_handler_rule_info.core_rule_info.qmi_resp_data = resp_message;
+                cri_rule_handler_rule_info.core_rule_info.qmi_cb_data = context_cb_data;
+                cri_rule_handler_rule_info.core_rule_info.hlos_resp_cb = hlos_resp_cb;
+                cri_rule_handler_rule_info.core_rule_info.hlos_resp_cb_data = hlos_cb_data;
+                if(user_rule_info)
+                {
+                    memcpy(&cri_rule_handler_rule_info.user_rule_info,
+                           user_rule_info,
+                           sizeof(cri_rule_handler_rule_info.user_rule_info));
+                }
+
 
                 transport_error = qmi_client_send_msg_async(
                                       qmi_service_client_info[qmi_service_client_id].user_handle,
@@ -1167,74 +1473,74 @@ char* cri_core_create_loggable_context(cri_core_context_type cri_core_context)
     @implementation detail
     None.
 ***************************************************************************************************/
-qmi_error_type_v01 cri_core_retrieve_err_code(qmi_client_error_type transport_error,
-                                              qmi_response_type_v01* resp_err)
+cri_core_error_type cri_core_retrieve_err_code(qmi_error_type_v01 transport_error,
+                                               qmi_response_type_v01* resp_err)
 {
     qmi_error_type_v01 err_code;
 
-    err_code = QMI_ERR_NONE_V01;
+    err_code = CRI_ERR_NONE_V01;
 
     if(resp_err)
     {
         switch(transport_error)
         {
-            case QMI_NO_ERR:
+            case CRI_ERR_NONE_V01:
                 switch (resp_err->result)
                 {
                     case QMI_RESULT_SUCCESS_V01:
-                        err_code = QMI_ERR_NONE_V01;
+                        err_code = CRI_ERR_NONE_V01;
                         break;
 
                     case QMI_RESULT_FAILURE_V01:
                         switch (resp_err->error)
                         {
-                            case QMI_ERR_NONE_V01:
-                            case QMI_ERR_NO_EFFECT_V01:
-                                err_code = QMI_ERR_NONE_V01;
+                            case CRI_ERR_NONE_V01:
+                            case CRI_ERR_NO_EFFECT_V01:
+                                err_code = CRI_ERR_NONE_V01;
                                 break;
 
-                            case QMI_ERR_MALFORMED_MSG_V01:             // fallthough
-                            case QMI_ERR_NO_MEMORY_V01:                 // fallthough
-                            case QMI_ERR_INTERNAL_V01:                  // fallthough
-                            case QMI_ERR_CLIENT_IDS_EXHAUSTED_V01:
-                            case QMI_ERR_UNABORTABLE_TRANSACTION_V01:
-                            case QMI_ERR_INVALID_CLIENT_ID_V01:
-                            case QMI_ERR_INVALID_HANDLE_V01:
-                            case QMI_ERR_INVALID_PROFILE_V01:
-                            case QMI_ERR_NO_NETWORK_FOUND_V01:
-                            case QMI_ERR_OUT_OF_CALL_V01:
-                            case QMI_ERR_NOT_PROVISIONED_V01:
-                            case QMI_ERR_MISSING_ARG_V01:
-                            case QMI_ERR_ARG_TOO_LONG_V01:
-                            case QMI_ERR_INVALID_TX_ID_V01:
-                            case QMI_ERR_DEVICE_IN_USE_V01:
-                            case QMI_ERR_OP_DEVICE_UNSUPPORTED_V01:
-                            case QMI_ERR_NO_FREE_PROFILE_V01:
-                            case QMI_ERR_INVALID_PDP_TYPE_V01:
-                            case QMI_ERR_INVALID_TECH_PREF_V01:
-                            case QMI_ERR_OP_NETWORK_UNSUPPORTED_V01:
-                            case QMI_ERR_ABORTED_V01:
-                            case QMI_ERR_FDN_RESTRICT_V01:
+                            case CRI_ERR_MALFORMED_MSG_V01:             // fallthough
+                            case CRI_ERR_NO_MEMORY_V01:                 // fallthough
+                            case CRI_ERR_INTERNAL_V01:                  // fallthough
+                            case CRI_ERR_CLIENT_IDS_EXHAUSTED_V01:
+                            case CRI_ERR_UNABORTABLE_TRANSACTION_V01:
+                            case CRI_ERR_INVALID_CLIENT_ID_V01:
+                            case CRI_ERR_INVALID_HANDLE_V01:
+                            case CRI_ERR_INVALID_PROFILE_V01:
+                            case CRI_ERR_NO_NETWORK_FOUND_V01:
+                            case CRI_ERR_OUT_OF_CALL_V01:
+                            case CRI_ERR_NOT_PROVISIONED_V01:
+                            case CRI_ERR_MISSING_ARG_V01:
+                            case CRI_ERR_ARG_TOO_LONG_V01:
+                            case CRI_ERR_INVALID_TX_ID_V01:
+                            case CRI_ERR_DEVICE_IN_USE_V01:
+                            case CRI_ERR_OP_DEVICE_UNSUPPORTED_V01:
+                            case CRI_ERR_NO_FREE_PROFILE_V01:
+                            case CRI_ERR_INVALID_PDP_TYPE_V01:
+                            case CRI_ERR_INVALID_TECH_PREF_V01:
+                            case CRI_ERR_OP_NETWORK_UNSUPPORTED_V01:
+                            case CRI_ERR_ABORTED_V01:
+                            case CRI_ERR_FDN_RESTRICT_V01:
                             default:
-                                err_code = QMI_ERR_INTERNAL_V01;
+                                err_code = CRI_ERR_INTERNAL_V01;
                                 break;
                         }
                         break;
 
                     default:
-                        err_code = QMI_ERR_INTERNAL_V01;
+                        err_code = CRI_ERR_INTERNAL_V01;
                         break;
                 }
                 break;
 
             default:
-                err_code = QMI_ERR_INTERNAL_V01;
+                err_code = CRI_ERR_INTERNAL_V01;
                 break;
         }
     }
     else
     {
-        err_code = QMI_ERR_INTERNAL_V01;
+        err_code = CRI_ERR_INTERNAL_V01;
     }
 
     return err_code;

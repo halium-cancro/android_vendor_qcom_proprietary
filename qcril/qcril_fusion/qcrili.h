@@ -13,7 +13,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2009-2010, 2013 Qualcomm Technologies, Inc. All Rights
+  Copyright (c) 2009-2010, 2013, 2014 Qualcomm Technologies, Inc. All Rights
   Reserved
 
   Qualcomm Technologies Proprietary
@@ -228,7 +228,7 @@ typedef struct {
 #define RIL_REQUEST_SET_TRANSMIT_POWER  10117
 #endif
 
-#define RIL_REQUEST_UNKOWN  106
+#define RIL_REQUEST_UNKOWN  998
 #define RIL_UNSOL_UNKOWN 1101
 
 #define QCRIL_HOOK_HEADER_SIZE           16
@@ -970,6 +970,7 @@ QCRIL_EXTERN (data_request_data_call_list);
 QCRIL_EXTERN (data_request_omh_profile_info);
 QCRIL_EXTERN (data_command_hdlr);
 QCRIL_EXTERN (data_event_hdlr);
+QCRIL_EXTERN (data_request_set_data_profile);
 #ifdef FEATURE_QCRIL_USE_NETCTRL
 QCRIL_EXTERN (data_wds_event_hdlr);
 #endif /*FEATURE_QCRIL_USE_NETCTRL*/

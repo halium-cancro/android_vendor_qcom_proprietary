@@ -101,12 +101,12 @@ LOCAL struct platform_vtbl  netmgr_platform_vtable;
   at runtime, support testing.
 
 @return
-  int 
+  int
 
 @note
 
   - Dependencies
-    - None  
+    - None
 
   - Side Effects
     - None
@@ -118,9 +118,9 @@ int netmgr_platform_register_vtbl(
 )
 {
   NETMGR_ASSERT( table );
-  
+
   NETMGR_LOG_FUNC_ENTRY;
-  
+
   /* Assign vtable to platform vtable */
   switch( id ) {
     case NETMGR_PLATFORM_VTBL_QMI:
@@ -130,16 +130,16 @@ int netmgr_platform_register_vtbl(
     case NETMGR_PLATFORM_VTBL_KIF:
       netmgr_platform_vtable.kif = *(struct kif_vtbl*)table;
       break;
-      
+
     case NETMGR_PLATFORM_VTBL_TC:
       netmgr_platform_vtable.tc = *(struct tc_vtbl*)table;
       break;
-      
+
     case NETMGR_PLATFORM_VTBL_MAX:
     default:
       netmgr_log_err("Invalid vtable ID specified: %d", id);
       break;
-      
+
   }
 
   NETMGR_LOG_FUNC_EXIT;
@@ -155,7 +155,7 @@ int netmgr_platform_register_vtbl(
   Function to handle modem out_of_service event in QMI module.
 
 @return
-  int 
+  int
 
 @note
 
@@ -182,7 +182,7 @@ int netmgr_qmi_out_of_service ( int link )
   Function to reset connection to QMI Message Library
 
 @return
-  int 
+  int
 
 @note
 
@@ -207,7 +207,7 @@ int netmgr_qmi_reset ( int link, netmgr_sm_events_t evt)
   Function to verify if the given QMI link is active.
 
 @return
-  int 
+  int
 
 @note
 
@@ -232,7 +232,7 @@ int netmgr_qmi_verify ( int link )
   Function to dispatch asynchronous command for Kernel interface module
 
 @return
-  int 
+  int
 
 @note
 
@@ -285,6 +285,33 @@ int netmgr_qmi_qos_get_flow_info ( uint8     connection,
 }
 
 /*===========================================================================
+  FUNCTION  netmgr_kif_out_of_service
+===========================================================================*/
+/*!
+@brief
+  Function to handle modem out_of_service event in KIF module.
+
+@return
+  int
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - qmi clients will be released
+    - qmi links will be reset with default init values
+*/
+/*=========================================================================*/
+int netmgr_kif_out_of_service ( int link )
+{
+  VERIFY_VTABLE_FUNC( kif, out_of_service );
+  netmgr_platform_vtable.kif.out_of_service(link);
+  return NETMGR_SUCCESS;
+}
+
+/*===========================================================================
   FUNCTION  netmgr_kif_reset
 ===========================================================================*/
 /*!
@@ -292,7 +319,7 @@ int netmgr_qmi_qos_get_flow_info ( uint8     connection,
   Function to reset connection to Kernel interface module
 
 @return
-  int 
+  int
 
 @note
 
@@ -317,7 +344,7 @@ int netmgr_kif_reset ( int link, netmgr_sm_events_t evt)
   Function to dispatch asynchronous command for Kernel interface module
 
 @return
-  int 
+  int
 
 @note
 
@@ -347,7 +374,7 @@ int netmgr_kif_dispatch
   Function to send Kernel interface module asynchronous event message.
 
 @return
-  int 
+  int
 
 @note
 
@@ -373,10 +400,10 @@ int netmgr_kif_send_event_msg
 ===========================================================================*/
 /*!
 @brief
-  Function to open the Kernel network interface 
+  Function to open the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -404,10 +431,10 @@ int netmgr_kif_iface_open ( uint8     link,
 ===========================================================================*/
 /*!
 @brief
-  Function to open the Kernel network interface 
+  Function to open the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -433,10 +460,10 @@ int netmgr_kif_iface_close ( uint8     link,
 ===========================================================================*/
 /*!
 @brief
-  Function to configure address for the Kernel network interface 
+  Function to configure address for the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -459,10 +486,10 @@ int netmgr_kif_iface_configure ( uint8             link,
 ===========================================================================*/
 /*!
 @brief
-  Function to reconfigure address for the Kernel network interface 
+  Function to reconfigure address for the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -490,7 +517,7 @@ int netmgr_kif_iface_reconfigure ( uint8     link,
   mapped to the specified QoS flow.
 
 @return
-  int 
+  int
 
 @note
 
@@ -518,7 +545,7 @@ int netmgr_kif_flow_control ( uint8     connection,
   Function to reset connection to Traffic Control Library
 
 @return
-  int 
+  int
 
 @note
 
@@ -543,7 +570,7 @@ int netmgr_tc_reset ( int link )
   Function to create/resume the Traffic Control objects for a QoS flow.
 
 @return
-  int 
+  int
 
 @note
 
@@ -571,7 +598,7 @@ int netmgr_tc_flow_activate ( int       link,
   existing QoS flow.
 
 @return
-  int 
+  int
 
 @note
 
@@ -599,7 +626,7 @@ int netmgr_tc_flow_modify ( int       link,
   Function to destroy the Traffic Control objects for an existing QoS flow.
 
 @return
-  int 
+  int
 
 @note
 
@@ -683,12 +710,12 @@ int netmgr_tc_flow_control (int link,
   Function to initialize platform layer module.
 
 @return
-  int 
+  int
 
 @note
 
   - Dependencies
-    - None  
+    - None
 
   - Side Effects
     - None
@@ -697,7 +724,7 @@ int netmgr_tc_flow_control (int link,
 int netmgr_platform_init(void)
 {
   NETMGR_LOG_FUNC_ENTRY;
-  
+
   /* Clear virtual function table */
   memset((void*)&netmgr_platform_vtable, 0x0, sizeof(netmgr_platform_vtable));
 

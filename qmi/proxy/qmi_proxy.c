@@ -13,7 +13,7 @@
   requests
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2010-2012 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2010-2012, 2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 
@@ -28,13 +28,21 @@
 #define LOG_NDEBUG 0
 #define LOG_NIDEBUG 0
 #define LOG_NDDEBUG 0
-#define LOG_TAG "RILC"
+
+#ifdef LOG_TAG
+  #undef LOG_TAG
+  #define LOG_TAG "RILC"
+#endif /* LOG_TAG */
+
 #include <utils/Log.h>
 
 #include "comdef.h"
 #include <msg.h>
 #include <msgcfg.h>
+
+#undef LOG_TAG
 #include <diag_lsm.h>
+
 #include <cutils/log.h>
 #include <cutils/properties.h>
 #include <string.h>
@@ -95,7 +103,7 @@
 
 /* QMI CTL Result code TLV */
 #define QMI_PROXY_CTL_RESULT_CODE_TYPE_ID                  (0x02)
-#define QMI_PROXY_CTL_GET_CLIENT_ID_TYPE_ID_REQ_RSP     0x01
+#define QMI_PROXY_CTL_GET_CLIENT_ID_TYPE_ID_REQ_RSP         0x01
 
 /* QMI CTL Message Header size values */
 #define QMI_PROXY_CTL_TXN_HDR_SIZE                         ( 2 )
@@ -1103,6 +1111,11 @@ static void qmi_proxy_rx_queue_msg
   qmi_proxy_conn_type    proxy_conn_type,
   void                  *decoded_payload,
   uint32_t               decoded_payload_len
+);
+
+static int qmi_proxy_is_full_service
+(
+  nas_sys_info_ind_msg_v01 *nas_sys_info_ind
 );
 
 static int qmi_proxy_rx_queue_msg_locked
@@ -2991,6 +3004,8 @@ static void qmi_proxy_read_sglte_plmn_list
 
   /*-----------------------------------------------------------------------*/
 
+  (void) plmn;
+
   /* Read configured PLMN list. */
   property_get( prop_name, plmn_list, "" );
   /* Reset sglte_plmn_list */
@@ -4057,6 +4072,9 @@ static void qmi_proxy_sys_event_rx_hdlr
 {
 
   /* -------------------------------------------------------------------  */
+
+  (void) event_info;
+  (void) user_data;
 
   QMI_PROXY_DEBUG_MSG( "%s......Event ID %d\n", __FUNCTION__, event_id );
 
@@ -5866,7 +5884,7 @@ static int qmi_proxy_setup_internal_qmi_handle
       rc = qmi_client_init( conn_name,
                             qmi_proxy_srvc_obj_tbl[ i ],
                             qmi_proxy_srvc_unsol_ind_cb,
-                            (void *) unsol_ind_cb_user_data,
+                            (void *)(intptr_t) unsol_ind_cb_user_data,
                             &srvc_ptr->client_handle );
       if ( rc )
       {
@@ -5897,7 +5915,7 @@ static int qmi_proxy_setup_internal_qmi_handle
         rc = qmi_client_init( conn_name,
                               qmi_proxy_srvc_obj_tbl[ i ],
                               qmi_proxy_srvc_unsol_ind_cb,
-                              (void *) unsol_ind_cb_user_data,
+                              (void *)(intptr_t) unsol_ind_cb_user_data,
                               &srvc_ptr->client_handle );
         if ( rc )
         {
@@ -6020,6 +6038,10 @@ static void qmi_proxy_nas_ind_reg_async_cb
 
   /* ------------------------------------------------------------------- */
 
+  (void) user_handle;
+  (void) msg_id;
+  (void) resp_c_struct_len;
+
   conn_type = ( qmi_proxy_conn_type ) resp_cb_data;
 
   nas_ind_reg_resp = ( nas_indication_register_resp_msg_v01 * ) resp_c_struct;
@@ -6129,7 +6151,7 @@ static int qmi_proxy_sync_sys_sel_pref
                                     (void *) nas_ind_reg_resp,
                                     sizeof( nas_indication_register_resp_msg_v01 ),
                                     qmi_proxy_nas_ind_reg_async_cb,
-                                    (void *) user_data,
+                                    (void *)(intptr_t) user_data,
                                     &txn_handle );
     if ( rc != QMI_NO_ERR )
     {
@@ -6732,7 +6754,11 @@ static void qmi_proxy_nas_set_sys_sel_pref_async_cb
 
   /* ------------------------------------------------------------------- */
 
-  user_data = (uint32) resp_cb_data;
+  (void) user_handle;
+  (void) msg_id;
+  (void) resp_c_struct_len;
+
+  user_data = (intptr_t) resp_cb_data;
 
   conn_type = QMI_PROXY_NAS_ASYNCB_USER_DATA_TO_CONN_TYPE( user_data );
 
@@ -6963,7 +6989,7 @@ static int qmi_proxy_sync_svlte_mode_pref
                                             (void *) local_nas_set_sys_sel_pref_resp,
                                             sizeof( nas_set_system_selection_preference_resp_msg_v01 ),
                                             qmi_proxy_nas_set_sys_sel_pref_async_cb,
-                                            (void *) user_data,
+                                            (void *)(intptr_t) user_data,
                                             &txn_handle );
 
         if ( tmp_rc != QMI_NO_ERR )
@@ -7009,7 +7035,7 @@ static int qmi_proxy_sync_svlte_mode_pref
                                             (void*) remote_nas_set_sys_sel_pref_resp,
                                             sizeof( nas_set_system_selection_preference_resp_msg_v01 ),
                                             qmi_proxy_nas_set_sys_sel_pref_async_cb,
-                                            (void *) user_data,
+                                            (void *)(intptr_t) user_data,
                                             &txn_handle );
 
         if ( tmp_rc != QMI_NO_ERR )
@@ -7452,6 +7478,10 @@ static void qmi_proxy_dms_set_evt_rpt_async_cb
 
   /* ------------------------------------------------------------------- */
 
+  (void) user_handle;
+  (void) msg_id;
+  (void) resp_c_struct_len;
+
   conn_type = ( qmi_proxy_conn_type ) resp_cb_data;
 
   dms_set_evt_rpt_resp = ( dms_set_event_report_resp_msg_v01 * ) resp_c_struct;
@@ -7568,7 +7598,7 @@ static int qmi_proxy_sync_cap_and_oprt_mode
                                     (void *) dms_set_evt_rpt_resp,
                                     sizeof( dms_set_event_report_resp_msg_v01 ),
                                     qmi_proxy_dms_set_evt_rpt_async_cb,
-                                    (void *) user_data,
+                                    (void *)(intptr_t) user_data,
                                     &txn_handle );
     if ( rc != QMI_NO_ERR )
     {
@@ -7685,7 +7715,11 @@ static void qmi_proxy_dms_set_oprt_mode_async_cb
 
   /* ------------------------------------------------------------------- */
 
-  user_data = (uint32) resp_cb_data;
+  (void) user_handle;
+  (void) msg_id;
+  (void) resp_c_struct_len;
+
+  user_data = (intptr_t) resp_cb_data;
 
   conn_type = QMI_PROXY_DMS_OPRT_MODE_ASYNCB_USER_DATA_TO_CONN_TYPE( user_data );
 
@@ -7878,7 +7912,7 @@ static int qmi_proxy_force_lpm
                                     (void*) dms_set_oprt_mode_resp,
                                     sizeof( dms_set_operating_mode_resp_msg_v01 ),
                                     qmi_proxy_dms_set_oprt_mode_async_cb,
-                                    (void *) user_data,
+                                    (void *)(intptr_t) user_data,
                                     &txn_handle );
     if ( rc == QMI_NO_ERR )
     {
@@ -8071,7 +8105,7 @@ static int qmi_proxy_force_online
                                     (void*) dms_set_oprt_mode_resp,
                                     sizeof( dms_set_operating_mode_resp_msg_v01 ),
                                     qmi_proxy_dms_set_oprt_mode_async_cb,
-                                    (void *) user_data,
+                                    (void *)(intptr_t) user_data,
                                     &txn_handle );
 
     if ( rc == QMI_NO_ERR )
@@ -8205,7 +8239,7 @@ static int qmi_proxy_force_sys_sel_pref
                                       (void *) response,
                                       sizeof( nas_set_system_selection_preference_resp_msg_v01 ),
                                       qmi_proxy_nas_set_sys_sel_pref_async_cb,
-                                      (void *) user_data,
+                                      (void *)(intptr_t) user_data,
                                       &txn_handle );
     }
     else
@@ -8621,7 +8655,7 @@ static int qmi_proxy_client_init
     rc = qmi_client_init( conn_name,
                           qmi_proxy_srvc_obj_tbl[ client_ptr->proxy_srvc_id ],
                           qmi_proxy_srvc_unsol_ind_cb,
-                          (void *) unsol_ind_cb_user_data,
+                          (void *)(intptr_t) unsol_ind_cb_user_data,
                           &srvc_ptr->client_handle );
     if ( rc )
     {
@@ -8654,7 +8688,7 @@ static int qmi_proxy_client_init
     rc = qmi_client_init( conn_name,
                           qmi_proxy_srvc_obj_tbl[ client_ptr->proxy_srvc_id ],
                           qmi_proxy_srvc_unsol_ind_cb,
-                          (void *) unsol_ind_cb_user_data,
+                          (void *) (intptr_t)unsol_ind_cb_user_data,
                           &srvc_ptr->client_handle );
     if ( rc )
     {
@@ -8769,7 +8803,7 @@ void qmi_proxy_ctl_send_qmi_response
     return;
   }
 
-  memset( tx_buf, 0, sizeof( tx_buf ) );
+  memset( tx_buf, 0, buf_size );
 
   /* Compose QMI CTL response */
   tmp_msg = tx_buf + QMI_QMUX_HDR_SIZE + QMI_PROXY_CTL_MSG_HDR_SIZE;
@@ -10170,6 +10204,8 @@ static qmi_proxy_txn_info_type *qmi_proxy_txn_find_and_addref
 
   /* -------------------------------------------------------------------  */
 
+  (void) user_data_included;
+
   if ( proxy_txn_key_included )
   {
 //    QMI_PROXY_DEBUG_MSG( "%s ....... Txn Key 0x%x, QMI %s(%d)\n",
@@ -10250,8 +10286,8 @@ static qmi_proxy_txn_info_type *qmi_proxy_txn_find_and_addref
     txn = NULL;
   }
 
-  QMI_PROXY_DEBUG_MSG( "%s ....... returning %d\n",
-                         __FUNCTION__, (int) txn );
+  QMI_PROXY_DEBUG_MSG( "%s ....... returning %p\n",
+                         __FUNCTION__, txn );
 
 
   return txn;
@@ -10559,7 +10595,7 @@ static int qmi_proxy_dispatch_txn
                                                 resp_c_struct,
                                                 resp_c_struct_len,
                                                 qmi_proxy_complete_txn,
-                                                (void *) txn_user_data,
+                                                (void *)(intptr_t) txn_user_data,
                                                 &txn_handle );
                 if ( rc != QMI_NO_ERR )
                 {
@@ -11117,6 +11153,8 @@ static void qmi_proxy_complete_txn
 
   /*-----------------------------------------------------------------------*/
 
+  (void) client_handle;
+
   /* Sanity check */
   if ( resp_cb_data == NULL )
   {
@@ -11125,7 +11163,7 @@ static void qmi_proxy_complete_txn
     return;
   }
 
-  proxy_txn_user_data = (uint32) resp_cb_data;
+  proxy_txn_user_data = (intptr_t) resp_cb_data;
 
   /* Extract Conn Type */
   proxy_conn_type = QMI_PROXY_TXN_USER_DATA_TO_CONN_TYPE( proxy_txn_user_data );
@@ -11609,6 +11647,8 @@ static int qmi_proxy_dms_srvc_arb_hdlr
 
   /*-----------------------------------------------------------------------*/
 
+  (void) client;
+
   QMI_PROXY_DEBUG_MSG( "%s ....... Msg ID 0x%x\n", __FUNCTION__, srvc_msg_id );
 
   /* Initialize transaction entry lists */
@@ -11911,7 +11951,11 @@ static int qmi_proxy_dms_srvc_arb_hdlr
                                          async_state,
                                          user_data_valid,
                                          user_data );
-  free(remote_dms_set_oprt_mode_req);
+
+  if (remote_dms_set_oprt_mode_req)
+  {
+      free(remote_dms_set_oprt_mode_req);
+  }
 
   return rc;
 
@@ -11956,6 +12000,15 @@ static int qmi_proxy_dms_srvc_response_update_cache_sglte
   qmi_proxy_svlte_cache_type *remote_svlte_cache_ptr = &qmi_proxy_internal_info.svlte_cache[ QMI_PROXY_REMOTE_CONN_TYPE ];
   uint8 i, j;
   int rc = QMI_NO_ERR;
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) modified_resp;
+  (void) modified_resp_buf;
+  (void) modified_resp_buf_len;
 
   /*-----------------------------------------------------------------------*/
 
@@ -12090,7 +12143,7 @@ static int qmi_proxy_dms_srvc_response_update_cache_sglte
 
 
 /*=========================================================================
-  FUNCTION:  qmi_proxy_dms_srvc_response_update_Cache
+  FUNCTION:  qmi_proxy_dms_srvc_response_update_cache
 
 ===========================================================================*/
 /*!
@@ -12127,6 +12180,17 @@ static int qmi_proxy_dms_srvc_response_update_cache
   qmi_proxy_svlte_cache_type *remote_svlte_cache_ptr = &qmi_proxy_internal_info.svlte_cache[ QMI_PROXY_REMOTE_CONN_TYPE ];
   uint8 i, j;
   int rc = QMI_NO_ERR;
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) user_data;
+  (void) modified_resp;
+  (void) modified_resp_buf;
+  (void) modified_resp_buf_len;
 
   /*-----------------------------------------------------------------------*/
 
@@ -12524,6 +12588,12 @@ int qmi_proxy_nas_srvc_arb_hdlr
   int num_of__voice_call_active;
   boolean is_cs_active_changed;
   int rc = QMI_NO_ERR;
+
+  /* Supress compiler warnings for unused variables */
+  (void) client;
+  (void) proxy_client_id;
+  (void) user_data_valid;
+  (void) user_data;
 
   /*-----------------------------------------------------------------------*/
 
@@ -14274,6 +14344,12 @@ static int qmi_proxy_wms_resp_proc_wms_get_indication_register
 
   /*-----------------------------------------------------------------------*/
 
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_client_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) user_data;
+
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
 
   wms_get_indication_register_resp_orig = ( wms_get_indication_register_resp_msg_v01 *) resp_c_struct;
@@ -14486,11 +14562,20 @@ static int qmi_proxy_wms_resp_proc_wms_get_service_ready_status
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
 
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
+
   wms_get_service_ready_status_resp = ( wms_get_service_ready_status_resp_msg_v01 *) resp_c_struct;
 
   if ( QMI_PROXY_RESPONSE_SUCCESS( rc, wms_get_service_ready_status_resp ) )
   {
-    memset( &svlte_cache_ptr->wms_get_service_ready_status_resp, 0, sizeof( wms_get_service_ready_status_resp ) );
+    memset( &svlte_cache_ptr->wms_get_service_ready_status_resp, 0, sizeof( wms_get_service_ready_status_resp_msg_v01 ) );
 
     if ( wms_get_service_ready_status_resp != NULL )
     {
@@ -14618,6 +14703,12 @@ static int qmi_proxy_nas_resp_proc_dms_set_oprt_mode
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
 
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_client_id;
+  (void) srvc_id;
+  (void) msg_id;
+  (void) resp_c_struct_len;
+
   dms_set_oprt_mode_resp = ( dms_set_operating_mode_resp_msg_v01 *) resp_c_struct;
 
   if ( !QMI_PROXY_RESPONSE_SUCCESS( rc, dms_set_oprt_mode_resp ) )
@@ -14706,6 +14797,15 @@ static int qmi_proxy_nas_resp_proc_dms_get_oprt_mode
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
 
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_client_id;
+  (void) srvc_id;
+  (void) msg_id;
+  (void) resp_c_struct_len;
+  (void) last_txn;
+  (void) user_data_valid;
+  (void) user_data;
+
   dms_get_oprt_mode_resp = ( dms_get_operating_mode_resp_msg_v01 *) resp_c_struct;
 
   if ( QMI_PROXY_RESPONSE_SUCCESS( rc, dms_get_oprt_mode_resp ) )
@@ -14790,6 +14890,17 @@ static int qmi_proxy_nas_resp_proc_nas_get_sys_info
   /*-----------------------------------------------------------------------*/
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) user_data;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_get_sys_info_resp = ( nas_get_sys_info_resp_msg_v01 *) resp_c_struct;
 
@@ -15072,7 +15183,19 @@ static int qmi_proxy_nas_resp_proc_nas_get_sys_info_sglte
 
   /*-----------------------------------------------------------------------*/
 
+  (void) user_data;
+
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_get_sys_info_resp = ( nas_get_sys_info_resp_msg_v01 *) resp_c_struct;
 
@@ -15400,7 +15523,7 @@ static boolean qmi_proxy_nas_per_net_scan_check_if_3gpp_info_dup
  int                                           remote_nas_3gpp_network_info_index
  )
 {
-    int i;
+    unsigned int i;
 
     if (local_nas_per_net_scan_resp->nas_3gpp_network_info_valid &&
             remote_nas_per_net_scan_resp->nas_3gpp_network_info_valid &&
@@ -15472,6 +15595,16 @@ static int qmi_proxy_nas_resp_proc_nas_per_net_scan
   /*-----------------------------------------------------------------------*/
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_per_net_scan_resp = ( nas_perform_network_scan_resp_msg_v01 *) resp_c_struct;
 
@@ -15652,6 +15785,18 @@ static int qmi_proxy_nas_resp_proc_nas_set_sys_sel_pref
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
 
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) srvc_id;
+  (void) msg_id;
+  (void) resp_c_struct;
+  (void) resp_c_struct_len;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
+
   nas_set_sys_sel_pref_resp = ( nas_set_system_selection_preference_resp_msg_v01 *) resp_c_struct;
 
   if ( QMI_PROXY_RESPONSE_SUCCESS( rc, nas_set_sys_sel_pref_resp ) )
@@ -15724,6 +15869,17 @@ static int qmi_proxy_nas_resp_proc_nas_get_sys_sel_pref
   /*-----------------------------------------------------------------------*/
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) resp_modified;
+  (void) user_data_valid;
+  (void) user_data;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_get_sys_sel_pref_resp = ( nas_get_system_selection_preference_resp_msg_v01 * ) resp_c_struct;
 
@@ -15838,7 +15994,19 @@ static int qmi_proxy_nas_resp_proc_nas_get_sys_sel_pref_sglte
 
   /*-----------------------------------------------------------------------*/
 
+  (void) user_data;
+
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_get_sys_sel_pref_resp = ( nas_get_system_selection_preference_resp_msg_v01 * ) resp_c_struct;
 
@@ -15938,6 +16106,17 @@ static int qmi_proxy_nas_resp_proc_nas_get_rf_band_info
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
 
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) user_data;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
+
   nas_get_rf_band_info_resp = ( nas_get_rf_band_info_resp_msg_v01 * ) resp_c_struct;
 
   if ( QMI_PROXY_RESPONSE_SUCCESS( rc, nas_get_rf_band_info_resp ) )
@@ -16019,6 +16198,16 @@ static int qmi_proxy_nas_resp_proc_nas_get_opr_nam
   /*-----------------------------------------------------------------------*/
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_get_opr_nam_resp = ( nas_get_operator_name_data_resp_msg_v01 * ) resp_c_struct;
 
@@ -16110,6 +16299,17 @@ static int qmi_proxy_nas_resp_proc_nas_get_sig_info
   /*-----------------------------------------------------------------------*/
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) user_data;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_get_sig_info_resp = ( nas_get_sig_info_resp_msg_v01 * ) resp_c_struct;
 
@@ -16317,6 +16517,17 @@ static int qmi_proxy_nas_resp_proc_nas_get_err_rate
   /*-----------------------------------------------------------------------*/
 
   QMI_PLATFORM_MUTEX_LOCK( &qmi_proxy_internal_info.cache_mutex );
+
+  /* Supress compiler warnings for unused variables */
+  (void) proxy_srvc_id;
+  (void) proxy_client_id;
+  (void) proxy_msg_id;
+  (void) resp_c_struct_len;
+  (void) user_data_valid;
+  (void) user_data;
+  (void) resp_modified;
+  (void) modified_resp_c_struct;
+  (void) modified_resp_c_struct_len;
 
   nas_get_err_rate_resp = ( nas_get_err_rate_resp_msg_v01 * ) resp_c_struct;
 
@@ -17695,6 +17906,9 @@ static int qmi_proxy_voice_srvc_arb_hdlr
   uint32 user_data = 0;
   int rc = QMI_NO_ERR;
 
+  /* Supress compiler warnings for unused variables */
+  (void) client;
+
   /*-----------------------------------------------------------------------*/
 
   QMI_PROXY_DEBUG_MSG( "%s ....... Msg ID 0x%x\n", __FUNCTION__, srvc_msg_id );
@@ -18016,6 +18230,9 @@ static int qmi_proxy_pbm_srvc_arb_hdlr
   qmi_proxy_conn_type cs_active_modem, ps_active_modem;
   int rc = QMI_NO_ERR;
 
+  /* Supress compiler warnings for unused variables */
+  (void) client;
+
   /*-----------------------------------------------------------------------*/
 
   QMI_PROXY_DEBUG_MSG( "%s ....... Msg ID 0x%x\n", __FUNCTION__, srvc_msg_id );
@@ -18173,6 +18390,9 @@ static int qmi_proxy_wms_srvc_arb_hdlr
   qmi_proxy_svlte_cache_type *local_svlte_cache_ptr = &qmi_proxy_internal_info.svlte_cache[ QMI_PROXY_LOCAL_CONN_TYPE ];
   qmi_proxy_svlte_cache_type *remote_svlte_cache_ptr = &qmi_proxy_internal_info.svlte_cache[ QMI_PROXY_REMOTE_CONN_TYPE ];
   /*-----------------------------------------------------------------------*/
+
+  /* Supress compiler warnings for unused variables */
+  (void) client;
 
   QMI_PROXY_DEBUG_MSG( "%s ....... Msg ID 0x%x\n", __FUNCTION__, srvc_msg_id );
 
@@ -18760,7 +18980,7 @@ static void qmi_proxy_srvc_unsol_ind_cb
   qmi_proxy_conn_type proxy_conn_type;
   void *decoded_payload = NULL;
   uint32_t decoded_payload_len = 0;
-  unsol_ind_cb_data = (uint32) ind_cb_data;
+  unsol_ind_cb_data = (intptr_t) ind_cb_data;
   int rc = QMI_NO_ERR;
   qmi_proxy_rx_message *rx_msg = NULL;
 
@@ -18932,6 +19152,9 @@ static int qmi_proxy_sar_srvc_arb_hdlr
 
   /*-----------------------------------------------------------------------*/
 
+  /* Supress compiler warnings for unused variables */
+  (void) client;
+
   QMI_PROXY_DEBUG_MSG( "%s ....... Msg ID 0x%x\n", __FUNCTION__, srvc_msg_id );
 
   /* Initialize transaction entry lists */
@@ -19090,6 +19313,9 @@ static int qmi_proxy_ims_vt_srvc_arb_hdlr
 
   /*-----------------------------------------------------------------------*/
 
+  /* Supress compiler warnings for unused variables */
+  (void) client;
+
   QMI_PROXY_DEBUG_MSG( "%s ....... Msg ID 0x%x\n", __FUNCTION__, srvc_msg_id );
 
   /* Initialize transaction entry lists */
@@ -19146,6 +19372,9 @@ static int qmi_proxy_ims_presence_srvc_arb_hdlr
   int rc = QMI_NO_ERR;
 
   /*-----------------------------------------------------------------------*/
+
+  /* Supress compiler warnings for unused variables */
+  (void) client;
 
   QMI_PROXY_DEBUG_MSG( "%s ....... Msg ID 0x%x\n", __FUNCTION__, srvc_msg_id );
 
@@ -21212,7 +21441,7 @@ void qmi_proxy_sglte_ps_to_g_timer_exp_handler
     if (rc != QMI_NO_ERR)
     {
       QMI_PROXY_ERR_MSG("%s/n", "Unable to send sys_sel_pref request to local modem");
-      qmi_proxy_free(&local_nas_set_sys_sel_pref_resp);
+      qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_resp);
     }
 
     rc = qmi_proxy_force_sys_sel_pref( QMI_PROXY_REMOTE_CONN_TYPE,
@@ -21221,18 +21450,18 @@ void qmi_proxy_sglte_ps_to_g_timer_exp_handler
     if (rc != QMI_NO_ERR)
     {
       QMI_PROXY_ERR_MSG("%s\n", "Unable to send sys_sel_pref_request to remote modem");
-      qmi_proxy_free(&remote_nas_set_sys_sel_pref_resp);
+      qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_resp);
     }
 
-    qmi_proxy_free(&local_nas_set_sys_sel_pref_req);
-    qmi_proxy_free(&remote_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_req);
   }
   else
   {
-    qmi_proxy_free(&local_nas_set_sys_sel_pref_req);
-    qmi_proxy_free(&remote_nas_set_sys_sel_pref_req);
-    qmi_proxy_free(&local_nas_set_sys_sel_pref_resp);
-    qmi_proxy_free(&remote_nas_set_sys_sel_pref_resp);
+    qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_resp);
+    qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_resp);
     QMI_PROXY_ERR_MSG("%s: allocation failed\n", __FUNCTION__);
   }
 
@@ -21293,7 +21522,7 @@ void qmi_proxy_sglte_ps_to_lt_timer_exp_handler
     if (rc != QMI_NO_ERR)
     {
       QMI_PROXY_ERR_MSG("%s\n", "Unable to send sys_sel_pref_request to remote modem");
-      qmi_proxy_free(&remote_nas_set_sys_sel_pref_resp);
+      qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_resp);
     }
 
     rc = qmi_proxy_force_sys_sel_pref( QMI_PROXY_LOCAL_CONN_TYPE,
@@ -21302,18 +21531,18 @@ void qmi_proxy_sglte_ps_to_lt_timer_exp_handler
     if (rc != QMI_NO_ERR)
     {
       QMI_PROXY_ERR_MSG("%s/n", "Unable to send sys_sel_pref request to local modem");
-      qmi_proxy_free(&local_nas_set_sys_sel_pref_resp);
+      qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_resp);
     }
 
-    qmi_proxy_free(&local_nas_set_sys_sel_pref_req);
-    qmi_proxy_free(&remote_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_req);
   }
   else
   {
-    qmi_proxy_free(&local_nas_set_sys_sel_pref_req);
-    qmi_proxy_free(&remote_nas_set_sys_sel_pref_req);
-    qmi_proxy_free(&local_nas_set_sys_sel_pref_resp);
-    qmi_proxy_free(&remote_nas_set_sys_sel_pref_resp);
+    qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_req);
+    qmi_proxy_free((void **)&local_nas_set_sys_sel_pref_resp);
+    qmi_proxy_free((void **)&remote_nas_set_sys_sel_pref_resp);
     QMI_PROXY_ERR_MSG("%s: allocation failed\n", __FUNCTION__);
   }
 
@@ -21378,6 +21607,9 @@ static void * qmi_proxy_timer_thread_proc
   int canceled = 0;
   struct timeval hysteresis_timer;
   timer_expiry_handler_type cb = NULL;
+
+  /* Supress compiler warnings for unused variables */
+  (void) param;
 
   QMI_PLATFORM_SEND_SIGNAL(0, &qmi_proxy_sglte_hystersis_timer_info.signal);
 
@@ -21482,6 +21714,7 @@ static void qcril_proxy_signal_handler_sigusr1
   int arg
 )
 {
+  (void) arg;
   return;
 }
 
@@ -21501,13 +21734,15 @@ NONE
 */
 
 /*=========================================================================*/
-static void qmi_proxy_rx_hdlr
+static void * qmi_proxy_rx_hdlr
 (
   void * param
 )
 {
   qmi_proxy_rx_message *rx_msg;
   int rc;
+
+  (void) param;
 
   for(;;)
   {
@@ -21544,7 +21779,7 @@ static void qmi_proxy_rx_hdlr
   }
 
   QMI_PROXY_DEBUG_MSG("%s: Thread ending\n", __FUNCTION__);
-  return;
+  return NULL;
 }
 
 /*===========================================================================
@@ -21569,6 +21804,8 @@ int main(int argc, char **argv)
   pthread_attr_setdetachstate( &qmux_thread_attr, PTHREAD_CREATE_DETACHED );
   pthread_t tid;
 
+  (void) argc;
+  (void) argv;
 
   qmi_proxy_init();
 
@@ -21584,7 +21821,7 @@ int main(int argc, char **argv)
     pthread_attr_init( &rx_thread_attr);
     pthread_attr_setdetachstate( &rx_thread_attr, PTHREAD_CREATE_DETACHED );
     QMI_PLATFORM_INIT_SIGNAL_FOR_SEND(0, &qmi_proxy_rx_msg_queue_signal);
-    if ( pthread_create( &tid, &rx_thread_attr, qmi_proxy_rx_hdlr, (void *) NULL ) != 0 )
+    if ( pthread_create( &tid, &rx_thread_attr, qmi_proxy_rx_hdlr, NULL ) != 0 )
     {
       QMI_PROXY_ERR_MSG( "%s\n",
                 "Fail to spawn thread to handle unsolicited indication messages" );

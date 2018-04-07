@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2015 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -54,14 +54,15 @@ when       who        what, where, why
 #include <string.h>
 #include "ds_list.h"
 #include "ds_cmdq.h"
+#include "netmgr_qmi_dfs.h"
 #include "qmi_qos_srvc.h"
-#include "qmi_qos_srvc_i.h"
 #include "netmgr_defs.h"
 #include "netmgr_exec.h"
 #include "netmgr_platform.h"
 #include "netmgr_util.h"
 #include "netmgr_tc.h"
 #include "netmgr_qmi.h"
+#include "qmi_platform.h"
 
 #define NETMGR_QMI_MAX_RETRY_COUNT               10
 #define NETMGR_QMI_WAIT_TIME_BEFORE_NEXT_RETRY   500000 /* usec */
@@ -87,6 +88,8 @@ netmgr_qmi_verify_link (int link);
 
 /*qmi message library handle*/
 LOCAL int qmi_handle = QMI_INVALID_CLIENT_HANDLE;
+
+static boolean netmgr_qmi_dfs_cli_timedout = FALSE;
 
 /*===========================================================================
                      LOCAL DEFINITIONS AND DECLARATIONS
@@ -372,6 +375,8 @@ netmgr_qmi_reset_link_info (int link)
           sizeof(netmgr_qmi_cfg.links[link].wds_info.addr_info) );
 
 #ifdef FEATURE_DATA_IWLAN
+  netmgr_qmi_cfg.links[link].dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV4] = NULL;
+  netmgr_qmi_cfg.links[link].dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV6] = NULL;
   netmgr_qmi_cfg.links[link].assoc_link = NETMGR_LINK_MAX;
 
   netmgr_util_circ_list_destroy(&netmgr_qmi_cfg.links[link].wds_info.rev_ip_txns[NETMGR_QMI_CLIENT_IPV4]);
@@ -420,7 +425,18 @@ netmgr_qmi_driver_cleanup
   }
 
   if( !netmgr_qmi_cfg.link_array[link].enabled )
+  {
+    netmgr_log_err("%s(): QMI link=%d is disabled\n",
+                   __func__,link);
     return;
+  }
+
+  if( FALSE == netmgr_qmi_cfg.link_array[link].initialized )
+  {
+    netmgr_log_err("%s(): QMI link=%d is not initialized\n",
+                   __func__, link);
+    return;
+  }
 
   link_info = &netmgr_qmi_cfg.links[link];
 
@@ -474,8 +490,29 @@ netmgr_qmi_driver_cleanup
   }
 #endif /* NETMGR_QOS_ENABLED */
 
+#ifdef FEATURE_DATA_IWLAN
+  if (NULL != link_info->dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV4])
+  {
+    netmgr_log_high("Releasing the IPv4 DFS qmi_client_handle %p\n",
+                    link_info->dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV4]);
+    qmi_client_release( link_info->dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV4] );
+  }
+
+  if (NULL != link_info->dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV6])
+  {
+    netmgr_log_high("Releasing the IPv6 DFS qmi_client_handle %p\n",
+                    link_info->dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV6]);
+    qmi_client_release( link_info->dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV6] );
+  }
+#endif /* FEATURE_DATA_IWLAN */
+
   /* reset link info to prevent accidental usage */
   netmgr_qmi_reset_link_info(link);
+
+  /* Mark the link as uninitialized */
+  netmgr_log_high("%s(): Marking link=%d as uninitialized\n",
+                  __func__, link);
+  netmgr_qmi_cfg.link_array[link].initialized = FALSE;
 }
 
 /*===========================================================================
@@ -1295,35 +1332,16 @@ netmgr_wds_pkt_srvc_status_ind
         else if (ip_family == QMI_IP_FAMILY_PREF_IPV6)
         {
           netmgr_log_high("setting valid_mask for ip_family %d for link[%d]",ip_family,link);
-          *address_set_ptr = netmgr_qmi_cfg.links[ link ].wds_info.addr_info.ipv6;
+
+          /* Update necessary fields */
           netmgr_qmi_cfg.links[ link ].wds_info.addr_info.valid_mask |= NETMGR_ADDRSET_MASK_IPV6;
+          netmgr_qmi_cfg.links[ link ].wds_info.addr_info.ipv6.if_addr.type = NETMGR_IPV6_ADDR;
+
+          *address_set_ptr = netmgr_qmi_cfg.links[ link ].wds_info.addr_info.ipv6;
         }
         else
         {
           netmgr_log_err("no previously cached address for link[%d]\n", link);
-        }
-      }
-      /* If we got a V6 connect indication and V4 address is already UP,
-         initiate ICMPV6 Router Solicitation */
-      if (QMI_WDS_IP_FAMILY_PREF_IPV6 == ip_family &&
-          netmgr_qmi_cfg.links[ link ].wds_info.addr_info.valid_mask & NETMGR_ADDRSET_MASK_IPV4)
-      {
-        netmgr_log_med("V6 connected, initiating router solicitation\n");
-        if (NETMGR_SUCCESS != netmgr_kif_send_icmpv6_router_solicitation( link ))
-        {
-          netmgr_log_err("netmgr_kif_send_icmpv6_router_solicitation failed\n");
-        }
-      }
-
-      /* If it is a V6 only call and we receive reconfig request, initiate
-       * ICMPV6 Router Solicitation */
-      if (QMI_WDS_IP_FAMILY_PREF_IPV6 == ip_family &&
-          ind_data->pkt_srvc_status.reconfig_required)
-      {
-        netmgr_log_med("V6 connected, reconfig required, initiating router solicitation\n");
-        if (NETMGR_SUCCESS != netmgr_kif_send_icmpv6_router_solicitation( link ))
-        {
-          netmgr_log_err("netmgr_kif_send_icmpv6_router_solicitation failed\n");
         }
       }
 
@@ -1651,7 +1669,7 @@ netmgr_wds_event_report_ind
              netmgr_log_med("bearer_tech_ex_ind: link=%d transition=%s updating Modem MTU\n",
                             link,
                             (TRUE == is_prev_bt_iwlan) ? "IWLAN -> WWAN" : "WWAN -> IWLAN");
-             (void)netmgr_kif_set_mtu(link);
+             (void)netmgr_kif_set_mtu(link, TRUE);
            }
            else
            {
@@ -1678,7 +1696,7 @@ netmgr_wds_event_report_ind
       if( NETMGR_SUCCESS ==
           netmgr_qmi_get_modem_link_info(link, QMI_IP_FAMILY_PREF_IPV4))
       {
-        (void)netmgr_kif_set_mtu(link);
+        (void)netmgr_kif_set_mtu(link, TRUE);
       }
       else
       {
@@ -1873,7 +1891,10 @@ netmgr_wds_handle_rev_ip_connect_ind
 bail:
   if (NETMGR_SUCCESS != rc)
   {
-    ds_free( addr_set_ptr );
+    if (NULL != addr_set_ptr)
+    {
+      ds_free( addr_set_ptr );
+    }
   }
 
   NETMGR_LOG_FUNC_EXIT;
@@ -2824,6 +2845,7 @@ netmgr_qos_ind
     default:
       /* Ignore all other indications */
       netmgr_log_high("Ignoring QMI QOS IND of type %d\n", ind_id);
+      break;
   }
 
   NETMGR_LOG_FUNC_EXIT;
@@ -2876,6 +2898,12 @@ netmgr_qmi_cmd_exec (ds_cmd_t * cmd, void * data)
       netmgr_qos_ind( qmi_cmd->data.qos_ind.link,
                       qmi_cmd->data.qos_ind.ind_id,
                       &qmi_cmd->data.qos_ind.info );
+      break;
+
+  case NETMGR_QMI_DFS_IND_CMD:
+      netmgr_qmi_dfs_process_ind( qmi_cmd->data.dfs_ind.link,
+                                  qmi_cmd->data.dfs_ind.ind_id,
+                                  &qmi_cmd->data.dfs_ind.info );
       break;
 
     default:
@@ -3074,7 +3102,7 @@ netmgr_qmi_wds_service_init
         goto error;
       }
     }
-    else
+    else if(TRUE == netmgr_main_get_iwlan_enabled())
     {
       qmi_wds_event_report_params_type  wds_event_report;
 
@@ -3203,6 +3231,82 @@ error:
   return ret;
 }
 
+#ifdef FEATURE_DATA_IWLAN
+/*===========================================================================
+  FUNCTION  netmgr_qmi_dfs_service_init
+===========================================================================*/
+/*!
+@brief
+  Initializes the QMI DFS services for a specific link.
+
+@return
+  int - NETMGR_SUCCESS on successful operation, NETMGR_FAILURE otherwise.
+
+@note
+
+  - Dependencies
+    - netmgr_qmi_driver_init() must have been invoked during powerup.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_qmi_dfs_service_init
+(
+  int                     link,
+  char                  * qmi_cid,
+  qmi_ip_family_pref_type ip_family
+)
+{
+  int ret = NETMGR_FAILURE;
+  netmgr_qmi_client_type_t clnt;
+
+  clnt = netmgr_qmi_convert_ip_pref_to_client_type(ip_family);
+
+  if (NETMGR_SUCCESS == netmgr_qmi_dfs_init_qmi_client(link,
+                                                       qmi_cid,
+                                                       ip_family,
+                                                       &netmgr_qmi_cfg.links[ link ].dfs_info.clnt_hdl[clnt]))
+  {
+    dfs_indication_register_req_msg_v01 req;
+    dfs_indication_register_resp_msg_v01 resp;
+    int rc;
+
+    memset (&req, 0, sizeof(req));
+    memset (&resp, 0, sizeof(resp));
+
+    req.report_reverse_ip_transport_filters_update_valid = TRUE;
+    req.report_reverse_ip_transport_filters_update = TRUE;
+
+    /* Send indication registration request */
+    rc = qmi_client_send_msg_sync(netmgr_qmi_cfg.links[ link ].dfs_info.clnt_hdl[clnt],
+                                  QMI_DFS_INDICATION_REGISTER_REQ_V01,
+                                  (void *)&req,
+                                  sizeof(req),
+                                  (void*)&resp,
+                                  sizeof(resp),
+                                  NETMGR_QMI_TIMEOUT);
+
+    netmgr_log_high("The rev ip filter update registration link[%d] ip_family[%d] status[%s]\n",
+                    link,
+                    ip_family,
+                    (rc == QMI_NO_ERR && resp.resp.result == QMI_RESULT_SUCCESS_V01) ? "SUCCESS" : "FAIL");
+  }
+  else
+  {
+    netmgr_log_err("failed to allocate dfs client on link[%d]\n",
+                   link);
+    goto bail;
+  }
+
+  ret = NETMGR_SUCCESS;
+
+bail:
+  return ret;
+}
+#endif /* FEATURE_DATA_IWLAN */
+
 /*===========================================================================
   FUNCTION  netmgr_qmi_service_init
 ===========================================================================*/
@@ -3236,20 +3340,46 @@ netmgr_qmi_service_init( int link )
   /* Get qmi connection id for the interface */
   qmi_cid = (char *)netmgr_qmi_get_conn_id_for_link( link );
 
+  if (qmi_cid == NULL)
+  {
+    netmgr_log_err("netmgr_qmi_service_init: failed. netmgr_qmi_get_conn_id_for_link"
+                   " returned qmi_cid as NULL\n");
+    goto error;
+  }
+
+  if( !netmgr_qmi_cfg.link_array[link].enabled )
+  {
+    netmgr_log_err("%s(): QMI link=%d is disabled\n",
+                   __func__,link);
+    goto error;
+  }
+
+  if( netmgr_qmi_cfg.link_array[link].initialized == TRUE )
+  {
+    netmgr_log_err("%s(): QMI link=%d is already initialized\n",
+                   __func__, link);
+    return NETMGR_SUCCESS;
+  }
+
+  netmgr_log_med("%s", "initializing IPv4 WDS client");
+
   if( NETMGR_SUCCESS != netmgr_qmi_wds_service_init( link, qmi_cid, QMI_IP_FAMILY_PREF_IPV4 ) )
   {
     netmgr_log_err("netmgr_qmi_service_init: failed on WDS init, link[%d] IP family[%d]\n",
-                   link, NETMGR_QMI_CLIENT_IPV4);
+                   link, QMI_IP_FAMILY_PREF_IPV4);
     goto error;
   }
+
   /* Check for successful service registration */
+  netmgr_log_med("%s", "initializing IPv6 WDS client");
+
   if( NETMGR_QMI_CLIENT_INVALID !=
       netmgr_qmi_cfg.links[ link ].wds_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV4] )
   {
     if( NETMGR_SUCCESS != netmgr_qmi_wds_service_init( link, qmi_cid, QMI_IP_FAMILY_PREF_IPV6 ) )
     {
       netmgr_log_err("netmgr_qmi_service_init: failed on WDS init, link[%d] IP family[%d]\n",
-                     link, NETMGR_QMI_CLIENT_IPV6);
+                     link, QMI_IP_FAMILY_PREF_IPV6);
       goto error;
     }
 
@@ -3262,6 +3392,34 @@ netmgr_qmi_service_init( int link )
   /* Initialize QoS and data format on non-reverse Rmnet ports */
   if (NETMGR_IS_REV_IP_TRANS_CONN_ID(qmi_cid))
   {
+    if(FALSE == netmgr_qmi_dfs_cli_timedout)
+    {
+      if(NETMGR_SUCCESS != netmgr_qmi_dfs_service_init(link, qmi_cid, QMI_IP_FAMILY_PREF_IPV4))
+      {
+        netmgr_log_err("netmgr_qmi_service_init: failed on DFS init, link[%d] IP family[%d]\n",
+                       link, QMI_IP_FAMILY_PREF_IPV4);
+
+        netmgr_qmi_dfs_cli_timedout = TRUE;
+
+      }
+    }
+
+    if(FALSE == netmgr_qmi_dfs_cli_timedout)
+    {
+
+      if(NETMGR_SUCCESS != netmgr_qmi_dfs_service_init(link, qmi_cid, QMI_IP_FAMILY_PREF_IPV6))
+      {
+        netmgr_log_err("netmgr_qmi_service_init: failed on DFS init, link[%d] IP family[%d]\n",
+                       link, QMI_IP_FAMILY_PREF_IPV6);
+
+	netmgr_qmi_dfs_cli_timedout = TRUE;
+      }
+    }
+
+    netmgr_log_high("The dfs client ids [%p/%p]\n",
+                    netmgr_qmi_cfg.links[ link ].dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV4],
+                    netmgr_qmi_cfg.links[ link ].dfs_info.clnt_hdl[NETMGR_QMI_CLIENT_IPV6]);
+
     netmgr_log_low("netmgr_qmi_service_init: skipping data format and QoS init on cid=%s",
                    qmi_cid);
   }
@@ -3274,7 +3432,7 @@ netmgr_qmi_service_init( int link )
       if( NETMGR_SUCCESS != netmgr_qmi_qos_service_init( link, qmi_cid, QMI_IP_FAMILY_PREF_IPV4 ) )
       {
         netmgr_log_err("netmgr_qmi_service_init: failed on QOS init, link[%d] IP family[%d]\n",
-                       link, NETMGR_QMI_CLIENT_IPV4);
+                       link, QMI_IP_FAMILY_PREF_IPV4);
         goto error;
       }
       /* Check for successful service registration */
@@ -3284,7 +3442,7 @@ netmgr_qmi_service_init( int link )
         if( NETMGR_SUCCESS != netmgr_qmi_qos_service_init( link, qmi_cid, QMI_IP_FAMILY_PREF_IPV6 ) )
         {
           netmgr_log_err("netmgr_qmi_service_init: failed on QOS init, link[%d] IP family[%d]\n",
-                         link, NETMGR_QMI_CLIENT_IPV6);
+                         link, QMI_IP_FAMILY_PREF_IPV6);
           goto error;
         }
 
@@ -3321,6 +3479,11 @@ netmgr_qmi_service_init( int link )
   netmgr_util_circ_list_init(&netmgr_qmi_cfg.links[ link ].wds_info.rev_ip_txns[NETMGR_QMI_CLIENT_IPV4]);
   netmgr_util_circ_list_init(&netmgr_qmi_cfg.links[ link ].wds_info.rev_ip_txns[NETMGR_QMI_CLIENT_IPV6]);
 #endif /* FEATURE_DATA_IWLAN */
+
+  /* Mark the link as initialized */
+  netmgr_log_high("%s(): Marking link=%d as initialized\n",
+                  __func__, link);
+  netmgr_qmi_cfg.link_array[link].initialized = TRUE;
 
   NETMGR_LOG_FUNC_EXIT;
   return NETMGR_SUCCESS;
@@ -3434,10 +3597,10 @@ netmgr_qmi_driver_init( void )
     /* Perform QMI service init */
     if( NETMGR_SUCCESS != netmgr_qmi_service_init( i ) )
     {
-      /* Suspend further processing on this link */
-      netmgr_qmi_cfg.link_array[i].enabled = FALSE;
+      /* Mark this link uninitialized */
+      netmgr_qmi_cfg.link_array[i].initialized = FALSE;
       netmgr_log_err( "Error on QMI service init, "
-                      "suppressing link[%d]\n", i );
+                      "marking link[%d] uninitialized\n", i );
       continue;
     }
   }
@@ -3482,19 +3645,15 @@ netmgr_qmi_reset_connection
   /* Perform QMI service init */
   if( NETMGR_SUCCESS != netmgr_qmi_service_init( link ) )
   {
-    /* Ignore service initialization failure during SSR */
-    if (NETMGR_MODEM_IS_EV == evt)
-    {
-      netmgr_log_high( "Ignoring QMI service init failure during NETMGR_MODEM_IS_EV "
-                       "on link[%d]\n", link );
-    }
-    else
-    {
-      /* Suspend further processing on this link */
-      netmgr_qmi_cfg.link_array[link].enabled = FALSE;
-      netmgr_log_err( "Error on QMI service init, "
-                      "suppressing link[%d]\n", link );
-    }
+    /* Mark this link uninitialized */
+    netmgr_qmi_cfg.link_array[link].initialized = FALSE;
+    netmgr_log_err( "Error on QMI service init, "
+                    "marking link[%d] uninitialized\n", link );
+  }
+
+  if(netmgr_qmi_dfs_cli_timedout)
+  {
+    netmgr_qmi_dfs_cli_timedout = FALSE;
   }
 
   NETMGR_LOG_FUNC_EXIT;
@@ -3628,6 +3787,63 @@ netmgr_address_info_t * netmgr_qmi_get_addr_info( int link )
     return NULL;
 }
 
+#ifdef FEATURE_DATA_IWLAN
+/*===========================================================================
+  FUNCTION  netmgr_qmi_get_ipsec_tunnel_endpoints
+===========================================================================*/
+/*!
+@brief
+  Retrives the tunnel endpoint addresses for a given link and ip family
+
+@return
+  netmgr_address_info_t * - IP address info struct pointer,
+                            NULL if undefined
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_qmi_get_ipsec_tunnel_endpoints
+(
+  int link,
+  int ip_family,
+  const char **local,
+  const char **dest,
+  int *tunnel_family
+)
+{
+  int ret = NETMGR_FAILURE;
+
+  if( NETMGR_SUCCESS == netmgr_qmi_verify_link( link ) )
+  {
+    netmgr_ipsec_sa_t *sa = (AF_INET == ip_family) ? &netmgr_qmi_cfg.links[ link ].wds_info.addr_info.ipv4.sa :
+                                                     &netmgr_qmi_cfg.links[ link ].wds_info.addr_info.ipv6.sa;
+
+    if (TRUE == sa->tunnel_ep.is_valid)
+    {
+      *local = sa->tunnel_ep.local_addr;
+      *dest = sa->tunnel_ep.dest_addr;
+      *tunnel_family = sa->tunnel_ep.ip_family;
+      ret = NETMGR_SUCCESS;
+    }
+    else
+    {
+      netmgr_log_err("%s(): tunnel endpoint addresses invalid for link=%d, ip_family=%d\n",
+                     __func__,
+                     link,
+                     ip_family);
+    }
+  }
+
+  return ret;
+}
+#endif /* FEATURE_DATA_IWLAN */
+
 /*===========================================================================
   FUNCTION  netmgr_qmi_get_mtu
 ===========================================================================*/
@@ -3759,16 +3975,27 @@ netmgr_qmi_send_rev_ip_config_complete
     goto bail;
   }
 
+  clnt = (ip_family == AF_INET) ? NETMGR_QMI_CLIENT_IPV4 : NETMGR_QMI_CLIENT_IPV6;
+
   if (NETMGR_QMI_IWLAN_CALL_BRINGUP == mode)
   {
     netmgr_kif_iwlan_update_dynamic_config(link, ip_family);
+
+    /* Query and install rev ip filters (if any) */
+    if (NULL == netmgr_qmi_cfg.links[ link ].dfs_info.clnt_hdl[clnt] ||
+        NETMGR_SUCCESS != netmgr_qmi_dfs_query_and_process_rev_ip_filters(link,
+                                                                          netmgr_qmi_cfg.links[ link ].dfs_info.clnt_hdl[clnt]))
+    {
+      netmgr_log_err("netmgr_qmi_send_rev_ip_config_complete: failed to install rev ip filters, "
+                     "link=%d, clnt_hdl=%p",
+                     link,
+                     netmgr_qmi_cfg.links[ link ].dfs_info.clnt_hdl[clnt]);
+    }
   }
   else if (NETMGR_QMI_IWLAN_CALL_CLEANUP == mode)
   {
     netmgr_kif_iwlan_cleanup_dynamic_config(link, ip_family);
   }
-
-  clnt = (ip_family == AF_INET) ? NETMGR_QMI_CLIENT_IPV4 : NETMGR_QMI_CLIENT_IPV6;
 
   if ((clnt_hndl = netmgr_qmi_cfg.links[ link ].wds_info.clnt_hdl[clnt]) < 0)
   {
@@ -3967,7 +4194,16 @@ netmgr_qmi_iwlan_update_link_assoc
   /* Clear any prior associations for this link */
   if (NETMGR_LINK_MAX != (cur_assoc = netmgr_qmi_iwlan_get_link_assoc(link)))
   {
-    netmgr_qmi_iwlan_clear_link_assoc(link, cur_assoc);
+    (void) netmgr_qmi_iwlan_clear_link_assoc(link, cur_assoc);
+
+    if (NETMGR_FWD_LINK == type &&
+        NETMGR_STATE_GOING_DOWN == stm_get_state(&NETMGR_SM[cur_assoc]))
+    {
+      netmgr_log_med("netmgr_qmi_iwlan_update_link_assoc: updating link=%d, bringing down prior associated rev_link=%d\n",
+                     link,
+                     cur_assoc);
+      netmgr_kif_iface_close((uint8)cur_assoc, NULL, TRUE);
+    }
   }
 
   /* Search for a iface with mtaching address in the other link set */
@@ -4363,9 +4599,7 @@ netmgr_qmi_initiate_esp_rekey
 
   return ret;
 }
-
 #endif /* FEATURE_DATA_IWLAN */
-
 
 /*===========================================================================
   FUNCTION  netmgr_qmi_init

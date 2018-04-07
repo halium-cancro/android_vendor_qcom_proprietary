@@ -13,6 +13,7 @@ CFLAGS += -fPIC
 
 LDFLAGS := -shared -Wl,-soname,$(TARGET)
 
+LIBS := -lpthread
 
 INCPATHS := \
   -I. \

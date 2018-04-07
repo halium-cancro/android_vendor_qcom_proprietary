@@ -15,6 +15,7 @@
 ******************************************************************************/
 #define _GNU_SOURCE
 
+#include <linux/capability.h>
 #include <unistd.h>
 #include <stddef.h>
 #include <signal.h>
@@ -27,9 +28,13 @@
 #include "qmi_platform_qmux_if.h"
 #include "qmi_platform_qmux_io.h"
 #include "qmi_qmux.h"
+#include "qmi_platform_xml.h"
 #include <fcntl.h>
-#ifdef FEATURE_QMI_ANDROID
-#include <properties.h>
+#include "ds_util.h"
+#if (!defined(QMI_OFFTARGET) && defined(FEATURE_QMI_ANDROID))
+#include "configdb.h"
+#include <cutils/properties.h>
+#include <private/android_filesystem_config.h>
 #endif
 #ifdef FEATURE_QMI_IWLAN
 #include <strings.h>
@@ -39,7 +44,21 @@
 #endif
 
 
-#define LINUX_QMI_QMUX_MAX_CLIENTS       (51)
+#define LINUX_QMI_QMUX_MAX_CLIENTS       (100)
+
+#define LINUX_QMI_MAX_SEND_RETRIES       (5)
+#define LINUX_QMI_SEND_RETRY_WAIT        (10000) /* in usec */
+
+#ifdef FEATURE_QMI_ANDROID
+#define LINUX_QMI_PLATFORM_CONFIG_FILE "/system/etc/data/qmi_config.xml"
+#else
+#define LINUX_QMI_PLATFORM_CONFIG_FILE "/etc/data/qmi_config.xml"
+#endif
+
+#ifdef QMI_OFFTARGET
+#define LINUX_QMI_PLATFORM_CONFIG_FILE "/data/data_test/qmi_config.xml"
+#endif
+
 
 #define LINUX_QMUX_CLIENT_UNINITIALIZED  (-2)
 #define LINUX_QMUX_CLIENT_CONNECTED      (-1)
@@ -47,20 +66,21 @@
 /* Macros for Modem port open retry */
 #define MAX_RETRY_COUNT               120
 #define WAIT_TIME_BEFORE_NEXT_RETRY   500000
-static pthread_mutex_t    rmnet_port_open_mutex;
 
 #ifdef FEATURE_DATA_LOG_FILE
 pthread_mutex_t qmux_file_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 FILE *qmuxd_fptr = NULL;
 #endif /* FEATURE_DATA_LOG_FILE */
 
-#define LINUX_QMI_QMUX_SMD_TIMEOUT_CONFIG         "/sys/devices/virtual/smdpkt/smdcntl0/open_timeout"
+#define LINUX_QMI_QMUX_SMD_TIMEOUT_CONFIG         "/sys/devices/virtual/smdpkt/%s/open_timeout"
 #define LINUX_QMI_QMUX_SMD_POWER_UP_TIMEOUT       "20"
 #define LINUX_QMI_QMUX_SMD_POWER_UP_TIMEOUT_SIZE  (sizeof(LINUX_QMI_QMUX_SMD_POWER_UP_TIMEOUT))
 #define LINUX_QMI_QMUX_SMD_DEFAULT_TIMEOUT        "0"
 #define LINUX_QMI_QMUX_SMD_DEFAULT_TIMEOUT_SIZE   (sizeof(LINUX_QMI_QMUX_SMD_DEFAULT_TIMEOUT))
+#define LINUX_QMI_QMUX_SMD_SSR_TIMEOUT            "86400"
+#define LINUX_QMI_QMUX_SMD_SSR_TIMEOUT_SIZE       (sizeof(LINUX_QMI_QMUX_SMD_SSR_TIMEOUT))
 
-#define LINUX_QMI_QMUX_HSIC_TIMEOUT_CONFIG         "/sys/devices/virtual/hsicctl/hsicctl0/modem_wait"
+#define LINUX_QMI_QMUX_HSIC_TIMEOUT_CONFIG         "/sys/devices/virtual/hsicctl/%s/modem_wait"
 #define LINUX_QMI_QMUX_HSIC_POWER_UP_TIMEOUT       "60"
 #define LINUX_QMI_QMUX_HSIC_POWER_UP_TIMEOUT_SIZE  (sizeof(LINUX_QMI_QMUX_HSIC_POWER_UP_TIMEOUT))
 #define LINUX_QMI_QMUX_HSIC_DEFAULT_TIMEOUT        "0"
@@ -70,22 +90,13 @@ FILE *qmuxd_fptr = NULL;
 /* one of these files may hold the data control port string */
 #define LINUX_QMI_SYSFS_CONFIG_FILE_1 "/sys/module/f_rmnet/parameters/rmnet_ctl_ch"
 #define LINUX_QMI_SYSFS_CONFIG_FILE_2 "/sys/module/rmnet/parameters/rmnet_ctl_ch"
-#define LINUX_QMI_CFG_PARAM_LEN 15
-/* we currently only support 3 connections */
-#define LINUX_QMI_MAX_CONN_SUPPORTED QMI_MAX_CONNECTIONS
+
+#ifndef PROPERTY_VALUE_MAX
+  #define PROPERTY_VALUE_MAX 100
+#endif
 
 #ifdef FEATURE_QMI_ANDROID
 #define LINUX_QMUX_PROPERTY_VALUE_SIZE     PROPERTY_VALUE_MAX
-#define LINUX_QMI_BASEBAND_PROPERTY        "ro.baseband"
-#define LINUX_QMI_BASEBAND_VALUE_MSM       "msm"
-#define LINUX_QMI_BASEBAND_VALUE_APQ       "apq"
-#define LINUX_QMI_BASEBAND_VALUE_SVLTE1    "svlte1"
-#define LINUX_QMI_BASEBAND_VALUE_SVLTE2A   "svlte2a"
-#define LINUX_QMI_BASEBAND_VALUE_CSFB      "csfb"
-#define LINUX_QMI_BASEBAND_VALUE_SGLTE     "sglte"
-#define LINUX_QMI_BASEBAND_VALUE_DSDA      "dsda"
-#define LINUX_QMI_BASEBAND_VALUE_DSDA2     "dsda2"
-#define LINUX_QMI_BASEBAND_VALUE_MDMUSB    "mdm"
 
 #define LINUX_QMI_PERSIST_RADIO_SGLTE_CSFB "persist.radio.sglte_csfb"
 #ifdef FEATURE_QMI_IWLAN
@@ -95,47 +106,18 @@ FILE *qmuxd_fptr = NULL;
 
 #define LINUX_QMI_LOG_FILE_PATH            "/data/qmuxd_log.txt"
 #else
-#define LINUX_QMUX_PROPERTY_VALUE_SIZE     (1)
+#define LINUX_QMUX_PROPERTY_VALUE_SIZE     (40)
 #define LINUX_QMI_LOG_FILE_PATH            "/var/qmuxd_log.txt"
 #endif /* FEATURE_QMI_ANDROID */
-
-#define LINUX_QMI_DEVICE_NAME_SIZE  LINUX_QMUX_PROPERTY_VALUE_SIZE
-static char linux_qmi_device[LINUX_QMI_DEVICE_NAME_SIZE] = "";
 
 #define MAIN_THREAD_CONN_ID (LINUX_QMI_MAX_CONN_SUPPORTED)
 const char *linux_qmi_thread_state[LINUX_QMI_MAX_CONN_SUPPORTED+1];
 
-/* QMI message transport types */
-#define LINUX_QMI_TRANSPORT_UNDEF (0x00)
-#define LINUX_QMI_TRANSPORT_SMD   (0x01)
-#define LINUX_QMI_TRANSPORT_BAM   (0x02)
-#define LINUX_QMI_TRANSPORT_SDIO  (0x04)
-#define LINUX_QMI_TRANSPORT_USB   (0x08)
-#define LINUX_QMI_TRANSPORT_SMUX  (0x10)
-#define LINUX_QMI_TRANSPORT_ALL   (LINUX_QMI_TRANSPORT_SMD |\
-                                   LINUX_QMI_TRANSPORT_BAM |\
-                                   LINUX_QMI_TRANSPORT_SDIO|\
-                                   LINUX_QMI_TRANSPORT_SMUX|\
-                                   LINUX_QMI_TRANSPORT_USB)
-
-/*
-   following structure holds the relationship between smd data control
-   port and qmi connection id. It also contains a boolean member to
-   identify if the qmi connection id is enabled or not
-*/
-typedef struct linux_qmi_conn_id_enablement_s
-{
-  char data_ctl_port[LINUX_QMI_CFG_PARAM_LEN];
-  qmi_connection_id_type qmi_conn_id;
-  unsigned char transport;
-  unsigned char enabled;
-  unsigned char open_at_powerup;
-} linux_qmi_conn_id_config_s;
 /*
    please make sure to maintain accurate mapping of data_ctl_port
    to qmi_conn_id in the following array
 */
-static linux_qmi_conn_id_config_s
+linux_qmi_conn_id_config_s
 linux_qmi_conn_id_enablement_array[LINUX_QMI_MAX_CONN_SUPPORTED] =
 {
   /* DATAX_CNTL is a descriptive string used by rmnet probably X=8..15
@@ -208,7 +190,12 @@ linux_qmi_conn_id_enablement_array[LINUX_QMI_MAX_CONN_SUPPORTED] =
   {"MDM2_DATA7_CNTL", QMI_CONN_ID_RMNET_MDM2_6,    LINUX_QMI_TRANSPORT_SDIO,                          TRUE, TRUE},
   {"MDM2_DATA8_CNTL", QMI_CONN_ID_RMNET_MDM2_7,    LINUX_QMI_TRANSPORT_SDIO,                          TRUE, TRUE},
 
-  {"QMI_PROXY",       QMI_CONN_ID_PROXY,           LINUX_QMI_TRANSPORT_ALL,                           TRUE, TRUE}
+  /* MHI related entries */
+  {"MHICTL0",         QMI_CONN_ID_RMNET_MHI_0,     LINUX_QMI_TRANSPORT_MHI,                           FALSE, FALSE},
+  {"MHICTL1",         QMI_CONN_ID_RMNET_MHI_1,     LINUX_QMI_TRANSPORT_MHI,                           FALSE, FALSE},
+
+  /* Proxy related entries */
+  {"QMI_PROXY",       QMI_CONN_ID_PROXY,           LINUX_QMI_TRANSPORT_ALL,                           TRUE, TRUE},
 };
 
 /* Client connections: currently, radio [, audio, bluetooth] */
@@ -221,6 +208,7 @@ typedef enum
   LINUX_QMI_CLIENT_CONNECTION_AUDIO,
   LINUX_QMI_CLIENT_CONNECTION_BLUETOOTH,
   LINUX_QMI_CLIENT_CONNECTION_GPS,
+  LINUX_QMI_CLIENT_CONNECTION_NFC,
 #endif
 
   LINUX_QMI_MAX_CLIENT_CONNECTIONS
@@ -236,12 +224,14 @@ typedef struct
 
 typedef struct
 {
-  int                      max_listen_fd;
+  int32_t                  min_listen_fd;
+  int32_t                  max_listen_fd;
   linux_qmi_listen_sock_t  listeners[LINUX_QMI_MAX_CLIENT_CONNECTIONS];
 } linux_qmi_listener_info_t;
 
 static linux_qmi_listener_info_t  linux_qmi_listener_info =
 {
+  INT32_MAX,             /* min_listen_fd */
   LINUX_QMI_INVALID_FD,  /* max_listen_fd */
   {
     /* listeners[].conn_type                  listeners[].path                         listeners[].fd         listeners[].srvc_allowed */
@@ -251,44 +241,11 @@ static linux_qmi_listener_info_t  linux_qmi_listener_info =
     ,{ LINUX_QMI_CLIENT_CONNECTION_AUDIO,     QMI_QMUX_IF_AUDIO_CONN_SOCKET_PATH,      LINUX_QMI_INVALID_FD,  QMI_CSD_SERVICE  }
     ,{ LINUX_QMI_CLIENT_CONNECTION_BLUETOOTH, QMI_QMUX_IF_BLUETOOTH_CONN_SOCKET_PATH,  LINUX_QMI_INVALID_FD,  QMI_MAX_SERVICES }
     ,{ LINUX_QMI_CLIENT_CONNECTION_GPS,       QMI_QMUX_IF_GPS_CONN_SOCKET_PATH,        LINUX_QMI_INVALID_FD,  QMI_MAX_SERVICES }
+    ,{ LINUX_QMI_CLIENT_CONNECTION_NFC,       QMI_QMUX_IF_NFC_CONN_SOCKET_PATH,        LINUX_QMI_INVALID_FD,  QMI_MAX_SERVICES }
 #endif
   }
 };
 
-/* Macros for updating linux_qmi_conn_id_enablement_array for external MDM */
-#define LINUX_QMI_MDM_FWD_BEGIN (QMI_CONN_ID_RMNET_MDM_0)
-#define LINUX_QMI_MDM_FWD_END   (QMI_CONN_ID_RMNET_MDM_7)
-#define LINUX_QMI_MDM_FWD_SET( i, conn, tran, device )                                            \
-      if( LINUX_QMI_MDM_FWD_BEGIN+i <= LINUX_QMI_MDM_FWD_END ) {                                  \
-        linux_qmi_conn_id_enablement_array[ LINUX_QMI_MDM_FWD_BEGIN+i ].qmi_conn_id = conn;       \
-        linux_qmi_conn_id_enablement_array[ LINUX_QMI_MDM_FWD_BEGIN+i ].transport = tran;         \
-        strlcpy( linux_qmi_qmux_io_conn_info[ LINUX_QMI_MDM_FWD_BEGIN+i ].port_id_name,           \
-                 device,                                                                          \
-                 sizeof(linux_qmi_qmux_io_conn_info[ LINUX_QMI_MDM_FWD_BEGIN+i ].port_id_name) ); \
-      }
-
-/* Macros for updating linux_qmi_conn_id_enablement_array for second external modem */
-#define LINUX_QMI_QSC_BEGIN (QMI_CONN_ID_RMNET_SMUX_0)
-#define LINUX_QMI_QSC_END   (QMI_CONN_ID_RMNET_SMUX_0)
-#define LINUX_QMI_QSC_SET( i, conn, tran, device )                                            \
-      if( LINUX_QMI_QSC_BEGIN+i <= LINUX_QMI_QSC_END ) {                                      \
-        linux_qmi_conn_id_enablement_array[ LINUX_QMI_QSC_BEGIN+i ].qmi_conn_id = conn;       \
-        linux_qmi_conn_id_enablement_array[ LINUX_QMI_QSC_BEGIN+i ].transport = tran;         \
-        strlcpy( linux_qmi_qmux_io_conn_info[ LINUX_QMI_QSC_BEGIN+i ].port_id_name,           \
-                 device,                                                                      \
-                 sizeof(linux_qmi_qmux_io_conn_info[ LINUX_QMI_QSC_BEGIN+i ].port_id_name) ); \
-      }
-
-#define LINUX_QMI_MDM2_BEGIN (QMI_CONN_ID_RMNET_MDM2_0)
-#define LINUX_QMI_MDM2_END   (QMI_CONN_ID_RMNET_MDM2_7)
-#define LINUX_QMI_MDM2_SET( i, conn, tran, device )                                            \
-      if( LINUX_QMI_MDM2_BEGIN+i <= LINUX_QMI_MDM2_END ) {                                      \
-        linux_qmi_conn_id_enablement_array[ LINUX_QMI_MDM2_BEGIN+i ].qmi_conn_id = conn;       \
-        linux_qmi_conn_id_enablement_array[ LINUX_QMI_MDM2_BEGIN+i ].transport = tran;         \
-        strlcpy( linux_qmi_qmux_io_conn_info[ LINUX_QMI_MDM2_BEGIN+i ].port_id_name,           \
-                 device,                                                                      \
-                 sizeof(linux_qmi_qmux_io_conn_info[ LINUX_QMI_MDM2_BEGIN+i ].port_id_name) ); \
-      }
 
 /*================end - sysfs config related declarations=========== */
 typedef struct
@@ -306,6 +263,10 @@ static fd_set master_fd_set, read_fd_set;
 
 /* maximum file descriptor number */
 static int max_fd = LINUX_QMI_INVALID_FD;
+
+#ifdef FEATURE_QMI_ANDROID
+int qmi_log_adb_level;
+#endif
 
 /* Local function declarations */
 static void
@@ -326,19 +287,29 @@ typedef enum
 {
   LINUX_QMI_QMUX_IF_MODE_INVALID = -1,
   LINUX_QMI_QMUX_IF_MODE_POWER_UP,
-  LINUX_QMI_QMUX_IF_MODE_NORMAL
+  LINUX_QMI_QMUX_IF_MODE_NORMAL,
+  LINUX_QMI_QMUX_IF_MODE_SSR,
 } linux_qmi_qmux_if_mode_t;
 
 #if defined(FEATURE_DATA_LOG_QXDM)
   boolean qmi_platform_qxdm_init = FALSE;
 #endif
+
 /* Pipe for submitting client cleanup requests to the main processing thread
    from RX thread context */
 static int pipefds[2] =
 {
-  LINUX_QMI_INVALID_FD,
-  LINUX_QMI_INVALID_FD
+  LINUX_QMI_INVALID_FD, /* Read fd */
+  LINUX_QMI_INVALID_FD  /* Write fd */
 };
+
+static
+int linux_qmi_qmux_if_server_open_port
+(
+  qmi_connection_id_type    conn_id,
+  unsigned int              num_retries,
+  linux_qmi_qmux_if_mode_t  mode
+);
 
 /*===========================================================================
                           LOCAL FUNCTION DEFINITIONS
@@ -362,92 +333,159 @@ static int pipefds[2] =
 static void
 linux_qmi_qmux_if_configure_port_timeout
 (
+  qmi_connection_id_type    conn_id,
   linux_qmi_qmux_if_mode_t  mode
 )
 {
-  const char *smd_timeout  = LINUX_QMI_QMUX_SMD_DEFAULT_TIMEOUT;
-  size_t smd_timeout_size  = LINUX_QMI_QMUX_SMD_DEFAULT_TIMEOUT_SIZE;
-  const char *hsic_timeout = LINUX_QMI_QMUX_HSIC_DEFAULT_TIMEOUT;
-  size_t hsic_timeout_size = LINUX_QMI_QMUX_HSIC_DEFAULT_TIMEOUT_SIZE;
+  const char *smd_timeout = NULL;
+  size_t smd_timeout_size = 0;
+  const char *hsic_timeout = NULL;
+  size_t hsic_timeout_size = 0;
   int fd_smd = LINUX_QMI_INVALID_FD;
   int fd_hsic = LINUX_QMI_INVALID_FD;
-  int rc;
+  ssize_t rc;
+  const char *cptr, *dev_ptr = NULL;
+  char dev_name[QMI_DEVICE_NAME_SIZE];
+  char timeout_path[QMI_MAX_STRING_SIZE];
+  ds_target_t  target = ds_get_target();
 
-
-  /* Assign the appropriate timeout value for the given mode */
-  if (LINUX_QMI_QMUX_IF_MODE_POWER_UP == mode)
+  if ((dev_ptr = QMI_QMUX_IO_PLATFORM_DEV_NAME(conn_id)) == NULL)
   {
-    smd_timeout  = LINUX_QMI_QMUX_SMD_POWER_UP_TIMEOUT;
-    smd_timeout_size = LINUX_QMI_QMUX_SMD_POWER_UP_TIMEOUT_SIZE;
-
-    hsic_timeout = LINUX_QMI_QMUX_HSIC_POWER_UP_TIMEOUT;
-    hsic_timeout_size = LINUX_QMI_QMUX_HSIC_POWER_UP_TIMEOUT_SIZE;
+    QMI_ERR_MSG_1("linux_qmi_qmux_if_configure_port_timeout: unable to query dev name for conn_id=%d", conn_id);
+    return;
   }
 
-  QMI_DEBUG_MSG_3("linux_qmi_qmux_if_configure_port_timeout: mode=%d, smd_timeout=%s, hsic_timeout=%s",
-                  mode,
-                  smd_timeout,
-                  hsic_timeout);
+  strlcpy(dev_name, dev_ptr, sizeof(dev_name));
 
-  fd_smd = open(LINUX_QMI_QMUX_SMD_TIMEOUT_CONFIG, O_WRONLY);
+  cptr = strtok(dev_name, "/");
 
-  if (fd_smd < 0)
+  while (cptr)
   {
-    QMI_ERR_MSG_3("linux_qmi_qmux_if_configure_port_timeout: failed to open SMD timeout config=%s "
-                  "errno [%d:%s]",
-                  LINUX_QMI_QMUX_SMD_TIMEOUT_CONFIG,
-                  errno,
-                  strerror(errno));
+    dev_ptr = cptr;
+    cptr = strtok(NULL, "/");
   }
-  else
-  {
-    rc = write(fd_smd, smd_timeout, smd_timeout_size);
 
-    if (rc != (int)smd_timeout_size)
+  if (NULL == dev_ptr)
+  {
+    QMI_ERR_MSG_1("linux_qmi_qmux_if_configure_port_timeout: failed to extract dev name for conn_id=%d", conn_id);
+    return;
+  }
+
+  QMI_DEBUG_MSG_2("linux_qmi_qmux_if_configure_port_timeout: dev_name=%s for conn_id=%d", dev_ptr, conn_id);
+
+  switch (mode)
+  {
+    case LINUX_QMI_QMUX_IF_MODE_POWER_UP:
+      smd_timeout  = LINUX_QMI_QMUX_SMD_POWER_UP_TIMEOUT;
+      smd_timeout_size = LINUX_QMI_QMUX_SMD_POWER_UP_TIMEOUT_SIZE;
+
+      hsic_timeout = LINUX_QMI_QMUX_HSIC_POWER_UP_TIMEOUT;
+      hsic_timeout_size = LINUX_QMI_QMUX_HSIC_POWER_UP_TIMEOUT_SIZE;
+      break;
+
+    case LINUX_QMI_QMUX_IF_MODE_SSR:
+      smd_timeout  = LINUX_QMI_QMUX_SMD_SSR_TIMEOUT;
+      smd_timeout_size = LINUX_QMI_QMUX_SMD_SSR_TIMEOUT_SIZE;
+
+      hsic_timeout = LINUX_QMI_QMUX_HSIC_DEFAULT_TIMEOUT;
+      hsic_timeout_size = LINUX_QMI_QMUX_HSIC_DEFAULT_TIMEOUT_SIZE;
+      break;
+
+    case LINUX_QMI_QMUX_IF_MODE_NORMAL:
+    default:
+      smd_timeout  = LINUX_QMI_QMUX_SMD_DEFAULT_TIMEOUT;
+      smd_timeout_size = LINUX_QMI_QMUX_SMD_DEFAULT_TIMEOUT_SIZE;
+
+      hsic_timeout = LINUX_QMI_QMUX_HSIC_DEFAULT_TIMEOUT;
+      hsic_timeout_size = LINUX_QMI_QMUX_HSIC_DEFAULT_TIMEOUT_SIZE;
+      break;
+  }
+
+  if (DS_TARGET_MDM == target)
+  {
+    snprintf(timeout_path,
+             sizeof(timeout_path),
+             LINUX_QMI_QMUX_HSIC_TIMEOUT_CONFIG,
+             dev_ptr);
+
+    QMI_DEBUG_MSG_3("linux_qmi_qmux_if_configure_port_timeout: mode=%d, hsic_timeout=%s, path=%s",
+                    mode,
+                    hsic_timeout,
+                    timeout_path);
+
+    fd_hsic = open(timeout_path, O_WRONLY);
+
+    if (fd_hsic < 0)
     {
-      QMI_ERR_MSG_4("linux_qmi_qmux_if_configure_port_timeout: failed to write SMD config=%s "
-                    "rc=%d, errno [%d:%s]",
-                    LINUX_QMI_QMUX_SMD_TIMEOUT_CONFIG,
-                    rc,
+      QMI_ERR_MSG_3("linux_qmi_qmux_if_configure_port_timeout: failed to open HSIC timeout config=%s "
+                    "errno [%d:%s]",
+                    timeout_path,
                     errno,
                     strerror(errno));
     }
-  }
+    else
+    {
+      rc = write(fd_hsic, hsic_timeout, hsic_timeout_size);
 
-  fd_hsic = open(LINUX_QMI_QMUX_HSIC_TIMEOUT_CONFIG, O_WRONLY);
+      if (rc != (ssize_t)hsic_timeout_size)
+      {
+        QMI_ERR_MSG_4("linux_qmi_qmux_if_configure_port_timeout: failed to write HSIC config=%s "
+                      "rc=%d, errno [%d:%s]",
+                      timeout_path,
+                      rc,
+                      errno,
+                      strerror(errno));
+      }
+    }
 
-  if (fd_hsic < 0)
-  {
-    QMI_ERR_MSG_3("linux_qmi_qmux_if_configure_port_timeout: failed to open HSIC timeout config=%s "
-                  "errno [%d:%s]",
-                  LINUX_QMI_QMUX_HSIC_TIMEOUT_CONFIG,
-                  errno,
-                  strerror(errno));
+    /* Close the fd */
+    if (LINUX_QMI_INVALID_FD != fd_hsic)
+    {
+      close(fd_hsic);
+    }
   }
   else
   {
-    rc = write(fd_hsic, hsic_timeout, hsic_timeout_size);
+    snprintf(timeout_path,
+             sizeof(timeout_path),
+             LINUX_QMI_QMUX_SMD_TIMEOUT_CONFIG,
+             dev_ptr);
 
-    if (rc != (int)hsic_timeout_size)
+    QMI_DEBUG_MSG_3("linux_qmi_qmux_if_configure_port_timeout: mode=%d, smd_timeout=%s, path=%s",
+                    mode,
+                    smd_timeout,
+                    timeout_path);
+
+    fd_smd = open(timeout_path, O_WRONLY);
+
+    if (fd_smd < 0)
     {
-      QMI_ERR_MSG_4("linux_qmi_qmux_if_configure_port_timeout: failed to write HSIC config=%s "
-                    "rc=%d, errno [%d:%s]",
-                    LINUX_QMI_QMUX_HSIC_TIMEOUT_CONFIG,
-                    rc,
+      QMI_ERR_MSG_3("linux_qmi_qmux_if_configure_port_timeout: failed to open SMD timeout config=%s "
+                    "errno [%d:%s]",
+                    timeout_path,
                     errno,
                     strerror(errno));
     }
-  }
+    else
+    {
+      rc = write(fd_smd, smd_timeout, smd_timeout_size);
 
-  /* Close the fds */
-  if (LINUX_QMI_INVALID_FD != fd_smd)
-  {
-    close(fd_smd);
-  }
+      if (rc != (ssize_t)smd_timeout_size)
+      {
+        QMI_ERR_MSG_4("linux_qmi_qmux_if_configure_port_timeout: failed to write SMD config=%s "
+                      "rc=%d, errno [%d:%s]",
+                      timeout_path,
+                      rc,
+                      errno,
+                      strerror(errno));
+      }
+    }
 
-  if (LINUX_QMI_INVALID_FD != fd_hsic)
-  {
-    close(fd_hsic);
+    /* Close the fd */
+    if (LINUX_QMI_INVALID_FD != fd_smd)
+    {
+      close(fd_smd);
+    }
   }
 }
 
@@ -476,7 +514,9 @@ linux_qmi_qmux_if_get_listener_socket
   struct sockaddr_un  addr;
   int                 listen_fd = LINUX_QMI_INVALID_FD;
   int                 fd = LINUX_QMI_INVALID_FD;
-  int                 len, rc, path_len;
+  int                 rc;
+  size_t              len, path_len;
+  qmi_platform_sockaddr_type tmp;
 
   if (NULL == listen_sock_path)
   {
@@ -500,7 +540,7 @@ linux_qmi_qmux_if_get_listener_socket
   /* setup for bind */
   memset (&addr,0, sizeof (struct sockaddr_un));
   path_len = strlen (listen_sock_path);
-  path_len = MIN(path_len, (int)(sizeof(addr.sun_path)-1));
+  path_len = MIN(path_len, (sizeof(addr.sun_path)-1));
   addr.sun_family = AF_UNIX;
   memcpy (&addr.sun_path[0], listen_sock_path, path_len);
   addr.sun_path[path_len] = '\0';
@@ -511,8 +551,10 @@ linux_qmi_qmux_if_get_listener_socket
                    addr.sun_path,
                    len);
 
+  tmp.sunaddr = &addr;
+
   /* Bind socket to address */
-  if ((rc = bind (fd, (struct sockaddr *)&addr, len)) < 0)
+  if ((rc = bind (fd, tmp.saddr, sizeof(struct sockaddr_un))) < 0)
   {
     QMI_ERR_MSG_3 ("qmuxd: unable to bind to listener socket, rc=%d, errno=[%d:%s]\n",
                    rc,
@@ -655,7 +697,8 @@ static int linux_qmi_read_data_ctl_port
   char * buf
 )
 {
-  int bytes_read = 0, temp = 0;
+  int bytes_read = 0;
+  ssize_t temp = 0;
   char ch;
 
   if (buf == NULL)
@@ -674,7 +717,7 @@ static int linux_qmi_read_data_ctl_port
           ('A' <= ch && ch <= 'Z') ||
           ('_' == ch))
       {
-        bytes_read += temp;
+        bytes_read += (int)temp;
         *buf++ = ch;
         *buf = '\0';
         /* read the delimiter if we reached max len */
@@ -771,7 +814,6 @@ static void linux_qmi_read_sysfs_config(void)
   return;
 }
 
-
 /*===========================================================================
   FUNCTION  linux_qmi_qmux_if_configure_ports
 ===========================================================================*/
@@ -787,225 +829,344 @@ static void linux_qmi_read_sysfs_config(void)
   - Side Effects
 */
 /*=========================================================================*/
-static void linux_qmi_qmux_if_configure_ports( const char * device )
+static void linux_qmi_qmux_if_configure_ports(ds_target_t target)
 {
   int i;
+
+  QMI_DEBUG_MSG_2 ("qmuxd:  Target Configuration: [%d]: [%s]\n", target, ds_get_target_str(target));
 
 #ifdef FEATURE_QMI_IWLAN
   boolean is_iwlan_enabled = (0 == strncasecmp(iwlan_prop, "true", 4)) ? TRUE : FALSE;
 #endif
 
-#ifdef FEATURE_QMI_ANDROID
-  if(strlen(device) > 0)
+  /* MSM target only has SMD/BAM transport ports */
+  if (DS_TARGET_MSM == target)
   {
-    /* MSM target only has SMD/BAM transport ports */
-    if( !strcmp(device, LINUX_QMI_BASEBAND_VALUE_MSM) )
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
     {
-      for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+  #ifdef FEATURE_QMI_IWLAN
+      /* If iwlan property is set */
+      if (TRUE == is_iwlan_enabled)
       {
-#ifdef FEATURE_QMI_IWLAN
-        /* If iwlan property is set */
-        if (TRUE == is_iwlan_enabled)
+        /* Enable reverse SMD/BAM control ports */
+        if (i >= QMI_CONN_ID_REV_RMNET_0 && i <= QMI_CONN_ID_REV_RMNET_8)
         {
-          /* Enable reverse SMD/BAM control ports */
-          if (i >= QMI_CONN_ID_REV_RMNET_0 && i <= QMI_CONN_ID_REV_RMNET_8)
-          {
-            QMI_DEBUG_MSG_1 ("qmuxd:  Enable reverse port %d\n", i);
-            linux_qmi_conn_id_enablement_array[i].enabled = TRUE;
-          }
+          QMI_DEBUG_MSG_1 ("qmuxd:  Enable reverse port %d\n", i);
+          linux_qmi_conn_id_enablement_array[i].enabled = TRUE;
         }
-        else
-        {
-          /* Disable reverse SMD/BAM control ports */
-          if (i >= QMI_CONN_ID_REV_RMNET_0 && i <= QMI_CONN_ID_REV_RMNET_8)
-          {
-            QMI_DEBUG_MSG_1 ("qmuxd:  Disable reverse port %d\n", i);
-            qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-          }
-        }
-#else
+      }
+      else
+      {
         /* Disable reverse SMD/BAM control ports */
         if (i >= QMI_CONN_ID_REV_RMNET_0 && i <= QMI_CONN_ID_REV_RMNET_8)
         {
           QMI_DEBUG_MSG_1 ("qmuxd:  Disable reverse port %d\n", i);
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-        }
-#endif /* FEATURE_QMI_IWLAN */
-
-        /* Disable non-SMD/non-BAM ports */
-        if( 0 == ((LINUX_QMI_TRANSPORT_SMD | LINUX_QMI_TRANSPORT_BAM) &
-                  linux_qmi_conn_id_enablement_array[i].transport) )
-        {
-          QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
-          linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
+          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+              linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
         }
       }
-    }
-    /* CSFB target has only SDIO transport ports */
-    else if( !strcmp(device, LINUX_QMI_BASEBAND_VALUE_CSFB) )
-    {
-      for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+  #else
+      /* Disable reverse SMD/BAM control ports */
+      if (i >= QMI_CONN_ID_REV_RMNET_0 && i <= QMI_CONN_ID_REV_RMNET_8)
       {
-        /* Disable non-SDIO ports */
-        if( 0 == (LINUX_QMI_TRANSPORT_SDIO &
-                  linux_qmi_conn_id_enablement_array[i].transport) )
-        {
-          QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
-          linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-        }
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable reverse port %d\n", i);
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
+  #endif /* FEATURE_QMI_IWLAN */
+
+      /* Disable non-SMD/non-BAM ports */
+      if( 0 == ((LINUX_QMI_TRANSPORT_SMD | LINUX_QMI_TRANSPORT_BAM) &
+                linux_qmi_conn_id_enablement_array[i].transport) )
+      {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
       }
     }
-    /* MDMUSB target replaces SDIO transport with USB, suppresses SMD/BAM */
-    else if( !strcmp(device, LINUX_QMI_BASEBAND_VALUE_MDMUSB) )
+  }
+  /* CSFB target has only SDIO transport ports */
+  else if (DS_TARGET_CSFB == target)
+  {
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
     {
-      /* Assign USB transport to required ports */
-      LINUX_QMI_MDM_FWD_SET( 0, QMI_CONN_ID_RMNET_USB_0, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "0" );
-      LINUX_QMI_MDM_FWD_SET( 1, QMI_CONN_ID_RMNET_USB_1, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "1" );
-      LINUX_QMI_MDM_FWD_SET( 2, QMI_CONN_ID_RMNET_USB_2, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "2" );
-      LINUX_QMI_MDM_FWD_SET( 3, QMI_CONN_ID_RMNET_USB_3, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "3" );
-      LINUX_QMI_MDM_FWD_SET( 4, QMI_CONN_ID_RMNET_USB_4, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "4" );
-      LINUX_QMI_MDM_FWD_SET( 5, QMI_CONN_ID_RMNET_USB_5, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "5" );
-      LINUX_QMI_MDM_FWD_SET( 6, QMI_CONN_ID_RMNET_USB_6, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "6" );
-      LINUX_QMI_MDM_FWD_SET( 7, QMI_CONN_ID_RMNET_USB_7, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "7" );
-
-      /* Disable non-USB transport ports */
-      for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+      /* Disable non-SDIO ports */
+      if( 0 == (LINUX_QMI_TRANSPORT_SDIO &
+                linux_qmi_conn_id_enablement_array[i].transport) )
       {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
+    }
+  }
+  /* MDMUSB target replaces SDIO transport with USB, suppresses SMD/BAM */
+  else if (DS_TARGET_MDM == target)
+  {
+    /* Assign USB transport to required ports */
+    LINUX_QMI_MDM_FWD_SET( 0, QMI_CONN_ID_RMNET_USB_0, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "0" );
+    LINUX_QMI_MDM_FWD_SET( 1, QMI_CONN_ID_RMNET_USB_1, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "1" );
+    LINUX_QMI_MDM_FWD_SET( 2, QMI_CONN_ID_RMNET_USB_2, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "2" );
+    LINUX_QMI_MDM_FWD_SET( 3, QMI_CONN_ID_RMNET_USB_3, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "3" );
+    LINUX_QMI_MDM_FWD_SET( 4, QMI_CONN_ID_RMNET_USB_4, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "4" );
+    LINUX_QMI_MDM_FWD_SET( 5, QMI_CONN_ID_RMNET_USB_5, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "5" );
+    LINUX_QMI_MDM_FWD_SET( 6, QMI_CONN_ID_RMNET_USB_6, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "6" );
+    LINUX_QMI_MDM_FWD_SET( 7, QMI_CONN_ID_RMNET_USB_7, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "7" );
+
+    /* Disable non-USB transport ports */
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
 #ifdef FEATURE_QMI_IWLAN
-        /* If iwlan property is set */
-        if (TRUE == is_iwlan_enabled)
+      /* If iwlan property is set */
+      if (TRUE == is_iwlan_enabled)
+      {
+        /* Enable reverse HSIC control ports */
+        if (i >= QMI_CONN_ID_REV_RMNET_USB_0 && i <= QMI_CONN_ID_REV_RMNET_USB_8)
         {
-          /* Enable reverse HSIC control ports */
-          if (i >= QMI_CONN_ID_REV_RMNET_USB_0 && i <= QMI_CONN_ID_REV_RMNET_USB_8)
-          {
-            QMI_DEBUG_MSG_1 ("qmuxd:  Enable reverse port %d\n", i);
-            linux_qmi_conn_id_enablement_array[i].enabled = TRUE;
-          }
+          QMI_DEBUG_MSG_1 ("qmuxd:  Enable reverse port %d\n", i);
+          linux_qmi_conn_id_enablement_array[i].enabled = TRUE;
         }
-        else
-        {
-          /* Disable reverse HSIC control ports */
-          if (i >= QMI_CONN_ID_REV_RMNET_USB_0 && i <= QMI_CONN_ID_REV_RMNET_USB_8)
-          {
-            QMI_DEBUG_MSG_1 ("qmuxd:  Disable reverse port %d\n", i);
-            qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-          }
-        }
-#else
+      }
+      else
+      {
         /* Disable reverse HSIC control ports */
         if (i >= QMI_CONN_ID_REV_RMNET_USB_0 && i <= QMI_CONN_ID_REV_RMNET_USB_8)
         {
           QMI_DEBUG_MSG_1 ("qmuxd:  Disable reverse port %d\n", i);
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
+          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+              linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
         }
+      }
+#else
+      /* Disable reverse HSIC control ports */
+      if (i >= QMI_CONN_ID_REV_RMNET_USB_0 && i <= QMI_CONN_ID_REV_RMNET_USB_8)
+      {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable reverse port %d\n", i);
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
 #endif /* FEATURE_QMI_IWLAN */
 
-        /* Disable non-SDIO ports */
-        if( 0 == (LINUX_QMI_TRANSPORT_USB &
-                  linux_qmi_conn_id_enablement_array[i].transport) )
-        {
-          QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
-          linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-        }
-      }
-
-      QMI_DEBUG_MSG_0 ("qmuxd: Enabled USB transport on MDM ports\n");
-    }
-    /* DSDA target replaces SDIO with USB, suppress SMD/BAM, enable SMUX */
-    else if(!strcmp(device, LINUX_QMI_BASEBAND_VALUE_DSDA))
-    {
-      /* Assign USB transport to required ports */
-      LINUX_QMI_MDM_FWD_SET( 0, QMI_CONN_ID_RMNET_USB_0, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "0" );
-      LINUX_QMI_MDM_FWD_SET( 1, QMI_CONN_ID_RMNET_USB_1, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "1" );
-      LINUX_QMI_MDM_FWD_SET( 2, QMI_CONN_ID_RMNET_USB_2, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "2" );
-      LINUX_QMI_MDM_FWD_SET( 3, QMI_CONN_ID_RMNET_USB_3, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "3" );
-
-      LINUX_QMI_QSC_SET( 0, QMI_CONN_ID_RMNET_SMUX_0, LINUX_QMI_TRANSPORT_SMUX, SMUX_DEVICE_NAME "32" );
-
-      /* Disable non-USB, non-SMUX transport ports */
-      for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+      /* Disable non-SDIO ports */
+      if( 0 == (LINUX_QMI_TRANSPORT_USB &
+                linux_qmi_conn_id_enablement_array[i].transport) )
       {
-        if( 0 == ((LINUX_QMI_TRANSPORT_USB | LINUX_QMI_TRANSPORT_SMUX) &
-                  linux_qmi_conn_id_enablement_array[i].transport) )
-        {
-          QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
-          linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-        }
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
       }
-
-      QMI_DEBUG_MSG_0 ("qmuxd: Enabled SMUX/USB transport on QSC/MDM ports\n");
     }
-    /* DSDA2 target replaces SDIO with USB, suppress SMD/BAM, enable second USB modem */
-    else if(!strcmp(device, LINUX_QMI_BASEBAND_VALUE_DSDA2))
-    {
-      /* Assign USB transport to required ports */
-      LINUX_QMI_MDM_FWD_SET( 0, QMI_CONN_ID_RMNET_USB_0, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "0" );
-      LINUX_QMI_MDM_FWD_SET( 1, QMI_CONN_ID_RMNET_USB_1, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "1" );
-      LINUX_QMI_MDM_FWD_SET( 2, QMI_CONN_ID_RMNET_USB_2, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "2" );
-      LINUX_QMI_MDM_FWD_SET( 3, QMI_CONN_ID_RMNET_USB_3, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "3" );
 
-      /* Assign USB transport to required ports */
-      LINUX_QMI_MDM2_SET( 0, QMI_CONN_ID_RMNET_MDM2_0, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "0" );
-      LINUX_QMI_MDM2_SET( 1, QMI_CONN_ID_RMNET_MDM2_1, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "1" );
-      LINUX_QMI_MDM2_SET( 2, QMI_CONN_ID_RMNET_MDM2_2, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "2" );
-      LINUX_QMI_MDM2_SET( 3, QMI_CONN_ID_RMNET_MDM2_3, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "3" );
-
-      /* Disable all non-USB ports */
-      for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
-      {
-        if( 0 == (LINUX_QMI_TRANSPORT_USB & linux_qmi_conn_id_enablement_array[i].transport) )
-        {
-          QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
-          linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-        }
-      }
-
-      QMI_DEBUG_MSG_0 ("qmuxd: Enabled HSIC/USB transport on MDM/MDM2 ports\n");
-    }
-    else if(!strcmp(device, LINUX_QMI_BASEBAND_VALUE_SGLTE))
-    {
-      LINUX_QMI_QSC_SET( 0,
-                         QMI_CONN_ID_RMNET_SMUX_0,
-                         LINUX_QMI_TRANSPORT_SMUX,
-                         SMUX_DEVICE_NAME "32");
-
-      for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
-      {
-        if( 0 == ((LINUX_QMI_TRANSPORT_SMUX  | LINUX_QMI_TRANSPORT_SMD
-                    | LINUX_QMI_TRANSPORT_BAM) &
-                  linux_qmi_conn_id_enablement_array[i].transport) )
-        {
-          QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
-          linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
-          qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,TRUE);
-        }
-      }
-
-      QMI_DEBUG_MSG_0 ("qmuxd: Enabled SMUX transport on MDM port\n");
-    }
+    QMI_DEBUG_MSG_0 ("qmuxd: Enabled USB transport on MDM ports\n");
   }
-#else /*FEATURE_QMI_ANDROID*/
-
-  /*  Unconditionally disable SDIO & USB ports for non-Android
-   *  targets. This may change in the future
-   */
-  for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+  /* DSDA target replaces SDIO with USB, suppress SMD/BAM, enable SMUX */
+  else if (DS_TARGET_DSDA == target)
   {
-    if( 0 == ((LINUX_QMI_TRANSPORT_SMD | LINUX_QMI_TRANSPORT_BAM) &
-                  linux_qmi_conn_id_enablement_array[i].transport))
-    {
+    /* Assign USB transport to required ports */
+    LINUX_QMI_MDM_FWD_SET( 0, QMI_CONN_ID_RMNET_USB_0, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "0" );
+    LINUX_QMI_MDM_FWD_SET( 1, QMI_CONN_ID_RMNET_USB_1, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "1" );
+    LINUX_QMI_MDM_FWD_SET( 2, QMI_CONN_ID_RMNET_USB_2, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "2" );
+    LINUX_QMI_MDM_FWD_SET( 3, QMI_CONN_ID_RMNET_USB_3, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "3" );
 
-      QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
-      linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
-      qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[i].qmi_conn_id, TRUE);
+    LINUX_QMI_QSC_SET( 0, QMI_CONN_ID_RMNET_SMUX_0, LINUX_QMI_TRANSPORT_SMUX, SMUX_DEVICE_NAME "32" );
+
+    /* Disable non-USB, non-SMUX transport ports */
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      if( 0 == ((LINUX_QMI_TRANSPORT_USB | LINUX_QMI_TRANSPORT_SMUX) &
+                linux_qmi_conn_id_enablement_array[i].transport) )
+      {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
+    }
+
+    QMI_DEBUG_MSG_0 ("qmuxd: Enabled SMUX/USB transport on QSC/MDM ports\n");
+  }
+  /* DSDA2 target replaces SDIO with USB, suppress SMD/BAM, enable second USB modem */
+  else if (DS_TARGET_DSDA2 == target)
+  {
+    /* Assign USB transport to required ports */
+    LINUX_QMI_MDM_FWD_SET( 0, QMI_CONN_ID_RMNET_USB_0, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "0" );
+    LINUX_QMI_MDM_FWD_SET( 1, QMI_CONN_ID_RMNET_USB_1, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "1" );
+    LINUX_QMI_MDM_FWD_SET( 2, QMI_CONN_ID_RMNET_USB_2, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "2" );
+    LINUX_QMI_MDM_FWD_SET( 3, QMI_CONN_ID_RMNET_USB_3, LINUX_QMI_TRANSPORT_USB, HSIC_DEVICE_NAME "3" );
+
+    /* Assign USB transport to required ports */
+    LINUX_QMI_MDM2_SET( 0, QMI_CONN_ID_RMNET_MDM2_0, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "0" );
+    LINUX_QMI_MDM2_SET( 1, QMI_CONN_ID_RMNET_MDM2_1, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "1" );
+    LINUX_QMI_MDM2_SET( 2, QMI_CONN_ID_RMNET_MDM2_2, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "2" );
+    LINUX_QMI_MDM2_SET( 3, QMI_CONN_ID_RMNET_MDM2_3, LINUX_QMI_TRANSPORT_USB, USB_DEVICE_NAME "3" );
+
+    /* Disable all non-USB ports */
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      if( 0 == (LINUX_QMI_TRANSPORT_USB & linux_qmi_conn_id_enablement_array[i].transport) )
+      {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
+    }
+
+    QMI_DEBUG_MSG_0 ("qmuxd: Enabled HSIC/USB transport on MDM/MDM2 ports\n");
+  }
+  else if (DS_TARGET_SGLTE == target || DS_TARGET_DSDA3 == target)
+  {
+    LINUX_QMI_QSC_SET( 0,
+                       QMI_CONN_ID_RMNET_SMUX_0,
+                       LINUX_QMI_TRANSPORT_SMUX,
+                       SMUX_DEVICE_NAME "32");
+
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      if( 0 == ((LINUX_QMI_TRANSPORT_SMUX  | LINUX_QMI_TRANSPORT_SMD
+                  | LINUX_QMI_TRANSPORT_BAM) &
+                linux_qmi_conn_id_enablement_array[i].transport) )
+      {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
+    }
+
+    QMI_DEBUG_MSG_0 ("qmuxd: Enabled SMUX transport on MDM port\n");
+  }
+#ifdef FEATURE_QMI_ANDROID
+  /* qmuxd does not use configdb for any target other than 4.5.
+     qmi_platform_config APIs are not exposed in LE targets. */
+  /* Fusion4.5 PCIe Device */
+  else if (DS_TARGET_FUSION4_5_PCIE == target)
+  {
+    QMI_DEBUG_MSG_0 ("qmuxd: Fusion4.5 (PCIe) target configuration\n");
+    if (0 != qmi_platform_config_configure_ports_xml(LINUX_QMI_PLATFORM_CONFIG_FILE, "fusion4_5_pcie"))
+    {
+      QMI_ERR_MSG_2("qmuxd: Configuration using %s [%s] failed, reverting to defaults", LINUX_QMI_PLATFORM_CONFIG_FILE, "fusion4_5_pcie");
+
+      /* Pre-fill with default configuration (in case configdb fails) */
+      for (i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+      {
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        linux_qmi_conn_id_enablement_array[i].open_at_powerup = FALSE;
+      }
+
+      LINUX_QMI_MHI_FWD_SET(0, "MHICTL0", QMI_CONN_ID_RMNET_MHI_0, LINUX_QMI_TRANSPORT_MHI, MHI_DEVICE_NAME "14", TRUE, TRUE);
+      LINUX_QMI_MHI_FWD_SET(1, "MHICTL1", QMI_CONN_ID_RMNET_MHI_1, LINUX_QMI_TRANSPORT_MHI, MHI_DEVICE_NAME "16", TRUE, FALSE);
+    }
+
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      if (0 == (LINUX_QMI_TRANSPORT_MHI & linux_qmi_conn_id_enablement_array[i].transport))
+      {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port (linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+            linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
     }
   }
-#endif /*FEATURE_QMI_ANDROID*/
+#endif
+  /* MSM8994 Device */
+  else if (DS_TARGET_MSM8994 == target)
+  {
+    QMI_DEBUG_MSG_0 ("qmuxd: MSM8994 target configuration\n");
+
+    /* Disabling all channels initially to enable only required channels later.*/
+    for (i = QMI_CONN_ID_RMNET_0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+          linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+    }
+
+    /* MSM8994 target, Enabling rmnet0 for all embedded client communication */
+    qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].qmi_conn_id,
+        linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].data_ctl_port, FALSE);
+
+    /* MSM8994 target, Enabling rmnet8 for all tethered communication */
+    qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].qmi_conn_id,
+        linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].data_ctl_port, FALSE);
+
+    QMI_DEBUG_MSG_4 ("qmuxd:  MSM8994 configuration, Enabling channel %d [%s] for Embedded connections\n"
+                     " Enabling channel %d [%s] for Tethered connections",
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].qmi_conn_id,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].data_ctl_port,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].qmi_conn_id,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].data_ctl_port);
+  }
+  else if (DS_TARGET_DPM_2_0 == target ||
+           DS_TARGET_JOLOKIA == target)
+  {
+    QMI_DEBUG_MSG_0 ("qmuxd: DPM 2.0/JO target configuration\n");
+
+    /* Disabling all channels initially to enable only required channels later.*/
+    for (i = QMI_CONN_ID_RMNET_0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+          linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+    }
+
+    /* Enabling rmnet0 for all embedded client communication */
+    qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].qmi_conn_id,
+        linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].data_ctl_port, FALSE);
+
+    /* Enabling rmnet8 for all tethered communication */
+    qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].qmi_conn_id,
+        linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].data_ctl_port, FALSE);
+
+    QMI_DEBUG_MSG_4 ("qmuxd:  DPM 2.0/JO configuration, Enabling channel %d [%s] for Embedded connections"
+                     "Enabling channel %d [%s] for Tethered connections",
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].qmi_conn_id,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].data_ctl_port,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].qmi_conn_id,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].data_ctl_port);
+  }
+  else if (DS_TARGET_LE_MDM9X35 == target)
+  {
+    /* Disabling all channels initially to enable only required channels later.*/
+    for (i = QMI_CONN_ID_RMNET_0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+          linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+    }
+    /* MDM9x35 target, Enabling rmnet0 for all embedded client communication */
+    qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].qmi_conn_id,
+        linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].data_ctl_port, FALSE);
+
+    /* MDM9x35 target, Enabling rmnet8 for all tethered communication */
+    qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].qmi_conn_id,
+        linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].data_ctl_port, FALSE);
+
+    QMI_DEBUG_MSG_4 ("qmuxd:  MDM9x35 configuration, Enabling channel %d [%s] for Embedded connections\n"
+                     " Enabling channel %d [%s] for Tethered connections",
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].qmi_conn_id,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_0].data_ctl_port,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].qmi_conn_id,
+                     linux_qmi_conn_id_enablement_array[QMI_CONN_ID_RMNET_8].data_ctl_port);
+  }
+  else
+  {
+    /*  Unconditionally disable SDIO & USB ports for non-Android
+     *  targets. This may change in the future
+     */
+    for(i = 0; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
+    {
+      if( 0 == ((LINUX_QMI_TRANSPORT_SMD | LINUX_QMI_TRANSPORT_BAM) &
+                    linux_qmi_conn_id_enablement_array[i].transport))
+      {
+        QMI_DEBUG_MSG_1 ("qmuxd:  Disable port %d\n", i);
+        linux_qmi_conn_id_enablement_array[i].enabled = FALSE;
+        qmi_qmux_disable_port(linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+          linux_qmi_conn_id_enablement_array[i].data_ctl_port, TRUE);
+      }
+    }
+  }
 }
 
 /*===========================================================================
@@ -1045,6 +1206,40 @@ linux_qmi_qmux_if_server_init_pipe(void)
   QMI_DEBUG_MSG_2 ("qmuxd: Added read pipefd=%d, maxfd=%d\n",
                    pipefds[0],
                    max_fd);
+}
+
+/*===========================================================================
+  FUNCTION  linux_qmi_qmux_if_reinit_connection
+===========================================================================*/
+/*!
+@brief
+  Close and re-open the given connection
+
+@return
+  None
+
+@note
+  - Side Effects
+*/
+/*=========================================================================*/
+void linux_qmi_qmux_if_reinit_connection
+(
+  qmi_connection_id_type conn_id
+)
+{
+  if (!QMI_CONN_ID_IS_VALID(conn_id))
+  {
+    QMI_ERR_MSG_2("%s(): invalid conn_id=%d\n",__func__,conn_id);
+    return;
+  }
+
+  QMI_DEBUG_MSG_1("qmuxd: closing and re-opening conn_id=%d\n", conn_id);
+
+  qmi_qmux_close_connection(conn_id);
+
+  linux_qmi_qmux_if_server_open_port(conn_id,
+                                     QMI_PLATFORM_INFINITE_RETRIES,
+                                     LINUX_QMI_QMUX_IF_MODE_SSR);
 }
 
 /*===========================================================================
@@ -1127,6 +1322,12 @@ linux_qmi_qmux_if_server_init_listeners(void)
 
     FD_SET (listener_fd, &master_fd_set);
 
+    /* Update the min_listener_fd */
+    if (listener_fd < linux_qmi_listener_info.min_listen_fd)
+    {
+      linux_qmi_listener_info.min_listen_fd = listener_fd;
+    }
+
     /* Update the max_listener_fd */
     if (listener_fd > linux_qmi_listener_info.max_listen_fd)
     {
@@ -1136,9 +1337,12 @@ linux_qmi_qmux_if_server_init_listeners(void)
     /* Save the listener fd */
     linux_qmi_listener_info.listeners[i].fd = listener_fd;
 
-    QMI_DEBUG_MSG_4 ("qmuxd: Added listener=[%d:%s], max_listener_fd=%d, maxfd=%d\n",
+    QMI_DEBUG_MSG_2 ("qmuxd: Added listener=[%d:%s]\n",
                      linux_qmi_listener_info.listeners[i].fd,
-                     linux_qmi_listener_info.listeners[i].path,
+                     linux_qmi_listener_info.listeners[i].path);
+
+    QMI_DEBUG_MSG_3 ("qmuxd: After update, min_listener_fd=%d, max_listener_fd=%d, maxfd=%d\n",
+                     linux_qmi_listener_info.min_listen_fd,
                      linux_qmi_listener_info.max_listen_fd,
                      max_fd);
   }
@@ -1159,7 +1363,7 @@ linux_qmi_qmux_if_server_init_listeners(void)
 static qmi_qmux_clnt_id_t
 linux_qmi_qmux_if_server_alloc_client_id(void)
 {
-  static qmi_qmux_clnt_id_t qmux_client_id = 0;
+  static qmi_qmux_clnt_id_t qmux_client_id = 1;
   qmi_qmux_clnt_id_t alloc_client_id;
 
   alloc_client_id = qmux_client_id++;
@@ -1167,7 +1371,7 @@ linux_qmi_qmux_if_server_alloc_client_id(void)
   /* Don't return the invalid client ID value, rollover */
   if (qmux_client_id < 0)
   {
-    qmux_client_id = 0;
+    qmux_client_id = 1;
   }
 
   return alloc_client_id;
@@ -1201,6 +1405,7 @@ linux_qmi_qmux_if_server_init_new_client
   struct stat stats;
   struct sockaddr_un addr;
   qmi_qmux_clnt_id_t qmux_client_id = 0;
+  qmi_platform_sockaddr_type tmp;
 
   memset (&addr,0,sizeof(struct sockaddr_un));
   len = sizeof(struct sockaddr_un);
@@ -1213,7 +1418,9 @@ linux_qmi_qmux_if_server_init_new_client
 
   QMI_UPDATE_THREAD_STATE(MAIN_THREAD_CONN_ID, MAIN_THREAD_PROCESS_NEW_CLIENT);
 
-  if ((client_fd = accept (listener_fd, (struct sockaddr *)&addr, &len)) < 0)
+  tmp.sunaddr = &addr;
+
+  if ((client_fd = accept (listener_fd, tmp.saddr, &len)) < 0)
   {
     QMI_ERR_MSG_3 ("qmuxd: unable to accept on listener socket, rc=%d, errno=[%d:%s]\n",
                    client_fd,
@@ -1222,7 +1429,7 @@ linux_qmi_qmux_if_server_init_new_client
     return;
   }
 
-  len -= offsetof (struct sockaddr_un, sun_path);
+  len -= (socklen_t)offsetof (struct sockaddr_un, sun_path);
   addr.sun_path[len] = '\0';
 
 
@@ -1448,14 +1655,15 @@ linux_qmi_qmux_if_server_tx_msg
   int                 msg_len
 )
 {
-  int  ret,rc, i;
+  int  rc, i;
+  ssize_t  ret;
   linux_qmi_qmux_if_platform_hdr_type p;
 
   rc = QMI_NO_ERR;
 
   /* Adjust msg buf pointer and size to add on platform specific header */
   msg -= QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE;
-  msg_len += QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE;
+  msg_len += (int)QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE;
 
   /* Set platform header fields */
   p.total_msg_size = msg_len;
@@ -1465,25 +1673,50 @@ linux_qmi_qmux_if_server_tx_msg
   memcpy ((void *) msg, (void *)&p, QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE);
 
   /* Look up fd based on qmux_client_id */
-  for (i = linux_qmi_listener_info.max_listen_fd; i <= max_fd; i++)
+  for (i = 0; i <= max_fd; i++)
   {
     if (linux_qmi_qmux_if_client_id_array[i].clnt_id == qmux_client_id)
     {
+      int num_retries = 0;
+
       QMI_DEBUG_MSG_3 ("qmuxd: TX message on fd=%d, to qmux_client_id=0x%x, len=%d\n",
                        i,
                        (int) qmux_client_id,
                        msg_len);
 
-      if ((ret = send (i,
-                      (void *) msg,
-                      (size_t) msg_len,
-                       MSG_DONTWAIT | MSG_NOSIGNAL)) <= 0)
+      do
       {
-        QMI_ERR_MSG_4 ("qmuxd: TX failed to qmux_client_id=0x%x, error=%d errno[%d:%s]\n",
+        ret = send (i,
+                    (void *) msg,
+                    (size_t) msg_len,
+                    MSG_DONTWAIT | MSG_NOSIGNAL);
+
+        if (ret <= 0)
+        {
+          QMI_ERR_MSG_4 ("qmuxd: TX failed to qmux_client_id=0x%x, error=%d errno[%d:%s]\n",
+                         (int) qmux_client_id,
+                         ret,
+                         errno,
+                         strerror(errno));
+          /* Attempt a retry if send failed due to a temporary failure */
+          if (EAGAIN == errno && num_retries < LINUX_QMI_MAX_SEND_RETRIES)
+          {
+            ++num_retries;
+            usleep(LINUX_QMI_SEND_RETRY_WAIT);
+          }
+          else
+          {
+            break;
+          }
+        }
+      }
+      while (ret <= 0);
+
+      if (ret <= 0)
+      {
+        QMI_ERR_MSG_2 ("qmuxd: Cleaning up qmux_client_id=0x%x using fd=%d\n",
                        (int) qmux_client_id,
-                       ret,
-                       errno,
-                       strerror(errno));
+                       i);
         linux_qmi_qmux_if_submit_cleanup_req (i);
         rc = QMI_INTERNAL_ERR;
       }
@@ -1604,7 +1837,7 @@ linux_qmi_qmux_if_server_process_client_msg
         }
         else
         {
-          remaining_bytes -= buf_size;
+          remaining_bytes -= (size_t)buf_size;
         }
       }
     }
@@ -1637,13 +1870,101 @@ linux_qmi_qmux_if_server_process_client_msg
         /* Process message */
         qmi_qmux_tx_msg (linux_qmi_qmux_if_client_id_array[fd].clnt_id,
                          linux_qmi_qmux_if_rx_buf,
-                         remaining_bytes);
+                         (int)remaining_bytes);
       }
     }
   }
   return rc;
 }
 
+/*===========================================================================
+  FUNCTION  linux_qmi_qmux_if_server_open_port
+===========================================================================*/
+/*!
+@brief
+  Attempt to open the given connection ID for specified number of times.
+
+@return
+  QMI_NO_ERR on success
+  QMI_INTERNAL_ERR otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+static
+int linux_qmi_qmux_if_server_open_port
+(
+  qmi_connection_id_type    conn_id,
+  unsigned int              num_retries,
+  linux_qmi_qmux_if_mode_t  mode
+)
+{
+  unsigned int j;
+  int ret = QMI_INTERNAL_ERR;
+
+  QMI_DEBUG_MSG_4("qmuxd: processing device [%s] conn_id [%d] transport [0x%x] retries [0x%x]",
+                  linux_qmi_conn_id_enablement_array[conn_id].data_ctl_port,
+                  linux_qmi_conn_id_enablement_array[conn_id].qmi_conn_id,
+                  linux_qmi_conn_id_enablement_array[conn_id].transport,
+                  num_retries );
+
+  for (j = 0; j < num_retries; j++)
+  {
+    /* Use the power-up port timeout value */
+    if (LINUX_QMI_QMUX_IF_MODE_INVALID != mode)
+    {
+      linux_qmi_qmux_if_configure_port_timeout(conn_id, mode);
+    }
+
+    if (qmi_qmux_open_connection(conn_id,
+                                 (LINUX_QMI_QMUX_IF_MODE_SSR == mode) ? QMI_QMUX_OPEN_MODE_REINIT :
+                                                                        QMI_QMUX_OPEN_MODE_NORMAL) != QMI_NO_ERR)
+    {
+      if (j < num_retries-1)
+      {
+        QMI_ERR_MSG_4("qmuxd: opening connection for conn_id=%d [%s] failed on attempt %d, "
+                       "Waiting %d milliseconds before retry\n",
+                       conn_id,
+                       linux_qmi_conn_id_enablement_array[conn_id].data_ctl_port,
+                       j,WAIT_TIME_BEFORE_NEXT_RETRY/1000);
+        usleep(WAIT_TIME_BEFORE_NEXT_RETRY);
+        continue;
+      }
+      else
+      {
+        QMI_ERR_MSG_2("qmuxd: opening connection for conn_id=%d [%s] failed\n",
+                      conn_id,
+                      linux_qmi_conn_id_enablement_array[conn_id].data_ctl_port);
+      }
+    }
+    else
+    {
+      QMI_DEBUG_MSG_2("qmuxd:  successfully opened qmi conn_id=%d [%s]",
+                      conn_id,
+                      linux_qmi_conn_id_enablement_array[conn_id].data_ctl_port);
+      /* even if we are able to open first port successfully
+       * wait a bit before trying to open the next one to give
+       * enought time to modem to open them all */
+      usleep(WAIT_TIME_BEFORE_NEXT_RETRY);
+      ret = QMI_NO_ERR;
+      break;
+    }
+  }
+
+  if (LINUX_QMI_QMUX_IF_MODE_INVALID != mode)
+  {
+    /* Update the port timeout to default */
+    linux_qmi_qmux_if_configure_port_timeout(conn_id, LINUX_QMI_QMUX_IF_MODE_NORMAL);
+  }
+
+  return ret;
+}
 
 /*===========================================================================
   FUNCTION  qmuxd_signal_handler
@@ -1696,6 +2017,12 @@ int main(int argc, char *argv[])
   int lowest_qmi_port;
   boolean wait_for_modem = FALSE;
   char args[LINUX_QMUX_PROPERTY_VALUE_SIZE];
+  ds_target_t target;
+  const char *target_str;
+
+  (void) argc;
+  (void) argv;
+
   /*Proxy daemon will be disabled by deafult for Non
     Android targets currently. This may change in the
     future.*/
@@ -1704,6 +2031,13 @@ int main(int argc, char *argv[])
 
   QMI_UPDATE_THREAD_STATE(MAIN_THREAD_CONN_ID, MAIN_THREAD_POWERUP_INIT);
 
+#if (!defined(QMI_OFFTARGET) && defined(FEATURE_QMI_ANDROID) && defined(CAP_BLOCK_SUSPEND))
+
+  QMI_DEBUG_MSG_0 ("qmuxd: changing to user radio and acquiring CAP_BLOCK_SUSPEND\n");
+
+  ds_change_user_cap(AID_RADIO, DS_UTIL_INVALID_GID, (1ULL << CAP_BLOCK_SUSPEND));
+
+#endif
   /* Register signal handler */
   signal(SIGUSR1, qmuxd_signal_handler);
 
@@ -1726,16 +2060,12 @@ int main(int argc, char *argv[])
   sleep( FEATURE_WAIT_FOR_MODEM_HACK );
 #endif
 
-#ifdef FEATURE_QMI_ANDROID
-  /* Retrieve the Android baseband property */
-  memset(&args, 0, sizeof(args));
-  property_get(LINUX_QMI_BASEBAND_PROPERTY, args, "");
-  if( 0 < strlen(args) )
-  {
-    QMI_DEBUG_MSG_1 ("qmuxd: Android baseband property[%s]\n", args);
-    strlcpy( linux_qmi_device, args, sizeof(linux_qmi_device));
-  }
+  target = ds_get_target();
+  target_str = ds_get_target_str(target);
 
+  QMI_DEBUG_MSG_2 ("qmuxd: Target Configuration: [%d]: [%s]\n", target, target_str);
+
+#ifdef FEATURE_QMI_ANDROID
   memset(&sglte_csfb_prop, 0, sizeof(sglte_csfb_prop));
   property_get(LINUX_QMI_PERSIST_RADIO_SGLTE_CSFB, sglte_csfb_prop, "");
   if( 0 < strlen(sglte_csfb_prop) )
@@ -1743,10 +2073,9 @@ int main(int argc, char *argv[])
     QMI_DEBUG_MSG_1 ("qmuxd: Android sglte_csfb property[%s]\n", sglte_csfb_prop);
   }
 
-  if( (0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_CSFB))    ||
-      (0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_SVLTE2A)) ||
-      (0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_SGLTE) &&
-       0 != strcmp(sglte_csfb_prop, "true")) )
+  if (DS_TARGET_CSFB == target ||
+      DS_TARGET_SVLTE2 == target ||
+      (DS_TARGET_SGLTE == target && !strcmp(sglte_csfb_prop, "true")))
   {
     is_qmiproxy_dmn_expected = TRUE;
   }
@@ -1754,6 +2083,20 @@ int main(int argc, char *argv[])
   {
     is_qmiproxy_dmn_expected = FALSE;
   }
+
+#ifdef FEATURE_QMI_ANDROID
+  /* If property is not set, we will log only ERROR messages */
+  qmi_log_adb_level = QMI_LOG_ADB_LEVEL_ERROR;
+  char property[PROPERTY_VALUE_MAX];
+  if (property_get(QMI_LOG_ADB_PROP, property, NULL) > 0)
+  {
+    qmi_log_adb_level = atoi(property);
+  }
+  if ((qmi_log_adb_level < QMI_LOG_ADB_LEVEL_NONE) || (qmi_log_adb_level > QMI_LOG_ADB_LEVEL_ALL))
+  {
+    qmi_log_adb_level = QMI_LOG_ADB_LEVEL_ERROR;
+  }
+#endif
 
 #ifdef FEATURE_QMI_IWLAN
   memset(iwlan_prop, 0, sizeof(iwlan_prop));
@@ -1772,8 +2115,6 @@ int main(int argc, char *argv[])
     linux_qmi_qmux_if_client_id_array[i].conn_type = LINUX_QMI_CLIENT_CONNECTION_INVALID;
   }
 
-  pthread_mutex_init(&rmnet_port_open_mutex,NULL);
-
   (void)qmi_qmux_pwr_up_init();
 
   QMI_DEBUG_MSG_1("qmuxd:  qmi proxy daemon expected %d", is_qmiproxy_dmn_expected );
@@ -1783,12 +2124,14 @@ int main(int argc, char *argv[])
   linux_qmi_read_sysfs_config();
 
   /* Which ports to enable/disable */
-  linux_qmi_qmux_if_configure_ports( linux_qmi_device );
+  linux_qmi_qmux_if_configure_ports(target);
 
   lowest_qmi_port = 0; // temp solution until final mechanism of specifying valid port ranges for qmuxd is introduced
 
   for (i = lowest_qmi_port; i < LINUX_QMI_MAX_CONN_SUPPORTED; i++)
   {
+    wait_for_modem = FALSE;
+
     if ( QMI_CONN_ID_PROXY == linux_qmi_conn_id_enablement_array[i].qmi_conn_id && !is_qmiproxy_dmn_expected )
     {
       QMI_DEBUG_MSG_1("qmuxd:  bypassing opening pipe to qmi proxy daemon as qmi proxy not supported %d", i );
@@ -1806,103 +2149,67 @@ int main(int argc, char *argv[])
       }
 
 #ifdef FEATURE_QMI_ANDROID
-      if ((0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_CSFB)) ||
-          (0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_SVLTE2A)))
+      if (DS_TARGET_CSFB == target || DS_TARGET_SVLTE2 == target)
       {
         if (linux_qmi_conn_id_enablement_array[i].qmi_conn_id ==
-              QMI_CONN_ID_RMNET_SDIO_0)
+            QMI_CONN_ID_RMNET_SDIO_0)
         {
           wait_for_modem = TRUE;
         }
       }
-      else if ((0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_SGLTE))) {
+      else if (DS_TARGET_SGLTE == target || DS_TARGET_DSDA3 == target)
+      {
         if (linux_qmi_conn_id_enablement_array[i].qmi_conn_id ==
-              QMI_CONN_ID_RMNET_SMUX_0)
+            QMI_CONN_ID_RMNET_SMUX_0)
         {
            wait_for_modem = TRUE;
         }
       }
-      else if ((0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_DSDA))) {
+      else if (DS_TARGET_DSDA == target)
+      {
         if (linux_qmi_conn_id_enablement_array[i].qmi_conn_id == QMI_CONN_ID_RMNET_SMUX_0 ||
             linux_qmi_conn_id_enablement_array[i].qmi_conn_id == QMI_CONN_ID_RMNET_USB_0)
         {
            wait_for_modem = TRUE;
         }
       }
-      else if ((0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_DSDA2))) {
+      else if (DS_TARGET_DSDA2 == target)
+      {
         if (linux_qmi_conn_id_enablement_array[i].qmi_conn_id == QMI_CONN_ID_RMNET_USB_0 ||
             linux_qmi_conn_id_enablement_array[i].qmi_conn_id == QMI_CONN_ID_RMNET_MDM2_0)
         {
            wait_for_modem = TRUE;
         }
       }
-      else if ((0 == strcmp(args, LINUX_QMI_BASEBAND_VALUE_MDMUSB))) {
+      else if (DS_TARGET_MDM == target)
+      {
         if (linux_qmi_conn_id_enablement_array[i].qmi_conn_id ==
               QMI_CONN_ID_RMNET_USB_0)
         {
            wait_for_modem = TRUE;
         }
       }
+      else if (DS_TARGET_FUSION4_5_PCIE == target)
+      {
+        if (linux_qmi_conn_id_enablement_array[i].qmi_conn_id ==
+              QMI_CONN_ID_RMNET_MHI_0)
+        {
+           wait_for_modem = TRUE;
+        }
+      }
 #endif /* FEATURE_QMI_ANDROID */
 
-      QMI_DEBUG_MSG_4("qmuxd: processing device[%s] connid[%d] transport[0x%x] wait[%d]",
-                      linux_qmi_conn_id_enablement_array[i].data_ctl_port,
-                      linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
-                      linux_qmi_conn_id_enablement_array[i].transport,
-                      wait_for_modem );
-
-      if (wait_for_modem)
-      {
-        pthread_mutex_lock(&rmnet_port_open_mutex);
-        for (j =0; j < MAX_RETRY_COUNT; j++)
-        {
-          /* Use the power-up port timeout value */
-          linux_qmi_qmux_if_configure_port_timeout(LINUX_QMI_QMUX_IF_MODE_POWER_UP);
-
-          if (qmi_qmux_open_connection (
-              linux_qmi_conn_id_enablement_array[i].qmi_conn_id) !=
-              QMI_NO_ERR)
-          {
-            QMI_ERR_MSG_3 ("qmuxd:  opening connection for RMNET%d failed on attempt %d, "
-                           "Waiting %d milliseconds before retry\n",
-                           linux_qmi_conn_id_enablement_array[i].qmi_conn_id, j,
-                           WAIT_TIME_BEFORE_NEXT_RETRY/1000);
-            usleep(WAIT_TIME_BEFORE_NEXT_RETRY);
-            continue;
-          }
-          else
-          {
-            QMI_DEBUG_MSG_1("qmuxd:  successfully opened qmi conn id %d",
-                            linux_qmi_conn_id_enablement_array[i].qmi_conn_id);
-            /* even if we are able to open first port successfully
-             * wait a bit before trying to open the next one to give
-             * enought time to modem to open them all */
-            usleep(WAIT_TIME_BEFORE_NEXT_RETRY);
-            break;
-          }
-        }
-        pthread_mutex_unlock(&rmnet_port_open_mutex);
-        wait_for_modem = FALSE;
-        continue;
-      }
-
-      if (qmi_qmux_open_connection (
-            linux_qmi_conn_id_enablement_array[i].qmi_conn_id) !=
-          QMI_NO_ERR)
-      {
-        QMI_ERR_MSG_1 ("qmuxd:  Opening connection for RMNET%d failed\n",
-                       linux_qmi_conn_id_enablement_array[i].qmi_conn_id);
-      }
-      else
-      {
-        QMI_DEBUG_MSG_1("qmuxd:  successfully opened qmi conn id %d",
-                        linux_qmi_conn_id_enablement_array[i].qmi_conn_id);
-      }
+      (void) linux_qmi_qmux_if_server_open_port(i,
+                                                (TRUE == wait_for_modem) ? QMI_PLATFORM_MAX_RETRIES :
+                                                                           1,
+                                                (TRUE == wait_for_modem) ? LINUX_QMI_QMUX_IF_MODE_POWER_UP :
+                                                                           LINUX_QMI_QMUX_IF_MODE_INVALID);
     }
     else
     {
-      QMI_DEBUG_MSG_3("qmuxd:  skipping opening conn_id=%d, enabled=%d, open_at_powerup=%d",
+      QMI_DEBUG_MSG_4("qmuxd:  skipping opening conn_id=%d, port=%s enabled=%d, open_at_powerup=%d",
                       linux_qmi_conn_id_enablement_array[i].qmi_conn_id,
+                      linux_qmi_conn_id_enablement_array[i].data_ctl_port,
                       linux_qmi_conn_id_enablement_array[i].enabled,
                       linux_qmi_conn_id_enablement_array[i].open_at_powerup);
     }
@@ -1918,9 +2225,6 @@ int main(int argc, char *argv[])
 
   /* Set up listerner sockets */
   linux_qmi_qmux_if_server_init_listeners();
-
-  /* Update the port timeout to default */
-  linux_qmi_qmux_if_configure_port_timeout(LINUX_QMI_QMUX_IF_MODE_NORMAL);
 
   for (;;)
   {
@@ -1942,15 +2246,19 @@ int main(int argc, char *argv[])
     linux_qmi_qmux_if_process_cleanup_requests(&read_fd_set);
 
     /* Loop through all client FD's and process any with messages */
-    for (fd = linux_qmi_listener_info.max_listen_fd + 1; fd <= max_fd; fd++)
+    for (fd = 0; fd <= max_fd; fd++)
     {
       if (FD_ISSET (fd, &read_fd_set))
       {
-        if (linux_qmi_qmux_if_server_process_client_msg(fd) == FALSE)
+        /* Process client requests first */
+        if (fd < linux_qmi_listener_info.min_listen_fd || fd > linux_qmi_listener_info.max_listen_fd)
         {
-          linux_qmi_qmux_if_delete_client (fd);
+          if (linux_qmi_qmux_if_server_process_client_msg(fd) == FALSE)
+          {
+            linux_qmi_qmux_if_delete_client (fd);
+          }
+          FD_CLR (fd,&read_fd_set);
         }
-        FD_CLR (fd,&read_fd_set);
       } /* if */
     }  /* for */
 

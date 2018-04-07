@@ -90,14 +90,14 @@ typedef enum dsi_auth_pref_e
 typedef enum dsi_ce_reason_type_e
 {
   DSI_CE_TYPE_UNINIT  = -2,
-  DSI_CE_TYPE_INVALID = -1,
-  DSI_CE_TYPE_MOBILE_IP = 0,
-  DSI_CE_TYPE_INTERNAL,
-  DSI_CE_TYPE_CALL_MANAGER_DEFINED,
-  DSI_CE_TYPE_3GPP_SPEC_DEFINED,
-  DSI_CE_TYPE_PPP,
-  DSI_CE_TYPE_EHRPD,
-  DSI_CE_TYPE_IPV6
+  DSI_CE_TYPE_INVALID = 0XFF,
+  DSI_CE_TYPE_MOBILE_IP = 0x01,
+  DSI_CE_TYPE_INTERNAL = 0x02,
+  DSI_CE_TYPE_CALL_MANAGER_DEFINED = 0x03,
+  DSI_CE_TYPE_3GPP_SPEC_DEFINED = 0x06,
+  DSI_CE_TYPE_PPP = 0x07,
+  DSI_CE_TYPE_EHRPD = 0x08,
+  DSI_CE_TYPE_IPV6 = 0x09
 } dsi_ce_reason_type_t;
 
 /** @cond
@@ -158,6 +158,16 @@ typedef dsi_ext_tech_pref_t dsi_call_tech_type;
 
 /** @addtogroup datatypes
 @{ */
+
+
+/** IMS portforwarding status defines **/
+typedef enum dsi_port_forwarding_status_enum_e
+{
+  DSI_PORT_FORWARDING_INVALID = -1,
+  DSI_PORT_FORWARDING_ENABLED,
+  DSI_PORT_FORWARDING_DISABLED,
+}dsi_port_forwarding_status_t;
+
 
 /** Specifies which configuration parameter to update using
 dsi_set_data_call_param(). */
@@ -235,7 +245,12 @@ typedef enum
   DSI_NET_TMGI_ACTIVATED_DEACTIVATED,
   DSI_NET_TMGI_LIST_CHANGED,
   DSI_NET_SAI_LIST_CHANGED,
+  DSI_NET_CONTENT_DESC_CONTROL,
+
   DSI_EVT_NET_HANDOFF,
+  DSI_EVT_WDS_CONNECTED,
+  DSI_EVT_NET_NEWMTU,                 /**< MTU update. */
+
   DSI_EVT_MAX
 } dsi_net_evt_t;
 
@@ -266,6 +281,9 @@ typedef struct dsi_embms_tmgi_info_s
 
 typedef qmi_wds_embms_sai_list_ind_type dsi_embms_sai_info_type;
 
+typedef qmi_wds_embms_content_desc_control_ind_type dsi_embms_content_desc_info_type;
+typedef qmi_wds_embms_content_desc_update_info_type dsi_embms_content_desc_update_info_type;
+
 typedef qmi_wds_handoff_info_ind_type dsi_handoff_info_type;
 
 typedef struct dsi_wds_handoff_info
@@ -295,6 +313,14 @@ typedef enum
 /** @addtogroup datatypes
 @{ */
 
+/* Enum of different IP families */
+typedef enum
+{
+  DSI_IP_FAMILY_V4,
+  DSI_IP_FAMILY_V6,
+  DSI_NUM_IP_FAMILIES
+} dsi_ip_family_t;
+
 /** Event payload sent with event callback. */
 typedef struct evt_info_s
 {
@@ -318,9 +344,16 @@ typedef struct evt_info_s
   /* Populated for events: DSI_NET_SAI_LIST_CHANGED */
   dsi_embms_sai_info_type    embms_sai_info;
 
+  /* Populated for events: DSI_NET_CONTENT_DESC_CONTROL */
+  dsi_embms_content_desc_info_type embms_content_desc_info;
+
   dsi_wds_handoff_info_type  handoff_info;    /**< Event information associated
                                                    with WDS Handoff event
                                                    indication */
+
+  dsi_ip_family_t ip_type;      /* This member is used only while generating
+                                   DSI_EVT_WDS_CONNECTED event
+                                 */
 } dsi_evt_payload_t;
 
 /** Callback function prototype for DSI NetCtrl events. */
@@ -360,14 +393,6 @@ typedef struct dsi_addr_info_s
 #define DSI_GET_IP_FAMILY(ipf) ((AF_INET==(ipf))?"AF_INET": \
                                 ((AF_INET6==(ipf))?"AF_INET6":"UNKNOWN"))
 
-/* Enum of different IP families */
-typedef enum
-{
-  DSI_IP_FAMILY_V4,
-  DSI_IP_FAMILY_V6,
-  DSI_NUM_IP_FAMILIES,
-} dsi_ip_family_t;
-
 /** @addtogroup datatypes
 @{ */
 
@@ -399,7 +424,8 @@ typedef enum
   DSI_DATA_BEARER_TECH_64_QAM,        /**< 64 QAM. */
   DSI_DATA_BEARER_TECH_TDSCDMA,       /**< TD-SCDMA. */
   DSI_DATA_BEARER_TECH_GSM,           /**< GSM */
-  DSI_DATA_BEARER_TECH_3GPP_WLAN      /**< IWLAN */
+  DSI_DATA_BEARER_TECH_3GPP_WLAN,      /**< IWLAN */
+  DSI_DATA_BEARER_TECH_MAX
 
 } dsi_data_bearer_tech_t;
 
@@ -422,6 +448,16 @@ typedef struct
   unsigned long max_tx_rate;       /**< Max TX data rate for the channel*/
   unsigned long max_rx_rate;       /**< Max RX data rate for the channel*/
 } dsi_data_channel_rate_t;
+
+typedef enum
+{
+  DSI_DATA_DEFAULT_SUBS = 0x0000,
+  DSI_DATA_PRIMARY_SUBS = 0x0001,
+  DSI_DATA_SECONDARY_SUBS = 0x0002,
+  DSI_DATA_TERITIARY_SUBS = 0x0003,
+  DSI_DATA_DONT_CARE_SUBS = 0x00FF
+}dsi_data_modem_subscription_id;
+
 
 /** @} */ /* end_addtogroup datatypes */
 
@@ -805,6 +841,83 @@ extern int dsi_get_ip_addr
 );
 
 /*===========================================================================
+  FUNCTION:  dsi_enable_port_forwarding
+===========================================================================*/
+/*!
+    @brief
+    This function can be used to enable port forwarding by installing
+    the iptable rules appropriately. If no IWLAN calls are active then
+    the client preference is saved and rules are installed on bring up
+    of the first IWLAN call.
+
+    @param[in] dsi_hndl Handle received from dsi_get_data_srvc_hndl().
+    @param[in] ip_family - AF_INET/AF_INET6
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+
+    @dependencies
+    There has to be at least one iwlan call up for the specified family
+    for the API to take effect.
+*/
+/*=========================================================================*/
+extern int dsi_enable_port_forwarding
+(
+   dsi_hndl_t dsi_hndl,
+   int        ip_family
+);
+
+/*===========================================================================
+  FUNCTION:  dsi_disable_port_forwarding
+===========================================================================*/
+/*!
+    @brief
+    This function can be used to disable port forwarding by uninstalling
+    the iptable rules appropriately. If no IWLAN calls are active then
+    the client preference is saved and rules will not be installed on
+    bring up of the first IWLAN call.
+
+    @param[in] dsi_hndl Handle received from dsi_get_data_srvc_hndl().
+    @param[in] ip_family - AF_INET/AF_INET6
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+extern int dsi_disable_port_forwarding
+(
+   dsi_hndl_t dsi_hndl,
+   int        ip_family
+);
+
+/*===========================================================================
+  FUNCTION:  dsi_query_port_forwarding
+===========================================================================*/
+/*!
+    @brief
+    This function can be used to query the current port forwarding preference
+    set by the client.
+
+    @param[in] dsi_hndl Handle received from dsi_get_data_srvc_hndl().
+    @param[in] ip_family - AF_INET/AF_INET6
+    @param[out] forwarding_status return the current port forwarding status.
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+extern int dsi_query_port_forwarding_status
+(
+   dsi_hndl_t                    dsi_hndl,
+   int                           ip_family,
+   dsi_port_forwarding_status_t* forwarding_status
+);
+
+
+/*===========================================================================
   FUNCTION:  dsi_embms_enable
 ===========================================================================*/
 /*!
@@ -930,6 +1043,29 @@ extern int dsi_embms_tmgi_list_query
 );
 
 /*===========================================================================
+  FUNCTION:  dsi_embms_content_desc_update
+===========================================================================*/
+/*!
+    @brief
+    used to update embms content desc.
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+
+*/
+/*=========================================================================*/
+int dsi_embms_content_desc_update
+(
+  dsi_hndl_t                hndl,
+  char                     *content_desc_update_tmgi,
+  unsigned char             content_desc_valid,
+  unsigned int              content_desc_len,
+  embms_content_desc_type  *content_desc,
+  int                       dbg_trace_id
+);
+
+/*===========================================================================
   FUNTION:   dsi_get_current_data_channel_rate
 ===========================================================================*/
 /*!
@@ -1032,43 +1168,30 @@ dsi_get_pkt_stats
 #define DSI_DNS_ERROR        -102
 
 /*===========================================================================
-  FUNCTION:  dsi_getaddrinfo
+  FUNCTION:  dsi_get_qmi_port_name
 ===========================================================================*/
-/*!
-    @brief
-    Retreive the numerical IPv6/IPv6 address of a given host name. The DNS
-    server and interface specified in the dsi handle will be used to make the
-    request.
+/** @ingroup dsi_get_qmi_port_name
 
-    @args
+    Queries the QMI port name for the data call associated with the
+    specified data service handle.
+
+    @note1hang
+    len must be at least DSI_CALL_INFO_DEVICE_NAME_MAX_LEN + 1 long.
+
+    @param[in] hndl Handle received from dsi_get_data_srvc_hndl().
+    @param[out] buf Buffer to hold the QMI port name string.
+    @param[in] len Length of the buffer allocated by client.
 
     @return
-    0
-    DSI_ERROR_BAD_HANDLE
-    EAI_FAIL
-    EAI_NONAME
-    EAI_BAD_HINTS
-    EAI_FAMILY
+    DSI_SUCCESS -- The data interface name was returned successfully. \n
+    DSI_ERROR -- The data interface name was not returned successfully.
+
+    @dependencies
+    dsi_init() must be called. \n
+    The handle must be a valid handle obtained by dsi_get_data_srvc_hndl().
 */
 /*=========================================================================*/
-int dsi_getaddrinfo(dsi_hndl_t hndl,
-                    const char *hostname,
-                    const char *servname,
-                    const struct addrinfo *hints,
-                    struct addrinfo **res);
-
-/*===========================================================================
-  FUNCTION:  dsi_freeaddrinfo
-===========================================================================*/
-/*!
-    @brief
-    Frees all memory allocated by dsi_getaddrinfo()
-
-    @args
-    struct addrinfo *ai - pointer to the head addinfo list node
-*/
-/*=========================================================================*/
-void dsi_freeaddrinfo(struct addrinfo *ai);
+extern int dsi_get_qmi_port_name(dsi_hndl_t hndl, char * buf, int len);
 
 /*===========================================================================
   FUNCTION:  dsi_process_screen_state_change
@@ -1088,6 +1211,55 @@ void dsi_freeaddrinfo(struct addrinfo *ai);
 */
 /*=========================================================================*/
 extern int dsi_process_screen_state_change(int screen_state);
+
+/*===========================================================================
+  FUNCTION:  dsi_get_qmi_port_name
+===========================================================================*/
+/** @ingroup dsi_get_qmi_port_name
+
+    Queries the QMI port name for the data call associated with the
+    specified data service handle.
+
+    @note1hang
+    len must be at least DSI_CALL_INFO_DEVICE_NAME_MAX_LEN + 1 long.
+
+    @param[in] hndl Handle received from dsi_get_data_srvc_hndl().
+    @param[out] buf Buffer to hold the QMI port name string.
+    @param[in] len Length of the buffer allocated by client.
+
+    @return
+    DSI_SUCCESS -- The data interface name was returned successfully. \n
+    DSI_ERROR -- The data interface name was not returned successfully.
+
+    @dependencies
+    dsi_init() must be called. \n
+    The handle must be a valid handle obtained by dsi_get_data_srvc_hndl().
+*/
+/*=========================================================================*/
+extern int dsi_get_qmi_port_name(dsi_hndl_t hndl, char * buf, int len);
+
+/* Stub APIs for DSDA on this branch */
+extern int dsi_set_modem_subs_id(int subs_id);
+extern int dsi_get_modem_subs_id(void);
+
+/*===========================================================================
+  FUNCTION:  dsi_get_link_mtu
+===========================================================================*/
+/*!
+    @brief
+    Used to get the MTU of the corresponding link
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+
+*/
+/*=========================================================================*/
+extern int dsi_get_link_mtu
+(
+  dsi_hndl_t    hndl,
+  unsigned int  *mtu
+);
 
 #endif /* DSI_NETCTRL_H */
 #ifdef __cplusplus

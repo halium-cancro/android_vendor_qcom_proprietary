@@ -24,6 +24,11 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <cutils/properties.h>
+
+#ifdef QMI_RIL_UTF
+#include <errno.h>
+#endif
+
 #include "qcrili.h"
 #include "qcril_arb.h"
 #include "qcril_reqlist.h"
@@ -64,12 +69,7 @@ typedef enum {
   NV_DIR_NUMBER_I                                = 178,
   NV_SID_NID_I                                   = 38,
   NV_MOB_CAI_REV_I                               = 6,
-  NV_OEM_ITEM_1_I                                = 6853,
-  NV_OEM_ITEM_5_I                                = 6857,
-  NV_OEM_ITEM_7_I                                = 6859,
-  NV_DEVICE_SERIAL_NO_I                          = 2824,
-  NV_NAME_NAM_I                                  = 43,
-  NV_FACTORY_DATA_3_I                            = 2499,
+  NV_NAME_NAM_I                                  = 43
 } nv_items_enum_type;
 
 /* Up to 2 MINs per NAM allowed */
@@ -83,7 +83,7 @@ typedef enum {
 /* With up to 12-letter names */
 #define  NV_MAX_LTRS                                            12
 
-#define NAS_NIL                     QMI_RIL_ZERO
+#define QMI_RIL_SPC_TLV_NVWRITE                   "persist.radio.spc_tlv_nvwrite"
 
 /* Type to specify auto answer rings and enable/disable. */
 typedef PACKED struct PACKED_POST{
@@ -892,69 +892,6 @@ void qcril_other_request_set_mute
 } /* qcril_other_request_set_mute() */
 
 
-/*===========================================================================*/
-/*!
-    @brief
-    Read NV 6853 HW VERSION.
-
-    @return
-    TRUE OR FALSE
-
-*/
-/*=========================================================================*/
-void qcril_qmi_nas_dms_request_hw_version
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr // Output parameter
-)
-{
-  qcril_instance_id_e_type instance_id;
-  qcril_request_resp_params_type resp;
-
-  dms_get_hw_version_resp_msg_v01 qmi_response;
-
-  RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
-
-  //char ril_resp_data_hw_version[NAS_DMS_IMEI_MAX_STR_SIZE];
-
-  qmi_client_error_type qmi_client_error;
-
-
-  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-
-
-  QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_NOTUSED( ret_ptr );
-
-  //memset(ril_resp_data_hw_version,0,sizeof(ril_resp_data_hw_version));
-  memset(&qmi_response, 0, sizeof(qmi_response));
-
-  // ** fetch data
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                     QMI_DMS_GET_DEVICE_HW_VERSION_REQ_V01,
-                                                     NULL,
-                                                     NAS_NIL,  // empty request payload
-                                                     (void*) &qmi_response,
-                                                     sizeof( qmi_response ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-
-
-  ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &qmi_response.resp );
-
-  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
-
-  // ** prepare response
-  if ( RIL_E_SUCCESS == ril_req_res )
-  {
-      resp.resp_pkt = (void*)qmi_response.hw_version;
-      resp.resp_len = sizeof( qmi_response.hw_version );
-  }
-  QCRIL_LOG_ERROR("------------ %s", qmi_response.hw_version);
-
-  qcril_send_request_response( &resp );
-  QCRIL_LOG_ERROR("completed with %d", (int) ril_req_res);
-} // qcril_qmi_nas_dms_hw_version
-
 /*===========================================================================
 
   FUNCTION:  qcril_other_request_get_mute
@@ -1053,363 +990,6 @@ void qcril_other_request_oem_hook_strings
 
 } /* qcril_other_request_oem_hook_strings() */
 
-/*===========================================================================*/
-/*!
-    @brief
-    Read NV 6857.
-
-    @return
-    TRUE OR FALSE
-
-*/
-/*=========================================================================*/
-void qcril_other_request_get_flag
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr // Output parameter
-)
-{
-  qcril_instance_id_e_type instance_id;
-  qcril_request_resp_params_type resp;
-
-  dms_get_flag_resp_msg_v01 qmi_response;
-
-  RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
-
-  //char ril_resp_data_hw_version[NAS_DMS_IMEI_MAX_STR_SIZE];
-
-  qmi_client_error_type qmi_client_error;
-
-
-  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-
-
-  QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_NOTUSED( ret_ptr );
-
-  //memset(ril_resp_data_hw_version,0,sizeof(ril_resp_data_hw_version));
-  memset(&qmi_response, 0, sizeof(qmi_response));
-
-  // ** fetch data
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                     QMI_DMS_GET_DEVICE_FLAG_REQ_V01,
-                                                     NULL,
-                                                     NAS_NIL,  // empty request payload
-                                                     (void*) &qmi_response,
-                                                     sizeof( qmi_response ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-
-
-  ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &qmi_response.resp );
-
-  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
-
-  // ** prepare response
-  if ( RIL_E_SUCCESS == ril_req_res )
-  {
-      resp.resp_pkt = (void*)qmi_response.flag;
-      resp.resp_len = sizeof( qmi_response.flag );
-  }
-
-  qcril_send_request_response( &resp );
-  QCRIL_LOG_ERROR("completed with %d", (int) ril_req_res);
-} // qcril_other_request_get_flag
-/*===========================================================================*/
-/*!
-    @brief
-    Read NV_UE_QCN_I from NV.
-
-    @return
-    TRUE OR FALSE
-
-*/
-/*=========================================================================*/
-void qcril_other_request_get_qcn
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr /*!< Output parameter */
-)
-{
-  qcril_instance_id_e_type instance_id;
-  qcril_request_resp_params_type resp;
-
-  dms_get_qcn_resp_msg_v01 qmi_response;
-
-  RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
-
-  qmi_client_error_type qmi_client_error;
-
-  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-  memset(&qmi_response, 0, sizeof(qmi_response));
-
-
-  /*-----------------------------------------------------------------------*/
-
-  QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_NOTUSED( ret_ptr );
-
-  /*-----------------------------------------------------------------------*/
-
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                     QMI_DMS_GET_DEVICE_QCN_REQ_V01,
-                                                     NULL,
-                                                     NAS_NIL,  // empty request payload
-                                                     (void*) &qmi_response,
-                                                     sizeof( qmi_response ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-
-
-  ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &qmi_response.resp );
-
-  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
-
-  // ** prepare response
-  if ( RIL_E_SUCCESS == ril_req_res )
-  {
-      resp.resp_pkt = (void*)qmi_response.qcn_version;
-      resp.resp_len = sizeof( qmi_response.qcn_version );
-  }
-  QCRIL_LOG_ERROR("------------ %s", qmi_response.qcn_version);
-
-  qcril_send_request_response( &resp );
-  QCRIL_LOG_ERROR("completed with %d", (int) ril_req_res);
-} /* qcril_other_read_qcn_from_nv() */
-
-void qcril_other_request_get_sn
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr // Output parameter
-)
-{
-  qcril_instance_id_e_type instance_id;
-  qcril_request_resp_params_type resp;
-
-  dms_get_sn_resp_msg_v01 qmi_response;
-
-  RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
-
-  //char ril_resp_data_hw_version[NAS_DMS_IMEI_MAX_STR_SIZE];
-
-  qmi_client_error_type qmi_client_error;
-
-
-  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-
-  char sn_value[25];
-  int i,x,y;
-  QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_NOTUSED( ret_ptr );
-
-  //memset(ril_resp_data_hw_version,0,sizeof(ril_resp_data_hw_version));
-  memset(&qmi_response, 0, sizeof(qmi_response));
-
-  // ** fetch data
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                     QMI_DMS_GET_DEVICE_SN_REQ_V01,
-                                                     NULL,
-                                                     NAS_NIL,  // empty request payload
-                                                     (void*) &qmi_response,
-                                                     sizeof( qmi_response ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-
-
-  ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &qmi_response.resp );
-
-  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
-
-  /*-------------------------------------------------------------------*/
-
-    sn_value[0] =  qmi_response.get_sn[0];
-
-    sn_value[1] =  qmi_response.get_sn[1];
-
-    sn_value[2] =  qmi_response.get_sn[2] ;
-
-/*-------------------------------------------------------------------*/
-
-    x = qmi_response.get_sn[3]  >> 4;
-
-    if( x >= 0 && x <= 9)
-        sn_value[3] = x + '0';
-    else
-        sn_value[3] = x + 87;
-
-    y = qmi_response.get_sn[3]&0x0F;
-
-    if( y >= 0 && y <= 9)
-        sn_value[4] = y + '0';
-    else
-        sn_value[4] = y + 87;
-
-/*-------------------------------------------------------------------*/
-
-    x = qmi_response.get_sn[4]  >> 4;
-    if( x >= 0 && x <= 9)
-        sn_value[5] = x + '0';
-    else
-        sn_value[5] = x + 87;
-
-    y = qmi_response.get_sn[4]&0x0F;
-    if( y >= 0 && y <= 9)
-        sn_value[6] = y + '0';
-    else
-        sn_value[6] = y + 87;
-
-/*-------------------------------------------------------------------*/
-
-    sn_value[7] = ( qmi_response.get_sn[5]);
-    sn_value[8] = ( qmi_response.get_sn[6]);
-    sn_value[9] = ( qmi_response.get_sn[7]);
-    sn_value[10] = ( qmi_response.get_sn[8] );
-
-/*-------------------------------------------------------------------*/
-
-    x = qmi_response.get_sn[9]  >> 4;
-    if( x >= 0 && x <= 9)
-        sn_value[11] = x + '0';
-    else
-        sn_value[11] = x + 87;
-
-    y = qmi_response.get_sn[9]&0x0F;
-    if( y >= 0 && y <= 9)
-        sn_value[12] = y + '0';
-    else
-        sn_value[12] = y + 87;
-/*-------------------------------------------------------------------*/
-    x = qmi_response.get_sn[10]  >> 4;
-    if( x >= 0 && x <= 9)
-        sn_value[13] = x + '0';
-    else
-        sn_value[13] = x + 87;
-
-    y = qmi_response.get_sn[10]&0x0F;
-    if( y >= 0 && y <= 9)
-        sn_value[14] = y + '0';
-    else
-        sn_value[14] = y + 87;
-
-/*-------------------------------------------------------------------*/
-
-    x = qmi_response.get_sn[11]  >> 4;
-    if( x >= 0 && x <= 9)
-        sn_value[15] = x + '0';
-    else
-        sn_value[15] = x + 87;
-
-    y = qmi_response.get_sn[11]&0x0F;
-    if( y >= 0 && y <= 9)
-        sn_value[16] = y + '0';
-    else
-        sn_value[16] = y + 87;
-/*-------------------------------------------------------------------*/
-    x = qmi_response.get_sn[12]  >> 4;
-    if( x >= 0 && x <= 9)
-        sn_value[17] = x + '0';
-    else
-        sn_value[17] = x+ 87;
-
-    y = qmi_response.get_sn[12]&0x0F;
-    if( y >= 0 && y <= 9)
-        sn_value[18] = y + '0';
-    else
-        sn_value[18] = y + 87;
-
-/*-------------------------------------------------------------------*/
-    x = qmi_response.get_sn[13]  >> 4;
-    if( x >= 0 && x <= 9)
-        sn_value[19] = x + '0';
-    else
-        sn_value[19] = x + 87;
-
-    y = qmi_response.get_sn[13]&0x0F;
-    if( y >= 0 && y <= 9)
-        sn_value[20] = y + '0';
-    else
-        sn_value[20] = y + 87;
-
-/*-------------------------------------------------------------------*/
-
-    sn_value[21] = ( qmi_response.get_sn[14]);
-/*-------------------------------------------------------------------*/
-    x = qmi_response.get_sn[15];
-    //sn_value[22] = x + '0';
-        //modified by lvyan --2011.8.10-- start
-        sn_value[22]=x/100+'0';
-        sn_value[23]=(x%100)/10+ '0';
-	sn_value[24]=(x%100)%10+'0';
-        //modified by lvyan --2011.8.10-- end
-
-  // ** prepare response
-  if ( RIL_E_SUCCESS == ril_req_res )
-  {
-      resp.resp_pkt = (void*)sn_value;
-      resp.resp_len = sizeof( sn_value );
-  }
-
-  qcril_send_request_response( &resp );
-  QCRIL_LOG_ERROR("completed with %d", (int) ril_req_res);
-  QCRIL_LOG_ERROR("------------------------------ %s", sn_value);
-} // qcril_other_request_get_sn
-
-/*===========================================================================*/
-/*!
-    @brief
-    Read NV_UE_QCN_I from NV.
-
-    @return
-    TRUE OR FALSE
-
-*/
-/*=========================================================================*/
-void qcril_other_request_get_nv2499
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr /*!< Output parameter */
-)
-{
-  qcril_instance_id_e_type instance_id;
-  qcril_request_resp_params_type resp;
-
-  dms_get_nv2499_resp_msg_v01 qmi_response;
-
-  RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
-
-  qmi_client_error_type qmi_client_error;
-
-  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-  memset(&qmi_response, 0, sizeof(qmi_response));
-
-
-  /*-----------------------------------------------------------------------*/
-
-  QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_NOTUSED( ret_ptr );
-
-  /*-----------------------------------------------------------------------*/
-
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                     QMI_DMS_GET_NV2499_REQ_V01,
-                                                     NULL,
-                                                     NAS_NIL,  // empty request payload
-                                                     (void*) &qmi_response,
-                                                     sizeof( qmi_response ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-
-
-  ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &qmi_response.resp );
-
-  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
-
-  // ** prepare response
-  if ( RIL_E_SUCCESS == ril_req_res )
-  {
-      resp.resp_pkt = (void*)qmi_response.get_nv2499;
-      resp.resp_len = sizeof( qmi_response.get_nv2499 );
-  }
-
-  qcril_send_request_response( &resp );
-  QCRIL_LOG_ERROR("completed with %d", (int) ril_req_res);
-} /* qcril_other_request_get_nv2499() */
 /*=========================================================================
 
   FUNCTION:  qcril_other_request_oem_hook_nv_read
@@ -1461,27 +1041,6 @@ void qcril_other_request_oem_hook_nv_read
       memcpy(&nv_item_id, data_ptr, QCRIL_OTHER_OEM_ITEMID_LEN);
 
       QCRIL_LOG_INFO("Received request for Reading nv_item_id = %lu", nv_item_id);
-      if (nv_item_id == NV_OEM_ITEM_1_I)
-      {
-        qcril_qmi_nas_dms_request_hw_version(params_ptr, ret_ptr);
-        return;
-      } else if (nv_item_id == NV_OEM_ITEM_5_I)
-      {
-        qcril_other_request_get_flag(params_ptr, ret_ptr);
-        return;
-      } else if (nv_item_id == NV_OEM_ITEM_7_I)
-      {
-        qcril_other_request_get_qcn(params_ptr, ret_ptr);
-        return;
-      } else if (nv_item_id == NV_DEVICE_SERIAL_NO_I)
-      {
-        qcril_other_request_get_sn(params_ptr, ret_ptr);
-        return;
-      } else if (nv_item_id == NV_FACTORY_DATA_3_I)
-      {
-        qcril_other_request_get_nv2499(params_ptr, ret_ptr);
-        return;
-      }
 
       /* Get the index of NV item data item */
       for (index = 0; index < QCRIL_OTHER_NUM_OF_NV_ITEMS; index++)
@@ -1890,11 +1449,12 @@ void qcril_other_request_oem_hook_nv_write
    char *pcData;
    qcril_request_resp_params_type resp;
    qmi_client_error_type qmi_client_error;
-   RIL_Errno   ril_req_res;
+   RIL_Errno   ril_req_res = RIL_E_SUCCESS;
 
    nv_item_type nv_item;
    uint32 nv_item_id = 0, nv_item_len = 0, index, nvIdx;
-   uint32 iskid;
+
+   int spc_tlv_valid = TRUE;
 
 /*-----------------------------------------------------------------------*/
 
@@ -1924,75 +1484,9 @@ void qcril_other_request_oem_hook_nv_write
       memcpy(&nv_item_id, &(pcData[index]), QCRIL_OTHER_OEM_ITEMID_LEN);
       index += QCRIL_OTHER_OEM_ITEMID_LEN;
 
-      memcpy(&iskid, &(pcData[index]), QCRIL_OTHER_OEM_ITEMID_LEN);
-
       /* Decode the NV item size from the raw stream, data[4--7], 4 bytes */
       memcpy(&nv_item_len, &(pcData[index]), QCRIL_OTHER_OEM_ITEMID_DATA_LEN);
       index += QCRIL_OTHER_OEM_ITEMID_DATA_LEN;
-
-      if (nv_item_id == NV_FACTORY_DATA_3_I && iskid == 1)
-      {
-            voice_set_config_req_msg_v02 set_config_req_msg;
-            voice_set_config_resp_msg_v02 set_config_resp_msg;
-
-            /* To start with, set all the optional fields to be invalid */
-            memset(&set_config_req_msg, 0, sizeof(set_config_req_msg));
-            memset(&set_config_resp_msg, 0, sizeof(set_config_resp_msg));
-/*
-         qmi_client_error = qcril_qmi_client_send_msg(qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                              QMI_DMS_UPDATE_CIT_FLAG_REQ_V01,
-                                                              &set_config_req_msg,
-                                                              sizeof(set_config_req_msg),
-                                                              &set_config_resp_msg,
-                                                              sizeof(set_config_resp_msg)
-                                                              );
-*/
-         qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                     QMI_DMS_UPDATE_CIT_FLAG_NV2499_REQ_V01, //QMI_DMS_UPDATE_CIT_FLAG_REQ_V01
-                                                     NULL,
-                                                     NAS_NIL,  // empty request payload
-                                                     (void*) &set_config_resp_msg,
-                                                     sizeof( set_config_resp_msg ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-
-         ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &set_config_resp_msg.resp );
-	     qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp) ;
-         qcril_send_request_response( &resp );
- 
-	     return;
-      }
-
-      if (nv_item_id == NV_FACTORY_DATA_3_I && iskid == 0)
-      {
-            voice_set_config_req_msg_v02 set_config_req_msg;
-            voice_set_config_resp_msg_v02 set_config_resp_msg;
-
-            /* To start with, set all the optional fields to be invalid */
-            memset(&set_config_req_msg, 0, sizeof(set_config_req_msg));
-            memset(&set_config_resp_msg, 0, sizeof(set_config_resp_msg));
-/*
-         qmi_client_error = qcril_qmi_client_send_msg(qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                              QMI_DMS_UPDATE_CIT_FLAG_REQ_V01,
-                                                              &set_config_req_msg,
-                                                              sizeof(set_config_req_msg),
-                                                              &set_config_resp_msg,
-                                                              sizeof(set_config_resp_msg)
-                                                              );
-*/
-         qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
-                                                     QMI_DMS_UPDATE_CIT_FLAG_NV2499_FAIL_REQ_V01, //QMI_DMS_UPDATE_CIT_FLAG_REQ_V01
-                                                     NULL,
-                                                     NAS_NIL,  // empty request payload
-                                                     (void*) &set_config_resp_msg,
-                                                     sizeof( set_config_resp_msg ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-
-         ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &set_config_resp_msg.resp );
-         qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp) ;
-         qcril_send_request_response( &resp );
-
-         return;
-      }
 
       /* Get the index of nv_item in nv table */
       for (nvIdx = 0; nvIdx < QCRIL_OTHER_NUM_OF_NV_ITEMS; nvIdx++)
@@ -2022,7 +1516,7 @@ void qcril_other_request_oem_hook_nv_write
              break;
       }
 
-      memcpy( (void *) (((uint32) (&nv_item)) + qcril_other_nv_table[nvIdx].nv_item_offset),
+      memcpy( (void *) (((char*) (&nv_item)) + qcril_other_nv_table[nvIdx].nv_item_offset),
               &(pcData[index]), nv_item_len);
 
       switch(nv_item_id)
@@ -2308,16 +1802,37 @@ void qcril_other_request_oem_hook_nv_write
                memcpy(set_config_req_msg.nam_name, nv_item.name_nam.name, set_config_req_msg.nam_name_len);
             }
 
-            qmi_client_error = qcril_qmi_client_send_msg_sync(QCRIL_QMI_CLIENT_NAS,
+            qmi_ril_get_property_value_from_integer(QMI_RIL_SPC_TLV_NVWRITE, &spc_tlv_valid, FALSE);
+
+            if( TRUE == spc_tlv_valid )
+            {
+                if ( ( ( params_ptr->datalen - ( index + nv_item_len) ) > NAS_SPC_MAX_V01 ) ||
+                     ( ( params_ptr->datalen - ( index + nv_item_len) ) < 1 )
+                    )
+                {
+                    QCRIL_LOG_ERROR("Invalid SPC len %d", ( params_ptr->datalen - ( index + nv_item_len) ) );
+                    ril_req_res = RIL_E_GENERIC_FAILURE;
+                }
+                else
+                {
+                    set_config_req_msg.spc_valid = TRUE;
+                    memcpy(set_config_req_msg.spc, &pcData[index + nv_item_len], ( params_ptr->datalen - ( index + nv_item_len) ) );
+                }
+            }
+
+            if ( RIL_E_SUCCESS == ril_req_res )
+            {
+                qmi_client_error = qcril_qmi_client_send_msg_sync(QCRIL_QMI_CLIENT_NAS,
                                                               QMI_NAS_SET_3GPP2_SUBSCRIPTION_INFO_REQ_MSG_V01,
                                                               &set_config_req_msg,
                                                               sizeof(set_config_req_msg),
                                                               &set_config_resp_msg,
                                                               sizeof(set_config_resp_msg) );
 
-            /* check response status */
-            ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_client_error, &set_config_resp_msg.resp);
-            QCRIL_LOG_INFO("ril_req_res %d, qmi_client_error %d", (int) ril_req_res, qmi_client_error);
+                /* check response status */
+                ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_client_error, &set_config_resp_msg.resp);
+                QCRIL_LOG_INFO("ril_req_res %d, qmi_client_error %d", (int) ril_req_res, qmi_client_error);
+            }
 
             if ( RIL_E_SUCCESS == ril_req_res )
             {
@@ -2749,6 +2264,80 @@ void qmi_ril_get_property_value_from_integer(const char *property_name,
 } //qmi_ril_get_property_value_from_integer
 
 //===========================================================================
+//qmi_ril_get_property_value_from_boolean
+//===========================================================================
+void qmi_ril_get_property_value_from_boolean(const char *property_name,
+                                             boolean *property_value,
+                                             boolean default_property_value)
+{
+    unsigned long res;
+    char *end_ptr;
+    char read_value[ PROPERTY_VALUE_MAX ];
+    char temp_default_property_value[ PROPERTY_VALUE_MAX ];
+
+#define QCRIL_TRUE_STR "true"
+
+    res = QMI_RIL_ZERO;
+    end_ptr = NULL;
+    memset(read_value,
+           QMI_RIL_ZERO,
+           sizeof(read_value));
+    memset(temp_default_property_value,
+           QMI_RIL_ZERO,
+           sizeof(temp_default_property_value));
+
+    if(property_name && property_value)
+    {
+        QCRIL_SNPRINTF(temp_default_property_value,
+                       sizeof( temp_default_property_value ),
+                       "%d",
+                       !!default_property_value);
+
+        qmi_ril_get_property_value_helper(property_name,
+                                          read_value,
+                                          temp_default_property_value);
+
+        res = strtoul(read_value,
+                      &end_ptr,
+                      QMI_RIL_ZERO);
+
+        if (end_ptr == read_value)
+        {
+            if ( !strncmp( read_value, QCRIL_TRUE_STR, strlen(QCRIL_TRUE_STR) ) )
+            {
+                *(property_value) = TRUE;
+            }
+            else
+            {
+                *(property_value) = FALSE;
+            }
+        }
+        else if (((errno == ERANGE) &&
+                 (res == ULONG_MAX)) ||
+                 *end_ptr)
+        {
+            QCRIL_LOG_ERROR("failed to convert %s, read value %s",
+                             property_name,
+                             read_value);
+            *(property_value) = !!default_property_value;
+        }
+        else
+        {
+            *(property_value) = (boolean) !!res;
+            QCRIL_LOG_INFO("retrieved %d from %s(%s)",
+                           *(property_value),
+                           property_name,
+                           read_value);
+        }
+    }
+    else
+    {
+        QCRIL_LOG_ERROR("invalid property name/value/default value");
+    }
+} //qmi_ril_get_property_value_from_boolean
+
+
+//===========================================================================
 //qmi_ril_set_property_value_to_string
 //===========================================================================
 errno_enum_type qmi_ril_set_property_value_to_string(const char *property_name,
@@ -2925,5 +2514,4 @@ void qmi_ril_free_directory_list(qcril_other_dirlist *dir_list)
 
   return;
 }
-
 

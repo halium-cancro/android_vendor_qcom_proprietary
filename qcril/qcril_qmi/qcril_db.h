@@ -11,6 +11,7 @@
 
 #define QCRIL_MAX_EMERGENCY_NUMBERS_LEN 200
 #define QCRIL_MAX_IMS_ADDRESS_LEN 81
+#define QCRIL_DB_MAX_OPERATOR_TYPE_LEN (6)
 
 int qcril_db_init(void);
 
@@ -120,5 +121,61 @@ int qcril_db_query_escv_type
     char *mnc,
     char *roam
 );
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_query_properties_table
+
+===========================================================================*/
+/*!
+    @brief
+    Query property table
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_db_query_properties_table
+(
+    char *property_name,
+    char *value
+);
+
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_query_operator_type
+
+===========================================================================*/
+/*!
+    @brief
+    Query operator type based upon (mcc, mnc)
+
+    @output
+    string 3gpp or 3gpp2
+*/
+/*=========================================================================*/
+void qcril_db_query_operator_type
+(
+    char *mcc,
+    char *mnc,
+    char operator_type[QCRIL_DB_MAX_OPERATOR_TYPE_LEN]
+);
+
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_reset_cleanup
+
+===========================================================================*/
+/*!
+    @brief
+    Reset all global vars and release database
+
+    @return
+    0 on success
+*/
+/*=========================================================================*/
+int qcril_db_reset_cleanup();
 
 #endif /* QCRIL_DB_H */

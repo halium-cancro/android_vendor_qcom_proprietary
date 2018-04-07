@@ -10,14 +10,14 @@ GENERAL DESCRIPTION
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/imss/main/latest/src/ip_multimedia_subsystem_settings_v01.c#30 $
+  $Header: //source/qcom/qct/interfaces/qmi/imss/main/latest/src/ip_multimedia_subsystem_settings_v01.c#43 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7 
-   It was generated on: Wed Feb 26 2014 (Spin 0)
+/* This file was generated with Tool version 6.14.2 
+   It was generated on: Fri Dec 19 2014 (Spin 0)
    From IDL File: ip_multimedia_subsystem_settings_v01.idl */
 
 #include "stdint.h"
@@ -60,6 +60,19 @@ static const uint8_t ims_settings_pol_mgr_apn_name_data_v01[] = {
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_STRING,
   QMI_IDL_OFFSET8(ims_settings_pol_mgr_apn_name_v01, pol_mgr_apn_name),
   IMS_SETTINGS_POL_MGR_APN_NAME_STR_LEN_V01,
+
+  QMI_IDL_FLAG_END_VALUE
+};
+
+static const uint8_t ims_settings_qdj_optimization2_info_data_v01[] = {
+  QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qdj_optimization2_info_v01, qdj_optimization2_enabled),
+
+  QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qdj_optimization2_info_v01, qdj_go_through_threshold),
+
+  QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qdj_optimization2_info_v01, qdj_drop_threshold),
 
   QMI_IDL_FLAG_END_VALUE
 };
@@ -146,10 +159,50 @@ static const uint8_t ims_settings_set_sip_config_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, tcp_max_backoff_timer_value),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, gzip_decoding_outbuffer_multiplier) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, gzip_decoding_outbuffer_multiplier_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, gzip_decoding_outbuffer_multiplier) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, gzip_decoding_outbuffer_multiplier_valid)),
   0x20,
    QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, gzip_decoding_outbuffer_multiplier)
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, gzip_decoding_outbuffer_multiplier),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_td_value) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_td_value_valid)),
+  0x21,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_td_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_t4) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_t4_valid)),
+  0x22,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_t4),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_ta_value) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_ta_value_valid)),
+  0x23,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_ta_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_te_value) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_te_value_valid)),
+  0x24,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_te_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_tg_value) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_tg_value_valid)),
+  0x25,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_tg_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_th_value) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_th_value_valid)),
+  0x26,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_th_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_ti_value) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_ti_value_valid)),
+  0x27,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_ti_value),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_tk_value) - QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_tk_value_valid)),
+  0x28,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_sip_config_req_msg_v01, timer_tk_value)
 };
 
 static const uint8_t ims_settings_set_sip_config_rsp_msg_data_v01[] = {
@@ -205,11 +258,17 @@ static const uint8_t ims_settings_set_sms_config_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(ims_settings_set_sms_config_req_msg_v01, sms_over_ip_network_indication),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sms_config_req_msg_v01, phone_context_uri) - QMI_IDL_OFFSET8(ims_settings_set_sms_config_req_msg_v01, phone_context_uri_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_sms_config_req_msg_v01, phone_context_uri) - QMI_IDL_OFFSET8(ims_settings_set_sms_config_req_msg_v01, phone_context_uri_valid)),
   0x12,
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
   QMI_IDL_OFFSET8(ims_settings_set_sms_config_req_msg_v01, phone_context_uri),
-  IMS_SETTINGS_STRING_LEN_MAX_V01
+  IMS_SETTINGS_STRING_LEN_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(ims_settings_set_sms_config_req_msg_v01, sms_psi) - QMI_IDL_OFFSET16RELATIVE(ims_settings_set_sms_config_req_msg_v01, sms_psi_valid)),
+  0x13,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
+  QMI_IDL_OFFSET16ARRAY(ims_settings_set_sms_config_req_msg_v01, sms_psi),
+  IMS_SETTINGS_SMS_PSI_LEN_V01
 };
 
 static const uint8_t ims_settings_set_sms_config_rsp_msg_data_v01[] = {
@@ -322,10 +381,16 @@ static const uint8_t ims_settings_set_voip_config_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_silent_redial_enabled),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_preferred_rtp_payload_type) - QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_preferred_rtp_payload_type_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_preferred_rtp_payload_type) - QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_preferred_rtp_payload_type_valid)),
   0x1F,
    QMI_IDL_GENERIC_2_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_preferred_rtp_payload_type)
+  QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_preferred_rtp_payload_type),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_config_confURI) - QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_config_confURI_valid)),
+  0x20,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_set_voip_config_req_msg_v01, voip_config_confURI),
+  IMS_SETTINGS_VOIP_CONFIG_CONF_URI_LEN_V01
 };
 
 static const uint8_t ims_settings_set_voip_config_rsp_msg_data_v01[] = {
@@ -435,6 +500,31 @@ static const uint8_t ims_settings_set_presence_config_rsp_msg_data_v01[] = {
   QMI_IDL_OFFSET8(ims_settings_set_presence_config_rsp_msg_v01, settings_resp)
 };
 
+static const uint8_t ims_settings_set_presence_ext_config_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_error_recovery_timer) - QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_error_recovery_timer_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_error_recovery_timer),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_user_agent) - QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_user_agent_valid)),
+  0x11,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_user_agent),
+  IMS_SETTINGS_PRESENCE_USERAGENT_LEN_V01
+};
+
+static const uint8_t ims_settings_set_presence_ext_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, settings_resp)
+};
+
 static const uint8_t ims_settings_set_media_config_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_media_config_req_msg_v01, h264_profile) - QMI_IDL_OFFSET8(ims_settings_set_media_config_req_msg_v01, h264_profile_valid)),
   0x10,
@@ -500,10 +590,55 @@ static const uint8_t ims_settings_set_qipcall_config_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, emerg_call_timer),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, vt_quality_selector) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, vt_quality_selector_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, vt_quality_selector) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, vt_quality_selector_valid)),
   0x14,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, vt_quality_selector)
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, vt_quality_selector),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, speech_start_port) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, speech_start_port_valid)),
+  0x15,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, speech_start_port),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, speech_end_port) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, speech_end_port_valid)),
+  0x16,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, speech_end_port),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_wb_octet_aligned_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_wb_octet_aligned_dynamic_pt_valid)),
+  0x17,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_wb_octet_aligned_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt_valid)),
+  0x18,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_octet_aligned_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_octet_aligned_dynamic_pt_valid)),
+  0x19,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_octet_aligned_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_bandwidth_efficient_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_bandwidth_efficient_dynamic_pt_valid)),
+  0x1A,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_bandwidth_efficient_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, dtmf_wb_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, dtmf_wb_dynamic_pt_valid)),
+  0x1B,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, dtmf_wb_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, dtmf_nb_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, dtmf_nb_dynamic_pt_valid)),
+  0x1C,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, dtmf_nb_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_default_mode) - QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_default_mode_valid)),
+  0x1D,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_qipcall_config_req_msg_v01, amr_default_mode)
 };
 
 static const uint8_t ims_settings_set_qipcall_config_rsp_msg_data_v01[] = {
@@ -524,10 +659,20 @@ static const uint8_t ims_settings_set_reg_mgr_extended_config_req_msg_data_v01[]
    QMI_IDL_GENERIC_2_BYTE,
   QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, reregistration_delay),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, t_delay) - QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, t_delay_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, t_delay) - QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, t_delay_valid)),
   0x11,
    QMI_IDL_GENERIC_2_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, t_delay)
+  QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, t_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, reg_retry_base_time) - QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, reg_retry_base_time_valid)),
+  0x12,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, reg_retry_base_time),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, reg_retry_max_time) - QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, reg_retry_max_time_valid)),
+  0x13,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_reg_mgr_extended_config_req_msg_v01, reg_retry_max_time)
 };
 
 static const uint8_t ims_settings_set_reg_mgr_extended_config_rsp_msg_data_v01[] = {
@@ -610,6 +755,133 @@ static const uint8_t ims_settings_set_pol_mgr_config_rsp_msg_data_v01[] = {
   0x10,
    QMI_IDL_1_BYTE_ENUM,
   QMI_IDL_OFFSET8(ims_settings_set_pol_mgr_config_rsp_msg_v01, settings_resp)
+};
+
+static const uint8_t ims_settings_set_rcs_sm_config_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_auth) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_auth_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_auth),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_max_size) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_max_size_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_max_size),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_explorer_uri) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_explorer_uri_valid)),
+  0x12,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_explorer_uri),
+  IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01
+};
+
+static const uint8_t ims_settings_set_rcs_sm_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, settings_resp)
+};
+
+static const uint8_t ims_settings_set_ut_config_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, disable_ut) - QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, disable_ut_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, disable_ut),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, ut_apn_name) - QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, ut_apn_name_valid)),
+  0x11,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, ut_apn_name),
+  IMS_SETTINGS_UT_APN_NAME_LEN_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, ut_ip_addr_type) - QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, ut_ip_addr_type_valid)),
+  0x12,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, ut_ip_addr_type)
+};
+
+static const uint8_t ims_settings_set_ut_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, settings_resp)
+};
+
+static const uint8_t ims_settings_set_client_provisioning_config_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_client_provisioning) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_client_provisioning_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_client_provisioning),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_volte) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_volte_valid)),
+  0x11,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_volte),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_vt) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_vt_valid)),
+  0x12,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_vt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_presence) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_presence_valid)),
+  0x13,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, enable_presence),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call_valid)),
+  0x14,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call_preference) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call_preference_valid)),
+  0x15,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call_preference),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call_roaming) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call_roaming_valid)),
+  0x16,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_req_msg_v01, wifi_call_roaming)
+};
+
+static const uint8_t ims_settings_set_client_provisioning_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_set_client_provisioning_config_rsp_msg_v01, settings_resp)
+};
+
+/* 
+ * ims_settings_set_apcs_complete_config_req_msg is empty
+ * static const uint8_t ims_settings_set_apcs_complete_config_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t ims_settings_set_apcs_complete_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_set_apcs_complete_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_apcs_complete_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_apcs_complete_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_set_apcs_complete_config_rsp_msg_v01, settings_resp)
 };
 
 /* 
@@ -709,10 +981,50 @@ static const uint8_t ims_settings_get_sip_config_rsp_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, tcp_max_backoff_timer_value),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, gzip_decoding_outbuffer_multiplier) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, gzip_decoding_outbuffer_multiplier_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, gzip_decoding_outbuffer_multiplier) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, gzip_decoding_outbuffer_multiplier_valid)),
   0x21,
    QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, gzip_decoding_outbuffer_multiplier)
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, gzip_decoding_outbuffer_multiplier),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_td_value) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_td_value_valid)),
+  0x22,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_td_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_t4) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_t4_valid)),
+  0x23,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_t4),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_ta_value) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_ta_value_valid)),
+  0x24,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_ta_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_te_value) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_te_value_valid)),
+  0x25,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_te_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_tg_value) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_tg_value_valid)),
+  0x26,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_tg_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_th_value) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_th_value_valid)),
+  0x27,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_th_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_ti_value) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_ti_value_valid)),
+  0x28,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_ti_value),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_tk_value) - QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_tk_value_valid)),
+  0x29,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_sip_config_rsp_msg_v01, timer_tk_value)
 };
 
 /* 
@@ -776,11 +1088,17 @@ static const uint8_t ims_settings_get_sms_config_rsp_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(ims_settings_get_sms_config_rsp_msg_v01, sms_over_ip_network_indication),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sms_config_rsp_msg_v01, phone_context_uri) - QMI_IDL_OFFSET8(ims_settings_get_sms_config_rsp_msg_v01, phone_context_uri_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_sms_config_rsp_msg_v01, phone_context_uri) - QMI_IDL_OFFSET8(ims_settings_get_sms_config_rsp_msg_v01, phone_context_uri_valid)),
   0x13,
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
   QMI_IDL_OFFSET8(ims_settings_get_sms_config_rsp_msg_v01, phone_context_uri),
-  IMS_SETTINGS_STRING_LEN_MAX_V01
+  IMS_SETTINGS_STRING_LEN_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(ims_settings_get_sms_config_rsp_msg_v01, sms_psi) - QMI_IDL_OFFSET16RELATIVE(ims_settings_get_sms_config_rsp_msg_v01, sms_psi_valid)),
+  0x14,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
+  QMI_IDL_OFFSET16ARRAY(ims_settings_get_sms_config_rsp_msg_v01, sms_psi),
+  IMS_SETTINGS_SMS_PSI_LEN_V01
 };
 
 /* 
@@ -889,10 +1207,16 @@ static const uint8_t ims_settings_get_voip_config_rsp_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_silent_redial_enabled),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_preferred_rtp_payload_type) - QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_preferred_rtp_payload_type_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_preferred_rtp_payload_type) - QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_preferred_rtp_payload_type_valid)),
   0x1E,
    QMI_IDL_GENERIC_2_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_preferred_rtp_payload_type)
+  QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_preferred_rtp_payload_type),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_config_confURI) - QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_config_confURI_valid)),
+  0x1F,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_get_voip_config_rsp_msg_v01, voip_config_confURI),
+  IMS_SETTINGS_VOIP_CONFIG_CONF_URI_LEN_V01
 };
 
 /* 
@@ -995,6 +1319,35 @@ static const uint8_t ims_settings_get_presence_config_rsp_msg_data_v01[] = {
 };
 
 /* 
+ * ims_settings_get_presence_ext_config_req_msg is empty
+ * static const uint8_t ims_settings_get_presence_ext_config_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t ims_settings_get_presence_ext_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, settings_resp),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_error_recovery_timer) - QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_error_recovery_timer_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_error_recovery_timer),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_user_agent) - QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_user_agent_valid)),
+  0x12,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_user_agent),
+  IMS_SETTINGS_PRESENCE_USERAGENT_LEN_V01
+};
+
+/* 
  * ims_settings_get_media_config_req_msg is empty
  * static const uint8_t ims_settings_get_media_config_req_msg_data_v01[] = {
  * };
@@ -1036,10 +1389,101 @@ static const uint8_t ims_settings_get_media_config_rsp_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, video_resolution),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, video_codec) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, video_codec_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, video_codec) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, video_codec_valid)),
   0x16,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, video_codec)
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, video_codec),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, lipsync_drop_upper_limit) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, lipsync_drop_upper_limit_valid)),
+  0x17,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, lipsync_drop_upper_limit),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, lipsync_drop_lower_limit) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, lipsync_drop_lower_limit_valid)),
+  0x18,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, lipsync_drop_lower_limit),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, rtp_mtu_size) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, rtp_mtu_size_valid)),
+  0x19,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, rtp_mtu_size),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_time_warping_enabled) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_time_warping_enabled_valid)),
+  0x1A,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_time_warping_enabled),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_iba_max) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_iba_max_valid)),
+  0x1B,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_iba_max),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_frames_at_start) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_frames_at_start_valid)),
+  0x1C,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_frames_at_start),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_delay) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_delay_valid)),
+  0x1D,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_min_delay) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_min_delay_valid)),
+  0x1E,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_min_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_optimization2_info) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_optimization2_info_valid)),
+  0x1F,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_optimization2_info),
+  QMI_IDL_TYPE88(0, 3),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_frames_at_run) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_frames_at_run_valid)),
+  0x20,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_frames_at_run),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_bumped_up_delay) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_bumped_up_delay_valid)),
+  0x21,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_max_bumped_up_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_jitter_increment) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_jitter_increment_valid)),
+  0x22,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_jitter_increment),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_target_underflow) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_target_underflow_valid)),
+  0x23,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_target_underflow),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_default_jitter) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_default_jitter_valid)),
+  0x24,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, qdj_default_jitter),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, gmin) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, gmin_valid)),
+  0x25,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, gmin),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, tx_system_delay) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, tx_system_delay_valid)),
+  0x26,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, tx_system_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, rx_system_delay) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, rx_system_delay_valid)),
+  0x27,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, rx_system_delay),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, audio_offload) - QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, audio_offload_valid)),
+  0x28,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_get_media_config_rsp_msg_v01, audio_offload)
 };
 
 /* 
@@ -1079,10 +1523,55 @@ static const uint8_t ims_settings_get_qipcall_config_rsp_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, emerg_call_timer),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, vt_quality_selector) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, vt_quality_selector_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, vt_quality_selector) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, vt_quality_selector_valid)),
   0x15,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, vt_quality_selector)
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, vt_quality_selector),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, speech_start_port) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, speech_start_port_valid)),
+  0x16,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, speech_start_port),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, speech_end_port) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, speech_end_port_valid)),
+  0x17,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, speech_end_port),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_wb_octet_aligned_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_wb_octet_aligned_dynamic_pt_valid)),
+  0x18,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_wb_octet_aligned_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt_valid)),
+  0x19,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_octet_aligned_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_octet_aligned_dynamic_pt_valid)),
+  0x1A,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_octet_aligned_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_bandwidth_efficient_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_bandwidth_efficient_dynamic_pt_valid)),
+  0x1B,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_bandwidth_efficient_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, dtmf_wb_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, dtmf_wb_dynamic_pt_valid)),
+  0x1C,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, dtmf_wb_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, dtmf_nb_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, dtmf_nb_dynamic_pt_valid)),
+  0x1D,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, dtmf_nb_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_default_mode) - QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_default_mode_valid)),
+  0x1E,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_qipcall_config_rsp_msg_v01, amr_default_mode)
 };
 
 /* 
@@ -1107,10 +1596,20 @@ static const uint8_t ims_settings_get_reg_mgr_extended_config_rsp_msg_data_v01[]
    QMI_IDL_GENERIC_2_BYTE,
   QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, reregistration_delay),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, t_delay) - QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, t_delay_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, t_delay) - QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, t_delay_valid)),
   0x12,
    QMI_IDL_GENERIC_2_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, t_delay)
+  QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, t_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, reg_retry_base_time) - QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, reg_retry_base_time_valid)),
+  0x13,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, reg_retry_base_time),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, reg_retry_max_time) - QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, reg_retry_max_time_valid)),
+  0x14,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01, reg_retry_max_time)
 };
 
 /* 
@@ -1185,6 +1684,127 @@ static const uint8_t ims_settings_get_pol_mgr_config_rsp_msg_data_v01[] = {
   QMI_IDL_OFFSET8(ims_settings_get_pol_mgr_config_rsp_msg_v01, pol_mgr_apn_name),
   IMS_SETTINGS_POL_MGR_APN_SIZE_V01,
   QMI_IDL_TYPE88(0, 2)
+};
+
+/* 
+ * ims_settings_get_rcs_sm_config_req_msg is empty
+ * static const uint8_t ims_settings_get_rcs_sm_config_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t ims_settings_get_rcs_sm_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, settings_resp),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_auth) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_auth_valid)),
+  0x11,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_auth),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_max_size) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_max_size_valid)),
+  0x12,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_max_size),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_explorer_uri) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_explorer_uri_valid)),
+  0x13,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_explorer_uri),
+  IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01
+};
+
+/* 
+ * ims_settings_get_ut_config_req_msg is empty
+ * static const uint8_t ims_settings_get_ut_config_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t ims_settings_get_ut_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, settings_resp),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, disable_ut) - QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, disable_ut_valid)),
+  0x11,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, disable_ut),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, ut_apn_name) - QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, ut_apn_name_valid)),
+  0x12,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, ut_apn_name),
+  IMS_SETTINGS_UT_APN_NAME_LEN_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, ut_ip_addr_type) - QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, ut_ip_addr_type_valid)),
+  0x13,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, ut_ip_addr_type)
+};
+
+/* 
+ * ims_settings_get_client_provisioning_config_req_msg is empty
+ * static const uint8_t ims_settings_get_client_provisioning_config_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t ims_settings_get_client_provisioning_config_rsp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, settings_resp_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, settings_resp),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_client_provisioning) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_client_provisioning_valid)),
+  0x11,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_client_provisioning),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_volte) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_volte_valid)),
+  0x12,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_volte),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_vt) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_vt_valid)),
+  0x13,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_vt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_presence) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_presence_valid)),
+  0x14,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, enable_presence),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call_valid)),
+  0x15,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call_preference) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call_preference_valid)),
+  0x16,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call_preference),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call_roaming) - QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call_roaming_valid)),
+  0x17,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_get_client_provisioning_config_rsp_msg_v01, wifi_call_roaming)
 };
 
 /* 
@@ -1556,10 +2176,15 @@ static const uint8_t ims_settings_config_ind_reg_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, rcs_sm_config),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, ut_config) - QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, ut_config_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, ut_config) - QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, ut_config_valid)),
   0x1E,
    QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, ut_config)
+  QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, ut_config),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, client_provisioning_config) - QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, client_provisioning_config_valid)),
+  0x1F,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_config_ind_reg_req_msg_v01, client_provisioning_config)
 };
 
 static const uint8_t ims_settings_config_ind_reg_rsp_msg_data_v01[] = {
@@ -1650,10 +2275,50 @@ static const uint8_t ims_settings_sip_config_ind_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, tcp_max_backoff_timer_value),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, gzip_decoding_outbuffer_multiplier) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, gzip_decoding_outbuffer_multiplier_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, gzip_decoding_outbuffer_multiplier) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, gzip_decoding_outbuffer_multiplier_valid)),
   0x20,
    QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, gzip_decoding_outbuffer_multiplier)
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, gzip_decoding_outbuffer_multiplier),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_td_value) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_td_value_valid)),
+  0x21,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_td_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_t4) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_t4_valid)),
+  0x22,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_t4),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_ta_value) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_ta_value_valid)),
+  0x23,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_ta_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_te_value) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_te_value_valid)),
+  0x24,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_te_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_tg_value) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_tg_value_valid)),
+  0x25,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_tg_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_th_value) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_th_value_valid)),
+  0x26,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_th_value),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_ti_value) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_ti_value_valid)),
+  0x27,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_ti_value),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_tk_value) - QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_tk_value_valid)),
+  0x28,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_sip_config_ind_msg_v01, timer_tk_value)
 };
 
 static const uint8_t ims_settings_reg_mgr_config_ind_msg_data_v01[] = {
@@ -1685,11 +2350,17 @@ static const uint8_t ims_settings_sms_config_ind_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(ims_settings_sms_config_ind_msg_v01, sms_over_ip_network_indication),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sms_config_ind_msg_v01, phone_context_uri) - QMI_IDL_OFFSET8(ims_settings_sms_config_ind_msg_v01, phone_context_uri_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_sms_config_ind_msg_v01, phone_context_uri) - QMI_IDL_OFFSET8(ims_settings_sms_config_ind_msg_v01, phone_context_uri_valid)),
   0x12,
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
   QMI_IDL_OFFSET8(ims_settings_sms_config_ind_msg_v01, phone_context_uri),
-  IMS_SETTINGS_STRING_LEN_MAX_V01
+  IMS_SETTINGS_STRING_LEN_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(ims_settings_sms_config_ind_msg_v01, sms_psi) - QMI_IDL_OFFSET16RELATIVE(ims_settings_sms_config_ind_msg_v01, sms_psi_valid)),
+  0x13,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
+  QMI_IDL_OFFSET16ARRAY(ims_settings_sms_config_ind_msg_v01, sms_psi),
+  IMS_SETTINGS_SMS_PSI_LEN_V01
 };
 
 static const uint8_t ims_settings_user_config_ind_msg_data_v01[] = {
@@ -1766,10 +2437,16 @@ static const uint8_t ims_settings_voip_config_ind_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_silent_redial_enabled),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_preferred_rtp_payload_type) - QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_preferred_rtp_payload_type_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_preferred_rtp_payload_type) - QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_preferred_rtp_payload_type_valid)),
   0x1D,
    QMI_IDL_GENERIC_2_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_preferred_rtp_payload_type)
+  QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_preferred_rtp_payload_type),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_config_confURI) - QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_config_confURI_valid)),
+  0x1E,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_voip_config_ind_msg_v01, voip_config_confURI),
+  IMS_SETTINGS_VOIP_CONFIG_CONF_URI_LEN_V01
 };
 
 static const uint8_t ims_settings_presence_config_ind_msg_data_v01[] = {
@@ -1855,6 +2532,19 @@ static const uint8_t ims_settings_presence_config_ind_msg_data_v01[] = {
   QMI_IDL_OFFSET16ARRAY(ims_settings_presence_config_ind_msg_v01, publish_error_recovery_timer)
 };
 
+static const uint8_t ims_settings_presence_ext_config_ind_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_error_recovery_timer) - QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_error_recovery_timer_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_error_recovery_timer),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_user_agent) - QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_user_agent_valid)),
+  0x11,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_user_agent),
+  IMS_SETTINGS_PRESENCE_USERAGENT_LEN_V01
+};
+
 static const uint8_t ims_settings_media_config_ind_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, h264_profile) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, h264_profile_valid)),
   0x10,
@@ -1881,10 +2571,101 @@ static const uint8_t ims_settings_media_config_ind_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, video_resolution),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, video_codec) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, video_codec_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, video_codec) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, video_codec_valid)),
   0x15,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, video_codec)
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, video_codec),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, lipsync_drop_upper_limit) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, lipsync_drop_upper_limit_valid)),
+  0x16,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, lipsync_drop_upper_limit),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, lipsync_drop_lower_limit) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, lipsync_drop_lower_limit_valid)),
+  0x17,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, lipsync_drop_lower_limit),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, rtp_mtu_size) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, rtp_mtu_size_valid)),
+  0x18,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, rtp_mtu_size),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_time_warping_enabled) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_time_warping_enabled_valid)),
+  0x19,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_time_warping_enabled),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_iba_max) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_iba_max_valid)),
+  0x1A,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_iba_max),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_frames_at_start) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_frames_at_start_valid)),
+  0x1B,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_frames_at_start),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_delay) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_delay_valid)),
+  0x1C,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_min_delay) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_min_delay_valid)),
+  0x1D,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_min_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_optimization2_info) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_optimization2_info_valid)),
+  0x1E,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_optimization2_info),
+  QMI_IDL_TYPE88(0, 3),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_frames_at_run) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_frames_at_run_valid)),
+  0x1F,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_frames_at_run),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_bumped_up_delay) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_bumped_up_delay_valid)),
+  0x20,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_max_bumped_up_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_jitter_increment) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_jitter_increment_valid)),
+  0x21,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_jitter_increment),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_target_underflow) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_target_underflow_valid)),
+  0x22,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_target_underflow),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_default_jitter) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_default_jitter_valid)),
+  0x23,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, qdj_default_jitter),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, gmin) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, gmin_valid)),
+  0x24,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, gmin),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, tx_system_delay) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, tx_system_delay_valid)),
+  0x25,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, tx_system_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, rx_system_delay) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, rx_system_delay_valid)),
+  0x26,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, rx_system_delay),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, audio_offload) - QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, audio_offload_valid)),
+  0x27,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(ims_settings_media_config_ind_msg_v01, audio_offload)
 };
 
 static const uint8_t ims_settings_qipcall_config_ind_msg_data_v01[] = {
@@ -1908,10 +2689,55 @@ static const uint8_t ims_settings_qipcall_config_ind_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, emerg_call_timer),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, vt_quality_selector) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, vt_quality_selector_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, vt_quality_selector) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, vt_quality_selector_valid)),
   0x14,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, vt_quality_selector)
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, vt_quality_selector),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, speech_start_port) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, speech_start_port_valid)),
+  0x15,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, speech_start_port),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, speech_end_port) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, speech_end_port_valid)),
+  0x16,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, speech_end_port),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_wb_octet_aligned_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_wb_octet_aligned_dynamic_pt_valid)),
+  0x17,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_wb_octet_aligned_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt_valid)),
+  0x18,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_wb_bandwidth_efficient_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_octet_aligned_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_octet_aligned_dynamic_pt_valid)),
+  0x19,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_octet_aligned_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_bandwidth_efficient_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_bandwidth_efficient_dynamic_pt_valid)),
+  0x1A,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_bandwidth_efficient_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, dtmf_wb_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, dtmf_wb_dynamic_pt_valid)),
+  0x1B,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, dtmf_wb_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, dtmf_nb_dynamic_pt) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, dtmf_nb_dynamic_pt_valid)),
+  0x1C,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, dtmf_nb_dynamic_pt),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_default_mode) - QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_default_mode_valid)),
+  0x1D,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_qipcall_config_ind_msg_v01, amr_default_mode)
 };
 
 static const uint8_t ims_settings_reg_mgr_extended_config_ind_msg_data_v01[] = {
@@ -1920,10 +2746,20 @@ static const uint8_t ims_settings_reg_mgr_extended_config_ind_msg_data_v01[] = {
    QMI_IDL_GENERIC_2_BYTE,
   QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, reregistration_delay),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, t_delay) - QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, t_delay_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, t_delay) - QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, t_delay_valid)),
   0x11,
    QMI_IDL_GENERIC_2_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, t_delay)
+  QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, t_delay),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, reg_retry_base_time) - QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, reg_retry_base_time_valid)),
+  0x12,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, reg_retry_base_time),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, reg_retry_max_time) - QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, reg_retry_max_time_valid)),
+  0x13,
+   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_reg_mgr_extended_config_ind_msg_v01, reg_retry_max_time)
 };
 
 static const uint8_t ims_settings_pol_mgr_config_ind_msg_data_v01[] = {
@@ -1982,6 +2818,79 @@ static const uint8_t ims_settings_pol_mgr_config_ind_msg_data_v01[] = {
   QMI_IDL_OFFSET8(ims_settings_pol_mgr_config_ind_msg_v01, pol_mgr_apn_name),
   IMS_SETTINGS_POL_MGR_APN_SIZE_V01,
   QMI_IDL_TYPE88(0, 2)
+};
+
+static const uint8_t ims_settings_rcs_sm_config_ind_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_auth) - QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_auth_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_auth),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_max_size) - QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_max_size_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_max_size),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_explorer_uri) - QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_explorer_uri_valid)),
+  0x12,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_explorer_uri),
+  IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01
+};
+
+static const uint8_t ims_settings_ut_config_ind_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_disabled) - QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_disabled_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_disabled),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_apn_name) - QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_apn_name_valid)),
+  0x11,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_apn_name),
+  IMS_SETTINGS_UT_APN_NAME_LEN_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_ip_addr_type) - QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_ip_addr_type_valid)),
+  0x12,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_ip_addr_type)
+};
+
+static const uint8_t ims_settings_client_provisioning_config_ind_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, client_provisioning_enabled) - QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, client_provisioning_enabled_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, client_provisioning_enabled),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, volte_enabled) - QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, volte_enabled_valid)),
+  0x11,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, volte_enabled),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, vt_enabled) - QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, vt_enabled_valid)),
+  0x12,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, vt_enabled),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, presence_enabled) - QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, presence_enabled_valid)),
+  0x13,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, presence_enabled),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call) - QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call_valid)),
+  0x14,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call_preference) - QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call_preference_valid)),
+  0x15,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call_preference),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call_roaming) - QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call_roaming_valid)),
+  0x16,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(ims_settings_client_provisioning_config_ind_msg_v01, wifi_call_roaming)
 };
 
 static const uint8_t ims_settings_sip_read_only_config_ind_msg_data_v01[] = {
@@ -2045,191 +2954,12 @@ static const uint8_t ims_settings_network_read_only_config_ind_msg_data_v01[] = 
   QMI_IDL_OFFSET8(ims_settings_network_read_only_config_ind_msg_v01, msrp_pkt_size)
 };
 
-static const uint8_t ims_settings_set_presence_ext_config_req_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_error_recovery_timer) - QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_error_recovery_timer_valid)),
-  0x10,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_req_msg_v01, publish_error_recovery_timer)
-};
-
-static const uint8_t ims_settings_set_presence_ext_config_rsp_msg_data_v01[] = {
-  0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, settings_resp_valid)),
-  0x10,
-   QMI_IDL_1_BYTE_ENUM,
-  QMI_IDL_OFFSET8(ims_settings_set_presence_ext_config_rsp_msg_v01, settings_resp)
-};
-
-static const uint8_t ims_settings_set_rcs_sm_config_req_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_auth) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_auth_valid)),
-  0x10,
-   QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_auth),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_max_size) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_max_size_valid)),
-  0x11,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_max_size),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_explorer_uri) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_explorer_uri_valid)),
-  0x12,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_req_msg_v01, standalone_message_explorer_uri),
-  IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01
-};
-
-static const uint8_t ims_settings_set_rcs_sm_config_rsp_msg_data_v01[] = {
-  0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, settings_resp_valid)),
-  0x10,
-   QMI_IDL_1_BYTE_ENUM,
-  QMI_IDL_OFFSET8(ims_settings_set_rcs_sm_config_rsp_msg_v01, settings_resp)
-};
-
-/* 
- * ims_settings_get_presence_ext_config_req_msg is empty
- * static const uint8_t ims_settings_get_presence_ext_config_req_msg_data_v01[] = {
- * };
- */
-  
-static const uint8_t ims_settings_get_presence_ext_config_rsp_msg_data_v01[] = {
-  0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, settings_resp_valid)),
-  0x10,
-   QMI_IDL_1_BYTE_ENUM,
-  QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, settings_resp),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_error_recovery_timer) - QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_error_recovery_timer_valid)),
-  0x11,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_presence_ext_config_rsp_msg_v01, publish_error_recovery_timer)
-};
-
-/* 
- * ims_settings_get_rcs_sm_config_req_msg is empty
- * static const uint8_t ims_settings_get_rcs_sm_config_req_msg_data_v01[] = {
- * };
- */
-  
-static const uint8_t ims_settings_get_rcs_sm_config_rsp_msg_data_v01[] = {
-  0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, settings_resp_valid)),
-  0x10,
-   QMI_IDL_1_BYTE_ENUM,
-  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, settings_resp),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_auth) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_auth_valid)),
-  0x11,
-   QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_auth),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_max_size) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_max_size_valid)),
-  0x12,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_max_size),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_explorer_uri) - QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_explorer_uri_valid)),
-  0x13,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(ims_settings_get_rcs_sm_config_rsp_msg_v01, standalone_message_explorer_uri),
-  IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01
-};
-
-static const uint8_t ims_settings_presence_ext_config_ind_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_error_recovery_timer) - QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_error_recovery_timer_valid)),
-  0x10,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_presence_ext_config_ind_msg_v01, publish_error_recovery_timer)
-};
-
-static const uint8_t ims_settings_rcs_sm_config_ind_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_auth) - QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_auth_valid)),
-  0x10,
-   QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_auth),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_max_size) - QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_max_size_valid)),
-  0x11,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_max_size),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_explorer_uri) - QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_explorer_uri_valid)),
-  0x12,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(ims_settings_rcs_sm_config_ind_msg_v01, standalone_message_explorer_uri),
-  IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01
-};
-
-static const uint8_t ims_settings_set_ut_config_req_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, disable_ut) - QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, disable_ut_valid)),
-  0x10,
-   QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_set_ut_config_req_msg_v01, disable_ut)
-};
-
-static const uint8_t ims_settings_set_ut_config_rsp_msg_data_v01[] = {
-  0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, settings_resp_valid)),
-  0x10,
-   QMI_IDL_1_BYTE_ENUM,
-  QMI_IDL_OFFSET8(ims_settings_set_ut_config_rsp_msg_v01, settings_resp)
-};
-
-/* 
- * ims_settings_get_ut_config_req_msg is empty
- * static const uint8_t ims_settings_get_ut_config_req_msg_data_v01[] = {
- * };
- */
-  
-static const uint8_t ims_settings_get_ut_config_rsp_msg_data_v01[] = {
-  0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, settings_resp) - QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, settings_resp_valid)),
-  0x10,
-   QMI_IDL_1_BYTE_ENUM,
-  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, settings_resp),
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, disable_ut) - QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, disable_ut_valid)),
-  0x11,
-   QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_get_ut_config_rsp_msg_v01, disable_ut)
-};
-
-static const uint8_t ims_settings_ut_config_ind_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_disabled) - QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_disabled_valid)),
-  0x10,
-   QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(ims_settings_ut_config_ind_msg_v01, ut_disabled)
-};
-
 /* Type Table */
 static const qmi_idl_type_table_entry  imss_type_table_v01[] = {
   {sizeof(ims_settings_pol_man_rat_apn_info_v01), ims_settings_pol_man_rat_apn_info_data_v01},
   {sizeof(ims_settings_pol_mgr_rat_apn_fb_sp_info_v01), ims_settings_pol_mgr_rat_apn_fb_sp_info_data_v01},
-  {sizeof(ims_settings_pol_mgr_apn_name_v01), ims_settings_pol_mgr_apn_name_data_v01}
+  {sizeof(ims_settings_pol_mgr_apn_name_v01), ims_settings_pol_mgr_apn_name_data_v01},
+  {sizeof(ims_settings_qdj_optimization2_info_v01), ims_settings_qdj_optimization2_info_data_v01}
 };
 
 /* Message Table */
@@ -2246,6 +2976,8 @@ static const qmi_idl_message_table_entry imss_message_table_v01[] = {
   {sizeof(ims_settings_set_voip_config_rsp_msg_v01), ims_settings_set_voip_config_rsp_msg_data_v01},
   {sizeof(ims_settings_set_presence_config_req_msg_v01), ims_settings_set_presence_config_req_msg_data_v01},
   {sizeof(ims_settings_set_presence_config_rsp_msg_v01), ims_settings_set_presence_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_set_presence_ext_config_req_msg_v01), ims_settings_set_presence_ext_config_req_msg_data_v01},
+  {sizeof(ims_settings_set_presence_ext_config_rsp_msg_v01), ims_settings_set_presence_ext_config_rsp_msg_data_v01},
   {sizeof(ims_settings_set_media_config_req_msg_v01), ims_settings_set_media_config_req_msg_data_v01},
   {sizeof(ims_settings_set_media_config_rsp_msg_v01), ims_settings_set_media_config_rsp_msg_data_v01},
   {sizeof(ims_settings_set_qipcall_config_req_msg_v01), ims_settings_set_qipcall_config_req_msg_data_v01},
@@ -2254,6 +2986,14 @@ static const qmi_idl_message_table_entry imss_message_table_v01[] = {
   {sizeof(ims_settings_set_reg_mgr_extended_config_rsp_msg_v01), ims_settings_set_reg_mgr_extended_config_rsp_msg_data_v01},
   {sizeof(ims_settings_set_pol_mgr_config_req_msg_v01), ims_settings_set_pol_mgr_config_req_msg_data_v01},
   {sizeof(ims_settings_set_pol_mgr_config_rsp_msg_v01), ims_settings_set_pol_mgr_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_set_rcs_sm_config_req_msg_v01), ims_settings_set_rcs_sm_config_req_msg_data_v01},
+  {sizeof(ims_settings_set_rcs_sm_config_rsp_msg_v01), ims_settings_set_rcs_sm_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_set_ut_config_req_msg_v01), ims_settings_set_ut_config_req_msg_data_v01},
+  {sizeof(ims_settings_set_ut_config_rsp_msg_v01), ims_settings_set_ut_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_set_client_provisioning_config_req_msg_v01), ims_settings_set_client_provisioning_config_req_msg_data_v01},
+  {sizeof(ims_settings_set_client_provisioning_config_rsp_msg_v01), ims_settings_set_client_provisioning_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_set_apcs_complete_config_req_msg_v01), 0},
+  {sizeof(ims_settings_set_apcs_complete_config_rsp_msg_v01), ims_settings_set_apcs_complete_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_sip_config_req_msg_v01), 0},
   {sizeof(ims_settings_get_sip_config_rsp_msg_v01), ims_settings_get_sip_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_reg_mgr_config_req_msg_v01), 0},
@@ -2266,6 +3006,8 @@ static const qmi_idl_message_table_entry imss_message_table_v01[] = {
   {sizeof(ims_settings_get_voip_config_rsp_msg_v01), ims_settings_get_voip_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_presence_config_req_msg_v01), 0},
   {sizeof(ims_settings_get_presence_config_rsp_msg_v01), ims_settings_get_presence_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_get_presence_ext_config_req_msg_v01), 0},
+  {sizeof(ims_settings_get_presence_ext_config_rsp_msg_v01), ims_settings_get_presence_ext_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_media_config_req_msg_v01), 0},
   {sizeof(ims_settings_get_media_config_rsp_msg_v01), ims_settings_get_media_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_qipcall_config_req_msg_v01), 0},
@@ -2274,6 +3016,12 @@ static const qmi_idl_message_table_entry imss_message_table_v01[] = {
   {sizeof(ims_settings_get_reg_mgr_extended_config_rsp_msg_v01), ims_settings_get_reg_mgr_extended_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_pol_mgr_config_req_msg_v01), 0},
   {sizeof(ims_settings_get_pol_mgr_config_rsp_msg_v01), ims_settings_get_pol_mgr_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_get_rcs_sm_config_req_msg_v01), 0},
+  {sizeof(ims_settings_get_rcs_sm_config_rsp_msg_v01), ims_settings_get_rcs_sm_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_get_ut_config_req_msg_v01), 0},
+  {sizeof(ims_settings_get_ut_config_rsp_msg_v01), ims_settings_get_ut_config_rsp_msg_data_v01},
+  {sizeof(ims_settings_get_client_provisioning_config_req_msg_v01), 0},
+  {sizeof(ims_settings_get_client_provisioning_config_rsp_msg_v01), ims_settings_get_client_provisioning_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_sip_read_only_config_req_msg_v01), 0},
   {sizeof(ims_settings_get_sip_read_only_config_rsp_msg_v01), ims_settings_get_sip_read_only_config_rsp_msg_data_v01},
   {sizeof(ims_settings_get_network_read_only_config_req_msg_v01), 0},
@@ -2296,27 +3044,16 @@ static const qmi_idl_message_table_entry imss_message_table_v01[] = {
   {sizeof(ims_settings_user_config_ind_msg_v01), ims_settings_user_config_ind_msg_data_v01},
   {sizeof(ims_settings_voip_config_ind_msg_v01), ims_settings_voip_config_ind_msg_data_v01},
   {sizeof(ims_settings_presence_config_ind_msg_v01), ims_settings_presence_config_ind_msg_data_v01},
+  {sizeof(ims_settings_presence_ext_config_ind_msg_v01), ims_settings_presence_ext_config_ind_msg_data_v01},
   {sizeof(ims_settings_media_config_ind_msg_v01), ims_settings_media_config_ind_msg_data_v01},
   {sizeof(ims_settings_qipcall_config_ind_msg_v01), ims_settings_qipcall_config_ind_msg_data_v01},
   {sizeof(ims_settings_reg_mgr_extended_config_ind_msg_v01), ims_settings_reg_mgr_extended_config_ind_msg_data_v01},
   {sizeof(ims_settings_pol_mgr_config_ind_msg_v01), ims_settings_pol_mgr_config_ind_msg_data_v01},
-  {sizeof(ims_settings_sip_read_only_config_ind_msg_v01), ims_settings_sip_read_only_config_ind_msg_data_v01},
-  {sizeof(ims_settings_network_read_only_config_ind_msg_v01), ims_settings_network_read_only_config_ind_msg_data_v01},
-  {sizeof(ims_settings_set_presence_ext_config_req_msg_v01), ims_settings_set_presence_ext_config_req_msg_data_v01},
-  {sizeof(ims_settings_set_presence_ext_config_rsp_msg_v01), ims_settings_set_presence_ext_config_rsp_msg_data_v01},
-  {sizeof(ims_settings_set_rcs_sm_config_req_msg_v01), ims_settings_set_rcs_sm_config_req_msg_data_v01},
-  {sizeof(ims_settings_set_rcs_sm_config_rsp_msg_v01), ims_settings_set_rcs_sm_config_rsp_msg_data_v01},
-  {sizeof(ims_settings_get_presence_ext_config_req_msg_v01), 0},
-  {sizeof(ims_settings_get_presence_ext_config_rsp_msg_v01), ims_settings_get_presence_ext_config_rsp_msg_data_v01},
-  {sizeof(ims_settings_get_rcs_sm_config_req_msg_v01), 0},
-  {sizeof(ims_settings_get_rcs_sm_config_rsp_msg_v01), ims_settings_get_rcs_sm_config_rsp_msg_data_v01},
-  {sizeof(ims_settings_presence_ext_config_ind_msg_v01), ims_settings_presence_ext_config_ind_msg_data_v01},
   {sizeof(ims_settings_rcs_sm_config_ind_msg_v01), ims_settings_rcs_sm_config_ind_msg_data_v01},
-  {sizeof(ims_settings_set_ut_config_req_msg_v01), ims_settings_set_ut_config_req_msg_data_v01},
-  {sizeof(ims_settings_set_ut_config_rsp_msg_v01), ims_settings_set_ut_config_rsp_msg_data_v01},
-  {sizeof(ims_settings_get_ut_config_req_msg_v01), 0},
-  {sizeof(ims_settings_get_ut_config_rsp_msg_v01), ims_settings_get_ut_config_rsp_msg_data_v01},
-  {sizeof(ims_settings_ut_config_ind_msg_v01), ims_settings_ut_config_ind_msg_data_v01}
+  {sizeof(ims_settings_ut_config_ind_msg_v01), ims_settings_ut_config_ind_msg_data_v01},
+  {sizeof(ims_settings_client_provisioning_config_ind_msg_v01), ims_settings_client_provisioning_config_ind_msg_data_v01},
+  {sizeof(ims_settings_sip_read_only_config_ind_msg_v01), ims_settings_sip_read_only_config_ind_msg_data_v01},
+  {sizeof(ims_settings_network_read_only_config_ind_msg_v01), ims_settings_network_read_only_config_ind_msg_data_v01}
 };
 
 /* Range Table */
@@ -2344,40 +3081,43 @@ static const qmi_idl_type_table_object imss_qmi_idl_type_table_object_v01 = {
 static const qmi_idl_service_message_table_entry imss_service_command_messages_v01[] = {
   {QMI_IMS_SETTINGS_GET_SUPPORTED_MSGS_REQ_V01, QMI_IDL_TYPE16(1, 0), 0},
   {QMI_IMS_SETTINGS_GET_SUPPORTED_FIELDS_REQ_V01, QMI_IDL_TYPE16(1, 2), 5},
-  {QMI_IMS_SETTINGS_SET_SIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 0), 100},
+  {QMI_IMS_SETTINGS_SET_SIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 0), 156},
   {QMI_IMS_SETTINGS_SET_REG_MGR_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 2), 267},
-  {QMI_IMS_SETTINGS_SET_SMS_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 4), 266},
+  {QMI_IMS_SETTINGS_SET_SMS_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 4), 397},
   {QMI_IMS_SETTINGS_SET_USER_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 6), 258},
-  {QMI_IMS_SETTINGS_SET_VOIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 8), 131},
-  {QMI_IMS_SETTINGS_GET_SIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 20), 0},
-  {QMI_IMS_SETTINGS_GET_REG_MGR_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 22), 0},
-  {QMI_IMS_SETTINGS_GET_SMS_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 24), 0},
-  {QMI_IMS_SETTINGS_GET_USER_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 26), 0},
-  {QMI_IMS_SETTINGS_GET_VOIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 28), 0},
-  {QMI_IMS_SETTINGS_CONFIG_IND_REG_REQ_V01, QMI_IDL_TYPE16(0, 54), 60},
+  {QMI_IMS_SETTINGS_SET_VOIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 8), 261},
+  {QMI_IMS_SETTINGS_GET_SIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 30), 0},
+  {QMI_IMS_SETTINGS_GET_REG_MGR_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 32), 0},
+  {QMI_IMS_SETTINGS_GET_SMS_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 34), 0},
+  {QMI_IMS_SETTINGS_GET_USER_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 36), 0},
+  {QMI_IMS_SETTINGS_GET_VOIP_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 38), 0},
+  {QMI_IMS_SETTINGS_CONFIG_IND_REG_REQ_V01, QMI_IDL_TYPE16(0, 72), 64},
   {QMI_IMS_SETTINGS_SET_PRESENCE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 10), 224},
-  {QMI_IMS_SETTINGS_GET_PRESENCE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 30), 0},
-  {QMI_IMS_SETTINGS_SET_MEDIA_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 12), 37},
-  {QMI_IMS_SETTINGS_GET_MEDIA_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 32), 0},
-  {QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 14), 26},
-  {QMI_IMS_SETTINGS_GET_QIPCALL_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 34), 0},
-  {QMI_IMS_SETTINGS_GET_SIP_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 40), 0},
-  {QMI_IMS_SETTINGS_GET_NETWORK_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 42), 0},
-  {QMI_IMS_SETTINGS_GET_VOIP_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 44), 0},
-  {QMI_IMS_SETTINGS_GET_USER_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 46), 0},
-  {QMI_IMS_SETTINGS_GET_REG_MGR_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 48), 0},
-  {QMI_IMS_SETTINGS_GET_RCS_AUTO_CONFIG_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 50), 0},
-  {QMI_IMS_SETTINGS_GET_RCS_IMSCORE_AUTO_CONFIG_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 52), 0},
-  {QMI_IMS_SETTINGS_SET_REG_MGR_EXTENDED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 16), 10},
-  {QMI_IMS_SETTINGS_GET_REG_MGR_EXTENDED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 36), 0},
-  {QMI_IMS_SETTINGS_SET_POL_MGR_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 18), 461},
-  {QMI_IMS_SETTINGS_GET_POL_MGR_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 38), 0},
-  {QMI_IMS_SETTINGS_SET_PRESENCE_EXT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 68), 7},
-  {QMI_IMS_SETTINGS_GET_PRESENCE_EXT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 72), 0},
-  {QMI_IMS_SETTINGS_SET_RCS_SM_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 70), 141},
-  {QMI_IMS_SETTINGS_GET_RCS_SM_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 74), 0},
-  {QMI_IMS_SETTINGS_SET_UT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 78), 4},
-  {QMI_IMS_SETTINGS_GET_UT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 80), 0}
+  {QMI_IMS_SETTINGS_GET_PRESENCE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 40), 0},
+  {QMI_IMS_SETTINGS_SET_MEDIA_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 14), 37},
+  {QMI_IMS_SETTINGS_GET_MEDIA_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 44), 0},
+  {QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 16), 70},
+  {QMI_IMS_SETTINGS_GET_QIPCALL_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 46), 0},
+  {QMI_IMS_SETTINGS_GET_SIP_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 58), 0},
+  {QMI_IMS_SETTINGS_GET_NETWORK_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 60), 0},
+  {QMI_IMS_SETTINGS_GET_VOIP_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 62), 0},
+  {QMI_IMS_SETTINGS_GET_USER_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 64), 0},
+  {QMI_IMS_SETTINGS_GET_REG_MGR_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 66), 0},
+  {QMI_IMS_SETTINGS_GET_RCS_AUTO_CONFIG_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 68), 0},
+  {QMI_IMS_SETTINGS_GET_RCS_IMSCORE_AUTO_CONFIG_READ_ONLY_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 70), 0},
+  {QMI_IMS_SETTINGS_SET_REG_MGR_EXTENDED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 18), 20},
+  {QMI_IMS_SETTINGS_GET_REG_MGR_EXTENDED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 48), 0},
+  {QMI_IMS_SETTINGS_SET_POL_MGR_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 20), 461},
+  {QMI_IMS_SETTINGS_GET_POL_MGR_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 50), 0},
+  {QMI_IMS_SETTINGS_SET_PRESENCE_EXT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 12), 90},
+  {QMI_IMS_SETTINGS_GET_PRESENCE_EXT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 42), 0},
+  {QMI_IMS_SETTINGS_SET_RCS_SM_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 22), 141},
+  {QMI_IMS_SETTINGS_GET_RCS_SM_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 52), 0},
+  {QMI_IMS_SETTINGS_SET_UT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 24), 78},
+  {QMI_IMS_SETTINGS_GET_UT_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 54), 0},
+  {QMI_IMS_SETTINGS_SET_CLIENT_PROVISIONING_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 26), 37},
+  {QMI_IMS_SETTINGS_GET_CLIENT_PROVISIONING_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 56), 0},
+  {QMI_IMS_SETTINGS_SET_APCS_COMPLETE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 28), 0}
 };
 
 static const qmi_idl_service_message_table_entry imss_service_response_messages_v01[] = {
@@ -2388,53 +3128,57 @@ static const qmi_idl_service_message_table_entry imss_service_response_messages_
   {QMI_IMS_SETTINGS_SET_SMS_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 5), 11},
   {QMI_IMS_SETTINGS_SET_USER_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 7), 11},
   {QMI_IMS_SETTINGS_SET_VOIP_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 9), 11},
-  {QMI_IMS_SETTINGS_GET_SIP_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 21), 111},
-  {QMI_IMS_SETTINGS_GET_REG_MGR_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 23), 278},
-  {QMI_IMS_SETTINGS_GET_SMS_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 25), 277},
-  {QMI_IMS_SETTINGS_GET_USER_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 27), 269},
-  {QMI_IMS_SETTINGS_GET_VOIP_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 29), 74},
-  {QMI_IMS_SETTINGS_CONFIG_IND_REG_RSP_V01, QMI_IDL_TYPE16(0, 55), 7},
+  {QMI_IMS_SETTINGS_GET_SIP_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 31), 167},
+  {QMI_IMS_SETTINGS_GET_REG_MGR_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 33), 278},
+  {QMI_IMS_SETTINGS_GET_SMS_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 35), 408},
+  {QMI_IMS_SETTINGS_GET_USER_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 37), 269},
+  {QMI_IMS_SETTINGS_GET_VOIP_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 39), 204},
+  {QMI_IMS_SETTINGS_CONFIG_IND_REG_RSP_V01, QMI_IDL_TYPE16(0, 73), 7},
   {QMI_IMS_SETTINGS_SET_PRESENCE_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 11), 11},
-  {QMI_IMS_SETTINGS_GET_PRESENCE_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 31), 235},
-  {QMI_IMS_SETTINGS_SET_MEDIA_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 13), 11},
-  {QMI_IMS_SETTINGS_GET_MEDIA_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 33), 48},
-  {QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 15), 11},
-  {QMI_IMS_SETTINGS_GET_QIPCALL_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 35), 37},
-  {QMI_IMS_SETTINGS_GET_SIP_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 41), 557},
-  {QMI_IMS_SETTINGS_GET_NETWORK_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 43), 42},
-  {QMI_IMS_SETTINGS_GET_VOIP_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 45), 20},
-  {QMI_IMS_SETTINGS_GET_USER_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 47), 400},
-  {QMI_IMS_SETTINGS_GET_REG_MGR_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 49), 52},
-  {QMI_IMS_SETTINGS_GET_RCS_AUTO_CONFIG_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 51), 919},
-  {QMI_IMS_SETTINGS_GET_RCS_IMSCORE_AUTO_CONFIG_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 53), 32},
-  {QMI_IMS_SETTINGS_SET_REG_MGR_EXTENDED_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 17), 11},
-  {QMI_IMS_SETTINGS_GET_REG_MGR_EXTENDED_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 37), 21},
-  {QMI_IMS_SETTINGS_SET_POL_MGR_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 19), 11},
-  {QMI_IMS_SETTINGS_GET_POL_MGR_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 39), 472},
-  {QMI_IMS_SETTINGS_SET_PRESENCE_EXT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 69), 11},
-  {QMI_IMS_SETTINGS_GET_PRESENCE_EXT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 73), 18},
-  {QMI_IMS_SETTINGS_SET_RCS_SM_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 71), 11},
-  {QMI_IMS_SETTINGS_GET_RCS_SM_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 75), 152},
-  {QMI_IMS_SETTINGS_SET_UT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 79), 11},
-  {QMI_IMS_SETTINGS_GET_UT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 81), 15}
+  {QMI_IMS_SETTINGS_GET_PRESENCE_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 41), 235},
+  {QMI_IMS_SETTINGS_SET_MEDIA_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 15), 11},
+  {QMI_IMS_SETTINGS_GET_MEDIA_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 45), 129},
+  {QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 17), 11},
+  {QMI_IMS_SETTINGS_GET_QIPCALL_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 47), 81},
+  {QMI_IMS_SETTINGS_GET_SIP_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 59), 557},
+  {QMI_IMS_SETTINGS_GET_NETWORK_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 61), 42},
+  {QMI_IMS_SETTINGS_GET_VOIP_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 63), 20},
+  {QMI_IMS_SETTINGS_GET_USER_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 65), 400},
+  {QMI_IMS_SETTINGS_GET_REG_MGR_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 67), 52},
+  {QMI_IMS_SETTINGS_GET_RCS_AUTO_CONFIG_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 69), 919},
+  {QMI_IMS_SETTINGS_GET_RCS_IMSCORE_AUTO_CONFIG_READ_ONLY_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 71), 32},
+  {QMI_IMS_SETTINGS_SET_REG_MGR_EXTENDED_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 19), 11},
+  {QMI_IMS_SETTINGS_GET_REG_MGR_EXTENDED_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 49), 31},
+  {QMI_IMS_SETTINGS_SET_POL_MGR_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 21), 11},
+  {QMI_IMS_SETTINGS_GET_POL_MGR_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 51), 472},
+  {QMI_IMS_SETTINGS_SET_PRESENCE_EXT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 13), 11},
+  {QMI_IMS_SETTINGS_GET_PRESENCE_EXT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 43), 101},
+  {QMI_IMS_SETTINGS_SET_RCS_SM_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 23), 11},
+  {QMI_IMS_SETTINGS_GET_RCS_SM_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 53), 152},
+  {QMI_IMS_SETTINGS_SET_UT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 25), 11},
+  {QMI_IMS_SETTINGS_GET_UT_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 55), 89},
+  {QMI_IMS_SETTINGS_SET_CLIENT_PROVISIONING_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 27), 11},
+  {QMI_IMS_SETTINGS_GET_CLIENT_PROVISIONING_CONFIG_RSP_V01, QMI_IDL_TYPE16(0, 57), 48},
+  {QMI_IMS_SETTINGS_SET_APCS_COMPLETE_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 29), 11}
 };
 
 static const qmi_idl_service_message_table_entry imss_service_indication_messages_v01[] = {
-  {QMI_IMS_SETTINGS_SIP_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 56), 100},
-  {QMI_IMS_SETTINGS_REG_MGR_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 57), 267},
-  {QMI_IMS_SETTINGS_SMS_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 58), 266},
-  {QMI_IMS_SETTINGS_USER_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 59), 258},
-  {QMI_IMS_SETTINGS_VOIP_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 60), 63},
-  {QMI_IMS_SETTINGS_PRESENCE_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 61), 224},
-  {QMI_IMS_SETTINGS_MEDIA_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 62), 37},
-  {QMI_IMS_SETTINGS_QIPCALL_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 63), 26},
-  {QMI_IMS_SETTINGS_SIP_READ_ONLY_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 66), 546},
-  {QMI_IMS_SETTINGS_NETWORK_READ_ONLY_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 67), 31},
-  {QMI_IMS_SETTINGS_REG_MGR_EXTENDED_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 64), 10},
-  {QMI_IMS_SETTINGS_POL_MGR_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 65), 461},
-  {QMI_IMS_SETTINGS_PRESENCE_EXT_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 76), 7},
-  {QMI_IMS_SETTINGS_RCS_SM_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 77), 141},
-  {QMI_IMS_SETTINGS_UT_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 82), 4}
+  {QMI_IMS_SETTINGS_SIP_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 74), 156},
+  {QMI_IMS_SETTINGS_REG_MGR_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 75), 267},
+  {QMI_IMS_SETTINGS_SMS_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 76), 397},
+  {QMI_IMS_SETTINGS_USER_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 77), 258},
+  {QMI_IMS_SETTINGS_VOIP_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 78), 193},
+  {QMI_IMS_SETTINGS_PRESENCE_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 79), 224},
+  {QMI_IMS_SETTINGS_MEDIA_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 81), 118},
+  {QMI_IMS_SETTINGS_QIPCALL_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 82), 70},
+  {QMI_IMS_SETTINGS_SIP_READ_ONLY_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 88), 546},
+  {QMI_IMS_SETTINGS_NETWORK_READ_ONLY_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 89), 31},
+  {QMI_IMS_SETTINGS_REG_MGR_EXTENDED_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 83), 20},
+  {QMI_IMS_SETTINGS_POL_MGR_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 84), 461},
+  {QMI_IMS_SETTINGS_PRESENCE_EXT_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 80), 90},
+  {QMI_IMS_SETTINGS_RCS_SM_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 85), 141},
+  {QMI_IMS_SETTINGS_UT_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 86), 78},
+  {QMI_IMS_SETTINGS_CLIENT_PROVISIONING_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 87), 37}
 };
 
 /*Service Object*/
@@ -2448,7 +3192,7 @@ struct qmi_idl_service_object imss_qmi_idl_service_object_v01 = {
     sizeof(imss_service_indication_messages_v01)/sizeof(qmi_idl_service_message_table_entry) },
   { imss_service_command_messages_v01, imss_service_response_messages_v01, imss_service_indication_messages_v01},
   &imss_qmi_idl_type_table_object_v01,
-  0x14,
+  0x1E,
   NULL
 };
 
@@ -2462,4 +3206,3 @@ qmi_idl_service_object_type imss_get_service_object_internal_v01
   } 
   return (qmi_idl_service_object_type)&imss_qmi_idl_service_object_v01;
 }
-

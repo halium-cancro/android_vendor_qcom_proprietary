@@ -5,18 +5,19 @@
 GENERAL DESCRIPTION
   This is the file which defines the pdc service Data structures.
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc.  All Rights Reserved.
-  Qualcomm Technologies Proprietary and Confidential.
+  Copyright (c) 2012-2013 Qualcomm Technologies, Inc.
+  All rights reserved.
+  Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //components/rel/qmimsgs.mpss/3.4.1/pdc/src/persistent_device_configuration_v01.c#2 $
+  $Header: //source/qcom/qct/interfaces/qmi/pdc/main/latest/src/persistent_device_configuration_v01.c#16 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2 
-   It was generated on: Tue Jul 23 2013 (Spin 2)
+/* This file was generated with Tool version 6.13 
+   It was generated on: Wed Oct 29 2014 (Spin 0)
    From IDL File: persistent_device_configuration_v01.idl */
 
 #include "stdint.h"
@@ -110,10 +111,15 @@ static const uint8_t pdc_get_selected_config_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, config_type),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, ind_token_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, ind_token_valid)),
   0x10,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, ind_token)
+  QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, ind_token),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, subscription_id) - QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, subscription_id_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_get_selected_config_req_msg_v01, subscription_id)
 };
 
 static const uint8_t pdc_get_selected_config_resp_msg_data_v01[] = {
@@ -154,10 +160,15 @@ static const uint8_t pdc_set_selected_config_req_msg_data_v01[] = {
   QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, new_config_info),
   QMI_IDL_TYPE88(0, 0),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, ind_token_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, ind_token_valid)),
   0x10,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, ind_token)
+  QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, ind_token),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, subscription_id) - QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, subscription_id_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_set_selected_config_req_msg_v01, subscription_id)
 };
 
 static const uint8_t pdc_set_selected_config_resp_msg_data_v01[] = {
@@ -258,10 +269,15 @@ static const uint8_t pdc_load_config_req_msg_data_v01[] = {
   QMI_IDL_OFFSET8(pdc_load_config_req_msg_v01, load_config_info),
   QMI_IDL_TYPE88(0, 2),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_load_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET16RELATIVE(pdc_load_config_req_msg_v01, ind_token_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_load_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET16RELATIVE(pdc_load_config_req_msg_v01, ind_token_valid)),
   0x10,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET16ARRAY(pdc_load_config_req_msg_v01, ind_token)
+  QMI_IDL_OFFSET16ARRAY(pdc_load_config_req_msg_v01, ind_token),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_load_config_req_msg_v01, storage) - QMI_IDL_OFFSET16RELATIVE(pdc_load_config_req_msg_v01, storage_valid)),
+  0x11,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET16ARRAY(pdc_load_config_req_msg_v01, storage)
 };
 
 static const uint8_t pdc_load_config_resp_msg_data_v01[] = {
@@ -307,10 +323,25 @@ static const uint8_t pdc_activate_config_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, config_type),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, ind_token_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, ind_token_valid)),
   0x10,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, ind_token)
+  QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, ind_token),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, activation_type) - QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, activation_type_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, activation_type),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, subscription_id) - QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, subscription_id_valid)),
+  0x12,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, subscription_id),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, slot_id) - QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, slot_id_valid)),
+  0x13,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_activate_config_req_msg_v01, slot_id)
 };
 
 static const uint8_t pdc_activate_config_resp_msg_data_v01[] = {
@@ -372,10 +403,27 @@ static const uint8_t pdc_get_config_info_ind_msg_data_v01[] = {
   PDC_CONFIG_DESC_SIZE_MAX_V01,
   QMI_IDL_OFFSET8(pdc_get_config_info_ind_msg_v01, config_desc) - QMI_IDL_OFFSET8(pdc_get_config_info_ind_msg_v01, config_desc_len),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, config_version) - QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, config_version_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, config_version) - QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, config_version_valid)),
   0x13,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET16ARRAY(pdc_get_config_info_ind_msg_v01, config_version)
+  QMI_IDL_OFFSET16ARRAY(pdc_get_config_info_ind_msg_v01, config_version),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, storage) - QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, storage_valid)),
+  0x14,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET16ARRAY(pdc_get_config_info_ind_msg_v01, storage),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, path) - QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, path_valid)),
+  0x15,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN | QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_FLAGS_UTF16_STRING,
+  QMI_IDL_OFFSET16ARRAY(pdc_get_config_info_ind_msg_v01, path),
+  PDC_CONFIG_PATH_SIZE_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, base_version) - QMI_IDL_OFFSET16RELATIVE(pdc_get_config_info_ind_msg_v01, base_version_valid)),
+  0x16,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET16ARRAY(pdc_get_config_info_ind_msg_v01, base_version)
 };
 
 static const uint8_t pdc_get_config_limits_req_msg_data_v01[] = {
@@ -468,10 +516,15 @@ static const uint8_t pdc_deactivate_config_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, config_type),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, ind_token_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, ind_token_valid)),
   0x10,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, ind_token)
+  QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, ind_token),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, subscription_id) - QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, subscription_id_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_deactivate_config_req_msg_v01, subscription_id)
 };
 
 static const uint8_t pdc_deactivate_config_resp_msg_data_v01[] = {
@@ -490,6 +543,71 @@ static const uint8_t pdc_deactivate_config_ind_msg_data_v01[] = {
   0x10,
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(pdc_deactivate_config_ind_msg_v01, ind_token)
+};
+
+static const uint8_t pdc_validate_config_req_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, config_type),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, ind_token_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, ind_token),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, config_id) - QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, config_id_valid)),
+  0x11,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, config_id),
+  PDC_CONFIG_ID_SIZE_MAX_V01,
+  QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, config_id) - QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, config_id_len),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, subscription_id) - QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, subscription_id_valid)),
+  0x12,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, subscription_id),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, path) - QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, path_valid)),
+  0x13,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN | QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_GENERIC_2_BYTE,
+  QMI_IDL_FLAGS_UTF16_STRING,
+  QMI_IDL_OFFSET8(pdc_validate_config_req_msg_v01, path),
+  PDC_CONFIG_PATH_SIZE_MAX_V01
+};
+
+static const uint8_t pdc_validate_config_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(pdc_validate_config_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
+};
+
+static const uint8_t pdc_validate_config_ind_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_2_BYTE_ENUM,
+  QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, error),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, ind_token) - QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, ind_token_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, ind_token),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_format) - QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_format_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_format),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, frame_index) - QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, frame_index_valid)),
+  0x12,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, frame_index),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_frame) - QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_frame_valid)),
+  0x13,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN | QMI_IDL_FLAGS_SZ_IS_16 |   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_frame),
+  ((PDC_CONFIG_FRAME_SIZE_MAX_V01) & 0xFF), ((PDC_CONFIG_FRAME_SIZE_MAX_V01) >> 8),
+  QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_frame) - QMI_IDL_OFFSET8(pdc_validate_config_ind_msg_v01, result_frame_len)
 };
 
 /* Type Table */
@@ -535,7 +653,10 @@ static const qmi_idl_message_table_entry pdc_message_table_v01[] = {
   {sizeof(pdc_get_default_config_info_ind_msg_v01), pdc_get_default_config_info_ind_msg_data_v01},
   {sizeof(pdc_deactivate_config_req_msg_v01), pdc_deactivate_config_req_msg_data_v01},
   {sizeof(pdc_deactivate_config_resp_msg_v01), pdc_deactivate_config_resp_msg_data_v01},
-  {sizeof(pdc_deactivate_config_ind_msg_v01), pdc_deactivate_config_ind_msg_data_v01}
+  {sizeof(pdc_deactivate_config_ind_msg_v01), pdc_deactivate_config_ind_msg_data_v01},
+  {sizeof(pdc_validate_config_req_msg_v01), pdc_validate_config_req_msg_data_v01},
+  {sizeof(pdc_validate_config_resp_msg_v01), pdc_validate_config_resp_msg_data_v01},
+  {sizeof(pdc_validate_config_ind_msg_v01), pdc_validate_config_ind_msg_data_v01}
 };
 
 /* Range Table */
@@ -565,16 +686,17 @@ static const qmi_idl_service_message_table_entry pdc_service_command_messages_v0
   {QMI_PDC_GET_SUPPORTED_MSGS_REQ_V01, QMI_IDL_TYPE16(1, 0), 0},
   {QMI_PDC_GET_SUPPORTED_FIELDS_REQ_V01, QMI_IDL_TYPE16(1, 2), 5},
   {QMI_PDC_INDICATION_REGISTER_REQ_V01, QMI_IDL_TYPE16(0, 2), 4},
-  {QMI_PDC_GET_SELECTED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 5), 14},
-  {QMI_PDC_SET_SELECTED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 8), 139},
+  {QMI_PDC_GET_SELECTED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 5), 21},
+  {QMI_PDC_SET_SELECTED_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 8), 146},
   {QMI_PDC_LIST_CONFIGS_REQ_V01, QMI_IDL_TYPE16(0, 11), 14},
   {QMI_PDC_DELETE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 14), 142},
-  {QMI_PDC_LOAD_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 17), 32913},
-  {QMI_PDC_ACTIVATE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 20), 14},
+  {QMI_PDC_LOAD_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 17), 32920},
+  {QMI_PDC_ACTIVATE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 20), 35},
   {QMI_PDC_GET_CONFIG_INFO_REQ_V01, QMI_IDL_TYPE16(0, 23), 139},
   {QMI_PDC_GET_CONFIG_LIMITS_REQ_V01, QMI_IDL_TYPE16(0, 26), 14},
   {QMI_PDC_GET_DEFAULT_CONFIG_INFO_REQ_V01, QMI_IDL_TYPE16(0, 29), 14},
-  {QMI_PDC_DEACTIVATE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 32), 14}
+  {QMI_PDC_DEACTIVATE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 32), 21},
+  {QMI_PDC_VALIDATE_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 35), 662}
 };
 
 static const qmi_idl_service_message_table_entry pdc_service_response_messages_v01[] = {
@@ -591,7 +713,8 @@ static const qmi_idl_service_message_table_entry pdc_service_response_messages_v
   {QMI_PDC_GET_CONFIG_INFO_RESP_V01, QMI_IDL_TYPE16(0, 24), 7},
   {QMI_PDC_GET_CONFIG_LIMITS_RESP_V01, QMI_IDL_TYPE16(0, 27), 7},
   {QMI_PDC_GET_DEFAULT_CONFIG_INFO_RESP_V01, QMI_IDL_TYPE16(0, 30), 7},
-  {QMI_PDC_DEACTIVATE_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 33), 7}
+  {QMI_PDC_DEACTIVATE_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 33), 7},
+  {QMI_PDC_VALIDATE_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 36), 7}
 };
 
 static const qmi_idl_service_message_table_entry pdc_service_indication_messages_v01[] = {
@@ -602,10 +725,11 @@ static const qmi_idl_service_message_table_entry pdc_service_indication_messages
   {QMI_PDC_DELETE_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 16), 12},
   {QMI_PDC_LOAD_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 19), 30},
   {QMI_PDC_ACTIVATE_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 22), 12},
-  {QMI_PDC_GET_CONFIG_INFO_IND_V01, QMI_IDL_TYPE16(0, 25), 285},
+  {QMI_PDC_GET_CONFIG_INFO_IND_V01, QMI_IDL_TYPE16(0, 25), 812},
   {QMI_PDC_GET_CONFIG_LIMITS_IND_V01, QMI_IDL_TYPE16(0, 28), 34},
   {QMI_PDC_GET_DEFAULT_CONFIG_INFO_IND_V01, QMI_IDL_TYPE16(0, 31), 285},
-  {QMI_PDC_DEACTIVATE_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 34), 12}
+  {QMI_PDC_DEACTIVATE_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 34), 12},
+  {QMI_PDC_VALIDATE_CONFIG_IND_V01, QMI_IDL_TYPE16(0, 37), 32799}
 };
 
 /*Service Object*/
@@ -613,13 +737,13 @@ struct qmi_idl_service_object pdc_qmi_idl_service_object_v01 = {
   0x06,
   0x01,
   0x24,
-  32913,
+  32920,
   { sizeof(pdc_service_command_messages_v01)/sizeof(qmi_idl_service_message_table_entry),
     sizeof(pdc_service_response_messages_v01)/sizeof(qmi_idl_service_message_table_entry),
     sizeof(pdc_service_indication_messages_v01)/sizeof(qmi_idl_service_message_table_entry) },
   { pdc_service_command_messages_v01, pdc_service_response_messages_v01, pdc_service_indication_messages_v01},
   &pdc_qmi_idl_type_table_object_v01,
-  0x05,
+  0x08,
   NULL
 };
 

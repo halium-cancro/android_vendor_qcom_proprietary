@@ -9,7 +9,7 @@
   None.
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2007-2009, 2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2007-2009, 2013-2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -32,7 +32,7 @@
 ===========================================================================*/
 /*!
 @brief
-  Routine for allocating a transaction structure 
+  Routine for allocating a transaction structure
 
 @return
   Pointer to transaction structure or NULL if none available
@@ -97,7 +97,7 @@ qmi_util_alloc_and_addref_txn
 ===========================================================================*/
 /*!
 @brief
-  Routine for allocating a transaction structure 
+  Routine for allocating a transaction structure
 
 @return
   Pointer to transaction structure or NULL if none available
@@ -327,10 +327,10 @@ void qmi_util_addref_txn_no_lock
   FUNCTION  qmi_util_read_std_tlv
 ===========================================================================*/
 /*!
-@brief 
-  Decodes a TLV and moves the buffer pointer appropriately.   
-  
-@return 
+@brief
+  Decodes a TLV and moves the buffer pointer appropriately.
+
+@return
   0 if succees, negative value if error occurs
 
 @note
@@ -377,13 +377,13 @@ qmi_util_read_std_tlv
     *length = tmp_length;
     *value = tmp_msg_buf;
     *msg_buf += tmp_length;
-    *msg_buf_size -= tmp_length;
+    *msg_buf_size -= (int)tmp_length;
   }
   else
   {
     return QMI_INTERNAL_ERR;
   }
-  return (tmp_length + QMI_TLV_HDR_SIZE);
+  return ((int)tmp_length + QMI_TLV_HDR_SIZE);
 } /* qmi_util_read_std_tlv */
 
 /*===========================================================================
@@ -464,8 +464,8 @@ qmi_util_write_std_tlv
       msg_buf_size by appropriate amount of whole TLV
 */
 /*=========================================================================*/
-int 
-qmi_util_get_std_result_code 
+int
+qmi_util_get_std_result_code
 (
   unsigned char **msg_buf,
   int           *msg_buf_size,

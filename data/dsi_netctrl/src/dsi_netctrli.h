@@ -79,13 +79,10 @@ when       who     what, where, why
   }
 
 #define DSI_INET4_NTOP(prefix,data)                                                  \
-  DSI_LOG_DEBUG(prefix "IPv4 addr [%d.%d.%d.%d]",                                    \
-               data[0], data[1], data[2], data[3])
+  DS_INET4_NTOP(med, prefix, data)
+
 #define DSI_INET6_NTOP(prefix,data)                                                  \
-  DSI_LOG_DEBUG(prefix "IPv6 addr [%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:"             \
-                      "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x]",                        \
-               data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],      \
-               data[8],data[9],data[10],data[11],data[12],data[13],data[14],data[15])
+  DS_INET6_NTOP(med, prefix, data)
 
 #ifdef DSI_NETCTRL_OFFTARGET
 #define DSI_INET_NTOP(prefix,sockaddr)                                         \
@@ -242,7 +239,8 @@ typedef struct dsi_iface_s
   int ipv6_profile_index; /* temporary: save ipv6 profile
                           * so can be delelated when iface
                           * is brought down */
-  dsi_addr_info_t addr_info_s[DSI_NUM_IP_FAMILIES]; /* address info structure */
+  dsi_addr_info_t  addr_info_s[DSI_NUM_IP_FAMILIES]; /* address info structure */
+  unsigned int     mtu; /* MTU of the interface */
 } dsi_iface_t;
 
 #define DSI_DEFAULT_IFACE 0
@@ -251,6 +249,7 @@ typedef struct dsi_iface_s
 #define DSI_INVALID_WDS_HNDL -1
 #define DSI_INVALID_QOS_HNDL -1
 #define DSI_INVALID_PROFILE_INDEX -1
+#define DSI_INVALID_MTU 0
 
 extern dsi_iface_t dsi_iface_tbl[DSI_MAX_IFACES];
 
@@ -475,6 +474,66 @@ extern char * dsi_device_names[DSI_MAX_IFACES];
 #define DSI_GET_ADDRINFO(i,ipf) \
   ( dsi_iface_tbl[i].addr_info_s[ipf] )
 
+#define DSI_GET_MTU(i) \
+  ( dsi_iface_tbl[i].mtu )
+
+#define DSI_SET_MTU(i,x) \
+  ( dsi_iface_tbl[i].mtu = x )
+
+/* Signalling Data structures and functions */
+#define NANO_SEC 1000000000
+
+typedef struct dsi_signal_data_s
+{
+  unsigned long   cond_predicate;
+  pthread_mutex_t cond_mutex;
+  pthread_cond_t  cond_var;
+}dsi_signal_data_t;
+
+/* DS condition variables operations */
+#define DSI_INIT_SIGNAL_DATA(signal_ptr) \
+  do \
+  { \
+    pthread_mutex_init (&(signal_ptr)->cond_mutex,NULL); \
+    pthread_cond_init (&(signal_ptr)->cond_var,NULL); \
+  } while (0)
+
+/* Macro to destroy signal data */
+#define DSI_DESTROY_SIGNAL_DATA(signal_ptr) \
+  do \
+  { \
+    pthread_cond_destroy (&(signal_ptr)->cond_var); \
+    pthread_mutex_destroy (&(signal_ptr)->cond_mutex); \
+  } while (0)
+
+int
+dsi_wait_for_sig_with_timeout
+(
+  dsi_signal_data_t  *signal_ptr,
+  int                timeout_secs
+);
+
+#define DSI_INIT_SIGNAL_FOR_WAIT(signal_ptr) \
+  do \
+  { \
+    pthread_mutex_lock (&(signal_ptr)->cond_mutex); \
+    (signal_ptr)->cond_predicate = FALSE; \
+  } while (0)
+
+#define DSI_WAIT_FOR_SIGNAL_WITH_TIMEOUT(signal_ptr, timeout_milli_secs) \
+  dsi_wait_for_sig_with_timeout (signal_ptr,timeout_milli_secs)
+
+
+#define DSI_SEND_SIGNAL(signal_ptr) \
+  do \
+  { \
+    pthread_mutex_lock (&(signal_ptr)->cond_mutex); \
+    (signal_ptr)->cond_predicate = TRUE; \
+    pthread_cond_signal (&(signal_ptr)->cond_var); \
+    pthread_mutex_unlock (&(signal_ptr)->cond_mutex); \
+  } while (0)
+
+
 typedef struct dsi_qmi_to_dsi_tech_s
 {
   unsigned int qmi_tech;
@@ -515,6 +574,10 @@ typedef enum
 
 /* status for activate/deactivate indication has only 1 TMGI */
 #define DSI_EMBMS_TMGI_STATUS_IND_TMGI_LIST_LEN QMI_WDS_EMBMS_TMGI_STATUS_IND_LIST_SIZE
+
+static pthread_mutex_t dsi_netmgr_txn_mutex;
+static unsigned int dsi_netmgr_txn_cnt = 0;
+
 typedef struct
 {
   /* Private data for DSI module */
@@ -541,6 +604,8 @@ typedef struct
 
   dsi_embms_tmgi_info_type   embms_tmgi_list_info;
 
+  dsi_embms_content_desc_update_info_type  embms_content_desc_update_info;
+
   /* Flag indicating whether partial retry is being attempted */
   boolean  partial_retry;
 
@@ -553,6 +618,9 @@ typedef struct
   /* The type of app */
   int app_type;
 
+  /* data for sync netmgr user commands */
+  dsi_signal_data_t signal_data;
+  netmgr_user_cmd_data_t user_cmd_data;
 } dsi_priv_t;
 
 #define DSI_INVALID_QMI_INST (-1)
@@ -567,6 +635,7 @@ typedef struct dsi_store_s
                 * other than CDMA/UMTS, use this field
                 * to store it */
   void * self; /* used to validate dsi_stor_t ptr */
+
 } dsi_store_t;
 
 /*!
@@ -602,6 +671,17 @@ extern dsi_store_tbl_t dsi_store_table[DSI_MAX_DATA_CALLS];
 #define DSI_IS_IP_FAMILY_VALID(ipf) \
   (((int)(ipf) >= (int)DSI_IP_FAMILY_V4) && ((int)(ipf) < (int)DSI_NUM_IP_FAMILIES))
 
+
+/* Entry and Exit macros */
+#define DSI_LOG_ENTRY  DSI_LOG_DEBUG( "%s: ENTRY", __func__ );
+#define DSI_LOG_EXIT                                     \
+  if( DSI_SUCCESS == ret ) {                             \
+    DSI_LOG_DEBUG( "%s: EXIT with suc", __func__ );      \
+  } else {                                               \
+    DSI_LOG_DEBUG( "%s: EXIT with err", __func__ );      \
+  }
+
+
 /*===========================================================================
                       INTERNAL CONFIGURATION VTABLES
 ===========================================================================*/
@@ -618,6 +698,7 @@ typedef int (*dsi_mni_embms_tmgi_activate_ftpr)(int i, dsi_store_t *st);
 typedef int (*dsi_mni_embms_tmgi_deactivate_ftpr)(int i, dsi_store_t *st);
 typedef int (*dsi_mni_embms_tmgi_act_deactivate_ftpr)(int i, dsi_store_t *st);
 typedef int (*dsi_mni_embms_tmgi_list_query_ftpr)(int i, dsi_store_t *st);
+typedef int (*dsi_mni_embms_tmgi_content_desc_update_fptr)(int i, dsi_store_t *st);
 
 typedef struct dsi_mni_vtable_s
 {
@@ -632,6 +713,7 @@ typedef struct dsi_mni_vtable_s
   dsi_mni_embms_tmgi_deactivate_ftpr mni_embms_tmgi_deactivate_f;
   dsi_mni_embms_tmgi_act_deactivate_ftpr mni_embms_tmgi_act_deactivate_f;
   dsi_mni_embms_tmgi_list_query_ftpr mni_embms_tmgi_list_query_f;
+  dsi_mni_embms_tmgi_content_desc_update_fptr mni_embms_tmgi_content_desc_update_f;
 } dsi_mni_vtable_t;
 
 extern dsi_mni_vtable_t dsi_mni_vtbl;
@@ -758,6 +840,9 @@ extern int dsi_netctrl_copy_tmgi_list
 extern int dsi_set_ril_instance(int instance);
 
 extern int dsi_get_ril_instance(void);
+
+extern int dsi_set_modem_subs_id(int subs_id);
+extern int dsi_get_modem_subs_id(void);
 
 
 #endif

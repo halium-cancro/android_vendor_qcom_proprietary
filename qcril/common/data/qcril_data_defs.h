@@ -186,6 +186,16 @@ typedef struct
   /* store embms tmgi deactivation reason */
   int embmsTmgiDeactivateReason;
 #endif
+
+#if (RIL_VERSION >= 10)
+
+  qcril_data_addr_string_t     pcscf;
+
+#endif
+
+#ifdef FEATURE_MTU_CAF
+  int mtu;
+#endif
 } qcril_data_call_info_t;
 #else
 typedef struct
@@ -356,6 +366,20 @@ typedef struct
   dsi_evt_payload_t  payload;
 } qcril_data_event_data_t;
 
+typedef enum
+{
+  QCRIL_DATA_STACK_SWITCH_CMD,
+  QCRIL_DATA_MAX_CMD
+}qcril_data_cmd_id;
+
+typedef struct
+{
+  qcril_data_cmd_id  cmd_id;
+  qcril_modem_stack_id_e_type old_stack_id;
+  qcril_modem_stack_id_e_type new_stack_id;
+  void              *self;
+} qcril_data_cmd_data_t;
+
 #define DS_RIL_MAX_QOS_SPECS_PER_REQ        (10)    /* QMI limit */
 #define DS_RIL_MAX_QOS_FLOWS_PER_SPEC       (2)     /* Tx, Rx direction */
 
@@ -402,14 +426,35 @@ typedef union qos_resp_u
 
 #define QCRIL_DATA_NUM_OMH_PROFILES_EXPECTED  (6)
 
-#if ((RIL_QCOM_VERSION >= 1 || RIL_VERSION >= 6))
+#if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
 typedef struct qcril_data_call_response_s
 {
+
+#ifdef FEATURE_MTU_CAF
+
+  /* Response to setup data call request */
+  RIL_Data_Call_Response_v9_CAF  setup_rsp;
+
+  /* Response to get call list request */
+  RIL_Data_Call_Response_v9_CAF *list;
+
+#elif (RIL_VERSION >= 10)
+
+  /* Response to setup data call request */
+  RIL_Data_Call_Response_v9  setup_rsp;
+
+  /* Response to get call list request */
+  RIL_Data_Call_Response_v9 *list;
+
+#else
+
   /* Response to setup data call request */
   RIL_Data_Call_Response_v6  setup_rsp;
 
   /* Response to get call list request */
   RIL_Data_Call_Response_v6 *list;
+
+#endif /* (RIL_VERSION >= 10)  */
 
   /* Response to Request for last call fail cause */
   int   cause_code;

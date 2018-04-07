@@ -57,7 +57,7 @@ when       who        what, where, why
                         DEFINITIONS AND DECLARATIONS
 ===========================================================================*/
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
    Type representing TC handle information
 ---------------------------------------------------------------------------*/
 typedef struct netmgr_tc_handle_info_s {
@@ -65,7 +65,7 @@ typedef struct netmgr_tc_handle_info_s {
   int minor;
 } netmgr_tc_handle_info_t;
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
    Type representing collection of a flow's state information
 ---------------------------------------------------------------------------*/
 typedef struct netmgr_tc_flow_info_s {
@@ -73,7 +73,7 @@ typedef struct netmgr_tc_flow_info_s {
   netmgr_tc_handle_info_t* class_handle; /* class handle */
 } netmgr_tc_flow_info_t;
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
    Type representing collection of a flow's state information
 ---------------------------------------------------------------------------*/
 typedef struct netmgr_tc_link_info_s {
@@ -82,10 +82,11 @@ typedef struct netmgr_tc_link_info_s {
   netmgr_tc_handle_info_t *default_class; /* default class handle          */
   netmgr_tc_handle_info_t *tcp_ack_class; /* tcp ack class handle          */
   ds_dll_el_t *flow_list;                 /* Flow objects list head        */
+  ds_dll_el_t *filter_list;                /* Filter precedence list head */
   int next_class_minor;                   /* Class minor ID sequence       */
 } netmgr_tc_link_info_t;
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
    Collection of configuration information for the module
 ---------------------------------------------------------------------------*/
 struct netmgr_tc_cfg_s {

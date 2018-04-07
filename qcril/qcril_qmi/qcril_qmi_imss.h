@@ -54,10 +54,10 @@ void qcril_qmi_imss_request_set_vt_call_quality
 void qcril_qmi_imss_command_cb
 (
    qmi_client_type              user_handle,
-   unsigned long                msg_id,
-   void                         *resp_c_struct,
-   int                          resp_c_struct_len,
-   void                         *resp_cb_data,
+   unsigned int                 msg_id,
+   void                        *resp_c_struct,
+   unsigned int                 resp_c_struct_len,
+   void                        *resp_cb_data,
    qmi_client_error_type        transp_err
 );
 

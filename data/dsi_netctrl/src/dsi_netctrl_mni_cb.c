@@ -1050,6 +1050,10 @@ static int dsi_handle_pkt_srvc_ind
   int reti = DSI_SUCCESS;
   int i = (int)user_data;
   dsi_ce_reason_t ce_reason;
+  dsi_net_evt_t      event;
+  dsi_evt_payload_t  payload;
+  int                count;
+  dsi_store_t *st = NULL;
 
   DSI_LOG_VERBOSE("%s", "dsi_handle_pkt_srvc_ind: ENTRY");
 
@@ -1121,6 +1125,9 @@ static int dsi_handle_pkt_srvc_ind
       }
 
     case QMI_WDS_PACKET_DATA_CONNECTED:
+    {
+      dsi_ip_family_t ipf = DSI_IP_FAMILY_V4;
+
       if (ind_data->pkt_srvc_status.reconfig_required != TRUE)
       {
         DSI_LOG_DEBUG("packet data call connected on iface [%d]", i);
@@ -1151,13 +1158,56 @@ static int dsi_handle_pkt_srvc_ind
 
           dsi_update_client_ref_count(i);
         }
+
+        if (ind_data->pkt_srvc_status.param_mask & QMI_WDS_PKT_SRVC_IND_IP_FAMILY)
+        {
+          if (QMI_WDS_IP_FAMILY_PREF_IPV4 == ind_data->pkt_srvc_status.ip_family)
+          {
+            ipf = DSI_IP_FAMILY_V4;
+          }
+          else if (QMI_WDS_IP_FAMILY_PREF_IPV6 == ind_data->pkt_srvc_status.ip_family)
+          {
+            ipf = DSI_IP_FAMILY_V6;
+          }
+        }
+
+        memset(&payload, 0, sizeof(payload));
+        /* Filling payload with IP type, which is the only
+           element valid for DSI_EVT_WDS_CONNECTED event
+        */
+        payload.ip_type = ipf;
+        event  = DSI_EVT_WDS_CONNECTED;
+
+        for(count = 0; count < DSI_MAX_DATA_CALLS; count++)
+        {
+          st = (dsi_store_t *)dsi_store_table[count].dsi_store_ptr;
+          if (st != NULL && st->priv.dsi_iface_id == i)
+          {
+            if (NULL != st->net_ev_cb)
+            {
+              DSI_LOG_DEBUG("notifying event [%d] on handle [%p]",
+                            event, st);
+              st->net_ev_cb((dsi_hndl_t *)st,
+                            st->user_data,
+                            event,
+                            &payload);
+            }
+            else
+            {
+              DSI_LOG_ERROR("NULL callback found on store pointer" \
+                            "[%p]", st);
+            }
+          }
+        }
       }
       else
       {
         DSI_LOG_DEBUG("packet data call reconfigured on iface [%d]", i);
       }
+
       /* we don't notify the user until we get final event from
-       * platform (NetMgr) */
+       * platform (NetMgr) except for DSI_EVT_WDS_CONNECTED event*/
+    }
       break;
 
     default:
@@ -2214,6 +2264,188 @@ static int dsi_handle_embms_sai_list_ind
 }
 
 /*===========================================================================
+  FUNCTION:  dsi_handle_embms_content_desc_control_ind
+===========================================================================*/
+/*!
+    @brief
+    handles embms content desc control indications
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+static int dsi_handle_embms_content_desc_control_ind
+(
+  int                            wds_hndl,
+  qmi_service_id_type            sid,
+  void                          *user_data,
+  qmi_wds_indication_data_type  *ind_data
+)
+{
+  int                ret          = DSI_ERROR;
+  int                i            = (int)(intptr_t)user_data;
+  dsi_net_evt_t      event;
+  dsi_store_t       *st           = NULL;
+  dsi_evt_payload_t  payload;
+  int                count;
+  boolean            handle_found = FALSE;
+  DSI_LOG_VERBOSE("%s", "dsi_handle_embms_content_desc_control_ind: ENTRY");
+
+  memset(&payload, 0, sizeof(payload));
+
+  do
+  {
+    event = DSI_NET_CONTENT_DESC_CONTROL;
+
+    DSI_LOG_DEBUG("received content_desc_control_ind with wds_hndl [0x%x] "
+                  "sid [%d] user_data [%p] ind_data [%p]",
+                  wds_hndl, sid, user_data, ind_data);
+
+    if (NULL == ind_data)
+    {
+      DSI_LOG_ERROR("%s", "NULL ind data received in content_desc_control_ind");
+      break;
+    }
+
+    if (!DSI_IS_ID_VALID(i))
+    {
+      DSI_LOG_ERROR("invalid user data (dsi iface id) "\
+                    "%d received in content_desc_control_ind", i);
+      break;
+    }
+
+    for(count = 0; count < DSI_MAX_DATA_CALLS; count++)
+    {
+      st = (dsi_store_t *)dsi_store_table[count].dsi_store_ptr;
+      if (st != NULL && st->priv.dsi_iface_id == i)
+      {
+        handle_found = TRUE;
+        break;
+      }
+    }
+    if(FALSE == handle_found)
+    {
+      DSI_LOG_ERROR("No call state for index [%d]", count);
+      break;
+    }
+    if( NULL == st->net_ev_cb )
+    {
+      DSI_LOG_ERROR("No event callback for index [%d]", count);
+      break;
+    }
+
+    /* activate status indication should have ONLY 1 TMGI list */
+    if(DSI_EMBMS_TMGI_STATUS_IND_TMGI_LIST_LEN !=
+       (payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_len =
+        ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_len))
+    {
+      DSI_LOG_ERROR("TMGI list length incorrect: [%d]\n",
+                    ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_len);
+      break;
+    }
+    if(DSI_SUCCESS != dsi_netctrl_copy_tmgi_list(
+      &(payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr),
+      ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr,
+      ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_len))
+    {
+      DSI_LOG_ERROR("%s", "Failed on dsi_netctrl_copy_tmgi_list");
+      break;
+    }
+    DSI_LOG_DEBUG("received content_desc_control_ind, TMGI %d:[%X,%X,%X,%X,%X,%X] ",
+      payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_len,
+      payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr->tmgi[0],
+      payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr->tmgi[1],
+      payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr->tmgi[2],
+      payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr->tmgi[3],
+      payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr->tmgi[4],
+      payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr->tmgi[5]);
+
+    if(ind_data->embms_content_desc_control.param_mask
+        & QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_TRANX_ID_PARAM_MASK)
+    {
+
+      DSI_LOG_DEBUG("received content_desc_control_ind, dbg_trace_id [%d] ",
+                     ind_data->embms_content_desc_control.dbg_trace_id);
+      payload.embms_content_desc_info.dbg_trace_id =
+          ind_data->embms_content_desc_control.dbg_trace_id;
+    }
+
+    if(ind_data->embms_content_desc_control.param_mask
+        & QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_CONTENT_CTRL_PARAM_MASK)
+    {
+
+      DSI_LOG_DEBUG("received content_desc_control_ind, content_control [%d] ",
+                     ind_data->embms_content_desc_control.content_control);
+      payload.embms_content_desc_info.param_mask |=
+          QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_CONTENT_CTRL_PARAM_MASK;
+      payload.embms_content_desc_info.content_control =
+          ind_data->embms_content_desc_control.content_control;
+    }
+
+    if(ind_data->embms_content_desc_control.param_mask
+        & QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_STATUS_CTRL_PARAM_MASK)
+    {
+
+      DSI_LOG_DEBUG("received content_desc_control_ind, status_control [%d] ",
+                     ind_data->embms_content_desc_control.status_control);
+      payload.embms_content_desc_info.param_mask |=
+          QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_STATUS_CTRL_PARAM_MASK;
+      payload.embms_content_desc_info.status_control =
+          ind_data->embms_content_desc_control.status_control;
+    }
+
+    for(count = 0; count < DSI_MAX_DATA_CALLS; count++)
+    {
+      st = (dsi_store_t *)dsi_store_table[count].dsi_store_ptr;
+      if (st != NULL && st->priv.dsi_iface_id == i)
+      {
+        if (NULL != st->net_ev_cb)
+        {
+          DSI_LOG_DEBUG("notifying event [%d] on handle [%p]",
+                        event, st);
+          st->net_ev_cb( (dsi_hndl_t *)st,
+                         st->user_data,
+                         event,
+                         &payload  );
+        }
+        else
+        {
+          DSI_LOG_ERROR("NULL callback found on store pointer" \
+                        "[%p]", st);
+        }
+      }
+    }
+    ret = DSI_SUCCESS;
+  } while (0);
+
+  /* make sure memory is released */
+  if(ind_data && ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr)
+  {
+    DSI_LOG_DEBUG("%s", "free tmgi list from indication");
+    free(ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr);
+    ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr = NULL;
+  }
+
+  if(NULL != payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr)
+  {
+    DSI_LOG_DEBUG("%s", " free tmgi_list in payload");
+    free(payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr);
+    payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr = NULL;
+  }
+
+  if (DSI_SUCCESS == ret)
+  {
+    DSI_LOG_VERBOSE("%s", "dsi_handle_embms_content_desc_control_ind: EXIT with suc");
+  }
+  else
+  {
+    DSI_LOG_VERBOSE("%s", "dsi_handle_embms_content_desc_control_ind: EXIT with err");
+  }
+  return ret;
+}
+
+/*===========================================================================
   FUNCTION:  dsi_handle_handoff_ind
 ===========================================================================*/
 /*!
@@ -2392,7 +2624,12 @@ void dsi_process_wds_ind
                                            user_data,
                                            ind_data);
       break;
-
+    case QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG:
+      reti = dsi_handle_embms_content_desc_control_ind(wds_hndl,
+                                                       sid,
+                                                       user_data,
+                                                       ind_data);
+      break;
     case QMI_WDS_SRVC_HANDOFF_INFORMATION_IND_MSG:
       reti = dsi_handle_handoff_ind(wds_hndl,
                                     sid,

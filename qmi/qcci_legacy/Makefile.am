@@ -20,7 +20,7 @@ AM_CPPFLAGS = -D__packed__= \
 
 h_sources = ../src/qmi_client.h
 
-requiredlibs =  \
+requiredlibs = -lpthread \
         ../core/lib/src/libqmiidl.la \
         ../src/libqmi.la \
         ../qmi_client_qmux/libqmi_client_qmux.la

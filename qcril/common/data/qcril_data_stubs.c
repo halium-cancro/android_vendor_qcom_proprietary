@@ -7,7 +7,7 @@
 /******************************************************************************
 
   @file    qcril_data_stubs.C
-  @brief   QCRIL Data test stubs 
+  @brief   QCRIL Data test stubs
 
   DESCRIPTION
   QCRIL_Data test stub functions.
@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2011 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2011,2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -98,19 +98,19 @@ dsi_qos_granted_info_type dummy_qos =
                                                                        QMI_QOS_UMTS_FLOW_PARAM_3GPP2_FLOW_PRIO ),
   .tx_granted_flow_data.qos_flow_granted.umts_flow_desc.traffic_class = QMI_QOS_UMTS_TC_INTERACTIVE,
   .tx_granted_flow_data.qos_flow_granted.umts_flow_desc.data_rate.guaranteed_rate = 64000,
-  .tx_granted_flow_data.qos_flow_granted.umts_flow_desc.data_rate.max_rate = 64000, 
+  .tx_granted_flow_data.qos_flow_granted.umts_flow_desc.data_rate.max_rate = 64000,
   .tx_granted_flow_data.qos_flow_granted.umts_flow_desc.max_delay = 100,
   .tx_granted_flow_data.qos_flow_granted.umts_flow_desc.flow_priority_3gpp2 = 5,
-  
+
   .tx_granted_flow_data.qos_flow_granted.cdma_flow_desc.param_mask = QMI_QOS_CDMA_FLOW_PARAM_PROFILE_ID,
   .tx_granted_flow_data.qos_flow_granted.cdma_flow_desc.profile_id = 42,
-  
+
 
   .rx_granted_flow_data_is_valid = TRUE,
   .rx_granted_flow_data.ip_flow_index = 0,
   .rx_granted_flow_data.qos_flow_granted.umts_flow_desc.param_mask = QMI_QOS_UMTS_FLOW_PARAM_DATA_RATE,
   .rx_granted_flow_data.qos_flow_granted.umts_flow_desc.data_rate.guaranteed_rate = 512000,
-  .rx_granted_flow_data.qos_flow_granted.umts_flow_desc.data_rate.max_rate = 1024000, 
+  .rx_granted_flow_data.qos_flow_granted.umts_flow_desc.data_rate.max_rate = 1024000,
 
   .dss_errno_type = 0
 };
@@ -138,7 +138,7 @@ dsi_hndl_t dsi_get_data_srvc_hndl
   qcril_data_stub_client.dsi_cb_fn = dsi_cb_fn;
   qcril_data_stub_client.dsi_user_data = dsi_user_data;
   qcril_data_stub_client.handle = next_handle++;
-  
+
   STUB_EXIT;
   return qcril_data_stub_client.handle;
 }
@@ -147,7 +147,7 @@ void dsi_rel_data_srvc_hndl(dsi_hndl_t hndl)
 {
   (void)hndl;
   STUB_ENTRY;
-  
+
   qcril_data_stub_client.dsi_cb_fn = NULL;
   qcril_data_stub_client.dsi_user_data = NULL;
   qcril_data_stub_client.handle = 0;
@@ -250,7 +250,7 @@ int dsi_request_qos
 )
 {
   dsi_evt_payload_t  payload;
-  
+
   (void)hndl; (void)num_qos_specs; (void)qos_spec_list;
   (void)req_opcode; (void)qos_id_list; (void)qos_spec_err_list;
   STUB_ENTRY;
@@ -280,7 +280,7 @@ int dsi_request_qos
         payload.qos_info.status_evt = DSI_QOS_ACTIVATED_EV;
         qos_id_list[0] = QOS_FLOW_ID;
       }
-    
+
       /* Override dsi_user_data with qos_spec_list for validation */
       qcril_data_stub_client.dsi_cb_fn( hndl,
                                         (void*)qos_spec_list,
@@ -288,7 +288,7 @@ int dsi_request_qos
                                         &payload );
     }
   }
-  
+
   STUB_EXIT;
   return QCRIL_DATA_SUCCESS;
 }
@@ -301,10 +301,10 @@ int dsi_release_qos
 )
 {
   dsi_evt_payload_t  payload;
-  
+
   (void)hndl; (void)num_qos_ids; (void)qos_id_list;
   STUB_ENTRY;
-  
+
   if( -1 == qcril_data_client_info.handle )
   {
     /* Error case */
@@ -325,7 +325,7 @@ int dsi_release_qos
                                         &payload );
     }
   }
-  
+
   STUB_EXIT;
   return QCRIL_DATA_SUCCESS;
 }
@@ -339,10 +339,10 @@ int dsi_modify_qos
 )
 {
   dsi_evt_payload_t  payload;
-  
+
   (void)hndl; (void)num_qos_specs; (void)qos_spec_list; (void)qos_spec_err_list;
   STUB_ENTRY;
-  
+
   if( -1 == qcril_data_client_info.handle )
   {
     /* Error case */
@@ -374,7 +374,7 @@ int dsi_modify_qos
         payload.qos_info.flow_id = QOS_FLOW_ID;
         payload.qos_info.status_evt = DSI_QOS_MODIFY_ACCEPTED_EV;
       }
-    
+
       /* Override dsi_user_data with qos_spec_list for validation */
       qcril_data_stub_client.dsi_cb_fn( hndl,
                                         (void*)qos_spec_list,
@@ -395,7 +395,7 @@ int dsi_suspend_qos
 )
 {
   dsi_evt_payload_t  payload;
-  
+
   (void)hndl; (void)num_qos_ids; (void)qos_id_list;
   STUB_ENTRY;
 
@@ -433,7 +433,7 @@ int dsi_resume_qos
 )
 {
   dsi_evt_payload_t  payload;
-  
+
   (void)hndl; (void)num_qos_ids; (void)qos_id_list;
   STUB_ENTRY;
 
@@ -461,7 +461,7 @@ int dsi_resume_qos
         payload.qos_info.flow_id = qos_id_list[0];
         payload.qos_info.status_evt = DSI_QOS_ACTIVATED_EV;
       }
-    
+
       /* Override dsi_user_data with qos_spec_list for validation */
       qcril_data_stub_client.dsi_cb_fn( hndl,
                                         qcril_data_stub_client.dsi_user_data,
@@ -489,7 +489,7 @@ int dsi_get_granted_qos
     memcpy( qos_info, &dummy_qos, sizeof(dsi_qos_granted_info_type) );
   else
     ret = QCRIL_DATA_FAILURE;
-  
+
   STUB_EXIT;
   return ret;
 }
@@ -535,6 +535,40 @@ int qdp_profile_look_up
   return QCRIL_DATA_SUCCESS;
 }
 
+int qdp_profile_look_up_by_param
+(
+  const char  ** param_strings,    /* the order of params must match with the
+                                      order specified in qdp_ril_param_idx_t */
+  int            param_to_match,
+  int            param_value,
+  unsigned int * profile_id_3gpp,  /* value (not pointer it-self) must
+                                      be set to zero by caller */
+  qdp_profile_pdn_type *profile_pdn_type_3gpp,  /* 3gpp profile PDN type */
+  unsigned int * profile_id_3gpp2, /* value must be set to zero by caller */
+  qdp_profile_pdn_type *profile_pdn_type_3gpp2, /* 3gpp2 profile PDN type */
+  qmi_wds_profile_params_type * p_params,  /* out placeholder */
+  qdp_tech_t                *   tech_type,
+  qdp_error_info_t * error_info
+)
+{
+  (void)param_strings; (void)profile_id_3gpp; (void)profile_id_3gpp2;
+  (void)profile_pdn_type_3gpp; (void)profile_pdn_type_3gpp2;
+  STUB_ENTRY;
+  STUB_EXIT;
+  return QCRIL_DATA_SUCCESS;
+}
+
+int qdp_3gpp_profile_update_ex
+(
+  qmi_wds_profile_params_type * p_params,
+  unsigned int                  profile_id,
+  int                         * error_code
+)
+{
+  STUB_ENTRY;
+  STUB_EXIT;
+  return QCRIL_DATA_SUCCESS;
+}
 int qdp_profile_release
 (
   unsigned int profile_id
@@ -558,7 +592,7 @@ int qmi_wds_client = 0;
 int qmi_qos_client = 0;
 
 int
-qmi_init 
+qmi_init
 (
   qmi_sys_event_rx_hdlr   event_rx_hdlr,
   void                    *event_user_data
@@ -579,7 +613,7 @@ qmi_release( int init_handle )
 }
 
 
-int 
+int
 qmi_dev_connection_init
 (
   const char  *dev_id,
@@ -620,7 +654,7 @@ qmi_wds_srvc_init_client
   return qmi_wds_client++;;
 }
 
-int 
+int
 qmi_wds_srvc_release_client
 (
   int      user_handle,
@@ -696,7 +730,7 @@ qmi_qos_srvc_init_client
 }
 
 
-int 
+int
 qmi_qos_srvc_release_client
 (
   qmi_client_handle_type  client_handle,
@@ -736,7 +770,7 @@ qmi_qos_get_primary_granted_qos_info
   granted_info->tx_granted_flow_data_is_valid = TRUE;
   granted_info->tx_granted_flow_data.qos_flow_granted.cdma_flow_desc.param_mask = QMI_QOS_CDMA_FLOW_PARAM_PROFILE_ID;
   granted_info->tx_granted_flow_data.qos_flow_granted.cdma_flow_desc.profile_id = 5;
-  
+
   STUB_EXIT;
   return QMI_NO_ERR;
 }
@@ -795,7 +829,7 @@ qmi_wds_utils_get_profile_list2
 }
 
 
-int 
+int
 qmi_wds_set_event_report
 (
   int                               user_handle,
@@ -820,7 +854,7 @@ qmi_wds_go_dormant_req
   return QMI_NO_ERR;
 }
 
-int 
+int
 qmi_wds_get_dormancy_status
 (
   int                       user_handle,
@@ -872,7 +906,7 @@ void qcril_send_unsol_response
   qcril_data_stub_client.resp_cb_fn( QCRIL_STUB_RESPONSE_UNS,
                                      (void*)param_ptr,
                                      qcril_data_stub_client.resp_user_data );
-    
+
   STUB_EXIT;
   return;
 }
@@ -883,11 +917,11 @@ void qcril_send_request_response
 )
 {
   STUB_ENTRY;
-  
+
   qcril_data_stub_client.resp_cb_fn( QCRIL_STUB_RESPONSE_REQ,
                                      (void*)param_ptr,
                                      qcril_data_stub_client.resp_user_data );
-  
+
   STUB_EXIT;
   return;
 }
@@ -902,7 +936,7 @@ void qcril_format_log_msg
 )
 {
   va_list arg_list;
-  
+
   va_start(arg_list, fmt);
   (void)vsnprintf(buf_ptr, buf_size, fmt, arg_list);
   va_end(arg_list);
@@ -946,7 +980,7 @@ void qcril_reqlist_default_entry
   RIL_Token t,
   int request,
   qcril_modem_id_e_type modem_id,
-  qcril_req_state_e_type state,      
+  qcril_req_state_e_type state,
   qcril_evt_e_type pending_event_id,
   qcril_reqlist_u_type *sub_ptr,
   qcril_reqlist_public_type *req_ptr
@@ -959,7 +993,7 @@ void qcril_reqlist_default_entry
 
 
 IxErrnoType qcril_reqlist_free
-( 
+(
   qcril_instance_id_e_type instance_id,
   RIL_Token t
 )
@@ -970,7 +1004,7 @@ IxErrnoType qcril_reqlist_free
 }
 
 IxErrnoType qcril_reqlist_new
-( 
+(
   qcril_instance_id_e_type instance_id,
   qcril_reqlist_public_type *entry_ptr
 )
@@ -981,7 +1015,7 @@ IxErrnoType qcril_reqlist_new
 }
 
 IxErrnoType qcril_reqlist_query
-( 
+(
   qcril_instance_id_e_type instance_id,
   RIL_Token t,
   qcril_reqlist_public_type *info_ptr
@@ -998,8 +1032,8 @@ void qcril_event_queue
   qcril_modem_id_e_type modem_id,
   qcril_data_src_e_type data_src,
   qcril_evt_e_type event_id,
-  void *data, 
-  size_t datalen, 
+  void *data,
+  size_t datalen,
   RIL_Token t
 )
 {
@@ -1007,7 +1041,7 @@ void qcril_event_queue
 
   qcril_data_event_hdlr( qcril_data_client_info.params_ptr,
                          qcril_data_client_info.response_ptr );
-  
+
   STUB_EXIT;
   return;
 }
@@ -1025,7 +1059,7 @@ void qcril_arb_set_pref_data_tech
 }
 
 void qcril_default_request_resp_params
-(                  
+(
   qcril_instance_id_e_type instance_id,
   RIL_Token t,
   int request_id,
@@ -1048,7 +1082,7 @@ void qcril_default_request_resp_params
 }
 
 void qcril_default_unsol_resp_params
-(                  
+(
   qcril_instance_id_e_type instance_id,
   int response_id,
   qcril_unsol_resp_params_type *param_ptr

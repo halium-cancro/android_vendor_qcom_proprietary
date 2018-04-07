@@ -3,18 +3,6 @@
   Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved
   Qualcomm Technologies Proprietary and Confidential.
 
-  Export of this technology or software is regulated by the U.S. Government.
-  Diversion contrary to U.S. law prohibited.
-
-  All ideas, data and information contained in or disclosed by
-  this document are confidential and proprietary information of
-  Qualcomm Technologies, Inc. and all rights therein are expressly reserved.
-  By accepting this material the recipient agrees that this material
-  and the information contained therein are held in confidence and in
-  trust and will not be used, copied, reproduced in whole or in part,
-  nor its contents revealed in any manner to others without the express
-  written permission of Qualcomm Technologies, Inc.
-
 ===========================================================================*/
 /*===========================================================================
   @file    qcril_uim_qcci.c
@@ -35,7 +23,18 @@ Notice that changes are listed in reverse chronological order.
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+11/12/14   at      QCRIL UIM SAP support
+08/20/14   at      Support for graceful UICC Voltage supply deactivation
+07/24/14   at      Resolve compiler warnings by using the right qmi_client.h
+06/18/14   at      Support for SelectNext using reselect QMI command
+06/11/14   at      Support for open logical channel API
+06/05/14   tl      Add support for recovery indication
+05/14/14   yt      Support for STATUS command as part of SIM_IO request
+05/05/14   ar      Fix critical KW errors
+01/21/14   at      Added support for getSelectResponse()
+01/28/14   at      Do not terminate app when closing logical channel
 01/09/14   at      Fix to send data in AUTH response irrespective of result
+10/22/13   at      Switch to new QCCI framework
 08/12/13   at      Added support for Long APDU indication
 04/17/13   yt      Fix critical KW errors
 01/29/12   yt      Support for third SIM card slot
@@ -63,6 +62,8 @@ when       who     what, where, why
 /* Synchronous message default timeout (in milli-seconds) */
 #define QMI_UIM_DEFAULT_TIMEOUT 5000
 
+#define QMI_UIM_INIT_TIMEOUT    4
+
 /* structure to hold cb pointer and cb data */
 #define QMI_UIM_MAKE_CB_STRUCT(cb_struct, user_cb_ptr, user_data_ptr)  \
   cb_struct->user_cb = user_cb_ptr;                                    \
@@ -83,6 +84,9 @@ when       who     what, where, why
 #include "user_identity_module_v01.h"
 #include "qcril_log.h"
 #include "qcril_uim_qcci.h"
+#include "qmi_cci_target_ext.h"
+#include "qmi_ril_platform_dep.h"
+#include "qcril_uim_sap.h"
 
 #include <string.h>
 
@@ -109,18 +113,6 @@ typedef struct
 
 
 /*---------------------------------------------------------------------------
-   STRUCTURE:    QMI_CLIENT_STRUCT_TYPE
-
-   DESCRIPTION:   Structure used for holding qmi_client_type information
-   NOTE: This structure is statically defined in qmi_client.c; not exported.
----------------------------------------------------------------------------*/
-struct qmi_client_struct {
-  int                               service_user_handle;
-  qmi_idl_service_object_type       p_service;
-} qmi_client_struct_type;
-
-
-/*---------------------------------------------------------------------------
   helper functions
 ---------------------------------------------------------------------------*/
 /*===========================================================================
@@ -142,14 +134,16 @@ static int qcril_uim_qmi_flip_data
   unsigned int     i             =   0;
   unsigned short   temp_path     =   0;
 
-  if(des == NULL || src == NULL)
+  /* Return if path length is ODD */
+  if(des == NULL || src == NULL || (data_len & 0x1) != 0)
   {
-    QCRIL_LOG_ERROR("NULL pointer src = 0x%x, des = 0x%x", src, des);
+    QCRIL_LOG_ERROR("Invalid Input, cannot proceed: src = 0x%x, des = 0x%x, path_length = 0x%x",
+                    src, des, data_len);
     QCRIL_ASSERT(0);
     return -1;
   }
 
-  for(i = 0; i < (data_len + 1); i += 2)
+  for(i = 0; (i + 1) < data_len; i += 2)
   {
     temp_path = (*(src + i) << 8) |
                 (*(src + i + 1));
@@ -1769,12 +1763,40 @@ static void qcril_uim_qmi_conv_logical_channel_resp
   memset(rsp_data, 0, sizeof(qmi_uim_rsp_data_type));
 
   rsp_data->rsp_id = QMI_UIM_SRVC_LOGICAL_CHANNEL_RSP_MSG;
+  if(qmi_response->card_result_valid)
+  {
+    rsp_data->rsp_data.logical_channel_rsp.sw1 = (unsigned char)qmi_response->card_result.sw1;
+    rsp_data->rsp_data.logical_channel_rsp.sw2 = (unsigned char)qmi_response->card_result.sw2;
+  }
   if(qmi_response->resp.result == QMI_RESULT_SUCCESS_V01)
   {
     rsp_data->qmi_err_code = QMI_NO_ERR;
     if(qmi_response->channel_id_valid)
     {
       rsp_data->rsp_data.logical_channel_rsp.channel_id = (uint8_t)qmi_response->channel_id;
+    }
+    if(qmi_response->select_response_valid)
+    {
+      if(qmi_response->select_response_len > QMI_UIM_SELECT_RESPONSE_MAX_V01)
+      {
+        QCRIL_LOG_ERROR("%s", "data length too long");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      /* For sync calls this is freed by client */
+      rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr =
+        qcril_malloc(qmi_response->select_response_len);
+      if(rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr == NULL)
+      {
+        QCRIL_LOG_ERROR("%s", "data pointer NULL");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      memcpy((rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr),
+             (unsigned char*)qmi_response->select_response,
+             (unsigned short)qmi_response->select_response_len);
+      rsp_data->rsp_data.logical_channel_rsp.select_response.data_len =
+        (unsigned short)qmi_response->select_response_len;
     }
   }
   else
@@ -1783,6 +1805,76 @@ static void qcril_uim_qmi_conv_logical_channel_resp
     rsp_data->qmi_err_code = (int)qmi_response->resp.error;
   }
 } /* qcril_uim_qmi_conv_logical_channel_resp */
+
+
+/*===========================================================================
+  FUNCTION  qcril_uim_qmi_conv_open_logical_channel_resp
+===========================================================================*/
+/*!
+@brief
+  translates response data coming from QCCI into response data
+  compatible to the card. If there is invalid data, report in
+  rsp_data->qmi_err_code.
+*/
+/*=========================================================================*/
+static void qcril_uim_qmi_conv_open_logical_channel_resp
+(
+  const uim_open_logical_channel_resp_msg_v01         * qmi_response,
+  qmi_uim_rsp_data_type                               * rsp_data
+)
+{
+  if(qmi_response == NULL || rsp_data == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL pointer");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(rsp_data, 0, sizeof(qmi_uim_rsp_data_type));
+
+  rsp_data->rsp_id = QMI_UIM_SRVC_OPEN_LOGICAL_CHANNEL_RSP_MSG;
+  if(qmi_response->card_result_valid)
+  {
+    rsp_data->rsp_data.logical_channel_rsp.sw1 = (unsigned char)qmi_response->card_result.sw1;
+    rsp_data->rsp_data.logical_channel_rsp.sw2 = (unsigned char)qmi_response->card_result.sw2;
+  }
+  if(qmi_response->resp.result == QMI_RESULT_SUCCESS_V01)
+  {
+    rsp_data->qmi_err_code = QMI_NO_ERR;
+    if(qmi_response->channel_id_valid)
+    {
+      rsp_data->rsp_data.logical_channel_rsp.channel_id = (uint8_t)qmi_response->channel_id;
+    }
+    if(qmi_response->select_response_valid)
+    {
+      if(qmi_response->select_response_len > QMI_UIM_SELECT_RESPONSE_MAX_V01)
+      {
+        QCRIL_LOG_ERROR("%s", "data length too long");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      /* For sync calls this is freed by client */
+      rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr =
+        qcril_malloc(qmi_response->select_response_len);
+      if(rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr == NULL)
+      {
+        QCRIL_LOG_ERROR("%s", "data pointer NULL");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      memcpy((rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr),
+             (unsigned char*)qmi_response->select_response,
+             (unsigned short)qmi_response->select_response_len);
+      rsp_data->rsp_data.logical_channel_rsp.select_response.data_len =
+        (unsigned short)qmi_response->select_response_len;
+    }
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( "response error: 0x%x", qmi_response->resp.error);
+    rsp_data->qmi_err_code = (int)qmi_response->resp.error;
+  }
+} /* qcril_uim_qmi_conv_open_logical_channel_resp */
 
 
 /*===========================================================================
@@ -1842,6 +1934,325 @@ static void qcril_uim_qmi_conv_get_atr_resp
     rsp_data->qmi_err_code = (int)qmi_response->resp.error;
   }
 } /* qcril_uim_qmi_conv_get_atr_resp */
+
+
+/*===========================================================================
+  FUNCTION  qcril_uim_qmi_conv_send_status_resp
+===========================================================================*/
+/*!
+@brief
+  translates response data coming from QCCI into response data
+  compatible to the card. If there is invalid data, report in
+  rsp_data->qmi_err_code.
+*/
+/*=========================================================================*/
+static void qcril_uim_qmi_conv_send_status_resp
+(
+  const uim_send_status_cmd_resp_msg_v01     * qmi_response,
+  qmi_uim_rsp_data_type                      * rsp_data
+)
+{
+  if(qmi_response == NULL || rsp_data == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL pointer");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(rsp_data, 0, sizeof(qmi_uim_rsp_data_type));
+
+  rsp_data->rsp_id = QMI_UIM_SRVC_SEND_STATUS_RSP_MSG;
+
+  if(qmi_response->resp.result == QMI_RESULT_SUCCESS_V01)
+  {
+    rsp_data->qmi_err_code = QMI_NO_ERR;
+    if(qmi_response->status_response_valid)
+    {
+      if((qmi_response->status_response_len) > QMI_UIM_SELECT_RESPONSE_MAX_V01)
+      {
+        QCRIL_LOG_ERROR("%s", "data length too long");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+
+      rsp_data->rsp_data.send_status_rsp.status_response.data_ptr = qcril_malloc(qmi_response->status_response_len);
+      if(rsp_data->rsp_data.send_status_rsp.status_response.data_ptr == NULL)
+      {
+        QCRIL_LOG_ERROR("%s", "data pointer NULL");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      memcpy(rsp_data->rsp_data.send_status_rsp.status_response.data_ptr,
+             (unsigned char*)qmi_response->status_response,
+             (unsigned short)qmi_response->status_response_len);
+      rsp_data->rsp_data.send_status_rsp.status_response.data_len = (unsigned short)qmi_response->status_response_len;
+    }
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( "response error: 0x%x", qmi_response->resp.error);
+    rsp_data->qmi_err_code = (int)qmi_response->resp.error;
+  }
+} /* qcril_uim_qmi_conv_send_status_resp */
+
+
+/*===========================================================================
+  FUNCTION  qcril_uim_qmi_conv_reselect_resp
+===========================================================================*/
+/*!
+@brief
+  translates response data coming from QCCI into response data
+  compatible to the card. If there is invalid data, report in
+  rsp_data->qmi_err_code.
+*/
+/*=========================================================================*/
+static void qcril_uim_qmi_conv_reselect_resp
+(
+  const uim_reselect_resp_msg_v01                     * qmi_response,
+  qmi_uim_rsp_data_type                               * rsp_data
+)
+{
+  if(qmi_response == NULL || rsp_data == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL pointer");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(rsp_data, 0, sizeof(qmi_uim_rsp_data_type));
+
+  rsp_data->rsp_id = QMI_UIM_SRVC_RESELECT_RSP_MSG;
+  if(qmi_response->card_result_valid)
+  {
+    rsp_data->rsp_data.reselect_rsp.sw1 = (unsigned char)qmi_response->card_result.sw1;
+    rsp_data->rsp_data.reselect_rsp.sw2 = (unsigned char)qmi_response->card_result.sw2;
+  }
+  if(qmi_response->resp.result == QMI_RESULT_SUCCESS_V01)
+  {
+    rsp_data->qmi_err_code = QMI_NO_ERR;
+    if(qmi_response->select_response_valid)
+    {
+      if(qmi_response->select_response_len > QMI_UIM_SELECT_RESPONSE_MAX_V01)
+      {
+        QCRIL_LOG_ERROR("%s", "data length too long");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      /* For sync calls this is freed by client */
+      rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr =
+        qcril_malloc(qmi_response->select_response_len);
+      if(rsp_data->rsp_data.reselect_rsp.select_response.data_ptr == NULL)
+      {
+        QCRIL_LOG_ERROR("%s", "data pointer NULL");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      memcpy((rsp_data->rsp_data.reselect_rsp.select_response.data_ptr),
+             (unsigned char*)qmi_response->select_response,
+             (unsigned short)qmi_response->select_response_len);
+      rsp_data->rsp_data.reselect_rsp.select_response.data_len =
+        (unsigned short)qmi_response->select_response_len;
+    }
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( "response error: 0x%x", qmi_response->resp.error);
+    rsp_data->qmi_err_code = (int)qmi_response->resp.error;
+  }
+} /* qcril_uim_qmi_conv_reselect_resp */
+
+
+/*===========================================================================
+  FUNCTION  qcril_uim_qmi_conv_supply_voltage_resp
+===========================================================================*/
+/*!
+@brief
+  Translates response data coming from QCCI to QCRIL UIM type. If there is
+  invalid data, report in rsp_data->qmi_err_code.
+*/
+/*=========================================================================*/
+static void qcril_uim_qmi_conv_supply_voltage_resp
+(
+  const uim_supply_voltage_resp_msg_v01       * qmi_response,
+  qmi_uim_rsp_data_type                       * rsp_data
+)
+{
+  if(qmi_response == NULL || rsp_data == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL pointer");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(rsp_data, 0, sizeof(qmi_uim_rsp_data_type));
+
+  rsp_data->rsp_id = QMI_UIM_SRVC_SUPPLY_VOLTAGE_RSP_MSG;
+  if(qmi_response->resp.result == QMI_RESULT_SUCCESS_V01)
+  {
+    rsp_data->qmi_err_code = QMI_NO_ERR;
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( "response error: 0x%x", qmi_response->resp.error);
+    rsp_data->qmi_err_code = (int)qmi_response->resp.error;
+  }
+} /* qcril_uim_qmi_conv_supply_voltage_resp */
+
+
+/*===========================================================================
+  FUNCTION  qcril_uim_qmi_conv_sap_connection_resp
+===========================================================================*/
+/*!
+@brief
+  Translates response data coming from QCCI into QMI response datatype.
+  If there is invalid data, report error in rsp_data->qmi_err_code.
+*/
+/*=========================================================================*/
+static void qcril_uim_qmi_conv_sap_connection_resp
+(
+  const uim_sap_connection_resp_msg_v01       * qmi_response,
+  qmi_uim_rsp_data_type                       * rsp_data
+)
+{
+  if(qmi_response == NULL || rsp_data == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL pointer");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(rsp_data, 0, sizeof(qmi_uim_rsp_data_type));
+
+  rsp_data->rsp_id = QMI_UIM_SRVC_SAP_CONNECTION_RSP_MSG;
+
+  if(qmi_response->resp.result == QMI_RESULT_SUCCESS_V01)
+  {
+    rsp_data->qmi_err_code = QMI_NO_ERR;
+    if(qmi_response->sap_state_valid)
+    {
+      rsp_data->rsp_data.sap_connection_rsp.connection_status_valid = QMI_UIM_TRUE;
+      rsp_data->rsp_data.sap_connection_rsp.connection_status =
+        (qmi_uim_sap_connection_state_type)qmi_response->sap_state;
+    }
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( "response error: 0x%x", qmi_response->resp.error);
+    rsp_data->qmi_err_code = (int)qmi_response->resp.error;
+  }
+
+} /* qcril_uim_qmi_conv_sap_connection_resp */
+
+
+/*===========================================================================
+  FUNCTION  qcril_uim_qmi_conv_sap_request_resp
+===========================================================================*/
+/*!
+@brief
+  Translates response data coming from QCCI into QMI response datatype.
+  If there is invalid data, report error in rsp_data->qmi_err_code.
+*/
+/*=========================================================================*/
+static void qcril_uim_qmi_conv_sap_request_resp
+(
+  const uim_sap_request_resp_msg_v01          * qmi_response,
+  qmi_uim_rsp_data_type                       * rsp_data
+)
+{
+  if(qmi_response == NULL || rsp_data == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "NULL pointer");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(rsp_data, 0, sizeof(qmi_uim_rsp_data_type));
+
+  rsp_data->rsp_id = QMI_UIM_SRVC_SAP_REQUEST_RSP_MSG;
+
+  if(qmi_response->resp.result == QMI_RESULT_SUCCESS_V01)
+  {
+    rsp_data->qmi_err_code = QMI_NO_ERR;
+    /* Updated response based on the respective TLVs */
+    if(qmi_response->ATR_value_valid)
+    {
+      if(qmi_response->ATR_value_len > QMI_UIM_ATR_DATA_MAX_V01)
+      {
+        QCRIL_LOG_ERROR("%s", "data length too long");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      /* For sync calls this is freed by client, for async calls it is freed
+         by the main callback using qcril_uim_qmi_free_data */
+      rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr =
+        qcril_malloc(qmi_response->ATR_value_len);
+      if(rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr == NULL)
+      {
+        QCRIL_LOG_ERROR("%s", "data pointer NULL");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      memcpy((rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr),
+             (unsigned char*)qmi_response->ATR_value,
+             (unsigned short)qmi_response->ATR_value_len);
+      rsp_data->rsp_data.sap_response_rsp.sap_response.data_len =
+        (unsigned short)qmi_response->ATR_value_len;
+    }
+    else if(qmi_response->apdu_valid)
+    {
+      if(qmi_response->apdu_len > QMI_UIM_APDU_DATA_MAX_V01)
+      {
+        QCRIL_LOG_ERROR("%s", "data length too long");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      /* For sync calls this is freed by client, for async calls it is freed
+         by the main callback using qcril_uim_qmi_free_data */
+      rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr =
+        qcril_malloc(qmi_response->apdu_len);
+      if(rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr == NULL)
+      {
+        QCRIL_LOG_ERROR("%s", "data pointer NULL");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      memcpy((rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr),
+             (unsigned char*)qmi_response->apdu,
+             (unsigned short)qmi_response->apdu_len);
+      rsp_data->rsp_data.sap_response_rsp.sap_response.data_len =
+        (unsigned short)qmi_response->apdu_len;
+    }
+    else if(qmi_response->status_valid)
+    {
+      if(qmi_response->status_len > QMI_UIM_CARD_READER_DATA_MAX_V01)
+      {
+        QCRIL_LOG_ERROR("%s", "data length too long");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      /* For sync calls this is freed by client, for async calls it is freed
+         by the main callback using qcril_uim_qmi_free_data */
+      rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr =
+        qcril_malloc(qmi_response->status_len);
+      if(rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr == NULL)
+      {
+        QCRIL_LOG_ERROR("%s", "data pointer NULL");
+        rsp_data->qmi_err_code = QMI_SERVICE_ERR;
+        return;
+      }
+      memcpy((rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr),
+             (unsigned char*)qmi_response->status,
+             (unsigned short)qmi_response->status_len);
+      rsp_data->rsp_data.sap_response_rsp.sap_response.data_len =
+        (unsigned short)qmi_response->status_len;
+    }
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( "response error: 0x%x", qmi_response->resp.error);
+    rsp_data->qmi_err_code = (int)qmi_response->resp.error;
+  }
+} /* qcril_uim_qmi_conv_sap_request_resp */
 
 
 /*---------------------------------------------------------------------------
@@ -2040,6 +2451,70 @@ static int qcril_qmi_uim_send_apdu_ind_hdlr
 
 
 /*===========================================================================
+  FUNCTION  qcril_qmi_uim_recovery_ind_hdlr
+===========================================================================*/
+/*!
+@brief
+  Converts decoded indication data coming from QCCI to indication data in
+  internla QMI format. If there is invalid data, report in
+  rsp_data->qmi_err_code.
+
+@return
+  If return code < 0, then the operation has failed
+*/
+/*=========================================================================*/
+static int qcril_qmi_uim_recovery_ind_hdlr
+(
+  uim_recovery_ind_msg_v01           * qcci_data_ptr,
+  qmi_uim_indication_data_type       * qmi_data_ptr
+)
+{
+  if ((qcci_data_ptr == NULL) || (qmi_data_ptr == NULL))
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+
+  /* Allocate memory for APDU data & copy individual fields */
+  qmi_data_ptr->recovery_ind.slot = qcci_data_ptr->slot;
+
+  return 0;
+} /* qcril_qmi_uim_recovery_ind_hdlr */
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_supply_voltage_ind_hdlr
+===========================================================================*/
+/*!
+@brief
+  Converts decoded indication data coming from QCCI to indication data in
+  internal QMI format. If there is invalid data, report in
+  rsp_data->qmi_err_code.
+
+@return
+  If return code < 0, then the operation has failed
+*/
+/*=========================================================================*/
+static int qcril_qmi_uim_supply_voltage_ind_hdlr
+(
+  uim_supply_voltage_ind_msg_v01       * qcci_data_ptr,
+  qmi_uim_indication_data_type         * qmi_data_ptr
+)
+{
+  if ((qcci_data_ptr == NULL) || (qmi_data_ptr == NULL))
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  /* Copy individual fields */
+  qmi_data_ptr->supply_voltage_ind.slot        = (qmi_uim_slot_type)qcci_data_ptr->slot;
+  qmi_data_ptr->supply_voltage_ind.vcc_command = (qmi_uim_vcc_command_type)qcci_data_ptr->vcc_command;
+
+  return 0;
+} /* qcril_qmi_uim_supply_voltage_ind_hdlr */
+
+
+/*===========================================================================
   FUNCTION  qmi_client_indication_cb
 ===========================================================================*/
 /*!
@@ -2062,18 +2537,21 @@ static int qcril_qmi_uim_send_apdu_ind_hdlr
 static void qmi_client_indication_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  unsigned char                * ind_buf,
+  unsigned int                   ind_buf_len,
+  void                         * ind_cb_data
 )
 {
-  uint32_t                        decoded_payload_len  =   0;
-  qmi_client_error_type           qmi_err              =   QMI_NO_ERR;
-  void                          * decoded_payload      =   NULL;
-  qmi_uim_indication_id_type      ind_id;
-  qmi_uim_indication_hdlr_type    user_ind_hdlr;
-  qmi_uim_indication_data_type  * ind_data             =   NULL;
+  uint32_t                               decoded_payload_len  =   0;
+  qmi_client_error_type                  qmi_err              =   QMI_NO_ERR;
+  void                                 * decoded_payload      =   NULL;
+  qmi_uim_indication_id_type             ind_id;
+  qmi_uim_indication_hdlr_type           user_ind_hdlr;
+  qmi_uim_indication_data_type         * ind_data             =   NULL;
+#ifndef FEATURE_QCRIL_UIM_QMI_RPC_QCRIL
+  qmi_ril_gen_operational_status_type    operational_state;
+#endif /* FEATURE_QCRIL_UIM_QMI_RPC_QCRIL */
 
   QCRIL_LOG_INFO("qmi_client_indication_cb, msg_id: 0x%x", msg_id);
 
@@ -2099,7 +2577,7 @@ static void qmi_client_indication_cb
   /* Initialize data */
   memset(ind_data, 0x0, sizeof(qmi_uim_indication_data_type));
 
-  qmi_idl_get_message_c_struct_len(  qmi_uim_svc_client->p_service,
+  qmi_idl_get_message_c_struct_len(  uim_get_service_object_v01(),
                                      QMI_IDL_INDICATION,
                                      msg_id,
                                      &decoded_payload_len);
@@ -2131,7 +2609,8 @@ static void qmi_client_indication_cb
                                          decoded_payload,
                                          decoded_payload_len);
 #ifndef FEATURE_QCRIL_UIM_QMI_RPC_QCRIL
-    QCRIL_LOG_INFO(".. operational state %d", (int)qmi_ril_get_operational_status() );
+    operational_state = qmi_ril_get_operational_status();
+    QCRIL_LOG_INFO(".. operational state 0x%x", operational_state );
 #endif /* FEATURE_QCRIL_UIM_QMI_RPC_QCRIL */
 
     /* Determine the indication ID and process appropriately */
@@ -2166,6 +2645,30 @@ static void qmi_client_indication_cb
             return;
           }
           break;
+        case QMI_UIM_RECOVERY_IND_V01:
+          ind_id = QMI_UIM_SRVC_RECOVERY_IND_MSG;
+          if(qcril_qmi_uim_recovery_ind_hdlr((uim_recovery_ind_msg_v01*)decoded_payload, ind_data) != 0)
+          {
+            qcril_free(decoded_payload);
+            qcril_free(ind_data);
+            return;
+          }
+          break;
+        case QMI_UIM_SUPPLY_VOLTAGE_IND_V01:
+          ind_id = QMI_UIM_SRVC_SUPPLY_VOLTAGE_IND_MSG;
+          if(qcril_qmi_uim_supply_voltage_ind_hdlr((uim_supply_voltage_ind_msg_v01*)decoded_payload, ind_data) != 0)
+          {
+            qcril_free(decoded_payload);
+            qcril_free(ind_data);
+            return;
+          }
+          break;
+        case QMI_UIM_SAP_CONNECTION_IND_V01:
+          /* For SAP IND, call the SAP Indication handler directly */
+          qcril_qmi_sap_ind_hdlr((uim_sap_connection_ind_msg_v01*)decoded_payload);
+          qcril_free(decoded_payload);
+          qcril_free(ind_data);
+          return;
         default:
           QCRIL_LOG_INFO("Unknown QMI UIM indication %d", msg_id);
           qcril_free(decoded_payload);
@@ -2186,9 +2689,7 @@ static void qmi_client_indication_cb
   user_ind_hdlr = indication_cb_hdlr_ptr;
 
   /* Call user registered handler */
-  user_ind_hdlr (user_handle->service_user_handle,
-                 (user_handle->p_service)->service_id,
-                 ind_cb_data,
+  user_ind_hdlr (ind_cb_data,
                  ind_id,
                  ind_data);
 
@@ -2300,6 +2801,35 @@ static void qcril_uim_qmi_free_data
         rsp_data->rsp_data.get_atr_rsp.atr_response.data_ptr = NULL;
       }
       break;
+    case QMI_UIM_LOGICAL_CHANNEL_RESP_V01:
+    case QMI_UIM_OPEN_LOGICAL_CHANNEL_RESP_V01:
+      if (rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr)
+      {
+        qcril_free(rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr);
+        rsp_data->rsp_data.logical_channel_rsp.select_response.data_ptr = NULL;
+      }
+      break;
+    case QMI_UIM_SEND_STATUS_RESP_V01:
+      if (rsp_data->rsp_data.send_status_rsp.status_response.data_ptr)
+      {
+        qcril_free(rsp_data->rsp_data.send_status_rsp.status_response.data_ptr);
+        rsp_data->rsp_data.send_status_rsp.status_response.data_ptr = NULL;
+      }
+      break;
+    case QMI_UIM_RESELECT_RESP_V01:
+      if (rsp_data->rsp_data.reselect_rsp.select_response.data_ptr)
+      {
+        qcril_free(rsp_data->rsp_data.reselect_rsp.select_response.data_ptr);
+        rsp_data->rsp_data.reselect_rsp.select_response.data_ptr = NULL;
+      }
+      break;
+    case QMI_UIM_SAP_REQUEST_RESP_V01:
+      if (rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr)
+      {
+        qcril_free(rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr);
+        rsp_data->rsp_data.sap_response_rsp.sap_response.data_ptr = NULL;
+      }
+      break;
     default:
       QCRIL_LOG_INFO( "%s: requires no data to be freed", __FUNCTION__);
       break;
@@ -2407,12 +2937,12 @@ static int qcril_uim_convert_msg_id
       break;
 
     case QMI_UIM_CHANGE_PROVISIONING_SESSION_RESP_V01:
-	    *rsp_id = QMI_UIM_SRVC_CHANGE_PROV_SESSION_RSP_MSG;
-	    break;
+      *rsp_id = QMI_UIM_SRVC_CHANGE_PROV_SESSION_RSP_MSG;
+      break;
 
     case QMI_UIM_GET_LABEL_RESP_V01:
-	    *rsp_id = QMI_UIM_SRVC_GET_LABEL_RSP_MSG;
-	    break;
+      *rsp_id = QMI_UIM_SRVC_GET_LABEL_RSP_MSG;
+      break;
 
     case QMI_UIM_SEND_APDU_RESP_V01:
       *rsp_id = QMI_UIM_SRVC_SEND_APDU_RSP_MSG;
@@ -2430,8 +2960,24 @@ static int qcril_uim_convert_msg_id
       *rsp_id = QMI_UIM_SRVC_LOGICAL_CHANNEL_RSP_MSG;
       break;
 
+    case QMI_UIM_OPEN_LOGICAL_CHANNEL_RESP_V01:
+      *rsp_id = QMI_UIM_SRVC_OPEN_LOGICAL_CHANNEL_RSP_MSG;
+      break;
+
     case QMI_UIM_GET_ATR_RESP_V01:
       *rsp_id = QMI_UIM_SRVC_GET_ATR_RSP_MSG;
+      break;
+
+    case QMI_UIM_SEND_STATUS_RESP_V01:
+      *rsp_id = QMI_UIM_SRVC_SEND_STATUS_RSP_MSG;
+      break;
+
+    case QMI_UIM_RESELECT_RESP_V01:
+      *rsp_id = QMI_UIM_SRVC_RESELECT_RSP_MSG;
+      break;
+
+    case QMI_UIM_SUPPLY_VOLTAGE_RESP_V01:
+      *rsp_id = QMI_UIM_SRVC_SUPPLY_VOLTAGE_RSP_MSG;
       break;
 
     default:
@@ -2447,9 +2993,9 @@ static int qcril_uim_convert_msg_id
 static void qmi_uim_client_async_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
+  unsigned int                   msg_id,
   void                         * qmi_response,
-  int                            resp_c_struct_len,
+  unsigned int                   resp_c_struct_len,
   void                         * resp_cb_data,
   qmi_client_error_type          transp_err
 )
@@ -2479,8 +3025,8 @@ static void qmi_uim_client_async_cb
   /* Update response ID */
   if(qcril_uim_convert_msg_id(msg_id, &rsp_data.rsp_id) < 0)
   {
-    QCRIL_LOG_ERROR("Unknown async reply msg, msg_id=%x, user=%x",
-                    (unsigned int) msg_id, (unsigned int) user_handle);
+    QCRIL_LOG_ERROR("Unknown async reply msg, msg_id=%"PRIxPTR", user=%"PRIxPTR,
+                    (uintptr_t) msg_id, (uintptr_t) user_handle);
   }
 
   if(transp_err != QMI_NO_ERR)
@@ -2559,8 +3105,26 @@ static void qmi_uim_client_async_cb
       case QMI_UIM_LOGICAL_CHANNEL_RESP_V01:
         qcril_uim_qmi_conv_logical_channel_resp((uim_logical_channel_resp_msg_v01*)qmi_response, &rsp_data);
         break;
+      case QMI_UIM_OPEN_LOGICAL_CHANNEL_RESP_V01:
+        qcril_uim_qmi_conv_open_logical_channel_resp((uim_open_logical_channel_resp_msg_v01*)qmi_response, &rsp_data);
+        break;
       case QMI_UIM_GET_ATR_RESP_V01:
         qcril_uim_qmi_conv_get_atr_resp((uim_get_atr_resp_msg_v01*)qmi_response, &rsp_data);
+        break;
+      case QMI_UIM_SEND_STATUS_RESP_V01:
+        qcril_uim_qmi_conv_send_status_resp((uim_send_status_cmd_resp_msg_v01*)qmi_response, &rsp_data);
+        break;
+      case QMI_UIM_RESELECT_RESP_V01:
+        qcril_uim_qmi_conv_reselect_resp((uim_reselect_resp_msg_v01*)qmi_response, &rsp_data);
+        break;
+      case QMI_UIM_SUPPLY_VOLTAGE_RESP_V01:
+        qcril_uim_qmi_conv_supply_voltage_resp((uim_supply_voltage_resp_msg_v01*)qmi_response, &rsp_data);
+        break;
+      case QMI_UIM_SAP_CONNECTION_RESP_V01:
+        qcril_uim_qmi_conv_sap_connection_resp((uim_sap_connection_resp_msg_v01*)qmi_response, &rsp_data);
+        break;
+      case QMI_UIM_SAP_REQUEST_RESP_V01:
+        qcril_uim_qmi_conv_sap_request_resp((uim_sap_request_resp_msg_v01*)qmi_response, &rsp_data);
         break;
       default:
         QCRIL_LOG_ERROR("qmi_uim_srvc_async_cb: unknown rsp ID = %x", (unsigned int)rsp_data.rsp_id);
@@ -2573,9 +3137,7 @@ static void qmi_uim_client_async_cb
   if(user_cb != NULL && user_handle != NULL)
   {
     /* Call the user callback */
-    user_cb ( user_handle->service_user_handle,
-              (user_handle->p_service)->service_id,
-              &rsp_data,
+    user_cb ( &rsp_data,
               ((qmi_uim_cb_struct_type*)resp_cb_data)->user_data);
   }
 
@@ -2617,9 +3179,9 @@ static void qmi_uim_client_async_cb
     - Talks to modem processor
 */
 /*=========================================================================*/
-qmi_client_handle_type qcril_qmi_uim_srvc_init_client
+qmi_client_type qcril_qmi_uim_srvc_init_client
 (
-  const char                    * dev_id,
+  qmi_client_qmux_instance_type   dev_id,
   qmi_uim_indication_hdlr_type    user_rx_ind_msg_hdlr,
   void                          * user_rx_ind_msg_hdlr_user_data,
   int                           * qmi_err_code
@@ -2634,31 +3196,29 @@ qmi_client_handle_type qcril_qmi_uim_srvc_init_client
                                   qmi_err_code);
 
 #else
-  int                         ret = -1;
+  int                         time_out = QMI_UIM_INIT_TIMEOUT;
+  qmi_client_os_params        os_params;
   qmi_idl_service_object_type client_service;
 
   if(qmi_err_code == NULL)
   {
     QCRIL_LOG_ERROR("%s","Invalid input, cannot proceed");
     QCRIL_ASSERT(0);
-    return ret;
+    return NULL;
   }
 
-  /*check dev_id*/
-  if(!dev_id)
-  {
-    QCRIL_LOG_INFO("%s", "dev_id is not valid for UIM ");
-    return QMI_SERVICE_ERR;
-  }
+  memset(&os_params, 0x00, sizeof(qmi_client_os_params));
 
   client_service = uim_get_service_object_v01();
 
   /* Call common client layer initialization function */
-  *qmi_err_code = qmi_client_init(dev_id,
-                                  client_service,
-                                  qmi_client_indication_cb,
-                                  client_service,
-                                  &qmi_uim_svc_client);
+  *qmi_err_code = qmi_client_init_instance(client_service,
+                                           dev_id,
+                                           qmi_client_indication_cb,
+                                           NULL,
+                                           &os_params,
+                                           time_out,
+                                           &qmi_uim_svc_client);
 
   indication_cb_hdlr_ptr = user_rx_ind_msg_hdlr;
 
@@ -2667,12 +3227,7 @@ qmi_client_handle_type qcril_qmi_uim_srvc_init_client
     QCRIL_LOG_INFO("qmi_client_init returned failure(%d) for UIM ", (*qmi_err_code));
   }
 
-  if (qmi_uim_svc_client != NULL)
-  {
-    ret = qmi_uim_svc_client->service_user_handle;
-  }
-
-  return ret;
+  return qmi_uim_svc_client;
 #endif /* FEATURE_QCRIL_UIM_QMI_RPC_QCRIL */
 } /* qcril_qmi_uim_srvc_init_client */
 
@@ -2706,8 +3261,8 @@ qmi_client_handle_type qcril_qmi_uim_srvc_init_client
 int
 qcril_qmi_uim_srvc_release_client
 (
-  int        user_handle,
-  int      * qmi_err_code
+  qmi_client_type        user_handle,
+  int                  * qmi_err_code
 )
 {
   int                     rc = -1;
@@ -2719,8 +3274,6 @@ qcril_qmi_uim_srvc_release_client
 #else
   if(qmi_uim_svc_client)
   {
-    qmi_uim_svc_client->service_user_handle = user_handle;
-
     rc = qmi_client_release(qmi_uim_svc_client);
     qmi_uim_svc_client = NULL;
   }
@@ -2764,7 +3317,7 @@ qcril_qmi_uim_srvc_release_client
 /*=========================================================================*/
 int qcril_qmi_uim_reset
 (
-  int                           user_handle,
+  qmi_client_type               user_handle,
   qmi_uim_user_async_cb_type    user_cb,
   void                        * user_data,
   int                         * qmi_err_code
@@ -2789,8 +3342,6 @@ int qcril_qmi_uim_reset
   /* Check before reinitializing qmi_uim_svc_client with new handle */
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
 
-  qmi_uim_svc_client->service_user_handle = user_handle;
-
   qmi_response = (uim_reset_resp_msg_v01*)qcril_malloc(sizeof(uim_reset_resp_msg_v01));
   if(qmi_response == NULL)
   {
@@ -2811,7 +3362,7 @@ int qcril_qmi_uim_reset
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_RESET_REQ_V01,
                                     NULL,
                                     0,
@@ -2828,7 +3379,7 @@ int qcril_qmi_uim_reset
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_RESET_REQ_V01,
                                    NULL,
                                    0,
@@ -2872,7 +3423,7 @@ int qcril_qmi_uim_reset
 /*=========================================================================*/
 int qcril_qmi_uim_read_transparent
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   const qmi_uim_read_transparent_params_type  * params,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
@@ -2906,8 +3457,6 @@ int qcril_qmi_uim_read_transparent
 
   /* Check before reinitializing qmi_uim_svc_client with new handle */
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->file_id.path.data_len > QMI_UIM_PATH_MAX_V01) || (params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01))
   {
@@ -2964,7 +3513,7 @@ int qcril_qmi_uim_read_transparent
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_READ_TRANSPARENT_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -2981,7 +3530,7 @@ int qcril_qmi_uim_read_transparent
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_READ_TRANSPARENT_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -3030,7 +3579,7 @@ int qcril_qmi_uim_read_transparent
 /*=========================================================================*/
 int qcril_qmi_uim_read_record
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   const qmi_uim_read_record_params_type       * params,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
@@ -3063,9 +3612,6 @@ int qcril_qmi_uim_read_record
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->file_id.path.data_len > QMI_UIM_PATH_MAX_V01) || (params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01))
   {
@@ -3122,7 +3668,7 @@ int qcril_qmi_uim_read_record
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_READ_RECORD_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -3139,7 +3685,7 @@ int qcril_qmi_uim_read_record
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_READ_RECORD_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -3188,7 +3734,7 @@ int qcril_qmi_uim_read_record
 /*=========================================================================*/
 int qcril_qmi_uim_write_transparent
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   const qmi_uim_write_transparent_params_type * params,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
@@ -3221,9 +3767,6 @@ int qcril_qmi_uim_write_transparent
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->data.data_len > QMI_UIM_CONTENT_TRANSPARENT_MAX_V01) ||
      (params->file_id.path.data_len > QMI_UIM_PATH_MAX_V01) ||
@@ -3283,7 +3826,7 @@ int qcril_qmi_uim_write_transparent
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_WRITE_TRANSPARENT_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -3300,7 +3843,7 @@ int qcril_qmi_uim_write_transparent
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_WRITE_TRANSPARENT_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -3349,7 +3892,7 @@ int qcril_qmi_uim_write_transparent
 /*=========================================================================*/
 int qcril_qmi_uim_write_record
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   const qmi_uim_write_record_params_type      * params,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
@@ -3382,9 +3925,6 @@ int qcril_qmi_uim_write_record
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->data.data_len > QMI_UIM_CONTENT_RECORD_MAX_V01) ||
      (params->file_id.path.data_len > QMI_UIM_PATH_MAX_V01) ||
@@ -3444,7 +3984,7 @@ int qcril_qmi_uim_write_record
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_WRITE_RECORD_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -3461,7 +4001,7 @@ int qcril_qmi_uim_write_record
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_WRITE_RECORD_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -3510,7 +4050,7 @@ int qcril_qmi_uim_write_record
 /*=========================================================================*/
 int qcril_qmi_uim_get_file_attributes
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_get_file_attributes_params_type     * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -3543,9 +4083,6 @@ int qcril_qmi_uim_get_file_attributes
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->file_id.path.data_len > QMI_UIM_PATH_MAX_V01) || (params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01))
   {
@@ -3599,7 +4136,7 @@ int qcril_qmi_uim_get_file_attributes
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_GET_FILE_ATTRIBUTES_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -3616,7 +4153,7 @@ int qcril_qmi_uim_get_file_attributes
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_GET_FILE_ATTRIBUTES_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -3658,7 +4195,7 @@ int qcril_qmi_uim_get_file_attributes
 /*=========================================================================*/
 int qcril_qmi_uim_refresh_register
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_refresh_register_params_type      * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -3692,9 +4229,6 @@ int qcril_qmi_uim_refresh_register
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->num_files > QMI_UIM_REFRESH_FILES_MAX_V01) || (params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01))
   {
@@ -3761,7 +4295,7 @@ int qcril_qmi_uim_refresh_register
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_REFRESH_REGISTER_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -3778,7 +4312,7 @@ int qcril_qmi_uim_refresh_register
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_REFRESH_REGISTER_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -3820,7 +4354,7 @@ int qcril_qmi_uim_refresh_register
 /*=========================================================================*/
 int qcril_qmi_uim_refresh_ok
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_refresh_ok_params_type            * params,
   qmi_uim_rsp_data_type                           * rsp_data
 )
@@ -3842,9 +4376,6 @@ int qcril_qmi_uim_refresh_ok
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
@@ -3876,7 +4407,7 @@ int qcril_qmi_uim_refresh_ok
   qmi_request->session_information.aid_len = (uint32_t)(params->session_info.aid.data_len);
   memcpy(qmi_request->session_information.aid, params->session_info.aid.data_ptr, params->session_info.aid.data_len);
 
-  rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+  rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                  QMI_UIM_REFRESH_OK_REQ_V01,
                                  (void*) qmi_request,
                                  sizeof(*qmi_request),
@@ -3925,7 +4456,7 @@ int qcril_qmi_uim_refresh_ok
 /*=========================================================================*/
 int qcril_qmi_uim_refresh_complete
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_refresh_complete_params_type      * params,
   qmi_uim_rsp_data_type                           * rsp_data
 )
@@ -3946,9 +4477,6 @@ int qcril_qmi_uim_refresh_complete
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
@@ -3980,7 +4508,7 @@ int qcril_qmi_uim_refresh_complete
   qmi_request->session_information.aid_len = (uint32_t)(params->session_info.aid.data_len);
   memcpy(qmi_request->session_information.aid, params->session_info.aid.data_ptr, params->session_info.aid.data_len);
 
-  rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+  rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                  QMI_UIM_REFRESH_COMPLETE_REQ_V01,
                                  (void*) qmi_request,
                                  sizeof(*qmi_request),
@@ -4028,7 +4556,7 @@ int qcril_qmi_uim_refresh_complete
 /*=========================================================================*/
 int qcril_qmi_uim_refresh_get_last_event
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_refresh_get_last_event_params_type  * params,
   qmi_uim_rsp_data_type                             * rsp_data
 )
@@ -4050,9 +4578,6 @@ int qcril_qmi_uim_refresh_get_last_event
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->session_info.aid.data_len > QMI_UIM_MAX_AID_LEN)
   {
@@ -4088,7 +4613,7 @@ int qcril_qmi_uim_refresh_get_last_event
     memcpy(qmi_request->session_information.aid, params->session_info.aid.data_ptr, params->session_info.aid.data_len);
   }
 
-  rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+  rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                  QMI_UIM_REFRESH_GET_LAST_EVENT_REQ_V01,
                                  (void*) qmi_request,
                                  sizeof(*qmi_request),
@@ -4196,7 +4721,7 @@ int qcril_qmi_uim_refresh_get_last_event
 /*=========================================================================*/
 int qcril_qmi_uim_set_pin_protection
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_set_pin_protection_params_type    * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -4229,9 +4754,6 @@ int qcril_qmi_uim_set_pin_protection
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->pin_data.data_len > QMI_UIM_PIN_MAX_V01) || (params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01))
   {
@@ -4278,7 +4800,7 @@ int qcril_qmi_uim_set_pin_protection
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_SET_PIN_PROTECTION_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -4295,7 +4817,7 @@ int qcril_qmi_uim_set_pin_protection
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_SET_PIN_PROTECTION_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -4344,7 +4866,7 @@ int qcril_qmi_uim_set_pin_protection
 /*=========================================================================*/
 int qcril_qmi_uim_verify_pin
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_verify_pin_params_type              * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -4377,9 +4899,6 @@ int qcril_qmi_uim_verify_pin
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(((!params->is_pin1_encrypted) && (params->pin_data.data_len > QMI_UIM_PIN_MAX_V01)) ||
      (params->is_pin1_encrypted && (params->pin_data.data_len > QMI_UIM_ENCRYPTED_PIN_MAX_V01)) ||
@@ -4441,7 +4960,7 @@ int qcril_qmi_uim_verify_pin
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_VERIFY_PIN_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -4458,7 +4977,7 @@ int qcril_qmi_uim_verify_pin
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_VERIFY_PIN_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -4507,7 +5026,7 @@ int qcril_qmi_uim_verify_pin
 /*=========================================================================*/
 int qcril_qmi_uim_unblock_pin
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_unblock_pin_params_type             * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -4540,9 +5059,6 @@ int qcril_qmi_uim_unblock_pin
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->puk_data.data_len > QMI_UIM_PIN_MAX_V01) ||
      (params->new_pin_data.data_len > QMI_UIM_PIN_MAX_V01) ||
@@ -4594,7 +5110,7 @@ int qcril_qmi_uim_unblock_pin
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_UNBLOCK_PIN_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -4611,7 +5127,7 @@ int qcril_qmi_uim_unblock_pin
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_UNBLOCK_PIN_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -4660,7 +5176,7 @@ int qcril_qmi_uim_unblock_pin
 /*=========================================================================*/
 int qcril_qmi_uim_change_pin
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_change_pin_params_type            * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -4692,9 +5208,6 @@ int qcril_qmi_uim_change_pin
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->old_pin_data.data_len > QMI_UIM_PIN_MAX_V01) ||
      (params->new_pin_data.data_len > QMI_UIM_PIN_MAX_V01) ||
@@ -4746,7 +5259,7 @@ int qcril_qmi_uim_change_pin
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_CHANGE_PIN_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -4763,7 +5276,7 @@ int qcril_qmi_uim_change_pin
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_CHANGE_PIN_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -4812,7 +5325,7 @@ int qcril_qmi_uim_change_pin
 /*=========================================================================*/
 int qcril_qmi_uim_depersonalization
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_depersonalization_params_type       * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -4845,9 +5358,6 @@ int qcril_qmi_uim_depersonalization
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->ck_data.data_len > QMI_UIM_CK_MAX_V01)
   {
@@ -4890,7 +5400,7 @@ int qcril_qmi_uim_depersonalization
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_DEPERSONALIZATION_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -4907,7 +5417,7 @@ int qcril_qmi_uim_depersonalization
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_DEPERSONALIZATION_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -4956,7 +5466,7 @@ int qcril_qmi_uim_depersonalization
 /*=========================================================================*/
 int qcril_qmi_uim_power_down
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_power_down_params_type            * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -4990,9 +5500,6 @@ int qcril_qmi_uim_power_down
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
 
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
-
   qmi_request = (uim_power_down_req_msg_v01*)qcril_malloc(sizeof(uim_power_down_req_msg_v01));
   if(qmi_request == NULL)
   {
@@ -5024,7 +5531,7 @@ int qcril_qmi_uim_power_down
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_POWER_DOWN_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -5041,7 +5548,7 @@ int qcril_qmi_uim_power_down
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_POWER_DOWN_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -5090,7 +5597,7 @@ int qcril_qmi_uim_power_down
 /*=========================================================================*/
 int qcril_qmi_uim_power_up
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_power_up_params_type                * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -5124,9 +5631,6 @@ int qcril_qmi_uim_power_up
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
 
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
-
   qmi_request = (uim_power_up_req_msg_v01*)qcril_malloc(sizeof(uim_power_up_req_msg_v01));
   if(qmi_request == NULL)
   {
@@ -5158,7 +5662,7 @@ int qcril_qmi_uim_power_up
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_POWER_UP_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -5175,7 +5679,7 @@ int qcril_qmi_uim_power_up
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_POWER_UP_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -5226,7 +5730,7 @@ int qcril_qmi_uim_power_up
 /*=========================================================================*/
 int qcril_qmi_uim_get_card_status
 (
-  int                                       client_handle,
+  qmi_client_type                           client_handle,
   qmi_uim_user_async_cb_type                user_cb,
   void                                    * user_data,
   qmi_uim_rsp_data_type                   * rsp_data
@@ -5253,9 +5757,6 @@ int qcril_qmi_uim_get_card_status
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   qmi_request = (uim_get_card_status_req_msg_v01*)qcril_malloc(sizeof(uim_get_card_status_req_msg_v01));
   if(qmi_request == NULL)
@@ -5289,7 +5790,7 @@ int qcril_qmi_uim_get_card_status
     memset(cb_data, 0, sizeof(qmi_uim_cb_struct_type));
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_GET_CARD_STATUS_REQ_V01,
                                     (void *)qmi_request,
                                     sizeof(*qmi_request),
@@ -5306,7 +5807,7 @@ int qcril_qmi_uim_get_card_status
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_GET_CARD_STATUS_REQ_V01,
                                    (void *)qmi_request,
                                    sizeof(*qmi_request),
@@ -5349,7 +5850,7 @@ int qcril_qmi_uim_get_card_status
 /*=========================================================================*/
 int qcril_qmi_uim_event_reg
 (
-  int                                             client_handle,
+  qmi_client_type                                 client_handle,
   const qmi_uim_event_reg_params_type           * params,
   qmi_uim_rsp_data_type                         * rsp_data
 )
@@ -5371,9 +5872,6 @@ int qcril_qmi_uim_event_reg
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   qmi_request = (uim_event_reg_req_msg_v01*)qcril_malloc(sizeof(uim_event_reg_req_msg_v01));
   if(qmi_request == NULL)
@@ -5400,8 +5898,20 @@ int qcril_qmi_uim_event_reg
   {
     qmi_request->event_mask |= QMI_UIM_EVENT_MASK_EXTENDED_CARD_STATUS;
   }
+  if(params->recovery == QMI_UIM_TRUE)
+  {
+    qmi_request->event_mask |= QMI_UIM_EVENT_MASK_RECOVERY;
+  }
+  if(params->supply_voltage_status == QMI_UIM_TRUE)
+  {
+    qmi_request->event_mask |= QMI_UIM_EVENT_MASK_SUPPLY_VOLTAGE_STATUS;
+  }
+  if(params->sap_connection == QMI_UIM_TRUE)
+  {
+    qmi_request->event_mask |= QMI_UIM_EVENT_MASK_SAP_CONNECTION;
+  }
 
-  rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+  rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                  QMI_UIM_EVENT_REG_REQ_V01,
                                  (void*) qmi_request,
                                  sizeof(*qmi_request),
@@ -5450,7 +5960,7 @@ int qcril_qmi_uim_event_reg
 /*=========================================================================*/
 int qcril_qmi_uim_authenticate
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_authenticate_params_type          * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -5483,9 +5993,6 @@ int qcril_qmi_uim_authenticate
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if((params->auth_data.data_len > QMI_UIM_AUTHENTICATE_DATA_MAX_V01) ||
      (params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01))
@@ -5532,7 +6039,7 @@ int qcril_qmi_uim_authenticate
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_AUTHENTICATE_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -5549,7 +6056,7 @@ int qcril_qmi_uim_authenticate
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_AUTHENTICATE_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -5601,7 +6108,7 @@ int qcril_qmi_uim_authenticate
 /*=========================================================================*/
 int qcril_qmi_uim_get_service_status
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_get_service_status_params_type    * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -5634,9 +6141,6 @@ int qcril_qmi_uim_get_service_status
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
@@ -5680,7 +6184,7 @@ int qcril_qmi_uim_get_service_status
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_GET_SERVICE_STATUS_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -5697,7 +6201,7 @@ int qcril_qmi_uim_get_service_status
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_GET_SERVICE_STATUS_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -5749,7 +6253,7 @@ int qcril_qmi_uim_get_service_status
 /*=========================================================================*/
 int qcril_qmi_uim_set_service_status
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_set_service_status_params_type    * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -5782,9 +6286,6 @@ int qcril_qmi_uim_set_service_status
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
@@ -5829,7 +6330,7 @@ int qcril_qmi_uim_set_service_status
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_SET_SERVICE_STATUS_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -5846,7 +6347,7 @@ int qcril_qmi_uim_set_service_status
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_SET_SERVICE_STATUS_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -5897,7 +6398,7 @@ int qcril_qmi_uim_set_service_status
 /*=========================================================================*/
 int qcril_qmi_uim_change_provisioning_session
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_change_prov_session_params_type     * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -5930,9 +6431,6 @@ int qcril_qmi_uim_change_provisioning_session
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->app_info.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
@@ -5981,7 +6479,7 @@ int qcril_qmi_uim_change_provisioning_session
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_CHANGE_PROVISIONING_SESSION_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -5998,7 +6496,7 @@ int qcril_qmi_uim_change_provisioning_session
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_CHANGE_PROVISIONING_SESSION_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -6049,7 +6547,7 @@ int qcril_qmi_uim_change_provisioning_session
 /*=========================================================================*/
 int qcril_qmi_uim_get_label
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_get_label_params_type             * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -6082,9 +6580,6 @@ int qcril_qmi_uim_get_label
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->app_info.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
@@ -6125,7 +6620,7 @@ int qcril_qmi_uim_get_label
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_GET_LABEL_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -6142,7 +6637,7 @@ int qcril_qmi_uim_get_label
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_GET_LABEL_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -6186,7 +6681,7 @@ int qcril_qmi_uim_get_label
 /*=========================================================================*/
 int qcril_qmi_uim_close_session
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_close_session_params_type         * params,
   qmi_uim_rsp_data_type                           * rsp_data
 )
@@ -6207,9 +6702,6 @@ int qcril_qmi_uim_close_session
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
@@ -6238,7 +6730,7 @@ int qcril_qmi_uim_close_session
   qmi_request->session_information.aid_len = (uint32_t)(params->session_info.aid.data_len);
   memcpy(qmi_request->session_information.aid, params->session_info.aid.data_ptr, params->session_info.aid.data_len);
 
-  rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+  rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                  QMI_UIM_CLOSE_SESSION_REQ_V01,
                                  (void*) qmi_request,
                                  sizeof(*qmi_request),
@@ -6289,7 +6781,7 @@ int qcril_qmi_uim_close_session
 /*=========================================================================*/
 int qcril_qmi_uim_send_apdu
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_send_apdu_params_type             * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -6322,9 +6814,6 @@ int qcril_qmi_uim_send_apdu
   }
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
-
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
 
   if(params->apdu.data_len > QMI_UIM_APDU_DATA_MAX_V01)
   {
@@ -6377,7 +6866,7 @@ int qcril_qmi_uim_send_apdu
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_SEND_APDU_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -6394,7 +6883,7 @@ int qcril_qmi_uim_send_apdu
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_SEND_APDU_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -6445,7 +6934,7 @@ int qcril_qmi_uim_send_apdu
 /*=========================================================================*/
 int qcril_qmi_uim_logical_channel
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_logical_channel_params_type       * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -6479,9 +6968,6 @@ int qcril_qmi_uim_logical_channel
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
 
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
-
   if(params->channel_data.aid.data_len > QMI_UIM_AID_MAX_V01)
   {
     QCRIL_LOG_ERROR("%s", "data length too long");
@@ -6511,7 +6997,9 @@ int qcril_qmi_uim_logical_channel
   {
     qmi_request->channel_id_valid = 1;
     qmi_request->aid_valid = 0;
-    qmi_request->channel_id = params->channel_data.channel_id;
+    qmi_request->channel_id = params->channel_data.close_channel_info.channel_id;
+    qmi_request->terminate_application_valid = 1;
+    qmi_request->terminate_application = params->channel_data.close_channel_info.terminate_app;
   }
   else
   {
@@ -6541,7 +7029,7 @@ int qcril_qmi_uim_logical_channel
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_LOGICAL_CHANNEL_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -6558,7 +7046,7 @@ int qcril_qmi_uim_logical_channel
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_LOGICAL_CHANNEL_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -6575,6 +7063,153 @@ int qcril_qmi_uim_logical_channel
 #endif /* FEATURE_QCRIL_UIM_QMI_RPC_QCRIL */
   return rc;
 } /* qcril_qmi_uim_logical_channel */
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_open_logical_channel
+===========================================================================*/
+/*!
+@brief
+  Issues the request for open logical channel on the specified UICC card.
+  If the user_cb function pointer is set to NULL, this function
+  will be invoked synchronously. Otherwise it will be invoked asynchronously.
+
+@return
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value will give you the QMI error reason.  Otherwise,
+  qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >=0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int qcril_qmi_uim_open_logical_channel
+(
+  qmi_client_type                                   client_handle,
+  const qmi_uim_open_logical_channel_params_type  * params,
+  qmi_uim_user_async_cb_type                        user_cb,
+  void                                            * user_data,
+  qmi_uim_rsp_data_type                           * rsp_data
+)
+{
+  int                                     rc;
+  qmi_txn_handle                          txn_handle;
+  uim_open_logical_channel_req_msg_v01  * qmi_request   = NULL;
+  uim_open_logical_channel_resp_msg_v01 * qmi_response  = NULL;
+  qmi_uim_cb_struct_type                * cb_data       = NULL;
+
+  if (!params)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  if (!user_cb)
+  {
+    if (!rsp_data)
+    {
+      return QMI_SERVICE_ERR;
+    }
+  }
+
+  if ( params->aid_present && (params->aid.data_len > QMI_UIM_AID_MAX_V01))
+  {
+    QCRIL_LOG_ERROR("%s", "AID length too long");
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Allocate request & reponse pointers */
+  qmi_request = (uim_open_logical_channel_req_msg_v01*)qcril_malloc(
+                   sizeof(uim_open_logical_channel_req_msg_v01));
+  if(qmi_request == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  qmi_response = (uim_open_logical_channel_resp_msg_v01*)qcril_malloc(
+                   sizeof(uim_open_logical_channel_resp_msg_v01));
+  if(qmi_response == NULL)
+  {
+    qcril_free(qmi_request);
+    return QMI_SERVICE_ERR;
+  }
+
+  memset(qmi_request, 0, sizeof(uim_open_logical_channel_req_msg_v01));
+  memset(qmi_response, 0, sizeof(uim_open_logical_channel_resp_msg_v01));
+
+  /* Set logical_channel request params */
+  if (params->aid_present)
+  {
+    qmi_request->aid_valid = 1;
+    qmi_request->aid_len = (uint32_t)params->aid.data_len;
+    memcpy(qmi_request->aid, params->aid.data_ptr, params->aid.data_len);
+  }
+
+  qmi_request->slot = params->slot;
+
+  /* Update FCI info if it was sent */
+  if (params->file_control_information.is_valid)
+  {
+    qmi_request->file_control_information_valid = 1;
+    qmi_request->file_control_information =
+      (uim_file_control_information_enum_v01)params->file_control_information.fci_value;
+  }
+
+  if (user_cb)
+  {
+    cb_data = (qmi_uim_cb_struct_type*)qcril_malloc(sizeof(qmi_uim_cb_struct_type));
+    if(cb_data == NULL)
+    {
+      QCRIL_LOG_ERROR("%s", "failed to allocate cb_data");
+      qcril_free(qmi_request);
+      qcril_free(qmi_response);
+      return QMI_SERVICE_ERR;
+    }
+    QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
+
+    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+                                    QMI_UIM_OPEN_LOGICAL_CHANNEL_REQ_V01,
+                                    (void*) qmi_request,
+                                    sizeof(*qmi_request),
+                                    (void*) qmi_response,
+                                    sizeof(*qmi_response),
+                                    qmi_uim_client_async_cb,
+                                    cb_data,
+                                    &txn_handle);
+    if( rc != QMI_NO_ERR )
+    {
+        qcril_free( qmi_response );
+        qcril_free( cb_data );
+    }
+  }
+  else
+  {
+    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+                                   QMI_UIM_OPEN_LOGICAL_CHANNEL_REQ_V01,
+                                   (void*) qmi_request,
+                                   sizeof(*qmi_request),
+                                   (void*) qmi_response,
+                                   sizeof(*qmi_response),
+                                   QMI_UIM_DEFAULT_TIMEOUT);
+    if(!rc)
+    {
+      qcril_uim_qmi_conv_open_logical_channel_resp(qmi_response, rsp_data);
+    }
+    qcril_free(qmi_response);
+  }
+  qcril_free(qmi_request);
+  return rc;
+} /* qcril_qmi_uim_open_logical_channel */
 
 
 /*===========================================================================
@@ -6608,7 +7243,7 @@ int qcril_qmi_uim_logical_channel
 /*=========================================================================*/
 int qcril_qmi_uim_get_atr
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_get_atr_params_type               * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -6642,9 +7277,6 @@ int qcril_qmi_uim_get_atr
 
   QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
 
-  /*reinitialize qmi_uim_svc_client with new handle*/
-  qmi_uim_svc_client->service_user_handle = client_handle;
-
   qmi_request = (uim_get_atr_req_msg_v01*)qcril_malloc(sizeof(uim_get_atr_req_msg_v01));
   if(qmi_request == NULL)
   {
@@ -6676,7 +7308,7 @@ int qcril_qmi_uim_get_atr
     }
     QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
 
-    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_async_with_shm( qmi_uim_svc_client,
                                     QMI_UIM_GET_ATR_REQ_V01,
                                     (void*) qmi_request,
                                     sizeof(*qmi_request),
@@ -6693,7 +7325,7 @@ int qcril_qmi_uim_get_atr
   }
   else
   {
-    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+    rc = qmi_client_send_msg_sync_with_shm( qmi_uim_svc_client,
                                    QMI_UIM_GET_ATR_REQ_V01,
                                    (void*) qmi_request,
                                    sizeof(*qmi_request),
@@ -6710,4 +7342,696 @@ int qcril_qmi_uim_get_atr
 #endif /* FEATURE_QCRIL_UIM_QMI_RPC_QCRIL */
   return rc;
 } /* qcril_qmi_uim_get_atr */
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_send_status
+===========================================================================*/
+/*!
+@brief
+  Send STATUS command to the card for a DF or ADF.
+  If the user_cb function pointer is set to NULL, this function will
+  be invoked synchronously. Otherwise it will be invoked asynchronously.
+
+@return
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value in rsp_data will give you the QMI error reason.
+  Otherwise, qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >= 0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int qcril_qmi_uim_send_status
+(
+  qmi_client_type                               client_handle,
+  const qmi_uim_status_cmd_params_type        * params,
+  qmi_uim_user_async_cb_type                    user_cb,
+  void                                        * user_data,
+  qmi_uim_rsp_data_type                       * rsp_data
+)
+{
+  int                                 rc;
+  qmi_txn_handle                      txn_handle;
+  uim_send_status_cmd_req_msg_v01   * qmi_request   = NULL;
+  uim_send_status_cmd_resp_msg_v01  * qmi_response  = NULL;
+  qmi_uim_cb_struct_type            * cb_data       = NULL;
+
+  if (!params)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  if (!user_cb)
+  {
+    if (!rsp_data)
+    {
+      return QMI_SERVICE_ERR;
+    }
+  }
+
+  QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
+
+  if(params->session_info.aid.data_len > QMI_UIM_AID_MAX_V01)
+  {
+    QCRIL_LOG_ERROR("%s", "data length too long");
+    return QMI_INTERNAL_ERR;
+  }
+
+  qmi_request = (uim_send_status_cmd_req_msg_v01*)qcril_malloc(sizeof(uim_send_status_cmd_req_msg_v01));
+  if(qmi_request == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  qmi_response = (uim_send_status_cmd_resp_msg_v01*)qcril_malloc(sizeof(uim_send_status_cmd_resp_msg_v01));
+  if(qmi_response == NULL)
+  {
+    qcril_free(qmi_request);
+    return QMI_SERVICE_ERR;
+  }
+
+  memset(qmi_request, 0, sizeof(uim_send_status_cmd_req_msg_v01));
+  memset(qmi_response, 0, sizeof(uim_send_status_cmd_resp_msg_v01));
+
+  /*set session information*/
+  qmi_request->session_information.session_type = (uim_session_type_enum_v01)params->session_info.session_type;
+  qmi_request->session_information.aid_len = (uint32_t)(params->session_info.aid.data_len);
+  if(params->session_info.aid.data_len > 0 && params->session_info.aid.data_ptr != NULL)
+  {
+    memcpy(qmi_request->session_information.aid, params->session_info.aid.data_ptr, params->session_info.aid.data_len);
+  }
+
+  qmi_request->status_cmd_mode_valid = 1;
+  qmi_request->status_cmd_mode       = (uim_status_cmd_mode_enum_v01)params->mode;
+
+  qmi_request->status_cmd_resp_valid = 1;
+  qmi_request->status_cmd_resp       = (uim_status_cmd_resp_enum_v01)params->resp_type;
+
+  if (user_cb)
+  {
+    cb_data = (qmi_uim_cb_struct_type*)qcril_malloc(sizeof(qmi_uim_cb_struct_type));
+    if(cb_data == NULL)
+    {
+      QCRIL_LOG_ERROR("%s", "failed to allocate cb_data");
+      qcril_free(qmi_request);
+      qcril_free(qmi_response);
+      return QMI_SERVICE_ERR;
+    }
+    QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
+
+    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+                                    QMI_UIM_SEND_STATUS_REQ_V01,
+                                    (void*) qmi_request,
+                                    sizeof(*qmi_request),
+                                    (void*) qmi_response,
+                                    sizeof(*qmi_response),
+                                    qmi_uim_client_async_cb,
+                                    cb_data,
+                                    &txn_handle);
+    if( rc != QMI_NO_ERR )
+    {
+        qcril_free( qmi_response );
+        qcril_free( cb_data );
+    }
+  }
+  else
+  {
+    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+                                   QMI_UIM_SEND_STATUS_REQ_V01,
+                                   (void*) qmi_request,
+                                   sizeof(*qmi_request),
+                                   (void*) qmi_response,
+                                   sizeof(*qmi_response),
+                                   QMI_UIM_DEFAULT_TIMEOUT);
+    if(!rc)
+    {
+      qcril_uim_qmi_conv_send_status_resp(qmi_response, rsp_data);
+    }
+    qcril_free(qmi_response);
+  }
+  qcril_free(qmi_request);
+
+  return rc;
+} /* qcril_qmi_uim_send_status */
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_reselect
+===========================================================================*/
+/*!
+@brief
+  Issues the reselection request of an app on the logical channel.
+
+@return
+
+  If the return code < 0, the operation failed and you will not get an
+  asynchronous response.  If the operation doesn't fail (return code >=0),
+  the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+    - QMI request parameter must be allocated & filled
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int qcril_qmi_uim_reselect
+(
+  qmi_client_type                                  client_handle,
+  const qmi_uim_reselect_params_type             * params,
+  qmi_uim_user_async_cb_type                       user_cb,
+  void                                           * user_data,
+  qmi_uim_rsp_data_type                          * rsp_data
+)
+{
+  int                              rc;
+  qmi_txn_handle                   txn_handle;
+  qmi_uim_cb_struct_type         * cb_data      = NULL;
+  uim_reselect_req_msg_v01       * qmi_request  = NULL;
+  uim_reselect_resp_msg_v01      * qmi_response = NULL;
+
+  if (!params)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  if (!user_cb)
+  {
+    if (!rsp_data)
+    {
+      return QMI_SERVICE_ERR;
+    }
+  }
+
+  QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
+
+  /* Allocate request response QMI parameters */
+  qmi_request = (uim_reselect_req_msg_v01 *)qcril_malloc(sizeof(uim_reselect_req_msg_v01));
+  if (qmi_request == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  qmi_response = (uim_reselect_resp_msg_v01*)qcril_malloc(sizeof(uim_reselect_resp_msg_v01));
+  if(qmi_response == NULL)
+  {
+    qcril_free(qmi_request);
+    return QMI_SERVICE_ERR;
+  }
+
+  /* Update QMI parameters from protobuf request & dispatch it to modem */
+  memset(qmi_request, 0, sizeof(uim_reselect_req_msg_v01));
+  memset(qmi_response, 0, sizeof(uim_reselect_resp_msg_v01));
+
+  qmi_request->slot = (uim_slot_enum_v01)params->slot;
+  qmi_request->channel_id = params->channel_id;
+  qmi_request->select_mode = (uim_select_mode_enum_v01)params->select_mode;
+
+  if (user_cb)
+  {
+    /* Create callback params */
+    cb_data = (qmi_uim_cb_struct_type*)qcril_malloc(sizeof(qmi_uim_cb_struct_type));
+    if(cb_data == NULL)
+    {
+      QCRIL_LOG_ERROR("%s", "failed to allocate cb_data");
+      qcril_free(qmi_request);
+      qcril_free(qmi_response);
+      return QMI_SERVICE_ERR;
+    }
+
+    QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
+
+    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+                                    QMI_UIM_RESELECT_REQ_V01,
+                                    (void*) qmi_request,
+                                    sizeof(*qmi_request),
+                                    (void*) qmi_response,
+                                    sizeof(*qmi_response),
+                                    qmi_uim_client_async_cb,
+                                    cb_data,
+                                    &txn_handle);
+    if( rc != QMI_NO_ERR )
+    {
+      qcril_free( qmi_response );
+      qcril_free( cb_data );
+    }
+  }
+  else
+  {
+    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+                                   QMI_UIM_RESELECT_REQ_V01,
+                                   (void*) qmi_request,
+                                   sizeof(*qmi_request),
+                                   (void*) qmi_response,
+                                   sizeof(*qmi_response),
+                                   QMI_UIM_DEFAULT_TIMEOUT);
+    if(!rc)
+    {
+      qcril_uim_qmi_conv_reselect_resp(qmi_response, rsp_data);
+    }
+    qcril_free(qmi_response);
+  }
+
+  /* Free request pointer in any case */
+  qcril_free(qmi_request);
+  return rc;
+} /* qcril_qmi_uim_reselect */
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_supply_voltage
+===========================================================================*/
+/*!
+@brief
+  Issues the request to inform the modem about the client's acknowledgement
+  to deactivate the supply voltage Vcc line of the specified card. If the
+  user_cb function pointer is set to NULL, this function will be invoked
+  synchronously. Otherwise it will be invoked asynchronously.
+
+@return
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value will give you the QMI error reason.  Otherwise,
+  qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >=0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int qcril_qmi_uim_supply_voltage
+(
+  qmi_client_type                                   client_handle,
+  const qmi_uim_supply_voltage_params_type        * params,
+  qmi_uim_user_async_cb_type                        user_cb,
+  void                                            * user_data,
+  qmi_uim_rsp_data_type                           * rsp_data
+)
+{
+  int                                 rc;
+  qmi_txn_handle                      txn_handle;
+  uim_supply_voltage_req_msg_v01    * qmi_request   = NULL;
+  uim_supply_voltage_resp_msg_v01   * qmi_response  = NULL;
+  qmi_uim_cb_struct_type            * cb_data       = NULL;
+
+  if (!params)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  if (!user_cb)
+  {
+    if (!rsp_data)
+    {
+      return QMI_SERVICE_ERR;
+    }
+  }
+
+  QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
+
+  qmi_request = (uim_supply_voltage_req_msg_v01*)qcril_malloc(sizeof(uim_supply_voltage_req_msg_v01));
+  if(qmi_request == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  qmi_response = (uim_supply_voltage_resp_msg_v01*)qcril_malloc(
+                   sizeof(uim_supply_voltage_resp_msg_v01));
+  if(qmi_response == NULL)
+  {
+    qcril_free(qmi_request);
+    return QMI_SERVICE_ERR;
+  }
+
+  memset(qmi_request, 0, sizeof(uim_supply_voltage_req_msg_v01));
+  memset(qmi_response, 0, sizeof(uim_supply_voltage_resp_msg_v01));
+
+  /*set slots and APDU request params */
+  qmi_request->slot = (uim_slot_enum_v01)params->slot;
+
+  if (user_cb)
+  {
+    cb_data = (qmi_uim_cb_struct_type*)qcril_malloc(sizeof(qmi_uim_cb_struct_type));
+    if(cb_data == NULL)
+    {
+      QCRIL_LOG_ERROR("%s", "failed to allocate cb_data");
+      qcril_free(qmi_request);
+      qcril_free(qmi_response);
+      return QMI_SERVICE_ERR;
+    }
+    QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
+
+    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+                                    QMI_UIM_SUPPLY_VOLTAGE_REQ_V01,
+                                    (void*) qmi_request,
+                                    sizeof(*qmi_request),
+                                    (void*) qmi_response,
+                                    sizeof(*qmi_response),
+                                    qmi_uim_client_async_cb,
+                                    cb_data,
+                                    &txn_handle);
+    if( rc != QMI_NO_ERR )
+    {
+      qcril_free( qmi_response );
+      qcril_free( cb_data );
+    }
+  }
+  else
+  {
+    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+                                   QMI_UIM_SUPPLY_VOLTAGE_REQ_V01,
+                                   (void*) qmi_request,
+                                   sizeof(*qmi_request),
+                                   (void*) qmi_response,
+                                   sizeof(*qmi_response),
+                                   QMI_UIM_DEFAULT_TIMEOUT);
+    if(!rc)
+    {
+      qcril_uim_qmi_conv_supply_voltage_resp(qmi_response, rsp_data);
+    }
+    qcril_free(qmi_response);
+  }
+  qcril_free(qmi_request);
+
+  return rc;
+} /* qcril_qmi_uim_supply_voltage */
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_sap_connection
+===========================================================================*/
+/*!
+@brief
+  Issues the request for SAP connection establishment or disconnection. If
+  the user_cb function pointer is set to NULL, this function will be invoked
+  synchronously. Otherwise it will be invoked asynchronously.
+
+@return
+
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value will give you the QMI error reason.  Otherwise,
+  qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >=0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int qcril_qmi_uim_sap_connection
+(
+  qmi_client_type                                     client_handle,
+  const qmi_uim_sap_connection_params_type          * params,
+  qmi_uim_user_async_cb_type                          user_cb,
+  void                                              * user_data,
+  qmi_uim_rsp_data_type                             * rsp_data
+)
+{
+  int                                rc;
+  qmi_txn_handle                     txn_handle;
+  qmi_uim_cb_struct_type           * cb_data      = NULL;
+  uim_sap_connection_req_msg_v01   * qmi_request  = NULL;
+  uim_sap_connection_resp_msg_v01  * qmi_response = NULL;
+
+  if (!params)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  if (!user_cb)
+  {
+    if (!rsp_data)
+    {
+      return QMI_SERVICE_ERR;
+    }
+  }
+
+  QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
+
+  /* Allocate request response QMI parameters */
+  qmi_request = (uim_sap_connection_req_msg_v01 *)qcril_malloc(sizeof(uim_sap_connection_req_msg_v01));
+  if (qmi_request == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  qmi_response = (uim_sap_connection_resp_msg_v01*)qcril_malloc(sizeof(uim_sap_connection_resp_msg_v01));
+  if(qmi_response == NULL)
+  {
+    qcril_free(qmi_request);
+    return QMI_SERVICE_ERR;
+  }
+
+  /* Update QMI parameters from request */
+  memset(qmi_request, 0, sizeof(uim_sap_connection_req_msg_v01));
+  memset(qmi_response, 0, sizeof(uim_sap_connection_resp_msg_v01));
+
+  qmi_request->sap_connect.slot = (uim_slot_enum_v01)params->slot;
+  qmi_request->sap_connect.connect = (uim_sap_connect_op_enum_v01)params->operation_type;
+
+  if (qmi_request->sap_connect.connect == UIM_SAP_OP_CONNECT_V01)
+  {
+    qmi_request->connection_condition_valid = 1;
+    qmi_request->connection_condition =
+      (uim_sap_connection_condition_enum_v01)params->conn_condition;
+  }
+  else if (qmi_request->sap_connect.connect == UIM_SAP_OP_DISCONNECT_V01)
+  {
+    /* Note - for disconnect req, there is no mode passed from client */
+    qmi_request->disconnect_mode_valid = 1;
+    qmi_request->disconnect_mode = (uim_sap_disconnect_mode_enum_v01)params->disconnect_mode;
+  }
+
+  if (user_cb)
+  {
+    /* Create callback params */
+    cb_data = (qmi_uim_cb_struct_type*)qcril_malloc(sizeof(qmi_uim_cb_struct_type));
+    if(cb_data == NULL)
+    {
+      QCRIL_LOG_ERROR("%s", "failed to allocate cb_data");
+      qcril_free(qmi_request);
+      qcril_free(qmi_response);
+      return QMI_SERVICE_ERR;
+    }
+
+    QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
+
+    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+                                    QMI_UIM_SAP_CONNECTION_REQ_V01,
+                                    (void*) qmi_request,
+                                    sizeof(*qmi_request),
+                                    (void*) qmi_response,
+                                    sizeof(*qmi_response),
+                                    qmi_uim_client_async_cb,
+                                    cb_data,
+                                    &txn_handle);
+    if( rc != QMI_NO_ERR )
+    {
+      qcril_free( qmi_response );
+      qcril_free( cb_data );
+    }
+  }
+  else
+  {
+    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+                                   QMI_UIM_SAP_CONNECTION_REQ_V01,
+                                   (void*) qmi_request,
+                                   sizeof(*qmi_request),
+                                   (void*) qmi_response,
+                                   sizeof(*qmi_response),
+                                   QMI_UIM_DEFAULT_TIMEOUT);
+    if(!rc)
+    {
+      qcril_uim_qmi_conv_sap_connection_resp(qmi_response, rsp_data);
+    }
+    qcril_free(qmi_response);
+  }
+
+  /* Free request pointer in any case */
+  qcril_free(qmi_request);
+  return rc;
+} /* qcril_qmi_uim_sap_connection */
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_sap_request
+===========================================================================*/
+/*!
+@brief
+  Issues the request for SAP various SAP requests. If the user_cb function
+  pointer is set to NULL, this function will be invoked synchronously.
+  Otherwise it will be invoked asynchronously.
+
+@return
+
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value will give you the QMI error reason.  Otherwise,
+  qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >=0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int qcril_qmi_uim_sap_request
+(
+  qmi_client_type                                  client_handle,
+  const qmi_uim_sap_request_params_type          * params,
+  qmi_uim_user_async_cb_type                       user_cb,
+  void                                           * user_data,
+  qmi_uim_rsp_data_type                          * rsp_data
+)
+{
+  int                              rc;
+  qmi_txn_handle                   txn_handle;
+  qmi_uim_cb_struct_type         * cb_data      = NULL;
+  uim_sap_request_req_msg_v01    * qmi_request  = NULL;
+  uim_sap_request_resp_msg_v01   * qmi_response = NULL;
+
+  if (!params)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  if (!user_cb)
+  {
+    if (!rsp_data)
+    {
+      return QMI_SERVICE_ERR;
+    }
+  }
+
+  QCRIL_UIM_VALIDATE_SVC_PTR_RETURN_ERR_IF_NULL(qmi_uim_svc_client);
+
+  /* Allocate request response QMI parameters */
+  qmi_request = (uim_sap_request_req_msg_v01 *)qcril_malloc(sizeof(uim_sap_request_req_msg_v01));
+  if (qmi_request == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  qmi_response = (uim_sap_request_resp_msg_v01*)qcril_malloc(sizeof(uim_sap_request_resp_msg_v01));
+  if(qmi_response == NULL)
+  {
+    qcril_free(qmi_request);
+    return QMI_SERVICE_ERR;
+  }
+
+  /* Update QMI parameters from request */
+  memset(qmi_request, 0, sizeof(uim_sap_request_req_msg_v01));
+  memset(qmi_response, 0, sizeof(uim_sap_request_resp_msg_v01));
+
+  qmi_request->sap_request.slot = (uim_slot_enum_v01)params->slot;
+  qmi_request->sap_request.sap_request = (uim_sap_request_enum_v01)params->request_type;
+
+  if (qmi_request->sap_request.sap_request == UIM_SAP_REQUEST_SEND_APDU_V01)
+  {
+    if ((params->apdu.data_len >  0) &&
+        (params->apdu.data_len <= QMI_UIM_APDU_DATA_MAX_V01))
+    {
+      qmi_request->apdu_valid = 1;
+      qmi_request->apdu_len = (uint32_t)params->apdu.data_len;
+      memcpy(qmi_request->apdu, params->apdu.data_ptr, params->apdu.data_len);
+    }
+    else
+    {
+      QCRIL_LOG_ERROR("Incorrect length for APDU request: 0x%x", params->apdu.data_len);
+      qcril_free(qmi_request);
+      qcril_free(qmi_response);
+      return QMI_SERVICE_ERR;
+    }
+  }
+
+  if (user_cb)
+  {
+    /* Create callback params */
+    cb_data = (qmi_uim_cb_struct_type*)qcril_malloc(sizeof(qmi_uim_cb_struct_type));
+    if(cb_data == NULL)
+    {
+      QCRIL_LOG_ERROR("%s", "failed to allocate cb_data");
+      qcril_free(qmi_request);
+      qcril_free(qmi_response);
+      return QMI_SERVICE_ERR;
+    }
+
+    QMI_UIM_MAKE_CB_STRUCT(cb_data, user_cb, user_data);
+
+    rc = qmi_client_send_msg_async( qmi_uim_svc_client,
+                                    QMI_UIM_SAP_REQUEST_REQ_V01,
+                                    (void*) qmi_request,
+                                    sizeof(*qmi_request),
+                                    (void*) qmi_response,
+                                    sizeof(*qmi_response),
+                                    qmi_uim_client_async_cb,
+                                    cb_data,
+                                    &txn_handle);
+    if( rc != QMI_NO_ERR )
+    {
+      qcril_free( qmi_response );
+      qcril_free( cb_data );
+    }
+  }
+  else
+  {
+    rc = qmi_client_send_msg_sync( qmi_uim_svc_client,
+                                   QMI_UIM_SAP_REQUEST_REQ_V01,
+                                   (void*) qmi_request,
+                                   sizeof(*qmi_request),
+                                   (void*) qmi_response,
+                                   sizeof(*qmi_response),
+                                   QMI_UIM_DEFAULT_TIMEOUT);
+    if(!rc)
+    {
+      qcril_uim_qmi_conv_sap_request_resp(qmi_response, rsp_data);
+    }
+    qcril_free(qmi_response);
+  }
+
+  /* Free request pointer in any case */
+  qcril_free(qmi_request);
+  return rc;
+} /* qcril_qmi_uim_sap_request */
 

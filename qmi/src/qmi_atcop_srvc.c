@@ -3,14 +3,14 @@
   @brief   The QMI ATCOP service layer.
 
   DESCRIPTION
-  QMI ATCOP service routines.  
+  QMI ATCOP service routines.
 
   INITIALIZATION AND SEQUENCING REQUIREMENTS
-  qmi_atcop_srvc_init_client() needs to be called before sending or receiving of any 
+  qmi_atcop_srvc_init_client() needs to be called before sending or receiving of any
   QoS service messages
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -32,10 +32,10 @@
 
 #define QMI_ATCOP_AT_CMD_HDL_TLV      0x01
 /*MSG IDS*/
-#define QMI_ATCOP_REGISTER_AT_CMD_FWD_MSD_ID          0x0020    
-#define QMI_ATCOP_REGISTER_AT_CMD_FWD_RESP_MSG_ID     0x0022   
+#define QMI_ATCOP_REGISTER_AT_CMD_FWD_MSD_ID          0x0020
+#define QMI_ATCOP_REGISTER_AT_CMD_FWD_RESP_MSG_ID     0x0022
 #define QMI_ATCOP_AT_CMD_URC_FWD_REQ_MSG_ID           0x0024
-/*Indication Message IDs*/ 
+/*Indication Message IDs*/
 #define QMI_ATCOP_ABORT_IND_MSG_ID                      0x0023
 #define QMI_ATCOP_AT_FWD_IND_MSG_ID                     0x0021
 
@@ -66,14 +66,14 @@ static int atcop_service_initialized = FALSE;
   FUNCTION  qmi_atcop_reg_at_format_cmd_list_tlv
 ===========================================================================*/
 /*!
-@brief 
+@brief
     Formats the command list TLV for qmi_atcop_reg_at_command_fwd_req
-@return 
+@return
   None.
 
 @note
   None.
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_atcop_reg_at_format_cmd_list_tlv
@@ -83,7 +83,7 @@ qmi_atcop_reg_at_format_cmd_list_tlv
   int                               *param_len
 )
 {
-  int i, num_cmds; 
+  int i, num_cmds;
 
   if(!cmd_fwd_req || !param_ptr || !param_len)
   {
@@ -97,28 +97,28 @@ qmi_atcop_reg_at_format_cmd_list_tlv
   {
     int at_cmd_len;
     INIT_ENVELOPE_TLV_HDR (param_ptr, *param_len);
-    
+
     /*calculate the length of the value field*/
-    at_cmd_len = strlen((const char *)cmd_fwd_req->qmi_atcop_at_cmd_fwd_req_type[i].at_cmd_name);
-    tlv_length = 2 * sizeof(unsigned char) + at_cmd_len; //2 here corresponds to size of 
+    at_cmd_len = (int)strlen((const char *)cmd_fwd_req->qmi_atcop_at_cmd_fwd_req_type[i].at_cmd_name);
+    tlv_length = (int)(2 * sizeof(unsigned char)) + at_cmd_len; //2 here corresponds to size of
                                                       // abort field + size of length[at cmd field]
     /* Subtract tlv_length from param_buf_len */
     *param_len -= tlv_length;
-    
+
     /* See if buffer is big enough */
     if (*param_len < 0)
     {
       QMI_ERR_MSG_1 ("qmi_atcop_reg_at_format_cmd_list_tlv: Will Overflow ParamBuf, %d .\n", QMI_ATCOP_MAX_PARAM_BUF_SIZE);
       return QMI_INTERNAL_ERR;
     }
-    
+
     WRITE_8_BIT_VAL(param_ptr,cmd_fwd_req->qmi_atcop_at_cmd_fwd_req_type[i].abort_flag);
     WRITE_8_BIT_VAL(param_ptr,at_cmd_len);
-    memcpy(param_ptr, cmd_fwd_req->qmi_atcop_at_cmd_fwd_req_type[i].at_cmd_name, at_cmd_len);
+    memcpy(param_ptr, cmd_fwd_req->qmi_atcop_at_cmd_fwd_req_type[i].at_cmd_name, (size_t)at_cmd_len);
     param_ptr += at_cmd_len;
 
     SET_ENVELOPE_TLV_HDR (QMI_ATCOP_CMD_INFO_TLV);
-    
+
   }
 
   return QMI_NO_ERR;
@@ -127,15 +127,15 @@ qmi_atcop_reg_at_format_cmd_list_tlv
   FUNCTION  qmi_atcop_process_at_cmd_fwd_state_info
 ===========================================================================*/
 /*!
-@brief 
-    Processes the at command indications state information received from modem 
+@brief
+    Processes the at command indications state information received from modem
     and places them in users c data structure.
-@return 
+@return
   None.
 
 @note
   None.
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_atcop_process_at_cmd_fwd_state_info
@@ -170,7 +170,7 @@ qmi_atcop_process_at_cmd_fwd_state_info
                                   &value_ptr) < 0)
     {
       return QMI_INTERNAL_ERR;
-    }  
+    }
 
     /* Now process TLV */
     switch (type)
@@ -253,15 +253,15 @@ qmi_atcop_process_at_cmd_fwd_state_info
   FUNCTION  qmi_atcop_process_at_fwd_ind
 ===========================================================================*/
 /*!
-@brief 
-    Processes the at command indications received from modem and places them 
+@brief
+    Processes the at command indications received from modem and places them
     in users c data structure.
-@return 
+@return
   None.
 
 @note
   None.
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_atcop_process_at_fwd_ind
@@ -300,7 +300,7 @@ qmi_atcop_process_at_fwd_ind
                                   &value_ptr) < 0)
     {
       return QMI_INTERNAL_ERR;
-    }  
+    }
 
     /* Now process TLV */
     switch (type)
@@ -321,7 +321,7 @@ qmi_atcop_process_at_fwd_ind
         }
 	}
 
-        memcpy(at_cmd_fwd->at_name, value_ptr, at_cmd_len);
+        memcpy(at_cmd_fwd->at_name, value_ptr, (size_t)at_cmd_len);
         at_cmd_fwd->at_name[at_cmd_len] = '\0';
       }
       break;
@@ -343,32 +343,32 @@ qmi_atcop_process_at_fwd_ind
                                         &tmp_value_ptr) < 0)
           {
             return QMI_INTERNAL_ERR;
-          }  
-                      
+          }
+
           if (tmp_type != QMI_ATCOP_FWD_CMD_AT_TOKEN_INFO_TLV )
           {
              QMI_ERR_MSG_1("qmi_atcop_process_at_fwd_ind: Ignoring unknown TLV received = %d\n",(int) tmp_type);
-             continue; 
+             continue;
           }
           if (i < QMI_ATCOP_MAX_TOKENS)
           {
             at_cmd_fwd->tokens[i] = (unsigned char *)tmp_value_ptr;
-            i++; 
+            i++;
           }
           else
           {
             QMI_ERR_MSG_1("qmi_atcop_process_at_fwd_ind: Max number of tokens allowed %d already received. Cannot Handle more\n",QMI_ATCOP_MAX_TOKENS);
             break;
           }
-          
+
         }/*While Loop*/
-        at_cmd_fwd->num_tokens = i;
+        at_cmd_fwd->num_tokens = (unsigned short)i;
       }/*Case*/
       break;
 
       case QMI_ATCOP_FWD_CMD_AT_STATE_INFO_TLV:
       {
-        if ((rc = qmi_atcop_process_at_cmd_fwd_state_info(value_ptr,length,ind_data)) < 0)
+        if ((rc = qmi_atcop_process_at_cmd_fwd_state_info(value_ptr,(int)length,ind_data)) < 0)
         {
           QMI_ERR_MSG_0("qmi_atcop_process_at_fwd_ind: Processing State Info Failed.\n");
           return rc;
@@ -388,13 +388,13 @@ qmi_atcop_process_at_fwd_ind
   FUNCTION  qmi_atcop_srvc_indication_cb
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This is the callback function that will be called by the generic
   services layer to report asynchronous indications.  This function will
   process the indication TLV's and then call the user registered
-  functions with the indication data.   
-  
-@return 
+  functions with the indication data.
+
+@return
   None.
 
 @note
@@ -404,7 +404,7 @@ qmi_atcop_process_at_fwd_ind
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 
 static void
@@ -427,7 +427,7 @@ qmi_atcop_srvc_indication_cb
   unsigned long length;
   unsigned char *value_ptr;
 
-  
+
   /* Make sure that the user indication handler isn't NULL */
   if (user_ind_msg_hdlr == NULL)
   {
@@ -435,6 +435,8 @@ qmi_atcop_srvc_indication_cb
                    "not present, must be present to receive AT command's\n");
     return;
   }
+
+  memset(&ind_data, 0, sizeof(ind_data));
 
   /* Get properly cast pointer to user indication handler */
   /*lint -e{611} */
@@ -497,11 +499,11 @@ qmi_atcop_srvc_indication_cb
   FUNCTION  qmi_atcop_srvc_init
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is a callback that will be called once during client
-  initialization  
-  
-@return 
+  initialization
+
+@return
   None.
 
 @note
@@ -511,7 +513,7 @@ qmi_atcop_srvc_indication_cb
 
   - Side Effects
     - None.
-*/    
+*/
 /*=========================================================================*/
 int qmi_atcop_srvc_init (void)
 {
@@ -543,11 +545,11 @@ int qmi_atcop_srvc_init (void)
   FUNCTION  qmi_atcop_srvc_release
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is a callback that will be called once during client
-  release  
-  
-@return 
+  release
+
+@return
   None.
 
 @note
@@ -557,7 +559,7 @@ int qmi_atcop_srvc_init (void)
 
   - Side Effects
     - None.
-*/    
+*/
 /*=========================================================================*/
 int qmi_atcop_srvc_release (void)
 {
@@ -579,7 +581,7 @@ int qmi_atcop_srvc_release (void)
   else
   {
     QMI_ERR_MSG_0 ("qmi_atcop_srvc_release: Release failed, ATCOP not initialized");
-  } 
+  }
   return rc;
 }
 
@@ -587,13 +589,13 @@ int qmi_atcop_srvc_release (void)
   FUNCTION  qmi_atcop_srvc_init_client
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is called to initialize the ATCOP service.  This function
   must be called prior to calling any other ATCOP service functions.
-  Also note that this function may be called multiple times to allow 
-  for multiple, independent clients.   
-  
-@return 
+  Also note that this function may be called multiple times to allow
+  for multiple, independent clients.
+
+@return
   Valid user handle which is > 0, if the init client operation was successful,
   < 0 if not, If the return code is QMI_SERVICE_ERR, then the qmi_err_code will be
   valid and indicated which QMI error occured.
@@ -605,7 +607,7 @@ int qmi_atcop_srvc_release (void)
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 
 qmi_client_handle_type
@@ -646,17 +648,17 @@ qmi_atcop_srvc_init_client
   FUNCTION  qmi_atcop_srvc_release_client
 ===========================================================================*/
 /*!
-@brief 
-  This function is called to release a client created by the 
+@brief
+  This function is called to release a client created by the
   qmi_atcop_srvc_init_client() function.  This function should be called
   for any client created when terminating a client process, especially
-  if the modem processor is not reset.  The modem side QMI server has 
+  if the modem processor is not reset.  The modem side QMI server has
   a limited number of clients that it will allocate, and if they are not
-  released, we will run out.  
-  
-@return 
-  QMI_NO_ERR if the release client operation was sucessful, < 0 if not. 
-  If return code  is  QMI_SERVICE_ERR, then the qmi_err_code will be valid 
+  released, we will run out.
+
+@return
+  QMI_NO_ERR if the release client operation was sucessful, < 0 if not.
+  If return code  is  QMI_SERVICE_ERR, then the qmi_err_code will be valid
   and will indicate which QMI error occurred.
 
 @note
@@ -666,10 +668,10 @@ qmi_atcop_srvc_init_client
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 
-int 
+int
 qmi_atcop_srvc_release_client
 (
   int      user_handle,
@@ -678,20 +680,20 @@ qmi_atcop_srvc_release_client
 {
   int rc;
   rc = qmi_service_release (user_handle, qmi_err_code);
-  return rc;     
+  return rc;
 }
 
 /*===========================================================================
   FUNCTION  qmi_atcop_reg_at_command_fwd_req
 ===========================================================================*/
 /*!
-@brief 
-  This command is used by the client to register any AT commands that need to 
+@brief
+  This command is used by the client to register any AT commands that need to
   be forwarded to it from the modem.
-     
-@return 
-  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is 
-  QMI_SERVICE_ERR,then the qmi_err_code will be valid and will indicate which 
+
+@return
+  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is
+  QMI_SERVICE_ERR,then the qmi_err_code will be valid and will indicate which
   QMI error occurred.
 
 @note
@@ -700,8 +702,8 @@ qmi_atcop_srvc_release_client
     - qmi_atcop_srvc_init_client() must be called before calling this.
 
   - Side Effects
-    - 
-*/    
+    -
+*/
 /*=========================================================================*/
 int
 qmi_atcop_reg_at_command_fwd_req
@@ -735,7 +737,7 @@ qmi_atcop_reg_at_command_fwd_req
   if ((rc = qmi_util_write_std_tlv (&tmp_msg_ptr,
                                        &msg_size,
                                        QMI_ATCOP_AT_CMD_LIST_TLV,
-                                       QMI_ATCOP_MAX_PARAM_BUF_SIZE - param_buf_size,
+                                       (unsigned long)(QMI_ATCOP_MAX_PARAM_BUF_SIZE - param_buf_size),
                                        (void *) param_buf)) < 0)
   {
     return rc;
@@ -746,8 +748,8 @@ qmi_atcop_reg_at_command_fwd_req
                                   QMI_ATCOP_SERVICE,
                                   QMI_ATCOP_REGISTER_AT_CMD_FWD_MSD_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_ATCOP_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_ATCOP_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_ATCOP_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -760,13 +762,13 @@ qmi_atcop_reg_at_command_fwd_req
   FUNCTION  qmi_atcop_fwd_at_cmd_resp
 ===========================================================================*/
 /*!
-@brief 
-  This command is used by the client to send the response to an AT cmd 
+@brief
+  This command is used by the client to send the response to an AT cmd
   previously forwarded to the client from the modem
-     
-@return 
-  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is 
-  QMI_SERVICE_ERR,then the qmi_err_code will be valid and will indicate which 
+
+@return
+  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is
+  QMI_SERVICE_ERR,then the qmi_err_code will be valid and will indicate which
   QMI error occurred.
 @note
 
@@ -774,8 +776,8 @@ qmi_atcop_reg_at_command_fwd_req
     - qmi_atcop_srvc_init_client() must be called before calling this.
 
   - Side Effects
-    - 
-*/    
+    -
+*/
 /*=========================================================================*/
 int
 qmi_atcop_fwd_at_cmd_resp
@@ -786,19 +788,20 @@ qmi_atcop_fwd_at_cmd_resp
 )
 {
   unsigned char     msg[QMI_ATCOP_STD_MSG_SIZE], *tmp_msg_ptr;
-  int               msg_size, rc, param_buf_len,at_resp_len;
+  int               msg_size, rc, at_resp_len;
+  unsigned long     param_buf_len;
   unsigned char     param_buf[QMI_ATCOP_MAX_PARAM_BUF_SIZE];
   unsigned char     *param_ptr = param_buf;
 
   if (!at_resp)
-  {                                                                                                         
-     QMI_ERR_MSG_0 ("qmi_atcop_fwd_at_cmd_resp: Bad Input Received.\n");                             
-     return QMI_INTERNAL_ERR;                                                                                
-  } 
+  {
+     QMI_ERR_MSG_0 ("qmi_atcop_fwd_at_cmd_resp: Bad Input Received.\n");
+     return QMI_INTERNAL_ERR;
+  }
   /*calculate the length of the at response*/
   if (at_resp->at_resp)
   {
-    at_resp_len = strlen((const char *)at_resp->at_resp);
+    at_resp_len = (int)strlen((const char *)at_resp->at_resp);
   }
   else
   {
@@ -807,7 +810,7 @@ qmi_atcop_fwd_at_cmd_resp
 
   if(at_resp_len > QMI_ATCOP_AT_RESP_MAX_LEN)
   {
-     QMI_ERR_MSG_1 ("qmi_atcop_fwd_at_cmd_resp: Cannot Handle AT Response length greater than %d .\n", QMI_ATCOP_AT_RESP_MAX_LEN); 
+     QMI_ERR_MSG_1 ("qmi_atcop_fwd_at_cmd_resp: Cannot Handle AT Response length greater than %d .\n", QMI_ATCOP_AT_RESP_MAX_LEN);
      return QMI_INTERNAL_ERR;
   }
 
@@ -818,10 +821,10 @@ qmi_atcop_fwd_at_cmd_resp
   }
 
   /*Length of the Value part of TLV*/
-  param_buf_len = 8 + at_resp_len;//Update this length, 
-                                  //when TLVs change or get added
-                                  // 8 corresponds to len(handle + result + resp + resp_len)
-                                  
+  param_buf_len = (unsigned long)(8 + at_resp_len);//Update this length,
+                                                   //when TLVs change or get added
+                                                   // 8 corresponds to len(handle + result + resp + resp_len)
+
   if ( param_buf_len > QMI_ATCOP_MAX_PARAM_BUF_SIZE)
   {
     QMI_ERR_MSG_1 ("qmi_atcop_fwd_at_cmd_resp: Will Overflow ParamBuf, %d .\n", QMI_ATCOP_MAX_PARAM_BUF_SIZE);
@@ -836,7 +839,7 @@ qmi_atcop_fwd_at_cmd_resp
 
   if (at_resp_len > 0)
   {
-    memcpy(param_ptr, at_resp->at_resp, at_resp_len);
+    memcpy(param_ptr, at_resp->at_resp, (size_t)at_resp_len);
   }
 
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
@@ -856,8 +859,8 @@ qmi_atcop_fwd_at_cmd_resp
                                   QMI_ATCOP_SERVICE,
                                   QMI_ATCOP_REGISTER_AT_CMD_FWD_RESP_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_ATCOP_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_ATCOP_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_ATCOP_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -870,12 +873,12 @@ qmi_atcop_fwd_at_cmd_resp
   FUNCTION  qmi_atcop_fwd_at_urc_req
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This command is used to send unsolicited response codes to the modem.
-     
-@return 
-  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is 
-  QMI_SERVICE_ERR,then the qmi_err_code will be valid and will indicate which 
+
+@return
+  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is
+  QMI_SERVICE_ERR,then the qmi_err_code will be valid and will indicate which
   QMI error occurred.
 
 @note
@@ -884,8 +887,8 @@ qmi_atcop_fwd_at_cmd_resp
     - qmi_atcop_srvc_init_client() must be called before calling this.
 
   - Side Effects
-    - 
-*/    
+    -
+*/
 /*=========================================================================*/
 int
 qmi_atcop_fwd_at_urc_req
@@ -896,9 +899,10 @@ qmi_atcop_fwd_at_urc_req
 )
 {
   unsigned char     msg[QMI_ATCOP_STD_MSG_SIZE], *tmp_msg_ptr;
-  int               msg_size, rc, at_urc_len;
+  int               msg_size, rc;
+  size_t            at_urc_len;
   unsigned char     param_buf[QMI_ATCOP_MAX_PARAM_BUF_SIZE];
-  int               param_buf_size = QMI_ATCOP_MAX_PARAM_BUF_SIZE;
+  unsigned long     param_buf_size = QMI_ATCOP_MAX_PARAM_BUF_SIZE;
   unsigned char     *param_ptr = param_buf;
 
   if (!urc_fwd_req || !qmi_err_code)
@@ -960,8 +964,8 @@ qmi_atcop_fwd_at_urc_req
                                   QMI_ATCOP_SERVICE,
                                   QMI_ATCOP_AT_CMD_URC_FWD_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_ATCOP_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_ATCOP_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_ATCOP_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,

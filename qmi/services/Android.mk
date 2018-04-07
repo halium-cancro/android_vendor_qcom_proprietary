@@ -15,6 +15,7 @@ LOCAL_SRC_FILES := common_v01.c
 LOCAL_SRC_FILES += voice_service_common_v02.c
 LOCAL_SRC_FILES += voice_service_v02.c
 LOCAL_SRC_FILES += wireless_data_service_v01.c
+LOCAL_SRC_FILES += wireless_data_administrative_service_v01.c
 LOCAL_SRC_FILES += wireless_messaging_service_v01.c
 LOCAL_SRC_FILES += device_management_service_v01.c
 LOCAL_SRC_FILES += network_access_service_common_v01.c
@@ -38,8 +39,12 @@ LOCAL_SRC_FILES += ip_multimedia_subsystem_application_v01.c
 LOCAL_SRC_FILES += ip_multimedia_subsystem_rtp_v01.c
 LOCAL_SRC_FILES += ip_multimedia_subsystem_dcm_v01.c
 LOCAL_SRC_FILES += data_system_determination_v01.c
+LOCAL_SRC_FILES += data_port_mapper_v01.c
+LOCAL_SRC_FILES += data_common_v01.c
 LOCAL_SRC_FILES += persistent_device_configuration_v01.c
 LOCAL_SRC_FILES += application_traffic_pairing_v01.c
+LOCAL_SRC_FILES += data_filter_service_v01.c
+LOCAL_SRC_FILES += secure_filesystem_service_v01.c
 
 LOCAL_MODULE:= libqmiservices
 

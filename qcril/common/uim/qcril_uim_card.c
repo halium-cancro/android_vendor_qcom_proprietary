@@ -28,9 +28,23 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim_card.c#6 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
-03/31/14   yt      Send pre-init notification to client for manual app selection
+11/07/14   bcho    handling of deactivation failure modified
+11/06/14   hh      Added QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED card status
+10/27/14   at      Support for graceful UICC Voltage supply deactivation
+10/17/14   vdc     Check for slot info before updating session state
+08/12/14   bcho    Support for ISIM app to ATEL restored
+06/17/14   at      Fix in sending events upon initial status change inds
+06/10/14   tl      Removed array structures for slot specific parameters
+06/05/14   tl      Add support for recovery indication
+05/05/14   ar      Fix critical KW errors
+03/31/14   tl      Send pre-init notification to client for manual app selection
+03/27/14   vdc     Translate ISIM app state to Ready after PIN state check
+01/21/14   at      Added support for getSelectResponse()
 01/22/14   yt      Perform silent PIN verification after Airplane mode ON-OFF
+01/17/14   at      Changed the feature checks for RIL_REQUEST_SIM_GET_ATR
+01/17/14   at      Updated function definition for change prov session cb
 01/09/14   yt      Perform silent PIN verification on SAP disconnect
+12/11/13   at      Switch to new QCCI framework
 09/30/13   yt      Check if card status in indication is invalid
 09/10/13   yt      Clear encrypted PIN data at card error
 08/22/13   yt      Correctly update number of apps in case of legacy card ind
@@ -152,7 +166,7 @@ static pthread_mutex_t    qcril_uim_card_status_mutex = PTHREAD_MUTEX_INITIALIZE
 /*=========================================================================*/
 static int qcril_uim_send_get_label
 (
-  qmi_client_handle_type                    qmi_handle,
+  qmi_client_type                           qmi_handle,
   uint8                                     slot_index,
   qmi_uim_rsp_data_type                  *  qmi_rsp_data_ptr,
   const char                             *  qmi_aid_ptr,
@@ -204,6 +218,63 @@ static int qcril_uim_send_get_label
   }
   return result_code;
 } /* qcril_uim_send_get_label */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_get_prov_session_state
+
+===========================================================================*/
+/*!
+    @brief
+    returns the state of passed session type from QCRIL uim globals.
+
+    @return
+    result_code
+*/
+/*=========================================================================*/
+static int qcril_uim_get_prov_session_state
+(
+  qmi_uim_session_type                 session_type,
+  qcril_uim_prov_session_state_type  * session_state_ptr /*!< Output parameter */
+)
+{
+  int result_code = QMI_NO_ERR;
+
+  /* Sanity check */
+  if (session_state_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid input, cannot proceed");
+    return QMI_INTERNAL_ERR;
+  }
+
+  switch(session_type)
+  {
+    case QMI_UIM_SESSION_TYPE_PRI_GW_PROV:
+      *session_state_ptr = qcril_uim.prov_session_info.session_state_gw_indexes[0];
+      break;
+    case QMI_UIM_SESSION_TYPE_PRI_1X_PROV:
+      *session_state_ptr = qcril_uim.prov_session_info.session_state_1x_indexes[0];
+      break;
+    case QMI_UIM_SESSION_TYPE_SEC_GW_PROV:
+      *session_state_ptr = qcril_uim.prov_session_info.session_state_gw_indexes[1];
+      break;
+    case QMI_UIM_SESSION_TYPE_SEC_1X_PROV:
+      *session_state_ptr = qcril_uim.prov_session_info.session_state_1x_indexes[1];
+      break;
+    case QMI_UIM_SESSION_TYPE_TER_GW_PROV:
+      *session_state_ptr = qcril_uim.prov_session_info.session_state_gw_indexes[2];
+      break;
+    case QMI_UIM_SESSION_TYPE_TER_1X_PROV:
+      *session_state_ptr = qcril_uim.prov_session_info.session_state_1x_indexes[2];
+      break;
+    default:
+      QCRIL_LOG_ERROR( "%s\n", "Unsupported session type!" )
+      result_code = QMI_INTERNAL_ERR;
+      break;
+  }
+  return result_code;
+} /* qcril_uim_get_prov_session_state */
 
 
 /*=========================================================================
@@ -1361,7 +1432,9 @@ static void qcril_uim_add_label_info
   int i = 0;
 
   /* Sanity check */
-  if ((ril_label_ptr == NULL) || (qmi_label_rsp_ptr == NULL))
+  if ((ril_label_ptr == NULL) ||
+      (qmi_label_rsp_ptr == NULL) ||
+      (qmi_label_rsp_ptr->label_len > QMI_UIM_MAX_LABEL_LEN))
   {
     QCRIL_LOG_ERROR("%s", "Invalid input, cannot proceed");
     QCRIL_ASSERT(0);
@@ -1548,6 +1621,13 @@ static void qcril_uim_construct_card_status
   qcril_uim_update_prov_app_index(card_status_ptr->index_1x_ter_prov, slot,
                                   ril_card_status_ptr, QMI_UIM_SESSION_TYPE_TER_1X_PROV);
 
+  /* Update ISIM index if applicable */
+  if ((qcril_uim_extract_isim_index(&isim_index, slot) == RIL_E_SUCCESS) &&
+      (isim_index < RIL_CARD_MAX_APPS))
+  {
+    ril_card_status_ptr->ims_subscription_app_index = isim_index;
+  }
+
   max_apps = (card_status_ptr->card[slot].num_app <= RIL_CARD_MAX_APPS)
               ? card_status_ptr->card[slot].num_app : RIL_CARD_MAX_APPS;
 
@@ -1559,17 +1639,27 @@ static void qcril_uim_construct_card_status
                                card_status_ptr->card[slot].application[app_index].app_type);
     qcril_uim_convert_app_state_to_ril(&ril_card_status_ptr->applications[app_index].app_state,
                                        card_status_ptr->card[slot].application[app_index].app_state);
-    if (card_status_ptr->card[slot].application[app_index].app_type == QMI_UIM_APP_ISIM &&
-        card_status_ptr->card[slot].application[app_index].app_state == QMI_UIM_APP_STATE_DETECTED)
+
+    /* Move the ISIM app state to Ready if the following conditions satisfy:
+       1) App state is DETECTED
+       2) PIN1 state is either DISABLED or ENABLED & VERIFIED */
+    if ((card_status_ptr->card[slot].application[app_index].app_type == QMI_UIM_APP_ISIM) &&
+        (card_status_ptr->card[slot].application[app_index].app_state == QMI_UIM_APP_STATE_DETECTED) &&
+        ((card_status_ptr->card[slot].application[app_index].pin1_state == QMI_UIM_PIN_STATE_DISABLED) ||
+         (card_status_ptr->card[slot].application[app_index].pin1_state == QMI_UIM_PIN_STATE_ENABLED_VERIFIED)))
     {
       ril_card_status_ptr->applications[app_index].app_state = RIL_APPSTATE_READY;
     }
     qcril_uim_convert_perso_state_all(&ril_card_status_ptr->applications[app_index].perso_substate,
                                       card_status_ptr->card[slot].application[app_index].perso_state,
                                       card_status_ptr->card[slot].application[app_index].perso_feature);
-    qcril_uim_add_aid_info(&ril_card_status_ptr->applications[app_index].aid_ptr,
-                           card_status_ptr->card[slot].application[app_index].aid_value,
-                           card_status_ptr->card[slot].application[app_index].aid_len);
+
+    if (card_status_ptr->card[slot].application[app_index].aid_len <= QMI_UIM_MAX_AID_LEN)
+    {
+      qcril_uim_add_aid_info(&ril_card_status_ptr->applications[app_index].aid_ptr,
+                             card_status_ptr->card[slot].application[app_index].aid_value,
+                             card_status_ptr->card[slot].application[app_index].aid_len);
+    }
     /* Note - Sync QMI call for fetching app_label_ptr data, supposed to be fetched
      *        directly from QMI cache */
     if (qcril_uim_send_get_label(qcril_uim.qmi_handle, slot,
@@ -1861,7 +1951,6 @@ static boolean qcril_uim_has_card_status_changed
 (
   const qmi_uim_card_status_type * card_status_ptr,
   const qmi_uim_card_status_type * status_change_ind_ptr,
-  const qmi_uim_bool_type        * card_status_invalid_ptr,
   uint8                            slot
 )
 {
@@ -1948,12 +2037,6 @@ static boolean qcril_uim_has_card_status_changed
     {
       return TRUE;
     }
-  }
-
-  if (card_status_invalid_ptr != NULL && card_status_invalid_ptr[slot])
-  {
-    QCRIL_LOG_DEBUG("card status is invalid for slot 0x%x", slot);
-    return FALSE;
   }
 
   if (card_status_ptr->card[slot].card_state != status_change_ind_ptr->card[slot].card_state)
@@ -2232,14 +2315,17 @@ static void qcril_uim_handle_card_state_change
     qcril_uim_cleanup_refresh_info();
 
     /* Clean up Long APDU info, if any */
-    qcril_uim_cleanup_long_apdu_info(slot);
+    qcril_uim_cleanup_long_apdu_info();
+
+    /* Clean up select response info, if any */
+    qcril_uim_cleanup_select_response_info();
 
     /* Update the flag for silent PIN verification so that PIN1 can be silently
        verified after SAP is disconnected. */
     if (new_status_ptr->card[slot].card_error == QMI_UIM_CARD_ERROR_SAP_CONNECTED &&
         qmi_ril_is_feature_supported(QMI_RIL_FEATURE_SAP_SILENT_PIN_VERIFY))
     {
-      qcril_uim.silent_pin_verify_reqd[slot] = TRUE;
+      qcril_uim.silent_pin_verify_reqd = TRUE;
     }
 
     /* Update SCWS agent */
@@ -2272,7 +2358,7 @@ static void qcril_uim_handle_card_state_change
       if (new_status_ptr->card[slot].card_error == QMI_UIM_CARD_ERROR_POWER_DOWN &&
           qmi_ril_is_feature_supported(QMI_RIL_FEATURE_SAP_SILENT_PIN_VERIFY))
       {
-        qcril_uim.silent_pin_verify_reqd[slot] = TRUE;
+        qcril_uim.silent_pin_verify_reqd = TRUE;
       }
 
       /* Update internal QCRIL states if QCRIL_SIM_STATE_ABSENT on power up.
@@ -2429,12 +2515,14 @@ static void qcril_uim_handle_app_state_change
   const qmi_uim_card_status_type      * new_status_ptr,
   int                                   card_index,
   int                                   app_index,
-  qcril_request_return_type           * const ret_ptr /*!< Output parameter */
+  qcril_request_return_type           * const ret_ptr, /*!< Output parameter */
+  uint8                                 slot
 )
 {
-  boolean app_status_changed            = FALSE;
-  qcril_sim_state_e_type  new_sim_state = QCRIL_SIM_STATE_ABSENT;
-  qmi_uim_session_type    session_type  = QMI_UIM_SESSION_TYPE_PRI_GW_PROV;
+  boolean                   app_status_changed = FALSE;
+  qcril_sim_state_e_type    new_sim_state      = QCRIL_SIM_STATE_ABSENT;
+  qmi_uim_session_type      session_type       = QMI_UIM_SESSION_TYPE_PRI_GW_PROV;
+  qcril_card_app_info_type  card_app_info;
 
   /* Sanity checks */
   if ((new_status_ptr == NULL) || (ret_ptr == NULL))
@@ -2448,7 +2536,8 @@ static void qcril_uim_handle_app_state_change
                                        new_status_ptr->card[card_index].application[app_index].app_state);
 
   /* This covers case where PIN1 is replaced by UPIN also */
-  if(qcril_uim_is_prov_app(new_status_ptr->index_gw_pri_prov, card_index, app_index))
+  if(qcril_uim_is_prov_app(new_status_ptr->index_gw_pri_prov, card_index, app_index) &&
+     (slot == (new_status_ptr->index_gw_pri_prov >> 8) & 0xFF))
   {
     app_status_changed = TRUE;
     ret_ptr->pri_gw_sim_state_changed = TRUE;
@@ -2459,7 +2548,8 @@ static void qcril_uim_handle_app_state_change
       qcril_uim_update_prov_session_type(session_type, QCRIL_UIM_PROV_SESSION_ACTIVATED);
     }
   }
-  else if(qcril_uim_is_prov_app(new_status_ptr->index_1x_pri_prov, card_index, app_index))
+  else if(qcril_uim_is_prov_app(new_status_ptr->index_1x_pri_prov, card_index, app_index) &&
+          (slot == (new_status_ptr->index_1x_pri_prov >> 8) & 0xFF))
   {
     app_status_changed = TRUE;
     ret_ptr->pri_cdma_sim_state_changed = TRUE;
@@ -2470,7 +2560,8 @@ static void qcril_uim_handle_app_state_change
       qcril_uim_update_prov_session_type(session_type, QCRIL_UIM_PROV_SESSION_ACTIVATED);
     }
   }
-  else if(qcril_uim_is_prov_app(new_status_ptr->index_gw_sec_prov, card_index, app_index))
+  else if(qcril_uim_is_prov_app(new_status_ptr->index_gw_sec_prov, card_index, app_index) &&
+          (slot == (new_status_ptr->index_gw_sec_prov >> 8) & 0xFF))
   {
     app_status_changed = TRUE;
     ret_ptr->sec_gw_sim_state_changed = TRUE;
@@ -2481,7 +2572,8 @@ static void qcril_uim_handle_app_state_change
       qcril_uim_update_prov_session_type(session_type, QCRIL_UIM_PROV_SESSION_ACTIVATED);
     }
   }
-  else if(qcril_uim_is_prov_app(new_status_ptr->index_1x_sec_prov, card_index, app_index))
+  else if(qcril_uim_is_prov_app(new_status_ptr->index_1x_sec_prov, card_index, app_index) &&
+          (slot == (new_status_ptr->index_1x_sec_prov >> 8) & 0xFF))
   {
     app_status_changed = TRUE;
     ret_ptr->sec_cdma_sim_state_changed = TRUE;
@@ -2492,7 +2584,8 @@ static void qcril_uim_handle_app_state_change
       qcril_uim_update_prov_session_type(session_type, QCRIL_UIM_PROV_SESSION_ACTIVATED);
     }
   }
-  else if(qcril_uim_is_prov_app(new_status_ptr->index_gw_ter_prov, card_index, app_index))
+  else if(qcril_uim_is_prov_app(new_status_ptr->index_gw_ter_prov, card_index, app_index) &&
+          (slot == (new_status_ptr->index_gw_ter_prov >> 8) & 0xFF))
   {
     app_status_changed = TRUE;
     ret_ptr->ter_gw_sim_state_changed = TRUE;
@@ -2503,7 +2596,8 @@ static void qcril_uim_handle_app_state_change
       qcril_uim_update_prov_session_type(session_type, QCRIL_UIM_PROV_SESSION_ACTIVATED);
     }
   }
-  else if(qcril_uim_is_prov_app(new_status_ptr->index_1x_ter_prov, card_index, app_index))
+  else if(qcril_uim_is_prov_app(new_status_ptr->index_1x_ter_prov, card_index, app_index) &&
+          (slot == (new_status_ptr->index_1x_ter_prov >> 8) & 0xFF))
   {
     app_status_changed = TRUE;
     ret_ptr->ter_cdma_sim_state_changed = TRUE;
@@ -2529,6 +2623,29 @@ static void qcril_uim_handle_app_state_change
 
       qcril_uim_update_cm_fdn_status(modem_id, card_index, session_type);
     }
+
+    /* Send QCRIL_EVT_CM_CARD_APP_STATUS_CHANGE */
+    memset(&card_app_info, 0x00, sizeof(card_app_info));
+    card_app_info.app_type  = new_status_ptr->card[card_index].application[app_index].app_type;
+    card_app_info.app_state = new_status_ptr->card[card_index].application[app_index].app_state;
+    if (new_status_ptr->card[card_index].application[app_index].aid_len <= sizeof(card_app_info.aid_value))
+    {
+      card_app_info.aid_len = new_status_ptr->card[card_index].application[app_index].aid_len;
+    }
+    else
+    {
+      card_app_info.aid_len = sizeof(card_app_info.aid_value);
+    }
+    memcpy(card_app_info.aid_value,
+           new_status_ptr->card[card_index].application[app_index].aid_value,
+           card_app_info.aid_len);
+    (void)qcril_event_queue(instance_id,
+                            modem_id,
+                            QCRIL_DATA_ON_STACK,
+                            QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED,
+                            (void *)&card_app_info,
+                            sizeof(card_app_info),
+                            (RIL_Token)QCRIL_TOKEN_ID_INTERNAL);
   }
 } /* qcril_uim_handle_app_state_change */
 
@@ -2724,7 +2841,8 @@ static void qcril_uim_send_card_status_events
   const qmi_uim_card_status_type * old_status_ptr,
   const qmi_uim_card_status_type * new_status_ptr,
   const qmi_uim_bool_type        * card_status_invalid_ptr,
-  qcril_request_return_type      * const ret_ptr /*!< Output parameter */
+  qcril_request_return_type      * const ret_ptr, /*!< Output parameter */
+  uint8                            slot
 )
 {
   int                     i                   = 0;
@@ -2773,7 +2891,8 @@ static void qcril_uim_send_card_status_events
                                           new_status_ptr,
                                           i,
                                           j,
-                                          ret_ptr);
+                                          ret_ptr,
+                                          slot);
       }
 
       if (new_status_ptr->card[i].application[j].app_state == QMI_UIM_APP_STATE_PERSO)
@@ -3040,7 +3159,69 @@ void qcril_uim_print_card_status
   }
 } /* qcril_uim_print_card_status */
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_voltage_supply_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Processes the response for voltage supply command.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_voltage_supply_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+)
+{
+  RIL_Token                         token;
+  RIL_Errno                         ril_err;
+  qcril_uim_original_request_type * original_request_ptr = NULL;
+
+  /* Sanity checks */
+  if (params_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid input, cannot proceed");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  /* Retrieve original request */
+  original_request_ptr = (qcril_uim_original_request_type*)params_ptr->orig_req_data;
+  if (original_request_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid input, cannot proceed");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  ril_err = (params_ptr->qmi_rsp_data.qmi_err_code == 0) ? RIL_E_SUCCESS : RIL_E_GENERIC_FAILURE;
+  token   = original_request_ptr->token;
+
+  QCRIL_LOG_DEBUG( "qcril_uim_voltage_supply_resp: token=%d qmi_err_code=%d \n",
+                    qcril_log_get_token_id(token),
+                    params_ptr->qmi_rsp_data.qmi_err_code );
+
+  /* Send the response */
+  qcril_uim_response(original_request_ptr->instance_id,
+                     token,
+                     ril_err,
+                     NULL,
+                     0,
+                     TRUE,
+                     NULL);
+
+  /* Free memory allocated originally in the request */
+  qcril_free(original_request_ptr);
+  original_request_ptr = NULL;
+} /* qcril_uim_voltage_supply_resp */
+
+
+#if defined RIL_REQUEST_SIM_GET_ATR
 /*=========================================================================
 
   FUNCTION:  qcril_uim_get_atr_resp
@@ -3131,7 +3312,7 @@ void qcril_uim_get_atr_resp
   original_request_ptr = NULL;
 
 } /* qcril_uim_get_atr_resp */
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+#endif /* RIL_REQUEST_SIM_GET_ATR */
 
 
 /*=========================================================================
@@ -3151,8 +3332,6 @@ void qcril_uim_get_atr_resp
 /*=========================================================================*/
 static void qcril_uim_change_prov_session_callback
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   qmi_uim_rsp_data_type        * rsp_data,
   void                         * user_data
 )
@@ -3161,6 +3340,7 @@ static void qcril_uim_change_prov_session_callback
   qcril_modem_id_e_type                           modem_id;
   qcril_provision_info_type                       provision_info;
   qcril_uim_original_request_type               * original_request_ptr = NULL;
+  qcril_uim_prov_session_state_type               session_state;
 
   QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
 
@@ -3232,8 +3412,13 @@ static void qcril_uim_change_prov_session_callback
     }
     else if (provision_info.status == QCRIL_PROVISION_STATUS_FAILURE)
     {
-      qcril_uim_update_prov_session_type(provision_info.session_type,
-                                         QCRIL_UIM_PROV_SESSION_ACTIVATED);
+      if((qcril_uim_get_prov_session_state(provision_info.session_type,
+                                           &session_state) == QMI_NO_ERR) &&
+         (session_state == QCRIL_UIM_PROV_SESSION_DEACTIVATION_IN_PROGESS))
+      {
+        qcril_uim_update_prov_session_type(provision_info.session_type,
+                                           QCRIL_UIM_PROV_SESSION_ACTIVATED);
+      }
     }
     else
     {
@@ -3326,37 +3511,45 @@ void qcril_uim_process_status_change_ind
     return;
   }
 
-  status_changed = qcril_uim_has_card_status_changed(&qcril_uim.card_status,
+  /* Determine change in card status only if it is not invalid */
+  if (card_status_invalid == NULL || !card_status_invalid[slot])
+  {
+    status_changed = qcril_uim_has_card_status_changed(&qcril_uim.card_status,
+                                                       status_change_ind_ptr,
+                                                       slot);
+
+    /* Send internal notifications if the slot corresponding to this instance
+       has changed */
+    if (status_changed)
+    {
+      qcril_uim_send_card_status_events(ind_param_ptr->instance_id,
+                                        ind_param_ptr->modem_id,
+                                        &qcril_uim.card_status,
                                         status_change_ind_ptr,
                                         card_status_invalid,
+                                        ret_ptr,
                                         slot);
+    }
 
-  /* Send internal notifications if the slot corresponding to this instance
-     has changed */
-  if (status_changed)
+    /* Note on the card status mutex: We are currently limiting this mutex enforcement
+       to only this modem indication and the request for card status from FW. */
+    QCRIL_MUTEX_LOCK(&qcril_uim_card_status_mutex, "qcril_uim_card_status_mutex");
+
+    /* Update global card status */
+    qcril_uim_copy_card_status(&qcril_uim.card_status,
+                               status_change_ind_ptr,
+                               sizeof(qmi_uim_card_status_type));
+
+    QCRIL_MUTEX_UNLOCK(&qcril_uim_card_status_mutex, "qcril_uim_card_status_mutex");
+  }
+  else
   {
-    qcril_uim_send_card_status_events(ind_param_ptr->instance_id,
-                                      ind_param_ptr->modem_id,
-                                      &qcril_uim.card_status,
-                                      status_change_ind_ptr,
-                                      card_status_invalid,
-                                      ret_ptr);
+    QCRIL_LOG_ERROR("card status invalid for slot 0x%x", slot);
   }
 
-  /* Note on the card status mutex: We are currently limiting this mutex enforcement
-     to only this modem indication and the request for card status from FW. */
-  QCRIL_MUTEX_LOCK(&qcril_uim_card_status_mutex, "qcril_uim_card_status_mutex");
-
-  /* Update global card status */
-  qcril_uim_copy_card_status(&qcril_uim.card_status,
-                             status_change_ind_ptr,
-                             sizeof(qmi_uim_card_status_type));
-
-  QCRIL_MUTEX_UNLOCK(&qcril_uim_card_status_mutex, "qcril_uim_card_status_mutex");
-
   if (status_changed)
   {
-    if(qcril_uim.silent_pin_verify_reqd[slot] &&
+    if(qcril_uim.silent_pin_verify_reqd &&
        qcril_uim.card_status.card[slot].card_state == QMI_UIM_CARD_STATE_PRESENT)
     {
       verify_status = qcril_uim_try_pin1_verification(slot);
@@ -3504,7 +3697,7 @@ void qcril_uim_process_change_subscription
   /* Cast input info */
   ril_uicc_subs_info_ptr = (const qcril_uicc_subs_info_type *)params_ptr->data;
 
-  QCRIL_LOG_INFO( "RID %d MID %d qcril_uim_process_change_subscription(%d, %d, %d, %d)\n",
+  QCRIL_LOG_INFO( "qcril_uim_process_change_subscription: RID: 0x%x, MID:0x%x, slot: 0x%x, app_index: 0x%x, sub_type: 0x%x, act_status: 0x%x\n",
                   instance_id,
                   modem_id,
                   ril_uicc_subs_info_ptr->uicc_subs_info.slot,
@@ -3789,7 +3982,7 @@ send_pup_error:
 } /* qcril_uim_process_power_up */
 
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
+#if defined RIL_REQUEST_SIM_GET_ATR
 /*=========================================================================
 
   FUNCTION:  qcril_uim_process_get_atr
@@ -3887,7 +4080,7 @@ get_atr_error:
     original_request_ptr = NULL;
   }
 } /* qcril_uim_request_get_atr */
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+#endif /* RIL_REQUEST_SIM_GET_ATR */
 
 /*===========================================================================
 
@@ -4052,5 +4245,270 @@ RIL_Errno qcril_uim_direct_get_card_status
 
   return ret;
 }  /* qcril_uim_direct_get_card_status */
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_process_recovery_ind
+
+===========================================================================*/
+/*!
+    @brief
+    Main function for processing QMI recovery complete indication.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_uim_process_recovery_ind
+(
+  const qcril_uim_indication_params_type  * ind_param_ptr,
+  qcril_request_return_type               * const ret_ptr /*!< Output parameter */
+)
+{
+  qcril_unsol_resp_params_type      unsol_resp;
+  qmi_uim_slot_type                 slot = QMI_UIM_SLOT_1;
+
+  QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
+
+  if ((ind_param_ptr == NULL) || (ret_ptr == NULL))
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid inputs, cannot proceed");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(&unsol_resp, 0x00, sizeof(unsol_resp));
+
+  switch ( qcril_uim_instance_id_to_slot(ind_param_ptr->instance_id) )
+  {
+    case 0:
+      slot = QMI_UIM_SLOT_1;
+      break;
+
+    case 1:
+      slot = QMI_UIM_SLOT_2;
+      break;
+
+    case 2:
+      slot = QMI_UIM_SLOT_3;
+      break;
+
+    default:
+      QCRIL_LOG_ERROR("Invalid instance 0x%x", ind_param_ptr->instance_id);
+      return;
+  }
+
+  if (slot != ind_param_ptr->ind_data.recovery_ind.slot)
+  {
+    return;
+  }
+
+#ifdef RIL_UNSOL_SIM_INTERNAL_RESET
+  /* Send unsolicited response to framework */
+  qcril_default_unsol_resp_params(ind_param_ptr->instance_id,
+                                  (int) RIL_UNSOL_SIM_INTERNAL_RESET,
+                                  &unsol_resp);
+  qcril_send_unsol_response(&unsol_resp);
+#endif /* RIL_UNSOL_SIM_INTERNAL_RESET */
+} /* qcril_uim_process_recovery_ind */
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_process_supply_voltage_ind
+
+===========================================================================*/
+/*!
+    @brief
+    Main function for processing QMI supply voltage indication.
+    Note that the data type for QCRIL_EVT_HOOK_UNSOL_UICC_VOLTAGE_STATUS is
+    RIL_UiccVoltageStatus
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_uim_process_supply_voltage_ind
+(
+  const qcril_uim_indication_params_type  * ind_param_ptr,
+  qcril_request_return_type               * const ret_ptr /*!< Output parameter */
+)
+{
+  qmi_uim_slot_type                 slot           = QMI_UIM_SLOT_1;
+  RIL_UiccVoltageStatus             voltage_status = UICC_VOLTAGE_START_ACTIVATION;
+
+  QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
+
+  if ((ind_param_ptr == NULL) || (ret_ptr == NULL))
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid inputs, cannot proceed");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  QCRIL_LOG_INFO( "slot: 0x%x, vcc_command: 0x%x\n",
+                  ind_param_ptr->ind_data.supply_voltage_ind.slot,
+                  ind_param_ptr->ind_data.supply_voltage_ind.vcc_command);
+
+  switch ( qcril_uim_instance_id_to_slot(ind_param_ptr->instance_id) )
+  {
+    case 0:
+      slot = QMI_UIM_SLOT_1;
+      break;
+
+    case 1:
+      slot = QMI_UIM_SLOT_2;
+      break;
+
+    case 2:
+      slot = QMI_UIM_SLOT_3;
+      break;
+
+    default:
+      QCRIL_LOG_ERROR("Invalid instance 0x%x", ind_param_ptr->instance_id);
+      return;
+  }
+
+  /* We send an ACK from QCRIL direclty only for this condition: different slot
+     than RILD instance & the vcc status is deactivate. Otherwise we send the UNSOL
+     and expect the client to respond with an ACK */
+  if ((slot != ind_param_ptr->ind_data.supply_voltage_ind.slot) &&
+      (ind_param_ptr->ind_data.supply_voltage_ind.vcc_command == QMI_UIM_VCC_START_DEACTIVATION))
+  {
+    int                                ret = -1;
+    qmi_uim_rsp_data_type              rsp_data;
+    qmi_uim_supply_voltage_params_type vcc_params;
+
+    memset(&rsp_data, 0x00, sizeof(qmi_uim_rsp_data_type));
+    memset(&vcc_params, 0x00, sizeof(qmi_uim_supply_voltage_params_type));
+
+    vcc_params.slot = ind_param_ptr->ind_data.supply_voltage_ind.slot;
+
+    ret = qcril_qmi_uim_supply_voltage(qcril_uim.qmi_handle,
+                                       &vcc_params,
+                                       NULL,
+                                       NULL,
+                                       &rsp_data);
+    if (ret < 0)
+    {
+      QCRIL_LOG_ERROR("Error for qcril_qmi_uim_supply_voltage, ret: 0x%x", ret);
+    }
+    return;
+  }
+
+  /* Map the status */
+  switch (ind_param_ptr->ind_data.supply_voltage_ind.vcc_command)
+  {
+    case QMI_UIM_VCC_ACTIVATED:
+      voltage_status = UICC_VOLTAGE_ACTIVATED;
+      break;
+
+    case QMI_UIM_VCC_START_DEACTIVATION:
+      voltage_status = UICC_VOLTAGE_START_DEACTIVATION;
+      break;
+
+    default:
+      QCRIL_LOG_ERROR("Unsupported vcc status 0x%x",
+                      ind_param_ptr->ind_data.supply_voltage_ind.vcc_command);
+      return;
+  }
+
+  /* Send OEMHook unsolicited response to framework */
+  qcril_hook_unsol_response(ind_param_ptr->instance_id,
+                            (int) QCRIL_EVT_HOOK_UNSOL_UICC_VOLTAGE_STATUS,
+                            (void *) &voltage_status,
+                            sizeof(RIL_UiccVoltageStatus));
+
+} /* qcril_uim_process_supply_voltage_ind */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_request_voltage_status
+
+===========================================================================*/
+/*!
+    @brief
+     Handles QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ request from QCRIL.
+     Note that both the request & response have no data payload.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_request_voltage_status
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type       *const ret_ptr /*!< Output parameter */
+)
+{
+  qcril_uim_original_request_type    * original_req_ptr = NULL;
+  qmi_uim_supply_voltage_params_type   voltage_params;
+
+  /* Sanity check */
+  if ((params_ptr == NULL) || (ret_ptr == NULL))
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid input, cannot proceed");
+    return;
+  }
+
+  QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
+
+  /* Add entry to ReqList */
+  QCRIL_UIM_ADD_ENTRY_TO_REQUEST_LIST(params_ptr);
+
+  memset(&voltage_params, 0, sizeof(qmi_uim_supply_voltage_params_type));
+
+  /* Find slot info */
+  if ( ril_to_uim_is_tsts_enabled() && (params_ptr->instance_id == QCRIL_THIRD_INSTANCE_ID) )
+  {
+    voltage_params.slot = QMI_UIM_SLOT_3;
+  }
+  else if ( (ril_to_uim_is_tsts_enabled() || ril_to_uim_is_dsds_enabled()) &&
+            (params_ptr->instance_id == QCRIL_SECOND_INSTANCE_ID) )
+  {
+    voltage_params.slot = QMI_UIM_SLOT_2;
+  }
+  else if (params_ptr->instance_id == QCRIL_DEFAULT_INSTANCE_ID)
+  {
+    voltage_params.slot = QMI_UIM_SLOT_1;
+  }
+  else
+  {
+    QCRIL_LOG_ERROR( " Invalid instance_id in input: 0x%x\n", params_ptr->instance_id);
+    goto voltage_status_error;
+  }
+
+  /* Allocate original request */
+  original_req_ptr = qcril_uim_allocate_orig_request(params_ptr->instance_id,
+                                                     QCRIL_MAX_MODEM_ID - 1,
+                                                     params_ptr->t,
+                                                     params_ptr->event_id,
+                                                     0);
+
+  if (original_req_ptr != NULL)
+  {
+    if (qcril_uim_queue_send_request(QCRIL_UIM_REQUEST_SUPPLY_VOLTAGE,
+                                     qcril_uim.qmi_handle,
+                                     &voltage_params,
+                                     qmi_uim_callback,
+                                     (void*)original_req_ptr) >= 0)
+    {
+      return;
+    }
+  }
+
+voltage_status_error:
+  qcril_uim_response(params_ptr->instance_id, params_ptr->t, RIL_E_GENERIC_FAILURE,
+                       NULL, 0, TRUE, "error in qcril_uim_request_voltage_status");
+
+  /* Clean up any original request if allocated */
+  if (original_req_ptr)
+  {
+    qcril_free(original_req_ptr);
+    original_req_ptr = NULL;
+  }
+} /* qcril_uim_request_voltage_status */
 
 #endif /* defined (FEATURE_QCRIL_UIM_QMI) */

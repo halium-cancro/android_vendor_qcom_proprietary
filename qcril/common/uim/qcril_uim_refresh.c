@@ -28,9 +28,15 @@ $Header: //linux/pkgs/proprietary/qc-ril/main/source/qcril_uim_refresh.c#1 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+07/01/14   yt      Send REFRESH COMPLETE for non-prov APP RESET
+06/10/14   tl      Removed array structures for slot specific parameters
+05/06/14   at      Added CPHS related EFs in the refresh file list
+04/22/14   yt      Send Refresh UNSOL response for non-prov session
 02/13/14   yj      Send app type in sim refresh response to OEMHook
+01/21/14   at      Added support for getSelectResponse()
 12/23/13   yj      Modify INIT_FCN in sim refresh response
 12/23/13   yt      Map 3G session reset refresh mode to SIM_INIT for RIL
+12/11/13   at      Switch to new QCCI framework
 09/10/13   yt      Clear encrypted PIN data after card reset
 06/27/13   at      Added support for Long APDU indication
 04/24/13   at      Fix for integer overflow in qcril_uim_refresh_register()
@@ -68,6 +74,7 @@ when       who     what, where, why
 #include "qcril_uim_queue.h"
 #include "qcril_uim_card.h"
 #include "qcril_uim_qcci.h"
+#include "qcril_uim_file.h"
 #include <string.h>
 #include <pthread.h>
 
@@ -131,8 +138,14 @@ const qmi_uim_file_id_type file_id_table_df_telecom[] =
 const qmi_uim_file_id_type file_id_table_df_gsm[] =
         {
           { 0x6F07, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_IMSI         */
+          { 0x6F11, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_VMWI         */
+          { 0x6F12, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_SVC_STR_TBL  */
           { 0x6F13, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_CFF          */
+          { 0x6F14, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_ONS          */
           { 0x6F15, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_CSP          */
+          { 0x6F17, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_MN           */
+          { 0x6F18, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* EF ON Shortform         */
+          { 0x6F19, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* EF Info numbers         */
           { 0x6F46, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_SPN          */
           { 0x6FC5, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_PNN          */
           { 0x6FC6, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_DF_GSM] } },     /* MMGSDI_GSM_OPL          */
@@ -143,8 +156,14 @@ const qmi_uim_file_id_type file_id_table_df_gsm[] =
 const qmi_uim_file_id_type file_id_table_adf[] =
         {
           { 0x6F07, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_IMSI        */
+          { 0x6F11, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_VMWI        */
+          { 0x6F12, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_SVC_STR_TBL */
           { 0x6F13, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_CFF         */
+          { 0x6F14, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_ONS         */
           { 0x6F15, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_CSP         */
+          { 0x6F17, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_MN          */
+          { 0x6F18, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* EF ON Shortform         */
+          { 0x6F19, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* EF Info numbers         */
           { 0x6F3B, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_FDN         */
           { 0x6F3C, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_SMS         */
           { 0x6F40, { 4, (unsigned char*)qcril_uim_refresh_file_list[QCRIL_UIM_INDEX_ADF] } },   /* MMGSDI_USIM_MSISDN      */
@@ -1100,7 +1119,7 @@ static int qcril_uim_send_refresh_register
 /*=========================================================================*/
 static void qcril_uim_send_refresh_ok
 (
-  qmi_client_handle_type                    qmi_handle,
+  qmi_client_type                           qmi_handle,
   qmi_uim_session_type                      qmi_session_type
 )
 {
@@ -1121,8 +1140,8 @@ static void qcril_uim_send_refresh_ok
 
   QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "refresh ok" );
   result_code = qcril_qmi_uim_refresh_ok(qmi_handle,
-                                   &refresh_ok_params,
-                                   &refresh_ok_rsp);
+                                         &refresh_ok_params,
+                                         &refresh_ok_rsp);
   if(result_code < 0)
   {
     QCRIL_LOG_ERROR( "Error for qcril_qmi_uim_refresh_ok, result_code: 0x%X, qmi_err_code: 0x%X\n",
@@ -1146,7 +1165,7 @@ static void qcril_uim_send_refresh_ok
 /*=========================================================================*/
 static void qcril_uim_send_refresh_complete
 (
-  qmi_client_handle_type                    qmi_handle,
+  qmi_client_type                           qmi_handle,
   qmi_uim_refresh_ind_type                * refresh_ind_ptr
 )
 {
@@ -1181,8 +1200,8 @@ static void qcril_uim_send_refresh_complete
 
   QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "refresh complete" );
   result_code = qcril_qmi_uim_refresh_complete(qmi_handle,
-                                         &refresh_complete_params,
-                                         &refresh_complete_rsp);
+                                               &refresh_complete_params,
+                                               &refresh_complete_rsp);
   if(result_code < 0)
   {
     QCRIL_LOG_ERROR( "Error for qcril_qmi_uim_refresh_complete, result_code: 0x%X, qmi_err_code: 0x%X\n",
@@ -2173,11 +2192,11 @@ void qcril_uim_process_refresh_ind
             qcril_uim_refresh_handle_mode_change(ind_param_ptr->instance_id,
                                                  ind_param_ptr->modem_id,
                                                  refresh_ind_ptr);
-            send_refresh_unsol  = TRUE;
-            ril_refresh_mode    = SIM_INIT;
-            update_qcril_params = TRUE;
-            new_sim_state       = QCRIL_SIM_STATE_NOT_READY;
           }
+          send_refresh_unsol  = TRUE;
+          ril_refresh_mode    = SIM_INIT;
+          update_qcril_params = TRUE;
+          new_sim_state       = QCRIL_SIM_STATE_NOT_READY;
           break;
 
         case QMI_UIM_REFRESH_MODE_RESET:
@@ -2194,7 +2213,9 @@ void qcril_uim_process_refresh_ind
             qcril_scws_card_error(scws_slot_id_type);
           }
           /* Clean up Long APDU info, if any */
-          qcril_uim_cleanup_long_apdu_info(prov_app_slot);
+          qcril_uim_cleanup_long_apdu_info();
+          /* Clean up select response info, if any */
+          qcril_uim_cleanup_select_response_info();
           /* Clear encrypted PIN1 data */
           qcril_uim_clear_encrypted_pin_after_card_reset(prov_app_slot);
 
@@ -2205,9 +2226,19 @@ void qcril_uim_process_refresh_ind
           break;
 
         case QMI_UIM_REFRESH_MODE_APP_RESET:
-          qcril_uim_refresh_handle_mode_change(ind_param_ptr->instance_id,
-                                               ind_param_ptr->modem_id,
-                                               refresh_ind_ptr);
+          if (refresh_ind_ptr->refresh_event.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_1 ||
+              refresh_ind_ptr->refresh_event.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_2 ||
+              refresh_ind_ptr->refresh_event.session_type == QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_3)
+          {
+            qcril_uim_send_refresh_complete(qcril_uim.qmi_handle,
+                                            refresh_ind_ptr);
+          }
+          else
+          {
+            qcril_uim_refresh_handle_mode_change(ind_param_ptr->instance_id,
+                                                 ind_param_ptr->modem_id,
+                                                 refresh_ind_ptr);
+          }
           send_refresh_unsol    = TRUE;
           ril_refresh_mode      = SIM_RESET;
           update_qcril_params   = TRUE;

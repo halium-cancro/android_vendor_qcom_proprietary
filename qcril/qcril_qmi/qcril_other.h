@@ -705,6 +705,30 @@ void qmi_ril_get_property_value_from_integer(const char *property_name,
 
 /***************************************************************************************************
     @function
+        qmi_ril_get_property_value_from_boolean
+
+    @brief
+        Reads system property to retrieve the value when the type of the value is boolean.
+
+    @param[in]
+        property_name
+            pointer to the name of property that needs to be read
+        default_property_value
+            value of boolean that needs to be returned in case the read fails
+
+    @param[out]
+        property_value
+            pointer to the variable that would hold the read property value
+
+    @retval
+        none
+***************************************************************************************************/
+void qmi_ril_get_property_value_from_boolean(const char *property_name,
+                                             boolean *property_value,
+                                             boolean default_property_value);
+
+/***************************************************************************************************
+    @function
     qmi_ril_set_property_value_to_string
 
     @brief

@@ -1,7 +1,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2012 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -16,6 +16,7 @@ Notice that changes are listed in reverse chronological order.
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+05/05/14   ar      Fix critical KW errors
 04/17/13   yt      Critical KW fixes
 08/09/12   sc      Initial Version
 ===========================================================================*/
@@ -321,7 +322,6 @@ static char* qcril_scws_opt_get_line(
      space for null termination, as line_ptr is a char* */
   *line_len = (eol_ptr - *begin_ptr)+eol_len;
   line_ptr = (char *) qcril_malloc((*line_len + 1)*sizeof(uint8));
-  memset(line_ptr, '\0', *line_len+1);
 
   if(line_ptr == NULL)
   {
@@ -330,6 +330,7 @@ static char* qcril_scws_opt_get_line(
     *begin_ptr += data_len;
     return NULL;
   }
+  memset(line_ptr, '\0', *line_len+1);
 
   if (*line_len > 0)
   {

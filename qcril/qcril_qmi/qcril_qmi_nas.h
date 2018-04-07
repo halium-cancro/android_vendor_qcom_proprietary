@@ -26,6 +26,7 @@
 #include "qmi_client.h"
 #include "voice_service_v02.h"
 #include "device_management_service_v01.h"
+#include "network_access_service_v01.h"
 #include "qcril_arb.h"
 #include "qcril_data_client.h"
 
@@ -39,6 +40,9 @@
 #define QMI_CODING_SCHEME_UCS2                0x01
 
 #define NAS_NMR_MAX_NUM_V01  6
+#define QCRIL_MCC_MNC_MAX_SIZE     (4)
+
+#define RIL_E_UNUSED 16
 
 typedef enum
 {
@@ -123,15 +127,34 @@ typedef enum
 {
     QMI_RIL_NAS_INIT_APN_ATTCH_NONE   = 0,
     QMI_RIL_NAS_INIT_APN_ATTCH_DETACH,
-    QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH
+    QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH,
+    QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ATTACH,
+    QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH,
+    QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_WAIT_FOR_RAT_EXP,
+    QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_DETACH
 } qmi_ril_nas_init_apn_attch_state_e_type;
 
 typedef enum
 {
     QCRIL_QMI_ACQ_ORDER_NONE = 0,
     QCRIL_QMI_ACQ_ORDER_LTE_TDS_GSM,
-    QCRIL_QMI_ACQ_ORDER_TDS_GSM_LTE
+    QCRIL_QMI_ACQ_ORDER_TDS_GSM_LTE,
+    QCRIL_QMI_ACQ_ORDER_LTE_UMTS_GSM
 } qcril_qmi_acq_order_e_type;
+
+typedef enum
+{
+    QCRIL_QMI_BAND_PREF_NONE = 0,
+    QCRIL_QMI_BAND_PREF_LTE_FULL,
+    QCRIL_QMI_BAND_PREF_TDD_LTE,
+    QCRIL_QMI_BAND_PREF_FDD_LTE
+} qcril_qmi_band_pref_e_type;
+
+typedef enum
+{
+    QCRIL_QMI_RAT_BAND_NONE = 1,
+    QCRIL_QMI_LTE_BAND,
+} qcril_qmi_rat_band_e_type;
 
 struct ftm_subs_status
 {
@@ -226,16 +249,46 @@ typedef enum
     QCRIL_CELL_LOCATION_RESET_PERIOD,
 } qmi_ril_cell_location_period_action;
 
+void qcril_qmi_nas_set_init_attch_state
+(
+    qmi_ril_nas_init_apn_attch_state_e_type init_attch_state
+);
+
+void qcril_qmi_nas_check_ps_attach_status();
+
 void qcril_qmi_dms_unsolicited_indication_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  message_id,
-  unsigned char                  * ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 );
 
+#ifdef QMI_RIL_UTF
+void qcril_qmi_dsd_ind_cb
+(
+  qmi_client_type                user_handle,
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
+);
+
+void qcril_qmi_dsd_unsolicited_indication_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+#endif
+
 void qcril_qmi_nas_unsolicited_indication_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_async_cb_helper
 (
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr
@@ -244,15 +297,22 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
 void qcril_qmi_nas_unsolicited_indication_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  message_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 );
 
 void qcril_qmi_nas_init();
 void qcril_qmi_dms_init();
 void qcril_qmi_nas_multi_sim_init();
+
+void qcril_qmi_nas_get_subscription_info();
+
+void qcril_qmi_nas_update_modem_stack_id
+(
+uint8_t stack_id
+);
 
 void qcril_qmi_util_decode_operator_name
 (
@@ -460,13 +520,14 @@ void qcril_qmi_dms_fusion_csfb_unsolicited_indication_cb
 
 void qcril_qmi_nas_cleanup();
 
+
 void qcril_qmi_nas_minority_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 msg_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 );
 
@@ -530,12 +591,6 @@ void qcril_qmi_nas_dsds_request_set_data_subscription
   qcril_request_return_type *const ret_ptr
 );
 
-void qcril_qmi_nas_dsds_request_get_data_subscription
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr
-);
-
 void qcril_qmi_nas_dsds_request_set_default_voice_sub
 (
   const qcril_request_params_type *const params_ptr,
@@ -549,6 +604,36 @@ void qcril_qmi_nas_event_subs_followup
 );
 
 void qcril_qmi_nas_event_subs_deactivate_followup
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_event_card_status_update
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_event_app_status_update
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_get_modem_capability
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_update_sub_binding
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_request_allow_data
 (
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr
@@ -706,6 +791,12 @@ void qcril_qmi_nas_embms_deliver_log_packet
   qcril_request_return_type *const ret_ptr
 );
 
+void qcril_qmi_nas_embms_get_e911_state
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
 void qcril_qmi_nas_post_voice_rte_change_ind_handler
 (
   const qcril_request_params_type *const params_ptr,
@@ -713,6 +804,12 @@ void qcril_qmi_nas_post_voice_rte_change_ind_handler
 );
 
 void qcril_qmi_nas_perform_network_scan_command_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_set_nw_selection_command_cb_helper
 (
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr
@@ -731,6 +828,12 @@ void qcril_qmi_nas_get_rfm_scenario_req
 );
 
 void qcril_qmi_nas_get_provisioned_table_revision_req
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_embms_set_enable_cmd_cb_helper
 (
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr
@@ -794,10 +897,10 @@ void qmi_ril_nw_reg_initiate_post_cfg_ban_for_data_reg_extrapolation_ncl();
 RIL_Errno qcril_qmi_fetch_system_selection_preference(void);
 inline uint8_t qcril_qmi_nas_get_mode_pref(uint16_t *mode_pref);
 
-void qcril_qmi_nas_dms_handle_oem_hook_shutdown_inform
+void qcril_qmi_nas_request_shutdown
 (
     const qcril_request_params_type *const params_ptr,
-    qcril_request_return_type *const ret_ptr
+    qcril_request_return_type       *const ret_ptr
 );
 
 void qcril_qmi_nas_csg_handle_oem_hook_perform_network_scan
@@ -910,7 +1013,6 @@ void qcril_qmi_nas_perform_incremental_network_scan
 const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr
 );
-
 void qcril_qmi_nas_get_cell_info_list_ncl
 
 (
@@ -933,18 +1035,71 @@ void qcril_qmi_nas_cell_info_list_changed
   qcril_request_return_type *const ret_ptr // Output parameter
 );
 
-void qcril_qmi_nas_cancel_srv_domain_camped_timer_helper();
-
-void qcril_qmi_voice_ims_send_unsol_radio_state_change_helper();
-void qcril_qmi_drop_sig_info_cache(void);
 int qcril_qmi_nas_get_escv_type
 (
     char *emergency_number
 );
+
+uint8_t qcril_qmi_nas_get_lte_disable_cause
+(
+    nas_lte_disable_cause_enum_type_v01 *lte_disable_cause
+);
+
+void qcril_qmi_voice_ims_send_unsol_radio_state_change_helper();
+
+void qcril_qmi_nas_cancel_srv_domain_camped_timer_helper();
+void qcril_qmi_nas_modem_power_set_boot_in_apm();
+void qcril_qmi_nas_modem_power_ril_resumed();
+boolean qcril_qmi_nas_modem_power_is_mdm_shdn_in_apm();
+void qcril_qmi_nas_modem_power_load_apm_mdm_not_pwdn();
+
+void qcril_qmi_drop_sig_info_cache(void);
 void qcril_qmi_nas_sys_sel_pref_validity_tmr_expry_handler(void * param);
 int qcril_qmi_nas_sys_sel_pref_setup_timed_callback ();
 void qcril_qmi_nas_initialize_is_indication_received();
 void qcril_qmi_nas_cancel_sys_sel_pref_tmr();
 RIL_Errno qcril_qmi_nas_mode_pref_request_response_helper(const qcril_request_params_type *const params_ptr, uint8 *is_change);
+int qcril_qmi_is_srlte_supported();
+void qcril_qmi_nas_fetch_lte_sms_status ( uint8_t *lte_sms_status_valid, nas_sms_status_enum_type_v01 *lte_sms_status );
+
+void qcril_qmi_nas_set_is_data_enabled 
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type       *const ret_ptr
+);
+
+void qcril_qmi_nas_set_is_data_roaming_enabled
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type       *const ret_ptr
+);
+
+void qcril_qmi_nas_set_apn_info 
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type       *const ret_ptr
+);
+
+void qcril_qmi_nas_dsds_request_set_lte_tune_away
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_dsds_lte_tune_away_cb ( RIL_Errno resp_res );
+
+int qcril_qmi_nas_get_sim_mcc_mnc(char mcc[QCRIL_MCC_MNC_MAX_SIZE],
+                                  char mnc[QCRIL_MCC_MNC_MAX_SIZE]);
+
+void qcril_qmi_nas_update_sim_mcc_mnc(boolean valid,
+                                      char    mcc[QCRIL_MCC_MNC_MAX_SIZE],
+                                      char    mnc[QCRIL_MCC_MNC_MAX_SIZE]);
+
+void qcril_uim_process_mcc_mnc_info ( const qcril_request_params_type *const params_ptr,
+                                      qcril_request_return_type       *const ret_ptr);
+
+
+qcril_modem_stack_id_e_type qcril_qmi_nas_get_modem_stack_id();
+
 #endif /* QCRIL_QMI_NAS_H */
 

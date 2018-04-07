@@ -3,17 +3,17 @@
   @brief   The QMI common service layer.
 
   DESCRIPTION
-  QMI common service routines.  All services will be build on top of these 
+  QMI common service routines.  All services will be build on top of these
   routines for initializing, sending messages and receiving responses/
   indications.  File also contains some common utility routines for decoding
   message headers and TLV's.
 
   INITIALIZATION AND SEQUENCING REQUIREMENTS
-  qmi_service_init() needs to be called before sending or receiving of any 
+  qmi_service_init() needs to be called before sending or receiving of any
   service specific messages
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2007-2014 Qualcomm Technologies, Inc. All Rights Reserved. 
+  Copyright (c) 2007-2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -37,7 +37,7 @@
 
 
 /* Implicit assumption here is that we will never have more than 127 connection
-** ID's (SMD QMI ports).  This should be fine since 3 is the current max 
+** ID's (SMD QMI ports).  This should be fine since 3 is the current max
 */
 
 #define QMI_SRVC_CREATE_CLIENT_HANDLE(conn_id,client_id,service_id) \
@@ -45,9 +45,9 @@
                             (((qmi_client_handle_type)client_id & 0xFF) << 16) | \
                             (((qmi_client_handle_type)service_id & 0xFF) << 8) \
                            )
-  
 
-/* Static two dimensional array of transactions lists.   
+
+/* Static two dimensional array of transactions lists.
 */
 static qmi_service_txn_info_type *qmi_service_txn_table [QMI_MAX_CONN_IDS][QMI_MAX_SERVICES];
 
@@ -57,7 +57,7 @@ static QMI_PLATFORM_MUTEX_DATA_TYPE   qmi_service_txn_mutex_table [QMI_MAX_CONN_
 
 
 /*****************************************************************************
-** Type declarations 
+** Type declarations
 *****************************************************************************/
 
 static int qmi_qcci_internal_public_service_id_to_bookkeeping_service_id(int public_service_id);
@@ -69,7 +69,7 @@ typedef struct qmi_srvc_fn_info_type
 } qmi_srvc_fn_info_type;
 
 static qmi_srvc_fn_info_type qmi_srvc_fn_info [QMI_MAX_SERVICES];
-  
+
 /* Each service of each connection will have one of these data structures
 ** associated with it.
 */
@@ -90,36 +90,36 @@ typedef struct qmi_srvc_client_info_type
 
 
 /* Static array of service structures */
-static qmi_srvc_client_info_type *qmi_srvc_client_info_table 
+static qmi_srvc_client_info_type *qmi_srvc_client_info_table
                                 [QMI_MAX_CONN_IDS][QMI_MAX_SERVICES];
 
 /* Mutexs used during allocation/de-allocation/lookup of service data */
-static QMI_PLATFORM_MUTEX_DATA_TYPE   qmi_srvc_list_mutex_table 
+static QMI_PLATFORM_MUTEX_DATA_TYPE   qmi_srvc_list_mutex_table
                                 [QMI_MAX_CONN_IDS][QMI_MAX_SERVICES];
 
 
-/* Definitions/declaration associated with individual service init/release 
+/* Definitions/declaration associated with individual service init/release
 ** callbacks
 */
 
-extern int qmi_wds_srvc_init (void); 
+extern int qmi_wds_srvc_init (void);
 extern int qmi_wds_srvc_release (void);
 
-extern int qmi_nas_srvc_init (void); 
+extern int qmi_nas_srvc_init (void);
 extern int qmi_nas_srvc_release (void);
 
-extern int qmi_qos_srvc_init (void); 
+extern int qmi_qos_srvc_init (void);
 extern int qmi_qos_srvc_release (void);
 
-extern int qmi_eap_srvc_init (void); 
+extern int qmi_eap_srvc_init (void);
 extern int qmi_eap_srvc_release (void);
 
-extern int qmi_atcop_srvc_init (void); 
+extern int qmi_atcop_srvc_init (void);
 extern int qmi_atcop_srvc_release (void);
 
-extern int qmi_uim_srvc_init (void); 
+extern int qmi_uim_srvc_init (void);
 extern int qmi_uim_srvc_release (void);
-                                
+
 extern int qmi_cat_srvc_init (void);
 extern int qmi_cat_srvc_release (void);
 
@@ -131,7 +131,7 @@ typedef struct qmi_init_release_cb_table_type
   qmi_service_init_release_fn_type release_f_ptr;
 } qmi_init_release_cb_table_type;
 
-static qmi_init_release_cb_table_type qmi_init_release_cb_table [QMI_MAX_SERVICES] = 
+static qmi_init_release_cb_table_type qmi_init_release_cb_table [QMI_MAX_SERVICES] =
 {
   {qmi_nas_srvc_init, qmi_nas_srvc_release},
   {qmi_qos_srvc_init, qmi_qos_srvc_release},
@@ -140,7 +140,7 @@ static qmi_init_release_cb_table_type qmi_init_release_cb_table [QMI_MAX_SERVICE
   {qmi_atcop_srvc_init, qmi_atcop_srvc_release},
   {qmi_uim_srvc_init, qmi_uim_srvc_release},
   {qmi_cat_srvc_init, qmi_cat_srvc_release}
-}; 
+};
 
 #define QMI_SERVICE_INIT_RELEASE_TABLE_SIZE (sizeof (qmi_init_release_cb_table) / sizeof (qmi_init_release_cb_table_type))
 
@@ -171,12 +171,12 @@ static qmi_service_conn_state_t  qmi_service_conn_state_tbl[QMI_MAX_CONN_IDS];
   FUNCTION  qmi_service_set_srvc_functions
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Routine that should be called once by each service to set the calback
   called to recieve indications, and service-specific write/read transaction
-  header routines if they exist 
-  
-@return 
+  header routines if they exist
+
+@return
   QMI_NO_ERR if success, negative value if not
 
 @note
@@ -185,9 +185,9 @@ static qmi_service_conn_state_t  qmi_service_conn_state_tbl[QMI_MAX_CONN_IDS];
     - None
 
   - Side Effects
-    - 
-    
-*/    
+    -
+
+*/
 /*=========================================================================*/
 int qmi_service_set_srvc_functions (
   qmi_service_id_type                 service_id,
@@ -205,17 +205,17 @@ int qmi_service_set_srvc_functions (
   return QMI_NO_ERR;
 }
 
- 
+
 /*===========================================================================
   FUNCTION  qmi_service_cmp_txn
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Routine that should be called once by each service to set the calback
   called to recieve indications, and service-specific write/read transaction
-  header routines if they exist 
-  
-@return 
+  header routines if they exist
+
+@return
   QMI_NO_ERR if success, negative value if not
 
 @note
@@ -224,9 +224,9 @@ int qmi_service_set_srvc_functions (
     - None
 
   - Side Effects
-    - 
-    
-*/    
+    -
+
+*/
 /*=========================================================================*/
 static int qmi_service_cmp_txn (
   qmi_txn_hdr_type  *txn_data,
@@ -236,10 +236,10 @@ static int qmi_service_cmp_txn (
   qmi_service_txn_cmp_type *cmp = (qmi_service_txn_cmp_type *) cmp_data;
   qmi_service_txn_info_type  *txn = (qmi_service_txn_info_type *) txn_data;
   int rc = 0;
-  
+
   if ((txn != NULL) && (cmp != NULL))
   {
-    if ((txn->client_id == cmp->client_id) && 
+    if ((txn->client_id == cmp->client_id) &&
         (txn->txn_id == cmp->txn_id))
     {
       rc = 1;
@@ -247,17 +247,17 @@ static int qmi_service_cmp_txn (
   }
   return rc;
 }
- 
+
 
 /*===========================================================================
   FUNCTION  qmi_service_delete_async_txn
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Deletes an asynchronous transaction so that it will free resources
-  associated with transaction   
-  
-@return 
+  associated with transaction
+
+@return
    QMI_NO_ERR if successful, negative otherwise
 @note
 
@@ -266,7 +266,7 @@ static int qmi_service_cmp_txn (
 
   - Side Effects
     - Async response will not be delivered
-*/    
+*/
 /*=========================================================================*/
 int qmi_service_delete_async_txn (
   int user_handle,
@@ -284,7 +284,7 @@ int qmi_service_delete_async_txn (
   client_id = QMI_SRVC_CLIENT_HANDLE_TO_CLIENT_ID (user_handle);
   service_id = QMI_SRVC_CLIENT_HANDLE_TO_SERVICE_ID(user_handle);
   book_keep_srvc_id = qmi_qcci_internal_public_service_id_to_bookkeeping_service_id (service_id);
-  
+
   if ( conn_id >= QMI_MAX_CONN_IDS ||
        service_id >= QMI_MAX_SERVICES ||
        book_keep_srvc_id >= QMI_MAX_SERVICES )
@@ -295,7 +295,7 @@ int qmi_service_delete_async_txn (
   }
 
   cmp_data.client_id = client_id;
-  cmp_data.txn_id = async_txn_handle;
+  cmp_data.txn_id = (unsigned long) async_txn_handle;
 
   txn = (qmi_service_txn_info_type *)
         qmi_util_find_and_addref_txn ((void *)&cmp_data,
@@ -305,25 +305,25 @@ int qmi_service_delete_async_txn (
 
   if (txn)
   {
-    qmi_util_release_txn ((qmi_txn_hdr_type *)txn, 
-                          TRUE,                                 
+    qmi_util_release_txn ((qmi_txn_hdr_type *)txn,
+                          TRUE,
                           (qmi_txn_hdr_type **) &qmi_service_txn_table[conn_id][ book_keep_srvc_id ],
                           &qmi_service_txn_mutex_table[conn_id][ book_keep_srvc_id ]);
   }
 
   return QMI_NO_ERR;
-  
+
 }
 
-  
+
 /*===========================================================================
   FUNCTION  qmi_alloc_srvc_data
 ===========================================================================*/
 /*!
-@brief 
-  Allocates and initializes a service data structure.   
-  
-@return 
+@brief
+  Allocates and initializes a service data structure.
+
+@return
    Pointer to transaction structure or NULL if no matching transaction found
 
 @note
@@ -333,9 +333,9 @@ int qmi_service_delete_async_txn (
 
   - Side Effects
     - None
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 qmi_srvc_client_info_type *qmi_alloc_srvc_data (
   qmi_connection_id_type  conn_id,
   qmi_service_id_type     service_id,
@@ -375,7 +375,7 @@ qmi_srvc_client_info_type *qmi_alloc_srvc_data (
 
   /* Lock global service access mutex */
   QMI_PLATFORM_MUTEX_LOCK (&qmi_srvc_list_mutex_table[conn_id][book_keep_srvc_id]);
- 
+
   QMI_SLL_ADD(srvc,qmi_srvc_client_info_table [conn_id][book_keep_srvc_id]);
 
   /* Unlock global service access mutex */
@@ -531,10 +531,10 @@ void qmi_service_delete_client_txns
   FUNCTION  qmi_free_srvc_data
 ===========================================================================*/
 /*!
-@brief 
-  Removes and frees service data from list   
-  
-@return 
+@brief
+  Removes and frees service data from list
+
+@return
    QMI_NO_ERR if service was found, QMI_INTERNAL_ERR otherwise.
 
 @note
@@ -544,9 +544,9 @@ void qmi_service_delete_client_txns
 
   - Side Effects
     - None
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 int qmi_free_srvc_data (
   qmi_connection_id_type  conn_id,
   qmi_service_id_type     service_id,
@@ -581,7 +581,7 @@ int qmi_free_srvc_data (
                prev,
                qmi_srvc_client_info_table [conn_id][book_keep_srvc_id],
                (srvc->client_id == client_id));
-  
+
   /* If we find matching service, proceed.... */
   if (srvc)
   {
@@ -598,9 +598,9 @@ int qmi_free_srvc_data (
     if (srvc->ref_count <= 0)
     {
       QMI_SLL_REMOVE(srvc,prev,qmi_srvc_client_info_table [conn_id][book_keep_srvc_id]);
- 
-      /* Unlock the service mutex... destroying a locked mutex 
-      ** results in undefined behavior 
+
+      /* Unlock the service mutex... destroying a locked mutex
+      ** results in undefined behavior
       */
       QMI_PLATFORM_MUTEX_UNLOCK (&srvc->mutex);
 
@@ -619,7 +619,7 @@ int qmi_free_srvc_data (
     {
       /* Unlock the service mutex, ref_count != 0 */
       QMI_PLATFORM_MUTEX_UNLOCK (&srvc->mutex);
-    } 
+    }
   }
   else
   {
@@ -641,10 +641,10 @@ int qmi_free_srvc_data (
   FUNCTION  qmi_alloc_srvc_data
 ===========================================================================*/
 /*!
-@brief 
-  Allocates and initializes a service data structure.   
-  
-@return 
+@brief
+  Allocates and initializes a service data structure.
+
+@return
    Pointer to transaction structure or NULL if no matching transaction found
 
 @note
@@ -654,7 +654,7 @@ int qmi_free_srvc_data (
 
   - Side Effects
     - None
-*/    
+*/
 /*=========================================================================*/
 qmi_srvc_client_info_type *qmi_service_addref (
   qmi_srvc_client_info_type *srvc
@@ -672,15 +672,15 @@ qmi_srvc_client_info_type *qmi_service_addref (
 
   return rc;
 }
- 
+
 /*===========================================================================
   FUNCTION  qmi_find_and_addref_srvc_data
 ===========================================================================*/
 /*!
-@brief 
-  Allocates and initializes a service data structure.   
-  
-@return 
+@brief
+  Allocates and initializes a service data structure.
+
+@return
    Pointer to transaction structure or NULL if no matching transaction found
 
 @note
@@ -690,9 +690,9 @@ qmi_srvc_client_info_type *qmi_service_addref (
 
   - Side Effects
     - None
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 qmi_srvc_client_info_type *qmi_find_and_addref_srvc_data (
   qmi_connection_id_type  conn_id,
   qmi_service_id_type     service_id,
@@ -712,7 +712,7 @@ qmi_srvc_client_info_type *qmi_find_and_addref_srvc_data (
                   conn_id, service_id, book_keep_srvc_id);
     return NULL;
   }
-  
+
   /* Lock global service access mutex */
   QMI_PLATFORM_MUTEX_LOCK (&qmi_srvc_list_mutex_table[conn_id][book_keep_srvc_id]);
 
@@ -737,7 +737,7 @@ qmi_srvc_client_info_type *qmi_find_and_addref_srvc_data (
 
   /* Return the service pointer */
   return rc;
-}  
+}
 
 /*===========================================================================
   FUNCTION  qmi_service_add_decode_handle
@@ -795,10 +795,10 @@ qmi_service_add_decode_handle
   FUNCTION  qmi_alloc_srvc_data
 ===========================================================================*/
 /*!
-@brief 
-  Allocates and initializes a service data structure.   
-  
-@return 
+@brief
+  Allocates and initializes a service data structure.
+
+@return
    Pointer to transaction structure or NULL if no matching transaction found
 
 @note
@@ -808,9 +808,9 @@ qmi_service_add_decode_handle
 
   - Side Effects
     - None
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 void qmi_release_srvc_data (
   qmi_srvc_client_info_type **srvc
 )
@@ -823,7 +823,7 @@ void qmi_release_srvc_data (
   {
     return;
   }
-    
+
   /* Initialize tmp_srvc.  Use tmp_srvc to avoid extra dereference each
   ** time service is accessed
   */
@@ -841,8 +841,8 @@ void qmi_release_srvc_data (
     tmp_srvc->ref_count--;
   }
 
-  /* Check the ready for delete flag... if set, and reference count is 0, 
-  ** delete it 
+  /* Check the ready for delete flag... if set, and reference count is 0,
+  ** delete it
   */
   delete_srvc = ((tmp_srvc->ready_to_delete) &&
                  (tmp_srvc->ref_count == 0)) ? TRUE : FALSE;
@@ -853,8 +853,8 @@ void qmi_release_srvc_data (
   /* Delete the service if ready */
   if (delete_srvc)
   {
-    if (qmi_free_srvc_data (tmp_srvc->conn_id, 
-                            tmp_srvc->service_id, 
+    if (qmi_free_srvc_data (tmp_srvc->conn_id,
+                            tmp_srvc->service_id,
                             tmp_srvc->client_id,
                             TRUE) != QMI_NO_ERR)
     {
@@ -862,24 +862,24 @@ void qmi_release_srvc_data (
                                                            (int) tmp_srvc->conn_id,
                                                            (int) tmp_srvc->service_id,
                                                            (int) tmp_srvc->client_id);
-    } 
+    }
   }
 }
 
-    
-  
 
- 
+
+
+
 
 /*===========================================================================
   FUNCTION  qmi_service_write_std_txn_hdr_and_inc_txn_id
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Adds a "standard" QMI service header to a message payload.  It then
   increments the service structure's 'next_txn_id' field
-  
-@return 
+
+@return
   None.
 
 @note
@@ -889,13 +889,13 @@ void qmi_release_srvc_data (
 
   - Side Effects
     - This routine "backs up" message buffer pointer to add header as well
-    as changing the passed in message buffer size parameter.  
+    as changing the passed in message buffer size parameter.
     Assumption is that space before message has been properly pre-allocated.
     Function also changes the next_txn_id value of the service info record
-    
-*/    
+
+*/
 /*=========================================================================*/
-static 
+static
 unsigned long qmi_service_write_std_txn_hdr_and_inc_txn_id (
   qmi_srvc_client_info_type  *srvc,
   unsigned char          **msg_buf,
@@ -912,7 +912,7 @@ unsigned long qmi_service_write_std_txn_hdr_and_inc_txn_id (
 
   tmp_msg_buf = *msg_buf;
   /* Standard service header consists of a 1 byte control flags
-  ** field of message type (request/response/indication), 
+  ** field of message type (request/response/indication),
   ** followed by a 2-byte transaction
   ** ID
   */
@@ -927,16 +927,16 @@ unsigned long qmi_service_write_std_txn_hdr_and_inc_txn_id (
 
   return curr_txn_id;
 } /* qmi_service_write_std_txn_hdr */
-  
+
 
 /*===========================================================================
   FUNCTION  qmi_service_read_std_txn_hdr
 ===========================================================================*/
 /*!
-@brief 
-  Removes a "standard" QMI service header from a message payload. 
-  
-@return 
+@brief
+  Removes a "standard" QMI service header from a message payload.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -948,9 +948,9 @@ unsigned long qmi_service_write_std_txn_hdr_and_inc_txn_id (
     - Moves msg_buf pointer forward the appropriate number of bytes and
     decrements the message buffer size value accordingly.  The RX message
     type and transaction ID's are returned in their respective parameters.
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 int qmi_service_read_std_txn_hdr (
   unsigned char          **msg_buf,
   int                    *msg_buf_size,
@@ -967,7 +967,7 @@ int qmi_service_read_std_txn_hdr (
   {
     QMI_ERR_MSG_1("invalid header size %d\n", *msg_buf_size);
     return QMI_INTERNAL_ERR;
-  } 
+  }
 
   /* Move up the msg_buf pointer by the size of a QMI_SRVC_STD_TXN_HDR_SIZE */
   tmp_msg_buf = *msg_buf;
@@ -977,7 +977,7 @@ int qmi_service_read_std_txn_hdr (
   ** type enum
   */
   READ_8_BIT_VAL (tmp_msg_buf,tmp_msg_type);
-  
+
   if (tmp_msg_type == QMI_STD_SRVC_REQUEST_CONTROL_FLAG)
   {
     *rx_msg_type = QMI_SERVICE_REQUEST_MSG;
@@ -998,7 +998,7 @@ int qmi_service_read_std_txn_hdr (
   }
 
 
-  /* Read 16-bit transaction ID */  
+  /* Read 16-bit transaction ID */
   READ_16_BIT_VAL (tmp_msg_buf,*rx_txn_id);
 
   /* Set output pointer and size values */
@@ -1015,10 +1015,10 @@ int qmi_service_read_std_txn_hdr (
   FUNCTION  qmi_service_write_std_srvc_msg_hdr
 ===========================================================================*/
 /*!
-@brief 
-  Encodes a standard QMI message header (ID & length fields).   
-  
-@return 
+@brief
+  Encodes a standard QMI message header (ID & length fields).
+
+@return
   Number of bytes written (4) if success, value < 0 if failure.
 
 @note
@@ -1027,11 +1027,11 @@ int qmi_service_read_std_txn_hdr (
     - None
 
   - Side Effects
-    - moves the msg_buf pointer back in the array, increments msg_buf_size by 
+    - moves the msg_buf pointer back in the array, increments msg_buf_size by
     appropriate amount of header (4 bytes).
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 int qmi_service_write_std_srvc_msg_hdr (
   unsigned char **msg_buf,
   int           *msg_buf_size,
@@ -1060,10 +1060,10 @@ int qmi_service_write_std_srvc_msg_hdr (
   FUNCTION  qmi_service_get_std_msg_type
 ===========================================================================*/
 /*!
-@brief 
-  Decodes a QMI message header (ID & length fields).   
-  
-@return 
+@brief
+  Decodes a QMI message header (ID & length fields).
+
+@return
   0 if succees, negative value if error occurs
 
 @note
@@ -1072,11 +1072,11 @@ int qmi_service_write_std_srvc_msg_hdr (
     - None
 
   - Side Effects
-    - moves the msg_buf pointer ahead in array, decrements msg_buf_size by 
+    - moves the msg_buf pointer ahead in array, decrements msg_buf_size by
     appropriate amount of header (4 bytes).
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 int qmi_service_read_std_srvc_msg_hdr (
   unsigned char **msg_buf,
   int           *msg_buf_size,
@@ -1112,11 +1112,11 @@ int qmi_service_read_std_srvc_msg_hdr (
   FUNCTION  qmi_service_validate_client_handle
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Validates that a user handle is valid and belongs to the passed
-  in service type   
-  
-@return 
+  in service type
+
+@return
   TRUE if handle is valid, FALSE if not
 
 @note
@@ -1126,7 +1126,7 @@ int qmi_service_read_std_srvc_msg_hdr (
 
   - Side Effects
     - None
-*/    
+*/
 /*=========================================================================*/
 int qmi_service_validate_client_handle (
   int                  user_handle,
@@ -1155,9 +1155,9 @@ int qmi_service_validate_client_handle (
   {
     return FALSE;
   }
-  
-  return TRUE;   
-  
+
+  return TRUE;
+
 } /* qmi_service_validate_client_handle */
 
 
@@ -1168,11 +1168,11 @@ int qmi_service_validate_client_handle (
   FUNCTION  qmi_service_process_rx_indication
 ===========================================================================*/
 /*!
-@brief 
-  Takes input indication message buffer and calls associated callbacks for 
-  all clients of the service/connection.   
-  
-@return 
+@brief
+  Takes input indication message buffer and calls associated callbacks for
+  all clients of the service/connection.
+
+@return
   None
 
 @note
@@ -1182,7 +1182,7 @@ int qmi_service_validate_client_handle (
 
   - Side Effects
     Client indication callbacks will be called.
-*/    
+*/
 /*=========================================================================*/
 void qmi_service_process_rx_indication (
   qmi_connection_id_type  conn_id,
@@ -1197,7 +1197,7 @@ void qmi_service_process_rx_indication (
   qmi_srvc_fn_info_type *srvc_fns = NULL;
   int index = 0;
   int book_keep_srvc_id = qmi_qcci_internal_public_service_id_to_bookkeeping_service_id (service_id);
-  
+
 
 
   if ( conn_id >= QMI_MAX_CONN_IDS    ||
@@ -1215,7 +1215,7 @@ void qmi_service_process_rx_indication (
   {
       srvc_fns = &qmi_srvc_fn_info[book_keep_srvc_id];
   }
- 
+
   /* Lock service list access mutex */
   QMI_PLATFORM_MUTEX_LOCK (&qmi_srvc_list_mutex_table[conn_id][book_keep_srvc_id]);
 
@@ -1230,7 +1230,7 @@ void qmi_service_process_rx_indication (
     ** list mutex locked, in theory, the indication callback could
     ** attempt to delete the service client)
     */
-    if (((srvc_client_id == QMI_QMUX_BROADCAST_QMI_CLIENT_ID) || 
+    if (((srvc_client_id == QMI_QMUX_BROADCAST_QMI_CLIENT_ID) ||
            (srvc->client_id == srvc_client_id)) && (qmi_service_addref (srvc) != NULL))
     {
       qmi_client_handle_type client_handle;
@@ -1254,7 +1254,7 @@ void qmi_service_process_rx_indication (
           qmi_client_ind_cb func_ptr =  srvc->user_ind_msg_hdlr;
           if ( NULL != _qmi_service_hook_indication_passthrough )
           {
-            _qmi_service_hook_indication_passthrough( book_keep_srvc_id, srvc_msg_id, rx_msg, rx_msg_len );
+            _qmi_service_hook_indication_passthrough( book_keep_srvc_id, (int)srvc_msg_id, rx_msg, rx_msg_len );
           }
           if (*func_ptr != NULL && srvc->user_decode_handle != NULL  ) {
               (*func_ptr)(srvc->user_decode_handle,
@@ -1298,10 +1298,10 @@ void qmi_service_process_rx_indication (
   FUNCTION  qmi_service_process_rx_indication
 ===========================================================================*/
 /*!
-@brief 
-  Takes input indication buffer, and runs processes one indication at a time.   
-  
-@return 
+@brief
+  Takes input indication buffer, and runs processes one indication at a time.
+
+@return
   None
 
 @note
@@ -1311,7 +1311,7 @@ void qmi_service_process_rx_indication (
 
   - Side Effects
     Client indication callbacks will be called.
-*/    
+*/
 /*=========================================================================*/
 void qmi_service_process_all_rx_indications (
   qmi_connection_id_type  conn_id,
@@ -1329,7 +1329,7 @@ void qmi_service_process_all_rx_indications (
     QMI_ERR_MSG_1 ("qmi_service.c RX indication with no registered handler for service=%d\n",service_id);
     return;
   }*/
-    
+
 
   QMI_DEBUG_MSG_2 ("qmi_service.c RX indication for conn=%d, srvc=%d\n",conn_id,service_id);
 
@@ -1352,7 +1352,7 @@ void qmi_service_process_all_rx_indications (
                                        client_id,
                                        srvc_msg_id,
                                        rx_msg,
-                                       srvc_msg_len);
+                                       (int)srvc_msg_len);
 } /* qmi_service_process_all_rx_indications */
 
 
@@ -1362,10 +1362,10 @@ void qmi_service_process_all_rx_indications (
   FUNCTION  qmi_service_send_msg
 ===========================================================================*/
 /*!
-@brief 
-  Sends a QMI service message on the specified connection. 
-  
-@return 
+@brief
+  Sends a QMI service message on the specified connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -1377,8 +1377,8 @@ void qmi_service_process_all_rx_indications (
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
-/*=========================================================================*/  
+*/
+/*=========================================================================*/
 int qmi_service_send_msg (
   qmi_connection_id_type    conn_id,
   qmi_service_id_type       service_id,
@@ -1437,7 +1437,7 @@ int qmi_service_send_msg (
   if (!srvc)
   {
     return QMI_INTERNAL_ERR;
-  } 
+  }
 
   /* Lock service mutex */
   QMI_PLATFORM_MUTEX_LOCK (&srvc->mutex);
@@ -1447,7 +1447,7 @@ int qmi_service_send_msg (
                                                               &msg_buf,
                                                               &msg_buf_size);
 
-  
+
   /* Send to PDU to QMUX.*/
   rc = qmi_qmux_if_send_qmi_msg (qmi_service_qmux_if_handle,
                                  conn_id,
@@ -1456,7 +1456,7 @@ int qmi_service_send_msg (
                                  msg_buf,
                                  msg_buf_size);
 
-  
+
   /* Note:  we don't unlock mutex and release handle to service until after
   ** we have sent message to QMUX layer.  This will prevent us from possibly
   ** sending service transaction ID's out of order
@@ -1475,10 +1475,10 @@ int qmi_service_send_msg (
   FUNCTION  qmi_service_sync_txn_delete
 ===========================================================================*/
 /*!
-@brief 
-  Function to delete a synchronous transaction. 
+@brief
+  Function to delete a synchronous transaction.
 
-@return 
+@return
   None.
 
 @note
@@ -1488,9 +1488,9 @@ int qmi_service_send_msg (
 
   - Side Effects
     - Deletes reply buffer and destroys signal data
-*/    
-/*=========================================================================*/ 
-static 
+*/
+/*=========================================================================*/
+static
 void qmi_service_sync_txn_delete (
   void *del_txn
 )
@@ -1509,10 +1509,10 @@ void qmi_service_sync_txn_delete (
   FUNCTION  qmi_service_send_msg_sync
 ===========================================================================*/
 /*!
-@brief 
-  Sends a synchronous QMI service message on the specified connection. 
-  
-@return 
+@brief
+  Sends a synchronous QMI service message on the specified connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -1524,7 +1524,7 @@ void qmi_service_sync_txn_delete (
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
+*/
 /*=========================================================================*/
 int qmi_service_send_msg_sync (
   int                       user_handle,
@@ -1571,7 +1571,7 @@ int qmi_service_send_msg_sync_millisec (
   int                       *qmi_err_code
 )
 {
-  
+
   qmi_service_txn_info_type         *txn;
   qmi_connection_id_type    conn_id;
   qmi_client_id_type        client_id;
@@ -1628,7 +1628,7 @@ int qmi_service_send_msg_sync_millisec (
     QMI_ERR_MSG_0 ("qmi_service_send_msg_sync: Unable to alloc TXN\n");
     return QMI_INTERNAL_ERR;
   }
-  
+
   /* Initialize Id fields */
   txn->conn_id    = conn_id;
   txn->service_id = service_id;
@@ -1645,7 +1645,7 @@ int qmi_service_send_msg_sync_millisec (
 
   QMI_DEBUG_MSG_1("Setting the api flag to : %d\n",txn->api_flag);
   /* Prepare to wait for signal for synchronous transaction */
-  QMI_PLATFORM_INIT_SIGNAL_FOR_WAIT (conn_id, 
+  QMI_PLATFORM_INIT_SIGNAL_FOR_WAIT (conn_id,
                                      &txn->srvc_txn_info.sync_async.sync.signal_data);
 
 
@@ -1690,16 +1690,16 @@ int qmi_service_send_msg_sync_millisec (
         rc = QMI_INTERNAL_ERR;
         *qmi_err_code = QMI_SERVICE_ERR_NONE;
       }
-      else 
+      else
       {
         /* Make sure all looks good for copy to receiver */
         if ((txn->srvc_txn_info.sync_async.sync.user_reply_buf != NULL) &&
             (reply_buf != NULL) &&
             (txn->srvc_txn_info.sync_async.sync.user_reply_buf_size > 0))
-        { 
+        {
           memcpy (reply_buf,
                   txn->srvc_txn_info.sync_async.sync.user_reply_buf,
-                  txn->srvc_txn_info.sync_async.sync.user_reply_buf_size);
+                  (size_t)txn->srvc_txn_info.sync_async.sync.user_reply_buf_size);
         }
         if ( reply_buf_size_ptr )
         {
@@ -1716,13 +1716,13 @@ int qmi_service_send_msg_sync_millisec (
   }
 
   /* Release and delete the transaction */
-  qmi_util_release_txn ((qmi_txn_hdr_type *)txn, 
+  qmi_util_release_txn ((qmi_txn_hdr_type *)txn,
                         TRUE,
                         (qmi_txn_hdr_type **) &qmi_service_txn_table[conn_id][book_keep_srvc_id],
-                        &qmi_service_txn_mutex_table[conn_id][book_keep_srvc_id]); 
+                        &qmi_service_txn_mutex_table[conn_id][book_keep_srvc_id]);
 
   return rc;
-  
+
 } /* qmi_service_send_msg_sync_millisec */
 
 
@@ -1731,10 +1731,10 @@ int qmi_service_send_msg_sync_millisec (
   FUNCTION  qmi_service_send_msg_async
 ===========================================================================*/
 /*!
-@brief 
-  Sends an asynchronous QMI service message on the specified connection. 
-  
-@return 
+@brief
+  Sends an asynchronous QMI service message on the specified connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -1746,8 +1746,8 @@ int qmi_service_send_msg_sync_millisec (
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
-/*=========================================================================*/                         
+*/
+/*=========================================================================*/
 int qmi_service_send_msg_async (
   int                       user_handle,
   qmi_service_id_type       service_id,
@@ -1780,7 +1780,7 @@ int qmi_service_send_msg_async (
                                  NULL,
                                  NULL,
                                  NULL,
-                                 NULL,
+                                 0,
                                  QMI_OLD_APIS,
                                  &txn) < 0 ))
   {
@@ -1843,7 +1843,7 @@ int  qmi_service_setup_txn
   qmi_client_decode_msg_async_cb     user_decode_cb,
   void                               *user_decode_handle,
   void                               *user_buf,
-  void                               *user_buf_len,
+  int                                user_buf_len,
   int                                api_flag,
   qmi_service_txn_info_type          **txn
 )
@@ -1855,7 +1855,7 @@ int  qmi_service_setup_txn
 
   conn_id = QMI_SRVC_CLIENT_HANDLE_TO_CONN_ID (user_handle);
   client_id = QMI_SRVC_CLIENT_HANDLE_TO_CLIENT_ID (user_handle);
-  if (service_id != QMI_SRVC_CLIENT_HANDLE_TO_SERVICE_ID(user_handle) || 
+  if (service_id != QMI_SRVC_CLIENT_HANDLE_TO_SERVICE_ID(user_handle) ||
         txn == NULL)
   {
     QMI_ERR_MSG_0 ("qmi_service_send_msg_async: Bad Input Params\n");
@@ -1959,7 +1959,7 @@ void qmi_service_release_txn
   conn_id = QMI_SRVC_CLIENT_HANDLE_TO_CONN_ID (user_handle);
   service_id = QMI_SRVC_CLIENT_HANDLE_TO_SERVICE_ID(user_handle);
   book_keep_srvc_id = qmi_qcci_internal_public_service_id_to_bookkeeping_service_id (service_id);
-  
+
   if ( conn_id >= QMI_MAX_CONN_IDS    ||
        service_id >= QMI_MAX_SERVICES ||
        book_keep_srvc_id >= QMI_MAX_SERVICES )
@@ -1986,11 +1986,11 @@ void qmi_service_release_txn
   FUNCTION  qmi_service_receive_msg_hdlr
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Callback that is registered with QMUX layer that handles QMI service
-  response/indication messages 
-  
-@return 
+  response/indication messages
+
+@return
   None.
 
 @note
@@ -2002,9 +2002,9 @@ void qmi_service_release_txn
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 void qmi_service_complete_txn (
   qmi_service_txn_info_type   *txn,
   unsigned char       *rx_msg,
@@ -2018,7 +2018,7 @@ void qmi_service_complete_txn (
     {
       rx_msg_len = 0;
     }
-    
+
   /* Handle synchronous transaction.  Note the lack of elegance.  This needed
   ** to be structured like this to make a brain-dead tool (prefast) happy,
   ** so please don't clean it up
@@ -2028,20 +2028,20 @@ void qmi_service_complete_txn (
      (rx_msg_len > 0))
   {
     /* If there is return data, allocate memory for it and return it */
-    void *p = malloc (rx_msg_len);
+    void *p = malloc ((size_t)rx_msg_len);
     if (p != NULL)
     {
-       
+
       memcpy (p,
-              rx_msg, 
-              rx_msg_len );
+              rx_msg,
+              (size_t)rx_msg_len );
 
       txn->srvc_txn_info.sync_async.sync.user_reply_buf = p;
       txn->srvc_txn_info.sync_async.sync.user_reply_buf_size = rx_msg_len;
       txn->srvc_txn_info.sync_async.sync.rsp_rc = rsp_rc;
       txn->srvc_txn_info.sync_async.sync.qmi_err_code = qmi_err_code;
     }
-    
+
     else
     {
       QMI_ERR_MSG_1 ("qmi_service_complete_txn:  Unable to allocate dynamic memory of size %d\n",rx_msg_len);
@@ -2051,7 +2051,7 @@ void qmi_service_complete_txn (
       txn->srvc_txn_info.sync_async.sync.qmi_err_code = 0;
     }
 
-    /* Send signal to calling thread to unblock */ 
+    /* Send signal to calling thread to unblock */
     QMI_PLATFORM_SEND_SIGNAL (txn->conn_id,
                               &txn->srvc_txn_info.sync_async.sync.signal_data);
   }
@@ -2065,7 +2065,7 @@ void qmi_service_complete_txn (
     txn->srvc_txn_info.sync_async.sync.rsp_rc = rsp_rc;
     txn->srvc_txn_info.sync_async.sync.qmi_err_code = qmi_err_code;
 
-    /* Send signal to calling thread to unblock */ 
+    /* Send signal to calling thread to unblock */
     QMI_PLATFORM_SEND_SIGNAL (txn->conn_id,
                               &txn->srvc_txn_info.sync_async.sync.signal_data);
   }
@@ -2073,16 +2073,16 @@ void qmi_service_complete_txn (
   else /* Async callback */
   {
     qmi_client_handle_type client_handle;
-    
+
     client_handle = QMI_SRVC_CREATE_CLIENT_HANDLE(txn->conn_id,
                                                 txn->client_id,
                                                 txn->service_id);
     if (txn->srvc_txn_info.sync_async.async.service_async_cb_fn != NULL ) {
         QMI_DEBUG_MSG_0(" Calling old async Callback \n");
-    txn->srvc_txn_info.sync_async.async.service_async_cb_fn 
+    txn->srvc_txn_info.sync_async.async.service_async_cb_fn
                               (client_handle,
                                txn->service_id,
-                               txn->msg_id, 
+                               txn->msg_id,
                                rsp_rc,
                                qmi_err_code,
                                rx_msg,
@@ -2090,22 +2090,22 @@ void qmi_service_complete_txn (
                                txn->srvc_txn_info.sync_async.async.service_async_cb_data,
                                txn->srvc_txn_info.sync_async.async.user_async_cb_fn,
                                txn->srvc_txn_info.sync_async.async.user_async_cb_data);
-                       
+
     }
     else if (txn->srvc_txn_info.sync_async.async.user_rsp_raw_cb != NULL ) {
         QMI_DEBUG_MSG_0(" calling raw async Callback \n");
         /* Memcopy the data into user buffer registered when making an async call */
         /* Make sure the rx_msg_len is less than provided by the user */
-        if ((int)txn->srvc_txn_info.sync_async.async.user_buf_len >= rx_msg_len) {
+        if (txn->srvc_txn_info.sync_async.async.user_buf_len >= rx_msg_len) {
             memcpy(txn->srvc_txn_info.sync_async.async.user_buf,
                    rx_msg,
-                   rx_msg_len);
+                   (size_t)rx_msg_len);
         }
         else {
             /* Populate the user buffer with 0 */
             memset(txn->srvc_txn_info.sync_async.async.user_buf,
                    0,
-                   (int)txn->srvc_txn_info.sync_async.async.user_buf_len);
+                   (size_t)txn->srvc_txn_info.sync_async.async.user_buf_len);
 
             qmi_complete_txn_err = QMI_MEMCOPY_ERROR;
         }
@@ -2134,17 +2134,17 @@ void qmi_service_complete_txn (
 }
 
 
-  
+
 
 /*===========================================================================
   FUNCTION  qmi_service_receive_msg_hdlr
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Callback that is registered with QMUX layer that handles QMI service
-  response/indication messages 
-  
-@return 
+  response/indication messages
+
+@return
   None.
 
 @note
@@ -2156,7 +2156,7 @@ void qmi_service_complete_txn (
     - If the transaction information passed with message indicates that
     it should be a synchronous transaction, the calling thread will block
     until response is received.
-*/    
+*/
 /*=========================================================================*/
 static
 void qmi_service_receive_msg_hdlr (
@@ -2164,7 +2164,7 @@ void qmi_service_receive_msg_hdlr (
   qmi_service_id_type     service_id,
   qmi_client_id_type      client_id,
   unsigned char           control_flags,
-  unsigned char           *rx_msg, 
+  unsigned char           *rx_msg,
   int                     rx_msg_len
 )
 {
@@ -2184,13 +2184,13 @@ void qmi_service_receive_msg_hdlr (
     QMI_ERR_MSG_1 ("qmi_service.c RX: bad conn ID=%d \n",conn_id);
     return;
   }
-  if( qmi_qcci_internal_public_service_id_to_bookkeeping_service_id ( service_id ) >= QMI_MAX_SERVICES) 
+  if( qmi_qcci_internal_public_service_id_to_bookkeeping_service_id ( service_id ) >= QMI_MAX_SERVICES)
   {
     QMI_ERR_MSG_1 ("qmi_service.c RX: bad service ID=%d \n",service_id);
     return;
   }
 
-  /* Control flags should be set to 0x80 (service is sender) or 
+  /* Control flags should be set to 0x80 (service is sender) or
   ** something may be wrong
   */
   if (control_flags != 0x80)
@@ -2198,7 +2198,7 @@ void qmi_service_receive_msg_hdlr (
     QMI_ERR_MSG_1 ("qmi_service.c RX: Invalid control flags=%x \n",(int)control_flags);
     return;
   }
-  
+
   if (qmi_service_read_std_txn_hdr (&rx_msg,
                                     &rx_msg_len,
                                     &rx_txn_id,
@@ -2208,11 +2208,11 @@ void qmi_service_receive_msg_hdlr (
     return;
   }
 
- 
-  /* Process indication if we get one and there is an indication message 
-  ** handler registered with the service 
+
+  /* Process indication if we get one and there is an indication message
+  ** handler registered with the service
   */
-  if (rx_msg_type == QMI_SERVICE_INDICATION_MSG)     
+  if (rx_msg_type == QMI_SERVICE_INDICATION_MSG)
   {
     /* Call function to process indication messages and return */
     qmi_service_process_all_rx_indications (conn_id,
@@ -2224,7 +2224,7 @@ void qmi_service_receive_msg_hdlr (
   }
 
   /* Should be a response if not an indication */
-  else if (rx_msg_type != QMI_SERVICE_RESPONSE_MSG) 
+  else if (rx_msg_type != QMI_SERVICE_RESPONSE_MSG)
   {
     QMI_ERR_MSG_1 ("qmi_service.c RX: rx_msg_type (%d) != QMI_SERVICE_RESPONSE_MSG\n",rx_msg_type);
     return;
@@ -2279,18 +2279,25 @@ void qmi_service_receive_msg_hdlr (
   {
     rsp_rc = QMI_INTERNAL_ERR;
   }
-  else 
+  else
   {   /* Strip off the standard result code only in case of OLD APIs */
       QMI_DEBUG_MSG_1(" API Flag .............. %d \n",txn->api_flag );
       QMI_DEBUG_MSG_1(" Message ID ............... %d \n",txn->msg_id);
-      if (txn->api_flag == QMI_OLD_APIS ) {
+      if (txn->api_flag == QMI_OLD_APIS )
+      {
           QMI_DEBUG_MSG_0(" Striping off the standard result code \n");
-    rsp_rc = qmi_util_get_std_result_code (&rx_msg,
+#ifdef FEATURE_QMI_TEST
+          /* The below logic is incorrect, the response may contain
+           * result at any index. Ignoring this for off-target right now */
+          rsp_rc = qmi_err_code = 0;
+#else
+          rsp_rc = qmi_util_get_std_result_code (&rx_msg,
                                            &rx_msg_len,
                                            &qmi_err_code);
+#endif
       }
   }
-  
+
   /* Complete the transaction */
   qmi_service_complete_txn (txn,
                             rx_msg,
@@ -2298,13 +2305,13 @@ void qmi_service_receive_msg_hdlr (
                             rsp_rc,
                             qmi_err_code);
 
-  
+
   /* Free the transaction and delete it.  Note that we have to delete it to handle case
   ** of ASYNC transactions.... but this will be OK for SYNC transactions because
   ** a reference is always kept to the transaction by the calling context, so the
   ** transaction won't be deleted until done so by calling context
   */
-  qmi_util_release_txn ((qmi_txn_hdr_type *)txn, 
+  qmi_util_release_txn ((qmi_txn_hdr_type *)txn,
                          TRUE,
                          (qmi_txn_hdr_type **) &qmi_service_txn_table[conn_id][  qmi_qcci_internal_public_service_id_to_bookkeeping_service_id ( service_id ) ],
                          &qmi_service_txn_mutex_table[conn_id][ qmi_qcci_internal_public_service_id_to_bookkeeping_service_id ( service_id ) ]);
@@ -2316,13 +2323,13 @@ void qmi_service_receive_msg_hdlr (
   FUNCTION  qmi_service_reset_all
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Resets all internal data.  All services data structure are freed and
-  the client ID's are released on modem if release_services_on_modem is 
-  TRUE.  Also, all pending transactions are completed with return of 
+  the client ID's are released on modem if release_services_on_modem is
+  TRUE.  Also, all pending transactions are completed with return of
   QMI_TIMEOUT_ERR.
-  
-@return 
+
+@return
   None
 
 @note
@@ -2333,9 +2340,9 @@ void qmi_service_receive_msg_hdlr (
   - Side Effects
     - Will potentially communicate with QMUX/modem if release_services_on_modem
     is TRUE
-*/    
+*/
 /*=========================================================================*/
-static 
+static
 int qmi_service_reset_all (
   int                     release_services_on_modem,
   qmi_connection_id_type  conn_id
@@ -2359,7 +2366,7 @@ int qmi_service_reset_all (
 
     while (srvc)
     {
-      int client_id = srvc->client_id;
+      qmi_client_id_type client_id = srvc->client_id;
       /* Get a handle on the next service in the list */
       next_srvc = srvc->next;
 
@@ -2388,21 +2395,21 @@ int qmi_service_reset_all (
     ** this in the future */
 
   } /* for service_id */
-  
+
   return QMI_NO_ERR;
-      
-}      
-      
+
+}
+
 /*===========================================================================
   FUNCTION  qmi_service_sys_event_handler
 ===========================================================================*/
 /*!
-@brief 
+@brief
   qmi_service layer system event handler.  If system event is modem restart
   then all pending transactions are completed and deleted.  Then calls upper
-  layer system event handler 
-  
-@return 
+  layer system event handler
+
+@return
   QMI_NO_ERR if success, negative value if not
 
 @note
@@ -2411,11 +2418,11 @@ int qmi_service_reset_all (
     - None
 
   - Side Effects
-    - 
-    
-*/    
-/*=========================================================================*/      
-static void qmi_service_sys_event_handler 
+    -
+
+*/
+/*=========================================================================*/
+static void qmi_service_sys_event_handler
 (
   qmi_sys_event_type              event_id,
   const qmi_sys_event_info_type   *event_info,
@@ -2464,19 +2471,19 @@ static void qmi_service_sys_event_handler
   else
   {
     QMI_ERR_MSG_0 ("qmi_service_sys_event_handler: qmi_service_sys_event_hdlr_f is NULL\n");
-  }  
-} 
+  }
+}
 
- 
+
 
 /*===========================================================================
   FUNCTION  qmi_service_pwr_up_init
 ===========================================================================*/
 /*!
-@brief 
-  Initializes a QMI connection 
-  
-@return 
+@brief
+  Initializes a QMI connection
+
+@return
   0 if successful, negative number if not successful
 
 @note
@@ -2486,7 +2493,7 @@ static void qmi_service_sys_event_handler
 
   - Side Effects
     - QMI connection is opened
-*/    
+*/
 /*=========================================================================*/
 int qmi_service_pwr_up_init (
   qmi_sys_event_rx_hdlr   event_rx_hdlr,
@@ -2521,7 +2528,7 @@ int qmi_service_pwr_up_init (
         qmi_srvc_client_info_table[i][j] = NULL;
         qmi_service_txn_table[i][j] = NULL;
         QMI_PLATFORM_MUTEX_INIT (&qmi_service_txn_mutex_table[i][j]);
-        QMI_PLATFORM_MUTEX_INIT (&qmi_srvc_list_mutex_table[i][j]); 
+        QMI_PLATFORM_MUTEX_INIT (&qmi_srvc_list_mutex_table[i][j]);
       }
     }
 
@@ -2557,10 +2564,10 @@ int qmi_service_pwr_up_init (
   FUNCTION  qmi_service_pwr_down_release
 ===========================================================================*/
 /*!
-@brief 
-  Initializes a QMI connection 
-  
-@return 
+@brief
+  Initializes a QMI connection
+
+@return
   0 if successful, negative number if not successful
 
 @note
@@ -2570,16 +2577,16 @@ int qmi_service_pwr_up_init (
 
   - Side Effects
     - QMI connection is opened
-*/    
+*/
 /*=========================================================================*/
 int qmi_service_pwr_down_release (
   void
 )
 {
   int i,j,rc;
-  
+
   rc = QMI_NO_ERR;
-  
+
   if (qmi_service_initialization_done)
   {
     for (i=0; i<QMI_MAX_CONN_IDS; i++)
@@ -2612,7 +2619,7 @@ int qmi_service_pwr_down_release (
       for (j=0; j<(int)QMI_MAX_SERVICES; j++)
       {
         QMI_PLATFORM_MUTEX_DESTROY (&qmi_service_txn_mutex_table[i][j]);
-        QMI_PLATFORM_MUTEX_DESTROY (&qmi_srvc_list_mutex_table[i][j]); 
+        QMI_PLATFORM_MUTEX_DESTROY (&qmi_srvc_list_mutex_table[i][j]);
       }
     }
 
@@ -2628,8 +2635,8 @@ int qmi_service_pwr_down_release (
   return rc;
 } /* qmi_service_pwr_down_release */
 
-     
-  
+
+
 
 int
 qmi_service_connection_init
@@ -2660,7 +2667,7 @@ qmi_service_connection_init
     }
   }
 
-  
+
   return rc;
 }
 
@@ -2669,11 +2676,11 @@ qmi_service_connection_init
   FUNCTION  qmi_service_init
 ===========================================================================*/
 /*!
-@brief 
-  Initializes a specified service on a specified connection.  Upon 
-  successful return, the service may be used on the connection. 
-  
-@return 
+@brief
+  Initializes a specified service on a specified connection.  Upon
+  successful return, the service may be used on the connection.
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -2683,7 +2690,7 @@ qmi_service_connection_init
 
   - Side Effects
     - Thread may block waiting for client ID to be returned by lower layers
-*/    
+*/
 /*=========================================================================*/
 qmi_client_handle_type qmi_service_init (
   qmi_connection_id_type             conn_id,
@@ -2701,7 +2708,7 @@ qmi_client_handle_type qmi_service_init (
   if (!qmi_service_initialization_done)
   {
     return (qmi_client_handle_type) QMI_INTERNAL_ERR;
-  } 
+  }
 
   /* Check to make sure that the connection has been enabled */
   /* Validate connection ID and service ID values */
@@ -2719,8 +2726,8 @@ qmi_client_handle_type qmi_service_init (
   {
     return (qmi_client_handle_type) QMI_INTERNAL_ERR;
   }
-   
-  /* Get a client ID */ 
+
+  /* Get a client ID */
   if ((rc = qmi_qmux_if_alloc_service_client (qmi_service_qmux_if_handle,
                                               conn_id,
                                               service_id,
@@ -2748,17 +2755,17 @@ qmi_client_handle_type qmi_service_init (
   return QMI_SRVC_CREATE_CLIENT_HANDLE (conn_id, client_id, service_id);
 
 }  /* qmi_service_init */
-  
+
 
 /*===========================================================================
   FUNCTION  qmi_service_release
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Deletes the service by deleting internal data structures and
-  releasing the service in the qmux_if layer. 
+  releasing the service in the qmux_if layer.
 
-@return 
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -2768,7 +2775,7 @@ qmi_client_handle_type qmi_service_init (
 
   - Side Effects
     - Thread may block waiting for client ID to be returned by lower layers
-*/    
+*/
 /*=========================================================================*/
 int qmi_service_release (
   int  user_handle,
@@ -2785,18 +2792,18 @@ int qmi_service_release (
   conn_id   = QMI_SRVC_CLIENT_HANDLE_TO_CONN_ID (user_handle);
   client_id = QMI_SRVC_CLIENT_HANDLE_TO_CLIENT_ID (user_handle);
   service_id = QMI_SRVC_CLIENT_HANDLE_TO_SERVICE_ID (user_handle);
-  
+
   if ((int)conn_id >= (int)QMI_MAX_CONN_IDS)
   {
     QMI_ERR_MSG_1 ("qmi_service_release invalid conn_id=%d\n",conn_id);
     return QMI_INTERNAL_ERR;
   }
-  
+
   if ((int)service_id >= (int)QMI_MAX_SERVICES)
   {
     QMI_ERR_MSG_1 ("qmi_service_release invalid service_id=%d\n",service_id);
     return QMI_INTERNAL_ERR;
-  } 
+  }
 
   /* Release the service information */
   rc = qmi_free_srvc_data (conn_id, service_id, client_id, TRUE);
@@ -2813,16 +2820,16 @@ int qmi_service_release (
 
   return rc;
 }
-  
+
 /*===========================================================================
   FUNCTION  qmi_service_set_data_format
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Implements the CTL functionality of set data format, which will set
   which format the data channel will use (Ethernet, raw IP, etc).
 
-@return 
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -2832,7 +2839,7 @@ int qmi_service_release (
 
   - Side Effects
     - Thread may block waiting for client ID to be returned by lower layers
-*/    
+*/
 /*=========================================================================*/
 int qmi_service_set_data_format (
   qmi_connection_id_type                conn_id,
@@ -2842,7 +2849,7 @@ int qmi_service_set_data_format (
 )
 {
   /* Do some error checking */
-  
+
   /* Make sure only the bits we know about are set in link_protocol */
   if ((*link_protocol & ~(QMI_DATA_FORMAT_LINK_PROTOCOL_ALL)) != 0)
   {
@@ -2869,21 +2876,21 @@ int qmi_service_set_data_format (
   FUNCTION  qmi_service_reg_pwr_save_mode
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is used to register/de-register for power state change
   events.  Calls relevant QMI_QMUX function
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_service_reg_pwr_save_mode
@@ -2901,21 +2908,21 @@ qmi_service_reg_pwr_save_mode
   FUNCTION  qmi_service_config_pwr_save_settings
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Configures the power state indication filter for each connection.
-  Calls relevant QMI QMUX function. 
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+  Calls relevant QMI QMUX function.
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_service_config_pwr_save_settings
@@ -2939,21 +2946,21 @@ qmi_service_config_pwr_save_settings
   FUNCTION  qmi_service_set_pwr_state
 ===========================================================================*/
 /*!
-@brief 
-  Sets power state.  Calls relevant QMI QMUX function to do so. 
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+@brief
+  Sets power state.  Calls relevant QMI QMUX function to do so.
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-    - Modem will not send filtered indications until later power state change. 
-*/    
+    - Modem will not send filtered indications until later power state change.
+*/
 /*=========================================================================*/
 int
 qmi_service_set_pwr_state
@@ -2969,20 +2976,20 @@ qmi_service_set_pwr_state
   FUNCTION  qmi_service_get_pwr_state
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Gets power state.  Calls relevant QMI QMUX function to do so.
-     
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will 
+
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_service_get_pwr_state
@@ -2993,12 +3000,12 @@ qmi_service_get_pwr_state
 )
 {
   qmi_connection_id_type conn_id;
-  
+
   if ((conn_id = QMI_PLATFORM_DEV_NAME_TO_CONN_ID(dev_id)) == QMI_CONN_ID_INVALID)
   {
     return QMI_INTERNAL_ERR;
   }
-  
+
   return qmi_qmux_if_get_pwr_state (qmi_service_qmux_if_handle,
                                     conn_id,
                                     pwr_state,
@@ -3069,7 +3076,7 @@ qmi_service_get_version
 
 
 // ---------------------------------------------------------------------------------------
-// qmi_qcci_internal_public_service_id_to_bookkeeping_service_id 
+// qmi_qcci_internal_public_service_id_to_bookkeeping_service_id
 // ---------------------------------------------------------------------------------------
 int qmi_qcci_internal_public_service_id_to_bookkeeping_service_id(int public_service_id)
 {
@@ -3098,7 +3105,7 @@ int qmi_qcci_internal_public_service_id_to_bookkeeping_service_id(int public_ser
 
 
 // ---------------------------------------------------------------------------------------
-// qmi_qcci_internal_bookkeeping_service_id_to_public_service_id 
+// qmi_qcci_internal_bookkeeping_service_id_to_public_service_id
 // ---------------------------------------------------------------------------------------
 int qmi_qcci_internal_bookkeeping_service_id_to_public_service_id(int bookkeeping_service_id)
 {
@@ -3112,7 +3119,7 @@ int qmi_qcci_internal_bookkeeping_service_id_to_public_service_id(int bookkeepin
    {
      switch ( bookkeeping_service_id )
      {
-       case QMI_RF_SAR_SERVICE: 
+       case QMI_RF_SAR_SERVICE:
          res = 0xE3; // RF SAR
          break;
 
@@ -3130,7 +3137,7 @@ int qmi_qcci_internal_bookkeeping_service_id_to_public_service_id(int bookkeepin
   FUNCTION  qmi_service_get_qmux_if_client_handle
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Gets the QMUX IF client handle
 
 @return
@@ -3156,7 +3163,7 @@ qmi_service_get_qmux_if_handle(void)
  =========================================================================*/
 /*!
 @brief
-  
+
   installs internal hooks for QMI indication bytestream traffic
 @return
   none

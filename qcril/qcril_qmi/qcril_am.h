@@ -19,6 +19,10 @@
 #include <comdef.h>
 #include <ril.h>
 
+#define QCRIL_VOICE_MODEM_INDEX "persist.radio.voice.modem.index"
+
+#define QCRIL_MAX_NUM_VOICE_MODEM 2
+
 // TODO: did not find enums in audio header file. better to use them to assign following enums
 typedef enum
 {
@@ -57,9 +61,12 @@ typedef enum
     QCRIL_AM_EVENT_SRVCC_FAIL,
     QCRIL_AM_EVENT_SRVCC_CANCEL,
     QCRIL_AM_EVENT_IMS_SRV_CHANGED,
+    QCRIL_AM_EVENT_IMS_HANDOVER,
+    QCRIL_AM_EVENT_AUDIO_RAT_CHANGED,
     QCRIL_AM_EVENT_LCH,
     QCRIL_AM_EVENT_UNLCH,
     QCRIL_AM_EVENT_INTER_RIL_CALL_STATE, // come with message qcril_am_inter_rild_msg_type
+    QCRIL_AM_EVENT_MEDIA_SERVER_DIED,
     QCRIL_AM_EVENT_MAX
 } qcril_am_event_type;
 

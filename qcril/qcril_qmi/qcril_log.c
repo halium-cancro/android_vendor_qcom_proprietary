@@ -18,9 +18,18 @@
 
 ===========================================================================*/
 
+#define QCRIL_IS_LOG_TO_FILE_ENABLED         "persist.radio.ril_log_enabled"
+#define QCRIL_IS_LOG_TO_FILE_INTERVAL        "persist.radio.ril_log_interval"
+#define QCRIL_IS_LOG_TO_FILE_DEF_INTERVAL    (5)
+#define QCRIL_LOG_FILE                       "/data/misc/radio/ril_log"
 
+#ifdef QMI_RIL_UTF
+#define QCRIL_IPC_RILD_SOCKET_PATH_PREFIX    "./rild_sync_"
+#else
 #define QCRIL_IPC_RILD_SOCKET_PATH_PREFIX    "/dev/socket/qmux_radio/rild_sync_"
+#endif
 #define QCRIL_IPC_MAX_SOCKET_PATH_LENGTH     48
+#define QCRIL_IPC_BIND_RETRY_MAX_ATTEMPTS    5
 #ifdef QMI_RIL_UTF
 #include <netinet/in.h>
 #include <limits.h>
@@ -28,6 +37,9 @@
 #include <time.h>
 #else
 #include <utils/Log.h>
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
 #endif
 
 #include <errno.h>
@@ -62,6 +74,7 @@
 
 ===========================================================================*/
 
+FILE *rild_fp;
 char log_buf[ QCRIL_MAX_LOG_MSG_SIZE ];
 char log_fmt[ QCRIL_MAX_LOG_MSG_SIZE ];
 char thread_name[ QMI_RIL_THREAD_NAME_MAX_SIZE ];
@@ -69,10 +82,14 @@ char thread_name[ QMI_RIL_THREAD_NAME_MAX_SIZE ];
 char log_buf_raw[ QCRIL_MAX_LOG_MSG_SIZE ];
 #endif
 pthread_mutex_t log_lock_mutex;
+pthread_mutex_t log_timer_mutex;
 boolean diag_init_complete = FALSE;
 
 /* Flag that controls whether QCRIL debug messages logged on ADB or not */
 boolean qcril_log_adb_on = FALSE;
+
+/* Flag that controls whether QCRIL message payload logged on QXDM log or not */
+boolean qcril_log_ril_msg_payload_log_on = FALSE;
 
 static pid_t qcril_qmi_instance_log_id;
 
@@ -195,32 +212,54 @@ static const qcril_qmi_event_log_type qcril_request_name[]  =
   { RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING,        "RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING" },
   { RIL_REQUEST_CDMA_GET_SUBSCRIPTION_SOURCE,         "RIL_REQUEST_CDMA_GET_SUBSCRIPTION_SOURCE" },
   { RIL_REQUEST_ISIM_AUTHENTICATION,                  "RIL_REQUEST_ISIM_AUTHENTICATION" },
+  { RIL_REQUEST_ACKNOWLEDGE_INCOMING_GSM_SMS_WITH_PDU,"RIL_REQUEST_ACKNOWLEDGE_INCOMING_GSM_SMS_WITH_PDU" },
   { RIL_REQUEST_STK_SEND_ENVELOPE_WITH_STATUS,        "RIL_REQUEST_STK_SEND_ENVELOPE_WITH_STATUS" },
   { RIL_REQUEST_VOICE_RADIO_TECH,                     "RIL_REQUEST_VOICE_RADIO_TECH" },
-  { RIL_REQUEST_GET_CELL_INFO_LIST,                   "RIL_REQUEST_GET_CELL_INFO_LIST"},
-  { RIL_REQUEST_SET_UNSOL_CELL_INFO_LIST_RATE,        "RIL_REQUEST_SET_UNSOL_CELL_INFO_LIST_RATE"},
+  { RIL_REQUEST_GET_CELL_INFO_LIST,                   "RIL_REQUEST_GET_CELL_INFO_LIST" },
+  { RIL_REQUEST_SET_UNSOL_CELL_INFO_LIST_RATE,        "RIL_REQUEST_SET_UNSOL_CELL_INFO_LIST_RATE" },
   /* 111 */
-  { RIL_REQUEST_SET_INITIAL_ATTACH_APN,               "RIL_REQUEST_SET_INITIAL_ATTACH_APN"},
+  { RIL_REQUEST_SET_INITIAL_ATTACH_APN,               "RIL_REQUEST_SET_INITIAL_ATTACH_APN" },
   { RIL_REQUEST_IMS_REGISTRATION_STATE,               "RIL_REQUEST_IMS_REGISTRATION_STATE" },
   { RIL_REQUEST_IMS_SEND_SMS,                         "RIL_REQUEST_IMS_SEND_SMS" },
-  { RIL_REQUEST_GET_DATA_CALL_PROFILE,                "RIL_REQUEST_GET_DATA_CALL_PROFILE" },
+  { RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC,              "RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC" },
+  { RIL_REQUEST_SIM_OPEN_CHANNEL,                     "RIL_REQUEST_SIM_OPEN_CHANNEL" },
+  { RIL_REQUEST_SIM_CLOSE_CHANNEL,                    "RIL_REQUEST_SIM_CLOSE_CHANNEL" },
+  { RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL,            "RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL" },
+  { RIL_REQUEST_NV_READ_ITEM,                         "RIL_REQUEST_NV_READ_ITEM" },
+  { RIL_REQUEST_NV_WRITE_ITEM,                        "RIL_REQUEST_NV_WRITE_ITEM" },
+  { RIL_REQUEST_NV_WRITE_CDMA_PRL,                    "RIL_REQUEST_NV_WRITE_CDMA_PRL" },
+  /* 121 */
+  { RIL_REQUEST_NV_RESET_CONFIG,                      "RIL_REQUEST_NV_RESET_CONFIG" },
   { RIL_REQUEST_SET_UICC_SUBSCRIPTION,                "RIL_REQUEST_SET_UICC_SUBSCRIPTION" },
-  { RIL_REQUEST_SET_DATA_SUBSCRIPTION,                "RIL_REQUEST_SET_DATA_SUBSCRIPTION" },
+  { RIL_REQUEST_ALLOW_DATA,                           "RIL_REQUEST_ALLOW_DATA" },
+  { RIL_REQUEST_GET_HARDWARE_CONFIG,                  "RIL_REQUEST_GET_HARDWARE_CONFIG" },
+#ifdef RIL_REQUEST_SIM_AUTHENTICATION
+  { RIL_REQUEST_SIM_AUTHENTICATION,                   "RIL_REQUEST_SIM_AUTHENTICATION" },
+#endif /* RIL_REQUEST_SIM_AUTHENTICATION */
+  { RIL_REQUEST_GET_DC_RT_INFO,                       "RIL_REQUEST_GET_DC_RT_INFO" },
+  { RIL_REQUEST_SET_DC_RT_INFO_RATE,                  "RIL_REQUEST_SET_DC_RT_INFO_RATE" },
+  { RIL_REQUEST_SET_DATA_PROFILE,                     "RIL_REQUEST_SET_DATA_PROFILE" },
+  { RIL_REQUEST_SHUTDOWN,                             "RIL_REQUEST_SHUTDOWN" },
+  { RIL_REQUEST_GET_DATA_CALL_PROFILE,                "RIL_REQUEST_GET_DATA_CALL_PROFILE" },
+  /* 131 */
+  { RIL_REQUEST_SIM_GET_ATR,                          "RIL_REQUEST_SIM_GET_ATR" },
   /* 10002 */
-  { RIL_REQUEST_MODIFY_CALL_INITIATE,                 "RIL_REQUEST_MODIFY_CALL_INITIATE"},
-  { RIL_REQUEST_MODIFY_CALL_CONFIRM,                  "RIL_REQUEST_MODIFY_CALL_CONFIRM"},
+  { RIL_REQUEST_MODIFY_CALL_INITIATE,                 "RIL_REQUEST_MODIFY_CALL_INITIATE" },
+  { RIL_REQUEST_MODIFY_CALL_CONFIRM,                  "RIL_REQUEST_MODIFY_CALL_CONFIRM" },
 #if (RIL_QCOM_VERSION >= 2)
   { RIL_REQUEST_SETUP_QOS,                            "RIL_REQUEST_SETUP_QOS" },
   { RIL_REQUEST_RELEASE_QOS,                          "RIL_REQUEST_RELEASE_QOS" },
   { RIL_REQUEST_GET_QOS_STATUS,                       "RIL_REQUEST_GET_QOS_STATUS" },
   { RIL_REQUEST_MODIFY_QOS,                           "RIL_REQUEST_MODIFY_QOS" },
   { RIL_REQUEST_SUSPEND_QOS,                          "RIL_REQUEST_SUSPEND_QOS" },
-  { RIL_REQUEST_RESUME_QOS,                           "RIL_REQUEST_RESUME_QOS"},
+  { RIL_REQUEST_RESUME_QOS,                           "RIL_REQUEST_RESUME_QOS" },
 #endif
+  /* 10110 */
+  { RIL_REQUEST_SET_DATA_SUBSCRIPTION,                "RIL_REQUEST_SET_DATA_SUBSCRIPTION" },
   { RIL_REQUEST_GET_UICC_SUBSCRIPTION,                "RIL_REQUEST_GET_UICC_SUBSCRIPTION" },
   { RIL_REQUEST_GET_DATA_SUBSCRIPTION,                "RIL_REQUEST_GET_DATA_SUBSCRIPTION" },
   { RIL_REQUEST_SET_SUBSCRIPTION_MODE,                "RIL_REQUEST_SET_SUBSCRIPTION_MODE" },
-  { RIL_REQUEST_UNKOWN,                           "RIL_REQUEST_UNKOWN"},
+  { RIL_REQUEST_UNKOWN,                               "RIL_REQUEST_UNKOWN" },
 };
 
 static const qcril_qmi_event_log_type qcril_unsol_response_name[] =
@@ -268,9 +307,13 @@ static const qcril_qmi_event_log_type qcril_unsol_response_name[] =
   { RIL_UNSOL_VOICE_RADIO_TECH_CHANGED,               "RIL_UNSOL_VOICE_RADIO_TECH_CHANGED" },
   { RIL_UNSOL_CELL_INFO_LIST,                         "RIL_UNSOL_CELL_INFO_LIST"},
   { RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED,     "RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED" },
+  { RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED,       "RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED" },
+  { RIL_UNSOL_SRVCC_STATE_NOTIFY,                     "RIL_UNSOL_SRVCC_STATE_NOTIFY" },
+  { RIL_UNSOL_HARDWARE_CONFIG_CHANGED,                "RIL_UNSOL_HARDWARE_CONFIG_CHANGED" },
+  /* 1041 */
+  { RIL_UNSOL_DC_RT_INFO_CHANGED,                     "RIL_UNSOL_DC_RT_INFO_CHANGED" },
   { RIL_UNSOL_ON_SS,                                  "RIL_UNSOL_ON_SS" },
   { RIL_UNSOL_STK_CC_ALPHA_NOTIFY,                    "RIL_UNSOL_STK_CC_ALPHA_NOTIFY" },
-  { RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED,       "RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED" },
 #if (RIL_QCOM_VERSION >= 2)
   { RIL_UNSOL_QOS_STATE_CHANGED_IND,                  "RIL_UNSOL_QOS_STATE_CHANGED_IND" },
 #endif
@@ -308,11 +351,19 @@ typedef struct ipc_send_recv_data_info
 typedef struct
 {
     int is_valid;
-    int thread_id;
+    pthread_t thread_id;
     char thread_name[QMI_RIL_THREAD_NAME_MAX_SIZE];
 } qmi_ril_thread_name_info_type;
 
+#ifndef QMI_RIL_UTF
 static qmi_ril_thread_name_info_type qmi_ril_thread_name_info[QMI_RIL_THREAD_INFO_MAX_SIZE];
+#else
+qmi_ril_thread_name_info_type qmi_ril_thread_name_info[QMI_RIL_THREAD_INFO_MAX_SIZE];
+#endif
+
+static int qmi_ril_log_enabled;
+static int qmi_ril_log_timer_interval;
+static uint32 qmi_ril_log_timer_id;
 
 /*===========================================================================
 
@@ -363,6 +414,47 @@ void qcril_log_init
 
   qcril_qmi_instance_log_id = getpid();
 
+  ret_val = 0;
+  remove(QCRIL_LOG_FILE);
+  property_get( QCRIL_IS_LOG_TO_FILE_ENABLED, args, "" );
+  len = strlen( args );
+  if ( len > 0 )
+  {
+    ret_val = strtoul( args, &end_ptr, 0 );
+    if ( ( errno == ERANGE ) && ( ( ret_val == ULONG_MAX ) || ( ret_val == 0 ) ) )
+    {
+    #ifndef QMI_RIL_UTF
+      RLOGE( "Fail to convert ril_log_enabled setting %s", args );
+    #endif
+    }
+    else if (ret_val)
+    {
+        rild_fp = fopen(QCRIL_LOG_FILE, "w");
+        if ( !rild_fp )
+        {
+      #ifndef QMI_RIL_UTF
+          RLOGE( "Fail to create %s for QCRIL logging\n",QCRIL_LOG_FILE );
+      #endif
+        }
+        else
+        {
+             setvbuf ( rild_fp , NULL , _IOFBF , 1024 );
+      #ifndef QMI_RIL_UTF
+            RLOGE( "%s for QCRIL logging created successfully\n",QCRIL_LOG_FILE );
+      #endif
+            qmi_ril_log_enabled = 1;
+        }
+    }
+  }
+
+  if(!ret_val)
+  {
+      rild_fp = NULL;
+    #ifndef QMI_RIL_UTF
+      RLOGE( "log to %s for QCRIL logging is not enabled\n",QCRIL_LOG_FILE );
+    #endif
+  }
+
   /* Initialize Diag for QCRIL logging */
   ret_val = Diag_LSM_Init(NULL);
   if ( !ret_val )
@@ -412,11 +504,191 @@ void qcril_log_init
     QCRIL_LOG_ERROR( "Fail to save %s to system property", QCRIL_LOG_ADB_ON );
   }
 
+
+  /* Fetching RIL payload dumping property */
+  property_get( QCRIL_LOG_RIL_PAYLOAD_LOG_ON, args, "" );
+  len = strlen( args );
+  if ( len > 0 )
+  {
+    ret_val = strtoul( args, &end_ptr, 0 );
+    if ( ( errno == ERANGE ) && ( ( ret_val == ULONG_MAX ) || ( ret_val == 0 ) ) )
+    {
+      QCRIL_LOG_ERROR( "Fail to convert ril_msg_payload_on setting %s\n", args );
+    }
+    else if ( ret_val > 1 )
+    {
+      QCRIL_LOG_ERROR( "Invalid saved ril_msg_payload_on setting %ld, use default\n", ret_val );
+    }
+    else
+    {
+      qcril_log_ril_msg_payload_log_on = ( boolean ) ret_val;
+    }
+  }
+
+  QCRIL_LOG_DEBUG ( "qcril_log_init() 3" );
+
+  QCRIL_LOG_DEBUG( "ril_msg_payload_on = %d", (int) qcril_log_ril_msg_payload_log_on );
+
+  /* Save RIL Payload Log Enabled setting to system property */
+  QCRIL_SNPRINTF( args, sizeof( args ), "%d", qcril_log_ril_msg_payload_log_on );
+  if ( property_set( QCRIL_LOG_RIL_PAYLOAD_LOG_ON, args ) != E_SUCCESS )
+  {
+    QCRIL_LOG_ERROR( "Fail to save %s to system property\n", QCRIL_LOG_RIL_PAYLOAD_LOG_ON );
+  }
+
   pthread_mutexattr_t mtx_atr;
   pthread_mutexattr_init(&mtx_atr);
   pthread_mutex_init(&log_lock_mutex, &mtx_atr);
+  pthread_mutex_init(&log_timer_mutex, &mtx_atr);
 
 } /* qcril_log_init */
+
+
+void qcril_log_cancel_log_timer()
+{
+    pthread_mutex_lock(&log_timer_mutex);
+    if(qmi_ril_log_enabled && qmi_ril_log_timer_id)
+    {
+        qcril_cancel_timed_callback((void *)(uintptr_t)qmi_ril_log_timer_id);
+        qmi_ril_log_timer_id = QMI_RIL_ZERO;
+    }
+    pthread_mutex_unlock(&log_timer_mutex);
+}
+
+void qcril_log_timer_expiry_cb(void * params)
+{
+    struct timeval tv;
+    struct timespec ts;
+    struct tm* tm = NULL;
+    char time_string[40];
+    long milliseconds;
+
+    if(qmi_ril_is_feature_supported(QMI_RIL_FEATURE_POSIX_CLOCKS))
+    {
+        clock_gettime(CLOCK_MONOTONIC,
+                      &ts);
+        tv.tv_sec = ts.tv_sec;
+        tv.tv_usec = ts.tv_nsec/1000;
+    }
+    else
+    {
+        gettimeofday(&tv,
+                     NULL);
+    }
+    tm = localtime (&tv.tv_sec);
+
+    if(NULL != tm)
+    {
+        strftime (time_string, sizeof (time_string), "%Y-%m-%d %H:%M:%S", tm);
+        milliseconds = tv.tv_usec / 1000;
+
+        pthread_mutex_lock(&log_timer_mutex);
+        qmi_ril_log_timer_id = QMI_RIL_ZERO;
+
+        pthread_mutex_lock(&log_lock_mutex);
+        if (rild_fp)
+        {
+            fflush(rild_fp);
+            fprintf (rild_fp, "Timestamp : %s.%03ld\n", time_string, milliseconds);
+        }
+        pthread_mutex_unlock(&log_lock_mutex);
+
+        qcril_log_timer_setup();
+        pthread_mutex_unlock(&log_timer_mutex);
+    }
+}
+
+void qcril_log_timer_setup( void )
+{
+    struct timeval log_timeout;
+    struct timeval *log_timeout_ptr;
+
+    log_timeout_ptr = NULL;
+
+    if( qmi_ril_log_timer_interval )
+    {
+        log_timeout.tv_sec = qmi_ril_log_timer_interval;
+        log_timeout.tv_usec = QMI_RIL_ZERO;
+        log_timeout_ptr = &log_timeout;
+    }
+    qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID,
+                                qcril_log_timer_expiry_cb,
+                                log_timeout_ptr, &qmi_ril_log_timer_id);
+}
+
+/*=========================================================================
+  FUNCTION:  qcril_log_timer_init
+
+===========================================================================*/
+/*!
+    @brief
+    Initialization for log timer.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_log_timer_init( void )
+{
+    char args[ PROPERTY_VALUE_MAX ];
+    int len;
+    char *end_ptr;
+    unsigned long ret_val;
+
+    pthread_mutex_lock(&log_timer_mutex);
+    if( qmi_ril_log_enabled )
+    {
+        ret_val = QCRIL_IS_LOG_TO_FILE_DEF_INTERVAL;
+        property_get( QCRIL_IS_LOG_TO_FILE_INTERVAL, args, "" );
+        len = strlen( args );
+        if ( len > 0 )
+        {
+          ret_val = strtoul( args, &end_ptr, 0 );
+          if ( ( errno == ERANGE ) && ( ( ret_val == ULONG_MAX ) || ( ret_val == 0 ) ) )
+          {
+            ret_val = QCRIL_IS_LOG_TO_FILE_DEF_INTERVAL;
+          #ifndef QMI_RIL_UTF
+            RLOGE( "Fail to convert ril_log_interval setting %s", args );
+          #endif
+          }
+        }
+        qmi_ril_log_timer_interval = ret_val;
+        #ifndef QMI_RIL_UTF
+        RLOGE( "using %d for qmi_ril_log_timer_interval", qmi_ril_log_timer_interval);
+        #endif
+        qcril_log_timer_setup();
+    }
+    pthread_mutex_unlock(&log_timer_mutex);
+
+} /* qcril_log_timer_init */
+
+
+/*=========================================================================
+  FUNCTION:  qcril_log_cleanup
+
+===========================================================================*/
+/*!
+    @brief
+    Cleanup for logging.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_log_cleanup
+(
+  void
+)
+{
+    pthread_mutex_lock(&log_lock_mutex);
+    if (rild_fp)
+    {
+        fclose(rild_fp);
+        rild_fp = NULL;
+    }
+    pthread_mutex_unlock(&log_lock_mutex);
+
+} /* qcril_log_cleanup */
 
 
 /*=========================================================================
@@ -543,7 +815,7 @@ void qcril_log_msg_to_adb
         break;
 
       case MSG_LEGACY_ESSENTIAL:
-        RLOGI_IF( qcril_log_adb_on, "(%d/%d):%s",
+        RLOGI( "(%d/%d):%s",
                (int)qmi_ril_get_process_instance_id(),
                (int)qcril_qmi_instance_log_id,
                 msg_ptr );
@@ -655,6 +927,9 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_CM_UPDATE_FDN_STATUS:
         return "CM_UPDATE_FDN_STATUS";
 
+      case QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED:
+        return "QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED";
+
       case QCRIL_EVT_CM_CARD_STATUS_UPDATED:
         return "CM_CARD_STATUS_UPDATED";
 
@@ -667,6 +942,9 @@ const char *qcril_log_lookup_event_name
 
       case QCRIL_EVT_UIM_QMI_COMMAND_CALLBACK:
         return "UIM_QMI_COMMAND_CALLBACK";
+
+      case QCRIL_EVT_UIM_MCC_MNC_INFO:
+        return "QCRIL_EVT_UIM_MCC_MNC_INFO";
 
       case QCRIL_EVT_UIM_QMI_INDICATION:
         return "UIM_QMI_INDICATION";
@@ -710,6 +988,12 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_INTERNAL_MMGSDI_MODEM_RESTART_COMPLETE:
         return "QCRIL_EVT_INTERNAL_MMGSDI_MODEM_RESTART_COMPLETE";
 
+      case QCRIL_EVT_INTERNAL_UIM_SAP_RESP:
+        return "QCRIL_EVT_INTERNAL_UIM_SAP_RESP";
+
+      case QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC:
+        return "QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC";
+
       case QCRIL_EVT_GSTK_QMI_CAT_INDICATION:
         return "QCRIL_EVT_GSTK_QMI_CAT_INDICATION";
 
@@ -740,9 +1024,6 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_HOOK_NV_READ:
         return "RIL_REQUEST_OEM_HOOK_RAW(NV_READ)";
 
-      case QCRIL_EVT_HOOK_INFORM_SHUTDOWN:
-        return "RIL_REQUEST_OEM_HOOK_RAW(INFORM_SHUTDOWN)";
-
       case QCRIL_EVT_HOOK_CSG_PERFORM_NW_SCAN:
         return "RIL_REQUEST_OEM_HOOK_RAW(CSG_PERFORM_NW_SCAN)";
 
@@ -764,6 +1045,9 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_HOOK_ME_DEPERSONALIZATION:
         return "RIL_REQUEST_OEM_HOOK_RAW(ME_DEPERSONALIZATION)";
 
+      case QCRIL_EVT_HOOK_SET_DATA_SUBSCRIPTION:
+        return "QCRIL_EVT_HOOK_SET_DATA_SUBSCRIPTION";
+
       case QCRIL_EVT_HOOK_SET_TUNE_AWAY:
         return "RIL_REQUEST_OEM_HOOK_RAW(SET_TUNE_AWAY)";
 
@@ -781,6 +1065,15 @@ const char *qcril_log_lookup_event_name
 
       case QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD:
         return "QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD";
+
+      case QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY:
+        return "QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY";
+
+      case QCRIL_EVT_HOOK_UPDATE_SUB_BINDING:
+        return "QCRIL_EVT_HOOK_UPDATE_SUB_BINDING";
+
+      case QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY:
+        return "QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY";
 
       case QCRIL_EVT_HOOK_SET_BUILTIN_PLMN_LIST:
         return "QCRIL_EVT_HOOK_SET_BUILTIN_PLMN_LIST";
@@ -812,6 +1105,9 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID:
         return "QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID";
 
+      case QCRIL_EVT_HOOK_UNSOL_MODEM_CAPABILITY:
+        return "QCRIL_EVT_HOOK_UNSOL_MODEM_CAPABILITY";
+
       case QCRIL_EVT_HOOK_PERFORM_INCREMENTAL_NW_SCAN:
         return "QCRIL_EVT_HOOK_PERFORM_INCREMENTAL_NW_SCAN";
 
@@ -826,6 +1122,9 @@ const char *qcril_log_lookup_event_name
 
       case QCRIL_EVT_QMI_REQUEST_POWER_RADIO:
         return "REQUEST_POWER_RADIO";
+
+      case QCRIL_EVT_QMI_REQUEST_SHUTDOWN:
+        return "REQUEST_SHUTDOWN";
 
       case QCRIL_EVT_QMI_RIL_COMMON_IND_SUBSCRIBE_CONSIDER_ACTION:
         return "QCRIL_EVT_QMI_RIL_COMMON_IND_SUBSCRIBE_CONSIDER_ACTION";
@@ -923,6 +1222,12 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_HOOK_EMBMS_GET_EMBMS_SVC_STATE:
           return "QCRIL_EVT_HOOK_EMBMS_GET_EMBMS_SVC_STATE";
 
+      case QCRIL_EVT_HOOK_EMBMS_CONTENT_DESC_UPDATE:
+          return "QCRIL_EVT_HOOK_EMBMS_CONTENT_DESC_UPDATE";
+
+      case QCRIL_EVT_HOOK_EMBMS_UNSOL_CONTENT_DESC_CONTROL:
+          return "QCRIL_EVT_HOOK_EMBMS_UNSOL_CONTENT_DESC_CONTROL";
+
       case QCRIL_EVT_HOOK_EMBMS_UNSOL_SVC_STATE:
           return "QCRIL_EVT_HOOK_EMBMS_UNSOL_SVC_STATE";
 
@@ -997,6 +1302,9 @@ const char *qcril_log_lookup_event_name
 
       case QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP:
           return "QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP";
+
+      case QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE:
+          return "QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE";
 
       case QCRIL_EVT_QMI_VOICE_BURST_START_CONT_DTMF:
           return "QCRIL_EVT_QMI_VOICE_BURST_START_CONT_DTMF";
@@ -1088,8 +1396,20 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_QMI_NAS_HANDLE_INDICATIONS:
           return "QCRIL_EVT_QMI_NAS_HANDLE_INDICATIONS";
 
+      case QCRIL_EVT_QMI_NAS_HANDLE_ASYNC_CB:
+          return "QCRIL_EVT_QMI_NAS_HANDLE_ASYNC_CB";
+
       case QCRIL_EVT_QMI_DMS_HANDLE_INDICATIONS:
           return "QCRIL_EVT_QMI_DMS_HANDLE_INDICATIONS";
+#ifdef QMI_RIL_UTF
+      case QCRIL_EVT_QMI_DSD_HANDLE_INDICATIONS:
+          return "QCRIL_EVT_QMI_DSD_HANDLE_INDICATIONS";
+#endif
+      case QCRIL_EVT_QMI_PBM_HANDLE_INDICATIONS:
+          return "QCRIL_EVT_QMI_PBM_HANDLE_INDICATIONS";
+
+      case QCRIL_EVT_QMI_SMS_HANDLE_INDICATIONS:
+          return "QCRIL_EVT_QMI_SMS_HANDLE_INDICATIONS";
 
       case QCRIL_EVT_HOOK_DATA_GO_DORMANT:
           return "QCRIL_EVT_HOOK_DATA_GO_DORMANT";
@@ -1154,8 +1474,50 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_HOOK_QUERY_MODEM_TEST_MODE:
           return "QCRIL_EVT_HOOK_QUERY_MODEM_TEST_MODE";
 
+      case QCRIL_EVT_HOOK_GET_AVAILABLE_CONFIGS:
+          return "QCRIL_EVT_HOOK_GET_AVAILABLE_CONFIGS";
+
+      case QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_ACQ_ORDER:
+          return "QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_ACQ_ORDER";
+
+      case QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_ACQ_ORDER:
+          return "QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_ACQ_ORDER";
+
+      case QCRIL_EVT_HOOK_UNSOL_UICC_VOLTAGE_STATUS:
+          return "QCRIL_EVT_HOOK_UNSOL_UICC_VOLTAGE_STATUS";
+
+      case QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ:
+          return "QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ";
+
       case QCRIL_EVT_HOOK_CLEANUP_LOADED_CONFIGS:
           return "QCRIL_EVT_HOOK_CLEANUP_LOADED_CONFIGS";
+
+      case QCRIL_EVT_HOOK_SEL_CONFIG:
+          return "QCRIL_EVT_HOOK_SEL_CONFIG";
+
+      case QCRIL_EVT_HOOK_GET_META_INFO:
+          return "QCRIL_EVT_HOOK_GET_META_INFO";
+
+      case QCRIL_EVT_HOOK_DEACTIVATE_CONFIGS:
+          return "QCRIL_EVT_HOOK_DEACTIVATE_CONFIGS";
+
+      case QCRIL_EVT_HOOK_GET_QC_VERSION_OF_FILE:
+          return "QCRIL_EVT_HOOK_GET_QC_VERSION_OF_FILE";
+
+      case QCRIL_EVT_HOOK_GET_QC_VERSION_OF_CONFIGID:
+          return "QCRIL_EVT_HOOK_GET_QC_VERSION_OF_CONFIGID";
+
+      case QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_FILE:
+          return "QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_FILE";
+
+      case QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_CONFIGID:
+          return "QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_CONFIGID";
+
+      case QCRIL_EVT_HOOK_ACTIVATE_CONFIGS:
+          return "QCRIL_EVT_HOOK_ACTIVATE_CONFIGS";
+
+      case QCRIL_EVT_HOOK_VALIDATE_CONFIG:
+          return "QCRIL_EVT_HOOK_VALIDATE_CONFIG";
 
       case QCRIL_EVT_QMI_RIL_PDC_LOAD_CONFIGURATION:
           return "QCRIL_EVT_QMI_RIL_PDC_LOAD_CONFIGURATION";
@@ -1172,17 +1534,29 @@ const char *qcril_log_lookup_event_name
       case QCRIL_EVT_QMI_RIL_PDC_LIST_CONFIGURATION:
           return "QCRIL_EVT_QMI_RIL_PDC_LIST_CONFIGURATION";
 
+      case QCRIL_EVT_QMI_RIL_PDC_DEACTIVATE_CONFIGURATION:
+          return "QCRIL_EVT_QMI_RIL_PDC_DEACTIVATE_CONFIGURATION";
+
+      case QCRIL_EVT_QMI_RIL_PDC_PARSE_DIFF_RESULT:
+          return "QCRIL_EVT_QMI_RIL_PDC_PARSE_DIFF_RESULT";
+
       case QCRIL_EVT_QMI_REQUEST_SET_SYS_SEL_PREF:
           return "QCRIL_EVT_QMI_REQUEST_SET_SYS_SEL_PREF";
 
       case QCRIL_EVT_HOOK_UNSOL_SIM_REFRESH:
           return "QCRIL_EVT_HOOK_UNSOL_SIM_REFRESH";
 
-      case QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_ACQ_ORDER:
-          return "QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_ACQ_ORDER";
+      case QCRIL_EVT_HOOK_GET_CURRENT_SETUP_CALLS:
+          return "QCRIL_EVT_HOOK_GET_CURRENT_SETUP_CALLS";
 
-      case QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_ACQ_ORDER:
-          return "QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_ACQ_ORDER";
+      case QCRIL_EVT_HOOK_REQUEST_SETUP_ANSWER:
+          return "QCRIL_EVT_HOOK_REQUEST_SETUP_ANSWER";
+
+      case QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_BAND_PREF:
+          return "QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_BAND_PREF";
+
+      case QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_BAND_PREF:
+          return "QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_BAND_PREF";
 
       default:
         return "<Unknown event> ?";
@@ -1207,7 +1581,7 @@ const char *qcril_log_lookup_event_name
 //
 void qcril_ipc_init()
 {
-    int sockfd=0,rc=0,len=0;
+    int sockfd=0,rc=0,len=0,number_of_tries=0,bind_result=FALSE;
     struct sockaddr_un local;
     char server[QCRIL_IPC_MAX_SOCKET_PATH_LENGTH];
 
@@ -1222,8 +1596,15 @@ void qcril_ipc_init()
         pthread_mutex_init(&inter_rild_info.send_lock_mutex, NULL);
 
         //server initialization
-        if ((sockfd = socket(AF_UNIX,SOCK_DGRAM,0)) >= 0)
+        do
         {
+          if (number_of_tries != 0)
+          {
+            sleep(1);
+          }
+          QCRIL_LOG_DEBUG("IPC socket init try # %d", number_of_tries);
+          if ((sockfd = socket(AF_UNIX,SOCK_DGRAM,0)) >= 0)
+          {
             local.sun_family = AF_UNIX;
             strlcpy(local.sun_path, server, sizeof(local.sun_path));
             len = strlen(server) + sizeof(local.sun_family);
@@ -1244,17 +1625,20 @@ void qcril_ipc_init()
                     QCRIL_LOG_ERROR("unable to spawn dedicated thread for rild IPC");
                     close(sockfd);
                 }
+                bind_result = TRUE;
             }
             else
             {
                 QCRIL_LOG_ERROR("unable to bind socket for rild IPC");
                 close(sockfd);
             }
-        }
-        else
-        {
+          }
+          else
+          {
             QCRIL_LOG_ERROR("unable to open socket for rild IPC");
-        }
+          }
+          number_of_tries++;
+        } while((bind_result == FALSE) && (number_of_tries < QCRIL_IPC_BIND_RETRY_MAX_ATTEMPTS));
     }
     else if(inter_rild_info.other_rilds_addr_info)
     {
@@ -1437,8 +1821,10 @@ void* qcril_multiple_rild_ipc_recv_func(void *arg) //generic recv function
                 break;
 
             case IPC_MESSAGE_AM_CALL_STATE:
+#ifndef QMI_RIL_UTF
                 qcril_am_handle_event( QCRIL_AM_EVENT_INTER_RIL_CALL_STATE,
                                        (qcril_am_call_state_type*)recv_data.payload );
+#endif
                 break;
 
             default:
@@ -1452,7 +1838,8 @@ void* qcril_multiple_rild_ipc_recv_func(void *arg) //generic recv function
 
 void qcril_multiple_rild_ipc_signal_handler_sigusr1(int arg)
 {
-  return;
+    QCRIL_NOTUSED(arg);
+    return;
 }
 
 //===========================================================================
@@ -1557,3 +1944,773 @@ int qcril_log_lookup_ril_event_index
    // last element which is unkown event
    return max_index;
 } /* qcril_log_lookup_ril_event_index */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_ril_message_payload
+
+===========================================================================*/
+/*!
+    @brief
+    Dump one line of RIL payload to the log
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_ril_message_payload(const char* format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  char new_format[QCRIL_MAX_LOG_MSG_SIZE];
+  snprintf(new_format, QCRIL_MAX_LOG_MSG_SIZE, "$$$$$$ %s", format);
+  char buffer[QCRIL_MAX_LOG_MSG_SIZE];
+  vsnprintf(buffer, QCRIL_MAX_LOG_MSG_SIZE, new_format, args);
+  QCRIL_LOG_INFO("%s", buffer);
+  va_end(args);
+} /* qcril_log_print_ril_message_payload */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_string_array
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is char**
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_string_array(char** ptr, size_t length)
+{
+  size_t i;
+  for (i = 0; i < length; ++i)
+  {
+    if (ptr[i] == NULL)
+      break;
+    else if (ptr[i])
+      qcril_log_print_ril_message_payload("(char**)Payload[%d] %s", i, ptr[i]);
+  }
+} /* qcril_log_print_string_array */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_int
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is int
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_int(int* ptr)
+{
+  qcril_log_print_ril_message_payload("(int)Payload = %d", *ptr);
+} /* qcril_log_print_int */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_Dial
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_Dial
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_Dial(const char* header, const RIL_Dial* ptr)
+{
+  if (ptr->address)
+    qcril_log_print_ril_message_payload("%saddress %s", header, ptr->address);
+  qcril_log_print_ril_message_payload("%sclir = %d", header, ptr->clir);
+  if (ptr->uusInfo)
+  {
+    qcril_log_print_ril_message_payload("%suusInfo = (RIL_UUS_Info*)malloc(sizeof(RIL_UUS_Info));", header);
+    qcril_log_print_ril_message_payload("%suusInfo->uusType = %d", header, ptr->uusInfo->uusType);
+    qcril_log_print_ril_message_payload("%suusInfo->uusDcs = %d", header, ptr->uusInfo->uusDcs);
+    qcril_log_print_ril_message_payload("%suusInfo->uusLength = %d", header, ptr->uusInfo->uusLength);
+    if (ptr->uusInfo->uusData)
+      qcril_log_print_ril_message_payload("%suusInfo->uusData %s", header, ptr->uusInfo->uusData);
+  }
+} /* qcril_log_print_RIL_Dial */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_Call
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_Call
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_Call(const char* header, const RIL_Call* ptr)
+{
+  qcril_log_print_ril_message_payload("%sstate = %d", header, ptr->state);
+  qcril_log_print_ril_message_payload("%sindex = %d", header, ptr->index);
+  qcril_log_print_ril_message_payload("%stoa = %d", header, ptr->toa);
+  qcril_log_print_ril_message_payload("%sisMpty = %u", header, ptr->isMpty);
+  qcril_log_print_ril_message_payload("%sisMT = %u", header, ptr->isMT);
+  qcril_log_print_ril_message_payload("%sals = %u", header, ptr->als);
+  qcril_log_print_ril_message_payload("%sisVoice = %u", header, ptr->isVoice);
+  qcril_log_print_ril_message_payload("%sisVoicePrivacy = %u", header, ptr->isVoicePrivacy);
+  if (ptr->number)
+    qcril_log_print_ril_message_payload("%snumber %s", header, ptr->number);
+  qcril_log_print_ril_message_payload("%snumberPresentation = %d", header, ptr->numberPresentation);
+  if (ptr->name)
+    qcril_log_print_ril_message_payload("%sname %s", header, ptr->name);
+  qcril_log_print_ril_message_payload("%snamePresentation = %d", header, ptr->namePresentation);
+  if (ptr->uusInfo)
+  {
+    qcril_log_print_ril_message_payload("%suusInfo = (RIL_UUS_Info*)malloc(sizeof(RIL_UUS_Info));", header);
+    qcril_log_print_ril_message_payload("%suusInfo->uusType = %d", header, ptr->uusInfo->uusType);
+    qcril_log_print_ril_message_payload("%suusInfo->uusDcs = %d", header, ptr->uusInfo->uusDcs);
+    qcril_log_print_ril_message_payload("%suusInfo->uusLength = %d", header, ptr->uusInfo->uusLength);
+    if (ptr->uusInfo->uusData)
+      qcril_log_print_ril_message_payload("%suusInfo->uusData %s", header, ptr->uusInfo->uusData);
+  }
+} /* qcril_log_print_RIL_Call */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_SignalStrength
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_SignalStrength
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_SignalStrength (char* header, const RIL_SignalStrength* ptr)
+{
+  qcril_log_print_ril_message_payload("%sGW_SignalStrength.signalStrength = %d",
+                               header, ptr->GW_SignalStrength.signalStrength);
+  qcril_log_print_ril_message_payload("%sGW_SignalStrength.bitErrorRate = %d",
+                               header, ptr->GW_SignalStrength.bitErrorRate);
+  qcril_log_print_ril_message_payload("%sCDMA_SignalStrength.dbm = %d",
+                               header, ptr->CDMA_SignalStrength.dbm);
+  qcril_log_print_ril_message_payload("%sCDMA_SignalStrength.ecio = %d",
+                               header, ptr->CDMA_SignalStrength.ecio);
+  qcril_log_print_ril_message_payload("%sEVDO_SignalStrength.dbm = %d",
+                               header, ptr->EVDO_SignalStrength.dbm);
+  qcril_log_print_ril_message_payload("%sEVDO_SignalStrength.ecio = %d",
+                               header, ptr->EVDO_SignalStrength.ecio);
+  qcril_log_print_ril_message_payload("%sEVDO_SignalStrength.signalNoiseRatio = %d",
+                               header, ptr->EVDO_SignalStrength.signalNoiseRatio);
+  qcril_log_print_ril_message_payload("%sLTE_SignalStrength.signalStrength = %d",
+                               header, ptr->LTE_SignalStrength.signalStrength);
+  qcril_log_print_ril_message_payload("%sLTE_SignalStrength.rsrp = %d",
+                               header, ptr->LTE_SignalStrength.rsrp);
+  qcril_log_print_ril_message_payload("%sLTE_SignalStrength.rsrq = %d",
+                               header, ptr->LTE_SignalStrength.rsrq);
+  qcril_log_print_ril_message_payload("%sLTE_SignalStrength.rssnr = %d",
+                               header, ptr->LTE_SignalStrength.rssnr);
+  qcril_log_print_ril_message_payload("%sLTE_SignalStrength.cqi = %d",
+                               header, ptr->LTE_SignalStrength.cqi);
+#ifndef QMI_RIL_UTF
+  qcril_log_print_ril_message_payload("%sTD_SCDMA_SignalStrength.rscp = %d",
+                               header, ptr->TD_SCDMA_SignalStrength.rscp);
+#endif
+} /* qcril_log_print_RIL_SignalStrength */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_CallForwardInfo
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_CallForwardInfo
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_CallForwardInfo(const char* header, const RIL_CallForwardInfo* ptr)
+{
+  qcril_log_print_ril_message_payload("%sstatus = %d", header, ptr->status);
+  qcril_log_print_ril_message_payload("%sreason = %d", header, ptr->reason);
+  qcril_log_print_ril_message_payload("%sserviceClass = %d", header, ptr->serviceClass);
+  qcril_log_print_ril_message_payload("%stoa = %d", header, ptr->toa);
+
+  if (ptr->number)
+    qcril_log_print_ril_message_payload("%snumber %s", header, ptr->number);
+
+  qcril_log_print_ril_message_payload("%stimeSeconds = %d", header, ptr->timeSeconds);
+} /* qcril_log_print_RIL_CallForwardInfo */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_Call_array
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is an array of RIL_Call
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_Call_array(const RIL_Call** ptr, size_t datalen)
+{
+  size_t i;
+  for (i = 0; i < datalen/4; ++i)
+  {
+    if (ptr[i])
+    {
+      char header [512];
+      int n = snprintf(header, 512, "(RIL_Call**)Payload[%u]->", i);
+      if (n > 0)
+        qcril_log_print_RIL_Call(header, ptr[i]);
+    }
+  }
+} /* qcril_log_print_RIL_Call_array */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_CDMA_SignalInfoRecord
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_CDMA_SignalInfoRecord
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_CDMA_SignalInfoRecord(char* header, const RIL_CDMA_SignalInfoRecord* ptr)
+{
+  qcril_log_print_ril_message_payload("%sisPresent = %u", header, ptr->isPresent);
+  qcril_log_print_ril_message_payload("%ssignalType = %u", header, ptr->signalType);
+  qcril_log_print_ril_message_payload("%salertPitch = %u", header, ptr->alertPitch);
+  qcril_log_print_ril_message_payload("%ssignal = %u", header, ptr->signal);
+} /* qcril_log_print_RIL_CDMA_SignalInfoRecord */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_CallForwardInfo_array
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is an array of RIL_CallForwardInfo
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_CallForwardInfo_array(const RIL_CallForwardInfo** ptr, size_t datalen)
+{
+  size_t i;
+  for (i = 0; i < datalen/4; ++i)
+  {
+    if (ptr[i])
+    {
+      char header [512];
+      int n = snprintf(header, 512, "(RIL_CallForwardInfo**)Payload[%u]->", i);
+      if (n > 0)
+        qcril_log_print_RIL_CallForwardInfo(header, ptr[i]);
+    }
+  }
+} /* qcril_log_print_RIL_CallForwardInfo_array */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_IMS_SMS_Message
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_IMS_SMS_Message(char* header, const RIL_IMS_SMS_Message* ptr)
+{
+  qcril_log_print_ril_message_payload("%stech = %d", header, ptr->tech);
+  qcril_log_print_ril_message_payload("%sretry = %u", header, ptr->retry);
+  qcril_log_print_ril_message_payload("%smessageRef = %d", header, ptr->messageRef);
+  // TODO: array out of bounds
+  if (ptr->message.cdmaMessage)
+  {
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->uTeleserviceID = %d",
+                                 header, ptr->message.cdmaMessage->uTeleserviceID);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->bIsServicePresent = %u",
+                                 header, ptr->message.cdmaMessage->bIsServicePresent);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->uServicecategory = %d",
+                                 header, ptr->message.cdmaMessage->uServicecategory);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->sAddress.digit_mode = %d",
+                                 header, ptr->message.cdmaMessage->sAddress.digit_mode);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->sAddress.number_mode = %d",
+                                 header, ptr->message.cdmaMessage->sAddress.number_mode);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->sAddress.number_type = %d",
+                                 header, ptr->message.cdmaMessage->sAddress.number_type);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->sAddress.number_plan = %d",
+                                 header, ptr->message.cdmaMessage->sAddress.number_plan);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->sAddress.number_of_digits = %u",
+                                 header, ptr->message.cdmaMessage->sAddress.number_of_digits);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->sAddress.digits~%s",
+                                 header, ptr->message.cdmaMessage->sAddress.digits);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->subaddressType = %d",
+                                 header, ptr->message.cdmaMessage->sSubAddress.subaddressType);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->odd = %u",
+                                 header, ptr->message.cdmaMessage->sSubAddress.odd);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->number_of_digits = %u",
+                                 header, ptr->message.cdmaMessage->sSubAddress.number_of_digits);
+    qcril_log_print_ril_message_payload("%smessage.cdmaMessage->digits~%s",
+                                 header, ptr->message.cdmaMessage->sSubAddress.digits);
+  }
+  if (ptr->message.gsmMessage)
+  {
+    size_t i;
+    for (i = 0; i < 2; ++i)
+    {
+      if (ptr->message.gsmMessage[i])
+        qcril_log_print_ril_message_payload("%smessage.gsmMessage[%u] %s",
+                                     i, header, ptr->message.gsmMessage[i]);
+    }
+  }
+} /* qcril_log_print_RIL_IMS_SMS_Message */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_CardStatus_v6
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_CardStatus_v6
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_CardStatus_v6(char* header, RIL_CardStatus_v6* ptr)
+{
+  qcril_log_print_ril_message_payload("%scard_state = %d", header, ptr->card_state);
+  qcril_log_print_ril_message_payload("%suniversal_pin_state = %d", header, ptr->universal_pin_state);
+  qcril_log_print_ril_message_payload("%sgsm_umts_subscription_app_index = %d",
+                               header, ptr->gsm_umts_subscription_app_index);
+  qcril_log_print_ril_message_payload("%scdma_subscription_app_index = %d",
+                               header, ptr->cdma_subscription_app_index);
+  qcril_log_print_ril_message_payload("%sims_subscription_app_index = %d",
+                               header, ptr->ims_subscription_app_index);
+  qcril_log_print_ril_message_payload("%snum_applications = %d", header, ptr->num_applications);
+  size_t i;
+  for (i = 0; i < ptr->num_applications; ++i)
+  {
+    qcril_log_print_ril_message_payload("%s->applications[%u].app_type = %d",
+                                 header, i, ptr->applications[i].app_type);
+    qcril_log_print_ril_message_payload("%s->applications[%u].app_state = %d",
+                                 header, i, ptr->applications[i].app_state);
+    qcril_log_print_ril_message_payload("%s->applications[%u].perso_substate = %d",
+                                 header, i, ptr->applications[i].perso_substate);
+    if (ptr->applications[i].aid_ptr)
+      qcril_log_print_ril_message_payload("%s->applications[%u].aid_ptr %s",
+                                   header, i, ptr->applications[i].aid_ptr);
+    if (ptr->applications[i].app_label_ptr)
+      qcril_log_print_ril_message_payload("%s->applications[%u].app_label_ptr %s",
+                                   header, i, ptr->applications[i].app_label_ptr);
+    qcril_log_print_ril_message_payload("%s->applications[%u].pin1_replaced = %d",
+                                 header, i, ptr->applications[i].pin1_replaced);
+    qcril_log_print_ril_message_payload("%s->applications[%u].pin1 = %d",
+                                 header, i, ptr->applications[i].pin1);
+    qcril_log_print_ril_message_payload("%s->applications[%u].pin2 = %d",
+                                 header, i, ptr->applications[i].pin2);
+  }
+} /* qcril_log_print_RIL_CardStatus_v6 */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_SMS_Response
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_SMS_Response
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_SMS_Response(char* header, RIL_SMS_Response* ptr)
+{
+  qcril_log_print_ril_message_payload("%smessageRef = %d", header, ptr->messageRef);
+  if (ptr->ackPDU)
+    qcril_log_print_ril_message_payload("%sackPDU %s", header, ptr->ackPDU);
+  qcril_log_print_ril_message_payload("%serrorCode = %d", header, ptr->errorCode);
+} /* qcril_log_print_RIL_SMS_Response */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_SelectUiccSub
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_SelectUiccSub
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_SelectUiccSub(char* header, RIL_SelectUiccSub* ptr)
+{
+  qcril_log_print_ril_message_payload("%sslot = %d", header, ptr->slot);
+  qcril_log_print_ril_message_payload("%sapp_index = %d", header, ptr->app_index);
+  qcril_log_print_ril_message_payload("%ssub_type = %d", header, ptr->sub_type);
+  qcril_log_print_ril_message_payload("%sact_status = %d", header, ptr->act_status);
+} /* qcril_log_print_RIL_SelectUiccSub */
+
+/*===========================================================================
+
+  FUNCTION: qcril_log_print_RIL_StkCcUnsolSsResponse
+
+===========================================================================*/
+/*!
+    @brief
+    Dump RIL payload if the payload type is RIL_StkCcUnsolSsResponse
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_log_print_RIL_StkCcUnsolSsResponse(char* header, RIL_StkCcUnsolSsResponse** ptr_a)
+{
+  RIL_StkCcUnsolSsResponse* ptr = *ptr_a;
+  qcril_log_print_ril_message_payload("%sserviceType = %d", header, ptr->serviceType);
+  qcril_log_print_ril_message_payload("%srequestType = %d", header, ptr->requestType);
+  qcril_log_print_ril_message_payload("%steleserviceType = %d", header, ptr->teleserviceType);
+  qcril_log_print_ril_message_payload("%sserviceClass = %d", header, ptr->serviceClass);
+  qcril_log_print_ril_message_payload("%sresult = %d", header, ptr->result);
+  size_t i;
+  for (i = 0; i < SS_INFO_MAX; ++i)
+    qcril_log_print_ril_message_payload("%sssInfo[%u] = %d", header, i, ptr->ssInfo[i]);
+  qcril_log_print_ril_message_payload("%scfData.numValidIndexes = %d",
+                               header, ptr->cfData.numValidIndexes);
+  for (i = 0; i < NUM_SERVICE_CLASSES; ++i)
+  {
+    qcril_log_print_ril_message_payload("%scfData.cfInfo[%u].status = %d",
+                                 header, i, ptr->cfData.cfInfo[i].status);
+    qcril_log_print_ril_message_payload("%scfData.cfInfo[%u].reason = %d",
+                                 header, i, ptr->cfData.cfInfo[i].reason);
+    qcril_log_print_ril_message_payload("%scfData.cfInfo[%u].serviceClass = %d",
+                                 header, i, ptr->cfData.cfInfo[i].serviceClass);
+    qcril_log_print_ril_message_payload("%scfData.cfInfo[%u].toa = %d",
+                                 header, i, ptr->cfData.cfInfo[i].toa);
+    //TODO: array out of bounds
+    if (ptr->cfData.cfInfo[i].number)
+      qcril_log_print_ril_message_payload("%scfData.cfInfo[%u].number %s",
+                                   header, i, ptr->cfData.cfInfo[i].number);
+    qcril_log_print_ril_message_payload("%scfData.cfInfo[%u].timeSeconds = %d",
+                                 header, i, ptr->cfData.cfInfo[i].timeSeconds);
+  }
+} /* qcril_log_print_RIL_StkCcUnsolSsResponse */
+
+/*===========================================================================
+
+FUNCTION: qcril_log_print_ril_message
+
+===========================================================================*/
+/*!
+  @brief
+  print content of RIL message name and payload to the log
+
+  @return
+  void
+  */
+/*=========================================================================*/
+void qcril_log_print_ril_message(int message_id, RIL__MsgType message_type, void* data,
+                                  size_t datalen, RIL_Errno error)
+{
+  if (!qcril_log_ril_msg_payload_log_on)
+  {
+    return;
+  }
+  qcril_log_print_ril_message_payload("%s", "Begin of RIL Message");
+  qcril_log_print_ril_message_payload("Message ID: %d, Message Type: %d, Data Length: %u, Error: %d",
+                               message_id, message_type, (unsigned int)datalen, error);
+  qcril_log_print_ril_message_payload("Message name: %s", qcril_log_lookup_event_name(message_id));
+
+  int is_request_or_unsol = 0;
+  if ((message_type == RIL__MSG_TYPE__REQUEST) || (message_type == RIL__MSG_TYPE__UNSOL_RESPONSE))
+  {
+    is_request_or_unsol = 1;
+  }
+  if (data)
+  {
+    switch (message_id)
+    {
+      /* Switch Cases are sorted by payload type*/
+      /* data = NULL, response = NULL */
+      case RIL_REQUEST_ANSWER:
+      case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED:
+      case RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED:
+      case RIL_UNSOL_RESPONSE_VOICE_NETWORK_STATE_CHANGED:
+      case RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND:
+      case RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND:
+      case RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE:
+      case RIL_REQUEST_CONFERENCE:
+      case RIL_UNSOL_UNKOWN:
+        break; /* data = NULL, response = NULL */
+
+      /* data = int*, response = NULL */
+      case RIL_REQUEST_HANGUP:
+      case RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE:
+      case RIL_REQUEST_RADIO_POWER:
+      case RIL_REQUEST_SEPARATE_CONNECTION:
+      case RIL_REQUEST_CDMA_SET_SUBSCRIPTION_SOURCE:
+      case RIL_REQUEST_CDMA_SET_ROAMING_PREFERENCE:
+      case RIL_REQUEST_SCREEN_STATE:
+      case RIL_REQUEST_SET_TTY_MODE:
+      case RIL_REQUEST_SMS_ACKNOWLEDGE:
+      case RIL_UNSOL_VOICE_RADIO_TECH_CHANGED:
+      case RIL_UNSOL_SRVCC_STATE_NOTIFY:
+        if (is_request_or_unsol == 1)
+        {
+          int* ptr = (int*) data;
+          qcril_log_print_int(ptr);
+        }
+        break; /* data = int*, response = NULL */
+
+      /* data = NULL, response = int* */
+      case RIL_REQUEST_VOICE_RADIO_TECH:
+      case RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE:
+      case RIL_REQUEST_LAST_CALL_FAIL_CAUSE:
+      case RIL_REQUEST_CDMA_GET_SUBSCRIPTION_SOURCE:
+      case RIL_REQUEST_CDMA_QUERY_ROAMING_PREFERENCE:
+      case RIL_REQUEST_IMS_REGISTRATION_STATE:
+      case RIL_REQUEST_QUERY_CLIP:
+        if (is_request_or_unsol == 0)
+        {
+          int* ptr = (int*) data;
+          qcril_log_print_int(ptr);
+        }
+        break; /* data = NULL, response = int* */
+
+      /* data = char**, response = int*/
+      case RIL_REQUEST_QUERY_FACILITY_LOCK:
+        if (is_request_or_unsol == 1)
+        {
+          char** ptr = (char**) data;
+          qcril_log_print_string_array(ptr, 4);
+        }
+        else
+        {
+          int* ptr = (int*) data;
+          qcril_log_print_int(ptr);
+        }
+        break;
+      case RIL_REQUEST_SET_FACILITY_LOCK:
+        if (is_request_or_unsol == 1)
+        {
+          char** ptr = (char**) data;
+          qcril_log_print_string_array(ptr, 5);
+        }
+        else
+        {
+          int* ptr = (int*) data;
+          qcril_log_print_int(ptr);
+        }
+        break;
+      case RIL_REQUEST_VOICE_REGISTRATION_STATE:
+        if (is_request_or_unsol == 0)
+        {
+          char** ptr = (char**) data;
+          qcril_log_print_string_array(ptr, 15);
+        }
+        break;
+      case RIL_REQUEST_DATA_REGISTRATION_STATE:
+        if (is_request_or_unsol == 0)
+        {
+          char** ptr = (char**) data;
+          qcril_log_print_string_array(ptr, 11);
+        }
+        break;
+      case RIL_REQUEST_OPERATOR:
+        if (is_request_or_unsol == 0)
+        {
+          char** ptr = (char**) data;
+          qcril_log_print_string_array(ptr, 3);
+        }
+        break;
+      case RIL_REQUEST_QUERY_AVAILABLE_NETWORKS:
+        if (is_request_or_unsol == 0)
+        {
+          char** ptr = (char**) data;
+          // TODO: find the number of available networks n. argument should be 4*n
+          qcril_log_print_string_array(ptr, 4);
+        }
+        break; /* data = char**, response = int*/
+
+      /* data = char**, response = NULL */
+      case RIL_UNSOL_ON_USSD:
+        if (is_request_or_unsol == 1)
+        {
+          char** ptr = (char**) data;
+          qcril_log_print_string_array(ptr, 2);
+        }
+        break; /* data = char**, response = NULL */
+
+
+      /* data = RIL_Dial*, response = NULL */
+      case RIL_REQUEST_DIAL:
+        if (is_request_or_unsol == 1)
+        {
+          const RIL_Dial* ptr = (const RIL_Dial*) data;
+          qcril_log_print_RIL_Dial("(RIL_Dial*)Payload->", ptr);
+        }
+        break; /* data = RIL_Dial*, response = NULL */
+
+      /* data = NULL, response = RIL_Call** */
+      case RIL_REQUEST_GET_CURRENT_CALLS:
+        if (is_request_or_unsol == 0)
+        {
+          const RIL_Call** ptr = (const RIL_Call**) data;
+          qcril_log_print_RIL_Call_array(ptr, datalen);
+        }
+        break; /* data = NULL, response = RIL_Call** */
+
+      /* data = NULL, response = RIL_SignalStrength* */
+      case RIL_REQUEST_SIGNAL_STRENGTH:
+        if (is_request_or_unsol == 0)
+        {
+          const RIL_SignalStrength* ptr = (const RIL_SignalStrength*)data;
+          qcril_log_print_RIL_SignalStrength("(RIL_SignalStrength*)Payload->", ptr);
+        }
+        break; /* data = NULL, response = RIL_SignalStrength* */
+
+      /* data = RIL_SignalStrength*, response = NULL */
+      case RIL_UNSOL_SIGNAL_STRENGTH:
+        if (is_request_or_unsol == 1)
+        {
+          const RIL_SignalStrength* ptr = (const RIL_SignalStrength*)data;
+          qcril_log_print_RIL_SignalStrength("(RIL_SignalStrength*)Payload->", ptr);
+        }
+        break; /* data = RIL_SignalStrength*, response = NULL */
+
+      /* data = NULL for GSM, data = RIL_CDMA_SignalInfoRecord* for CDMA, response = NULL */
+      case RIL_UNSOL_CALL_RING:
+        if (is_request_or_unsol == 1)
+        {
+          const RIL_CDMA_SignalInfoRecord* ptr = (const RIL_CDMA_SignalInfoRecord*) data;
+          if (ptr)
+            qcril_log_print_RIL_CDMA_SignalInfoRecord("(RIL_CDMA_SignalInfoRecord*)Payload->", ptr);
+        }
+        break; /* data = NULL for GSM, RIL_CDMA_SignalInfoRecord* for CDMA, response = NULL */
+
+      /* data = RIL_CallForwardInfo*, response = RIL_CallForwardInfo** */
+      case RIL_REQUEST_QUERY_CALL_FORWARD_STATUS:
+        if (is_request_or_unsol == 1)
+        {
+          const RIL_CallForwardInfo* ptr = (RIL_CallForwardInfo*)data;
+          qcril_log_print_RIL_CallForwardInfo("(RIL_CallForwardInfo*)Payload->", ptr);
+        }
+        else
+        {
+          const RIL_CallForwardInfo** ptr = (RIL_CallForwardInfo**)data;
+          qcril_log_print_RIL_CallForwardInfo_array(ptr, datalen);
+        }
+        break; /* data = RIL_CallForwardInfo*, response = RIL_CallForwardInfo** */
+
+      /* data = RIL_CallForwardInfo*, response = NULL */
+      case RIL_REQUEST_SET_CALL_FORWARD:
+        if (is_request_or_unsol == 1)
+        {
+          const RIL_CallForwardInfo* ptr = (RIL_CallForwardInfo*)data;
+          qcril_log_print_RIL_CallForwardInfo("(RIL_CallForwardInfo*)Payload->", ptr);
+        }
+        break; /* data = RIL_CallForwardInfo*, response = NULL */
+
+      /* data = byte[] or char*, response = NULL */
+      case RIL_UNSOL_OEM_HOOK_RAW:
+      case RIL_UNSOL_RESPONSE_NEW_SMS:
+        if (is_request_or_unsol == 1)
+        {
+          const char* ptr = (const char*) data;
+          qcril_log_print_ril_message_payload("Payload %s", ptr);
+        }
+        break; /* data = byte[] or char*, response = NULL */
+
+      /* data = char**, response = RIL_SMS_Response* */
+      case RIL_REQUEST_SEND_SMS:
+        if (is_request_or_unsol == 1)
+        {
+          char** ptr = (char**) data;
+          qcril_log_print_string_array(ptr, 2);
+        }
+        else
+        {
+          const RIL_SMS_Response* ptr = (RIL_SMS_Response*)data;
+          qcril_log_print_RIL_IMS_SMS_Message("(RIL_IMS_SMS_Message*)Payload->", ptr);
+        }
+        break; /* data = char**, response = RIL_SMS_Response* */
+
+      /* data = NULL, response = RIL_CardStatus_v6* */
+      case RIL_REQUEST_GET_SIM_STATUS:
+        if (is_request_or_unsol == 0)
+        {
+          const RIL_CardStatus_v6* ptr = (RIL_CardStatus_v6*)data;
+          qcril_log_print_RIL_CardStatus_v6("(RIL_CardStatus_v6*)Payload->", ptr);
+        }
+        break; /* data = NULL, response = RIL_CardStatus_v6* */
+
+      /* data = RIL_IMS_SMS_Message*, response = RIL_SMS_Response* */
+      case RIL_REQUEST_IMS_SEND_SMS:
+        if (is_request_or_unsol == 0)
+        {
+          const RIL_SMS_Response* ptr = (RIL_SMS_Response*)data;
+          qcril_log_print_RIL_SMS_Response("(RIL_SMS_Response)Payload->", ptr);
+        }
+        else
+        {
+          const RIL_IMS_SMS_Message* ptr = (RIL_IMS_SMS_Message*)data;
+          qcril_log_print_RIL_IMS_SMS_Message("(RIL_IMS_SMS_Message*)Payload->", ptr);
+        }
+        break; /* data = RIL_IMS_SMS_Message*, response = RIL_SMS_Response* */
+
+      /* data = RIL_SelectUiccSub*, response = NULL */
+      case RIL_REQUEST_SET_UICC_SUBSCRIPTION:
+        if (is_request_or_unsol == 1)
+        {
+          const RIL_SelectUiccSub* ptr = (RIL_SelectUiccSub*)data;
+          qcril_log_print_RIL_SelectUiccSub("(RIL_SelectUiccSub*)Payload->", ptr);
+        }
+        break; /* data = RIL_SelectUiccSub*, response = NULL */
+
+      /* data = RIL_StkCcUnsolSsResponse*, response = NULL */
+      case RIL_UNSOL_ON_SS:
+        if (is_request_or_unsol == 1)
+        {
+          const RIL_StkCcUnsolSsResponse* ptr = (RIL_StkCcUnsolSsResponse*)data;
+          qcril_log_print_RIL_StkCcUnsolSsResponse("(RIL_StkCcUnsolSsResponse*)Payload->", &ptr);
+        }
+        break; /* data = RIL_StkCcUnsolSsResponse*, response = NULL */
+
+      default:
+        qcril_log_print_ril_message_payload("%s %s", "Unsupported payload printing for RIL Message:",
+                                     qcril_log_lookup_event_name(message_id));
+        break;
+    }
+  }
+  qcril_log_print_ril_message_payload("%s", "End of RIL Message");
+} /* qcril_log_print_ril_message */
+

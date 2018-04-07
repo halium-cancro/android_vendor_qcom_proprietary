@@ -73,21 +73,33 @@ when       who     what, where, why
 #define QCRIL_DATA_UTIL_GET_PARTIAL_RETRY_TIMEOUT(num_retry)    \
   (QCRIL_DATA_UTIL_DEFAULT_PARTIAL_RETRY_TIMEOUT << (num_retry))
 
+typedef struct
+{
+  dsi_data_bearer_tech_t  dsi_bearer_tech;
+  const char *tech_string;
+}dsi_bearer_tech_strings_s;
+
 /* Table for RIL error code translation from verbose QMI error code. */
 /* Note: Only exception cases appear here. Certain DSI types are
  * passthough as RIL API values match QMI values. */
 qcril_data_ce_map qcril_data_ce_map_tbl[] =
 {
 /*{RIL code,                           QMI code,                           DSI type}*/
-  {PDP_FAIL_SIGNAL_LOST,               QMI_WDS_VERBOSE_CE_NO_SRV,          DSI_CE_TYPE_CALL_MANAGER_DEFINED},
-  {PDP_FAIL_SIGNAL_LOST,               QMI_WDS_VERBOSE_CE_FADE,            DSI_CE_TYPE_CALL_MANAGER_DEFINED},
-  {PDP_FAIL_PREF_RADIO_TECH_CHANGED,   QMI_WDS_VERBOSE_CE_UE_RAT_CHANGE,   DSI_CE_TYPE_CALL_MANAGER_DEFINED},
-  {PDP_FAIL_PROTOCOL_ERRORS,           QMI_WDS_VERBOSE_CE_IPV6_ERR_HRPD_IPV6_DISABLED, DSI_CE_TYPE_IPV6},
-  {PDP_FAIL_PROTOCOL_ERRORS,           QMI_WDS_VERBOSE_CE_PREFIX_UNAVAILABLE,          DSI_CE_TYPE_IPV6},
-  {PDP_FAIL_USER_AUTHENTICATION,       QMI_WDS_VERBOSE_CE_PPP_CHAP_FAILURE,          DSI_CE_TYPE_PPP},
-  {PDP_FAIL_USER_AUTHENTICATION,       QMI_WDS_VERBOSE_CE_PPP_PAP_FAILURE,           DSI_CE_TYPE_PPP},
-  {PDP_FAIL_ONLY_IPV4_ALLOWED,         QMI_WDS_VERBOSE_CE_ERR_PDN_IPV6_CALL_DISALLOWED, DSI_CE_TYPE_INTERNAL},
-  {PDP_FAIL_ONLY_IPV6_ALLOWED,         QMI_WDS_VERBOSE_CE_ERR_PDN_IPV4_CALL_DISALLOWED, DSI_CE_TYPE_INTERNAL},
+  {PDP_FAIL_SIGNAL_LOST,                  QMI_WDS_VERBOSE_CE_NO_SRV,          DSI_CE_TYPE_CALL_MANAGER_DEFINED},
+  {PDP_FAIL_SIGNAL_LOST,                  QMI_WDS_VERBOSE_CE_FADE,            DSI_CE_TYPE_CALL_MANAGER_DEFINED},
+  {PDP_FAIL_PREF_RADIO_TECH_CHANGED,      QMI_WDS_VERBOSE_CE_UE_RAT_CHANGE,   DSI_CE_TYPE_CALL_MANAGER_DEFINED},
+  {PDP_FAIL_PROTOCOL_ERRORS,              QMI_WDS_VERBOSE_CE_IPV6_ERR_HRPD_IPV6_DISABLED, DSI_CE_TYPE_IPV6},
+  {PDP_FAIL_PROTOCOL_ERRORS,              QMI_WDS_VERBOSE_CE_PREFIX_UNAVAILABLE,          DSI_CE_TYPE_IPV6},
+  {PDP_FAIL_USER_AUTHENTICATION,          QMI_WDS_VERBOSE_CE_PPP_CHAP_FAILURE,          DSI_CE_TYPE_PPP},
+  {PDP_FAIL_USER_AUTHENTICATION,          QMI_WDS_VERBOSE_CE_PPP_PAP_FAILURE,           DSI_CE_TYPE_PPP},
+  {PDP_FAIL_ONLY_IPV4_ALLOWED,            QMI_WDS_VERBOSE_CE_ERR_PDN_IPV6_CALL_DISALLOWED, DSI_CE_TYPE_INTERNAL},
+  {PDP_FAIL_ONLY_IPV6_ALLOWED,            QMI_WDS_VERBOSE_CE_ERR_PDN_IPV4_CALL_DISALLOWED, DSI_CE_TYPE_INTERNAL},
+  {PDP_FAIL_MISSING_UKNOWN_APN,           QMI_WDS_VERBOSE_CE_APN_DISABLED,                 DSI_CE_TYPE_INTERNAL},
+  {PDP_FAIL_ONLY_IPV4_ALLOWED,            QMI_WDS_VERBOSE_CE_IPV6_DISABLED,                DSI_CE_TYPE_IPV6},
+  {PDP_FAIL_INSUFFICIENT_RESOURCES,       QMI_WDS_VERBOSE_CE_MAX_V4_CONNECTIONS,           DSI_CE_TYPE_INTERNAL},
+  {PDP_FAIL_INSUFFICIENT_RESOURCES,       QMI_WDS_VERBOSE_CE_MAX_V6_CONNECTIONS,           DSI_CE_TYPE_INTERNAL},
+  {PDP_FAIL_UNKNOWN_PDP_ADDRESS_TYPE,     QMI_WDS_VERBOSE_CE_IP_VERSION_MISMATCH,          DSI_CE_TYPE_INTERNAL},
+  {PDP_FAIL_SERVICE_OPTION_NOT_SUPPORTED, QMI_WDS_VERBOSE_CE_DUN_CALL_DISALLOWED,          DSI_CE_TYPE_INTERNAL},
 #if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
   {PDP_FAIL_TETHERED_CALL_ACTIVE,      QMI_WDS_VERBOSE_CE_APP_PREEMPTED,   DSI_CE_TYPE_INTERNAL}
 #else
@@ -168,6 +180,7 @@ qcril_data_util_is_ce_failure_permanent
      case PDP_FAIL_ONLY_IPV6_ALLOWED:
      case PDP_FAIL_PROTOCOL_ERRORS:
      case PDP_FAIL_MISSING_UKNOWN_APN:
+     case PDP_FAIL_UNKNOWN_PDP_ADDRESS_TYPE:
        ret = TRUE;
        break;
 
@@ -988,40 +1001,51 @@ bail:
 const char *
 qcril_data_util_get_dsi_bearer_tech_string(dsi_data_bearer_tech_t  dsi_bearer_tech)
 {
-  static const char *dsi_bearer_tech_strings[] =
+  static dsi_bearer_tech_strings_s dsi_bearer_tech_strings[] =
   {
-    "BEARER_TECH_UNKNOWN",
-    "BEARER_TECH_CDMA_1X",
-    "BEARER_TECH_EVDO_REV0",
-    "BEARER_TECH_EVDO_REVA",
-    "BEARER_TECH_EVDO_REVB",
-    "BEARER_TECH_EHRPD",
-    "BEARER_TECH_FMC",
-    "BEARER_TECH_HRPD",
-    "BEARER_TECH_3GPP2_WLAN",
-    "BEARER_TECH_WCDMA",
-    "BEARER_TECH_GPRS",
-    "BEARER_TECH_HSDPA",
-    "BEARER_TECH_HSUPA",
-    "BEARER_TECH_EDGE",
-    "BEARER_TECH_LTE",
-    "BEARER_TECH_HSDPA_PLUS",
-    "BEARER_TECH_DC_HSDPA_PLUS",
-    "BEARER_TECH_64_QAM",
-    "BEARER_TECH_TDSCDMA",
-    "BEARER_TECH_GSM",
-    "BEARER_TECH_3GPP_WLAN"
+    {DSI_DATA_BEARER_TECH_UNKNOWN,       "BEARER_TECH_UNKNOWN"},
+    /* CDMA related data bearer technologies */
+    {DSI_DATA_BEARER_TECH_CDMA_1X,       "BEARER_TECH_CDMA_1X"},
+    {DSI_DATA_BEARER_TECH_EVDO_REV0,     "BEARER_TECH_EVDO_REV0"},
+    {DSI_DATA_BEARER_TECH_EVDO_REVA,     "BEARER_TECH_EVDO_REVA"},
+    {DSI_DATA_BEARER_TECH_EVDO_REVB,     "BEARER_TECH_EVDO_REVB"},
+    {DSI_DATA_BEARER_TECH_EHRPD,         "BEARER_TECH_EHRPD"},
+    {DSI_DATA_BEARER_TECH_FMC,           "BEARER_TECH_FMC"},
+    {DSI_DATA_BEARER_TECH_HRPD,          "BEARER_TECH_HRPD"},
+    {DSI_DATA_BEARER_TECH_3GPP2_WLAN,    "BEARER_TECH_3GPP2_WLAN"},
+    /* UMTS related data bearer technologies */
+    {DSI_DATA_BEARER_TECH_WCDMA,         "BEARER_TECH_WCDMA"},
+    {DSI_DATA_BEARER_TECH_GPRS,          "BEARER_TECH_GPRS"},
+    {DSI_DATA_BEARER_TECH_HSDPA,         "BEARER_TECH_HSDPA"},
+    {DSI_DATA_BEARER_TECH_HSUPA,         "BEARER_TECH_HSUPA"},
+    {DSI_DATA_BEARER_TECH_EDGE,          "BEARER_TECH_EDGE"},
+    {DSI_DATA_BEARER_TECH_LTE,           "BEARER_TECH_LTE"},
+    {DSI_DATA_BEARER_TECH_HSDPA_PLUS,    "BEARER_TECH_HSDPA_PLUS"},
+    {DSI_DATA_BEARER_TECH_DC_HSDPA_PLUS, "BEARER_TECH_DC_HSDPA_PLUS"},
+    {DSI_DATA_BEARER_TECH_64_QAM,        "BEARER_TECH_64_QAM"},
+    {DSI_DATA_BEARER_TECH_TDSCDMA,       "BEARER_TECH_TDSCDMA"},
+    {DSI_DATA_BEARER_TECH_GSM,           "BEARER_TECH_GSM"},
+    {DSI_DATA_BEARER_TECH_3GPP_WLAN,     "BEARER_TECH_3GPP_WLAN"},
+    {DSI_DATA_BEARER_TECH_MAX,           "BEARER_TECH_UNKNOWN"}
   };
 
-  const char *dsi_bearer_string = dsi_bearer_tech_strings[0];
+  const char *dsi_bearer_string = dsi_bearer_tech_strings[0].tech_string;
+  int i = 0;
 
-  if (dsi_bearer_tech > DSI_DATA_BEARER_TECH_3GPP_WLAN)
+  if (dsi_bearer_tech >= DSI_DATA_BEARER_TECH_MAX)
   {
     QCRIL_LOG_ERROR("invalid input");
     goto bail;
   }
 
-  dsi_bearer_string = dsi_bearer_tech_strings[dsi_bearer_tech];
+  while (dsi_bearer_tech_strings[i].dsi_bearer_tech < DSI_DATA_BEARER_TECH_MAX)
+  {
+    if (dsi_bearer_tech == dsi_bearer_tech_strings[i].dsi_bearer_tech)
+    {
+      dsi_bearer_string = dsi_bearer_tech_strings[i].tech_string;
+    }
+    i++;
+  }
 
 bail:
   return dsi_bearer_string;
@@ -1062,7 +1086,22 @@ void qcril_data_get_active_call_list
   int ret = SUCCESS;
 
 #if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
+
+#ifdef FEATURE_MTU_CAF
+
+  RIL_Data_Call_Response_v9_CAF *active_call_table = NULL;
+
+#elif (RIL_VERSION >= 10)
+
+  RIL_Data_Call_Response_v9 *active_call_table = NULL;
+
+#else
+
   RIL_Data_Call_Response_v6 *active_call_table = NULL;
+
+#endif /* FEATURE_MTU_CAF */
+
+
 #else
   RIL_Data_Call_Response    *active_call_table = NULL;
 #endif /* RIL_QCOM_VERSION >= 1 || RIL_VERSION >= 6 */
@@ -1072,7 +1111,22 @@ void qcril_data_get_active_call_list
   QCRIL_LOG_FUNC_ENTRY();
 
 #if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
+
+#ifdef FEATURE_MTU_CAF
+
+  call_tbl_entry_size = sizeof(RIL_Data_Call_Response_v9_CAF);
+
+#elif (RIL_VERSION >= 10)
+
+  call_tbl_entry_size = sizeof(RIL_Data_Call_Response_v9);
+
+#else
+
   call_tbl_entry_size = sizeof(RIL_Data_Call_Response_v6);
+
+#endif /* (RIL_VERSION >= 10)  */
+
+
 #else
   call_tbl_entry_size = sizeof(RIL_Data_Call_Response);
 #endif /* ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6)) */
@@ -1102,8 +1156,27 @@ void qcril_data_get_active_call_list
 
     /* allocate memory for active data call */
 #if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
+
+#ifdef FEATURE_MTU_CAF
+
+    active_call_table = (RIL_Data_Call_Response_v9_CAF *)qcril_malloc(
+                         active_call_tbl_size * call_tbl_entry_size);
+
+#elif (RIL_VERSION >= 10)
+
+    active_call_table = (RIL_Data_Call_Response_v9 *)qcril_malloc(
+                         active_call_tbl_size * call_tbl_entry_size);
+
+
+#else
+
     active_call_table = (RIL_Data_Call_Response_v6 *)qcril_malloc(
                          active_call_tbl_size * call_tbl_entry_size);
+
+
+#endif /* (RIL_VERSION >= 10)  */
+
+
 #else
     active_call_table = (RIL_Data_Call_Response *)qcril_malloc(
                          active_call_tbl_size * call_tbl_entry_size);
@@ -1132,6 +1205,17 @@ void qcril_data_get_active_call_list
         active_call_table[index].ifname = info_tbl[i].call_info.dev_name;
         active_call_table[index].status = info_tbl[i].status;
         active_call_table[index].suggestedRetryTime = info_tbl[i].suggestedRetryTime;
+
+#if (RIL_VERSION >= 10)
+
+        active_call_table[index].pcscf = info_tbl[i].call_info.pcscf.fmtstr;
+
+#endif
+
+#ifdef FEATURE_MTU_CAF
+        active_call_table[index].mtu = info_tbl[i].call_info.mtu;
+#endif
+
 #else
         active_call_table[index].apn = info_tbl[i].call_info.apn;
         active_call_table[index].addresses = info_tbl[i].call_info.address;
@@ -1277,8 +1361,8 @@ void qcril_data_util_schedule_partial_retry_attempt
 
   if (!VALIDATE_LOCAL_DATA_OBJ(info_tbl_ptr))
   {
-    QCRIL_LOG_ERROR( "invalid info_tbl_ptr:[%#x] ",
-                     (unsigned int)info_tbl_ptr);
+    QCRIL_LOG_ERROR( "invalid info_tbl_ptr:[%p] ",
+                     (unsigned int *)info_tbl_ptr);
     goto bail;
   }
   /* Ensure that the modem profile configuration allows a retry */
@@ -1311,8 +1395,8 @@ void qcril_data_util_schedule_partial_retry_attempt
   }
   else if (QCRIL_DATA_INVALID_TIMERID == info_tbl_ptr->retry_timer_id)
   {
-    QCRIL_LOG_ERROR( "invalid retry_timer_id:[%#x], skipping retry",
-                     (unsigned int)info_tbl_ptr->retry_timer_id);
+    QCRIL_LOG_ERROR( "invalid retry_timer_id:[%#"PRIxPTR"], skipping retry",
+                     (uintptr_t)info_tbl_ptr->retry_timer_id);
     goto bail;
   }
 
@@ -1337,8 +1421,8 @@ void qcril_data_util_schedule_partial_retry_attempt
   /* Start the timer */
   if (-1 == timer_settime(info_tbl_ptr->retry_timer_id, 0, &itimers, NULL))
   {
-    QCRIL_LOG_ERROR( "failed to start timer for timer_id [%#x], deleting... ",
-                     (unsigned int)info_tbl_ptr->retry_timer_id);
+    QCRIL_LOG_ERROR( "failed to start timer for timer_id [%#"PRIxPTR"], deleting... ",
+                     (uintptr_t)info_tbl_ptr->retry_timer_id);
 
     qcril_data_util_stop_timer(&info_tbl_ptr->retry_timer_id);
   }

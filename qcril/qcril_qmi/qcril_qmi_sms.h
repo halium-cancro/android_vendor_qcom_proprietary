@@ -46,18 +46,24 @@ void qcril_qmi_sms_destroy(void);
 
 qmi_client_error_type qcril_qmi_sms_init(void);
 
-void qcril_qmi_sms_unsol_ind_cb(qmi_client_type    user_handle,
-                                unsigned long      msg_id,
-                                unsigned char      *ind_buf,
-                                int                ind_buf_len,
-                                void               *ind_cb_data);
+void qcril_qmi_sms_unsol_ind_cb
+(
+    qmi_client_type                user_handle,
+    unsigned int                   msg_id,
+    void                          *ind_buf,
+    unsigned int                   ind_buf_len,
+    void                          *ind_cb_data
+);
 
-void qcril_qmi_sms_command_cb(qmi_client_type              user_handle,
-                              unsigned long                msg_id,
-                              void                         *resp_c_struct,
-                              int                          resp_c_struct_len,
-                              void                         *resp_cb_data,
-                              qmi_client_error_type        transp_err);
+void qcril_qmi_sms_command_cb
+(
+    qmi_client_type             user_handle,
+    unsigned int                msg_id,
+    void                       *resp_c_struct,
+    unsigned int                resp_c_struct_len,
+    void                       *resp_cb_data,
+    qmi_client_error_type       transp_err
+);
 
 
 /*===========================================================================
@@ -260,5 +266,46 @@ qmi_ril_sms_svc_status_type qmi_ril_get_sms_svc_status(void);
 void qcril_sms_post_ready_status_update(void);
 
 void qcril_sms_clearing_cdma_ack();
+
+#ifdef QMI_RIL_UTF
+void b_packw(word src, byte dst[], word pos, word len);
+
+void b_packb(byte src, byte dst[], word pos, word len);
+
+void qcril_sms_cdma_encode_address
+(
+  const RIL_CDMA_SMS_Address  * address_ptr,
+  uint8                       * parm_len_ptr,
+  uint8                       * data
+);
+
+void qcril_sms_cdma_encode_subaddress
+(
+  const RIL_CDMA_SMS_Subaddress  * address_ptr,
+  uint8                          * parm_len_ptr,
+  uint8                          * data
+);
+
+boolean qcril_sms_convert_tl_to_qmi
+(
+  qcril_sms_tl_message_type        * tl_msg_ptr,   /* IN */
+  uint32                             raw_bd_len,   /* IN */
+  uint8                            * raw_bd_ptr,   /* IN */
+  qcril_sms_OTA_message_type       * OTA_msg_ptr   /* OUT */
+);
+
+void qcril_sms_convert_ril_to_tl
+(
+  RIL_CDMA_SMS_Message *cdma_sms_msg,
+  qcril_sms_tl_message_type * tl_ptr,
+  boolean sms_on_ims,
+  boolean is_mo_sms
+);
+#endif
+void qcril_qmi_sms_unsolicited_indication_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
 
 #endif /* QCRIL_QMI_SMS_H */

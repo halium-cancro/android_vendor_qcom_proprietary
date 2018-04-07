@@ -91,6 +91,9 @@ when       who        what, where, why
 #define NETMGR_RTATYPE_DNSSADDR (NETMGR_RTATYPE_BASE+6) /* Secondary DNS addr */
 #define NETMGR_RTATYPE_DEVNAME  (NETMGR_RTATYPE_BASE+7) /* Device Name        */
 #define NETMGR_RTATYPE_USER_CMD (NETMGR_RTATYPE_BASE+8) /* User Command       */
+#define NETMGR_RTATYPE_CMD_DATA (NETMGR_RTATYPE_BASE+9) /* Command data for
+                                                            user command*/
+#define NETMGR_RTATYPE_MTU      (NETMGR_RTATYPE_BASE+10)/* Device MTU         */
 
 #define NETMGR_RTASIZE_EVENT      RTA_SPACE( sizeof(netmgr_nl_events_t) )
 #define NETMGR_RTASIZE_LINK       RTA_SPACE( sizeof(netmgr_link_id_t) )
@@ -100,7 +103,9 @@ when       who        what, where, why
 #define NETMGR_RTASIZE_DNSPADDR   RTA_SPACE( sizeof(struct sockaddr_storage) )
 #define NETMGR_RTASIZE_DNSSADDR   RTA_SPACE( sizeof(struct sockaddr_storage) )
 #define NETMGR_RTASIZE_DEVNAME    RTA_SPACE( NETMGR_IF_NAME_MAX_LEN )
+#define NETMGR_RTASIZE_MTU        RTA_SPACE( sizeof(unsigned int))
 #define NETMGR_RTASIZE_USER_CMD   RTA_SPACE( sizeof(unsigned int))
+#define NETMGR_RTASIZE_CMD_DATA   RTA_SPACE( sizeof(netmgr_user_cmd_data_t))
 
 /*--------------------------------------------------------------------------- 
    Types representing parsed NetLink message

@@ -51,10 +51,10 @@ when       who        what, where, why
 ===========================================================================*/
 /*!
 @brief
-  Initializes a dll and returns the head pointer. 
+  Initializes a dll and returns the head pointer.
 
 @return
-  ds_dll_el_t * - pointer to list's head 
+  ds_dll_el_t * - pointer to list's head
 
 @note
 
@@ -88,7 +88,7 @@ ds_dll_init (ds_dll_el_t * head)
 ===========================================================================*/
 /*!
 @brief
-  Enqueues given node/data to the tail of the dll. 
+  Enqueues given node/data to the tail of the dll.
 
 @return
   ds_dll_el_t * - pointer to newly added node
@@ -102,14 +102,14 @@ ds_dll_init (ds_dll_el_t * head)
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
+ds_dll_el_t *
 ds_dll_enq (ds_dll_el_t * dlist, ds_dll_el_t * node, const void * data)
 {
     ds_dll_el_t * rnode = NULL;
 
 
-    /* Verify that list ptr is non null. Note that this can be any node in 
-    ** the list, not necessarily the head. 
+    /* Verify that list ptr is non null. Note that this can be any node in
+    ** the list, not necessarily the head.
     */
     if (!dlist) {
         goto error;
@@ -132,7 +132,7 @@ ds_dll_enq (ds_dll_el_t * dlist, ds_dll_el_t * node, const void * data)
     while (dlist->next) {
         dlist = dlist->next;
     }
-    
+
     /* Add new node to the end of the list */
     dlist->next = node;
     node->prev = dlist;
@@ -141,6 +141,72 @@ ds_dll_enq (ds_dll_el_t * dlist, ds_dll_el_t * node, const void * data)
 error:
     /* Return ptr to new node, or NULL if there was a failure */
     return rnode;
+}
+
+/*===========================================================================
+  FUNCTION  ds_dll_insert
+===========================================================================*/
+/*!
+@brief
+  Enqueues given node/data at a given index in a dll
+
+@return
+  ds_dll_el_t * - pointer to newly added node
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+ds_dll_el_t *
+ds_dll_insert (ds_dll_el_t * dlist, ds_dll_el_t * node, const void * data,
+  const uint32 index)
+{
+    int i=0;
+    ds_dll_el_t *temp = NULL;
+
+    /* Verify that list ptr is non null. Note that this can be any node in
+    ** the list, not necessarily the head.
+    */
+    if (!dlist) {
+        node = NULL;
+        goto error;
+    }
+
+    /* Allocate memory for the new list node, if not already allocated */
+    if (!node) {
+        if ((node = malloc(sizeof(ds_dll_el_t))) == NULL) {
+            goto error;
+        }
+    }
+
+    /* Set data ptr in node to requested value */
+    node->data = data;
+
+    while( i<index && dlist->next!=NULL)
+    {
+        dlist = dlist->next;
+        i++;
+    }
+
+    temp = dlist->next;
+
+    dlist->next = node;
+    node->prev = dlist;
+
+    node->next = temp;
+    if ( temp )
+    {
+      temp->prev = node;
+    }
+
+error:
+    /* Return ptr to new node, or NULL if there was a failure */
+    return node;
 }
 
 /*===========================================================================
@@ -168,9 +234,9 @@ ds_dll_deq (ds_dll_el_t * dlist, ds_dll_el_t ** tail, const void ** data)
 {
     ds_dll_el_t * node = NULL;
 
-    /* Verify that list node ptr is non null before proceeding. Note that the 
-    ** list node ptr passed does not have to be the head ptr and it can be any 
-    ** node in the list. 
+    /* Verify that list node ptr is non null before proceeding. Note that the
+    ** list node ptr passed does not have to be the head ptr and it can be any
+    ** node in the list.
     */
     if (!dlist) {
         goto error;
@@ -181,20 +247,20 @@ ds_dll_deq (ds_dll_el_t * dlist, ds_dll_el_t ** tail, const void ** data)
         dlist = dlist->prev;
     }
 
-    /* The following check should never fail as head node is a sentinel. We 
-    ** do this check anyway. 
+    /* The following check should never fail as head node is a sentinel. We
+    ** do this check anyway.
     */
     if ((node = dlist->next)) {
         /* De-link the first node after head from the list */
         dlist->next = node->next;
         if (node->next) {
-            /* If there is another node after the dequeued node, change its 
-            ** prev ptr appropriately to point to the head. 
+            /* If there is another node after the dequeued node, change its
+            ** prev ptr appropriately to point to the head.
             */
             node->next->prev = dlist;
         } else {
-            /* The dequeued node is the current tail. Return new tail ptr 
-            ** to client. 
+            /* The dequeued node is the current tail. Return new tail ptr
+            ** to client.
             */
             if (tail) {
                 *tail = dlist;
@@ -220,7 +286,7 @@ error:
 ===========================================================================*/
 /*!
 @brief
-  Searches for a node in the given dll and removes it from the list.  
+  Searches for a node in the given dll and removes it from the list.
 
 @return
   ds_dll_el_t * - pointer to node removed if found, NULL otherwise
@@ -234,22 +300,22 @@ error:
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
-ds_dll_delete 
+ds_dll_el_t *
+ds_dll_delete
 (
-    ds_dll_el_t * head, 
-    ds_dll_el_t ** tail, 
-    const void * data, 
+    ds_dll_el_t * head,
+    ds_dll_el_t ** tail,
+    const void * data,
     ds_dll_comp_f comp_f
 )
 {
     ds_dll_el_t * node = NULL;
 
-    /* Make sure, before proceeding, that - 
-    ** a. Head node ptr passed is non null; 
-    ** b. Pointer to tail node ptr passed is non null; 
-    ** c. Tail node ptr is non null; 
-    ** d. Tail node's next ptr is really null, just to be sure. 
+    /* Make sure, before proceeding, that -
+    ** a. Head node ptr passed is non null;
+    ** b. Pointer to tail node ptr passed is non null;
+    ** c. Tail node ptr is non null;
+    ** d. Tail node's next ptr is really null, just to be sure.
     */
     if ((!head) || (!tail) || (!*tail) || ((*tail)->next)) {
         goto error;
@@ -271,11 +337,15 @@ ds_dll_delete
     if (node) {
         /* If matching node is current tail, update tail ptr of client */
         if (node == *tail) {
-            ds_assert(node->next == NULL);
+            if (NULL != node->next) {
+                ds_log_err("ds_dll_delete: already tail! node->next:[0x%x]", node->next);
+                return NULL;
+            }
+
             *tail = node->prev;
         } else {
             /* Matching node is not tail, so update prev ptr of node following
-            ** the dequeued node. 
+            ** the dequeued node.
             */
             node->next->prev = node->prev;
         }
@@ -297,7 +367,7 @@ error:
 ===========================================================================*/
 /*!
 @brief
-  Returns the next node in a dll for the given node.   
+  Returns the next node in a dll for the given node.
 
 @return
   ds_dll_el_t * - pointer to the next node if one exists, NULL otherwise
@@ -317,10 +387,13 @@ ds_dll_next (ds_dll_el_t * node, const void ** data)
     ds_dll_el_t * next = NULL;
 
     /* Verify that node ptr passed is not null before proceeding */
-    ds_assert(node != NULL);
+    if( NULL == node) {
+        ds_log_err("ds_dll_next: Bad Param node NULL");
+        return NULL;
+    }
 
-    /* If next node ptr is not null, set client's data ptr to next node's 
-    ** data ptr. 
+    /* If next node ptr is not null, set client's data ptr to next node's
+    ** data ptr.
     */
     if ((next = node->next)) {
         *data = next->data;
@@ -336,7 +409,7 @@ ds_dll_next (ds_dll_el_t * node, const void ** data)
 /*!
 @brief
   Searches for a node in the given dll. Note that the node is not removed
-  from the list. 
+  from the list.
 
 @return
   ds_dll_el_t * - pointer to node if found, NULL otherwise
@@ -350,13 +423,16 @@ ds_dll_next (ds_dll_el_t * node, const void ** data)
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
+ds_dll_el_t *
 ds_dll_search (ds_dll_el_t * head, const void * data, ds_dll_comp_f comp_f)
 {
     ds_dll_el_t * node = NULL;
 
     /* Verify that head node ptr is not null before proceeding */
-    ds_assert(head != NULL);
+    if(NULL == head) {
+        ds_log_err("ds_dll_search: Bad Param head NULL");
+        return NULL;
+    }
 
     /* Set first data node ptr as head is a sentinel */
     node = head->next;
@@ -379,7 +455,7 @@ ds_dll_search (ds_dll_el_t * head, const void * data, ds_dll_comp_f comp_f)
 ===========================================================================*/
 /*!
 @brief
-  Returns the client data pointer for a given node.  
+  Returns the client data pointer for a given node.
 
 @return
   void * - pointer to client data
@@ -393,10 +469,14 @@ ds_dll_search (ds_dll_el_t * head, const void * data, ds_dll_comp_f comp_f)
     - None
 */
 /*=========================================================================*/
-const void * 
+const void *
 ds_dll_data (ds_dll_el_t * node)
 {
-    ds_assert(node != NULL);
+    /* validate input param */
+    if(NULL == node) {
+        ds_log_err("ds_dll_data: Bad Param node NULL");
+        return NULL;
+    }
 
     /* Return data ptr of this node */
     return node->data;
@@ -407,7 +487,7 @@ ds_dll_data (ds_dll_el_t * node)
 ===========================================================================*/
 /*!
 @brief
-  Frees memory allocated for a node.   
+  Frees memory allocated for a node.
 
 @return
   void
@@ -422,7 +502,7 @@ ds_dll_data (ds_dll_el_t * node)
     - None
 */
 /*=========================================================================*/
-void 
+void
 ds_dll_free (ds_dll_el_t * node)
 {
     /* Free memory for the node using standard library's deallocator */
@@ -434,7 +514,7 @@ ds_dll_free (ds_dll_el_t * node)
 ===========================================================================*/
 /*!
 @brief
-  Dll list destructor.  
+  Dll list destructor.
 
 @return
   void
@@ -449,11 +529,11 @@ ds_dll_free (ds_dll_el_t * node)
     - None
 */
 /*=========================================================================*/
-void 
+void
 ds_dll_destroy (ds_dll_el_t * head)
 {
-    /* Free memory for the list's head node using standard library's 
-    ** deallocator. 
+    /* Free memory for the list's head node using standard library's
+    ** deallocator.
     */
     free(head);
 }

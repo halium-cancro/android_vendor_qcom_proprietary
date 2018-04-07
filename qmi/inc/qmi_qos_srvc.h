@@ -10,13 +10,13 @@
 
   INITIALIZATION AND SEQUENCING REQUIREMENTS
   qmi_qos_srvc_init_client() must be called to create one or more clients
-  qmi_qos_srvc_release_client() must be called to delete each client when 
+  qmi_qos_srvc_release_client() must be called to delete each client when
   finished.
 
-  $Header: //source/qcom/qct/modem/datacommon/qmimsglib/dev/work/inc/qmi_qos_srvc.h#3 $ 
+  $Header: //source/qcom/qct/modem/datacommon/qmimsglib/dev/work/inc/qmi_qos_srvc.h#3 $
   $DateTime: 2009/07/15 10:38:12 $
   ---------------------------------------------------------------------------
-  Copyright (c) 2007 - 2012 Qualcomm Technologies, Inc.
+  Copyright (c) 2007 - 2012,2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -28,11 +28,11 @@
 extern "C" {
 #endif
 
-#define QMI_QOS_MAX_FLOW_FILTER     8
+#define QMI_QOS_MAX_FLOW_FILTER     16
 #define QMI_QOS_MAX_INDS          QMI_QOS_MAX_FLOW_FILTER
 #define QMI_QOS_MAX_FLOW_EVENTS   8
-#define QMI_QOS_MAX_PROFILES      8 //TODO: ? 
-#define QMI_QOS_MAX_ERR_CODES_IN_RSP    10 // ? TODO : FIND OUT HOW MANY ? 
+#define QMI_QOS_MAX_PROFILES      8 //TODO: ?
+#define QMI_QOS_MAX_ERR_CODES_IN_RSP    10 // ? TODO : FIND OUT HOW MANY ?
 #define QMI_QOS_IPV6_ADDR_SIZE_IN_BYTES 16
 
 typedef unsigned char qmi_qos_ipv6_addr_type[QMI_QOS_IPV6_ADDR_SIZE_IN_BYTES];
@@ -44,7 +44,7 @@ typedef enum
   QMI_QOS_UMTS_TC_STREAMING      = 1,
   QMI_QOS_UMTS_TC_INTERACTIVE    = 2,
   QMI_QOS_UMTS_TC_BACKGROUND     = 3
-} qmi_qos_umts_traffic_class_type; 
+} qmi_qos_umts_traffic_class_type;
 
 typedef enum
 {
@@ -136,7 +136,7 @@ typedef enum
 ** definition which is exclusive of the UMTS definitions, this
 ** is OK.  This is only used in the error reporting mask, not
 ** in QoS initiation, sice the CMDA profile ID is a required
-** parameter for CDMA technology 
+** parameter for CDMA technology
 */
 #define QMI_QOS_CDMA_FLOW_PARAM_PROFILE_ID_ERR  QMI_QOS_UMTS_FLOW_PARAM_TRAFFIC_CLASS
 
@@ -147,7 +147,7 @@ typedef struct
   unsigned short param_mask;
 
   /* UMTS optional QoS parameters.  At least one of these
-  ** must be included in a setup request 
+  ** must be included in a setup request
   */
   qmi_qos_umts_traffic_class_type     traffic_class;
   qmi_qos_umts_data_rate_type         data_rate;
@@ -169,7 +169,7 @@ typedef struct
 {
   /* Mask of which optional parameters below are valid */
   unsigned short param_mask;
-  
+
   unsigned long profile_id;
 } qmi_qos_cdma_flow_desc_type;
 
@@ -251,7 +251,7 @@ typedef struct
   unsigned long param_mask;
 
   /* UMTS optional QoS parameters.  At least one of these
-  ** must be included in a setup request 
+  ** must be included in a setup request
   */
   qmi_qos_ipv4_addr_filter_type       src_addr;
   qmi_qos_ipv4_addr_filter_type       dest_addr;
@@ -291,13 +291,13 @@ typedef struct
 typedef enum
 {
   QMI_QOS_UNASSIGNED_TYPE   = 0x00,
-  QMI_QOS_REQUEST           = 0x01, 
+  QMI_QOS_REQUEST           = 0x01,
   QMI_QOS_CONFIGURE         = 0x02
 }qmi_qos_req_opcode_type;
 
 /* This is the main QoS specification data structure.  For each
 ** of the request types, there is a count of the number
-** request elements provided (can be an array of elements, 
+** request elements provided (can be an array of elements,
 ** treated in priority order) and a pointer to the request
 ** elements.
 */
@@ -319,14 +319,14 @@ typedef struct
 
 } qmi_qos_spec_type;
 
-/* QOS request error response data type.  If the err_present flag is 
+/* QOS request error response data type.  If the err_present flag is
 ** set then one or more of the included error masks will have bit(s)
 ** set.  The bits will indicate which of the required or optional
 ** parameters had errors for each of the request types.  The array
 ** elements correspond to the possible array of requests passed in
 ** in the request.
 */
-typedef struct 
+typedef struct
 {
   int            errs_present;
   unsigned short tx_flow_req_err_mask[QMI_QOS_MAX_FLOW_FILTER];
@@ -349,7 +349,7 @@ typedef enum
   QMI_QOS_IFACE_3GPP_GROUP   = 0x0010,
   QMI_QOS_IFACE_3GPP2_GROUP  = 0x0020,
   QMI_QOS_IFACE_EPC_GROUP    = 0x0040,
-  QMI_QOS_ANY_IFACE_GROUP    = 0x7FFF, 
+  QMI_QOS_ANY_IFACE_GROUP    = 0x7FFF,
 
   QMI_QOS_IFACE_MASK         = 0x8000,
   QMI_QOS_CDMA_SN_IFACE      = 0x8001,
@@ -412,7 +412,7 @@ typedef enum
 {
   QMI_QOS_EVENT_REPORTING_OFF = 0,
   QMI_QOS_EVENT_REPORTING_ON = 1
-} qmi_qos_global_flow_reporting_state_type; 
+} qmi_qos_global_flow_reporting_state_type;
 
 typedef enum
 {
@@ -533,6 +533,12 @@ typedef struct
   int                             rx_granted_flow_data_is_valid;
   qmi_qos_granted_flow_data_type  rx_granted_flow_data;
 
+  int                              tx_filter_count;
+  qmi_qos_granted_filter_data_type tx_granted_filter_data[QMI_QOS_MAX_FLOW_FILTER];
+
+  int                              rx_filter_count;
+  qmi_qos_granted_filter_data_type rx_granted_filter_data[QMI_QOS_MAX_FLOW_FILTER];
+
   qmi_qos_dss_errno_type          dss_errno_type;
 }qmi_qos_granted_info_rsp_type;
 
@@ -542,9 +548,9 @@ typedef struct
 
 typedef struct
 {
-  unsigned short          param_mask; 
+  unsigned short          param_mask;
 
-  struct 
+  struct
   {
     unsigned long     qos_identifier;
     unsigned char     new_flow;
@@ -638,8 +644,50 @@ qmi_qos_indication_id_type    ind_id,
 qmi_qos_indication_data_type  *ind_data
 );
 
+/************************************************************************
+* Definitions associated with qmi_qos_bind_mux_data_port()
+************************************************************************/
 
+typedef enum
+{
+  QMI_QOS_PER_EP_TYPE_MIN      = 0x00,
+  QMI_QOS_PER_EP_TYPE_RESERVED = 0x00,
+  QMI_QOS_PER_EP_TYPE_HSIC     = 0x01,
+  QMI_QOS_PER_EP_TYPE_HSUSB    = 0x02,
+  QMI_QOS_PER_EP_TYPE_PCIE     = 0x03,
+  QMI_QOS_PER_EP_TYPE_EMBEDDED = 0x04,
+  QMI_QOS_PER_EP_TYPE_MAX
+} qmi_qos_per_ep_type;
 
+/** Structure for specifying EP ID information */
+typedef struct
+{
+  qmi_qos_per_ep_type ep_type;          /** Peripheral end point type */
+  unsigned long       iface_id;         /** Data end-point ID */
+} qmi_qos_per_ep_id_type;
+
+#define QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_EP_ID     0x00000001
+#define QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_MUX_ID    0x00000002
+#define QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_REVERSED  0x00000004
+
+/** Parameter structure for binding QOS client to a mux data
+ *  port */
+typedef struct
+{
+  unsigned long           params_mask;  /** Params mask */
+  qmi_qos_per_ep_id_type  ep_id;        /** EP ID information */
+  unsigned char           mux_id;       /** Mux ID to bind to */
+  unsigned char           reversed;     /** Whether this is a reverse port */
+} qmi_qos_bind_mux_data_port_params_type;
+
+typedef enum
+{
+  QMI_QOS_DEFAULT_SUBS = 0x0000,
+  QMI_QOS_PRIMARY_SUBS = 0x0001,
+  QMI_QOS_SECONDARY_SUBS = 0x0002,
+  QMI_QOS_TERITIARY_SUBS = 0x0003,
+  QMI_QOS_DONT_CARE_SUBS = 0x00FF
+} qmi_qos_bind_subscription_type;
 
 /************************************************************************
 * Definitions associated with qmi_qos_get_qos_nw_status()
@@ -653,17 +701,17 @@ qmi_qos_indication_data_type  *ind_data
   FUNCTION  qmi_qos_srvc_init_client
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is called to initialize the QoS service.  This function
   must be called prior to calling any other QoS service functions.
   For the time being, the indication handler callback and user data
   should be set to NULL until this is implemented.  Also note that this
   function may be called multiple times to allow for multiple, independent
-  clients.   
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will 
+  clients.
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
@@ -673,7 +721,7 @@ qmi_qos_indication_data_type  *ind_data
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 EXTERN qmi_client_handle_type
 qmi_qos_srvc_init_client
@@ -690,17 +738,17 @@ qmi_qos_srvc_init_client
   FUNCTION  qmi_qos_srvc_release_client
 ===========================================================================*/
 /*!
-@brief 
-  This function is called to release a client created by the 
+@brief
+  This function is called to release a client created by the
   qmi_qos_srvc_init_client() function.  This function should be called
   for any client created when terminating a client process, especially
-  if the modem processor is not reset.  The modem side QMI server has 
+  if the modem processor is not reset.  The modem side QMI server has
   a limited number of clients that it will allocate, and if they are not
-  released, we will run out.  
-  
-@return 
-  0 if operation was sucessful, < 0 if not.  If return code is 
-  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will 
+  released, we will run out.
+
+@return
+  0 if operation was sucessful, < 0 if not.  If return code is
+  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
@@ -710,44 +758,137 @@ qmi_qos_srvc_init_client
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
-EXTERN int 
+EXTERN int
 qmi_qos_srvc_release_client
 (
   qmi_client_handle_type  client_handle,
   int                     *qmi_err_code
 );
 
+/*===========================================================================
+  FUNCTION  qmi_qos_bind_mux_data_port
+===========================================================================*/
+/*!
+@brief
+  Binds a QMI-QOS client to a MUX data port. In the case of QMAP, we will
+  have a single control channel, so QOS clients need to specify which
+  data port their actions need to be associated with.
 
+@param[in]  user_handle: QMI QOS client handle.
+@param[in]  params: Bind MUX data port specification
+@param[out] qmi_err_code: QMI error code in case of failure.
 
+@see
+  qmi_qos_bind_mux_data_port_params_type
+
+@return
+  0 if operation was successful.
+  < 0 If operation failed.  qmi_err_code will contain the reason.
+
+@dependencies
+  qmi_qos_srvc_init_client() must be called before calling this.
+
+*/
+/*=========================================================================*/
+EXTERN int
+qmi_qos_bind_mux_data_port
+(
+  int                                     user_handle,
+  qmi_qos_bind_mux_data_port_params_type *params,
+  int                                    *qmi_err_code
+);
+
+/*===========================================================================
+  FUNCTION  qmi_qos_bind_subscription
+===========================================================================*/
+/*!
+@brief
+ Binds a QoS client to a subscription.
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_qos_bind_subscription
+(
+  int                          user_handle,
+  qmi_qos_bind_subscription_type  subs_id,
+  int                         *qmi_err_code
+);
+
+/*===========================================================================
+  FUNCTION  qmi_qos_get_bind_subscription
+===========================================================================*/
+/*!
+@brief
+  This message queries the current subscription the client is bound to.
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_qos_get_bind_subscription
+(
+  int                                          user_handle,
+  qmi_qos_bind_subscription_type               *subs_id,
+  int                                          *qmi_err_code
+);
 /*===========================================================================
   FUNCTION  qmi_qos_request_qos
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function sends a QoS request.  Note that for CDMA technology
   types, an array of up to 10 qos_specs may be specified at one time.
   For UMTS, only a single qos_spec can be specified at a time (num_qos_specs
   must be set to 1).  Upon successful return, the qos_identifiers pointer/array
-  will contain identifiers for each of the qos_specs requested.  These 
+  will contain identifiers for each of the qos_specs requested.  These
   identifiers will be used for any QoS operations/indications to follow on that
-  particular session.     
-  
-@return 
-  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.  
-  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code 
+  particular session.
+
+@return
+  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.
+  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code
   will be valid and will contain the error code returned by QMI on the modem,
   and there may be more error information passed back in the qos_spec_errs data
   structure, depending on the nature of the error.
 
 @note
-    - Dependencies: qmi_qos_srvc_init_client() must be called before calling 
+    - Dependencies: qmi_qos_srvc_init_client() must be called before calling
                     this function.
 
 
     - Side Effects: Brings up a QoS session
-*/    
+*/
 /*=========================================================================*/
 EXTERN int
 qmi_qos_request_qos
@@ -765,19 +906,19 @@ qmi_qos_request_qos
   FUNCTION  qmi_qos_modify_primary_qos
 ===========================================================================*/
 /*!
-@brief 
-  Modifies a primary QoS.   
-  
-@return 
-  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.  
-  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code 
+@brief
+  Modifies a primary QoS.
+
+@return
+  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.
+  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code
   will be valid and will contain the error code returned by QMI on the modem.
-  
+
 @note
-    - Dependencies: qmi_qos_srvc_init_client() must be called before calling 
+    - Dependencies: qmi_qos_srvc_init_client() must be called before calling
                     this function.
 
-*/    
+*/
 /*=========================================================================*/
 EXTERN int
 qmi_qos_modify_primary_qos
@@ -793,19 +934,19 @@ qmi_qos_modify_primary_qos
   FUNCTION  qmi_qos_modify_secondary_qos
 ===========================================================================*/
 /*!
-@brief 
-  Modifies a secondary QoS.   
-  
-@return 
-  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.  
-  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code 
+@brief
+  Modifies a secondary QoS.
+
+@return
+  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.
+  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code
   will be valid and will contain the error code returned by QMI on the modem.
-  
+
 @note
-    - Dependencies: qmi_qos_srvc_init_client() must be called before calling 
+    - Dependencies: qmi_qos_srvc_init_client() must be called before calling
                     this function.
 
-*/    
+*/
 /*=========================================================================*/
 EXTERN int
 qmi_qos_modify_secondary_qos
@@ -822,21 +963,21 @@ qmi_qos_modify_secondary_qos
   FUNCTION  qmi_qos_release_qos
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Tears down a requested QoS.  More that one QoS may be specified by passing
-  in an array of qos_identifiers and setting the num_qos_identifiers 
-  accordingly.   
-  
-@return 
-  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.  
-  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code 
+  in an array of qos_identifiers and setting the num_qos_identifiers
+  accordingly.
+
+@return
+  0 (QMI_NO_ERR) if operation was sucessful, < 0 if not.
+  In the failure case when QMI_SERVICE_ERR is returned, the qmi_err_code
   will be valid and will contain the error code returned by QMI on the modem.
-  
+
 @note
-    - Dependencies: qmi_qos_srvc_init_client() must be called before calling 
+    - Dependencies: qmi_qos_srvc_init_client() must be called before calling
                     this function.
     - Side Effects:  Tears down a QoS
-*/    
+*/
 /*=========================================================================*/
 EXTERN int
 qmi_qos_release_qos
@@ -853,11 +994,11 @@ qmi_qos_release_qos
   FUNCTION  qmi_qos_get_nw_supported_qos_profiles
 ===========================================================================*/
 /*!
-@brief 
-  This function is a request to resume one or more existing QoS flows. 
+@brief
+  This function is a request to resume one or more existing QoS flows.
   Each QoS flow is identified with its QoS identifier
 
-@return 
+@return
 
 @note
   - Number of qos_identifiers for UMTS tech should always be 1
@@ -866,9 +1007,9 @@ qmi_qos_release_qos
     - qmi_qos_srvc_init_client() must be called before calling this.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-EXTERN int 
+EXTERN int
 qmi_qos_get_nw_supported_qos_profiles
 (
   qmi_client_handle_type                         client_handle,
@@ -880,11 +1021,11 @@ qmi_qos_get_nw_supported_qos_profiles
   FUNCTION  qmi_qos_resume_qos
 ===========================================================================*/
 /*!
-@brief 
-  This function is a request to resume one or more existing QoS flows. 
+@brief
+  This function is a request to resume one or more existing QoS flows.
   Each QoS flow is identified with its QoS identifier
 
-@return 
+@return
 
 @note
   - Number of qos_identifiers for UMTS tech should always be 1
@@ -893,9 +1034,9 @@ qmi_qos_get_nw_supported_qos_profiles
     - qmi_qos_srvc_init_client() must be called before calling this.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-EXTERN int 
+EXTERN int
 qmi_qos_resume_qos
 (
   qmi_client_handle_type    client_handle,
@@ -907,11 +1048,11 @@ qmi_qos_resume_qos
   FUNCTION  qmi_qos_suspend_qos
 ===========================================================================*/
 /*!
-@brief 
-  This function is a request to suspend one or more existing QoS flows. 
+@brief
+  This function is a request to suspend one or more existing QoS flows.
   Each QoS flow is identified with its QoS identifier
 
-@return 
+@return
 
 @note
 
@@ -919,9 +1060,9 @@ qmi_qos_resume_qos
     - qmi_qos_srvc_init_client() must be called before calling this.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-EXTERN int 
+EXTERN int
 qmi_qos_suspend_qos
 (
   qmi_client_handle_type    client_handle,
@@ -934,10 +1075,10 @@ qmi_qos_suspend_qos
   FUNCTION  qmi_qos_reset_qos_srvc_variables
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Resets the control points state which is kept by QOS.
-     
-@return 
+
+@return
 
 @note
 
@@ -948,9 +1089,9 @@ qmi_qos_suspend_qos
      before the response.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-EXTERN int 
+EXTERN int
 qmi_qos_reset_qos_srvc_variables
 (
   qmi_client_handle_type   client_handle,
@@ -962,12 +1103,12 @@ qmi_qos_reset_qos_srvc_variables
   FUNCTION  qmi_qos_get_primary_granted_qos_info
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function if successful returns the qos parameters for a
   specified primary QOS flow.
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -976,7 +1117,7 @@ qmi_qos_reset_qos_srvc_variables
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 EXTERN int
 qmi_qos_get_primary_granted_qos_info
@@ -991,12 +1132,12 @@ qmi_qos_get_primary_granted_qos_info
   FUNCTION  qmi_qos_get_secondary_granted_qos_info
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function if successful returns the qos parameters for a
   specified secondary QOS flow.
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -1005,7 +1146,7 @@ qmi_qos_get_primary_granted_qos_info
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 EXTERN int
 qmi_qos_get_secondary_granted_qos_info
@@ -1022,10 +1163,10 @@ qmi_qos_get_secondary_granted_qos_info
   FUNCTION  qmi_qos_does_nw_support_qos
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function queries if the current network supports QOS!
-      
-@return 
+
+@return
 
 @note
 
@@ -1034,7 +1175,7 @@ qmi_qos_get_secondary_granted_qos_info
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 EXTERN int
 qmi_qos_does_nw_support_qos
@@ -1049,11 +1190,11 @@ qmi_qos_does_nw_support_qos
   FUNCTION  qmi_qos_get_status
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function queries if the current network supports QOS
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -1062,9 +1203,9 @@ qmi_qos_does_nw_support_qos
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-EXTERN int 
+EXTERN int
 qmi_qos_get_status
 (
   qmi_client_handle_type            client_handle,

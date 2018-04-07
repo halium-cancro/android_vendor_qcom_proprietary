@@ -38,14 +38,14 @@
 
 
 
-  $Header: //Commercial/MPSS.TR.2.0.c2/Main/modem_proc/qmimsgs/dms/api/device_management_service_v01.h#2 $
+  $Header$
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7 
-   It was generated on: Thu Feb 13 2014 (Spin 0)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Mon Jun 23 2014 (Spin 0)
    From IDL File: device_management_service_v01.idl */
 
 /** @defgroup dms_qmi_consts Constant values defined in the IDL */
@@ -71,7 +71,7 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define DMS_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define DMS_V01_IDL_MINOR_VERS 0x24
+#define DMS_V01_IDL_MINOR_VERS 0x28
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define DMS_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
@@ -110,11 +110,6 @@ extern "C" {
 #define QMI_DMS_PRI_REV_MAX_V01 16
 #define QMI_DMS_IMEISV_MAX_V01 255
 #define QMI_DMS_SW_VERSION_MAX_V01 32
-#define QMI_DMS_FLAG_MAX_V01 124
-#define QMI_DMS_HW_VERSION_MAX_V01 124
-#define QMI_DMS_QCN_MAX_V01 124
-#define QMI_DMS_SN_MAX_V01 124
-#define QMI_DMS_NV2499_MAX_V01 128
 #define QMI_DMS_SPC_LEN_V01 6
 #define QMI_DMS_LOCK_CODE_LEN_V01 4
 #define QMI_DMS_MDN_MAX_V01 15
@@ -129,6 +124,8 @@ extern "C" {
 #define QMI_DMS_MAX_CONFIG_LIST_LEN_V01 32
 #define QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01 6
 #define QMI_DMS_MAC_ADDR_MAX_V01 8
+#define QMI_DMS_IMAGE_VER_MAX_V01 32
+#define QMI_DMS_IMAGE_VER_LEN_MAX_V01 128
 /**
     @}
   */
@@ -569,6 +566,22 @@ typedef uint64_t dms_subs_capability_mask_type_v01;
 #define DMS_SUBS_CAPABILITY_WCDMA_V01 ((dms_subs_capability_mask_type_v01)0x00000010ull) 
 #define DMS_SUBS_CAPABILITY_LTE_V01 ((dms_subs_capability_mask_type_v01)0x00000020ull) 
 #define DMS_SUBS_CAPABILITY_TDS_V01 ((dms_subs_capability_mask_type_v01)0x00000040ull) 
+/** @addtogroup dms_qmi_enums
+    @{
+  */
+typedef enum {
+  DMS_SUBS_VOICE_DATA_CAPABILITY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  DMS_SUBS_VOICE_DATA_CAPABILITY_NORMAL_V01 = 0x01, 
+  DMS_SUBS_VOICE_DATA_CAPABILITY_SGLTE_V01 = 0x02, 
+  DMS_SUBS_VOICE_DATA_CAPABILITY_CSFB_V01 = 0x03, 
+  DMS_SUBS_VOICE_DATA_CAPABILITY_SVLTE_V01 = 0x04, 
+  DMS_SUBS_VOICE_DATA_CAPABILITY_SRLTE_V01 = 0x05, 
+  DMS_SUBS_VOICE_DATA_CAPABILITY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}dms_subs_voice_data_capability_enum_v01;
+/**
+    @}
+  */
+
 /** @addtogroup dms_qmi_aggregates
     @{
   */
@@ -608,6 +621,41 @@ typedef struct {
   dms_subs_config_type_v01 subscription_config_list[QMI_DMS_MAX_CONFIG_LIST_LEN_V01];
   /**<   List of supported multi-SIM configurations. */
 }dms_multisim_capability_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup dms_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  dms_subs_voice_data_capability_enum_v01 subs_voice_data_capability;
+  /**<   The simultaneous voice eand data capability type of a subscription 
+    */
+
+  uint8_t simul_voice_data_capable;
+  /**<   The simultaneous voice eand data capability of a subscription 
+  */
+}dms_subs_voice_data_capability_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup dms_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t max_subscriptions;
+  /**<   The maximum number of subscriptions that can be supported simultaneously.   */
+
+  uint8_t max_active;
+  /**<   The maximum number of subscriptions that can be simultaneously active. 
+       If this number is less than max_subscriptions it implies that any combination 
+       of the subscriptions in this configuration can be active 
+       and the remaining can be in standby */
+}dms_current_multisim_capability_type_v01;  /* Type */
 /**
     @}
   */
@@ -709,10 +757,52 @@ typedef struct {
  */
 
   /* Optional */
-  /*  Device Multisim Capability */
+  /*  Device Multisim Capability
+ Note: Below TLV is deprecated from QMI DMS version 1.37 in favor of current_multisim_capability TLV */
   uint8_t multisim_capability_valid;  /**< Must be set to true if multisim_capability is being passed */
   dms_multisim_capability_type_v01 multisim_capability;
   /**<   \n Device capability for supporting multiple simultaneously active radio interfaces.
+  */
+
+  /* Optional */
+  /*  Device Multisim Voice Data Capability */
+  uint8_t current_multisim_capability_valid;  /**< Must be set to true if current_multisim_capability is being passed */
+  dms_current_multisim_capability_type_v01 current_multisim_capability;
+  /**<   \n Device voice and data capability for supporting multiple simultaneously 
+        active radio interfaces.
+  */
+
+  /* Optional */
+  /*  Current Subscription Capability */
+  uint8_t current_subscription_capability_valid;  /**< Must be set to true if current_subscription_capability is being passed */
+  uint32_t current_subscription_capability_len;  /**< Must be set to # of elements in current_subscription_capability */
+  dms_subs_capability_mask_type_v01 current_subscription_capability[QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01];
+  /**<   An array of max_subscriptions entries where each entry is a mask of capabilities.
+ The client ignores any bits in the mask that it does not recognize. Values: 
+      - DMS_SUBS_CAPABILITY_AMPS (0x00000001) -- 
+      - DMS_SUBS_CAPABILITY_CDMA (0x00000002) -- 
+      - DMS_SUBS_CAPABILITY_HDR (0x00000004) -- 
+      - DMS_SUBS_CAPABILITY_GSM (0x00000008) -- 
+      - DMS_SUBS_CAPABILITY_WCDMA (0x00000010) -- 
+      - DMS_SUBS_CAPABILITY_LTE (0x00000020) -- 
+      - DMS_SUBS_CAPABILITY_TDS (0x00000040) --  
+ */
+
+  /* Optional */
+  /*  Subscription Voice Data Capability of the Device */
+  uint8_t subs_voice_data_capability_valid;  /**< Must be set to true if subs_voice_data_capability is being passed */
+  uint32_t subs_voice_data_capability_len;  /**< Must be set to # of elements in subs_voice_data_capability */
+  dms_subs_voice_data_capability_type_v01 subs_voice_data_capability[QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01];
+  /**<   \n Voice and data capability of each subscription of the device
+  */
+
+  /* Optional */
+  /*  Subscription feature mode of the Device */
+  uint8_t max_active_data_subscriptions_valid;  /**< Must be set to true if max_active_data_subscriptions is being passed */
+  uint8_t max_active_data_subscriptions;
+  /**<   The maximum number of subscriptions that can be simultaneously active for data activity. 
+       If this number is less than max_subscriptions it implies that any combination 
+       of the subscriptions in this configuration can be active and the remaining can be in standby
   */
 }dms_event_report_ind_msg_v01;  /* Message */
 /**
@@ -794,6 +884,21 @@ typedef uint64_t dms_simul_voice_and_data_capability_mask_v01;
 #define QMI_DMS_MASK_SVLTE_CAPABLE_V01 ((dms_simul_voice_and_data_capability_mask_v01)0x0001ull) 
 #define QMI_DMS_MASK_SVDO_CAPABLE_V01 ((dms_simul_voice_and_data_capability_mask_v01)0x0002ull) 
 #define QMI_DMS_MASK_SGLTE_CAPABLE_V01 ((dms_simul_voice_and_data_capability_mask_v01)0x0004ull) 
+/** @addtogroup dms_qmi_enums
+    @{
+  */
+typedef enum {
+  DMS_DEVICE_SUBS_FEATURE_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  DMS_DEVICE_SUBS_FEATURE_MODE_NORMAL_V01 = 0, 
+  DMS_DEVICE_SUBS_FEATURE_MODE_SGLTE_V01 = 1, 
+  DMS_DEVICE_SUBS_FEATURE_MODE_SVLTE_V01 = 2, 
+  DMS_DEVICE_SUBS_FEATURE_MODE_SRLTE_V01 = 3, 
+  DMS_DEVICE_SUBS_FEATURE_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}dms_device_subs_feature_mode_enum_v01;
+/**
+    @}
+  */
+
 /** @addtogroup dms_qmi_aggregates
     @{
   */
@@ -898,10 +1003,64 @@ typedef struct {
   */
 
   /* Optional */
-  /*  Device Multisim Capability */
+  /*  Device Multisim Capability
+ Note: Below TLV is deprecated from QMI DMS version 1.37 in favor of current_multisim_capability TLV */
   uint8_t multisim_capability_valid;  /**< Must be set to true if multisim_capability is being passed */
   dms_multisim_capability_type_v01 multisim_capability;
   /**<   \n Device capability for supporting multiple simultaneously active radio interfaces.
+  */
+
+  /* Optional */
+  /*  Device Multisim Voice Data Capability */
+  uint8_t current_multisim_capability_valid;  /**< Must be set to true if current_multisim_capability is being passed */
+  dms_current_multisim_capability_type_v01 current_multisim_capability;
+  /**<   \n Device voice and data capability for supporting multiple simultaneously 
+        active radio interfaces.
+  */
+
+  /* Optional */
+  /*  Current Subscription Capability */
+  uint8_t current_subscription_capability_valid;  /**< Must be set to true if current_subscription_capability is being passed */
+  uint32_t current_subscription_capability_len;  /**< Must be set to # of elements in current_subscription_capability */
+  dms_subs_capability_mask_type_v01 current_subscription_capability[QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01];
+  /**<   An array of max_subscriptions entries where each entry is a mask of capabilities.
+ The client ignores any bits in the mask that it does not recognize. Values: 
+      - DMS_SUBS_CAPABILITY_AMPS (0x00000001) -- 
+      - DMS_SUBS_CAPABILITY_CDMA (0x00000002) -- 
+      - DMS_SUBS_CAPABILITY_HDR (0x00000004) -- 
+      - DMS_SUBS_CAPABILITY_GSM (0x00000008) -- 
+      - DMS_SUBS_CAPABILITY_WCDMA (0x00000010) -- 
+      - DMS_SUBS_CAPABILITY_LTE (0x00000020) -- 
+      - DMS_SUBS_CAPABILITY_TDS (0x00000040) --  
+ */
+
+  /* Optional */
+  /*  Subscription Voice Data Capability of the Device */
+  uint8_t subs_voice_data_capability_valid;  /**< Must be set to true if subs_voice_data_capability is being passed */
+  uint32_t subs_voice_data_capability_len;  /**< Must be set to # of elements in subs_voice_data_capability */
+  dms_subs_voice_data_capability_type_v01 subs_voice_data_capability[QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01];
+  /**<   \n Voice and data capability of each subscription of the device
+  */
+
+  /* Optional */
+  /*  Subscription feature mode of the Device */
+  uint8_t subs_device_feature_mode_valid;  /**< Must be set to true if subs_device_feature_mode is being passed */
+  uint32_t subs_device_feature_mode_len;  /**< Must be set to # of elements in subs_device_feature_mode */
+  dms_device_subs_feature_mode_enum_v01 subs_device_feature_mode[QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01];
+  /**<   \n Device feature mode of each subscription. Values: \n
+      - DMS_DEVICE_SUBS_FEATURE_MODE_NORMAL (0) -- 
+      - DMS_DEVICE_SUBS_FEATURE_MODE_SGLTE (1) -- 
+      - DMS_DEVICE_SUBS_FEATURE_MODE_SVLTE (2) -- 
+      - DMS_DEVICE_SUBS_FEATURE_MODE_SRLTE (3) -- 
+ */
+
+  /* Optional */
+  /*  Subscription feature mode of the Device */
+  uint8_t max_active_data_subscriptions_valid;  /**< Must be set to true if max_active_data_subscriptions is being passed */
+  uint8_t max_active_data_subscriptions;
+  /**<   The maximum number of subscriptions that can be simultaneously active for data activity. 
+       If this number is less than max_subscriptions it implies that any combination 
+       of the subscriptions in this configuration can be active and the remaining can be in standby
   */
 }dms_get_device_cap_resp_msg_v01;  /* Message */
 /**
@@ -2670,6 +2829,61 @@ typedef struct {
     @}
   */
 
+/** @addtogroup dms_qmi_enums
+    @{
+  */
+typedef enum {
+  DMS_IMAGE_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  DMS_IMAGE_UNKNOWN_V01 = 0, /**<  Unknown \n  */
+  DMS_IMAGE_SBL_V01 = 1, /**<  SBL \n  */
+  DMS_IMAGE_TZ_V01 = 2, /**<  TZ \n  */
+  DMS_IMAGE_TZSECAPP_V01 = 3, /**<  TZSECAPP \n  */
+  DMS_IMAGE_RPM_V01 = 4, /**<  RPM \n  */
+  DMS_IMAGE_SDI_V01 = 5, /**<  SDI \n  */
+  DMS_IMAGE_HYPERVISOR_V01 = 6, /**<  HYPERVISOR \n  */
+  DMS_IMAGE_APPSBL_V01 = 7, /**<  APPSBL \n  */
+  DMS_IMAGE_APPS_V01 = 8, /**<  APPS \n  */
+  DMS_IMAGE_MPSS_V01 = 9, /**<  MPSS \n  */
+  DMS_IMAGE_ADSP_V01 = 10, /**<  ADSP \n  */
+  DMS_IMAGE_WCNS_V01 = 11, /**<  WCNS \n  */
+  DMS_IMAGE_VENUS_V01 = 12, /**<  VENUS \n  */
+  DMS_IMAGE_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}dms_image_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup dms_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  dms_image_type_enum_v01 image_type;
+  /**<   Image type. Values: \n
+      - DMS_IMAGE_UNKNOWN (0) --  Unknown \n 
+      - DMS_IMAGE_SBL (1) --  SBL \n 
+      - DMS_IMAGE_TZ (2) --  TZ \n 
+      - DMS_IMAGE_TZSECAPP (3) --  TZSECAPP \n 
+      - DMS_IMAGE_RPM (4) --  RPM \n 
+      - DMS_IMAGE_SDI (5) --  SDI \n 
+      - DMS_IMAGE_HYPERVISOR (6) --  HYPERVISOR \n 
+      - DMS_IMAGE_APPSBL (7) --  APPSBL \n 
+      - DMS_IMAGE_APPS (8) --  APPS \n 
+      - DMS_IMAGE_MPSS (9) --  MPSS \n 
+      - DMS_IMAGE_ADSP (10) --  ADSP \n 
+      - DMS_IMAGE_WCNS (11) --  WCNS \n 
+      - DMS_IMAGE_VENUS (12) --  VENUS \n 
+ */
+
+  char image_ver[QMI_DMS_IMAGE_VER_LEN_MAX_V01 + 1];
+  /**<   Image version string. The format of the string is 
+       [QC version]:[Variant]:[OEM version]
+  */
+}dms_image_ver_type_v01;  /* Type */
+/**
+    @}
+  */
+
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
@@ -2691,153 +2905,15 @@ typedef struct {
   char sw_version[QMI_DMS_SW_VERSION_MAX_V01 + 1];
   /**<   String representing the software version information.
   */
+
+  /* Optional */
+  /*  Image Versions */
+  uint8_t image_versions_valid;  /**< Must be set to true if image_versions is being passed */
+  uint32_t image_versions_len;  /**< Must be set to # of elements in image_versions */
+  dms_image_ver_type_v01 image_versions[QMI_DMS_IMAGE_VER_MAX_V01];
+  /**<   Image versions of the builds loaded on the device.
+  */
 }dms_get_sw_version_resp_msg_v01;  /* Message */
-
-typedef struct {
-  /* This element is a placeholder to prevent the declaration of 
-     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
-  char __placeholder;
-}dms_get_flag_req_msg_v01;
-
-/** Response Message; Queries the flag(6857) from the device. */
-typedef struct {
-
-  /* Mandatory */
-  /*  Software Version Information */
-  char flag[QMI_DMS_FLAG_MAX_V01 + 1];
-  /**<   String representing the software version information.
-  */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_get_flag_resp_msg_v01;  /* Message */
-
-
-typedef struct {
-  /* This element is a placeholder to prevent the declaration of 
-     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
-  char __placeholder;
-}dms_get_hw_version_req_msg_v01;
-/** Response Message; Queries the software version from the device. */
-typedef struct {
-
-  /* Mandatory */
-  /*  Software Version Information */
-  char hw_version[QMI_DMS_HW_VERSION_MAX_V01 + 1];
-  /**<   String representing the software version information.
-  */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_get_hw_version_resp_msg_v01;  /* Message */
-
-
-typedef struct {
-  /* This element is a placeholder to prevent the declaration of 
-     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
-  char __placeholder;
-}dms_get_qcn_req_msg_v01;
-
-typedef struct {
-
-  /* Mandatory */
-  /*  Software Version Information */
-  char qcn_version[QMI_DMS_QCN_MAX_V01 + 1];
-  /**<   String representing the software version information.
-  */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_get_qcn_resp_msg_v01;  /* Message */
-
-
-typedef struct {
-  /* This element is a placeholder to prevent the declaration of 
-     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
-  char __placeholder;
-}dms_get_sn_req_msg_v01;
-
-/** @addtogroup dms_qmi_messages
-    @{
-  */
-/** Response Message; Queries the software version from the device. */
-typedef struct {
-
-  /* Mandatory */
-  /*  Software Version Information */
-  char get_sn[QMI_DMS_SN_MAX_V01 + 1];
-  /**<   String representing the software version information.
-  */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_get_sn_resp_msg_v01;  /* Message */
-
-typedef struct {
-  /* This element is a placeholder to prevent the declaration of 
-     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
-  char __placeholder;
-}dms_get_nv2499_req_msg_v01;
-
-/** @addtogroup dms_qmi_messages
-    @{
-  */
-/** Response Message; Queries the software version from the device. */
-typedef struct {
-
-  /* Mandatory */
-  /*  Software Version Information */
-  char get_nv2499[QMI_DMS_NV2499_MAX_V01 + 1];
-  /**<   String representing the software version information.
-  */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_get_nv2499_resp_msg_v01;  /* Message */
-
-typedef struct {
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_update_cit_flag_nv2499_req_msg_v01;  /* Message */
-
-typedef struct {
-
-  /* Mandatory */
-  /*  Software Version Information */
-  /**<   String representing the software version information.
-  */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_update_cit_flag_nv2499_resp_msg_v01;  /* Message */
-
-typedef struct {
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_update_cit_flag_req_msg_v01;  /* Message */
-
-typedef struct {
-
-  /* Mandatory */
-  /*  Software Version Information */
-  /**<   String representing the software version information.
-  */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-}dms_update_cit_flag_resp_msg_v01;  /* Message */
-
 /**
     @}
   */
@@ -3265,6 +3341,64 @@ typedef struct {
     @}
   */
 
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_DMS_ACTIVATE_AUTOMATIC_V01 
+//#define REMOVE_QMI_DMS_ACTIVATE_MANUAL_V01 
+//#define REMOVE_QMI_DMS_BIND_SUBSCRIPTION_V01 
+//#define REMOVE_QMI_DMS_CLEAR_TEST_CONFIG_V01 
+//#define REMOVE_QMI_DMS_GET_ACTIVATION_STATE_V01 
+//#define REMOVE_QMI_DMS_GET_ALT_NET_CONFIG_V01 
+//#define REMOVE_QMI_DMS_GET_BAND_CAPABILITY_V01 
+//#define REMOVE_QMI_DMS_GET_BIND_SUBSCRIPTION_V01 
+//#define REMOVE_QMI_DMS_GET_CDMA_LOCK_MODE_V01 
+//#define REMOVE_QMI_DMS_GET_CURRENT_PRL_INFO_V01 
+//#define REMOVE_QMI_DMS_GET_DEVICE_CAP_V01 
+//#define REMOVE_QMI_DMS_GET_DEVICE_HARDWARE_REV_V01 
+//#define REMOVE_QMI_DMS_GET_DEVICE_MFR_V01 
+//#define REMOVE_QMI_DMS_GET_DEVICE_MODEL_ID_V01 
+//#define REMOVE_QMI_DMS_GET_DEVICE_REV_ID_V01 
+//#define REMOVE_QMI_DMS_GET_DEVICE_SERIAL_NUMBERS_V01 
+//#define REMOVE_QMI_DMS_GET_ENCRYPTED_DEVICE_SERIAL_NUMBERS_V01 
+//#define REMOVE_QMI_DMS_GET_FACTORY_SKU_V01 
+//#define REMOVE_QMI_DMS_GET_MAC_ADDRESS_V01 
+//#define REMOVE_QMI_DMS_GET_MSISDN_V01 
+//#define REMOVE_QMI_DMS_GET_OPERATING_MODE_V01 
+//#define REMOVE_QMI_DMS_GET_POWER_STATE_V01 
+//#define REMOVE_QMI_DMS_GET_PRL_VER_V01 
+//#define REMOVE_QMI_DMS_GET_SUPPORTED_FIELDS_V01 
+//#define REMOVE_QMI_DMS_GET_SUPPORTED_MSGS_V01 
+//#define REMOVE_QMI_DMS_GET_SW_VERSION_V01 
+//#define REMOVE_QMI_DMS_GET_TEST_CONFIG_V01 
+//#define REMOVE_QMI_DMS_GET_TIME_V01 
+//#define REMOVE_QMI_DMS_GET_USER_LOCK_STATE_V01 
+//#define REMOVE_QMI_DMS_OEM_CHINA_OPERATOR_V01 
+//#define REMOVE_QMI_DMS_READ_ERI_FILE_V01 
+//#define REMOVE_QMI_DMS_READ_USER_DATA_V01 
+//#define REMOVE_QMI_DMS_RESET_V01 
+//#define REMOVE_QMI_DMS_RESTORE_FACTORY_DEFAULTS_V01 
+//#define REMOVE_QMI_DMS_SET_ALT_NET_CONFIG_V01 
+//#define REMOVE_QMI_DMS_SET_AP_SW_VERSION_V01 
+//#define REMOVE_QMI_DMS_SET_EVENT_REPORT_V01 
+//#define REMOVE_QMI_DMS_SET_OPERATING_MODE_V01 
+//#define REMOVE_QMI_DMS_SET_SPC_V01 
+//#define REMOVE_QMI_DMS_SET_TEST_CONFIG_V01 
+//#define REMOVE_QMI_DMS_SET_TIME_V01 
+//#define REMOVE_QMI_DMS_SET_USER_LOCK_CODE_V01 
+//#define REMOVE_QMI_DMS_SET_USER_LOCK_STATE_V01 
+//#define REMOVE_QMI_DMS_UIM_CHANGE_PIN_V01 
+//#define REMOVE_QMI_DMS_UIM_GET_CK_STATUS_V01 
+//#define REMOVE_QMI_DMS_UIM_GET_ICCID_V01 
+//#define REMOVE_QMI_DMS_UIM_GET_IMSI_V01 
+//#define REMOVE_QMI_DMS_UIM_GET_PIN_STATUS_V01 
+//#define REMOVE_QMI_DMS_UIM_GET_STATE_V01 
+//#define REMOVE_QMI_DMS_UIM_SET_CK_PROTECTION_V01 
+//#define REMOVE_QMI_DMS_UIM_SET_PIN_PROTECTION_V01 
+//#define REMOVE_QMI_DMS_UIM_UNBLOCK_CK_V01 
+//#define REMOVE_QMI_DMS_UIM_UNBLOCK_PIN_V01 
+//#define REMOVE_QMI_DMS_UIM_VERIFY_PIN_V01 
+//#define REMOVE_QMI_DMS_VALIDATE_SERVICE_PROGRAMMING_CODE_V01 
+//#define REMOVE_QMI_DMS_WRITE_USER_DATA_V01 
+
 /*Service Message Definition*/
 /** @addtogroup dms_qmi_msg_ids
     @{
@@ -3382,21 +3516,6 @@ typedef struct {
 #define QMI_DMS_GET_MAC_ADDRESS_RESP_V01 0x005C
 #define QMI_DMS_GET_ENCRYPTED_DEVICE_SERIAL_NUMBERS_REQ_V01 0x005D
 #define QMI_DMS_GET_ENCRYPTED_DEVICE_SERIAL_NUMBERS_RESP_V01 0x005D
-#define QMI_DMS_GET_DEVICE_HW_VERSION_REQ_V01 0x0068
-#define QMI_DMS_GET_DEVICE_HW_VERSION_RESP_V01 0x0068
-#define QMI_DMS_GET_DEVICE_QCN_REQ_V01 0x0069
-#define QMI_DMS_GET_DEVICE_QCN_RESP_V01 0x0069
-#define QMI_DMS_GET_DEVICE_SN_REQ_V01 0x0070
-#define QMI_DMS_GET_DEVICE_SN_RESP_V01 0x0070
-#define QMI_DMS_UPDATE_CIT_FLAG_NV2499_REQ_V01 0x0072
-#define QMI_DMS_UPDATE_CIT_FLAG_NV2499_RESP_V01 0x0072
-#define QMI_DMS_GET_NV2499_REQ_V01 0x0073
-#define QMI_DMS_GET_NV2499_RESP_V01 0x0073
-#define QMI_DMS_UPDATE_CIT_FLAG_NV2499_FAIL_REQ_V01 0x0074
-#define QMI_DMS_UPDATE_CIT_FLAG_NV2499_FAIL_RESP_V01 0x0074
-#define QMI_DMS_GET_DEVICE_FLAG_REQ_V01 0x0075
-#define QMI_DMS_GET_DEVICE_FLAG_RESP_V01 0x0075
-
 /**
     @}
   */

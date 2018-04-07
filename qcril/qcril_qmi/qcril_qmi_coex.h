@@ -50,12 +50,27 @@
 
 #define QCRIL_QMI_COEX_INITIATE_FOR_DATA_CHECK   1
 #define QCRIL_QMI_COEX_INITIATE_FOR_RF_CHECK     2
+#define QCRIL_COEX_RD_BAND_INFO_LENGTH           (2)
+
+typedef struct qcril_coex_rf_band_info_type
+{
+    nas_rf_band_info_type_v01* rf_band_info;
+    nas_radio_if_enum_v01      rat;
+} qcril_coex_rf_band_info_type;
+
+
 
 void qcril_qmi_coex_init();
 void qcril_qmi_coex_release();
-void qcril_qmi_coex_process_rf_band_info(nas_rf_band_info_type_v01* rf_band_info);
+void qcril_qmi_coex_process_rf_band_info
+(
+    qcril_coex_rf_band_info_type rf_band_info[QCRIL_COEX_RD_BAND_INFO_LENGTH],
+    int                          rf_band_info_len
+);
+
 void qcril_qmi_coex_initiate_report_lte_info_to_riva(int reason);
 void qcril_qmi_coex_terminate_riva_thread();
+
 
 #endif /* QCRIL_QMI_VOICE_H */
 

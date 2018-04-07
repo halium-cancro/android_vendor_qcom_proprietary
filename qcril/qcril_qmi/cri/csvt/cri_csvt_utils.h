@@ -35,6 +35,7 @@ typedef struct cri_csvt_utils_hlos_call_object_type
     int is_mt;
     csvt_event_type_enum_v01 csvt_call_state;
     char remote_party_number[CSVT_MAX_DIAL_STRING_LEN_V01 + 1];
+    uint32_t call_fail_cause;
 }cri_csvt_utils_hlos_call_object_type;
 
 extern int csvt_client_id;
@@ -70,7 +71,43 @@ qmi_error_type_v01 cri_csvt_utils_init_client(cri_core_subscription_id_type subs
                                               hlos_ind_cb_type hlos_ind_cb);
 
 
+/***************************************************************************************************
+    @function
+    cri_csvt_utils_reset_client
 
+    @brief
+    Resets the QMI CSVT service client.
+
+    @param[in]
+        none
+
+    @param[out]
+        none
+
+    @retval
+    QMI_ERR_NONE_V01 If CSVT client reset is successful, appropriate error code otherwise
+***************************************************************************************************/
+qmi_error_type_v01 cri_csvt_utils_reset_client();
+
+/***************************************************************************************************
+    @function
+    cri_csvt_utils_reinit_client
+
+    @brief
+    Reinitializes QMI CSVT service client.
+
+    @param[in]
+        subscription_id
+           subscription on which the client needs to be created
+
+    @param[out]
+        none
+
+    @retval
+    QMI_ERR_NONE_V01 If CSVT client reinitialization is successful, appropriate
+    error code otherwise
+***************************************************************************************************/
+qmi_error_type_v01 cri_csvt_utils_reinit_client(cri_core_subscription_id_type subscription_id);
 
 
 
@@ -137,7 +174,7 @@ void cri_csvt_utils_log_csvt_call_objects();
     @retval
     number of active (calls in SETUP and END state are not considered) QMI CSVT call objects
 ***************************************************************************************************/
-int cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls();
+int cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls(boolean ignore_call_end);
 
 
 
@@ -162,7 +199,8 @@ int cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls();
     in HLOS format
     array needs to be freed up by the caller
 ***************************************************************************************************/
-cri_csvt_utils_hlos_call_object_type* cri_csvt_utils_retrieve_hlos_ongoing_call_objects();
+cri_csvt_utils_hlos_call_object_type* cri_csvt_utils_retrieve_hlos_ongoing_call_objects(
+        boolean include_call_end);
 
 
 

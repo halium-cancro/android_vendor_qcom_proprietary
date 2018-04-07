@@ -34,7 +34,7 @@ typedef struct {
     qcril_qmi_pil_state_type state;
 } qcril_qmi_pil_state;
 
-#define QCRIL_QMI_PIL_MONITOR_MAX_BUF_SIZE 256
+#define QCRIL_QMI_PIL_MONITOR_MAX_BUF_SIZE  256
 #define QCRIL_QMI_PIL_DEVICE_FILE_NAME_SIZE 50
 #define QCRIL_QMI_PIL_DEVICE_DIR            "/sys/bus/msm_subsys/devices"
 #define QCRIL_QMI_PIL_DEVICE_DIR_SUBSTR     "subsys"

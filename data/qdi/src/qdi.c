@@ -10,7 +10,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2011-2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2011-2014 Qualcomm Technologies, Inc. All Rights Reserved.
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -100,6 +100,7 @@ when       who     what, where, why
 
 
 #define QDI_INVALID_TXN_HNDL      (0)
+#define QDI_INVALID_QMI_INST      (-1)
 
 #define QDI_MUTEX_LOCK(mutex)                                      \
   do                                                               \
@@ -164,6 +165,7 @@ typedef struct
 {
   int valid;
 
+  const char *wds_id;
   const char *dev_id;
 
   qmi_client_handle_type handle_ipv4;
@@ -188,6 +190,8 @@ typedef struct
 
   int v4_pkt_srvc_conn_ind_cnt;
   int v6_pkt_srvc_conn_ind_cnt;
+
+  int rl_qmi_inst;
 } qdi_call_info_t;
 
 static qdi_handle_info_t qdi_handle_info[QDI_MAXIMUM_HANDLES];
@@ -271,6 +275,13 @@ qdi_cb_hdlr
   qmi_wds_async_rsp_data_type  *rsp_data
 );
 
+
+static int
+qdi_query_addr_and_incr_ref_count
+(
+  qdi_call_info_t     *call_info,
+  int                 ip_family
+);
 
 /*===========================================================================
                             LOCAL FUNCTION DEFINITIONS
@@ -872,6 +883,25 @@ qdi_wds_ind_hdlr
       }
       break;
 
+    case QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG:
+      {
+        QDI_LOG_ERROR("%s", "process QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG");
+
+        memcpy(&(cmd->cmd_data.data.wds_ind.ind_data.embms_content_desc_control),
+               &(ind_data->embms_content_desc_control),
+               sizeof(ind_data->embms_content_desc_control));
+
+        if(qdi_copy_tmgi_list(
+              &tmgi_list_ptr,
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr,
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_len ) < 0)
+        {
+          QDI_LOG_ERROR("%s", "can not process tmgi list");
+          goto bail;
+        }
+      }
+      break;
+
     case QMI_WDS_SRVC_HANDOFF_INFORMATION_IND_MSG:
       {
         QDI_LOG_ERROR("%s", "process QMI_WDS_SRVC_HANDOFF_INFORMATION_IND_MSG");
@@ -1049,7 +1079,7 @@ qdi_indication_hdlr
   {
     QDI_LOG_MED("dev=%s param_mask=0X%x link_status=%d reconfig_required=%d "
                 "call_end_reason=%d,[%d/%d] ip_family=%d",
-                (info->dev_id) ? info->dev_id : "",
+                (info->wds_id) ? info->wds_id : "",
                 ind_data->pkt_srvc_status.param_mask,
                 ind_data->pkt_srvc_status.link_status,
                 (int) ind_data->pkt_srvc_status.reconfig_required,
@@ -1097,7 +1127,10 @@ qdi_indication_hdlr
                  call_info->mode & QDI_MODE_V4) &&
                 info->handle_ipv4 == user_handle)
             {
-              ++call_info->v4_pkt_srvc_conn_ind_cnt;
+              if(call_info->v4_pkt_srvc_conn_ind_cnt == 0)
+              {
+                ++call_info->v4_pkt_srvc_conn_ind_cnt;
+              }
               QDI_LOG_MED("IPV4 pkt_srvc_conn_ind_cnt=%d, mode=0x%x",
                           call_info->v4_pkt_srvc_conn_ind_cnt,
                           call_info->mode);
@@ -1106,7 +1139,10 @@ qdi_indication_hdlr
                       call_info->mode & QDI_MODE_V6) &&
                      info->handle_ipv6 == user_handle)
             {
-              ++call_info->v6_pkt_srvc_conn_ind_cnt;
+              if(call_info->v6_pkt_srvc_conn_ind_cnt == 0)
+              {
+                ++call_info->v6_pkt_srvc_conn_ind_cnt;
+              }
               QDI_LOG_MED("IPV6 pkt_srvc_conn_ind_cnt=%d, mode=0x%x",
                           call_info->v6_pkt_srvc_conn_ind_cnt,
                           call_info->mode);
@@ -1232,6 +1268,14 @@ qdi_indication_hdlr
     ind_data->embms_list.tmgi_list.tmgi_list_ptr = NULL;
   }
 
+  else if((ind_id == QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG)&&
+     (NULL != ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr))
+  {
+    QDI_LOG_MED("free tmgi_list_ptr allocated from content_desc_ctrl_ind_data");
+    free(ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr);
+    ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr = NULL;
+  }
+
   else if (ind_id == QMI_WDS_SRVC_EMBMS_SAI_LIST_IND_MSG)
   {
      if ( NULL != ind_data->sai_list.available_sai_list)
@@ -1333,6 +1377,7 @@ qdi_cb_hdlr
   qdi_client_handle_t qdi_handle;
   qdi_handle_info_t* info = NULL;
   qdi_txn_info_t* txn = NULL;
+  int ip_family;
 
   QDI_LOG_TRACE_ENTRY;
 
@@ -1383,7 +1428,7 @@ qdi_cb_hdlr
 
   QDI_LOG_MED("dev=%s qdi_handle=%d rsp_data={pkt_data_handle=%ld"
               " call_end_reason = {%d,%d/%d}}",
-              (info->dev_id) ? info->dev_id : "",
+              (info->wds_id) ? info->wds_id : "",
               qdi_handle,
               rsp_data->start_nw_rsp.pkt_data_handle,
               rsp_data->start_nw_rsp.call_end_reason.legacy_reason,
@@ -1413,6 +1458,7 @@ qdi_cb_hdlr
   if (user_handle == info->handle_ipv4)
   {
     QDI_LOG_MED("callback is for IPv4 bound QMI WDS client");
+    ip_family = AF_INET;
     txn->v4_cb_pend = FALSE;
 
     txn->cb_rsp_data.flags |= QDI_RSP_DATA_V4;
@@ -1425,6 +1471,7 @@ qdi_cb_hdlr
   else if (user_handle == info->handle_ipv6)
   {
     QDI_LOG_MED("callback is for IPv6 bound QMI WDS client");
+    ip_family = AF_INET6;
     txn->v6_cb_pend = FALSE;
 
     txn->cb_rsp_data.flags |= QDI_RSP_DATA_V6;
@@ -1438,6 +1485,21 @@ qdi_cb_hdlr
   {
     QDI_LOG_ERROR("Invalid QMI handle");
     goto bail;
+  }
+
+  if(sys_err_code == QMI_NO_ERR &&
+     rsp_id == QMI_WDS_SRVC_START_NW_ASYNC_RSP_MSG &&
+     QDI_INVALID_QMI_INST != call_info->rl_qmi_inst)
+  {
+    QDI_LOG_MED("Another call active on iface[%s] from a different process",info->dev_id);
+    /* Query address and increment call_info ref count */
+    if( QDI_SUCCESS != qdi_query_addr_and_incr_ref_count(call_info,
+                                                         ip_family))
+    {
+      QDI_LOG_ERROR("Cannot increment pkt_srvc_cnt for ip_family[%d] on iface[%s]",
+                    ip_family,
+                    info->dev_id);
+    }
   }
 
   if (txn->v4_cb_pend == FALSE && txn->v6_cb_pend == FALSE)
@@ -1852,6 +1914,95 @@ bail:
 
 
 /*===========================================================================
+  FUNCTION  qdi_query_addr_and_incr_ref_count
+===========================================================================*/
+/*!
+@brief
+  This function queries netmgr for presence of a valid ip_family address
+  on the iface specified in the call_info structure and increments the
+  corresponding ref counter in call_info structure.
+
+@return
+  QDI_SUCCESS - on successful query to netmgr
+  QDI_FAILURE - otherwise
+*/
+/*=========================================================================*/
+static int
+qdi_query_addr_and_incr_ref_count
+(
+  qdi_call_info_t     *call_info,
+  int                 ip_family
+)
+{
+  qdi_client_handle_t qdi_handle;
+  qdi_handle_info_t *info = NULL;
+  dsi_addr_info_t  addr_info;
+
+  QDI_LOG_TRACE_ENTRY;
+
+  if( !call_info )
+  {
+    QDI_LOG_ERROR("Invalid input parameters call_info=%p", call_info);
+    QDI_LOG_TRACE_RETURN(QDI_FAILURE);
+    return QDI_FAILURE;
+  }
+
+  qdi_handle = call_info->handle;
+  QDI_GET_INFO_PTR(qdi_handle, info);
+
+  if( !QDI_IS_VALID_HNDL(info) )
+  {
+    QDI_LOG_FATAL("Valid call_info=%p. Invalid qdi_handle=%d, info=%p . "
+                  "Possible memory corruption",
+                  call_info, qdi_handle, info);
+    QDI_LOG_TRACE_RETURN(QDI_FAILURE);
+    return QDI_FAILURE;
+  }
+
+  if( QDI_SUCCESS != qdi_get_addr_info(qdi_handle,
+                                       info->dev_id,
+                                       ip_family,
+                                       &addr_info,
+                                       QMI_WDS_IFACE_NAME_NOT_REPORTED))
+  {
+    QDI_LOG_ERROR("No valid address present for ip_family[%d] on iface=[%s]. Not incrementing cnt",
+                   ip_family, info->dev_id);
+    QDI_LOG_TRACE_RETURN(QDI_FAILURE);
+    return QDI_FAILURE;
+  }
+  else
+  {
+    switch(ip_family)
+    {
+      case AF_INET:
+        if(call_info->v4_pkt_srvc_conn_ind_cnt == 0)
+        {
+          ++call_info->v4_pkt_srvc_conn_ind_cnt;
+        }
+        break;
+      case AF_INET6:
+        if(call_info->v6_pkt_srvc_conn_ind_cnt == 0)
+        {
+          ++call_info->v6_pkt_srvc_conn_ind_cnt;
+        }
+        break;
+      default:
+        QDI_LOG_ERROR("Invalid ip_family received");
+        break;
+    }
+  }
+
+  QDI_LOG_LOW("qdi_handle=%d call_info=%p v4_pkt_ind_cnt=%d v6_pkt_ind_cnt=%d",
+              qdi_handle,
+              call_info,
+              call_info->v4_pkt_srvc_conn_ind_cnt,
+              call_info->v6_pkt_srvc_conn_ind_cnt);
+  QDI_LOG_TRACE_RETURN(QDI_SUCCESS);
+  return QDI_SUCCESS;
+}
+
+
+/*===========================================================================
                             GLOBAL FUNCTION DEFINITIONS
 ===========================================================================*/
 
@@ -1919,6 +2070,7 @@ qdi_release (void)
 qdi_client_handle_t
 qdi_wds_srvc_init_client
 (
+  const char                    *wds_id,
   const char                    *dev_id,
   qmi_wds_indication_hdlr_type  user_ind_msg_hdlr,
   void                          *user_ind_msg_hdlr_user_data,
@@ -1946,7 +2098,8 @@ qdi_wds_srvc_init_client
     QDI_LOG_ERROR("No more qdi handles available");
     goto error;
   }
-  else if (!dev_id            ||
+  else if (!wds_id            ||
+           !dev_id            ||
            !user_ind_msg_hdlr ||
            !qmi_err_code)
   {
@@ -1959,10 +2112,11 @@ qdi_wds_srvc_init_client
   memset(info, 0x0, sizeof(qdi_handle_info_t));
 
   /* Save the device name */
+  info->wds_id = wds_id;
   info->dev_id = dev_id;
 
   /* Initialize QMI WDS clients for both IP family versions.*/
-  if ((info->handle_ipv4 = qmi_wds_srvc_init_client(dev_id,
+  if ((info->handle_ipv4 = qmi_wds_srvc_init_client(wds_id,
                                                     qdi_wds_ind_hdlr,
                                                     (void *)qdi_handle,
                                                     qmi_err_code)) < 0)
@@ -1972,7 +2126,7 @@ qdi_wds_srvc_init_client
     goto error;
   }
 
-  if ((info->handle_ipv6 = qmi_wds_srvc_init_client(dev_id,
+  if ((info->handle_ipv6 = qmi_wds_srvc_init_client(wds_id,
                                                     qdi_wds_ind_hdlr,
                                                     (void *)qdi_handle,
                                                     qmi_err_code)) < 0)
@@ -2161,6 +2315,11 @@ qdi_alloc_call_handle
 
   memset(call_info, 0, sizeof(qdi_call_info_t));
   call_info->handle = user_handle;
+  /* Set the route lookup qmi instance to invalid
+     It will be set appropriately by doing rl in dsi.
+     The correct instance id will be passed to qdi when
+     there is SNI call from another process*/
+  call_info->rl_qmi_inst = QDI_INVALID_QMI_INST;
 
   /* Lock the transaction mutex */
   QDI_MUTEX_LOCK(qdi_txn_mutex);
@@ -2271,6 +2430,7 @@ qdi_wds_start_nw_if
   boolean                          partial_retry,
   qdi_wds_user_async_cb_type       user_cb,
   void                             *user_data,
+  int                              rl_qmi_inst,
   qmi_wds_call_end_reason_type     *call_end_reason_resp,
   int                              *qmi_err_code
 )
@@ -2335,6 +2495,9 @@ qdi_wds_start_nw_if
   /* Lock the transaction mutex */
   QDI_MUTEX_LOCK(qdi_txn_mutex);
 
+  /* Update rl_qmi_inst id obatined from dsi route lookup */
+    call_info->rl_qmi_inst = rl_qmi_inst;
+
   /* Validate the call attempt */
   if (QDI_SUCCESS != qdi_validate_call_attempt(user_handle,
                                                call_info,
@@ -2361,7 +2524,7 @@ qdi_wds_start_nw_if
   else
   {
     QDI_LOG_ERROR(" binding v4 handle to IPV4 family failed rc=%d, qmi_err=%d",
-                  ret_v4, 
+                  ret_v4,
                   *qmi_err_code);
   }
 
@@ -2384,7 +2547,7 @@ qdi_wds_start_nw_if
                   ret_v6,
                   *qmi_err_code);
   }
-  
+
   switch (mode)
   {
     case QDI_MODE_V4:
@@ -3292,19 +3455,18 @@ qdi_get_addr_info
   /* Print the interface addresses being returned */
   if (AF_INET == ip_family)
   {
-    DS_LOG_IPV4_ADDR(med,"Interface",    (SASTORAGE_DATA(addr_info->iface_addr_s.addr)));
-    DS_LOG_IPV4_ADDR(med,"Gateway",      (SASTORAGE_DATA(addr_info->gtwy_addr_s.addr)));
-    DS_LOG_IPV4_ADDR(med,"DNS Primary",  (SASTORAGE_DATA(addr_info->dnsp_addr_s.addr)));
-    DS_LOG_IPV4_ADDR(med,"DNS Secondary",(SASTORAGE_DATA(addr_info->dnss_addr_s.addr)));
+    DS_INET4_NTOP(med,"Interface",     (SASTORAGE_DATA(addr_info->iface_addr_s.addr)));
+    DS_INET4_NTOP(med,"Gateway",       (SASTORAGE_DATA(addr_info->gtwy_addr_s.addr)));
+    DS_INET4_NTOP(med,"DNS Primary",   (SASTORAGE_DATA(addr_info->dnsp_addr_s.addr)));
+    DS_INET4_NTOP(med,"DNS Secondary", (SASTORAGE_DATA(addr_info->dnss_addr_s.addr)));
   }
   else
   {
-    DS_LOG_IPV6_ADDR(med,"Interface",    (SASTORAGE_DATA(addr_info->iface_addr_s.addr)));
-    DS_LOG_IPV6_ADDR(med,"Gateway",      (SASTORAGE_DATA(addr_info->gtwy_addr_s.addr)));
-    DS_LOG_IPV6_ADDR(med,"DNS Primary",  (SASTORAGE_DATA(addr_info->dnsp_addr_s.addr)));
-    DS_LOG_IPV6_ADDR(med,"DNS Secondary",(SASTORAGE_DATA(addr_info->dnss_addr_s.addr)));
+    DS_INET6_NTOP(med,"Interface",     (SASTORAGE_DATA(addr_info->iface_addr_s.addr)));
+    DS_INET6_NTOP(med,"Gateway",       (SASTORAGE_DATA(addr_info->gtwy_addr_s.addr)));
+    DS_INET6_NTOP(med,"DNS Primary",   (SASTORAGE_DATA(addr_info->dnsp_addr_s.addr)));
+    DS_INET6_NTOP(med,"DNS Secondary", (SASTORAGE_DATA(addr_info->dnss_addr_s.addr)));
   }
-
   ret = QDI_SUCCESS;
 
 bail:

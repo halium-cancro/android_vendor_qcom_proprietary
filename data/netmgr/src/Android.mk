@@ -17,7 +17,7 @@ LOCAL_SRC_FILES := \
 LOCAL_MODULE := libnetmgr
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qti
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
@@ -35,8 +35,8 @@ LOCAL_ADDITIONAL_DEPENDENCIES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 #LOCAL_C_INCLUDES += $(call include-path-for, glib)/glib
 #LOCAL_C_INCLUDES += $(call include-path-for, glib)/gobject
 LOCAL_C_INCLUDES  += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-
-LOCAL_CFLAGS += -DFEATURE_ADD_DNS_ROUTES
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/cne/inc
+LOCAL_C_INCLUDES += external/connectivity/stlport/stlport
 
 LOCAL_SRC_FILES := \
 	netmgr.c \
@@ -48,16 +48,28 @@ LOCAL_SRC_FILES := \
 	netmgr_sm.c \
 	netmgr_sm_int.c \
 	netmgr_tc.c \
-	netmgr_test.c
+	netmgr_test.c \
+	netmgr_qmi_dfs.c \
+	netmgr_iwlan_client.cpp
 
 LOCAL_MODULE := netmgrd
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_SHARED_LIBRARIES += \
-        libqmi            \
-        libnetutils       \
-        libnetmgr
+LOCAL_SHARED_LIBRARIES +=  \
+        libqmi             \
+        libnetutils        \
+        libnetmgr          \
+        libqmiservices     \
+        libqmi_cci         \
+        libqmi_common_so   \
+        libqmi_client_qmux
 
-LOCAL_MODULE_OWNER := qcom
+ifeq ($(BOARD_USES_QCNE),true)
+LOCAL_SHARED_LIBRARIES += libcneapiclient
+LOCAL_SHARED_LIBRARIES += libcnefeatureconfig
+LOCAL_SHARED_LIBRARIES += libbinder
+endif
+
+LOCAL_MODULE_OWNER := qti
 
 include $(BUILD_EXECUTABLE)

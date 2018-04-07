@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2015 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -62,6 +62,8 @@ when       who        what, where, why
 #include "netmgr_util.h"
 #include "netmgr_tc_i.h"
 
+#include <arpa/inet.h>
+
 /*===========================================================================
                      LOCAL DEFINITIONS AND DECLARATIONS
 ===========================================================================*/
@@ -95,8 +97,11 @@ when       who        what, where, why
 #define NETMGR_TC_UDP_PROTO_IANA_NUM     17
 #define NETMGR_TC_INVALID_PROTO          -1
 
-#define NETMGR_TC_CHAIN_NAME_POSTROUTING "qcom_qos_postrouting"
+#define NETMGR_TC_CHAIN_NAME_QOS_RESET_POSTROUTING  "qcom_qos_reset_POSTROUTING"
+#define NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING "qcom_qos_filter_POSTROUTING"
+
 #define NETMGR_TC_DEFAULT_FLOW_MARKING   0
+
 
 LOCAL struct netmgr_tc_cfg_s netmgr_tc_cfg;
 
@@ -264,6 +269,184 @@ netmgr_tc_cdma_qos_spec_tbl[] = {
 ===========================================================================*/
 
 /*===========================================================================
+  FUNCTION  netmgr_tc_flow_filter_dump
+===========================================================================*/
+/*!
+@brief
+  Writes data in Filters to QXDM logs
+
+@return
+  None.
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+
+LOCAL  void
+netmgr_tc_flow_filter_dump
+(
+  const netmgr_qmi_qos_flow_info_t  *qos_flow
+)
+{
+
+  int tmp_cntr =0;
+  const qmi_qos_granted_filter_data_type *fltr_lst;
+
+  if (qos_flow == NULL)
+    return;
+
+  netmgr_log_high("flow handle=0x%08x\n",
+                 (unsigned int)qos_flow->flow_id );
+  netmgr_log_high("flow is_new=%s\n",
+                 ((TRUE==qos_flow->is_new)?"TRUE":"FALSE") );
+  netmgr_log_high("flow priority=%d\n", qos_flow->priority );
+  netmgr_log_high("flow datarate=%d\n", (int)qos_flow->datarate );
+  netmgr_log_high("flow num_filter=%d\n", qos_flow->num_filter );
+  netmgr_log_high("flow filter_list=%p\n", qos_flow->filter_list );
+
+  for (tmp_cntr = 0; tmp_cntr < qos_flow->num_filter; tmp_cntr++)
+  {
+    fltr_lst = &(qos_flow->filter_list[tmp_cntr]);
+    netmgr_log_high( "flow filter_list addrs=%p\n", fltr_lst );
+
+    netmgr_log_high("[%d] param mask = %d\n",
+                    tmp_cntr, fltr_lst->qos_filter.filter_desc.param_mask);
+    netmgr_log_high("[%d] filter_index = %d\n",
+                    tmp_cntr, fltr_lst->filter_index);
+    netmgr_log_high("[%d]Filter ID = %d\n",
+                    tmp_cntr, fltr_lst->qos_filter.filter_desc.filter_id);
+    netmgr_log_high("[%d] precedence = %d\n",
+                    tmp_cntr, fltr_lst->qos_filter.filter_desc.precedence);
+    netmgr_log_low("[%d] esp security poicy index = %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.esp_security_policy_index);
+    netmgr_log_high("[%d] IP version = %d\n",
+                    tmp_cntr, fltr_lst->qos_filter.ip_version);
+    netmgr_log_low("[%d] IPV6 Flow Label = %d\n",
+                     tmp_cntr,
+                     fltr_lst->qos_filter.filter_desc.ipv6_flow_label);
+    netmgr_log_low("[%d] IPV6 Src addr = %s\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.ipv6_src_addr.ipv6_ip_addr);
+    netmgr_log_low("[%d] IPV6 Src addr frefix len = %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.ipv6_src_addr.ipv6_filter_prefix_len);
+    netmgr_log_low("[%d] IPV6 Dest addr = %s\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.ipv6_dest_addr.ipv6_ip_addr);
+    netmgr_log_low("[%d] IPV6 Dest addr frefix len = %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.ipv6_dest_addr.ipv6_filter_prefix_len);
+    netmgr_log_low("[%d] IPV6 Traffic class Value = %d, Mask %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.ipv6_traffic_class.traffic_class_value,
+                    fltr_lst->qos_filter.filter_desc.ipv6_traffic_class.traffic_class_mask);
+    netmgr_log_high("[%d] Protocol = %d\n",
+                    tmp_cntr, fltr_lst->qos_filter.filter_desc.protocol);
+    netmgr_log_low("[%d] TOS Value = %d TOS Mask %d \n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.tos.tos_value,
+                    fltr_lst->qos_filter.filter_desc.tos.tos_mask);
+    netmgr_log_low("[%d] TCP SRC start port = %d, Range %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.tcp_src_ports.start_port,
+                    fltr_lst->qos_filter.filter_desc.tcp_src_ports.range);
+    netmgr_log_low("[%d] TCP Dest start port = %d, Range %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.tcp_dest_ports.start_port,
+                    fltr_lst->qos_filter.filter_desc.tcp_dest_ports.range);
+    netmgr_log_low("[%d] UDP SRC start port = %d, Range %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.udp_src_ports.start_port,
+                    fltr_lst->qos_filter.filter_desc.udp_src_ports.range);
+    netmgr_log_low("[%d] UDP Dest start port = %d, Range %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.udp_dest_ports.start_port,
+                    fltr_lst->qos_filter.filter_desc.udp_dest_ports.range);
+    netmgr_log_low("[%d] Transport SRC start port = %d, Range %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.transport_src_ports.start_port,
+                    fltr_lst->qos_filter.filter_desc.transport_src_ports.range);
+    netmgr_log_low("[%d] Transport Dest start port = %d, Range %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.transport_dest_ports.start_port,
+                    fltr_lst->qos_filter.filter_desc.transport_dest_ports.range);
+    netmgr_log_low("[%d] IPV4 SRC Addr  = %d, subnet %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.src_addr.ipv4_ip_addr,
+                    fltr_lst->qos_filter.filter_desc.src_addr.ipv4_subnet_mask);
+    netmgr_log_low("[%d] IPV4 DEST Addr  = %d, subnet %d\n",
+                    tmp_cntr,
+                    fltr_lst->qos_filter.filter_desc.dest_addr.ipv4_ip_addr,
+                    fltr_lst->qos_filter.filter_desc.dest_addr.ipv4_subnet_mask);
+  }
+}
+
+
+/*===========================================================================
+  FUNCTION  netmgr_tc_get_filter_index
+===========================================================================*/
+/*!
+@brief
+  Loops ovet the filter_data list and returns the index of the filter with
+a precedence value passed.
+
+@return
+  int - Index in the list.
+
+@note
+
+  - Dependencies
+    - netmgr_tc_cfg.links[ link ].filter_list should be initialized.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL int
+netmgr_tc_get_filter_index
+(
+  uint32 link,
+  uint32 flow_id,
+  uint32 rule_id,
+  uint32 precedence,
+  uint32 ip_version
+)
+{
+  ds_dll_el_t *iter = NULL;
+  netmgr_tc_filter_data *filter_data;
+  uint32 index = 0;
+
+  if ( ! netmgr_tc_cfg.links[ link ].filter_list )
+  {
+    netmgr_log_err("netmgr_tc_get_filter_index: filter_list is un-initialized !");
+    return -1;
+  }
+
+  iter = netmgr_tc_cfg.links[ link ].filter_list->next;
+
+  while ( iter )
+  {
+    filter_data = (netmgr_tc_filter_data *)ds_dll_data(iter);
+    if ((filter_data->ip_version == ip_version) && (filter_data->precedence > precedence))
+      break;
+    iter = iter->next;
+    if (filter_data->ip_version == ip_version)
+      index++;
+  }
+
+  netmgr_log_high("netmgr_tc_get_filter_index: Found index %d",index);
+
+  return index;
+}
+
+/*===========================================================================
   FUNCTION  netmgr_tc_flow_alloc
 ===========================================================================*/
 /*!
@@ -340,6 +523,43 @@ netmgr_tc_flow_free
 }
 
 /*===========================================================================
+  FUNCTION  netmgr_tc_filter_alloc
+===========================================================================*/
+/*!
+@brief
+  Allocate dynamic memory for flow info buffer
+
+@return
+  netmgr_tc_filter_data * - pointer to allocated buffer on success,
+                            NULL otherwise
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL netmgr_tc_filter_data *
+netmgr_tc_filter_alloc( void )
+{
+  netmgr_tc_filter_data * filter_buf = NULL;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if((filter_buf = netmgr_malloc(sizeof(netmgr_tc_filter_data))) == NULL ) {
+    netmgr_log_err("netmgr_tc_filter_data: netmgr_malloc failed\n");
+  }
+
+  NETMGR_LOG_FUNC_EXIT;
+
+  /* Return ptr to buffer, or NULL if none available */
+  return filter_buf;
+}
+
+/*===========================================================================
   FUNCTION  netmgr_tc_handle_info_alloc
 ===========================================================================*/
 /*!
@@ -408,6 +628,52 @@ netmgr_tc_match_flows
 }
 
 /*===========================================================================
+  FUNCTION  netmgr_tc_match_filter_data
+===========================================================================*/
+/*!
+@brief
+  Compares filter objects to determine if they match.  Used by
+  linked-list search route.
+
+@return
+  0 if comparision succeeds else -1.
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+LOCAL long int
+netmgr_tc_match_filter_data
+(
+  const void * first,
+  const void * second
+)
+{
+  netmgr_log_high("netmgr_tc_match_filter_data: enter\n");
+
+  netmgr_log_high("first flow handle=0x%08x\n",
+                 (unsigned int)((netmgr_tc_filter_data *)first)->flow_id);
+
+  netmgr_log_high("second flow handle=0x%08x\n",
+                 (unsigned int)((netmgr_tc_filter_data *)second)->flow_id);
+
+  if( (((netmgr_tc_filter_data *)first)->flow_id == ((netmgr_tc_filter_data *)second)->flow_id) &&
+      (((netmgr_tc_filter_data *)first)->rule_id == ((netmgr_tc_filter_data *)second)->rule_id) &&
+      (((netmgr_tc_filter_data *)first)->precedence == ((netmgr_tc_filter_data *)second)->precedence) &&
+      (((netmgr_tc_filter_data *)first)->ip_version == ((netmgr_tc_filter_data *)second)->ip_version))
+  {
+    netmgr_log_high("netmgr_tc_match_filter_data: success\n");
+    return 0;
+  }
+  return -1;
+}
+
+/*===========================================================================
   FUNCTION  netmgr_tc_create_root_qdisc
 ===========================================================================*/
 /*!
@@ -439,6 +705,7 @@ netmgr_tc_create_root_qdisc
   int result =  NETMGR_FAILURE;
   int status;
   netmgr_tc_handle_info_t * root_handle = NULL;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -447,6 +714,13 @@ netmgr_tc_create_root_qdisc
   if( !root_handle )
   {
     netmgr_log_err("failed to allocate root handle for link %d", link);
+    goto error;
+  }
+
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
     goto error;
   }
 
@@ -461,7 +735,7 @@ netmgr_tc_create_root_qdisc
   {
       std_strlprintf(cmd, sizeof(cmd),
                      "tc qdisc add dev %s root handle %d:0 htb r2q %d default %d",
-                     netmgr_kif_get_name( link ),
+                     dev_name,
                      NETMGR_TC_QDISC_ROOT_MAJOR,
                      NETMGR_TC_QDISC_HTB_RATE2QTM,
                      NETMGR_TC_QDISC_DEFAULT_CLASS_TCP_ACK_PRIO);
@@ -470,7 +744,7 @@ netmgr_tc_create_root_qdisc
   {
       std_strlprintf(cmd, sizeof(cmd),
                      "tc qdisc add dev %s root handle %d:0 htb r2q %d default %d",
-                     netmgr_kif_get_name( link ),
+                     dev_name,
                      NETMGR_TC_QDISC_ROOT_MAJOR,
                      NETMGR_TC_QDISC_HTB_RATE2QTM,
                      NETMGR_TC_QDISC_DEFAULT_CLASS);
@@ -525,19 +799,27 @@ netmgr_tc_create_leaf_qdisc
 {
   char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
   int status;
-  int result = NETMGR_SUCCESS;
+  int result = NETMGR_FAILURE;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto bail;
+  }
 
   snprintf(cmd, sizeof(cmd),
            "tc qdisc add dev %s parent %d:%d handle %d:0 prio flow enable",
-           netmgr_kif_get_name( link ),
+           dev_name,
            parent->major,  /* parent major */
            parent->minor,  /* parent minor */
            parent->minor); /* qdisc major is minor of parent */
 
   result = ds_system_call(cmd, std_strlen(cmd));
 
+bail:
   NETMGR_LOG_FUNC_EXIT;
   return result;
 }
@@ -576,17 +858,25 @@ netmgr_tc_create_class
   int result =  NETMGR_FAILURE;
   int status;
   char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
   NETMGR_ASSERT(handle);
+
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto bail;
+  }
 
   if( NULL == parent )
   {
     snprintf(cmd, sizeof(cmd),
              "tc class add dev %s parent root classid %d:%d "
              "htb prio %d rate %lubit ceil %lubit",
-             netmgr_kif_get_name( link ),
+             dev_name,
              handle->major,              /* class major id */
              handle->minor,              /* class minor id */
              priority,                   /* priority level */
@@ -598,7 +888,7 @@ netmgr_tc_create_class
     snprintf(cmd, sizeof(cmd),
              "tc class add dev %s parent %d:%d classid %d:%d "
              "htb prio %d rate %lubit ceil %lubit",
-             netmgr_kif_get_name( link ),
+             dev_name,
              parent->major,              /* parent major id */
              parent->minor,              /* parent minor id */
              handle->major,              /* class major id */
@@ -610,6 +900,7 @@ netmgr_tc_create_class
 
   result = ds_system_call(cmd, std_strlen(cmd));
 
+bail:
   NETMGR_LOG_FUNC_EXIT;
   return result;
 }
@@ -646,11 +937,18 @@ netmgr_tc_create_filter
   const netmgr_tc_handle_info_t * class_info
 )
 {
-  int result =  NETMGR_SUCCESS;
+  int result =  NETMGR_FAILURE;
   char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
   int status;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto bail;
+  }
 
   NETMGR_ASSERT( flow_info );
   NETMGR_ASSERT( parent );
@@ -659,7 +957,7 @@ netmgr_tc_create_filter
   snprintf(cmd, sizeof(cmd),
            "tc filter add dev %s parent %d:%d "
            "prio %d protocol ip handle 0x%lx fw classid %d:%d",
-           netmgr_kif_get_name( link ),
+           dev_name,
            parent->major,
            parent->minor,
            NETMGR_TC_FILTER_PRIORITY,
@@ -669,6 +967,7 @@ netmgr_tc_create_filter
 
   result = ds_system_call(cmd, std_strlen(cmd));
 
+bail:
   NETMGR_LOG_FUNC_EXIT;
   return result;
 }
@@ -709,12 +1008,20 @@ netmgr_tc_create_tcp_ack_filter
   int result =  NETMGR_SUCCESS;
   char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
   int status;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
   NETMGR_ASSERT( flow_info );
   NETMGR_ASSERT( parent );
   NETMGR_ASSERT( class_info );
+
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto bail;
+  }
 
   /* The following uses a u32 filter to filter TCP ACKs.
      ip protocol 6 ensures that it is an IPV4\IPV6 packet.
@@ -727,7 +1034,7 @@ netmgr_tc_create_tcp_ack_filter
            "protocol ip prio %d u32 match ip protocol 6 0xff "
            "match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 "
            "match u8 0x10 0xff at 33 flowid %d:%d",
-           netmgr_kif_get_name( link ),
+           dev_name,
            parent->major,
            parent->minor,
            NETMGR_TC_TCP_ACK_FILTER_PRIORITY,
@@ -736,6 +1043,7 @@ netmgr_tc_create_tcp_ack_filter
 
   result = ds_system_call(cmd, std_strlen(cmd));
 
+bail:
   NETMGR_LOG_FUNC_EXIT;
   return result;
 }
@@ -827,7 +1135,11 @@ netmgr_tc_flow_enable
   int i;
   int result = NETMGR_FAILURE;
   char * ipt_tool = NULL;
-
+  int filter_index;
+  netmgr_tc_filter_data *filter_data;
+  ds_dll_el_t* tail = NULL;
+  ds_dll_el_t* node = NULL;
+  const void* dummy = NULL;
   NETMGR_LOG_FUNC_ENTRY;
 
   if (flow_info == NULL)
@@ -842,14 +1154,69 @@ netmgr_tc_flow_enable
     ipt_tool = (QMI_QOS_IP_VERSION_6 == flow_info->qos_flow.filter_list[i].qos_filter.ip_version)?
                 NETMGR_TC_IPTABLES_TOOL_V6 : NETMGR_TC_IPTABLES_TOOL_V4;
 
-    snprintf(cmd, sizeof(cmd), "%s -t mangle -A OUTPUT -j %s_0x%08lx.%d",
+    filter_data = netmgr_tc_filter_alloc();
+
+    if (filter_data == NULL)
+    {
+      netmgr_log_err( "No Memory\n" );
+      goto error;
+    }
+
+    filter_data->flow_id = flow_info->qos_flow.flow_id;
+    filter_data->rule_id = i;
+    filter_data->precedence = flow_info->qos_flow.filter_list[i].qos_filter.filter_desc.precedence;
+    filter_data->ip_version = flow_info->qos_flow.filter_list[i].qos_filter.ip_version;
+
+    /* Lower the precedence value of a filter, higher is its evaluation order.
+       Find an index of the node in the filter_list which has lesser precedence value.
+    */
+    filter_index = netmgr_tc_get_filter_index(
+                                  link,
+                                  filter_data->flow_id,
+                                  filter_data->rule_id,
+                                  filter_data->precedence,
+                                  filter_data->ip_version);
+    if ( filter_index < 0 )
+    {
+      goto error;
+    }
+
+    /* Insert the currnet filter object in the list */
+    if ( ( ds_dll_insert(netmgr_tc_cfg.links[ link ].filter_list,
+                         NULL,
+                         (void *)filter_data,
+                         filter_index) ) == NULL )
+    {
+      goto error;
+    }
+
+    /*Insert the rules in qcom_qos_POSTROUTING chain in the order of increasing
+      precedence, so that lower precedence filter match happends first.
+      Use (index + 1) as iptables does not allow inserting at index 0 */
+    snprintf(cmd, sizeof(cmd), "%s -t mangle -I %s %d -j %s_0x%08lx.%d",
              ipt_tool,
+             NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING,
+             filter_index + 1,
              NETMGR_TC_CHAIN_NAME_PREFIX,
              flow_info->qos_flow.flow_id,
              i);
 
     if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
     {
+      node = ds_dll_next(netmgr_tc_cfg.links[link].filter_list, &dummy);
+      while (NULL != node)
+      {
+        tail = node;
+        node = ds_dll_next(tail, &dummy);
+      }
+
+      node = ds_dll_delete(netmgr_tc_cfg.links[ link ].filter_list,
+                      &tail,
+                      (void *) filter_data,
+                      netmgr_tc_match_filter_data);
+
+      netmgr_free(filter_data);
+
       goto error;
     }
   }
@@ -860,83 +1227,6 @@ netmgr_tc_flow_enable
 error:
   NETMGR_LOG_FUNC_EXIT;
   return result;
-}
-
-/*===========================================================================
-  FUNCTION  netmgr_tc_add_matching_rule_postrouting
-===========================================================================*/
-/*!
-@brief
-  Adds a matching rule in postrouting. All other packets which are not
-  marked with qcom qos will be marked as 0x0, which is the default mark
-  value for qos.
-
-  This function can enter duplicable entries of the same rule in
-  the postrouting chain. This happens in the case when there are multiple
-  filters associated with the same flow. These however will be deleted
-  eventually when the flow is deleted.
-
-@return
-  int - NETMGR_SUCCESS on successful operation,
-        NETMGR_FAILURE otherwise
-
-@note
-
-  - Dependencies
-    - None
-
-  - Side Effects
-    - None
-*/
-/*=========================================================================*/
-static int
-netmgr_tc_add_matching_rule_postrouting
-(
-  int link,
-  uint32 ip_family,
-  uint32 flow_id
-)
-{
-  char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
-  int length;
-  char * ipt_tool = NULL;
-  const unsigned int maxlength = sizeof(cmd)-1;
-
-  NETMGR_LOG_FUNC_ENTRY;
-
-  if (ip_family != NETMGR_IPV6_ADDR &&
-        ip_family != NETMGR_IPV4_ADDR )
-  {
-    netmgr_log_err("invalid IP version revceived");
-    goto error;
-  }
-
-  ipt_tool = (NETMGR_IPV6_ADDR == ip_family)?
-                NETMGR_TC_IPTABLES_TOOL_V6 : NETMGR_TC_IPTABLES_TOOL_V4;
-
-  memset( cmd, 0x0, sizeof(cmd) );
-  length =  snprintf(cmd,
-                     maxlength,
-                     "%s -t mangle -I %s -o %s -m mark --mark  0x%08lx -j ACCEPT",
-                     ipt_tool,
-                     NETMGR_TC_CHAIN_NAME_POSTROUTING,
-                     netmgr_kif_get_name(link),
-                     flow_id);
-
-  if( (unsigned int)length >= maxlength )
-     goto error;
-
-  if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
-  {
-    goto error;
-  }
-
-  NETMGR_LOG_FUNC_EXIT;
-  return NETMGR_SUCCESS;
-
-error:
-  NETMGR_LOG_FUNC_EXIT;
-  return NETMGR_FAILURE;
 }
 
 /*===========================================================================
@@ -1121,7 +1411,7 @@ netmgr_tc_iptables_v4_rule_helper
   }
 
   /* Once marked as desired, dont fall through,
-   * ACCEPT and jump out of OUTPUT chain
+   * ACCEPT and jump out of POSTROUTING chain
    */
   memset( cmd, 0x0, sizeof(cmd) );
   length = snprintf(cmd,
@@ -1145,9 +1435,6 @@ netmgr_tc_iptables_v4_rule_helper
     goto error;
   }
 
-  /*Install mark match rule in the postrouting chain.*/
-  netmgr_tc_add_matching_rule_postrouting(link,NETMGR_IPV4_ADDR, flow_id);
-
   NETMGR_LOG_FUNC_EXIT;
   return NETMGR_SUCCESS;
 
@@ -1162,7 +1449,7 @@ error:
 ===========================================================================*/
 /*!
 @brief
-  Create netfilter mangel table OUTPUT rule for QoS IPv4 filter. This will
+  Create netfilter mangle table POSTROUTING rule for QoS IPv4 filter. This will
   assign skb->mark field to teh specified flow ID for packet
   forwarding via traffic control classifier(filter).
 
@@ -1465,7 +1752,7 @@ netmgr_tc_iptables_v6_rule_helper
     goto error;
   }
 
-  /* Once marked as desired, dont fall through, ACCEPT and jump out of OUTPUT chain */
+  /* Once marked as desired, dont fall through, ACCEPT and jump out of POSTROUTING chain */
   memset( cmd, 0x0, sizeof(cmd) );
   length = snprintf(cmd, maxlength, "ip6tables -t mangle -A %s_0x%08lx.%ld",
                     NETMGR_TC_CHAIN_NAME_PREFIX,
@@ -1483,8 +1770,6 @@ netmgr_tc_iptables_v6_rule_helper
     goto error;
   }
 
-  netmgr_tc_add_matching_rule_postrouting(link,NETMGR_IPV6_ADDR, flow_id);
-
   NETMGR_LOG_FUNC_EXIT;
   return NETMGR_SUCCESS;
 
@@ -1498,7 +1783,7 @@ error:
 ===========================================================================*/
 /*!
 @brief
-  Create netfilter mangel table OUTPUT rule for QoS IPv6 filter. This will
+  Create netfilter mangle table POSTROUTING rule for QoS IPv6 filter. This will
   assign skb->mark field to teh specified flow ID for packet
   forwarding via traffic control classifier(filter).
 
@@ -1664,6 +1949,8 @@ netmgr_tc_flow_create
     goto error;
   }
 
+  netmgr_tc_flow_filter_dump(qos_flow);
+
   /* Check for primary flow */
   if( NETMGR_IS_DEFAULT_FLOW( qos_flow->flow_id ) )
   {
@@ -1824,6 +2111,8 @@ netmgr_tc_flow_create
                             netmgr_tc_cfg.links[link].root_qdisc,
                             flow_info->class_handle);
 
+    netmgr_log_high("num_filters: %d",qos_flow->num_filter);
+
     /* Mark all matching packets with the value of the link */
     for (i = 0; i < qos_flow->num_filter; i++)
     {
@@ -1905,6 +2194,7 @@ netmgr_tc_flow_control_hdlr
   int result = NETMGR_SUCCESS;
   char tcm_str[NETMGR_TC_HANDLE_LEN];
   uint32 tcm_handle;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
   NETMGR_ASSERT(link >= 0 && link < netmgr_tc_cfg.nlink);
@@ -1924,7 +2214,15 @@ netmgr_tc_flow_control_hdlr
   tcm_handle = strtoul(tcm_str, NULL, 16);
   tcm_handle <<= 16;
 
-  netmgr_kif_ifioctl_flow_control(netmgr_kif_get_name(link),
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    result = NETMGR_FAILURE;
+    goto error;
+  }
+
+  netmgr_kif_ifioctl_flow_control(dev_name,
                                   tcm_handle,
                                   (NETMGR_TC_FLOW_DISABLED == state)?0:1);
 
@@ -1935,133 +2233,13 @@ netmgr_tc_flow_control_hdlr
      tcm_handle = strtoul(tcm_str, NULL, 16);
      tcm_handle <<= 16;
 
-     netmgr_kif_ifioctl_flow_control(netmgr_kif_get_name(link),
+     netmgr_kif_ifioctl_flow_control(dev_name,
                                      tcm_handle,
                                      (NETMGR_TC_FLOW_DISABLED == state)?0:1);
   }
 error:
   NETMGR_LOG_FUNC_EXIT;
   return result;
-}
-
-/*===========================================================================
-  FUNCTION  netmgr_tc_flow_filter_dump
-===========================================================================*/
-/*!
-@brief
-  Writes data in Filters to QXDM logs
-
-@return
-  None.
-
-@note
-
-  - Dependencies
-    - None
-
-  - Side Effects
-    - None
-*/
-/*=========================================================================*/
-
-static void
-netmgr_tc_flow_filter_dump
-(
-  const netmgr_qmi_qos_flow_info_t  *qos_flow
-)
-{
-
-  int tmp_cntr =0;
-  qmi_qos_granted_filter_data_type *fltr_lst;
-
-  if (qos_flow == NULL)
-    return;
-
-  netmgr_log_low("flow handle=0x%08x\n",
-                 (unsigned int)qos_flow->flow_id );
-  netmgr_log_low("flow is_new=%s\n",
-                 ((TRUE==qos_flow->is_new)?"TRUE":"FALSE") );
-  netmgr_log_low("flow priority=%d\n", qos_flow->priority );
-  netmgr_log_low("flow datarate=%d\n", (int)qos_flow->datarate );
-  netmgr_log_low("flow num_filter=%d\n", qos_flow->num_filter );
-  netmgr_log_low("flow filter_list=%p\n", qos_flow->filter_list );
-
-  for (tmp_cntr = 0; tmp_cntr < qos_flow->num_filter; tmp_cntr++)
-  {
-    fltr_lst = &(qos_flow->filter_list[tmp_cntr]);
-    netmgr_log_low( "flow filter_list addrs=%p\n", fltr_lst );
-
-    netmgr_log_low("[%d] param mask = %d\n",
-                    tmp_cntr, fltr_lst->qos_filter.filter_desc.param_mask);
-    netmgr_log_low("[%d] filter_index = %d\n",
-                    tmp_cntr, fltr_lst->filter_index);
-    netmgr_log_low("[%d]Filter ID = %d\n",
-                    tmp_cntr, fltr_lst->qos_filter.filter_desc.filter_id);
-    netmgr_log_low("[%d] precedence = %d\n",
-                    tmp_cntr, fltr_lst->qos_filter.filter_desc.precedence);
-    netmgr_log_low("[%d] esp security poicy index = %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.esp_security_policy_index);
-    netmgr_log_low("[%d] IP version = %d\n",
-                    tmp_cntr, fltr_lst->qos_filter.ip_version);
-    netmgr_log_low("[%d] IPV6 Flow Label = %d\n",
-                     tmp_cntr,
-                     fltr_lst->qos_filter.filter_desc.ipv6_flow_label);
-    netmgr_log_low("[%d] IPV6 Src addr = %s\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.ipv6_src_addr.ipv6_ip_addr);
-    netmgr_log_low("[%d] IPV6 Src addr frefix len = %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.ipv6_src_addr.ipv6_filter_prefix_len);
-    netmgr_log_low("[%d] IPV6 Dest addr = %s\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.ipv6_dest_addr.ipv6_ip_addr);
-    netmgr_log_low("[%d] IPV6 Dest addr frefix len = %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.ipv6_dest_addr.ipv6_filter_prefix_len);
-    netmgr_log_low("[%d] IPV6 Traffic class Value = %d, Mask %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.ipv6_traffic_class.traffic_class_value,
-                    fltr_lst->qos_filter.filter_desc.ipv6_traffic_class.traffic_class_mask);
-    netmgr_log_low("[%d] Protocol = %d\n",
-                    tmp_cntr, fltr_lst->qos_filter.filter_desc.protocol);
-    netmgr_log_low("[%d] TOS Value = %d TOS Mask %d \n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.tos.tos_value,
-                    fltr_lst->qos_filter.filter_desc.tos.tos_mask);
-    netmgr_log_low("[%d] TCP SRC start port = %d, Range %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.tcp_src_ports.start_port,
-                    fltr_lst->qos_filter.filter_desc.tcp_src_ports.range);
-    netmgr_log_low("[%d] TCP Dest start port = %d, Range %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.tcp_dest_ports.start_port,
-                    fltr_lst->qos_filter.filter_desc.tcp_dest_ports.range);
-    netmgr_log_low("[%d] UDP SRC start port = %d, Range %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.udp_src_ports.start_port,
-                    fltr_lst->qos_filter.filter_desc.udp_src_ports.range);
-    netmgr_log_low("[%d] UDP Dest start port = %d, Range %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.udp_dest_ports.start_port,
-                    fltr_lst->qos_filter.filter_desc.udp_dest_ports.range);
-    netmgr_log_low("[%d] Transport SRC start port = %d, Range %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.transport_src_ports.start_port,
-                    fltr_lst->qos_filter.filter_desc.transport_src_ports.range);
-    netmgr_log_low("[%d] Transport Dest start port = %d, Range %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.transport_dest_ports.start_port,
-                    fltr_lst->qos_filter.filter_desc.transport_dest_ports.range);
-    netmgr_log_low("[%d] IPV4 SRC Addr  = %d, subnet %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.src_addr.ipv4_ip_addr,
-                    fltr_lst->qos_filter.filter_desc.src_addr.ipv4_subnet_mask);
-    netmgr_log_low("[%d] IPV4 DEST Addr  = %d, subnet %d\n",
-                    tmp_cntr,
-                    fltr_lst->qos_filter.filter_desc.dest_addr.ipv4_ip_addr,
-                    fltr_lst->qos_filter.filter_desc.dest_addr.ipv4_subnet_mask);
-  }
 }
 
 /*===========================================================================
@@ -2097,6 +2275,12 @@ netmgr_tc_filter_delete_hdlr
   int i;
   char * ipt_tool = NULL;
   char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
+  ds_dll_el_t* tail = NULL;
+  ds_dll_el_t* node = NULL;
+  const void* dummy = NULL;
+  netmgr_tc_filter_data filter_data;
+
+  NETMGR_LOG_FUNC_ENTRY;
 
   if (flow_info == NULL)
   {
@@ -2104,21 +2288,25 @@ netmgr_tc_filter_delete_hdlr
     return;
   }
 
+  filter_data.flow_id = flow_info->qos_flow.flow_id;
+
   for (i = 0; i < flow_info->qos_flow.num_filter; i++)
   {
     ipt_tool = (QMI_QOS_IP_VERSION_6 == flow_info->qos_flow.filter_list[i].
                  qos_filter.ip_version)? NETMGR_TC_IPTABLES_TOOL_V6 :
                  NETMGR_TC_IPTABLES_TOOL_V4;
 
-    /* Remove the reference to the chain from the output table */
-    snprintf(cmd, sizeof(cmd), "%s -t mangle -D OUTPUT -j %s_0x%08lx.%d",
+    /* Remove the reference to the chain from the POSTROUTING table */
+    snprintf(cmd, sizeof(cmd), "%s -t mangle -D %s -j %s_0x%08x.%d",
              ipt_tool,
+             NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING,
              NETMGR_TC_CHAIN_NAME_PREFIX,
              flow_id,
              i);
+
     if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
     {
-      netmgr_log_high("Error removing rule from OUTPUT table. Ignoring");
+      netmgr_log_high("Error removing rule from POSTROUTING table. Ignoring");
     }
 
     /* Remove all the rules from the chain */
@@ -2132,6 +2320,37 @@ netmgr_tc_filter_delete_hdlr
       netmgr_log_high("Error flushing chain. Ignoring");
     }
 
+    filter_data.rule_id = i;
+    filter_data.precedence = flow_info->qos_flow.filter_list[i].qos_filter.filter_desc.precedence;
+    filter_data.ip_version = flow_info->qos_flow.filter_list[i].qos_filter.ip_version;
+
+    node = ds_dll_next(netmgr_tc_cfg.links[link].filter_list, &dummy);
+    while (NULL != node)
+    {
+      netmgr_log_high("Node not NULL");
+      tail = node;
+      node = ds_dll_next(tail, &dummy);
+    }
+
+    node = ds_dll_delete(netmgr_tc_cfg.links[ link ].filter_list,
+                  &tail,
+                  (void *) &filter_data,
+                  netmgr_tc_match_filter_data);
+
+    if (NULL == node)
+    {
+      netmgr_log_err("Failed to delete filter with flow_id=0x%08x, rule_id=%d, precedence=%d, ip_version=%d",
+                     filter_data.flow_id,
+                     filter_data.rule_id,
+                     filter_data.precedence,
+                     filter_data.ip_version);
+    }
+    else
+    {
+      netmgr_free((void *)ds_dll_data(node));
+      ds_dll_free(node);
+    }
+
     /* Delete the chain */
     snprintf(cmd, sizeof(cmd), "%s -t mangle -X %s_0x%08lx.%d",
              ipt_tool,
@@ -2141,19 +2360,6 @@ netmgr_tc_filter_delete_hdlr
     if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
     {
       netmgr_log_high("Error deleting chain. Ignoring");
-    }
-    /*Delete the corresponding  matching rule from postrouting chain */
-    snprintf(cmd,
-             sizeof(cmd),
-             "%s -t mangle -D %s -o %s -m mark --mark 0x%08lx -j ACCEPT",
-             ipt_tool,
-             NETMGR_TC_CHAIN_NAME_POSTROUTING,
-             netmgr_kif_get_name(link),
-             flow_id);
-
-    if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
-    {
-      netmgr_log_high("Error deleting rule from postrouting. Ignoring");
     }
   }
 }
@@ -2190,6 +2396,7 @@ netmgr_tc_flow_modify_hdlr
   unsigned int length = 0;
   int i = 0;
   netmgr_tc_flow_info_t *flow_info = NULL;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -2198,9 +2405,20 @@ netmgr_tc_flow_modify_hdlr
 
   flow_info = netmgr_tc_find_flow_info(link, qos_flow->flow_id);
 
+  netmgr_log_high("Dumping New info");
+
+  netmgr_tc_flow_filter_dump(qos_flow);
+
   if (flow_info == NULL)
   {
     netmgr_log_err("flow_modify_hdlr: the flow object does not exist");
+    goto error;
+  }
+
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
     goto error;
   }
 
@@ -2217,7 +2435,7 @@ netmgr_tc_flow_modify_hdlr
                     sizeof(cmd),
                     "tc qdisc replace dev %s parent %d:%d classid %d:%d"
                     "htb prio %d rate %lubit ceil %lubit",
-                    netmgr_kif_get_name( link ),
+                    dev_name,
                     netmgr_tc_cfg.links[link].root_class->major,
                     netmgr_tc_cfg.links[link].root_class->minor,
                     flow_info->class_handle->major,
@@ -2243,9 +2461,15 @@ netmgr_tc_flow_modify_hdlr
                                link,
                                flow_info->qos_flow.flow_id);
 
+  /*replace old qos spec with the new one*/
+  flow_info->qos_flow = *qos_flow;
+
+
   /* Since the flowID does not change, there is no need to
    * change the tc filter installed at the root
    */
+  /*replace old qos spec with the new one*/
+  flow_info->qos_flow = *qos_flow;
 
   /* Mark all matching packets with the value of the link */
   for (i = 0; i < qos_flow->num_filter; i++)
@@ -2275,9 +2499,6 @@ netmgr_tc_flow_modify_hdlr
     netmgr_log_err("error in linking iptables chain to mangle table");
     goto error;
   }
-
-  /*replace old qos spec with the new one*/
-  flow_info->qos_flow = *qos_flow;
 
   /* If we reach here QOS modification is successul,
    * re-enable the leaf qdisc at this point
@@ -2428,9 +2649,17 @@ netmgr_tc_flow_delete_hdlr
   int i;
   int result = NETMGR_FAILURE;
   char * ipt_tool = NULL;
+  const char * dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
   NETMGR_ASSERT(link >= 0 && link < netmgr_tc_cfg.nlink);
+
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto done;
+  }
 
   if (NETMGR_IS_DEFAULT_FLOW(flow_id))
   {
@@ -2440,7 +2669,7 @@ netmgr_tc_flow_delete_hdlr
       /* Delete the default class */
       snprintf(cmd, sizeof(cmd), "tc class delete dev %s parent %d:%d "
                "classid %d:%d",
-               netmgr_kif_get_name( link ),
+               dev_name,
                netmgr_tc_cfg.links[link].root_class->major,
                netmgr_tc_cfg.links[link].root_class->minor,
                netmgr_tc_cfg.links[link].default_class->major,
@@ -2463,7 +2692,7 @@ netmgr_tc_flow_delete_hdlr
           /* Delete the default class */
           snprintf(cmd, sizeof(cmd), "tc class delete dev %s parent %d:%d "
                    "classid %d:%d",
-                   netmgr_kif_get_name( link ),
+                   dev_name,
                    netmgr_tc_cfg.links[link].root_class->major,
                    netmgr_tc_cfg.links[link].root_class->minor,
                    netmgr_tc_cfg.links[link].tcp_ack_class->major,
@@ -2485,7 +2714,7 @@ netmgr_tc_flow_delete_hdlr
       /* Delete the root class */
       snprintf(cmd, sizeof(cmd), "tc class delete dev %s parent %d:0 "
                "classid %d:%d",
-               netmgr_kif_get_name( link ),
+               dev_name,
                NETMGR_TC_QDISC_ROOT_MAJOR,
                netmgr_tc_cfg.links[link].root_class->major,
                netmgr_tc_cfg.links[link].root_class->minor);
@@ -2505,7 +2734,7 @@ netmgr_tc_flow_delete_hdlr
       /* Delete the root qdisc */
       snprintf(cmd, sizeof(cmd), "tc qdisc delete dev %s root handle %d:0 "
                "htb r2q %d",
-               netmgr_kif_get_name( link ),
+               dev_name,
                NETMGR_TC_QDISC_ROOT_MAJOR,
                NETMGR_TC_QDISC_HTB_RATE2QTM);
 
@@ -2584,7 +2813,7 @@ netmgr_tc_flow_delete_hdlr
       /* delete the filter */
       snprintf(cmd, sizeof(cmd), "tc filter delete dev %s parent %d:%d "
                "prio %d protocol ip handle 0x%lx fw classid %d:%d",
-               netmgr_kif_get_name( link ),
+               dev_name,
                NETMGR_TC_QDISC_ROOT_MAJOR,
                NETMGR_TC_QDISC_ROOT_MINOR,
                NETMGR_TC_FILTER_PRIORITY,
@@ -2600,7 +2829,7 @@ netmgr_tc_flow_delete_hdlr
       /* delete the leaf qdisc */
       snprintf(cmd, sizeof(cmd), "tc qdisc delete dev %s parent %d:%d "
                "handle %d:0 prio flow enable",
-               netmgr_kif_get_name( link ),
+               dev_name,
                flow_info->class_handle->major,
                flow_info->class_handle->minor,
                flow_info->class_handle->minor);
@@ -2613,7 +2842,7 @@ netmgr_tc_flow_delete_hdlr
       /* delete the class */
       snprintf(cmd, sizeof(cmd), "tc class delete dev %s parent %d:%d "
                "classid %d:%d",
-               netmgr_kif_get_name( link ),
+               dev_name,
                netmgr_tc_cfg.links[link].root_class->major,
                netmgr_tc_cfg.links[link].root_class->minor,
                flow_info->class_handle->major,
@@ -2665,13 +2894,22 @@ netmgr_tc_link_cleanup
 )
 {
   char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
+  dev_name = netmgr_kif_get_name(link);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n", __func__, link);
+    goto bail;
+  }
+
   snprintf(cmd, sizeof(cmd), "tc qdisc del dev %s root",
-           netmgr_kif_get_name( link ));
+           dev_name);
   (void) ds_system_call(cmd, std_strlen(cmd));
 
+bail:
   NETMGR_LOG_FUNC_EXIT;
   return;
 }
@@ -2708,6 +2946,14 @@ netmgr_tc_link_init( int link )
     netmgr_tc_cfg.links[ link ].root_qdisc = NULL;
     netmgr_tc_cfg.links[ link ].next_class_minor = NETMGR_TC_CLASS_MINOR_ID_INIT;
     netmgr_tc_cfg.links[ link ].flow_list = ds_dll_init( netmgr_tc_cfg.links[ link ].flow_list );
+    netmgr_tc_cfg.links[ link ].filter_list = ds_dll_init( netmgr_tc_cfg.links[ link ].filter_list );
+
+    netmgr_log_high("[ link ].filter_list %p",netmgr_tc_cfg.links[ link ].filter_list);
+
+    if(netmgr_tc_cfg.links[ link ].filter_list->next != NULL)
+    {
+      netmgr_log_high(" filter_list head %p",netmgr_tc_cfg.links[ link ].filter_list->next);
+    }
   }
 
   NETMGR_LOG_FUNC_EXIT;
@@ -2748,14 +2994,14 @@ netmgr_tc_reset_link( int link )
   return NETMGR_SUCCESS;
 }
 
+
 /*===========================================================================
-  FUNCTION  netmgr_tc_create_postrouting_mangle_chain
+  FUNCTION  netmgr_tc_create_qos_filter_postrouting_mangle_chain
 ===========================================================================*/
 /*!
 @brief
- In this new postrouting mangle chain, we make sure only packets
- marked by this module in the output chain, will be accepted and
- rest of the packets will be explicitly marked with "0".
+ In this new postrouting mangle chain to inserting filter rule chains in
+ the order of precedence values of the filter specification.
 
 @return
   NETMGR_SUCCESS, NETMGR_FAILURE
@@ -2770,7 +3016,7 @@ netmgr_tc_reset_link( int link )
 */
 /*=========================================================================*/
 static int
-netmgr_tc_create_postrouting_mangle_chain
+netmgr_tc_create_qos_filter_postrouting_mangle_chain
 (
   uint32 ip_family
 )
@@ -2798,7 +3044,7 @@ netmgr_tc_create_postrouting_mangle_chain
                     maxlength,
                     "%s -t mangle -N %s",
                     ipt_tool,
-                    NETMGR_TC_CHAIN_NAME_POSTROUTING);
+                    NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING);
 
   if( (unsigned int)length >= maxlength )
     goto error;
@@ -2809,36 +3055,13 @@ netmgr_tc_create_postrouting_mangle_chain
     goto error;
   }
 
-  /* wildcard entry to mark all non QOS packets with
-   * default mark value for enabled interfaces
-   */
-  for( i = 0; i < NETMGR_MAX_LINK; ++i )
-  {
-
-    memset( cmd, 0x0, sizeof(cmd) );
-    length = snprintf(cmd,
-                    maxlength,
-                    "%s -t mangle -A %s -o %s -j MARK --set-mark 0x%x",
-                    ipt_tool,
-                    NETMGR_TC_CHAIN_NAME_POSTROUTING,
-                    netmgr_kif_get_name(netmgr_tc_cfg.link_array[i].link_id),
-                    NETMGR_TC_DEFAULT_FLOW_MARKING);
-
-    if( (unsigned int)length >= maxlength )
-      goto error;
-
-    if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
-    {
-      goto error;
-    }
-  }
   memset( cmd, 0x0, sizeof(cmd) );
-  /*Link the chain to postrouting chain of mangle table*/
+  /*Link the chain to POSTROUTING chain of mangle table*/
   length = snprintf(cmd,
                     maxlength,
                     "%s -t mangle -A POSTROUTING -j %s",
                     ipt_tool,
-                    NETMGR_TC_CHAIN_NAME_POSTROUTING);
+                    NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING);
 
   if( (unsigned int)length >= maxlength )
     goto error;
@@ -2855,7 +3078,7 @@ error:
 }
 
 /*===========================================================================
-  FUNCTION  netmgr_tc_delete_postrouting_mangle_chain
+  FUNCTION  netmgr_tc_delete_qos_filter_postrouting_mangle_chain
 ===========================================================================*/
 /*!
 @brief
@@ -2875,7 +3098,7 @@ error:
 */
 /*=========================================================================*/
 static void
-netmgr_tc_delete_postrouting_mangle_chain
+netmgr_tc_delete_qos_filter_postrouting_mangle_chain
 (
   uint32 ip_family
 )
@@ -2904,7 +3127,23 @@ netmgr_tc_delete_postrouting_mangle_chain
                     sizeof(cmd),
                     "%s -t mangle -D POSTROUTING -j %s",
                     ipt_tool,
-                    NETMGR_TC_CHAIN_NAME_POSTROUTING);
+                    NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING);
+
+  if( (unsigned int)length >= maxlength)
+  {
+    netmgr_log_err("snprintf buffer overflow");
+    return;
+  }
+
+  (void) ds_system_call(cmd, std_strlen(cmd));
+
+  memset( cmd, 0x0, sizeof(cmd) );
+  /* Flushing the chain to remove any stale references */
+  length = snprintf(cmd,
+                    sizeof(cmd),
+                    "%s -t mangle -F %s",
+                    ipt_tool,
+                    NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING);
 
   if( (unsigned int)length >= maxlength)
   {
@@ -2921,7 +3160,169 @@ netmgr_tc_delete_postrouting_mangle_chain
                     sizeof(cmd),
                     "%s -t mangle -X %s",
                     ipt_tool,
-                    NETMGR_TC_CHAIN_NAME_POSTROUTING);
+                    NETMGR_TC_CHAIN_NAME_QOS_FILTER_POSTROUTING);
+
+  if( (unsigned int)length >= maxlength)
+  {
+    netmgr_log_err("snprintf buffer overflow");
+    return;
+  }
+
+  (void) ds_system_call(cmd, std_strlen(cmd));
+}
+
+
+/*===========================================================================
+  FUNCTION  netmgr_tc_create_qos_reset_postrouting_mangle_chain
+===========================================================================*/
+/*!
+@brief
+ In this new postrouting mangle chain, we make sure only packets
+ marked by this module in the POSTROUTING chain, will be accepted and
+ rest of the packets will be explicitly marked with "0".
+
+@return
+  NETMGR_SUCCESS, NETMGR_FAILURE
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+static int
+netmgr_tc_create_qos_reset_postrouting_mangle_chain
+(
+  uint32 ip_family
+)
+{
+  char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
+  int length;
+  const unsigned int maxlength = sizeof(cmd)-1;
+  char * ipt_tool = NULL;
+  int i;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (ip_family != NETMGR_IPV6_ADDR &&
+        ip_family != NETMGR_IPV4_ADDR )
+  {
+    netmgr_log_err("invalid IP version revceived");
+    goto error;
+  }
+
+  ipt_tool = (NETMGR_IPV6_ADDR == ip_family)?
+                 NETMGR_TC_IPTABLES_TOOL_V6 : NETMGR_TC_IPTABLES_TOOL_V4;
+
+  memset( cmd, 0x0, sizeof(cmd) );
+  length = snprintf(cmd,
+                    maxlength,
+                    "%s -t mangle -N %s",
+                    ipt_tool,
+                    NETMGR_TC_CHAIN_NAME_QOS_RESET_POSTROUTING);
+
+  if( (unsigned int)length >= maxlength )
+    goto error;
+
+  if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
+  {
+    netmgr_log_err("failed to create the postrouing chain");
+    goto error;
+  }
+
+  memset( cmd, 0x0, sizeof(cmd) );
+  /*Link the chain to postrouting chain of mangle table*/
+  length = snprintf(cmd,
+                    maxlength,
+                    "%s -t mangle -A POSTROUTING -j %s",
+                    ipt_tool,
+                    NETMGR_TC_CHAIN_NAME_QOS_RESET_POSTROUTING);
+
+  if( (unsigned int)length >= maxlength )
+    goto error;
+
+  if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
+  {
+    goto error;
+  }
+
+  return NETMGR_SUCCESS;
+
+error:
+  return NETMGR_FAILURE;
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_tc_delete_qos_reset_postrouting_mangle_chain
+===========================================================================*/
+/*!
+@brief
+  Deletes the postrouting chain. This should only be called during process
+  exit as part of cleanup procedure.
+
+@return
+  NETMGR_SUCCESS, NETMGR_FAILURE
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+static void
+netmgr_tc_delete_qos_reset_postrouting_mangle_chain
+(
+  uint32 ip_family
+)
+{
+  char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
+  int length;
+  char * ipt_tool = NULL;
+  const unsigned int maxlength = sizeof(cmd)-1;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (ip_family != NETMGR_IPV6_ADDR &&
+        ip_family != NETMGR_IPV4_ADDR )
+  {
+    netmgr_log_err("invalid IP version revceived");
+    return;
+  }
+
+  ipt_tool = (NETMGR_IPV6_ADDR == ip_family)?
+                 NETMGR_TC_IPTABLES_TOOL_V6 : NETMGR_TC_IPTABLES_TOOL_V4;
+
+  memset( cmd, 0x0, sizeof(cmd) );
+
+  /*remove the reference of the chain from the POSTROUTING chain*/
+  length = snprintf(cmd,
+                    sizeof(cmd),
+                    "%s -t mangle -D POSTROUTING -j %s",
+                    ipt_tool,
+                    NETMGR_TC_CHAIN_NAME_QOS_RESET_POSTROUTING);
+
+  if( (unsigned int)length >= maxlength)
+  {
+    netmgr_log_err("snprintf buffer overflow");
+    return;
+  }
+
+  (void) ds_system_call(cmd, std_strlen(cmd));
+
+  memset( cmd, 0x0, sizeof(cmd) );
+  /* Deleting the chain deletes all the rules.
+   This chain must not be referenced by any other rules. */
+  length = snprintf(cmd,
+                    sizeof(cmd),
+                    "%s -t mangle -X %s",
+                    ipt_tool,
+                    NETMGR_TC_CHAIN_NAME_QOS_RESET_POSTROUTING);
 
   if( (unsigned int)length >= maxlength)
   {
@@ -2973,8 +3374,12 @@ netmgr_tc_reset_link_all
     (void)netmgr_tc_reset_link( i );
   }
 
-  netmgr_tc_delete_postrouting_mangle_chain(NETMGR_IPV4_ADDR);
-  netmgr_tc_delete_postrouting_mangle_chain(NETMGR_IPV6_ADDR);
+  netmgr_tc_delete_qos_reset_postrouting_mangle_chain(NETMGR_IPV4_ADDR);
+  netmgr_tc_delete_qos_reset_postrouting_mangle_chain(NETMGR_IPV6_ADDR);
+
+  netmgr_tc_delete_qos_filter_postrouting_mangle_chain(NETMGR_IPV4_ADDR);
+  netmgr_tc_delete_qos_filter_postrouting_mangle_chain(NETMGR_IPV6_ADDR);
+
 
   NETMGR_LOG_FUNC_EXIT;
   return;
@@ -3087,9 +3492,14 @@ netmgr_tc_init( int nlink, netmgr_ctl_port_config_type links[] )
   netmgr_tc_reset_link_all();
 
   netmgr_tc_cfg.postrouting_chain_available =
-    netmgr_tc_create_postrouting_mangle_chain(NETMGR_IPV4_ADDR);
+    (netmgr_tc_create_qos_reset_postrouting_mangle_chain(NETMGR_IPV4_ADDR) ==
+   NETMGR_SUCCESS) ? TRUE : FALSE;
   netmgr_tc_cfg.postrouting_chain_available =
-    netmgr_tc_create_postrouting_mangle_chain(NETMGR_IPV6_ADDR);
+    (netmgr_tc_create_qos_reset_postrouting_mangle_chain(NETMGR_IPV6_ADDR) ==
+  NETMGR_SUCCESS) ? TRUE : FALSE;
+
+    netmgr_tc_create_qos_filter_postrouting_mangle_chain(NETMGR_IPV4_ADDR);
+    netmgr_tc_create_qos_filter_postrouting_mangle_chain(NETMGR_IPV6_ADDR);
 
   /* Register process exit cleanup handler */
   atexit( netmgr_tc_reset_link_all );
@@ -3099,5 +3509,162 @@ netmgr_tc_init( int nlink, netmgr_ctl_port_config_type links[] )
   NETMGR_LOG_FUNC_EXIT;
   return;
 }
+
+/*===========================================================================
+  FUNCTION  netmgr_tc_create_delete_dynamic_post_routing_rule
+===========================================================================*/
+/*!
+@brief
+ Adds/removes source and interface iptable rules in post routing chain of
+mangle table to reset skb->mark to zero if there are no matching rules.
+
+@return
+  void
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+
+int netmgr_tc_create_delete_dynamic_post_routing_rule
+(
+  int link,
+  int ip_family,
+  netmgr_address_info_t  *addr_info_ptr,
+  int create_chain
+)
+{
+  char cmd[NETMGR_TC_MAX_COMMAND_LENGTH];
+  char buff[INET6_ADDRSTRLEN+1];
+  int length;
+  const unsigned int maxlength = sizeof(cmd)-1;
+  char * ipt_tool = NULL;
+  netmgr_ip_address_t * addr_ptr;
+  const char *dev_name = NULL;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  if (NETMGR_SUCCESS != netmgr_kif_verify_link(link))
+  {
+    netmgr_log_err("invalid link=%d",link);
+    return NETMGR_FAILURE;
+  }
+  else if (AF_INET != ip_family &&
+           AF_INET6 != ip_family)
+  {
+    netmgr_log_err("invalid family=%d",ip_family);
+    return NETMGR_FAILURE;
+  }
+  if(addr_info_ptr == NULL)
+  {
+    netmgr_log_err("invalid addr_info_ptr");
+    return NETMGR_FAILURE;
+  }
+
+  if (NETMGR_KIF_IS_REV_RMNET_LINK(link))
+  {
+    return NETMGR_SUCCESS;
+  }
+
+  dev_name = netmgr_kif_get_name(netmgr_tc_cfg.link_array[link].link_id);
+  if(NULL == dev_name)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n",
+                    __func__, netmgr_tc_cfg.link_array[link].link_id);
+    return NETMGR_FAILURE;
+  }
+
+  memset( buff, 0x0, sizeof(buff) );
+
+  if( AF_INET == ip_family )
+  {
+    struct in_addr addr;
+
+    addr_ptr = &addr_info_ptr->ipv4.if_addr;
+
+    netmgr_log_err("v4 addr %d",addr_ptr->addr.v4);
+
+
+    memset( &addr, 0x0, sizeof(addr) );
+    memcpy( &addr.s_addr, &addr_ptr->addr.v4, sizeof(addr.s_addr) );
+
+    if( NULL == inet_ntop( AF_INET, &addr, buff, INET_ADDRSTRLEN ) )
+    {
+      netmgr_log_sys_err("error on inet_ntop():\n");
+      goto error;
+    }
+  }
+  else
+  {
+    struct in6_addr addr;
+
+    addr_ptr = &addr_info_ptr->ipv6.if_addr;
+
+    memset( &addr, 0x0, sizeof(addr) );
+    memcpy( addr.s6_addr, addr_ptr->addr.v6_addr8, sizeof(addr.s6_addr) );
+
+    if( NULL == inet_ntop( AF_INET6, &addr, buff, INET6_ADDRSTRLEN ) )
+    {
+      netmgr_log_sys_err("error on inet_ntop():\n");
+      goto error;
+    }
+  }
+
+  ipt_tool = (AF_INET6 == ip_family)?
+                 NETMGR_TC_IPTABLES_TOOL_V6 : NETMGR_TC_IPTABLES_TOOL_V4;
+
+  if(create_chain == TRUE)
+  {
+    memset( cmd, 0x0, sizeof(cmd) );
+    length = snprintf(cmd,
+                    maxlength,
+                    "%s -t mangle -A %s -o %s -s %s -j MARK --set-mark 0x%x",
+                    ipt_tool,
+                    NETMGR_TC_CHAIN_NAME_QOS_RESET_POSTROUTING,
+                    dev_name,
+                    buff,
+                    NETMGR_TC_DEFAULT_FLOW_MARKING);
+
+    if( (unsigned int)length >= maxlength )
+      goto error;
+
+    if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
+    {
+     goto error;
+    }
+  }
+  else
+  {
+    memset( cmd, 0x0, sizeof(cmd) );
+    length = snprintf(cmd,
+                    maxlength,
+                    "%s -t mangle -D %s -o %s -s %s -j MARK --set-mark 0x%x",
+                      ipt_tool,
+                      NETMGR_TC_CHAIN_NAME_QOS_RESET_POSTROUTING,
+                      dev_name,
+                      buff,
+                      NETMGR_TC_DEFAULT_FLOW_MARKING);
+
+    if( (unsigned int)length >= maxlength )
+        goto error;
+
+    if (ds_system_call(cmd, std_strlen(cmd)) != NETMGR_SUCCESS)
+    {
+      goto error;
+    }
+  }
+  return NETMGR_SUCCESS;
+
+error:
+  return NETMGR_FAILURE;
+}
+
+
+
 
 #endif /* NETMGR_QOS_ENABLED */

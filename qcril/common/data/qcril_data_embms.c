@@ -153,6 +153,7 @@ void qcril_data_embms_enable_data_req
   int                             i;
   char                            tmp_apn[ DS_CALL_INFO_APN_MAX_LEN + 1 ];
   qcril_embms_enable_response_payload_type enable_response;
+  dsi_call_param_value_t          ipfamily_info;
 
   RIL_Errno ril_req_res = RIL_E_GENERIC_FAILURE;
 
@@ -162,7 +163,7 @@ void qcril_data_embms_enable_data_req
   if ( ( NULL == params_ptr ) || ( NULL == ret_ptr ) )
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr);
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr);
     goto bail;
   }
 
@@ -247,6 +248,26 @@ void qcril_data_embms_enable_data_req
                      i, info_tbl[i].dsi_hndl);
 
     QCRIL_DS_LOG_DBG_MEM( "dsi_hndl", info_tbl[i].dsi_hndl );
+
+    /* Currently RIL does not specify any IP family preference for
+     * making an embms call. However within the qdi library which
+     * handles call requests and responses, the IP preference defaults
+     * to dual-IP. This causes issues while processing packet service
+     * indication messages because dsi and qdi libraries have different
+     * IP preferences. The indication gets dropped and the call tech
+     * within the dsi handle is not updated. Until RIL explicitly sets
+     * an IP preference, we will also use V4V6 as default to match with
+     * the default value within qdi lib */
+    ipfamily_info.buf_val = NULL;
+    ipfamily_info.num_val = DSI_IP_VERSION_4_6;
+
+    if ( dsi_set_data_call_param( info_tbl[i].dsi_hndl,
+                                  DSI_CALL_INFO_IP_VERSION,
+                                  &ipfamily_info ) != DSI_SUCCESS )
+    {
+      QCRIL_LOG_ERROR( "%s", "Unable to set ip version preference" );
+      break;
+    }
 
     if ( ( dsi_embms_enable( info_tbl[i].dsi_hndl ) ) != DSI_SUCCESS )
     {
@@ -333,7 +354,7 @@ void qcril_data_embms_activate_tmgi
   qcril_modem_id_e_type                    modem_id;
   qcril_request_resp_params_type           resp;
   unsigned char                            cid;
-  int                                      i;
+  unsigned int                             i;
   int                                      dsi_tmgi_deactivate_reason;
   dsi_embms_tmgi_status_field_type         status_field = CHECK_ACTIVATE_STATUS;
 
@@ -353,7 +374,7 @@ void qcril_data_embms_activate_tmgi
   if ( ( NULL == params_ptr ) || ( NULL == ret_ptr ) || (NULL == params_ptr->data))
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr);
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr);
     goto bail;
   }
 
@@ -438,7 +459,7 @@ void qcril_data_embms_activate_tmgi
       break;
     }
 
-    memset(tmgi_txn, 0, sizeof(tmgi_txn));
+    memset(tmgi_txn, 0, sizeof(qcril_data_embms_tmgi_requests_type));
     tmgi_txn->pend_req = QCRIL_EVT_HOOK_EMBMS_ACTIVATE_TMGI;
     tmgi_txn->pend_tok = params_ptr->t;
 
@@ -615,7 +636,7 @@ void qcril_data_embms_deactivate_tmgi
   if ( ( NULL == params_ptr ) || ( NULL == ret_ptr ) || (NULL == params_ptr->data))
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr);
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr);
     goto bail;
   }
 
@@ -687,7 +708,7 @@ void qcril_data_embms_deactivate_tmgi
       break;
     }
 
-    memset(tmgi_txn, 0, sizeof(tmgi_txn));
+    memset(tmgi_txn, 0, sizeof(qcril_data_embms_tmgi_requests_type));
     tmgi_txn->pend_req = QCRIL_EVT_HOOK_EMBMS_DEACTIVATE_TMGI;
     tmgi_txn->pend_tok = params_ptr->t;
 
@@ -836,7 +857,7 @@ void qcril_data_embms_activate_deactivate_tmgi
   qcril_modem_id_e_type                    modem_id;
   qcril_request_resp_params_type           resp;
   unsigned char                            cid;
-  int                                      i;
+  unsigned int                             i;
   int                                      dsi_tmgi_deactivate_reason;
   dsi_embms_tmgi_status_field_type         status_field = CHECK_ACTIVATE_DEACTIVATE_STATUS;
 
@@ -856,7 +877,7 @@ void qcril_data_embms_activate_deactivate_tmgi
   if ( ( NULL == params_ptr ) || ( NULL == ret_ptr )|| (NULL == params_ptr->data))
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr);
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr);
     goto bail;
   }
 
@@ -948,7 +969,7 @@ void qcril_data_embms_activate_deactivate_tmgi
       break;
     }
 
-    memset(tmgi_txn, 0, sizeof(tmgi_txn));
+    memset(tmgi_txn, 0, sizeof(qcril_data_embms_tmgi_requests_type));
     tmgi_txn->pend_req = QCRIL_EVT_HOOK_EMBMS_ACTIVATE_DEACTIVATE_TMGI;
     tmgi_txn->pend_tok = params_ptr->t;
 
@@ -1131,7 +1152,7 @@ void qcril_data_embms_get_available_tmgi
   if ( ( NULL == params_ptr ) || ( NULL == ret_ptr ) || (NULL == params_ptr->data))
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
-                       (unsigned int)params_ptr, (unsigned int)ret_ptr);
+                       (unsigned int *)params_ptr, (unsigned int *)ret_ptr);
     goto bail;
   }
 
@@ -1299,7 +1320,7 @@ void qcril_data_embms_get_active_tmgi
   if ( ( NULL == params_ptr ) || ( NULL == ret_ptr ) ||(NULL == params_ptr->data))
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr);
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr);
     goto bail;
   }
 
@@ -1425,5 +1446,147 @@ bail:
                   (int) ril_req_res );
 }
 
+/*===========================================================================
+
+  FUNCTION:  qcril_data_embms_content_desc_update
+
+===========================================================================*/
+/*!
+    @brief
+
+    Handles QCRIL_EVT_HOOK_EMBMS_CONTENT_DESC_UPDATE.
+
+    @pre Before calling, info_tbl_mutex must not be locked by the calling thread
+
+    @return
+
+    None on Success, Generic failure response on Failure
+*/
+/*=========================================================================*/
+void qcril_data_embms_content_desc_update
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type       *const ret_ptr
+)
+{
+  qcril_instance_id_e_type                 instance_id;
+  qcril_modem_id_e_type                    modem_id;
+  qcril_request_resp_params_type           resp;
+  unsigned char                            cid;
+  uint32_t                                 i;
+
+  RIL_Errno ril_req_res = RIL_E_GENERIC_FAILURE;
+
+  embms_update_content_desc_req_msg_v01 *get_update_req = NULL;
+  embms_update_content_desc_resp_msg_v01 get_update_resp;
+
+  QCRIL_LOG_INFO( "%s", "qcril_data_embms_content_desc_update entered" );
+
+  /* validate input parameter */
+  if ( ( NULL == params_ptr ) || ( NULL == ret_ptr ) ||(NULL == params_ptr->data))
+  {
+    QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr);
+    goto bail;
+  }
+
+  instance_id    = params_ptr->instance_id;
+  modem_id       = params_ptr->modem_id;
+  get_update_req = params_ptr->data;
+
+  if (instance_id >= QCRIL_MAX_INSTANCE_ID ||
+      modem_id >= QCRIL_MAX_MODEM_ID)
+  {
+    QCRIL_LOG_ERROR("BAD iput, instance_id [%d], modem_id [%d]", instance_id, modem_id);
+    goto bail;
+  }
+
+  /* input parameter is good, proceed... */
+  QCRIL_LOG_INFO("qcril_data_embms_content_desc_update dbg_trace_id:%d",
+                   get_update_req->dbg_trace_id);
+  cid = get_update_req->call_id;
+
+  /* Print TMGI values */
+  QCRIL_LOG_DEBUG("qcril_data_embms_content_desc_update TMGI:[%X,%X,%X,%X,%X,%X]",
+                                     get_update_req->tmgi_info.tmgi[0],
+                                     get_update_req->tmgi_info.tmgi[1],
+                                     get_update_req->tmgi_info.tmgi[2],
+                                     get_update_req->tmgi_info.tmgi[3],
+                                     get_update_req->tmgi_info.tmgi[4],
+                                     get_update_req->tmgi_info.tmgi[5]);
+
+  QCRIL_DATA_MUTEX_LOCK(&info_tbl_mutex);
+
+  do
+  {
+    for( i = 0; i < MAX_CONCURRENT_UMTS_DATA_CALLS; i++ )
+    {
+      QCRIL_LOG_DEBUG("info_tbl CID [%d], index [%d]", info_tbl[i].cid, i);
+
+      if( ( VALIDATE_LOCAL_DATA_OBJ( &info_tbl[i] ) ) && ( info_tbl[i].cid == cid ) )
+      {
+        QCRIL_LOG_DEBUG("found matching CID [%d], index [%d]", cid, i);
+        break;
+      }
+    }/* for() */
+
+    if ( i == MAX_CONCURRENT_UMTS_DATA_CALLS )
+    {
+      QCRIL_LOG_ERROR( "no valid CID [%d] match found", cid );
+      break;
+    }
+
+    QCRIL_LOG_DEBUG("info_tbl[%d] has reserved dsi_hndl[0x%x]",
+                    i, info_tbl[i].dsi_hndl);
+
+    QCRIL_DS_LOG_DBG_MEM( "dsi_hndl", info_tbl[i].dsi_hndl );
+
+    if( DSI_SUCCESS != dsi_embms_content_desc_update(info_tbl[i].dsi_hndl,
+                                                     (char *)(&get_update_req->tmgi_info.tmgi[0]),
+                                                     (unsigned char)get_update_req->content_desc_valid,
+                                                     get_update_req->content_desc_len,
+                                                     get_update_req->content_desc,
+                                                     get_update_req->dbg_trace_id) )
+    {
+      QCRIL_LOG_ERROR(" unable to update content desc, index [%d]", info_tbl[i].index);
+      break;
+    }/* DSI_SUCCESS != dsi_embms_content_desc_update */
+
+    ril_req_res = RIL_E_SUCCESS;
+  } while ( FALSE );
+
+  QCRIL_DATA_MUTEX_UNLOCK(&info_tbl_mutex);
+
+  /* prepare response */
+  memset( &get_update_resp, 0, sizeof( get_update_resp ) );
+
+  /* populate dbg_trace_id
+     MODEM does not send debug_trace_id in resp, need to get it from request
+   */
+  get_update_resp.dbg_trace_id = get_update_req->dbg_trace_id;
+
+  if(RIL_E_SUCCESS == ril_req_res)
+  {
+    get_update_resp.resp_code = QCRIL_DATA_EMBMS_ERROR_NONE;
+  }
+  else
+  {
+    get_update_resp.resp_code = QCRIL_DATA_EMBMS_ERROR_UNKNOWN;
+  }
+
+  qcril_default_request_resp_params( instance_id,
+                                    params_ptr->t,
+                                    params_ptr->event_id,
+                                    ril_req_res,/* revisit on error code */
+                                    &resp );
+
+  resp.resp_pkt = &get_update_resp;
+  resp.resp_len = sizeof( get_update_resp );
+  qcril_send_request_response( &resp );
+
+bail:
+  QCRIL_LOG_INFO( "qcril_data_embms_content_desc_update completed[%d]",
+                  (int) ril_req_res );
+}
 #endif /* FEATURE_DATA_EMBMS */
 

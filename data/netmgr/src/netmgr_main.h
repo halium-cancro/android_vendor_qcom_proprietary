@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010,2011-2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010,2011-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -90,6 +90,7 @@ struct netmgr_main_cfg_s {
   boolean iwlan_enabled;      /* iWLAN feature is enabled */
   boolean iwlan_ims_enabled;  /* iWLAN IMS feature is enabled */
   boolean tcp_ack_prio;       /* TCP Ack Prioritization is enabled */
+  boolean dropssdp;           /* Drop SSDP packets on WWAN */
 };
 
 extern struct netmgr_main_cfg_s netmgr_main_cfg;
@@ -106,6 +107,9 @@ typedef struct netmgr_ctl_port_config_s
   netmgr_link_id_t  link_id;
   boolean           modem_wait;
   boolean           enabled;
+  boolean           v4_qos_rules_enabled;
+  boolean           v6_qos_rules_enabled;
+  boolean           initialized;
 }netmgr_ctl_port_config_type;
 
 /* Table of transport device name prefix per Modem */

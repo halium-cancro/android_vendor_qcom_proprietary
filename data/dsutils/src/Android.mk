@@ -15,7 +15,7 @@ LOCAL_COPY_HEADERS      += ../inc/queue.h
 LOCAL_COPY_HEADERS      += ../inc/stm2.h
 LOCAL_COPY_HEADERS      += ../inc/stm2_os.h
 
-# Logging Features. Enable only one at any time  
+# Logging Features. Enable only one at any time
 #LOCAL_CFLAGS += -DFEATURE_DATA_LOG_SYSLOG
 #LOCAL_CFLAGS += -DFEATURE_DATA_LOG_ADB
 LOCAL_CFLAGS += -DFEATURE_DATA_LOG_QXDM
@@ -30,6 +30,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../inc/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../dss_new/src/platform/inc
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/common/inc
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/diag/include
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libmdmdetect/inc
 
 LOCAL_SRC_FILES += ds_cmdq.c
 LOCAL_SRC_FILES += ds_list.c
@@ -44,6 +45,7 @@ LOCAL_MODULE := libdsutils
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_SHARED_LIBRARIES := liblog libdiag libcutils
+LOCAL_SHARED_LIBRARIES += libmdmdetect
 
 LOCAL_PRELINK_MODULE := false
 

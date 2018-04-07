@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2015 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -75,6 +75,10 @@ when       who        what, where, why
 #include "netmgr_platform.h"
 #include "netmgr_main.h"
 
+#ifdef FEATURE_DATA_IWLAN
+#include "netmgr_iwlan_client.h"
+#endif /* FEATURE_DATA_IWLAN */
+
 #ifdef NETMGR_TEST
 #include "netmgr_test.h"
 #endif
@@ -109,7 +113,7 @@ when       who        what, where, why
 
 #define NETMGR_MAIN_PROPERTY_QOS          "persist.data.netmgrd.qos.enable"
 #define NETMGR_MAIN_PROPERTY_QOS_SIZE     (5)
-#define NETMGR_MAIN_PROPERTY_QOS_DEFAULT  NETMGR_FALSE    /* true or false */
+#define NETMGR_MAIN_PROPERTY_QOS_DEFAULT  NETMGR_TRUE    /* true or false */
 
 #ifdef FEATURE_DATA_IWLAN
   #define NETMGR_MAIN_PROPERTY_IWLAN          "persist.data.iwlan.enable"
@@ -123,6 +127,11 @@ when       who        what, where, why
 
 #define NETMGR_MAIN_PROPERTY_TCPACKPRIO          "persist.data.tcpackprio.enable"
 #define NETMGR_MAIN_PROPERTY_TCPACKPRIO_DEFAULT  NETMGR_FALSE    /* true or false */
+
+#define NETMGR_MAIN_PROPERTY_SSDP          "persist.data.dropssdp"
+#define NETMGR_MAIN_PROPERTY_SSDP_SIZE     (5)
+#define NETMGR_MAIN_PROPERTY_SSDP_DEFAULT  NETMGR_TRUE    /* true or false */
+
 
 #endif /* FEATURE_DS_LINUX_ANDROID */
 
@@ -162,6 +171,7 @@ struct netmgr_main_cfg_s netmgr_main_cfg = {
   ,FALSE
 #endif /* FEATURE_DATA_IWLAN */
   ,FALSE
+  ,TRUE
 }; /* Initialize everything to invalid values */
 
 /* one of these files may hold the data control port string */
@@ -176,51 +186,51 @@ LOCAL netmgr_ctl_port_config_type
 netmgr_ctl_port_array[NETMGR_MAX_LINK+1] =
 {
   /* SMD/BAM transport */
-  {"DATA5_CNTL",  QMI_PORT_RMNET_0,         NETMGR_LINK_RMNET_0,      TRUE,  TRUE},
-  {"DATA6_CNTL",  QMI_PORT_RMNET_1,         NETMGR_LINK_RMNET_1,      FALSE, TRUE},
-  {"DATA7_CNTL",  QMI_PORT_RMNET_2,         NETMGR_LINK_RMNET_2,      FALSE, TRUE},
-  {"DATA8_CNTL",  QMI_PORT_RMNET_3,         NETMGR_LINK_RMNET_3,      FALSE, TRUE},
-  {"DATA9_CNTL",  QMI_PORT_RMNET_4,         NETMGR_LINK_RMNET_4,      FALSE, TRUE},
-  {"DATA12_CNTL", QMI_PORT_RMNET_5,         NETMGR_LINK_RMNET_5,      FALSE, TRUE},
-  {"DATA13_CNTL", QMI_PORT_RMNET_6,         NETMGR_LINK_RMNET_6,      FALSE, TRUE},
-  {"DATA14_CNTL", QMI_PORT_RMNET_7,         NETMGR_LINK_RMNET_7,      FALSE, TRUE},
+  {"DATA5_CNTL",  QMI_PORT_RMNET_0,         NETMGR_LINK_RMNET_0,      TRUE,  TRUE, FALSE, FALSE, FALSE},
+  {"DATA6_CNTL",  QMI_PORT_RMNET_1,         NETMGR_LINK_RMNET_1,      FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA7_CNTL",  QMI_PORT_RMNET_2,         NETMGR_LINK_RMNET_2,      FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA8_CNTL",  QMI_PORT_RMNET_3,         NETMGR_LINK_RMNET_3,      FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA9_CNTL",  QMI_PORT_RMNET_4,         NETMGR_LINK_RMNET_4,      FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA12_CNTL", QMI_PORT_RMNET_5,         NETMGR_LINK_RMNET_5,      FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA13_CNTL", QMI_PORT_RMNET_6,         NETMGR_LINK_RMNET_6,      FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA14_CNTL", QMI_PORT_RMNET_7,         NETMGR_LINK_RMNET_7,      FALSE, TRUE, FALSE, FALSE, FALSE},
 
   /* SDIO/USB transport */
-  {"MDM0_CNTL",   QMI_PORT_RMNET_SDIO_0,    NETMGR_LINK_RMNET_8,      TRUE,  TRUE},
-  {"MDM1_CNTL",   QMI_PORT_RMNET_SDIO_1,    NETMGR_LINK_RMNET_9,      FALSE, TRUE},
-  {"MDM2_CNTL",   QMI_PORT_RMNET_SDIO_2,    NETMGR_LINK_RMNET_10,     FALSE, TRUE},
-  {"MDM3_CNTL",   QMI_PORT_RMNET_SDIO_3,    NETMGR_LINK_RMNET_11,     FALSE, TRUE},
-  {"MDM4_CNTL",   QMI_PORT_RMNET_SDIO_4,    NETMGR_LINK_RMNET_12,     FALSE, TRUE},
-  {"MDM5_CNTL",   QMI_PORT_RMNET_SDIO_5,    NETMGR_LINK_RMNET_13,     FALSE, TRUE},
-  {"MDM6_CNTL",   QMI_PORT_RMNET_SDIO_6,    NETMGR_LINK_RMNET_14,     FALSE, TRUE},
-  {"MDM7_CNTL",   QMI_PORT_RMNET_SDIO_7,    NETMGR_LINK_RMNET_15,     FALSE, TRUE},
+  {"MDM0_CNTL",   QMI_PORT_RMNET_SDIO_0,    NETMGR_LINK_RMNET_8,      TRUE,  TRUE, FALSE, FALSE, FALSE},
+  {"MDM1_CNTL",   QMI_PORT_RMNET_SDIO_1,    NETMGR_LINK_RMNET_9,      FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"MDM2_CNTL",   QMI_PORT_RMNET_SDIO_2,    NETMGR_LINK_RMNET_10,     FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"MDM3_CNTL",   QMI_PORT_RMNET_SDIO_3,    NETMGR_LINK_RMNET_11,     FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"MDM4_CNTL",   QMI_PORT_RMNET_SDIO_4,    NETMGR_LINK_RMNET_12,     FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"MDM5_CNTL",   QMI_PORT_RMNET_SDIO_5,    NETMGR_LINK_RMNET_13,     FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"MDM6_CNTL",   QMI_PORT_RMNET_SDIO_6,    NETMGR_LINK_RMNET_14,     FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"MDM7_CNTL",   QMI_PORT_RMNET_SDIO_7,    NETMGR_LINK_RMNET_15,     FALSE, TRUE, FALSE, FALSE, FALSE},
 
 #ifdef FEATURE_DATA_IWLAN
   /* SMD/BAM reverse transport */
-  {"DATA23_CNTL", QMI_PORT_REV_RMNET_0,     NETMGR_LINK_REV_RMNET_0,  FALSE, TRUE},
-  {"DATA24_CNTL", QMI_PORT_REV_RMNET_1,     NETMGR_LINK_REV_RMNET_1,  FALSE, TRUE},
-  {"DATA25_CNTL", QMI_PORT_REV_RMNET_2,     NETMGR_LINK_REV_RMNET_2,  FALSE, TRUE},
-  {"DATA26_CNTL", QMI_PORT_REV_RMNET_3,     NETMGR_LINK_REV_RMNET_3,  FALSE, TRUE},
-  {"DATA27_CNTL", QMI_PORT_REV_RMNET_4,     NETMGR_LINK_REV_RMNET_4,  FALSE, TRUE},
-  {"DATA28_CNTL", QMI_PORT_REV_RMNET_5,     NETMGR_LINK_REV_RMNET_5,  FALSE, TRUE},
-  {"DATA29_CNTL", QMI_PORT_REV_RMNET_6,     NETMGR_LINK_REV_RMNET_6,  FALSE, TRUE},
-  {"DATA30_CNTL", QMI_PORT_REV_RMNET_7,     NETMGR_LINK_REV_RMNET_7,  FALSE, TRUE},
-  {"DATA31_CNTL", QMI_PORT_REV_RMNET_8,     NETMGR_LINK_REV_RMNET_8,  FALSE, TRUE},
+  {"DATA23_CNTL", QMI_PORT_REV_RMNET_0,     NETMGR_LINK_REV_RMNET_0,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA24_CNTL", QMI_PORT_REV_RMNET_1,     NETMGR_LINK_REV_RMNET_1,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA25_CNTL", QMI_PORT_REV_RMNET_2,     NETMGR_LINK_REV_RMNET_2,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA26_CNTL", QMI_PORT_REV_RMNET_3,     NETMGR_LINK_REV_RMNET_3,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA27_CNTL", QMI_PORT_REV_RMNET_4,     NETMGR_LINK_REV_RMNET_4,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA28_CNTL", QMI_PORT_REV_RMNET_5,     NETMGR_LINK_REV_RMNET_5,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA29_CNTL", QMI_PORT_REV_RMNET_6,     NETMGR_LINK_REV_RMNET_6,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA30_CNTL", QMI_PORT_REV_RMNET_7,     NETMGR_LINK_REV_RMNET_7,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"DATA31_CNTL", QMI_PORT_REV_RMNET_8,     NETMGR_LINK_REV_RMNET_8,  FALSE, TRUE, FALSE, FALSE, FALSE},
 
   /* USB reverse transport */
-  {"RMDM0_CNTL",  QMI_PORT_REV_RMNET_USB_0, NETMGR_LINK_REV_RMNET_9,  FALSE, TRUE},
-  {"RMDM1_CNTL",  QMI_PORT_REV_RMNET_USB_1, NETMGR_LINK_REV_RMNET_10, FALSE, TRUE},
-  {"RMDM2_CNTL",  QMI_PORT_REV_RMNET_USB_2, NETMGR_LINK_REV_RMNET_11, FALSE, TRUE},
-  {"RMDM3_CNTL",  QMI_PORT_REV_RMNET_USB_3, NETMGR_LINK_REV_RMNET_12, FALSE, TRUE},
-  {"RMDM4_CNTL",  QMI_PORT_REV_RMNET_USB_4, NETMGR_LINK_REV_RMNET_13, FALSE, TRUE},
-  {"RMDM5_CNTL",  QMI_PORT_REV_RMNET_USB_5, NETMGR_LINK_REV_RMNET_14, FALSE, TRUE},
-  {"RMDM6_CNTL",  QMI_PORT_REV_RMNET_USB_6, NETMGR_LINK_REV_RMNET_15, FALSE, TRUE},
-  {"RMDM7_CNTL",  QMI_PORT_REV_RMNET_USB_7, NETMGR_LINK_REV_RMNET_16, FALSE, TRUE},
-  {"RMDM8_CNTL",  QMI_PORT_REV_RMNET_USB_8, NETMGR_LINK_REV_RMNET_17, FALSE, TRUE},
+  {"RMDM0_CNTL",  QMI_PORT_REV_RMNET_USB_0, NETMGR_LINK_REV_RMNET_9,  FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM1_CNTL",  QMI_PORT_REV_RMNET_USB_1, NETMGR_LINK_REV_RMNET_10, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM2_CNTL",  QMI_PORT_REV_RMNET_USB_2, NETMGR_LINK_REV_RMNET_11, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM3_CNTL",  QMI_PORT_REV_RMNET_USB_3, NETMGR_LINK_REV_RMNET_12, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM4_CNTL",  QMI_PORT_REV_RMNET_USB_4, NETMGR_LINK_REV_RMNET_13, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM5_CNTL",  QMI_PORT_REV_RMNET_USB_5, NETMGR_LINK_REV_RMNET_14, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM6_CNTL",  QMI_PORT_REV_RMNET_USB_6, NETMGR_LINK_REV_RMNET_15, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM7_CNTL",  QMI_PORT_REV_RMNET_USB_7, NETMGR_LINK_REV_RMNET_16, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {"RMDM8_CNTL",  QMI_PORT_REV_RMNET_USB_8, NETMGR_LINK_REV_RMNET_17, FALSE, TRUE, FALSE, FALSE, FALSE},
 #endif /* FEATURE_DATA_IWLAN */
 
   /* Must be last record for validation */
-  {"",            "",                       NETMGR_LINK_MAX,          FALSE, FALSE}
+  {"",            "",                       NETMGR_LINK_MAX,          FALSE, FALSE, FALSE, FALSE, FALSE}
 };
 
 /* Table of transport device name prefix per Modem */
@@ -246,10 +256,6 @@ netmgr_ctl_port_array[NETMGR_MAX_LINK+1] =
     { "",                            NETMGR_LINK_NONE,     NETMGR_LINK_NONE     }
   };
 #endif /* FEATURE_DATA_IWLAN */
-
-/* DHCP mutex used for DHCP serialization. In case of thread exit,
- * need to release this mutex */
-extern pthread_mutex_t     dhcp_mutex;
 
 /*===========================================================================
                             LOCAL FUNCTION DEFINITIONS
@@ -433,6 +439,47 @@ void netmgr_main_check_tcpackprio_enabled( void )
   }
   netmgr_log_med("property [%s] value[%s]",
                  NETMGR_MAIN_PROPERTY_TCPACKPRIO, args);
+}
+
+/*===========================================================================
+  FUNCTION  netmgr_main_check_ssdp_enabled
+===========================================================================*/
+/*!
+@brief
+  Get the value for DROP_SSDP enabled configuration item and sets the
+  netmgr configuration property.
+
+@return
+  void
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+void netmgr_main_check_ssdp_enabled( void )
+{
+  char args[PROPERTY_VALUE_MAX];
+  int ret;
+
+  /* Retrieve value of SSDP */
+  NETMGR_LOG_FUNC_ENTRY;
+  memset(args, 0, sizeof(args));
+  netmgr_main_cfg.dropssdp = TRUE;
+  ret = property_get(NETMGR_MAIN_PROPERTY_SSDP,
+                     args,
+                     NETMGR_MAIN_PROPERTY_SSDP_DEFAULT);
+
+  if (!strncmp(NETMGR_FALSE, args, sizeof(NETMGR_FALSE)))
+  {
+     netmgr_main_cfg.dropssdp = FALSE;
+  }
+  netmgr_log_med("property [%s] value[%s]",
+                 NETMGR_MAIN_PROPERTY_SSDP, args);
 }
 
 /*===========================================================================
@@ -851,7 +898,7 @@ LOCAL void netmgr_read_sysfs_config(void)
       if( !strcmp( netmgr_ctl_port_array[i].data_ctl_port,
                    buffer ) )
       {
-        netmgr_ctl_port_array[i].enabled = FALSE;
+        netmgr_ctl_port_array[i].initialized = FALSE;
         netmgr_log_high( "link %d will not be used\n", i);
       }
     }
@@ -1355,17 +1402,18 @@ LOCAL void netmgr_main_process_qos_enabled()
     /* Clear QOS enabled flag */
     netmgr_main_cfg.runmode &= ~NETMGR_MAIN_RUNMODE_QOSHDR;
   }
-  else if( !strncmp( NETMGR_TRUE, args, sizeof(NETMGR_TRUE) ) )
-  {
-    /* Set QOS enabled flag */
-    netmgr_main_cfg.runmode |= NETMGR_MAIN_RUNMODE_QOSHDR;
-  }
   else
   {
-    netmgr_log_err("Unsupported state value, using default[%s]\n",
-                   NETMGR_MAIN_PROPERTY_QOS_DEFAULT);
-  }
+    /* By default, we need to enable QOS if the property is not set
+     * to false explicitly */
+    if (strncmp( NETMGR_TRUE, args, sizeof(NETMGR_TRUE) ) )
+    {
+      netmgr_log_err("Unsupported state value, using default[%s]\n",
+                     NETMGR_MAIN_PROPERTY_QOS_DEFAULT);
+    }
 
+    netmgr_main_cfg.runmode |= NETMGR_MAIN_RUNMODE_QOSHDR;
+  }
 }
 #endif /* FEATURE_DS_LINUX_ANDROID */
 
@@ -1509,7 +1557,11 @@ LOCAL void netmgr_main_sm_inited(void)
       netmgr_log_low( "netmgr_main_sm_inited: ignoring link[%d]\n", i );
       continue;
     }
-
+    if(netmgr_ctl_port_array[i].initialized == FALSE )
+    {
+      netmgr_log_low( "netmgr_main_sm_inited: ignoring un-initialized link[%d]\n", i );
+      continue;
+    }
     /* Allocate a command object */
     cmd = netmgr_exec_get_cmd();
     NETMGR_ASSERT(cmd);
@@ -1642,6 +1694,8 @@ netmgr_main (int argc, char ** argv)
   netmgr_platform_init();
   netmgr_log_med( "platform init completed\n" );
 
+  netmgr_main_check_ssdp_enabled();
+
   netmgr_kif_powerup_init(netmgr_ctl_port_array, netmgr_main_cfg.iname);
 
   /* Initialize QMI interface module */
@@ -1665,21 +1719,42 @@ netmgr_main (int argc, char ** argv)
   }
 #endif // NETMGR_QOS_ENABLED
 
+  netmgr_main_cfg.initialized = TRUE;
+  netmgr_log_high("Initialization complete.\n");
+
+  /* bring up each SM instance in INITED state */
+  netmgr_main_sm_inited();
+
+#ifdef FEATURE_DATA_IWLAN
+  if (TRUE == netmgr_main_get_iwlan_enabled())
+  {
+    if (NETMGR_SUCCESS != netmgr_kif_iwlan_install_iptables_rules(AF_INET))
+    {
+      netmgr_log_err("Failed to install V4 iwlan rules!\n");
+    }
+
+    if (NETMGR_SUCCESS != netmgr_kif_iwlan_install_iptables_rules(AF_INET6))
+    {
+      netmgr_log_err("Failed to install V6 iwlan rules!\n");
+    }
+
+    /* Register for WLAN events */
+    if (NETMGR_SUCCESS != netmgrIwlanClientInit())
+    {
+      netmgr_log_err("Error in registering for WLAN events!");
+    }
+  }
+#endif /* FEATURE_DATA_IWLAN */
+
 #if (!defined(NETMGR_OFFTARGET) && defined(FEATURE_DS_LINUX_ANDROID))
   /* adjust uid/gid and capabilities */
-  if (ds_change_user_cap( AID_RADIO, AID_SYSTEM,
+  if (ds_change_user_cap( AID_RADIO, AID_INET,
                           (1 << CAP_NET_ADMIN) | (1 << CAP_NET_RAW)) != 0)
   {
     netmgr_log_err("couldn't change uid and capabilities at power up");
     exit(EXIT_FAILURE);
   }
 #endif
-
-  netmgr_main_cfg.initialized = TRUE;
-  netmgr_log_high("Initialization complete.\n");
-
-  /* bring up each SM instance in INITED state */
-  netmgr_main_sm_inited();
 
 #ifdef NETMGR_TEST
   /* Launch unit test suite */

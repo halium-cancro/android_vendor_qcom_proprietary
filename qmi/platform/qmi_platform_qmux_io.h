@@ -13,13 +13,13 @@
   None
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2007 Qualcomm Technologies, Inc.
+  Copyright (c) 2007,2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
 
 #include "qmi_i.h"
-#include "qmi_qmux.h" 
+#include "qmi_qmux.h"
 #include "qmi_platform_config.h"
 
 /* Data kept for each connection ID */
@@ -56,10 +56,10 @@ extern linux_qmi_qmux_io_conn_info_type linux_qmi_qmux_io_conn_info[];
   FUNCTION  linux_qmi_qmux_io_send_qmi_msg
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Function to send a QMUX PDU on the Linux platform
-  
-@return 
+
+@return
   0 if function is successful, negative value if not.
 
 @note
@@ -68,8 +68,8 @@ extern linux_qmi_qmux_io_conn_info_type linux_qmi_qmux_io_conn_info[];
 
   - Side Effects
     - Sends a QMUX PDU to modem processor
-    
-*/    
+
+*/
 /*=========================================================================*/
 extern int
 linux_qmi_qmux_io_send_qmi_msg
@@ -84,47 +84,92 @@ linux_qmi_qmux_io_send_qmi_msg
   FUNCTION  linux_qmi_qmux_io_open_conn
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Function used to open a connection.  This function must be called
-  prior to sending any messages or receiving any indications 
-  
-@return 
+  prior to sending any messages or receiving any indications
+
+@return
   0 if function is successful, negative value if not.
 
 @note
   - Side Effects
     - Opens up SMD port and spawns a thread for RX handling.
-    
-*/    
+
+*/
 /*=========================================================================*/
 extern int
-linux_qmi_qmux_io_open_conn 
+linux_qmi_qmux_io_open_conn
 (
   qmi_connection_id_type  conn_id,
   unsigned char           *rx_buf,
-  int                     rx_buf_len
+  int                     rx_buf_len,
+  qmi_qmux_open_mode_type mode
+);
+
+/*===========================================================================
+  FUNCTION  linux_qmi_qmux_io_close_conn
+===========================================================================*/
+/*!
+@brief
+  Function used to close a connection.
+
+@return
+  0 if function is successful, negative value if not.
+
+@note
+  - Side Effects
+    - Close up transport port and stops the RX thread.
+
+*/
+/*=========================================================================*/
+extern int
+linux_qmi_qmux_io_close_conn
+(
+  qmi_connection_id_type  conn_id
+);
+
+/*===========================================================================
+  FUNCTION  linux_qmi_qmux_io_device_name
+===========================================================================*/
+/*!
+@brief
+  Function used obtain the device name for a given connection ID
+
+@return
+  device name if function is successful, NULL if not.
+
+@note
+  - Side Effects
+    - None
+
+*/
+/*=========================================================================*/
+extern const char *
+linux_qmi_qmux_io_device_name
+(
+  qmi_connection_id_type  conn_id
 );
 
 /*===========================================================================
   FUNCTION  linux_qmi_qmux_io_pwr_up_init
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Initialization function to be called once at power-up.  Must be called
-  prior to calling the linux_qmi_qmux_io_open_conn() 
-  
-@return 
+  prior to calling the linux_qmi_qmux_io_open_conn()
+
+@return
   0 if function is successful, negative value if not.
 
 @note
 
-  - Connection is assumed to be opened with valid data before this 
+  - Connection is assumed to be opened with valid data before this
   function starts to execute
 
   - Side Effects
-    - 
-    
-*/    
+    -
+
+*/
 /*=========================================================================*/
 extern int
 linux_qmi_qmux_io_pwr_up_init
@@ -135,12 +180,18 @@ linux_qmi_qmux_io_pwr_up_init
 
 
 
-/* These macros are used in QMUX */ 
+/* These macros are used in QMUX */
 #define QMI_QMUX_IO_PLATFORM_SEND_QMI_MSG(conn_id,msg_buf,len) \
   linux_qmi_qmux_io_send_qmi_msg (conn_id,msg_buf,len)
 
-#define QMI_QMUX_IO_PLATFORM_OPEN_CONN(conn_id, rx_buf, rx_buf_len) \
-  linux_qmi_qmux_io_open_conn (conn_id,rx_buf,rx_buf_len)
+#define QMI_QMUX_IO_PLATFORM_OPEN_CONN(conn_id, rx_buf, rx_buf_len,mode) \
+  linux_qmi_qmux_io_open_conn (conn_id,rx_buf,rx_buf_len,mode)
+
+#define QMI_QMUX_IO_PLATFORM_CLOSE_CONN(conn_id) \
+  linux_qmi_qmux_io_close_conn (conn_id)
+
+#define QMI_QMUX_IO_PLATFORM_DEV_NAME(conn_id) \
+  linux_qmi_qmux_io_device_name (conn_id)
 
 #define QMI_QMUX_IO_PLATFORM_PWR_UP_INIT(rx_cb_ptr,event_cb_ptr) \
   linux_qmi_qmux_io_pwr_up_init (rx_cb_ptr,event_cb_ptr)

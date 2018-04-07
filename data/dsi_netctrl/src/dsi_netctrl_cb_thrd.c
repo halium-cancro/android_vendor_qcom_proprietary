@@ -636,6 +636,40 @@ void dsi_qmi_wds_ind_cb
         }
         break;
 
+      case QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG:
+        {
+          DSI_LOG_VERBOSE("%s", "process QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG");
+
+          memcpy(&(cmd_buf->cmd_data.data_union.wds_ind.ind_data.embms_content_desc_control),
+                 &(ind_data->embms_content_desc_control),
+                 sizeof(ind_data->embms_content_desc_control));
+
+          if(0 != ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_len)
+          {
+            if(dsi_netctrl_copy_tmgi_list(
+                  &tmgi_list_ptr,
+                  ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr,
+                  ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_len ) < 0)
+            {
+              DSI_LOG_ERROR("%s", "can not process tmgi list");
+              reti = DSI_ERROR;
+              break;
+            }
+            cmd_buf->cmd_data.data_union.wds_ind.ind_data.embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr =
+              tmgi_list_ptr;
+            DSI_LOG_VERBOSE("%s %d:%X,%X,%X,%X,%X,%X",
+              "process QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG - TMGI",
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_len,
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr->tmgi[0],
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr->tmgi[1],
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr->tmgi[2],
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr->tmgi[3],
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr->tmgi[4],
+              ind_data->embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr->tmgi[5]);
+          }
+        }
+        break;
+
       case QMI_WDS_SRVC_EMBMS_SAI_LIST_IND_MSG:
         {
           DSI_LOG_VERBOSE("%s", "process QMI_WDS_SRVC_EMBMS_SAI_LIST_IND_MSG");

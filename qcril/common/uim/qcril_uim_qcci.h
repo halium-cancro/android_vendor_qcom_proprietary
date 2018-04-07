@@ -17,7 +17,7 @@
   finished.
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2012 Qualcomm Technologies, Inc.
+  Copyright (c) 2012 - 2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -31,6 +31,12 @@ Notice that changes are listed in reverse chronological order.
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+11/12/14   at      QCRIL UIM SAP support
+08/20/14   at      Support for graceful UICC Voltage supply deactivation
+06/18/14   at      Support for SelectNext using reselect QMI command
+06/11/14   at      Support for open logical channel API
+05/14/14   yt      Support for STATUS command as part of SIM_IO request
+12/11/13   at      Switch to new QCCI framework
 04/09/12   at      Added support for RIL_REQUEST_SIM_GET_ATR
 02/14/12   tl      Initial version
 ===========================================================================*/
@@ -43,6 +49,7 @@ when       who     what, where, why
 
 #include "qmi.h"
 #include "qcril_uim_srvc.h"
+#include "qmi_client_instance_defs.h"
 
 /*===========================================================================
   FUNCTION  qcril_qmi_uim_srvc_init_client
@@ -69,9 +76,9 @@ when       who     what, where, why
     - Talks to modem processor
 */
 /*=========================================================================*/
-EXTERN qmi_client_handle_type qcril_qmi_uim_srvc_init_client
+EXTERN qmi_client_type qcril_qmi_uim_srvc_init_client
 (
-  const char                   * dev_id,
+  qmi_client_qmux_instance_type  dev_id,
   qmi_uim_indication_hdlr_type   user_rx_ind_msg_hdlr,
   void                         * user_rx_ind_msg_hdlr_user_data,
   int                          * qmi_err_code
@@ -104,8 +111,8 @@ EXTERN qmi_client_handle_type qcril_qmi_uim_srvc_init_client
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_srvc_release_client
 (
-  int      user_handle,
-  int    * qmi_err_code
+  qmi_client_type      user_handle,
+  int                * qmi_err_code
 );
 
 /*===========================================================================
@@ -139,7 +146,7 @@ EXTERN int qcril_qmi_uim_srvc_release_client
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_reset
 (
-  int                           user_handle,
+  qmi_client_type               user_handle,
   qmi_uim_user_async_cb_type    user_cb,
   void                        * user_data,
   int                         * qmi_err_code
@@ -175,7 +182,7 @@ EXTERN int qcril_qmi_uim_reset
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_read_transparent
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   const qmi_uim_read_transparent_params_type  * params,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
@@ -212,7 +219,7 @@ EXTERN int qcril_qmi_uim_read_transparent
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_read_record
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   const qmi_uim_read_record_params_type       * params,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
@@ -249,7 +256,7 @@ EXTERN int qcril_qmi_uim_read_record
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_write_transparent
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   const qmi_uim_write_transparent_params_type * params,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
@@ -286,7 +293,7 @@ EXTERN int qcril_qmi_uim_write_transparent
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_write_record
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_write_record_params_type          * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -323,7 +330,7 @@ EXTERN int qcril_qmi_uim_write_record
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_get_file_attributes
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_get_file_attributes_params_type     * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -360,7 +367,7 @@ EXTERN int qcril_qmi_uim_get_file_attributes
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_set_pin_protection
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_set_pin_protection_params_type    * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -397,7 +404,7 @@ EXTERN int qcril_qmi_uim_set_pin_protection
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_verify_pin
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_verify_pin_params_type            * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -434,7 +441,7 @@ EXTERN int qcril_qmi_uim_verify_pin
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_unblock_pin
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_unblock_pin_params_type             * params,
   qmi_uim_user_async_cb_type                          user_cb,
   void                                              * user_data,
@@ -471,7 +478,7 @@ EXTERN int qcril_qmi_uim_unblock_pin
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_change_pin
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_change_pin_params_type            * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -508,7 +515,7 @@ EXTERN int qcril_qmi_uim_change_pin
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_depersonalization
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_depersonalization_params_type     * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -545,7 +552,7 @@ EXTERN int qcril_qmi_uim_depersonalization
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_power_down
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_power_down_params_type            * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -582,7 +589,7 @@ EXTERN int qcril_qmi_uim_power_down
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_power_up
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_power_up_params_type              * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -619,7 +626,7 @@ EXTERN int qcril_qmi_uim_power_up
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_get_card_status
 (
-  int                                           client_handle,
+  qmi_client_type                               client_handle,
   qmi_uim_user_async_cb_type                    user_cb,
   void                                        * user_data,
   qmi_uim_rsp_data_type                       * rsp_data
@@ -655,7 +662,7 @@ EXTERN int qcril_qmi_uim_get_card_status
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_event_reg
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_event_reg_params_type             * params,
   qmi_uim_rsp_data_type                           * rsp_data
 );
@@ -690,7 +697,7 @@ EXTERN int qcril_qmi_uim_event_reg
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_refresh_register
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_refresh_register_params_type      * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -720,7 +727,7 @@ EXTERN int qcril_qmi_uim_refresh_register
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_refresh_ok
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_refresh_ok_params_type            * params,
   qmi_uim_rsp_data_type                           * rsp_data
 );
@@ -749,7 +756,7 @@ EXTERN int qcril_qmi_uim_refresh_ok
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_refresh_complete
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_refresh_complete_params_type      * params,
   qmi_uim_rsp_data_type                           * rsp_data
 );
@@ -777,7 +784,7 @@ EXTERN int qcril_qmi_uim_refresh_complete
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_refresh_get_last_event
 (
-  int                                                 client_handle,
+  qmi_client_type                                     client_handle,
   const qmi_uim_refresh_get_last_event_params_type  * params,
   qmi_uim_rsp_data_type                             * rsp_data
 );
@@ -813,7 +820,7 @@ EXTERN int qcril_qmi_uim_refresh_get_last_event
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_authenticate
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_authenticate_params_type          * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -852,7 +859,7 @@ EXTERN int qcril_qmi_uim_authenticate
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_get_service_status
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_get_service_status_params_type    * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -893,7 +900,7 @@ EXTERN int qcril_qmi_uim_get_service_status
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_set_service_status
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_set_service_status_params_type    * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -933,7 +940,7 @@ EXTERN int qcril_qmi_uim_set_service_status
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_change_provisioning_session
 (
-  int                                                     client_handle,
+  qmi_client_type                                         client_handle,
   const qmi_uim_change_prov_session_params_type         * params,
   qmi_uim_user_async_cb_type                              user_cb,
   void                                                  * user_data,
@@ -973,7 +980,7 @@ EXTERN int qcril_qmi_uim_change_provisioning_session
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_get_label
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_get_label_params_type             * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -1006,7 +1013,7 @@ EXTERN int qcril_qmi_uim_get_label
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_close_session
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_close_session_params_type         * params,
   qmi_uim_rsp_data_type                           * rsp_data
 );
@@ -1045,7 +1052,7 @@ EXTERN int qcril_qmi_uim_close_session
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_send_apdu
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_send_apdu_params_type             * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
@@ -1085,14 +1092,53 @@ EXTERN int qcril_qmi_uim_send_apdu
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_logical_channel
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_logical_channel_params_type       * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
   qmi_uim_rsp_data_type                           * rsp_data
 );
-    
-    
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_open_logical_channel
+===========================================================================*/
+/*!
+@brief
+  Issues the request for open logical channel on the specified UICC card.
+  If the user_cb function pointer is set to NULL, this function
+  will be invoked synchronously. Otherwise it will be invoked asynchronously.
+
+@return
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value will give you the QMI error reason.  Otherwise,
+  qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >=0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+EXTERN int qcril_qmi_uim_open_logical_channel
+(
+  qmi_client_type                                   client_handle,
+  const qmi_uim_open_logical_channel_params_type  * params,
+  qmi_uim_user_async_cb_type                        user_cb,
+  void                                            * user_data,
+  qmi_uim_rsp_data_type                           * rsp_data
+);
+
+
 /*===========================================================================
   FUNCTION  qcril_qmi_uim_get_atr
 ===========================================================================*/
@@ -1124,11 +1170,191 @@ EXTERN int qcril_qmi_uim_logical_channel
 /*=========================================================================*/
 EXTERN int qcril_qmi_uim_get_atr
 (
-  int                                               client_handle,
+  qmi_client_type                                   client_handle,
   const qmi_uim_get_atr_params_type               * params,
   qmi_uim_user_async_cb_type                        user_cb,
   void                                            * user_data,
   qmi_uim_rsp_data_type                           * rsp_data
+);
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_send_status
+===========================================================================*/
+/*!
+@brief
+  Send STATUS command to the card for a DF or ADF.
+  If the user_cb function pointer is set to NULL, this function will
+  be invoked synchronously. Otherwise it will be invoked asynchronously.
+
+@return
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value in rsp_data will give you the QMI error reason.
+  Otherwise, qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >= 0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+EXTERN int qcril_qmi_uim_send_status
+(
+  qmi_client_type                               client_handle,
+  const qmi_uim_status_cmd_params_type        * params,
+  qmi_uim_user_async_cb_type                    user_cb,
+  void                                        * user_data,
+  qmi_uim_rsp_data_type                       * rsp_data
+);
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_reselect
+===========================================================================*/
+/*!
+@brief
+  Issues the reselection request of an app on the logical channel.
+
+@return
+
+  If the return code < 0, the operation failed and you will not get an
+  asynchronous response.  If the operation doesn't fail (return code >=0),
+  the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+    - QMI request parameter must be allocated & filled
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+EXTERN int qcril_qmi_uim_reselect
+(
+  qmi_client_type                                  client_handle,
+  const qmi_uim_reselect_params_type             * params,
+  qmi_uim_user_async_cb_type                       user_cb,
+  void                                           * user_data,
+  qmi_uim_rsp_data_type                          * rsp_data
+);
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_supply_voltage
+===========================================================================*/
+/*!
+@brief
+  Issues the request to inform the modem about the client's acknowledgement
+  to deactivate the supply voltage Vcc line of the specified card. If the
+  user_cb function pointer is set to NULL, this function will be invoked
+  synchronously. Otherwise it will be invoked asynchronously.
+
+@return
+  In the synchronous case, if return code < 0, the operation failed.  In
+  the failure case, if the return code is QMI_SERVICE_ERR, then the
+  qmi_err_code value will give you the QMI error reason.  Otherwise,
+  qmi_err_code will have meaningless data.
+
+  In the asynchronous case, if the return code < 0, the operation failed and
+  you will not get an asynchronous response.  If the operation doesn't fail
+  (return code >=0), the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+EXTERN int qcril_qmi_uim_supply_voltage
+(
+  qmi_client_type                                   client_handle,
+  const qmi_uim_supply_voltage_params_type        * params,
+  qmi_uim_user_async_cb_type                        user_cb,
+  void                                            * user_data,
+  qmi_uim_rsp_data_type                           * rsp_data
+);
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_sap_connection
+===========================================================================*/
+/*!
+@brief
+  Issues the request for SAP connection establishment or disconnection.Note
+  that this function has to be invoked asynchronously.
+
+@return
+
+  If the return code < 0, the operation failed and you will not get an
+  asynchronous response.  If the operation doesn't fail (return code >=0),
+  the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+EXTERN int qcril_qmi_uim_sap_connection
+(
+  qmi_client_type                                     client_handle,
+  const qmi_uim_sap_connection_params_type          * params,
+  qmi_uim_user_async_cb_type                          user_cb,
+  void                                              * user_data,
+  qmi_uim_rsp_data_type                             * rsp_data
+);
+
+
+/*===========================================================================
+  FUNCTION  qcril_qmi_uim_sap_request
+===========================================================================*/
+/*!
+@brief
+  Issues the request for SAP various SAP requests. Note that this function has
+  to be invoked asynchronously.
+
+@return
+
+  If the return code < 0, the operation failed and you will not get an
+  asynchronous response.  If the operation doesn't fail (return code >=0),
+  the returned value will be a transaction handle which
+  can be used to cancel the transaction via the qmi_uim_abort() command.
+
+@note
+
+  - Dependencies
+    - qcril_qmi_uim_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+EXTERN int qcril_qmi_uim_sap_request
+(
+  qmi_client_type                                  client_handle,
+  const qmi_uim_sap_request_params_type          * params,
+  qmi_uim_user_async_cb_type                       user_cb,
+  void                                           * user_data,
+  qmi_uim_rsp_data_type                          * rsp_data
 );
 
 #endif

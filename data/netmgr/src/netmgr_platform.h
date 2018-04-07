@@ -71,7 +71,7 @@ struct qmi_vtbl {
   /* Callback to process module internal command */
   int (*dispatch)( ds_cmd_t * cmd,
                    void     * data );
-  
+
   /* Callback to query QOS parameters for specific flow  */
   int (*qos_get_flow_info)( uint8     connection,
                             uint32    flow_id,
@@ -81,16 +81,19 @@ struct qmi_vtbl {
 
 /* KIF Virtual Function Table */
 struct kif_vtbl {
+  /* callback to process modem kif out of service */
+  void (*out_of_service)(int);
+
   /* Callback to initialize the Kernel Interface connection */
   int (*reset)(int  link, netmgr_sm_events_t  evt);
 
   /* Callback to process module internal command */
   int (*dispatch)( ds_cmd_t * cmd,
                    void * data );
-  
+
   /* Callback to process module internal command */
   int (*send_event)( const netmgr_nl_event_info_t *event_info );
-  
+
   /* Callback to bringup the Kernel network interface  */
   int (*iface_open)( int  link,
                      netmgr_address_set_t * addr_info_ptr,
@@ -101,14 +104,14 @@ struct kif_vtbl {
   int (*iface_close)( int link,
                       netmgr_address_set_t * addr_info_ptr,
                       boolean   teardown_iface );
-  
+
   /* Callback to perform address configuration on then Kernel network interface  */
   int (*iface_configure)( int link, netmgr_ip_addr_t addr_type );
-  
+
   /* Callback to perform address reconfiguration on then Kernel network interface  */
   int (*iface_reconfigure)( int link,
                             netmgr_address_set_t * addr_info_ptr );
-  
+
   /* Callback to manage the Kernel traffic control flow control */
   int (*flow_control)( int       link,
                        void *    data );
@@ -158,7 +161,7 @@ struct platform_vtbl {
   struct tc_vtbl   tc;         /* TC functions   */
 };
 
-  
+
 
 
 /*===========================================================================
@@ -178,7 +181,7 @@ struct platform_vtbl {
 @note
 
   - Dependencies
-    - None  
+    - None
 
   - Side Effects
     - None
@@ -202,7 +205,7 @@ int netmgr_platform_init(void);
 @note
 
   - Dependencies
-    - netmgr_platform_init() must have been previously called  
+    - netmgr_platform_init() must have been previously called
 
   - Side Effects
     - None
@@ -221,7 +224,7 @@ int netmgr_platform_register_vtbl(
   Function to handle modem out_of_service event in QMI module.
 
 @return
-  int 
+  int
 
 @note
 
@@ -264,7 +267,7 @@ int netmgr_qmi_reset ( int link, netmgr_sm_events_t evt_type );
   Function to verify if the given QMI link is active.
 
 @return
-  int 
+  int
 
 @note
 
@@ -330,6 +333,27 @@ int netmgr_qmi_qos_get_flow_info
 );
 
 /*===========================================================================
+  FUNCTION  netmgr_kif_out_of_service
+===========================================================================*/
+/*!
+@brief
+  Function to handle modem out_of_service event in KIF module.
+
+@return
+  int
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - IPTables cleanup
+*/
+/*=========================================================================*/
+int netmgr_kif_out_of_service ( int link );
+
+/*===========================================================================
   FUNCTION  netmgr_kif_reset
 ===========================================================================*/
 /*!
@@ -384,7 +408,7 @@ int netmgr_kif_dispatch
   Function to send Kernel interface module asynchronous event message.
 
 @return
-  int 
+  int
 
 @note
 
@@ -406,10 +430,10 @@ int netmgr_kif_send_event_msg
 ===========================================================================*/
 /*!
 @brief
-  Function to open the Kernel network interface 
+  Function to open the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -430,10 +454,10 @@ int netmgr_kif_iface_open ( uint8     link,
 ===========================================================================*/
 /*!
 @brief
-  Function to close the Kernel network interface 
+  Function to close the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -453,10 +477,10 @@ int netmgr_kif_iface_close ( uint8     link,
 ===========================================================================*/
 /*!
 @brief
-  Function to configure address for the Kernel network interface 
+  Function to configure address for the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -475,10 +499,10 @@ int netmgr_kif_iface_configure ( uint8             link,
 ===========================================================================*/
 /*!
 @brief
-  Function to reconfigure address for the Kernel network interface 
+  Function to reconfigure address for the Kernel network interface
 
 @return
-  int 
+  int
 
 @note
 
@@ -529,7 +553,7 @@ int netmgr_kif_flow_control ( uint8     connection,
 @note
 
   - Dependencies
-    - None  
+    - None
 
   - Side Effects
     - None

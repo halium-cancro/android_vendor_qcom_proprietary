@@ -28,7 +28,11 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim_util.c#2 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
-03/25/14   yt      Added utility to check app type is provisioning
+09/12/14   at      Change the fci property name to persist
+06/17/14   tl      Added logic to better determine FCI value from AID
+06/16/14   at      Compile error in qcril_uim_remove_non_provisioning_session
+05/02/14   tkl     Added support for RIL_REQUEST_SIM_AUTHENTICATION
+03/25/14   tl      Added utility to check app type is provisioning
 12/19/13   yt      Keep ISIM session open after ISIM access
 10/14/13   yt      Allow ICCID read from Slot 3
 07/16/13   yt      Remove closing of non-prov session to ISIM app
@@ -76,6 +80,7 @@ when       who     what, where, why
 #include "qcril_uim_queue.h"
 #include "qcril_uim_qcci.h"
 #include <string.h>
+#include <cutils/properties.h>
 
 
 /*===========================================================================
@@ -103,6 +108,12 @@ when       who     what, where, why
 #define QCRIL_UIM_NUM_BITS_BASE64_CHAR         6
 #define QCRIL_UIM_NUM_BITS_CHAR                8
 
+#define QCRIL_UIM_FCI_PROPERTY_NAME            "persist.fci"
+#define QCRIL_UIM_PROPERTY_FCP                 '0'
+#define QCRIL_UIM_PROPERTY_FCI                 '1'
+#define QCRIL_UIM_PROPERTY_FMD                 '2'
+#define QCRIL_UIM_PROPERTY_NO_DATA             '3'
+
 /*===========================================================================
 
                            GLOBALS
@@ -114,6 +125,26 @@ struct
   qmi_uim_session_info_type  session_info;
   RIL_Token                  last_token;
 } qcril_uim_non_prov_session_list[QCRIL_UIM_NON_PROV_SESSIONS_MAX_COUNT];
+
+
+/* -----------------------------------------------------------------------------
+   STRUCT:      QCRIL_UIM_AID_FCI_TYPE
+
+   DESCRIPTION:
+     Stores the FCI value of a corresponding application through the AID
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  const char                 aid_str_buffer[QMI_UIM_MAX_AID_LEN];
+  qcril_uim_fci_value_type   fci_value;
+} qcril_uim_aid_fci_type;
+
+
+static qcril_uim_aid_fci_type qcril_uim_aid_fci_list[] =
+{
+  {"A0000000041010",                   QCRIL_UIM_FCI_VALUE_FCI}, /* Mastercard */
+  {"A000000063504B43532D3135",         QCRIL_UIM_FCI_VALUE_FCP}  /* PKCS15 */
+};
 
 
 /*=========================================================================
@@ -409,40 +440,64 @@ void qcril_uim_bin_to_hexstring
 
 /*=========================================================================
 
-  FUNCTION:  qcril_uim_is_isim_aid
+  FUNCTION:  qcril_uim_check_aid_with_app_type
 
 ===========================================================================*/
 /*!
     @brief
-    Determines if the given AID belongs to an ISIM app
+    Determines if the given AID belongs to ISIM/USIM/CSIM app type
 
     @return
     boolean
 */
 /*=========================================================================*/
-static boolean qcril_uim_is_isim_aid
+boolean qcril_uim_check_aid_with_app_type
 (
-  qmi_uim_data_type * aid_ptr
+  const qmi_uim_data_type * aid_ptr,
+  qmi_uim_app_type          app_type
 )
 {
   const uint8 isim_aid[] = {0xA0, 0x00, 0x00, 0x00, 0x87, 0x10, 0x04};
+  const uint8 usim_aid[] = {0xA0, 0x00, 0x00, 0x00, 0x87, 0x10, 0x02};
+  const uint8 csim_aid[] = {0xA0, 0x00, 0x00, 0x03, 0x43, 0x10, 0x02};
+
+  const uint8 *app_type_aid = NULL;
+  uint8        app_type_aid_len = 0;
 
   if (aid_ptr == NULL)
   {
     return FALSE;
   }
 
-  if ((aid_ptr->data_len >= sizeof(isim_aid)) &&
-      (aid_ptr->data_ptr != NULL))
+  if (aid_ptr->data_ptr != NULL)
   {
-    if (memcmp(aid_ptr->data_ptr, isim_aid, sizeof(isim_aid)) == 0)
+    switch (app_type)
+    {
+       case QMI_UIM_APP_USIM:
+         app_type_aid_len = sizeof(usim_aid);
+         app_type_aid = usim_aid;
+         break;
+       case QMI_UIM_APP_ISIM:
+         app_type_aid_len = sizeof(isim_aid);
+         app_type_aid = isim_aid;
+         break;
+       case QMI_UIM_APP_CSIM:
+         app_type_aid_len = sizeof(csim_aid);
+         app_type_aid = csim_aid;
+         break;
+       default:
+         QCRIL_LOG_ERROR("app_type not supported: 0x%x", app_type);
+         return FALSE;
+    }
+
+    if (memcmp(aid_ptr->data_ptr, app_type_aid, app_type_aid_len) == 0)
     {
       return TRUE;
     }
   }
 
   return FALSE;
-} /* qcril_uim_is_isim_aid */
+} /* qcril_uim_check_aid_with_app_type */
 
 
 /*===========================================================================
@@ -1198,10 +1253,11 @@ void qcril_uim_remove_non_provisioning_session
     {
       /* Skip closing the session if it is an ISIM app to avoid losing ISIM
          refresh registration and frequently opening/closing ISIM session. */
-      if (!qcril_uim_is_isim_aid(&qcril_uim_non_prov_session_list[i].session_info.aid))
+      if (!qcril_uim_check_aid_with_app_type((const qmi_uim_data_type *)&qcril_uim_non_prov_session_list[i].session_info.aid,
+                                              QMI_UIM_APP_ISIM))
       {
         QCRIL_LOG_VERBOSE("Non prov session to close found - index: 0x%x, token: %d",
-                          index, qcril_log_get_token_id(token));
+                          i, qcril_log_get_token_id(token));
 
         close_params.session_info = qcril_uim_non_prov_session_list[i].session_info;
         qcril_qmi_uim_close_session(qcril_uim.qmi_handle,
@@ -1879,5 +1935,209 @@ boolean qcril_uim_is_prov_app_activated
 
   return FALSE;
 } /* qcril_uim_is_prov_app_activated */
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_determine_fci_from_property
+
+===========================================================================*/
+/*!
+    @brief
+    Function converts the FCI value byte which trails the AID into
+    its corresponding FCI value.
+
+    @return
+    qcril_uim_fci_value_type
+*/
+/*=========================================================================*/
+static qcril_uim_fci_value_type qcril_uim_determine_fci_from_property
+(
+  char  fci_indicator
+)
+{
+  qcril_uim_fci_value_type fci_value = QCRIL_UIM_FCI_VALUE_FCI_FALLBACK_FCP;
+
+  switch (fci_indicator)
+  {
+    case QCRIL_UIM_PROPERTY_FCP:
+      fci_value = QCRIL_UIM_FCI_VALUE_FCP;
+      break;
+    case QCRIL_UIM_PROPERTY_FCI:
+      fci_value = QCRIL_UIM_FCI_VALUE_FCI;
+      break;
+    case QCRIL_UIM_PROPERTY_FMD:
+      fci_value = QCRIL_UIM_FCI_VALUE_FMD;
+      break;
+    case QCRIL_UIM_PROPERTY_NO_DATA:
+      fci_value = QCRIL_UIM_FCI_VALUE_NO_DATA;
+      break;
+    default:
+      QCRIL_LOG_ERROR("Invalid FCI indicator parameter: 0x%x", fci_indicator);
+      return QCRIL_UIM_FCI_VALUE_FCI_FALLBACK_FCP;
+  }
+
+  return fci_value;
+} /* qcril_uim_determine_fci_from_property */
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_determine_select_template_from_aid
+
+===========================================================================*/
+/*!
+    @brief
+    Function will attempt to determine the FCI values based on the
+    AID/FCI data pairs sent through the UI. If this information is
+    not present or incorrect, then we will check hardcoded AID values
+    to try and find a match.
+
+    @return
+    qcril_uim_fci_value_type
+*/
+/*=========================================================================*/
+qcril_uim_fci_value_type qcril_uim_determine_select_template_from_aid
+(
+  const char                      * aid_ptr
+)
+{
+  uint16                                property_len         = 0;
+  char                                  property_buffer[PROPERTY_VALUE_MAX];
+  uint16                                aid_len              = 0;
+  uint8                                 i                    = 0;
+
+  if (aid_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s", "Invalid AID data");
+    return QCRIL_UIM_FCI_VALUE_FCI_FALLBACK_FCP;
+  }
+
+  aid_len = strlen(aid_ptr);
+
+  memset(property_buffer, 0x00, sizeof(property_buffer));
+
+  /* First we will check if the input AID matches any of the AIDs
+     of the property sets */
+  /* The property list, if present should be formated in an ASCII string
+     consisting of one or more AID/FCI value pairs. Each set consists of
+     the AID values followed immediately by the FCI value which are defined
+     with the below values matching spec ISO/IEC 7816:
+
+     '0' - FCP
+     '1' - FCI
+     '2' - FMD
+     '3' - No Data
+
+     Each set of AID/FCI value pair must be terminated by an ASCII semicolon ';'
+  */
+  do
+  {
+    property_get( QCRIL_UIM_FCI_PROPERTY_NAME, property_buffer, "" );
+    property_len = strlen(property_buffer);
+    if (property_len == 0)
+    {
+      QCRIL_LOG_INFO("%s", "No property or invalid property set continue with hardcoded list");
+      break;
+    }
+
+    /* A valid set entry in the property buffer must contain at minimum AID
+       data (variable), an AID terminator character '=' separating the AID from
+       the FCI template indicator, an FCI template indicator (1 byte) and the
+       terminating ASCII semicolon or string terminator (1 byte).
+
+       Ex.
+
+       "A0003456=1;A5565345=2"
+
+       AID1 = "A0003456", FCI template = '1' and ';' terminates the set
+       AID2 = "A5565345", FCI template = '2' and '\0' terminates the set
+    */
+    for(i = 0; (i + aid_len + 2) < (property_len + 1); i++)
+    {
+      /* We only need to check the FCI property if the AID matches that of the property.
+         We must also confirm that the AID stored in the property buffer is properly
+         terminated as to not compare only a subset of the stored AID. */
+      if((memcmp(aid_ptr, &property_buffer[i], aid_len) == 0) &&
+         (property_buffer[i + aid_len] == '=') &&
+         ((property_buffer[i + aid_len + 2] == ';') ||
+          (property_buffer[i + aid_len + 2] == '\0')))
+      {
+        /* The byte after the AID in the FCI property list will
+           contain the application's FCI value */
+        return qcril_uim_determine_fci_from_property(property_buffer[i + aid_len + 1]);
+      }
+
+      /* ASCII ';' terminates the different sets of AID/FCI pairs in the property
+         list. We will move through the buffer until we find an AID that matches. */
+      while ((i + aid_len + 2) < property_len &&
+             property_buffer[i] != ';')
+      {
+        i++;
+      }
+    }
+  }
+  while(0);
+
+  /* If the properties check fails, we can check if the AID matches our
+     internal list of hardcoded AID/FCI value pairs */
+  for (i = 0; i < sizeof(qcril_uim_aid_fci_list)/sizeof(qcril_uim_aid_fci_type); i++)
+  {
+    if (aid_len == strlen(qcril_uim_aid_fci_list[i].aid_str_buffer) &&
+        strcasecmp(aid_ptr, qcril_uim_aid_fci_list[i].aid_str_buffer) == 0)
+    {
+      return qcril_uim_aid_fci_list[i].fci_value;
+    }
+  }
+
+  /* In the case where FCI value cannot be determined at run-time,
+     we will default to try SELECT with FCP and if that fails due
+     to an incorrect P2, we will retry the SELECT with FCI. */
+  return QCRIL_UIM_FCI_VALUE_FCI_FALLBACK_FCP;
+} /* qcril_uim_determine_select_template_from_aid */
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_convert_fci_value
+
+===========================================================================*/
+/*!
+    @brief
+    Function converts QCRIL FCI value type to QMI FCI value type
+
+    @return
+    qmi_uim_fci_value_type
+*/
+/*=========================================================================*/
+qmi_uim_fci_value_type qcril_uim_convert_fci_value
+(
+  qcril_uim_fci_value_type  qcril_fci_value
+)
+{
+  qmi_uim_fci_value_type qmi_fci_value = QMI_UIM_FCI_VALUE_FCI;
+
+  switch (qcril_fci_value)
+  {
+    case QCRIL_UIM_FCI_VALUE_FCP:
+      qmi_fci_value = QMI_UIM_FCI_VALUE_FCP;
+      break;
+    case QCRIL_UIM_FCI_VALUE_FCI:
+    case QCRIL_UIM_FCI_VALUE_FCI_FALLBACK_FCP:
+      qmi_fci_value = QMI_UIM_FCI_VALUE_FCI;
+      break;
+    case QCRIL_UIM_FCI_VALUE_FMD:
+      qmi_fci_value = QMI_UIM_FCI_VALUE_FMD;
+      break;
+    case QCRIL_UIM_FCI_VALUE_NO_DATA:
+      qmi_fci_value = QMI_UIM_FCI_VALUE_NO_DATA;
+      break;
+    default:
+      QCRIL_LOG_ERROR("Invalid FCI value: 0x%x, default to FCI", qcril_fci_value);
+      return QMI_UIM_FCI_VALUE_FCI;
+  }
+
+  return qmi_fci_value;
+} /* qcril_uim_convert_fci_value */
 
 #endif /* defined (FEATURE_QCRIL_UIM_QMI) */

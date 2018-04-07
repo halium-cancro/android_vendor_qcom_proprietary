@@ -23,7 +23,6 @@
 #include "qmi_wds_srvc_i.h"
 #include "qmi_util.h"
 
-
 #define QMI_WDS_UMTS_QOS_TLV_SIZE            33
 #define QMI_WDS_GPRS_QOS_TLV_SIZE            QMI_WDS_GPRS_QOS_SIZE
 #define QMI_WDS_LTE_QOS_TLV_SIZE             QMI_WDS_LTE_QOS_SIZE
@@ -37,7 +36,12 @@
                                               QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES + \
                                               sizeof(unsigned char))
 
+/* Space needed to hold IPv6 addr + prefix length (1 byte) */
+#define QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_TLV_SIZE  (QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES + \
+                                                        sizeof(unsigned char))
+
 /* Request/response message ID's */
+#define QMI_RESULT_CODE_TYPE_ID                           0x0002
 #define QMI_WDS_START_NW_IF_MSG_ID                        0x0020
 #define QMI_WDS_STOP_NW_IF_MSG_ID                         0x0021
 #define QMI_WDS_RESET_MSG_ID                              0x0000
@@ -93,6 +97,7 @@
 #define QMI_WDS_GET_PREF_DATA_SYS_MSG_ID                  0x0069
 #define QMI_WDS_EMBMS_TMGI_LIST_QUERY_MSG_ID              0x0067
 #define QMI_WDS_GET_CURRENT_DATA_SYS_STATUS_MSG_ID        0x006B
+#define QMI_WDS_GET_LTE_ATTACH_PARAMS_MSG_ID              0x0085
 #define QMI_WDS_RESET_PKT_STATS_MSG_ID                    0x0086
 #define QMI_WDS_GET_LTE_MAX_ATTACH_PDN_NUM_MSG_ID         0x0092
 #define QMI_WDS_SET_LTE_ATTACH_PDN_LIST_MSG_ID            0x0093
@@ -104,9 +109,14 @@
 #define QMI_WDS_REV_IP_TRANS_CONN_IND_REG_MSG_ID          0x008D
 #define QMI_WDS_GET_IPSEC_STATIC_SA_CONFIG                0x008F
 #define QMI_WDS_REV_IP_TRANS_CONFIG_COMPLETE_MSG_ID       0x0090
+#define QMI_WDS_BIND_MUX_DATA_PORT_MSG_ID                 0x00A2
 #define QMI_WDS_INITIATE_ESP_REKEY                        0x00A6
+#define QMI_WDS_BIND_SUBSCRIPTION_MSG_ID                  0x00AF
+#define QMI_WDS_GET_BIND_SUBSCRIPTION_MSG_ID              0x00B0
+#define QMI_WDS_EMBMS_CONTENT_DESC_UPDATE_MSG_ID          0x00B5
 #define QMI_WDS_SET_DATA_PATH_MSG_ID                      0x009C
 #define QMI_WDS_GET_DATA_PATH_MSG_ID                      0x009D
+#define QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_REQ_MSG_ID   0x00AD
 
 /* Start NW Interface TLV ID's */
 #define QMI_WDS_NW_IF_PROFILE_IDX_REQ_TLV_ID               0x31
@@ -190,12 +200,13 @@
 #define QMI_WDS_PKT_SRVC_IP_FAMILY_TLV_ID             0x12
 #define QMI_WDS_PKT_SRVC_TECH_NAME_TLV_ID             0x13
 #define QMI_WDS_CLIENT_IP_PREF_REQ_TLV_ID             0x01
+#define QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_REQ_TLV_ID  0x10
 
 /* Route look-up response TLV ID's */
 #define QMI_WDS_ROUTE_LOOKUP_TYPE_REQ_TLV_ID  0x01
 #define QMI_WDS_ROUTE_LOOKUP_IFACE_TLV_ID     0x01
 #define QMI_WDS_ROUTE_LOOKUP_QMI_INST_TLV_ID  0x10
-
+#define QMI_WDS_ROUTE_LOOKUP_MUX_ID_TLV_ID    0x13
 
 #define QMI_WDS_PROFILE_TECH_TYPE_TLV_ID                    0x01
 #define QMI_WDS_DEFAULT_PROFILE_NUMBER_RSP_TLV_ID           0x01
@@ -270,8 +281,6 @@
 #define QMI_WDS_EVENT_RPT_XFER_STATS_RX_PKTS_DROPPED_IND_TLV_ID   0x26
 #define QMI_WDS_EVENT_RPT_CHAN_RATE_IND_TLV_ID                    0x16
 #define QMI_WDS_EVENT_RPT_DORM_STATUS_IND_TLV_ID                  0x18
-#define QMI_WDS_EVENT_RPT_XFER_STATS_TX_BYTES_GOOD_IND_TLV_ID     0x19
-#define QMI_WDS_EVENT_RPT_XFER_STATS_RX_BYTES_GOOD_IND_TLV_ID     0x1A
 #define QMI_WDS_EVENT_RPT_BEARER_TECH_IND_TLV_ID                  0x1D
 #define QMI_WDS_EVENT_RPT_DATA_CAPABILITIES_TLV_ID                0x1E
 #define QMI_WDS_EVENT_RPT_DATA_CALL_STATUS_CHG_TLV_ID             0x1F
@@ -327,12 +336,6 @@
 #define QMI_WDS_DUN_CALL_INFO_TX_OK_BYTE_COUNT_SIZE   8
 #define QMI_WDS_DUN_CALL_INFO_RX_OK_BYTE_COUNT_SIZE   8
 
-/* FMC related */
-#define QMI_WDS_FMC_TUNNEL_PARAMS_TLV_ID              0x01
-#define QMI_WDS_FMC_TUNNEL_PARAMS_V4_SOCK_ADDR_TLV_ID 0x10
-#define QMI_WDS_FMC_TUNNEL_PARAMS_V6_SOCK_ADDR_TLV_ID 0x11
-#define QMI_WDS_FMC_TUNNEL_PARAMS_TLV_SIZE              7
-
 /*MIP*/
 #define QMI_WDS_MOBILE_IP_MODE_TLV_ID               0x01
 #define QMI_WDS_MOBILE_IP_PROFILE_INDEX_TLV_ID      0x01
@@ -365,6 +368,7 @@
 #define QMI_WDS_REPORT_EMBMS_SAI_LIST_TLV_ID              0x17
 #define QMI_WDS_REPORT_EXT_IP_CONFIG_CHANGE_TLV_ID        0x12
 #define QMI_WDS_REPORT_DATA_PATH_CHANGE_TLV_ID            0x16
+#define QMI_WDS_REPORT_EMBMS_CONTENT_DESC_CONTROL_TLV_ID  0x1C
 
 
 /* Handoff indication registration TLV */
@@ -399,6 +403,12 @@
 #define QMI_WDS_EMBMS_LIST_IND_SAI_LIST_TLV_ID          0x10
 #define QMI_WDS_EMBMS_LIST_IND_SAI_LIST_TRANX_ID_TLV_ID 0x11
 
+/* EMBMS Content desc control Indication TLVs */
+#define QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_TMGI_LIST_TLV_ID     0x01
+#define QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_TRANX_ID_TLV_ID      0x10
+#define QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_CONTENT_CTRL_TLV_ID  0x11
+#define QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_STATUS_CTRL_TLV_ID   0x12
+
 /* EMBMS TMGI Activate */
 #define QMI_WDS_EMBMS_ACTIVATE_REQ_TMGI_TLV_ID          0x01
 #define QMI_WDS_EMBMS_ACTIVATE_REQ_TRANX_ID_TLV_ID      0x10
@@ -417,6 +427,11 @@
 #define QMI_WDS_EMBMS_ACT_DEACT_REQ_PREEMPT_PRI_TLV_ID     0x11
 #define QMI_WDS_EMBMS_ACT_DEACT_REQ_EARFCNLIST_TLV_ID      0x12
 #define QMI_WDS_EMBMS_ACT_DEACT_REQ_SAILIST_TLV_ID         0x13
+
+/* EMBMS Content Desc update request */
+#define QMI_WDS_EMBMS_CONT_DESC_UPDATE_REQ_TMGI_TLV_ID      0x01
+#define QMI_WDS_EMBMS_CONT_DESC_UPDATE_REQ_TRANX_ID_TLV_ID  0x02
+#define QMI_WDS_EMBMS_CONT_DESC_UPDATE_REQ_TLV_OFFSET       0x10
 
 /* EMBMS TMGI List Query request */
 #define QMI_WDS_EMBMS_LIST_QUERY_REQ_LIST_TYPE_TLV_ID       0x01
@@ -439,6 +454,11 @@
 #define QMI_WDS_GET_LTE_ATTACH_PDN_LIST_TLV_ID          0x10
 
 #define QMI_WDS_LTE_ATTACH_LIST_IND_TLV_ID              0x10
+
+/* Get LTE Attach Params related */
+#define QMI_WDS_GET_LTE_ATTACH_PARAMS_APN_STRING_TLV_ID           0x10
+#define QMI_WDS_GET_LTE_ATTACH_PARAMS_IP_TYPE_TLV_ID              0x11
+#define QMI_WDS_GET_LTE_ATTACH_PARAMS_OTA_ATTACH_PERFORMED_TLV_ID 0x12
 
 /* Get/Set LTE Data Retry related */
 #define QMI_WDS_SET_LTE_DATA_RETRY_TLV_ID               0x01
@@ -502,9 +522,19 @@
 #define QMI_WDS_REV_IP_TRANS_GET_SA_CFG_ATTR_3GPP2_IPV6_HA_TLV_ID   0x32
 #define QMI_WDS_REV_IP_TRANS_GET_SA_CFG_ATTR_3GPP2_IPV6_HOA_TLV_ID  0x33
 #define QMI_WDS_REV_IP_TRANS_GET_SA_TRAFFIC_SEL_TLV_ID              0x34
+#define QMI_WDS_REV_IP_TRANS_GET_SA_TRAFFIC_SEL_RESPONDER_TLV_ID    0x35
+#define QMI_WDS_REV_IP_TRANS_GET_AES_MODE_TLV_ID                    0x37
 
 /* Current bearer technology ext related TLVs */
 #define QMI_WDS_CURRENT_DATA_BEARER_TECH_EX_CURRENT_CALL_TECH_TLV_ID 0x10
+
+/* Bind MUX data port TLVs */
+#define QMI_WDS_BIND_MUX_DATA_PORT_EP_ID_TLV_ID                     0x10
+#define QMI_WDS_BIND_MUX_DATA_PORT_MUX_ID_TLV_ID                    0x11
+#define QMI_WDS_BIND_MUX_DATA_PORT_REVERSED_TLV_ID                  0x12
+
+#define QMI_WDS_BIND_SUB_ID_TLV_ID     0x01
+#define QMI_WDS_GET_BIND_SUB_ID_TLV_ID     0x10
 
 /* Extended IP config indication related TLVs */
 #define QMI_WDS_EXT_IP_CONFIG_CHANGE_IND_TLV_ID                     0x10
@@ -967,7 +997,7 @@ qmi_wds_srvc_process_data_sys_status_tlvs
   {
     if (qmi_nw_info_len > 0)
     {
-      qmi_nw_info_len = MIN(qmi_nw_info_len, QMI_WDS_MAX_DATA_SYS_STATUS_NETWORK_INFO_LEN);
+      qmi_nw_info_len = (unsigned char) MIN(qmi_nw_info_len, QMI_WDS_MAX_DATA_SYS_STATUS_NETWORK_INFO_LEN);
 
       /* Allocate memory for the network info array */
       nw_info = malloc(sizeof(qmi_wds_data_sys_status_network_info_type) * qmi_nw_info_len);
@@ -990,7 +1020,7 @@ qmi_wds_srvc_process_data_sys_status_tlvs
   else
   {
     nw_info = *network_info;
-    qmi_nw_info_len = MIN(*network_info_len, qmi_nw_info_len);
+    qmi_nw_info_len = (unsigned char) MIN(*network_info_len, qmi_nw_info_len);
     *network_info_len = qmi_nw_info_len;
   }
 
@@ -1189,8 +1219,7 @@ qmi_wds_srvc_process_event_report_ind
           event_report->xfer_stats.mask |= QMI_WDS_XFER_STATS_TX_BYTES_OK;
 
           /* Read in value */
-          memcpy ((void *)&event_report->xfer_stats.tx_good_byte_cnt,(void *)value_ptr, \
-                  sizeof(event_report->xfer_stats.tx_good_byte_cnt));
+          READ_64_BIT_VAL (value_ptr, event_report->xfer_stats.tx_good_byte_cnt);
         }
         break;
 
@@ -1202,8 +1231,7 @@ qmi_wds_srvc_process_event_report_ind
           event_report->xfer_stats.mask |= QMI_WDS_XFER_STATS_RX_BYTES_OK;
 
           /* Read in value */
-          memcpy ((void *)&event_report->xfer_stats.rx_good_byte_cnt,(void *)value_ptr, \
-                  sizeof(event_report->xfer_stats.rx_good_byte_cnt));
+          READ_64_BIT_VAL (value_ptr, event_report->xfer_stats.rx_good_byte_cnt);
         }
         break;
 
@@ -2493,8 +2521,8 @@ qmi_wds_srvc_process_embms_sai_list_ind
         orig_value_ptr = value_ptr;
 
         /* validate number of freqencies */
-        list_len = (list_len > QMI_WDS_EMBMS_FREQ_MAX_SIZE)?
-           QMI_WDS_EMBMS_FREQ_MAX_SIZE : list_len;
+        list_len = (unsigned short)((list_len > QMI_WDS_EMBMS_FREQ_MAX_SIZE)?
+                                    QMI_WDS_EMBMS_FREQ_MAX_SIZE : list_len);
 
         /* calculate the size for arrays */
         for (j = 0; j < list_len; j ++)
@@ -2509,10 +2537,10 @@ qmi_wds_srvc_process_embms_sai_list_ind
              return QMI_INTERNAL_ERR;
           }
 
-          available_sai_list_size = available_sai_list_size + sai_size;
+          available_sai_list_size = (unsigned short) (available_sai_list_size + sai_size);
           if (TRUE == is_serving_freq)
           {
-            camped_sai_list_size = camped_sai_list_size + sai_size;
+            camped_sai_list_size = (unsigned short) (camped_sai_list_size + sai_size);
           }
           value_ptr += (sai_size * sizeof(unsigned int));
         }
@@ -2609,6 +2637,136 @@ qmi_wds_srvc_process_embms_sai_list_ind
       {
         QMI_ERR_MSG_1 ("qmi_wds_srvc_process_embms_sai_list_ind: "
                        "unknown type = %x\n",(unsigned) type);
+      }
+      break;
+    } /*switch*/
+
+  } /* while */
+
+  return QMI_NO_ERR;
+}
+
+/*===========================================================================
+  FUNCTION  qmi_wds_srvc_process_embms_content_desc_control_ind
+===========================================================================*/
+/*!
+@brief
+  Processes a internal iface event indication TLVs and translates it into
+  C structure indication data
+@return
+  QMI_NO_ERR if no error occurred, QMI_INTERNAL_ERR otherwise
+
+@note
+
+*/
+/*=========================================================================*/
+static int
+qmi_wds_srvc_process_embms_content_desc_control_ind
+(
+  unsigned char                 *rx_buf,
+  int                            rx_buf_len,
+  qmi_wds_indication_data_type  *ind_data
+)
+{
+  unsigned long type;
+  unsigned long length;
+  unsigned char *value_ptr;
+  int           i;
+
+  qmi_wds_embms_tmgi_info_type tmgi_list;
+
+  /* Error check */
+  if ((rx_buf == NULL) || (ind_data == NULL))
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  ind_data->embms_content_desc_control.param_mask = 0;
+  memset(&(tmgi_list), 0, sizeof(tmgi_list));
+
+  /* Loop through looking for TLV's */
+  while (rx_buf_len > 0)
+  {
+    if (qmi_util_read_std_tlv (&rx_buf,
+                               &rx_buf_len,
+                               &type,
+                               &length,
+                               &value_ptr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+
+    switch(type)
+    {
+      case QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_TMGI_LIST_TLV_ID:
+      {
+        unsigned char temp;
+
+        tmgi_list.tmgi_list_len = QMI_WDS_EMBMS_TMGI_STATUS_IND_LIST_SIZE;
+
+        /* allocate memory */
+        tmgi_list.tmgi_list_ptr = (qmi_wds_embms_tmgi_type *)
+                                           malloc( sizeof(qmi_wds_embms_tmgi_type));
+
+        if( NULL != tmgi_list.tmgi_list_ptr)
+        {
+          /* zero out memory */
+          memset(tmgi_list.tmgi_list_ptr,
+                 0,
+                 sizeof(qmi_wds_embms_tmgi_type));
+
+          memcpy(tmgi_list.tmgi_list_ptr->tmgi,
+                 value_ptr,
+                 QMI_WDS_EMBMS_TMGI_SIZE);
+
+          value_ptr += QMI_WDS_EMBMS_TMGI_SIZE;
+
+          READ_8_BIT_VAL (value_ptr, temp);
+          tmgi_list.tmgi_list_ptr->session_id_valid = temp;
+
+          READ_8_BIT_VAL (value_ptr, temp);
+          tmgi_list.tmgi_list_ptr->session_id = temp;
+
+          ind_data->embms_content_desc_control.content_desc_tmgi = tmgi_list;
+        }
+        else
+        {
+          QMI_ERR_MSG_0 ("qmi_wds_srvc_process_embms_content_desc_control_ind: "
+                         "could not allocate memory\n");
+          return QMI_INTERNAL_ERR;
+        }
+      }
+      break;
+
+      case QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_CONTENT_CTRL_TLV_ID:
+      {
+        ind_data->embms_list.param_mask |=
+            QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_CONTENT_CTRL_PARAM_MASK;
+        READ_32_BIT_VAL (value_ptr, ind_data->embms_content_desc_control.content_control);
+      }
+      break;
+
+      case QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_STATUS_CTRL_TLV_ID:
+      {
+        ind_data->embms_list.param_mask |=
+            QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_STATUS_CTRL_PARAM_MASK;
+        READ_32_BIT_VAL (value_ptr, ind_data->embms_content_desc_control.status_control);
+      }
+      break;
+
+      case QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_TRANX_ID_TLV_ID:
+      {
+        ind_data->embms_list.param_mask |=
+            QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_TRANX_ID_PARAM_MASK;
+        READ_16_BIT_VAL (value_ptr, ind_data->embms_content_desc_control.dbg_trace_id);
+      }
+      break;
+
+      default:
+      {
+        QMI_ERR_MSG_1 ("qmi_wds_srvc_process_embms_tmgi_list_ind: "
+                       "unknown type = %x\n",(unsigned) type);
+        return QMI_INTERNAL_ERR;
       }
       break;
     } /*switch*/
@@ -3222,6 +3380,20 @@ qmi_wds_srvc_indication_cb
       }
       break;
 
+    case QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_MSG_ID:
+      {
+        ind_id = QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG;
+        if (qmi_wds_srvc_process_embms_content_desc_control_ind (rx_msg_buf,
+                                                                 rx_msg_len,
+                                                                 &ind_data) < 0)
+        {
+          /* release memory */
+          qmi_wds_embms_tmgi_release_mem(ind_data.embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr);
+          return;
+        }
+      }
+      break;
+
     case QMI_WDS_LTE_ATTACH_PDN_LIST_IND_MSG_ID:
       {
         ind_id = QMI_WDS_SRVC_LTE_ATTACH_PDN_LIST_IND_MSG;
@@ -3343,6 +3515,10 @@ qmi_wds_srvc_indication_cb
   {
     qmi_wds_embms_tmgi_release_mem(ind_data.embms_list.tmgi_list.tmgi_list_ptr);
   }
+  else if(ind_id == QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_MSG_ID)
+  {
+    qmi_wds_embms_tmgi_release_mem(ind_data.embms_content_desc_control.content_desc_tmgi.tmgi_list_ptr);
+  }
   else if (ind_id == QMI_WDS_EMBMS_SAI_LIST_IND_MSG_ID)
   {
     if (ind_data.sai_list.available_sai_list != NULL)
@@ -3405,51 +3581,56 @@ qmi_wds_handle_start_nw_rsp
   unsigned long length;
   unsigned char *value_ptr;
   int rc = QMI_NO_ERR;
+  unsigned char pkt_data_hndl_found = FALSE;
 
-  /* Read the reply TLV, should be 4 byte pkt_data_handle */
-  if (qmi_util_read_std_tlv (&reply_msg_data,
+  while (reply_msg_size > 0)
+  {
+    /* Read the reply TLV, should be 4 byte pkt_data_handle */
+    if (qmi_util_read_std_tlv (&reply_msg_data,
                                 &reply_msg_size,
                                 &type,
                                 &length,
                                 &value_ptr) < 0)
-  {
-    rc = QMI_INTERNAL_ERR;
-  }
-  /* Verify that the TLV looks right */
-  if ((type != QMI_WDS_NW_IF_PKT_HANDLE_RSP_TLV_ID) ||
-      (length != 4))
-  {
-    rc = QMI_INTERNAL_ERR;
-  }
-
-  /* If all is well, save the packet data handle */
-  else
-  {
-    qmi_wds_client_data_type *client_data;
-    unsigned long tmp_pkt_data_handle;
-
-    READ_32_BIT_VAL (value_ptr,tmp_pkt_data_handle);
-
-    /* Now we want to store the packet data handle in the client
-    ** data structure
-    */
-
-    /* Lock the client data list mutex */
-    QMI_PLATFORM_MUTEX_LOCK (&qmi_wds_client_data_list_mutex);
-
-    /* Get a pointer to the client data based on user handle */
-    client_data = qmi_wds_get_client_data (user_handle);
-
-    /* Make sure we got back valid pointer */
-    if (client_data == NULL)
     {
       rc = QMI_INTERNAL_ERR;
     }
-    else
+    /* Verify that the TLV looks right */
+    if ((type == QMI_WDS_NW_IF_PKT_HANDLE_RSP_TLV_ID) &&
+        (length == 4))
     {
-      client_data->data_call.pkt_data_handle = tmp_pkt_data_handle;
+      qmi_wds_client_data_type *client_data;
+      unsigned long tmp_pkt_data_handle;
+
+      READ_32_BIT_VAL (value_ptr,tmp_pkt_data_handle);
+
+      /* Now we want to store the packet data handle in the client
+      ** data structure
+      */
+
+      /* Lock the client data list mutex */
+      QMI_PLATFORM_MUTEX_LOCK (&qmi_wds_client_data_list_mutex);
+
+      /* Get a pointer to the client data based on user handle */
+      client_data = qmi_wds_get_client_data (user_handle);
+
+      /* Make sure we got back valid pointer */
+      if (client_data == NULL)
+      {
+        rc = QMI_INTERNAL_ERR;
+      }
+      else
+      {
+        client_data->data_call.pkt_data_handle = tmp_pkt_data_handle;
+      }
+
+      pkt_data_hndl_found = TRUE;
+      QMI_PLATFORM_MUTEX_UNLOCK (&qmi_wds_client_data_list_mutex);
     }
-    QMI_PLATFORM_MUTEX_UNLOCK (&qmi_wds_client_data_list_mutex);
+  }
+
+  if (!pkt_data_hndl_found)
+  {
+    rc = QMI_INTERNAL_ERR;
   }
 
   return rc;
@@ -3498,6 +3679,8 @@ qmi_wds_srvc_async_cb
   qmi_wds_async_rsp_id_type   rsp_id;
   qmi_wds_async_rsp_data_type rsp_data;
 
+  (void) srvc_async_cb_data;
+
   memset((void*)&rsp_data, 0x0, sizeof(rsp_data));
 
   /* Now set get response data based on which type of response it was */
@@ -3522,6 +3705,8 @@ qmi_wds_srvc_async_cb
         rsp_rc = qmi_wds_handle_start_nw_rsp (user_handle,
                                               reply_msg_data,
                                               reply_msg_size);
+
+        QMI_DEBUG_MSG_1("qmi_wds_handle_start_nw_rsp ret=%d\n", rsp_rc);
       }
         else if (rsp_rc == QMI_SERVICE_ERR)
         {
@@ -3756,8 +3941,15 @@ qmi_wds_srvc_init_client
 {
   qmi_client_handle_type client_handle;
   qmi_connection_id_type conn_id;
+  int mux_id = -1;
+  int qmi_err;
+  int rc;
+  qmi_wds_bind_mux_data_port_params_type bind_params;
+  int ep_type = -1;
+  int epid = -1;
 
-  if ((conn_id = QMI_PLATFORM_DEV_NAME_TO_CONN_ID(dev_id)) == QMI_CONN_ID_INVALID)
+  if (QMI_CONN_ID_INVALID ==
+      (conn_id = QMI_PLATFORM_DEV_NAME_TO_CONN_ID_EX(dev_id, &ep_type, &epid, &mux_id)))
   {
     return QMI_INTERNAL_ERR;
   }
@@ -3795,6 +3987,36 @@ qmi_wds_srvc_init_client
     QMI_PLATFORM_MUTEX_LOCK (&qmi_wds_client_data_list_mutex);
     QMI_SLL_ADD (client_data, qmi_wds_client_data_list);
     QMI_PLATFORM_MUTEX_UNLOCK (&qmi_wds_client_data_list_mutex);
+
+    /* Bind to a epid/mux-id if binding is supported */
+    if (0 < mux_id)
+    {
+      memset(&bind_params, 0, sizeof(bind_params));
+      bind_params.params_mask |= QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_MUX_ID;
+      bind_params.mux_id = (unsigned char)mux_id;
+
+     if(ep_type != -1 )
+     {
+       /* We have a valid end point and a valid ep id */
+       bind_params.params_mask |= QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_EP_ID;
+       bind_params.ep_id.ep_type = ep_type;
+       bind_params.ep_id.iface_id = (unsigned long) epid;
+     }
+
+#ifdef FEATURE_QMI_IWLAN
+      /* Check if dev_id is reverse rmnet */
+      if (!strncmp(dev_id, QMI_PLATFORM_REV_RMNET_DATA_PREFIX,
+               strlen(QMI_PLATFORM_REV_RMNET_DATA_PREFIX)))
+      {
+        /* Specify reverse field */
+        bind_params.params_mask |= QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_REVERSED;
+        bind_params.reversed = TRUE;
+      }
+#endif /* FEATURE_QMI_IWLAN */
+
+      /* Ignore bind failure, WDS client is still usable */
+      (void) qmi_wds_bind_mux_data_port(client_handle, &bind_params, &qmi_err);
+    }
   }
   return client_handle;
 }
@@ -3911,7 +4133,7 @@ qmi_wds_write_optional_start_nw_if_tlvs
   /* APN name */
   if (params->params_mask & QMI_WDS_START_NW_APN_NAME_PARAM)
   {
-    int name_len = strlen (params->apn_name);
+    size_t name_len = strlen (params->apn_name);
     if (name_len >= QMI_WDS_MAX_APN_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -4027,7 +4249,7 @@ qmi_wds_write_optional_start_nw_if_tlvs
 
   if (params->params_mask & QMI_WDS_START_NW_USERNAME_PARAM)
   {
-    int name_len = strlen (params->username);
+    size_t name_len = strlen (params->username);
     if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -4044,7 +4266,7 @@ qmi_wds_write_optional_start_nw_if_tlvs
 
   if (params->params_mask & QMI_WDS_START_NW_PASSWORD_PARAM)
   {
-    int name_len = strlen (params->password);
+    size_t name_len = strlen (params->password);
     if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -4096,17 +4318,6 @@ qmi_wds_write_optional_start_nw_if_tlvs
     return QMI_INTERNAL_ERR;
   }
 
-  if (params->params_mask & QMI_WDS_START_NW_XTENDED_TECH_PREF_PARAM)
-  {
-    if (qmi_util_write_std_tlv (tx_buf,
-                                 tx_buf_len,
-                                 QMI_WDS_NW_IF_XTENDED_TECH_PREF_REQ_TLV_ID,
-                                 2,
-                                 (void *)&params->xtended_tech_pref) < 0)
-    {
-      return QMI_INTERNAL_ERR;
-    }
-  }
 
   if (params->params_mask & QMI_WDS_START_NW_HANDOFF_CONTEXT_PARAM)
   {
@@ -4445,6 +4656,306 @@ qmi_wds_mcast_ipv4_join_info_param_type             *params
   }
   return QMI_NO_ERR;
 }
+
+/*===========================================================================
+  FUNCTION  qmi_wds_bind_mux_data_port
+===========================================================================*/
+/*!
+@brief
+  Binds a QMI-WDS client to a MUX data port. In the case of QMAP, we will
+  have a single control channel, so WDS clients need to specify which
+  data port their actions need to be associated with.
+
+@param[in]  user_handle: QMI WDS client handle.
+@param[in]  params: Bind MUX data port specification
+@param[out] qmi_err_code: QMI error code in case of failure.
+
+@see
+  qmi_wds_bind_mux_data_port_params_type
+
+@return
+  0 if operation was successful.
+  < 0 If operation failed.  qmi_err_code will contain the reason.
+
+@dependencies
+  qmi_wds_srvc_init_client() must be called before calling this.
+
+*/
+/*=========================================================================*/
+int qmi_wds_bind_mux_data_port
+(
+  int                                     user_handle,
+  qmi_wds_bind_mux_data_port_params_type *params,
+  int                                    *qmi_err_code
+)
+{
+  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
+  int               msg_size;
+  unsigned char    *tmp_msg_ptr;
+  int rc;
+
+  if (NULL == qmi_err_code || NULL == params)
+  {
+    QMI_ERR_MSG_0("qmi_wds_bind_mux_data_port(): Bad Input received\n");
+    return QMI_INTERNAL_ERR;
+  }
+
+  *qmi_err_code = QMI_SERVICE_ERR_NONE;
+  QMI_DEBUG_MSG_2("qmi_wds_bind_mux_data_port(): ENTRY: user handle %d, params_mask 0x%x",
+      user_handle, params->params_mask);
+  QMI_DEBUG_MSG_4("qmi_wds_bind_mux_data_port(): ENTRY: ep type %d, ep_id 0x%x, mux_id %d, reversed %d",
+      params->ep_id.ep_type, params->ep_id.iface_id, params->mux_id, params->reversed);
+
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
+  ** message buffer */
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+
+  /* Write EP ID Type TLV (size 8 bytes) if appropriate */
+  if (params->params_mask & QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_EP_ID)
+  {
+    unsigned char tmp_buf[8];
+    unsigned char *tmp_buf_ptr = tmp_buf;
+
+    /* Set TLV based on parameter value */
+    WRITE_32_BIT_VAL(tmp_buf_ptr, (unsigned long)(params->ep_id.ep_type));
+    WRITE_32_BIT_VAL(tmp_buf_ptr, params->ep_id.iface_id);
+    tmp_buf_ptr = tmp_buf;
+
+    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                &msg_size,
+                                QMI_WDS_BIND_MUX_DATA_PORT_EP_ID_TLV_ID,
+                                8,
+                                (void *)tmp_buf_ptr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Write MUX ID Type TLV (size 1 byte) if appropriate */
+  if (params->params_mask & QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_MUX_ID)
+  {
+    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                &msg_size,
+                                QMI_WDS_BIND_MUX_DATA_PORT_MUX_ID_TLV_ID,
+                                1,
+                                (void *)&params->mux_id) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Write Reversed TLV (size 1 byte) if appropriate */
+  if (params->params_mask & QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_REVERSED)
+  {
+    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                &msg_size,
+                                QMI_WDS_BIND_MUX_DATA_PORT_REVERSED_TLV_ID,
+                                1,
+                                (void *)&params->reversed) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  rc = qmi_service_send_msg_sync (user_handle,
+                                  QMI_WDS_SERVICE,
+                                  QMI_WDS_BIND_MUX_DATA_PORT_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  msg,
+                                  &msg_size,
+                                  QMI_WDS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  qmi_wds_bind_subscription
+===========================================================================*/
+/*!
+@brief
+  Binds a QMI-WDS client to Subscription. .
+
+@param[in]  user_handle: QMI WDS client handle.
+@param[in]  params: Subscription ID
+@param[out] qmi_err_code: QMI error code in case of failure.
+
+@see
+  qmi_wds_bind_subscription_type
+
+@return
+  0 if operation was successful.
+  < 0 If operation failed.  qmi_err_code will contain the reason.
+
+@dependencies
+  qmi_wds_srvc_init_client() must be called before calling this.
+
+*/
+/*=========================================================================*/
+EXTERN int
+qmi_wds_bind_subscription
+(
+  int                                     user_handle,
+  qmi_wds_bind_subscription_type          subs_id,
+  int                                    *qmi_err_code
+)
+{
+  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
+  int               msg_size;
+  unsigned char    *tmp_msg_ptr;
+  int rc;
+
+  if (NULL == qmi_err_code)
+  {
+    QMI_ERR_MSG_0("qmi_wds_bind_mux_data_port(): Bad Input received\n");
+    return QMI_INTERNAL_ERR;
+  }
+
+  *qmi_err_code = QMI_SERVICE_ERR_NONE;
+  QMI_DEBUG_MSG_2("qmi_wds_bind_subscription(): ENTRY: user handle %d, subs_id 0x%x",
+      user_handle, subs_id);
+
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
+  ** message buffer */
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+
+  /* Write SUBS ID Type TLV (size 4 byte) if appropriate */
+  if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                              &msg_size,
+                              QMI_WDS_BIND_SUB_ID_TLV_ID,
+                              4,
+                              (void *)&subs_id) < 0)
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+
+  rc = qmi_service_send_msg_sync (user_handle,
+                                  QMI_WDS_SERVICE,
+                                  QMI_WDS_BIND_SUBSCRIPTION_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  msg,
+                                  &msg_size,
+                                  QMI_WDS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  qmi_wds_get_bind_subscription
+===========================================================================*/
+/*!
+@brief
+  This message queries the current subscription the client is bound to.
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_wds_get_bind_subscription
+(
+  int                                          user_handle,
+  qmi_wds_bind_subscription_type               *subs_id,
+  int                                          *qmi_err_code
+)
+{
+  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
+  int               msg_size;
+  unsigned char    *tmp_msg_ptr;
+  int rc;
+  int temp;
+
+  if (!subs_id )
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  if (!qmi_err_code )
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
+  ** message buffer
+  */
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+
+  rc = qmi_service_send_msg_sync (user_handle,
+                                  QMI_WDS_SERVICE,
+                                  QMI_WDS_GET_BIND_SUBSCRIPTION_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  msg,
+                                  &msg_size,
+                                  QMI_WDS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+
+  if (rc == QMI_NO_ERR)
+  {
+    unsigned long type;
+    unsigned long length;
+    unsigned char *value_ptr;
+
+    /* Set tmp_msg_ptr to return data */
+    tmp_msg_ptr = msg;
+
+    while (msg_size > 0)
+    {
+      if (qmi_util_read_std_tlv (&tmp_msg_ptr,
+                                    &msg_size,
+                                    &type,
+                                    &length,
+                                    &value_ptr) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+
+      switch (type)
+      {
+        case QMI_WDS_GET_BIND_SUB_ID_TLV_ID:
+          {
+            READ_32_BIT_VAL (value_ptr, temp);
+            *subs_id = (qmi_wds_bind_subscription_type) temp;
+          }
+          break;
+        default:
+          {
+            QMI_ERR_MSG_1 ("qmi_wds_get_bind_subscription: unknown response TLV type = %x",(unsigned int)type);
+          }
+          break;
+      }
+    }
+  }
+  return rc;
+}
+
 /*===========================================================================
   FUNCTION  qmi_wds_start_nw_if
 ===========================================================================*/
@@ -4555,7 +5066,7 @@ qmi_wds_start_nw_if
                                      QMI_WDS_SERVICE,
                                      QMI_WDS_START_NW_IF_MSG_ID,
                                      QMI_SRVC_PDU_PTR(msg),
-                                     QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                     (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                      qmi_wds_srvc_async_cb,
                                      NULL,
                                      (void *)user_cb,
@@ -4567,7 +5078,7 @@ qmi_wds_start_nw_if
                                     QMI_WDS_SERVICE,
                                     QMI_WDS_START_NW_IF_MSG_ID,
                                     QMI_SRVC_PDU_PTR(msg),
-                                    QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                    (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                     msg,
                                     &msg_size,
                                     QMI_WDS_STD_MSG_SIZE,
@@ -4738,7 +5249,7 @@ qmi_wds_stop_nw_if
                                      QMI_WDS_SERVICE,
                                      QMI_WDS_STOP_NW_IF_MSG_ID,
                                      QMI_SRVC_PDU_PTR(msg),
-                                     QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                     (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                      qmi_wds_srvc_async_cb,
                                      NULL,
                                      (void *)user_cb,
@@ -4757,7 +5268,7 @@ qmi_wds_stop_nw_if
                                     QMI_WDS_SERVICE,
                                     QMI_WDS_STOP_NW_IF_MSG_ID,
                                     QMI_SRVC_PDU_PTR(msg),
-                                    QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                    (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                     msg,
                                     &msg_size,
                                     QMI_WDS_STD_MSG_SIZE,
@@ -4932,7 +5443,7 @@ qmi_wds_abort
                                      QMI_WDS_SERVICE,
                                      QMI_WDS_ABORT_MSG_ID,
                                      QMI_SRVC_PDU_PTR(msg),
-                                     QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                     (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                      qmi_wds_srvc_async_cb,
                                      NULL,
                                      (void *)user_cb,
@@ -4951,7 +5462,7 @@ qmi_wds_abort
                                     QMI_WDS_SERVICE,
                                     QMI_WDS_ABORT_MSG_ID,
                                     QMI_SRVC_PDU_PTR(msg),
-                                    QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                    (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                     msg,
                                     &msg_size,
                                     QMI_WDS_STD_MSG_SIZE,
@@ -5031,6 +5542,20 @@ qmi_wds_indication_register
     }
   }
 
+  /* Register for EMBMS control description control indications */
+  if (ind_type.param_mask & QMI_WDS_EMBMS_CONT_DESC_CTRL_INDICATION_REG_LIST_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                &msg_size,
+                                QMI_WDS_REPORT_EMBMS_CONTENT_DESC_CONTROL_TLV_ID,
+                                1,
+                                (void *)&ind_type.cont_desc_ctrl_pref) < 0)
+
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
   /* write SAI List TLV */
   if (ind_type.param_mask & QMI_WDS_EMBMS_SAI_INDICATION_REG_LIST_PARAM_MASK)
   {
@@ -5089,7 +5614,7 @@ qmi_wds_indication_register
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_INDICATION_REG_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -5097,6 +5622,128 @@ qmi_wds_indication_register
                                   qmi_err_code);
   return rc;
 }
+
+/*===========================================================================
+  FUNCTION  qmi_wds_embms_content_desc_update
+===========================================================================*/
+/*!
+@brief  Updates embms content desc. It is invoked synchronously.
+
+@return
+  0 if query operation was sucessful, < 0 if not.
+  If return code is QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error.
+
+@note
+
+  - Dependencies
+    - qmi_wds_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+*/
+/*=========================================================================*/
+
+EXTERN int
+qmi_wds_embms_content_desc_update
+(
+  int                                           user_handle,
+  qmi_wds_embms_content_desc_update_info_type  *params,
+  int                                          *qmi_err_code
+)
+{
+  unsigned char msg[QMI_WDS_STD_MSG_SIZE];
+  int           msg_size;
+  unsigned char *tmp_msg_ptr;
+  int rc;
+  unsigned int i;
+
+  if(NULL == params ||
+     NULL == qmi_err_code)
+  {
+    QMI_ERR_MSG_0 ("qmi_wds_embms_content_desc_update: Bad Input received\n");
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
+  ** message buffer
+  */
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+
+  /* Construct TLV for client ID request */
+
+  /* write TMGI TLV */
+  if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                              &msg_size,
+                              QMI_WDS_EMBMS_CONT_DESC_UPDATE_REQ_TMGI_TLV_ID,
+                              TMGI_TYPE_SIZE,
+                              (void *)params->tmgi_list) < 0)
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* write transaction id TLVs */
+  if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                              &msg_size,
+                              QMI_WDS_EMBMS_CONT_DESC_UPDATE_REQ_TRANX_ID_TLV_ID,
+                              2,
+                              (void*)&params->dbg_trace_id) < 0)
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Process optional TLVs */
+  /* Optional TLVs are passed in as an array of param-value pairs */
+  /* Use the QMI_WDS_EMBMS_CONT_DESC_UPDATE_REQ_TLV_OFFSET to calculate
+     actual TLV IDs */
+  if(NULL != (void *)params->content_desc.content_desc_ptr)
+  {
+    for(i=0; i < params->content_desc.content_desc_len; i++)
+    {
+      if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                  &msg_size,
+                                  params->content_desc.content_desc_ptr[i].param_code
+                                    + QMI_WDS_EMBMS_CONT_DESC_UPDATE_REQ_TLV_OFFSET,
+                                  4,
+                                  (void *)&params->content_desc.content_desc_ptr[i].param_value) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+    }
+  }
+
+  rc = qmi_service_send_msg_sync (user_handle,
+                                  QMI_WDS_SERVICE,
+                                  QMI_WDS_EMBMS_CONTENT_DESC_UPDATE_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  msg,
+                                  &msg_size,
+                                  QMI_WDS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+
+  /* Set tmp_msg_ptr to return data */
+  tmp_msg_ptr = msg;
+
+  /* Retrieve the extended error code if it exists */
+  if (rc == QMI_SERVICE_ERR && *qmi_err_code == QMI_SERVICE_ERR_EXTENDED_INTERNAL)
+  {
+    rc = QMI_EXTENDED_ERR;
+    if (qmi_wds_util_read_ext_err_code(&tmp_msg_ptr,
+                                       &msg_size,
+                                       qmi_err_code) == QMI_INTERNAL_ERR)
+    {
+      QMI_ERR_MSG_0("qmi_wds_embms_content_desc_update: Failed to read the extended error response");
+      rc = QMI_INTERNAL_ERR;
+    }
+  }
+  return rc;
+}
+
+
 
 /*===========================================================================
   FUNCTION  qmi_wds_embms_tmgi_activate
@@ -5190,8 +5837,8 @@ qmi_wds_embms_tmgi_activate
     unsigned char fcnlist_len;
 
     /* validate earfcnlist_len */
-    fcnlist_len = params->earfcn_list_len > QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE ?
-                  QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE: params->earfcn_list_len;
+    fcnlist_len = (unsigned char)(params->earfcn_list_len > QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE ?
+                                  QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE: params->earfcn_list_len);
 
     if (NULL == (tmp_buf = malloc(fcnlist_len * sizeof(unsigned short) + 1)))
     {
@@ -5229,8 +5876,8 @@ qmi_wds_embms_tmgi_activate
     unsigned char sailist_len;
 
     /* validate sailist_len */
-    sailist_len = (params->sai_list_len > QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE)?
-                  QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE: params->sai_list_len;
+    sailist_len = (unsigned char)((params->sai_list_len > QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE)?
+                                  QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE: params->sai_list_len);
 
     if (NULL == (tmp_buf = malloc(sailist_len * sizeof(unsigned int) + 1)))
     {
@@ -5266,7 +5913,7 @@ qmi_wds_embms_tmgi_activate
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_EMBMS_TMGI_ACTIVATE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -5372,7 +6019,7 @@ qmi_wds_embms_tmgi_deactivate
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_EMBMS_TMGI_DEACTIVATE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -5500,8 +6147,8 @@ qmi_wds_embms_tmgi_activate_deactivate
     unsigned char fcnlist_len;
 
     /* validate earfcnlist_len */
-    fcnlist_len = params->earfcn_list_len > QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE ?
-                  QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE: params->earfcn_list_len;
+    fcnlist_len = (unsigned char)(params->earfcn_list_len > QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE ?
+                                  QMI_WDS_EMBMS_TMGI_EARFCNLIST_SIZE: params->earfcn_list_len);
 
     if (NULL == (tmp_buf = malloc(fcnlist_len * sizeof(unsigned short) + 1)))
     {
@@ -5538,8 +6185,8 @@ qmi_wds_embms_tmgi_activate_deactivate
     unsigned char sailist_len;
 
     /* validate sailist_len */
-    sailist_len = params->sai_list_len > QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE ?
-                  QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE: params->sai_list_len;
+    sailist_len = (unsigned char)(params->sai_list_len > QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE ?
+                                 QMI_WDS_EMBMS_SAI_PER_FREQ_MAX_SIZE: params->sai_list_len);
 
     if (NULL == (tmp_buf = malloc(sailist_len * sizeof(unsigned int) + 1)))
     {
@@ -5574,7 +6221,7 @@ qmi_wds_embms_tmgi_activate_deactivate
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_EMBMS_TMGI_ACT_DEACT_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -5679,7 +6326,7 @@ qmi_wds_embms_tmgi_list_query
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_EMBMS_TMGI_LIST_QUERY_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -5813,7 +6460,7 @@ qmi_wds_write_umts_qos_tlv
 {
   unsigned char param_buf [QMI_WDS_UMTS_QOS_TLV_SIZE + 1];
   unsigned char *param_ptr = param_buf;
-  short tlv_len = 0;
+  unsigned long tlv_len = 0;
   /* Traffic class */
   WRITE_8_BIT_VAL (param_ptr, params->traffic_class);
 
@@ -6337,30 +6984,25 @@ qmi_wds_read_profile_id_tlv
 
   if (read_tlv)
   {
-    if (qmi_util_read_std_tlv (&rx_buf,
-                               &rx_len,
-                               &type,
-                               &length,
-                               &value_ptr) < 0)
+    while (rx_len > 0)
     {
-      return QMI_INTERNAL_ERR;
+      if (qmi_util_read_std_tlv (&rx_buf,
+                                 &rx_len,
+                                 &type,
+                                 &length,
+                                 &value_ptr) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+      if (type == QMI_WDS_PROFILE_ID_TLV_ID)
+      {
+        READ_8_BIT_VAL (value_ptr, tmp_char);
+        profile_id->technology = (qmi_wds_profile_tech_type) tmp_char;
+        READ_8_BIT_VAL (value_ptr, profile_id->profile_index);
+        break;
+      }
     }
-
-    if (type != QMI_WDS_PROFILE_ID_TLV_ID)
-    {
-      return QMI_INTERNAL_ERR;
-    }
-
   }
-  else
-  {
-    value_ptr = rx_buf;
-  }
-
-  READ_8_BIT_VAL (value_ptr, tmp_char);
-  profile_id->technology = (qmi_wds_profile_tech_type) tmp_char;
-  READ_8_BIT_VAL (value_ptr, profile_id->profile_index);
-
   return QMI_NO_ERR;
 }
 
@@ -6399,7 +7041,7 @@ qmi_wds_write_tft_filter
 {
   unsigned char param_buf [QMI_WDS_TFT_FILTER_TLV_SIZE + 1];
   unsigned char *param_ptr = param_buf;
-  short tlv_len = 0;
+  unsigned long tlv_len = 0;
   unsigned long padding = 0;
   /* Filter Id */
   WRITE_8_BIT_VAL (param_ptr, params->filter_id);
@@ -6654,7 +7296,7 @@ qmi_wds_write_mobile_ip_optional_profile_tlvs
   if (profile_params->param_mask &
       QMI_WDS_MODIFY_MIP_PROFILE_MN_HA_KEY_PARAM_MASK)
   {
-    int name_len = strlen ((char *)profile_params->mn_ha_key);
+    size_t name_len = strlen ((char *)profile_params->mn_ha_key);
     if (name_len >= QMI_WDS_MOBILE_IP_PROFILE_MAX_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -6671,7 +7313,7 @@ qmi_wds_write_mobile_ip_optional_profile_tlvs
   if (profile_params->param_mask &
       QMI_WDS_MODIFY_MIP_PROFILE_MN_AAA_KEY_PARAM_MASK)
   {
-    int name_len = strlen ((char *)profile_params->mn_aaa_key);
+    size_t name_len = strlen ((char *)profile_params->mn_aaa_key);
     if (name_len >= QMI_WDS_MOBILE_IP_PROFILE_MAX_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -6721,7 +7363,7 @@ qmi_wds_write_umts_optional_profile_tlvs
   /* Profile name */
   if (profile_params->param_mask & QMI_WDS_UMTS_PROFILE_NAME_PARAM_MASK)
   {
-    int name_len = strlen (profile_params->profile_name);
+    size_t name_len = strlen (profile_params->profile_name);
     if (name_len >= QMI_WDS_MAX_PROFILE_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -6752,7 +7394,7 @@ qmi_wds_write_umts_optional_profile_tlvs
   /* APN name */
   if (profile_params->param_mask & QMI_WDS_UMTS_PROFILE_APN_NAME_PARAM_MASK)
   {
-    int name_len = strlen (profile_params->apn_name);
+    size_t name_len = strlen (profile_params->apn_name);
     if (name_len >= QMI_WDS_MAX_APN_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -6846,7 +7488,7 @@ qmi_wds_write_umts_optional_profile_tlvs
   /* Username */
   if (profile_params->param_mask & QMI_WDS_UMTS_PROFILE_USERNAME_PARAM_MASK)
   {
-    int name_len = strlen (profile_params->username);
+    size_t name_len = strlen (profile_params->username);
     if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -6864,7 +7506,7 @@ qmi_wds_write_umts_optional_profile_tlvs
   /* Password */
   if (profile_params->param_mask & QMI_WDS_UMTS_PROFILE_PASSWORD_PARAM_MASK)
   {
-    int name_len = strlen (profile_params->password);
+    size_t name_len = strlen (profile_params->password);
     if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
     {
       return QMI_INTERNAL_ERR;
@@ -7249,6 +7891,45 @@ qmi_wds_write_umts_optional_profile_tlvs
     }
   }
 
+  /* Max PDN connections per Time block*/
+  if (profile_params->param_mask & QMI_WDS_UMTS_MAX_PDN_CONN_PER_BLOCK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_UMTS_PROFILE_MAX_PDN_CONN_PER_BLOCK_TLV_ID,
+                                2,
+                                (void *)&profile_params->max_pdn_conn_per_block) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Max PDN connection Timer */
+  if (profile_params->param_mask & QMI_WDS_UMTS_MAX_PDN_CONN_TIMER)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_UMTS_PROFILE_MAX_PDN_CONN_TIMER_TLV_ID,
+                                2,
+                                (void *)&profile_params->max_pdn_conn_timer) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Min. time interval beween PDN connections request */
+  if (profile_params->param_mask & QMI_WDS_UMTS_PDN_REQ_WAIT_INTERVAL)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_UMTS_PROFILE_PDN_REQ_WAIT_INTERVAL_TLV_ID,
+                                2,
+                                (void *)&profile_params->pdn_req_wait_interval) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
   return QMI_NO_ERR;
 } /* qmi_wds_write_umts_optional_profile_tlvs */
 
@@ -7411,7 +8092,7 @@ qmi_wds_write_cdma_optional_profile_tlvs
   }
   if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_USERNAME_PARAM_MASK)
   {
-    int tmp_len = strlen (profile_params->username);
+    size_t tmp_len = strlen (profile_params->username);
     if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
     {
       QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: username too large, size=%d\n",tmp_len);
@@ -7428,7 +8109,7 @@ qmi_wds_write_cdma_optional_profile_tlvs
   }
   if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_PASSWORD_PARAM_MASK)
   {
-    int tmp_len = strlen (profile_params->password);
+    size_t tmp_len = strlen (profile_params->password);
     if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
     {
       QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: password too large, size=%d\n",tmp_len);
@@ -7490,7 +8171,7 @@ qmi_wds_write_cdma_optional_profile_tlvs
   }
   if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_APN_STRING_PARAM_MASK)
   {
-    int tmp_len = strlen (profile_params->apn_name);
+    size_t tmp_len = strlen (profile_params->apn_name);
     if (tmp_len >= QMI_WDS_MAX_APN_STR_SIZE)
     {
       QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: apn_name too large, size=%d\n",tmp_len);
@@ -7595,8 +8276,1060 @@ qmi_wds_write_cdma_optional_profile_tlvs
       return QMI_INTERNAL_ERR;
     }
   }
+  /* APN Enabled Flag */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_APN_ENABLED_PARAM_MASK)
+  {
+    qmi_wds_bool_type temp = !(profile_params->apn_disabled_flag);
+
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_APN_ENABLED_TLV_ID,
+                                1,
+                                (void *)&temp) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* PDP inactivity time out */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_PDN_INACTIVITY_TIMEOUT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_PDN_INACTIVITY_TIMEOUT_TLV_ID,
+                                4,
+                                (void *)&profile_params->pdn_inactivity_timeout) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* APN Class */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_APN_CLASS_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_APN_CLASS_TLV_ID,
+                                1,
+                                (void *)&profile_params->apn_class) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* PDN level Auth protocol */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_TLV_ID,
+                                1,
+                                (void *)&profile_params->pdn_level_auth_protocol) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* PDN level User ID */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK)
+  {
+    int tmp_len = strlen (profile_params->pdn_level_user_id);
+    if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: PDN level user id too large, size=%d\n",tmp_len);
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_TLV_ID,
+                                tmp_len,
+                                (void *)profile_params->pdn_level_user_id) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* PDN level auth password */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK)
+  {
+    int tmp_len = strlen (profile_params->pdn_level_auth_pwd);
+    if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: PDN level auth pwd too large, size=%d\n",tmp_len);
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_TLV_ID,
+                                tmp_len,
+                                (void *)profile_params->pdn_level_auth_pwd) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* PDN Label */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_PDN_LABEL_PARAM_MASK)
+  {
+    int tmp_len = strlen (profile_params->pdn_label);
+    if (tmp_len >= QMI_WDS_MAX_APN_STR_SIZE)
+    {
+      QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: PDN label too large, size=%d\n",tmp_len);
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_PDN_LABEL_TLV_ID,
+                                tmp_len,
+                                (void *)profile_params->pdn_label) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* Operator Reserved PCO ID */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_OPERATOR_RESERVED_PCO_ID_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_OPERATOR_RESERVED_PCO_ID_TLV_ID,
+                                2,
+                                (void *)&profile_params->op_pco_id) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* 3GPP2 MCC */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_MCC_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_MCC_TLV_ID,
+                                2,
+                                (void *)&profile_params->pco_mcc) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* 3GPP2 MNC */
+  if (profile_params->param_mask & QMI_WDS_CDMA_PROFILE_MNC_PARAM_MASK)
+  {
+    if (qmi_util_write_mnc_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_CDMA_PROFILE_MNC_TLV_ID,
+                                &profile_params->mnc) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
   return QMI_NO_ERR;
 }/*qmi_wds_write_cdma_optional_profile_tlvs*/
+
+/*===========================================================================
+  FUNCTION  qmi_wds_write_epc_optional_profile_tlvs
+===========================================================================*/
+/*!
+@brief
+  Takes the input EPC profile data, and writes it in TLV form
+  to the tx buffer.  Buffer pointers and length indicators are adjusted
+  to reflect new TLV
+
+@return
+  QMI_INTERNAL_ERR if an error occurred, QMI_NO_ERR if not
+
+@note
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - Writes TLV to input buffer and updates pointers and byte count
+*/
+/*=========================================================================*/
+static int
+qmi_wds_write_epc_optional_profile_tlvs
+(
+  unsigned char                      **tx_buf,
+  int                                *tx_buf_len,
+  qmi_wds_epc_profile_params_type   *profile_params
+)
+{
+
+  /* Profile name */
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_NAME_PARAM_MASK)
+  {
+    int name_len = strlen (profile_params->profile_name);
+    if (name_len >= QMI_WDS_MAX_PROFILE_STR_SIZE)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_NAME_TLV_ID,
+                                   name_len,
+                                   (void *)profile_params->profile_name) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* PDP type */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PDP_TYPE_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PDP_TYPE_TLV_ID,
+                                   1,
+                                   (void *)&profile_params->pdp_type) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* APN name */
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_APN_NAME_PARAM_MASK)
+  {
+    int name_len = strlen (profile_params->apn_name);
+    if (name_len >= QMI_WDS_MAX_APN_STR_SIZE)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_APN_NAME_TLV_ID,
+                                   name_len,
+                                   (void *)profile_params->apn_name) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Primary DNS address preference */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PRIM_DNS_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PRIM_DNS_TLV_ID,
+                                   4,
+                                   (void *)&profile_params->primary_dns_pref_addr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Secondary DNS address preference */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_SEC_DNS_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_SEC_DNS_TLV_ID,
+                                   4,
+                                   (void *)&profile_params->secondary_dns_pref_addr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* UMTS requested QOS parameters */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_PARAM_MASK)
+  {
+    if (qmi_wds_write_umts_qos_tlv (tx_buf,
+                                    tx_buf_len,
+                                    QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_TLV_ID,
+                                    &profile_params->umts_requested_qos,
+                                    FALSE) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* UMTS minimum QOS parameters */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_PARAM_MASK)
+  {
+    if (qmi_wds_write_umts_qos_tlv (tx_buf,
+                                    tx_buf_len,
+                                    QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_TLV_ID,
+                                    &profile_params->umts_minimum_qos,
+                                    FALSE) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* GPRS requested QOS parameters */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_GPRS_REQ_QOS_PARAM_MASK)
+  {
+    if (qmi_wds_write_gprs_qos_tlv (tx_buf,
+                                    tx_buf_len,
+                                    QMI_WDS_EPC_UMTS_PROFILE_GPRS_REQ_QOS_TLV_ID,
+                                    &profile_params->gprs_requested_qos) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* UMTS minimum QOS parameters */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_GPRS_MIN_QOS_PARAM_MASK)
+  {
+    if (qmi_wds_write_gprs_qos_tlv (tx_buf,
+                                    tx_buf_len,
+                                    QMI_WDS_EPC_UMTS_PROFILE_GPRS_MIN_QOS_TLV_ID,
+                                    &profile_params->gprs_minimum_qos) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Username */
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_USERNAME_PARAM_MASK)
+  {
+    int name_len = strlen (profile_params->username);
+    if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_USERNAME_TLV_ID,
+                                   name_len,
+                                   (void *)profile_params->username) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Password */
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_PASSWORD_PARAM_MASK)
+  {
+    int name_len = strlen (profile_params->password);
+    if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PASSWORD_TLV_ID,
+                                   name_len,
+                                   (void *)profile_params->password) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Authentication preference */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_AUTH_PREF_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_AUTH_PREF_TLV_ID,
+                                   1,
+                                   (void *)&profile_params->auth_pref) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* IPV4 address preference */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_IPV4_ADDR_PREF_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_IPV4_ADDR_PREF_TLV_ID,
+                                   4,
+                                   (void *)&profile_params->ipv4_pref_addr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* PCSCF address using PCO */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PCSCF_ADDR_VIA_PCO_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                   tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PCSCF_ADDR_VIA_PCO_TLV_ID,
+                                   1,
+                                   (void *)&profile_params->pcscf_addr_via_pco) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Header Compression */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_HEADER_COMPRESSION_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_HEADER_COMPRESSION_TLV_ID,
+                                1,
+                                (void *)&profile_params->header_compression) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* Data Compression */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_DATA_COMPRESSION_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_DATA_COMPRESSION_TLV_ID ,
+                                1,
+                                (void *)&profile_params->data_compression) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Pdp accesss comtrol */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PDP_ACCESS_CONTROL_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PDP_ACCESS_CONTROL_TLV_ID ,
+                                1,
+                                (void *)&profile_params->pdp_access_control) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Pcscf via dhcp */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PCSCF_VIA_DHCP_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PCSCF_VIA_DHCP_TLV_ID ,
+                                1,
+                                (void *)&profile_params->pcscf_via_dhcp) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Im cn flag */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_IM_CN_FLAG_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_IM_CN_FLAG_TLV_ID ,
+                                1,
+                                (void *)&profile_params->im_cn_flag) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* TFT Filter ID 1 */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_1_PARAM_MASK)
+  {
+    if (qmi_wds_write_tft_filter (tx_buf,
+                                  tx_buf_len,
+                                  QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_1_TLV_ID,
+                                  &profile_params->tft_filter_id_1) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* TFT Filter ID 2 */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_2_PARAM_MASK)
+  {
+    if (qmi_wds_write_tft_filter (tx_buf,
+                                  tx_buf_len,
+                                  QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_2_TLV_ID,
+                                  &profile_params->tft_filter_id_2) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* PDP Context numner */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_NUMBER_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_NUMBER_TLV_ID ,
+                                1,
+                                (void *)&profile_params->pdp_context_number) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* PDP context secondary ID */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_SECONDARY_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_SECONDARY_TLV_ID ,
+                                1,
+                                (void *)&profile_params->pdp_context_secondary) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* PDP context primary id number */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_PDP_PRIMARY_ID_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PDP_PRIMARY_ID_TLV_ID,
+                                1,
+                                (void *)&profile_params->pdp_context_primary_id_number) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* IPv6 address preferrence */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_IPV6_ADDR_PREF_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_IPV6_ADDR_PREF_TLV_ID ,
+                                QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES,
+                                (void *)profile_params->ipv6_addr_pref) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* UMTS minimum QOS with signal indication */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_EXT_PARAM_MASK)
+  {
+    if (qmi_wds_write_umts_qos_tlv (tx_buf,
+                                    tx_buf_len,
+                                    QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_EXT_TLV_ID,
+                                    &profile_params->umts_minimum_qos_sig_ind,
+                                    TRUE) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* UMTS requested QOS with signal indication */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_EXT_PARAM_MASK)
+  {
+    if (qmi_wds_write_umts_qos_tlv (tx_buf,
+                                    tx_buf_len,
+                                    QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_EXT_TLV_ID,
+                                    &profile_params->umts_requested_qos_sig_ind,
+                                    TRUE) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* primary DNS IPv6 address preference */
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_TLV_ID ,
+                                QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES,
+                                (void *)profile_params->primary_dns_ipv6_addr_pref) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* secondary DNS IPv6 address preference */
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_PARAM_MASK)
+  {
+   if (qmi_util_write_std_tlv (tx_buf,
+                               tx_buf_len,
+                               QMI_WDS_EPC_UMTS_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_TLV_ID ,
+                               QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES,
+                               (void *)profile_params->secondary_dns_ipv6_addr_pref) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Support emergency calls */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PROFILE_SUPPORT_EMERGENCY_CALLS_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_SUPPORT_EMERGENCY_CALLS_TLV_ID,
+                                1,
+                                (void *)&profile_params->support_emergency_calls) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_DNS_SERVER_PREF_PARAM_MASK)
+  {
+    unsigned char temp = (unsigned char)profile_params->dns_server_pref;
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_DNS_SERVER_PREF_TLV_ID,
+                                1,
+                                (void *)&temp) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_DO_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_DO_TLV_ID,
+                                4,
+                                (void *)&profile_params->ppp_session_close_timer_do) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_1X_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_1X_TLV_ID,
+                                4,
+                                (void *)&profile_params->ppp_session_close_timer_1x) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_ALLOW_LINGER_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_ALLOW_LINGER_TLV_ID,
+                                1,
+                                (void *)&profile_params->allow_linger) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_LCP_ACK_TIMEOUT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_LCP_ACK_TIMEOUT_TLV_ID,
+                                2,
+                                (void *)&profile_params->lcp_ack_timeout) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_IPCP_ACK_TIMEOUT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_IPCP_ACK_TIMEOUT_TLV_ID,
+                                2,
+                                (void *)&profile_params->ipcp_ack_timeout) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_AUTH_TIMEOUT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_AUTH_TIMEOUT_TLV_ID,
+                                2,
+                                (void *)&profile_params->auth_timeout) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_LCP_CONFIG_RETRY_RECOUNT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_LCP_CONFIG_RETRY_RECOUNT_TLV_ID,
+                                1,
+                                (void *)&profile_params->lcp_config_req_retry_count) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_IPCP_CONFIG_RETRY_RECOUNT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_IPCP_CONFIG_RETRY_RECOUNT_TLV_ID,
+                                1,
+                                (void *)&profile_params->ipcp_config_req_retry_count) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_AUTH_RETRY_RECOUNT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_AUTH_RETRY_RECOUNT_TLV_ID,
+                                1,
+                                (void *)&profile_params->auth_retry_count) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_AUTH_PROTOCOL_TLV_ID,
+                                1,
+                                (void *)&profile_params->auth_protocol) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_USERNAME_PARAM_MASK)
+  {
+    int tmp_len = strlen (profile_params->username);
+    if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: username too large, size=%d\n",tmp_len);
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_USERNAME_TLV_ID,
+                                tmp_len,
+                                (void *)profile_params->username) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_PASSWORD_PARAM_MASK)
+  {
+    int tmp_len = strlen (profile_params->password);
+    if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: password too large, size=%d\n",tmp_len);
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_PASSWORD_TLV_ID,
+                                tmp_len,
+                                (void *)profile_params->password) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_DATA_RATE_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_DATA_RATE_TLV_ID,
+                                1,
+                                (void *)&profile_params->data_rate) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_DATA_MODE_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_DATA_MODE_TLV_ID,
+                                1,
+                                (void *)&profile_params->data_mode) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_APP_TYPE_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_APP_TYPE_TLV_ID,
+                                4,
+                                (void *)&profile_params->app_type) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_APP_PRIORITY_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_APP_PRIORITY_TLV_ID,
+                                1,
+                                (void *)&profile_params->app_priority) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_APN_NAME_PARAM_MASK)
+  {
+    int tmp_len = strlen (profile_params->apn_name);
+    if (tmp_len >= QMI_WDS_MAX_APN_STR_SIZE)
+    {
+      QMI_ERR_MSG_1 ("qmi_wds_write_cdma_optional_profile_tlvs: apn_name too large, size=%d\n",tmp_len);
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_APN_STRING_TLV_ID,
+                                tmp_len,
+                                (void *)profile_params->apn_name) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_PDN_TYPE_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_PDN_TYPE_TLV_ID,
+                                1,
+                                (void *)&profile_params->pdn_type) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_IS_PCSCF_ADDR_NEEDED_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_IS_PCSCF_ADDR_NEEDED_TLV_ID,
+                                1,
+                                (void *)&profile_params->is_pcscf_addr_needed) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_PRIM_V4_DNS_ADDR_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_PRIM_V4_DNS_ADDR_TLV_ID,
+                                4,
+                                (void *)&profile_params->primary_dns_ipv4_pref_addr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_SEC_V4_DNS_ADDR_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_SEC_V4_DNS_ADDR_TLV_ID,
+                                4,
+                                (void *)&profile_params->secondary_dns_ipv4_pref_addr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_PRIM_V6_DNS_ADDR_TLV_ID,
+                                QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES,
+                                (void *)profile_params->primary_dns_ipv6_addr_pref) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_SEC_V6_DNS_ADDR_TLV_ID,
+                                QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES,
+                                (void *)profile_params->secondary_dns_ipv6_addr_pref) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_CDMA_PROFILE_RAT_TYPE_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_CDMA_PROFILE_RAT_TYPE_TLV_ID,
+                                1,
+                                (void *)&profile_params->rat_type) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* Persistence Flag */
+  if (profile_params->param_mask & QMI_WDS_EPC_PROFILE_IS_PERSISTENT_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_PROFILE_IS_PERSISTENT_TLV_ID,
+                                1,
+                                (void *)&profile_params->is_persistent) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  if (profile_params->param_mask & QMI_WDS_EPC_COMMON_APN_CLASS_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_COMMON_APN_CLASS_TLV_ID ,
+                                1,
+                                (void *)&profile_params->common_apn_class) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  if (profile_params->param_mask & QMI_WDS_EPC_COMMON_APN_DISABLED_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_COMMON_APN_DISABLED_FLAG_TLV_ID ,
+                                1,
+                                (void *)&profile_params->common_apn_disabled_flag) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+  /* Username */
+  if (profile_params->param_mask & QMI_WDS_EPC_COMMON_USER_ID_PARAM_MASK)
+  {
+    int name_len = strlen (profile_params->username);
+    if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_COMMON_USER_ID_TLV_ID,
+                                name_len,
+                                (void *)profile_params->username) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Password */
+  if (profile_params->param_mask & QMI_WDS_EPC_COMMON_AUTH_PASSWORD_PARAM_MASK)
+  {
+    int name_len = strlen (profile_params->password);
+    if (name_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_COMMON_AUTH_PASSWORD_TLV_ID,
+                                name_len,
+                                (void *)profile_params->password) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Authentication preference */
+  if (profile_params->param_mask & QMI_WDS_EPC_COMMON_AUTH_PROTOCOL_PARAM_MASK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_COMMON_AUTH_PROTOCOL_TLV_ID,
+                                1,
+                                (void *)&profile_params->auth_pref) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Max PDN connections per Time block*/
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_MAX_PDN_CONN_PER_BLOCK)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_MAX_PDN_CONN_PER_BLOCK_TLV_ID,
+                                2,
+                                (void *)&profile_params->max_pdn_conn_per_block) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Max PDN connection Timer */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_MAX_PDN_CONN_TIMER)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_MAX_PDN_CONN_TIMER_TLV_ID,
+                                2,
+                                (void *)&profile_params->max_pdn_conn_timer) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Min. time interval beween PDN connections request */
+  if (profile_params->param_mask & QMI_WDS_EPC_UMTS_PDN_REQ_WAIT_INTERVAL)
+  {
+    if (qmi_util_write_std_tlv (tx_buf,
+                                tx_buf_len,
+                                QMI_WDS_EPC_UMTS_PROFILE_PDN_REQ_WAIT_INTERVAL_TLV_ID,
+                                2,
+                                (void *)&profile_params->pdn_req_wait_interval) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+ /* PDN level AUTH Type TLV for EPC profile is the same as that of 3GPP2 profile */
+  if((profile_params->param_mask & QMI_WDS_EPC_EXTENDED_PARAM_MASK) ==
+       QMI_WDS_EPC_EXTENDED_PARAM_MASK)
+  {
+    /* PDN level Auth protocol */
+    if (profile_params->extended_param_mask &
+                        QMI_WDS_EPC_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK)
+    {
+      if (qmi_util_write_std_tlv (tx_buf,
+                                  tx_buf_len,
+                                  QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_TLV_ID,
+                                  1,
+                                  (void *)&profile_params->pdn_level_auth_protocol) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+    }
+
+    /* PDN level USER ID TLV for EPC profile is the same as that of 3GPP2 profile */
+    if (profile_params->extended_param_mask & QMI_WDS_EPC_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK)
+    {
+      int tmp_len = strlen (profile_params->pdn_level_user_id);
+      if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+      if (qmi_util_write_std_tlv (tx_buf,
+                                  tx_buf_len,
+                                  QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_TLV_ID,
+                                  tmp_len,
+                                  (void *)profile_params->pdn_level_user_id) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+    }
+
+    /* PDN level AUTH PWRD TLV for EPC profile is the same as that of 3GPP2 profile */
+    if (profile_params->extended_param_mask & QMI_WDS_EPC_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK)
+    {
+      int tmp_len = strlen (profile_params->pdn_level_auth_pwd);
+
+      if (tmp_len >= QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+      if (qmi_util_write_std_tlv (tx_buf,
+                                  tx_buf_len,
+                                  QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_TLV_ID,
+                                  tmp_len,
+                                  (void *)profile_params->pdn_level_auth_pwd) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+    }
+  }
+
+  return QMI_NO_ERR;
+}
 
 
 /*===========================================================================
@@ -7646,8 +9379,8 @@ qmi_wds_read_umts_common_profile_tlvs
       /* String starts at value pointer and is length bytes long */
       if (length > 0)
       {
-        int cpy_len = (length < QMI_WDS_MAX_PROFILE_STR_SIZE)
-                      ? length : (QMI_WDS_MAX_PROFILE_STR_SIZE - 1);
+        unsigned long cpy_len = (length < QMI_WDS_MAX_PROFILE_STR_SIZE)
+                                ? length : (QMI_WDS_MAX_PROFILE_STR_SIZE - 1);
         memcpy (profile_params->profile_name, (void *)value_ptr, cpy_len);
         profile_params->profile_name[cpy_len] = '\0';
       }
@@ -7675,8 +9408,8 @@ qmi_wds_read_umts_common_profile_tlvs
       /* String starts at value pointer and is length bytes long */
       if (length > 0)
       {
-        int cpy_len = (length < QMI_WDS_MAX_APN_STR_SIZE)
-                      ? length : (QMI_WDS_MAX_APN_STR_SIZE - 1);
+        unsigned long cpy_len = (length < QMI_WDS_MAX_APN_STR_SIZE)
+                                ? length : (QMI_WDS_MAX_APN_STR_SIZE - 1);
         memcpy (profile_params->apn_name, (void *)value_ptr, cpy_len);
         profile_params->apn_name[cpy_len] = '\0';
       }
@@ -7743,14 +9476,33 @@ qmi_wds_read_umts_common_profile_tlvs
       /* String starts at value pointer and is length bytes long */
       if (length > 0)
       {
-        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
-                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        unsigned long cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                                ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
         memcpy (profile_params->username, (void *)value_ptr, cpy_len);
         profile_params->username[cpy_len] = '\0';
       }
       else
       {
         profile_params->username[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_UMTS_PROFILE_PASSWORD_TLV_ID :
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_UMTS_PROFILE_PASSWORD_PARAM_MASK ;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->password, (void *)value_ptr, cpy_len);
+        profile_params->password[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->password[0] = '\0';
       }
     }
     break;
@@ -8023,6 +9775,29 @@ qmi_wds_read_umts_common_profile_tlvs
     }
     break;
 
+    case QMI_WDS_UMTS_PROFILE_MAX_PDN_CONN_PER_BLOCK_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_UMTS_MAX_PDN_CONN_PER_BLOCK;
+      READ_16_BIT_VAL (value_ptr, profile_params->max_pdn_conn_per_block);
+    }
+    break;
+
+    case QMI_WDS_UMTS_PROFILE_MAX_PDN_CONN_TIMER_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_UMTS_MAX_PDN_CONN_TIMER;
+      READ_16_BIT_VAL (value_ptr, profile_params->max_pdn_conn_timer);
+    }
+    break;
+
+    case QMI_WDS_UMTS_PROFILE_PDN_REQ_WAIT_INTERVAL_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_UMTS_PDN_REQ_WAIT_INTERVAL;
+      READ_16_BIT_VAL (value_ptr, profile_params->pdn_req_wait_interval);
+    }
+    break;
 
     default:
     {
@@ -8170,8 +9945,8 @@ qmi_wds_read_cdma_common_profile_tlvs
       /* String starts at value pointer and is length bytes long */
       if (length > 0)
       {
-        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
-                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        unsigned long cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                                ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
         memcpy (profile_params->username, (void *)value_ptr, cpy_len);
         profile_params->username[cpy_len] = '\0';
       }
@@ -8189,8 +9964,8 @@ qmi_wds_read_cdma_common_profile_tlvs
       /* String starts at value pointer and is length bytes long */
       if (length > 0)
       {
-        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
-                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        unsigned long cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                                ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
         memcpy (profile_params->password, (void *)value_ptr, cpy_len);
         profile_params->password[cpy_len] = '\0';
       }
@@ -8218,7 +9993,7 @@ qmi_wds_read_cdma_common_profile_tlvs
     break;
     case QMI_WDS_CDMA_PROFILE_APP_TYPE_TLV_ID:
     {
-      int tmp_word;
+      unsigned int tmp_word;
       /* Set corresponding bit in optional param mask */
       profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_APP_TYPE_PARAM_MASK;
       READ_32_BIT_VAL (value_ptr,  tmp_word);
@@ -8239,8 +10014,8 @@ qmi_wds_read_cdma_common_profile_tlvs
       /* String starts at value pointer and is length bytes long */
       if (length > 0)
       {
-        int cpy_len = (length < QMI_WDS_MAX_APN_STR_SIZE)
-                      ? length : (QMI_WDS_MAX_APN_STR_SIZE - 1);
+        unsigned long cpy_len = (length < QMI_WDS_MAX_APN_STR_SIZE)
+                                ? length : (QMI_WDS_MAX_APN_STR_SIZE - 1);
         memcpy (profile_params->apn_name, (void *)value_ptr, cpy_len);
         profile_params->apn_name[cpy_len] = '\0';
       }
@@ -8324,6 +10099,116 @@ qmi_wds_read_cdma_common_profile_tlvs
       profile_params->is_persistent = (qmi_wds_bool_type)tmp_char;
     }
     break;
+    case QMI_WDS_CDMA_PROFILE_APN_ENABLED_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_APN_ENABLED_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->apn_disabled_flag = !((qmi_wds_bool_type)tmp_char);
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_PDN_INACTIVITY_TIMEOUT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_PDN_INACTIVITY_TIMEOUT_PARAM_MASK;
+
+      READ_32_BIT_VAL (value_ptr, profile_params->pdn_inactivity_timeout);
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_APN_CLASS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_APN_CLASS_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr,  profile_params->apn_class);
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr,  profile_params->pdn_level_auth_protocol);
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->pdn_level_user_id, (void *)value_ptr, cpy_len);
+        profile_params->pdn_level_user_id[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->pdn_level_user_id[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->password, (void *)value_ptr, cpy_len);
+        profile_params->password[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->password[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_PDN_LABEL_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_PDN_LABEL_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_APN_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_APN_STR_SIZE - 1);
+        memcpy (profile_params->pdn_label, (void *)value_ptr, cpy_len);
+        profile_params->pdn_label[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->pdn_label[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_OPERATOR_RESERVED_PCO_ID_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_OPERATOR_RESERVED_PCO_ID_PARAM_MASK;
+
+      READ_16_BIT_VAL (value_ptr,  profile_params->op_pco_id);
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_MCC_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_MCC_PARAM_MASK;
+
+      READ_16_BIT_VAL (value_ptr,  profile_params->pco_mcc);
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_MNC_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_CDMA_PROFILE_MNC_PARAM_MASK;
+      (void)qmi_wds_read_mnc_tlv (value_ptr,&profile_params->mnc);
+    }
+    break;
     default:
     {
       rc = FALSE;
@@ -8331,6 +10216,718 @@ qmi_wds_read_cdma_common_profile_tlvs
   }
   return rc;
 }/*qmi_wds_read_cdma_common_profile_tlvs*/
+
+/*===========================================================================
+  FUNCTION  qmi_wds_read_epc_common_profile_tlvs
+===========================================================================*/
+/*!
+@brief
+  Takes an input RX buffer containing EPC profile TLV data
+  and reads values into a profile paramaters structure.
+
+
+@return
+  QMI_INTERNAL_ERR if an error occurred, QMI_NO_ERR if not
+
+@note
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - Changes input buffer pointer and size variable
+    - Reads data into params structure
+*/
+/*=========================================================================*/
+static int
+qmi_wds_read_epc_common_profile_tlvs
+(
+  unsigned long                      type,
+  unsigned long                      length,
+  unsigned char                      *value_ptr,
+  qmi_wds_epc_profile_params_type   *profile_params
+)
+{
+  /* Declare/initialize return code */
+  int rc = TRUE;
+  unsigned char tmp_char;
+
+  /* Now process TLV */
+
+  switch (type)
+  {
+    case QMI_WDS_EPC_UMTS_PROFILE_NAME_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_PROFILE_NAME_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_PROFILE_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_PROFILE_STR_SIZE - 1);
+        memcpy (profile_params->profile_name, (void *)value_ptr, cpy_len);
+        profile_params->profile_name[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->profile_name[0] = '\0';
+      }
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PDP_TYPE_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PDP_TYPE_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->pdp_type = (qmi_wds_pdp_type) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_APN_NAME_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_PROFILE_APN_NAME_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_APN_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_APN_STR_SIZE - 1);
+        memcpy (profile_params->apn_name, (void *)value_ptr, cpy_len);
+        profile_params->apn_name[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->apn_name[0] = '\0';
+      }
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PRIM_DNS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PRIM_DNS_PARAM_MASK;
+      READ_32_BIT_VAL (value_ptr, profile_params->primary_dns_pref_addr);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_SEC_DNS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_SEC_DNS_PARAM_MASK;
+      READ_32_BIT_VAL (value_ptr, profile_params->secondary_dns_pref_addr);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_PARAM_MASK;
+        (void)qmi_wds_read_umts_qos_tlv (value_ptr,&profile_params->umts_requested_qos, FALSE);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_PARAM_MASK;
+        (void)qmi_wds_read_umts_qos_tlv (value_ptr,&profile_params->umts_minimum_qos, FALSE);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_GPRS_REQ_QOS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_GPRS_REQ_QOS_PARAM_MASK;
+        (void)qmi_wds_read_gprs_qos_tlv (value_ptr,&profile_params->gprs_requested_qos);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_GPRS_MIN_QOS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_GPRS_MIN_QOS_PARAM_MASK;
+        (void)qmi_wds_read_gprs_qos_tlv (value_ptr,&profile_params->gprs_minimum_qos);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_USERNAME_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_PROFILE_USERNAME_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->username, (void *)value_ptr, cpy_len);
+        profile_params->username[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->username[0] = '\0';
+      }
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_AUTH_PREF_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_AUTH_PREF_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->auth_pref = (qmi_wds_auth_pref_type) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_IPV4_ADDR_PREF_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_IPV4_ADDR_PREF_PARAM_MASK;
+      READ_32_BIT_VAL (value_ptr, profile_params->ipv4_pref_addr);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PCSCF_ADDR_VIA_PCO_TLV_ID:
+      {
+        /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PCSCF_ADDR_VIA_PCO_PARAM_MASK;
+        READ_8_BIT_VAL (value_ptr, tmp_char);
+        profile_params->pcscf_addr_via_pco = (qmi_wds_pcscf_via_pco_type) tmp_char;
+      }
+      break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_HEADER_COMPRESSION_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_HEADER_COMPRESSION_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->header_compression = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_DATA_COMPRESSION_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_DATA_COMPRESSION_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->data_compression = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PDP_ACCESS_CONTROL_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PDP_ACCESS_CONTROL_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->pdp_access_control = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PCSCF_VIA_DHCP_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PCSCF_VIA_DHCP_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->pcscf_via_dhcp = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_IM_CN_FLAG_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_IM_CN_FLAG_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->im_cn_flag = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_1_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_1_PARAM_MASK;
+     (void)qmi_wds_read_tft_filter (value_ptr,&profile_params->tft_filter_id_1);
+    }
+    break;
+
+     case QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_2_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_2_PARAM_MASK;
+     (void)qmi_wds_read_tft_filter (value_ptr,&profile_params->tft_filter_id_2);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_NUMBER_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_NUMBER_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->pdp_context_number = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_SECONDARY_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_SECONDARY_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->pdp_context_secondary = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PDP_PRIMARY_ID_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_PDP_PRIMARY_ID_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->pdp_context_primary_id_number = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_IPV6_ADDR_PREF_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      if (length == QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES )
+      {
+        profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_IPV6_ADDR_PREF_PARAM_MASK;
+        memcpy(profile_params->ipv6_addr_pref, value_ptr, QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES);
+      }
+      else
+      {
+        QMI_ERR_MSG_1 ("qmi_wds_read_umts_common_profile_tlvs: Invalid length received for type: %u",(unsigned int) type);
+      }
+    }
+    break;
+    case QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_EXT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_EXT_PARAM_MASK;
+      (void)qmi_wds_read_umts_qos_tlv (value_ptr,&profile_params->umts_requested_qos_sig_ind,TRUE);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_EXT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_EXT_PARAM_MASK;
+      (void)qmi_wds_read_umts_qos_tlv (value_ptr,&profile_params->umts_minimum_qos_sig_ind,TRUE);
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      if (length == QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES )
+      {
+        profile_params->param_mask |= QMI_WDS_EPC_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_PARAM_MASK;
+        memcpy(profile_params->primary_dns_ipv6_addr_pref, value_ptr, QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES);
+      }
+      else
+      {
+        QMI_ERR_MSG_1 ("qmi_wds_read_umts_common_profile_tlvs: Invalid length received for type %u",(unsigned int) type);
+      }
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      if (length == QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES )
+      {
+        profile_params->param_mask |= QMI_WDS_EPC_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_PARAM_MASK;
+        memcpy(profile_params->secondary_dns_ipv6_addr_pref, value_ptr, QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES);
+      }
+      else
+      {
+        QMI_ERR_MSG_1 ("qmi_wds_read_umts_common_profile_tlvs: Invalid length received for type %u",(unsigned int) type);
+      }
+    }
+    break;
+
+    case QMI_WDS_EPC_UMTS_PROFILE_SUPPORT_EMERGENCY_CALLS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_UMTS_PROFILE_SUPPORT_EMERGENCY_CALLS_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->support_emergency_calls = (qmi_wds_bool_type)tmp_char;
+    }
+    break;
+
+    case QMI_WDS_EPC_CDMA_PROFILE_DNS_SERVER_PREF_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_DNS_SERVER_PREF_PARAM_MASK;
+
+       READ_8_BIT_VAL (value_ptr, tmp_char);
+       profile_params->dns_server_pref = (qmi_wds_bool_type) tmp_char;
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_DO_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_DO_PARAM_MASK;
+
+      READ_32_BIT_VAL (value_ptr, profile_params->ppp_session_close_timer_do);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_1X_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_1X_PARAM_MASK;
+
+      READ_32_BIT_VAL (value_ptr, profile_params->ppp_session_close_timer_1x);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_ALLOW_LINGER_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_ALLOW_LINGER_PARAM_MASK;
+
+      READ_8_BIT_VAL (value_ptr,  profile_params->allow_linger);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_LCP_ACK_TIMEOUT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_LCP_ACK_TIMEOUT_PARAM_MASK;
+
+      READ_16_BIT_VAL (value_ptr,  profile_params->lcp_ack_timeout);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_IPCP_ACK_TIMEOUT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_IPCP_ACK_TIMEOUT_PARAM_MASK;
+
+      READ_16_BIT_VAL (value_ptr,  profile_params->ipcp_ack_timeout);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_AUTH_TIMEOUT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_AUTH_TIMEOUT_PARAM_MASK;
+
+      READ_16_BIT_VAL (value_ptr,  profile_params->auth_timeout);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_AUTH_PROTOCOL_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK;
+
+      READ_8_BIT_VAL (value_ptr,  profile_params->auth_protocol);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_LCP_CONFIG_RETRY_RECOUNT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_LCP_CONFIG_RETRY_RECOUNT_PARAM_MASK;
+
+      READ_8_BIT_VAL (value_ptr,  profile_params->lcp_config_req_retry_count);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_IPCP_CONFIG_RETRY_RECOUNT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_IPCP_CONFIG_RETRY_RECOUNT_PARAM_MASK;
+
+      READ_8_BIT_VAL (value_ptr,  profile_params->ipcp_config_req_retry_count);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_AUTH_RETRY_RECOUNT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_AUTH_RETRY_RECOUNT_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr,  profile_params->auth_retry_count);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_USERNAME_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_PROFILE_USERNAME_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->username, (void *)value_ptr, cpy_len);
+        profile_params->username[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->username[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_PASSWORD_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_PROFILE_PASSWORD_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->password, (void *)value_ptr, cpy_len);
+        profile_params->password[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->password[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_DATA_RATE_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_DATA_RATE_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr,  tmp_char);
+      profile_params->data_rate = (qmi_wds_cdma_data_rate_type) tmp_char;
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_DATA_MODE_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_DATA_MODE_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr,  tmp_char);
+      profile_params->data_mode = (qmi_wds_cdma_data_mode_type) tmp_char;
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_APP_TYPE_TLV_ID:
+    {
+      int tmp_word;
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_APP_TYPE_PARAM_MASK;
+      READ_32_BIT_VAL (value_ptr,  tmp_word);
+      profile_params->app_type = (qmi_wds_cdma_app_type) tmp_word;
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_APP_PRIORITY_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_APP_PRIORITY_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr,  profile_params->app_priority);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_APN_STRING_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_PROFILE_APN_NAME_PARAM_MASK;
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_APN_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_APN_STR_SIZE - 1);
+        memcpy (profile_params->apn_name, (void *)value_ptr, cpy_len);
+        profile_params->apn_name[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->apn_name[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_PDN_TYPE_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_PDN_TYPE_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->pdn_type = (qmi_wds_cdma_pdn_type)tmp_char;
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_IS_PCSCF_ADDR_NEEDED_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_IS_PCSCF_ADDR_NEEDED_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->is_pcscf_addr_needed = (qmi_wds_bool_type)tmp_char;
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_PRIM_V4_DNS_ADDR_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_PRIM_V4_DNS_ADDR_PARAM_MASK;
+      READ_32_BIT_VAL (value_ptr, profile_params->primary_dns_ipv4_pref_addr);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_SEC_V4_DNS_ADDR_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_SEC_V4_DNS_ADDR_PARAM_MASK;
+      READ_32_BIT_VAL (value_ptr, profile_params->secondary_dns_ipv4_pref_addr);
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_PRIM_V6_DNS_ADDR_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      if (length == QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES)
+      {
+        profile_params->param_mask |= QMI_WDS_EPC_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_PARAM_MASK;
+        memcpy(profile_params->primary_dns_ipv6_addr_pref,value_ptr,QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES);
+      }
+      else
+      {
+        QMI_ERR_MSG_1 ("qmi_wds_read_cdma_common_profile_tlvs: Invalid length received for type",(unsigned int) type);
+      }
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_SEC_V6_DNS_ADDR_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      if (length == QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES)
+      {
+        profile_params->param_mask |= QMI_WDS_UMTS_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_PARAM_MASK;
+        memcpy(profile_params->secondary_dns_ipv6_addr_pref,value_ptr,QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES);
+      }
+      else
+      {
+        QMI_ERR_MSG_1 ("qmi_wds_read_cdma_common_profile_tlvs: Invalid length received for type",(unsigned int) type);
+      }
+    }
+    break;
+    case QMI_WDS_EPC_CDMA_PROFILE_RAT_TYPE_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_CDMA_PROFILE_RAT_TYPE_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->rat_type = (qmi_wds_cdma_rat_type)tmp_char;
+    }
+    break;
+    case QMI_WDS_PROFILE_IS_PERSISTENT_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_PROFILE_IS_PERSISTENT_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->is_persistent = (qmi_wds_bool_type)tmp_char;
+    }
+    break;
+    /* common parameter */
+    case QMI_WDS_EPC_COMMON_USER_ID_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_COMMON_USER_ID_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->common_username, (void *)value_ptr, cpy_len);
+        profile_params->common_username[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->common_username[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_EPC_COMMON_AUTH_PROTOCOL_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_COMMON_AUTH_PROTOCOL_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->common_auth_pref = (qmi_wds_auth_pref_type) tmp_char;
+    }
+    break;
+    case QMI_WDS_EPC_COMMON_AUTH_PASSWORD_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_COMMON_AUTH_PASSWORD_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->common_password, (void *)value_ptr, cpy_len);
+        profile_params->common_password[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->common_password[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_EPC_COMMON_APN_CLASS_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_COMMON_APN_CLASS_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->common_apn_class = (unsigned char) tmp_char;
+    }
+    break;
+    case QMI_WDS_EPC_COMMON_APN_DISABLED_FLAG_TLV_ID:
+    {
+      /* Set corresponding bit in optional param mask */
+      profile_params->param_mask |= QMI_WDS_EPC_COMMON_APN_DISABLED_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr, tmp_char);
+      profile_params->common_apn_disabled_flag = (unsigned char) tmp_char;
+    }
+    break;
+
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_TLV_ID:
+    {
+      /* PDN level Auth protocol TLV is same for EPC and 3GPP2 profile */
+      profile_params->extended_param_mask |=
+         QMI_WDS_EPC_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK;
+      profile_params->param_mask |= QMI_WDS_EPC_EXTENDED_PARAM_MASK;
+      READ_8_BIT_VAL (value_ptr,  profile_params->pdn_level_auth_protocol);
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_TLV_ID:
+    {
+      /* PDN level USER ID TLV is same for EPC and 3GPP2 profile */
+      profile_params->extended_param_mask |=
+         QMI_WDS_EPC_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK;
+      profile_params->param_mask |= QMI_WDS_EPC_EXTENDED_PARAM_MASK;
+
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->pdn_level_user_id, (void *)value_ptr, cpy_len);
+        profile_params->pdn_level_user_id[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->pdn_level_user_id[0] = '\0';
+      }
+    }
+    break;
+    case QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_TLV_ID:
+    {
+      /* PDN level Passwd TLV is same for EPC and 3GPP2 profile */
+      profile_params->extended_param_mask |= QMI_WDS_EPC_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK;
+      profile_params->param_mask |= QMI_WDS_EPC_EXTENDED_PARAM_MASK;
+      /* String starts at value pointer and is length bytes long */
+      if (length > 0)
+      {
+        int cpy_len = (length < QMI_WDS_MAX_USERNAME_PASS_STR_SIZE)
+                      ? length : (QMI_WDS_MAX_USERNAME_PASS_STR_SIZE - 1);
+        memcpy (profile_params->password, (void *)value_ptr, cpy_len);
+        profile_params->password[cpy_len] = '\0';
+      }
+      else
+      {
+        profile_params->password[0] = '\0';
+      }
+    }
+    break;
+    default:
+    {
+      rc = FALSE;
+    }
+  }
+
+  return rc;
+}
+
 
 /*===========================================================================
   FUNCTION  qmi_wds_read_query_profile_tlvs
@@ -8348,7 +10945,6 @@ qmi_wds_read_cdma_common_profile_tlvs
 
   - Dependencies
     - None.
-
   - Side Effects
     - Changes input buffer pointer and size variable
     - Reads data into params structure
@@ -8369,15 +10965,20 @@ qmi_wds_read_query_profile_tlvs
 
   profile_id->valid_data_read = FALSE;
 
+  memset(profile_params, 0, sizeof(*profile_params));
+
   /* Initialize UMTS optional param mask to 0 */
   profile_params->umts_profile_params.param_mask = 0;
   /* Initialize CDMA optional param mask to 0 */
   profile_params->cdma_profile_params.param_mask = 0;
+  /* Initialize EPC optional param mask to 0 */
+  profile_params->epc_profile_params.param_mask = 0;
 
   /* Loop through all TLV's aqmi_wds_curr_call_info_typend process each one */
   while (rx_buf_len > 0)
   {
-    if (qmi_util_read_std_tlv (&rx_buf,
+
+    if ( qmi_util_read_std_tlv (&rx_buf,
                                   &rx_buf_len,
                                   &type,
                                   &length,
@@ -8405,14 +11006,21 @@ qmi_wds_read_query_profile_tlvs
         {
           if (!(qmi_wds_read_umts_common_profile_tlvs (type,length,value_ptr,&profile_params->umts_profile_params)))
           {
-            QMI_ERR_MSG_1 ("qmi_wds_read_query_profile_tlvs: ignoring unknown TLV type=%x\n",(unsigned int) type);
+            QMI_ERR_MSG_1 ("qmi_wds_read_umts_common_profile_tlvs: ignoring unknown TLV type=%x\n",(unsigned int) type);
           }
         }
         else if (profile_id->technology == QMI_WDS_PROFILE_TECH_3GPP2)
         {
           if (!(qmi_wds_read_cdma_common_profile_tlvs (type,length,value_ptr,&profile_params->cdma_profile_params)))
           {
-            QMI_ERR_MSG_1 ("qmi_wds_read_query_profile_tlvs: ignoring unknown TLV type=%x\n",(unsigned int) type);
+            QMI_ERR_MSG_1 ("qmi_wds_read_cdma_common_profile_tlvs: ignoring unknown TLV type=%x\n",(unsigned int) type);
+          }
+        }
+        else if (profile_id->technology == QMI_WDS_PROFILE_TECH_EPC)
+        {
+          if (!(qmi_wds_read_epc_common_profile_tlvs (type,length,value_ptr,&profile_params->epc_profile_params)))
+          {
+            QMI_ERR_MSG_1 ("qmi_wds_read_epc_common_profile_tlvs: ignoring unknown TLV type=%x\n",(unsigned int) type);
           }
         }
         else
@@ -8468,6 +11076,8 @@ qmi_wds_read_curr_call_tlvs
 
   /* Initialize profile_id to not read */
   profile_id->valid_data_read = FALSE;
+
+  memset(curr_call_info, 0, sizeof(*curr_call_info));
 
   /* Initialize call setting mask */
   curr_call_info->mask = 0;
@@ -8580,7 +11190,7 @@ qmi_wds_read_curr_call_tlvs
           string_len = curr_call_info->fqdn_list.fqdn_strings[index].fqdn_length;
           if (string_len < 0 || string_len > QMI_WDS_MAX_PROFILE_STR_SIZE)
             return QMI_INTERNAL_ERR;
-          memcpy ((void*)curr_call_info->fqdn_list.fqdn_strings[index].fqdn_string,(void *)value_ptr, string_len);
+          memcpy ((void*)curr_call_info->fqdn_list.fqdn_strings[index].fqdn_string,(void *)value_ptr, (size_t)string_len);
         }
       }
       break;
@@ -8674,7 +11284,7 @@ qmi_wds_read_curr_call_tlvs
           string_len = curr_call_info->domain_name_list.domain_names[index].domain_name_len;
           if (string_len <= 0 || string_len > QMI_WDS_MAX_PROFILE_STR_SIZE)
             return QMI_INTERNAL_ERR;
-          memcpy ((void *)curr_call_info->domain_name_list.domain_names[index].domain_name, (void *)value_ptr, string_len);
+          memcpy ((void *)curr_call_info->domain_name_list.domain_names[index].domain_name, (void *)value_ptr, (size_t)string_len);
         }
       }
       break;
@@ -8860,6 +11470,15 @@ qmi_wds_create_profile
         return QMI_INTERNAL_ERR;
       }
     }
+    else if (profile_id->technology == QMI_WDS_PROFILE_TECH_EPC)
+    {
+      if (qmi_wds_write_epc_optional_profile_tlvs (&tmp_msg_ptr,
+                                                    &msg_size,
+                                                    &profile_params->epc_profile_params) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+    }
     else
     {
       QMI_ERR_MSG_1("qmi_wds_create_profile: tech type %x not supported for qmi_wds_create_profile",profile_id->technology);
@@ -8872,7 +11491,7 @@ qmi_wds_create_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_CREATE_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -8993,6 +11612,15 @@ qmi_wds_modify_profile
         return QMI_INTERNAL_ERR;
       }
     }
+    else if (profile_id->technology == QMI_WDS_PROFILE_TECH_EPC)
+    {
+      if (qmi_wds_write_epc_optional_profile_tlvs (&tmp_msg_ptr,
+                                                    &msg_size,
+                                                    &profile_params->epc_profile_params) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+    }
     else
     {
       return QMI_INTERNAL_ERR;
@@ -9004,7 +11632,7 @@ qmi_wds_modify_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_MODIFY_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -9076,13 +11704,13 @@ qmi_wds_query_profile
   int                         *qmi_err_code
 )
 {
-  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
+  unsigned char     msg[2*QMI_WDS_STD_MSG_SIZE];/* increased the expected message size due to reply msg size is >512 */
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
   int rc;
 
   /* TMR: temporary */
-  memset (msg,0,QMI_WDS_STD_MSG_SIZE);
+  memset (msg,0,2*QMI_WDS_STD_MSG_SIZE);
 
   /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
   ** message buffer
@@ -9090,13 +11718,13 @@ qmi_wds_query_profile
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
 
   /* Set the message size to the complete buffer minus the header size */
-  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+  msg_size = QMI_SRVC_PDU_SIZE((2*QMI_WDS_STD_MSG_SIZE));
 
   /* Write profile ID data (mandatory) to TLV buffer */
   if ((!profile_id) ||
       (qmi_wds_write_profile_id_tlv (&tmp_msg_ptr,
-                                          &msg_size,
-                                          profile_id) < 0))
+                                      &msg_size,
+                                      profile_id) < 0))
   {
     return QMI_INTERNAL_ERR;
   }
@@ -9106,10 +11734,10 @@ qmi_wds_query_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_PROFILE_DATA_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE((2*QMI_WDS_STD_MSG_SIZE)) - msg_size,
                                   msg,
                                   &msg_size,
-                                  QMI_WDS_STD_MSG_SIZE,
+                                  2*QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
@@ -9198,7 +11826,7 @@ qmi_wds_delete_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_DELETE_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -9296,7 +11924,7 @@ qmi_wds_get_default_settings
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_DEFAULT_SETTINGS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -9521,7 +12149,7 @@ qmi_wds_set_event_report
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_EVENT_REPORT_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -9589,7 +12217,7 @@ int                                       *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_INTERNAL_IFACE_EV_REGISTER_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -9674,7 +12302,7 @@ qmi_wds_get_curr_call_info
                                     QMI_WDS_SERVICE,
                                     QMI_WDS_GET_RUNTIME_SETTINGS_MSG_ID,
                                     QMI_SRVC_PDU_PTR(msg),
-                                    QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                    (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                     reply_msg,
                                     &msg_size,
                                     QMI_MAX_MSG_SIZE,
@@ -9801,11 +12429,11 @@ qmi_wds_get_profile_list
 
         /* Read the profile index */
         READ_8_BIT_VAL (value_ptr,temp);
-        profile_list->profile_index = temp;
+        profile_list->profile_index = (unsigned long)temp;
 
         /* Read the length of the profile ID string and copy it into client data */
         READ_8_BIT_VAL (value_ptr,temp);
-        memcpy (profile_list->profile_name, (void *)value_ptr, temp);
+        memcpy (profile_list->profile_name, (void *)value_ptr, (size_t)temp);
         profile_list->profile_name[temp] = '\0';
         value_ptr += temp;
 
@@ -9880,8 +12508,8 @@ qmi_wds_route_look_up
   */
   if ((!params) || (!rsp_data))
   {
-    QMI_ERR_MSG_2 ("qmi_wds_route_look_up: Error -- NULL params=%x or rsp_data=%x\n",
-                                                           (int)params,(int)rsp_data);
+    QMI_ERR_MSG_2 ("qmi_wds_route_look_up: Error -- NULL params=%p or rsp_data=%p\n",
+                                                           params,rsp_data);
     return QMI_INTERNAL_ERR;
   }
 
@@ -9912,7 +12540,7 @@ qmi_wds_route_look_up
                                     QMI_WDS_SERVICE,
                                     QMI_WDS_ROUTE_LOOK_UP_MSG_ID,
                                     QMI_SRVC_PDU_PTR(msg),
-                                    QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                    (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                     msg,
                                     &msg_size,
                                     QMI_WDS_STD_MSG_SIZE,
@@ -9931,6 +12559,7 @@ qmi_wds_route_look_up
     tmp_msg_ptr = msg;
 
     /* Initialize indication that we go qmi_inst to FALSE */
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->qmi_inst_is_valid = FALSE;
 
     /* Loop through all TLV's and process each one */
@@ -9955,10 +12584,18 @@ qmi_wds_route_look_up
           }
           break;
 
+    /* Modem would send either QMI instance or MUX id but not both */
         case QMI_WDS_ROUTE_LOOKUP_QMI_INST_TLV_ID:
+        case QMI_WDS_ROUTE_LOOKUP_MUX_ID_TLV_ID:
           {
             rsp_data->qmi_inst_is_valid = TRUE;
             READ_8_BIT_VAL (value_ptr,rsp_data->qmi_inst);
+            if(QMI_WDS_ROUTE_LOOKUP_MUX_ID_TLV_ID == type)
+            {
+              --rsp_data->qmi_inst;
+              QMI_DEBUG_MSG_1 ("Mapped MUX ID to QMI inst [%d]",(int)rsp_data->qmi_inst);
+
+            }
           }
           break;
 
@@ -10036,14 +12673,14 @@ int                                            *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_CURRENT_RUNTIME_SETTINGS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
-
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -10051,6 +12688,7 @@ int                                            *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->params_mask = 0;
 
     while (msg_size > 0)
@@ -10158,7 +12796,7 @@ int                                            *qmi_err_code
               rsp_data->rf_conditions.db_so_mask.so_mask_evdo_reva = (qmi_wds_cdma_evdo_db_so_mask)temp_32bit;
             }
 
-            READ_8_BIT_VAL (value_ptr,temp_32bit);
+            READ_8_BIT_VAL (value_ptr,temp_8bit);
             rsp_data->rf_conditions.rf_conditions = (qmi_wds_rf_conditions)temp_8bit;
           }
           break;
@@ -10241,13 +12879,14 @@ int                                                 *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_CURRENT_RUNTIME_SETTINGS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -10255,6 +12894,7 @@ int                                                 *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->params_mask = 0;
 
     while (msg_size > 0)
@@ -10339,7 +12979,7 @@ int                    *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_REFRESH_DHCP_CONFIG_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -10436,13 +13076,14 @@ int                                         *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_REGISTER_MT_CALL_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -10450,6 +13091,7 @@ int                                         *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
 
     while (msg_size > 0)
     {
@@ -10550,12 +13192,13 @@ int                                           *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_DE_REGISTER_MT_CALL_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -10563,6 +13206,7 @@ int                                           *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->param_mask = 0;
 
     while (msg_size > 0)
@@ -10635,7 +13279,8 @@ int                                    *qmi_err_code
   unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc, tlv_length = 0;
+  int rc;
+  unsigned long tlv_length = 0;
   unsigned char     tmp_buff[QMI_WDS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
   /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
@@ -10689,12 +13334,13 @@ int                                    *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_BCMCS_DB_UPDATE_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -10702,6 +13348,7 @@ int                                    *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->param_mask = 0;
 
     while (msg_size > 0)
@@ -10771,7 +13418,8 @@ int                                          *qmi_err_code
   unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc, tlv_length = 0;
+  int rc;
+  unsigned long tlv_length = 0;
   unsigned char     tmp_buff[QMI_WDS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
 
@@ -10834,13 +13482,13 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_BCMCS_HANDOFF_OPT_ENABLE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
-
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -10848,6 +13496,7 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->param_mask = 0;
 
     while (msg_size > 0)
@@ -10916,7 +13565,8 @@ int                                          *qmi_err_code
   unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc,tlv_length = 0;
+  int rc;
+  unsigned long tlv_length = 0;
   unsigned char     tmp_buff[QMI_WDS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
   /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
@@ -10945,13 +13595,13 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_BCMCS_BOM_CACHING_SETUP_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
-
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -10959,6 +13609,7 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->param_mask = 0;
 
     while (msg_size > 0)
@@ -11029,7 +13680,8 @@ int                                          *qmi_err_code
   unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc,tlv_length = 0;
+  int rc;
+  unsigned long tlv_length = 0;
   unsigned char     tmp_buff[QMI_WDS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
   /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
@@ -11094,12 +13746,13 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_INITIATE_MCAST_JOIN_EX_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -11107,6 +13760,7 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->dss_errno.param_mask = 0;
 
     while (msg_size > 0)
@@ -11187,7 +13841,8 @@ int                                          *qmi_err_code
   unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc,tlv_length = 0;
+  int rc;
+  unsigned long tlv_length = 0;
   unsigned char     tmp_buff[QMI_WDS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
 
@@ -11216,7 +13871,7 @@ int                                          *qmi_err_code
   else if (mcast_hndl_list->num_handles != 0)
   {
     int index;
-    tlv_length = sizeof(char) + ((mcast_hndl_list->num_handles) * 4);
+    tlv_length = sizeof(char) + (unsigned long)((mcast_hndl_list->num_handles) * 4);
     WRITE_8_BIT_VAL(tmp_buff_ptr,mcast_hndl_list->num_handles);
 
     for (index = 0; index < mcast_hndl_list->num_handles; index++)
@@ -11238,13 +13893,14 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_INITIATE_MCAST_LEAVE_EX_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -11252,7 +13908,8 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
-     rsp_data->param_mask  = 0;
+    memset(rsp_data, 0, sizeof(*rsp_data));
+    rsp_data->param_mask  = 0;
 
     while (msg_size > 0)
     {
@@ -11320,7 +13977,8 @@ int                                          *qmi_err_code
   unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc,tlv_length = 0;
+  int rc;
+  unsigned long tlv_length = 0;
   unsigned char     tmp_buff[QMI_WDS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
   /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
@@ -11348,7 +14006,7 @@ int                                          *qmi_err_code
   else if (mcast_handle_list->num_handles != 0)
   {
     int index;
-    tlv_length = sizeof(char) + ((mcast_handle_list->num_handles) * 4);
+    tlv_length = sizeof(char) + (unsigned long)((mcast_handle_list->num_handles) * 4);
     WRITE_8_BIT_VAL(tmp_buff_ptr,mcast_handle_list->num_handles);
 
     for (index = 0; index < mcast_handle_list->num_handles; index++)
@@ -11370,13 +14028,14 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_INITIATE_MCAST_REGISTER_EX_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
+  if (QMI_NO_ERR == rc)
   {
     unsigned long type;
     unsigned long length;
@@ -11384,6 +14043,7 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
     rsp_data->param_mask = 0;
 
     while (msg_size > 0)
@@ -11473,7 +14133,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_MCAST_JOIN_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -11488,6 +14148,7 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(mcast_hndl_resp, 0, sizeof(*mcast_hndl_resp));
 
     while (msg_size > 0)
     {
@@ -11575,7 +14236,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_MCAST_LEAVE_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -11628,7 +14289,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GO_ACTIVE_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -11677,7 +14338,8 @@ int                                          *qmi_err_code
   unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc,tlv_length = 0;
+  int rc;
+  unsigned long tlv_length = 0;
   unsigned char     tmp_buff[QMI_WDS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
   /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
@@ -11713,7 +14375,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_ACTIVATE_MBMS_MCAST_CONTEXT_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -11729,6 +14391,7 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_data, 0, sizeof(*rsp_data));
 
     while (msg_size > 0)
     {
@@ -11821,7 +14484,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_DEACTIVATE_MBMS_MCAST_CONTEXT_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -11880,7 +14543,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_CURRENT_DATA_BEARER_TECH_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -11978,7 +14641,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_CURRENT_DATA_BEARER_TECH_EX_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -12078,7 +14741,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_CURRENT_CHANNEL_RATE_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -12092,6 +14755,7 @@ int                                          *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(resp_data, 0, sizeof(*resp_data));
 
     while (msg_size > 0)
     {
@@ -12168,7 +14832,7 @@ int                                          *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GO_DORMANT_REQ_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -12224,7 +14888,7 @@ int                               *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_RESET_PKT_STATS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -12306,7 +14970,7 @@ int                               *qmi_err_code
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_PKT_STATS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -12322,6 +14986,7 @@ int                               *qmi_err_code
 
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(stats_resp, 0, sizeof(*stats_resp));
 
     while (msg_size > 0)
     {
@@ -12375,40 +15040,28 @@ int                               *qmi_err_code
         case QMI_WDS_EVENT_RPT_XFER_STATS_TX_BYTES_GOOD_IND_TLV_ID:
           {
             stats_resp->mask |= QMI_WDS_XFER_STATS_TX_BYTES_OK;
-
-            memcpy(&stats_resp->tx_good_byte_cnt,
-                   value_ptr,
-                   sizeof(stats_resp->tx_good_byte_cnt));
+            READ_64_BIT_VAL (value_ptr,stats_resp->tx_good_byte_cnt);
           }
           break;
 
         case QMI_WDS_EVENT_RPT_XFER_STATS_RX_BYTES_GOOD_IND_TLV_ID:
           {
             stats_resp->mask |= QMI_WDS_XFER_STATS_RX_BYTES_OK;
-
-            memcpy(&stats_resp->rx_good_byte_cnt,
-                   value_ptr,
-                   sizeof(stats_resp->rx_good_byte_cnt));
+            READ_64_BIT_VAL (value_ptr,stats_resp->rx_good_byte_cnt);
           }
           break;
 
         case QMI_WDS_PKT_STATS_TX_DROPPED_TLV_ID:
           {
             stats_resp->mask |= QMI_WDS_XFER_STATS_TX_PACKETS_DROPPED;
-
-            memcpy(&stats_resp->tx_pkts_dropped,
-                   value_ptr,
-                   sizeof(stats_resp->tx_pkts_dropped));
+            READ_32_BIT_VAL (value_ptr,stats_resp->tx_pkts_dropped);
           }
           break;
 
         case QMI_WDS_PKT_STATS_RX_DROPPED_TLV_ID:
           {
             stats_resp->mask |= QMI_WDS_XFER_STATS_RX_PACKETS_DROPPED;
-
-            memcpy(&stats_resp->rx_pkts_dropped,
-                   value_ptr,
-                   sizeof(stats_resp->rx_pkts_dropped));
+            READ_32_BIT_VAL (value_ptr,stats_resp->rx_pkts_dropped);
           }
           break;
 
@@ -12491,6 +15144,14 @@ qmi_wds_get_pkt_srvc_status
       unsigned long     type;
       unsigned long     length;
       unsigned char     *value_ptr;
+
+#ifdef FEATURE_QMI_TEST
+      if (*tmp_msg_ptr == QMI_RESULT_CODE_TYPE_ID)
+      {
+        rc = qmi_util_get_std_result_code( &tmp_msg_ptr,&msg_size,qmi_err_code );
+        continue;
+      }
+#endif /*FEATURE_QMI_TEST*/
 
       if (qmi_util_read_std_tlv (&tmp_msg_ptr,
                                   &msg_size,
@@ -12717,7 +15378,7 @@ qmi_wds_get_dun_call_info
                                 QMI_WDS_SERVICE,
                                 QMI_WDS_GET_DUN_CALL_INFO_MSG_ID,
                                 QMI_SRVC_PDU_PTR(msg),
-                                QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                 msg,
                                 &msg_size,
                                 QMI_WDS_STD_MSG_SIZE,
@@ -12732,6 +15393,7 @@ qmi_wds_get_dun_call_info
   {
     /* Set tmp_msg_ptr to return data */
     tmp_msg_ptr = msg;
+    memset(rsp_info, 0, sizeof(*rsp_info));
 
     /* Extract and process all TLV's */
     while (msg_size > 0)
@@ -12873,7 +15535,7 @@ qmi_wds_get_default_profile_number
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_DEFAULT_PROFILE_NUMBER_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -13003,7 +15665,7 @@ qmi_wds_set_default_profile_number
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_DEAFULT_PROFILE_NUMBER_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -13106,7 +15768,7 @@ qmi_wds_reset_profile_to_default
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_RESET_PROFILE_TO_DEFAULT_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -13212,7 +15874,7 @@ qmi_wds_reset_profile_param_invalid
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_RESET_PROFILE_PARAM_TO_INVALID_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -13296,325 +15958,12 @@ qmi_wds_set_client_ip_pref
                                    QMI_WDS_SERVICE,
                                    QMI_WDS_SET_CLIENT_IP_FAMILY_PREF_MSG_ID,
                                    QMI_SRVC_PDU_PTR(msg),
-                                   QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                   (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                    msg,
                                    &msg_size,
                                    QMI_WDS_STD_MSG_SIZE,
                                    QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                    qmi_err_code);
-}
-
-/*===========================================================================
-  FUNCTION  qmi_wds_fmc_set_tunnel_params
-===========================================================================*/
-/*!
-@brief
-  This message sends the FMC tunnel parameters to the modem to support FMC
-  mode.
-
-@return
-  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
-  indicate which QMI error occurred.
-
-@note
-
-  - This function executes synchronously, there is not currently an
-    asynchronous option for this functionality.
-
-  - Dependencies
-    - None.
-
-  - Side Effects
-    - None.
-*/
-/*=========================================================================*/
-int
-qmi_wds_fmc_set_tunnel_params
-(
-  int                             user_handle,
-  qmi_wds_fmc_tunnel_params_type  *tunnel_params,
-  int                             *qmi_err_code
-)
-{
-  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
-  int               msg_size;
-  unsigned char     *tmp_msg_ptr;
-
-  unsigned char      tmp_msg_buf[QMI_WDS_FMC_TUNNEL_PARAMS_TLV_SIZE];
-  unsigned char      *tmp_msg_buf_ptr =  tmp_msg_buf;
-  int rc;
-
-
-  if ((!qmi_err_code) || (!tunnel_params))
-  {
-    QMI_ERR_MSG_2("qmi_wds_fmc_set_tunnel_params bad parameters qmi_err_code=%x, tunnel_params=%x\n",
-                  (int) qmi_err_code, (int) tunnel_params);
-    return QMI_INTERNAL_ERR;
-  }
-
-  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
-  ** message buffer
-  */
-  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
-
-  /* Set the message size to the complete buffer minus the header size */
-  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
-
-  /*prepare the non-optional TLVbuffer*/
-  WRITE_32_BIT_VAL(tmp_msg_buf_ptr, tunnel_params->tunnel_params.stream_id);
-  WRITE_8_BIT_VAL(tmp_msg_buf_ptr, tunnel_params->tunnel_params.nat_presence_indicator);
-  WRITE_16_BIT_VAL(tmp_msg_buf_ptr, tunnel_params->tunnel_params.port_id);
-
-
-  /* Write TLV data from above in main message buffer */
-  if (qmi_util_write_std_tlv (&tmp_msg_ptr,
-                              &msg_size,
-                              QMI_WDS_FMC_TUNNEL_PARAMS_TLV_ID,
-                              QMI_WDS_FMC_TUNNEL_PARAMS_TLV_SIZE,
-                              (void *)tmp_msg_buf) < 0)
-  {
-    return QMI_INTERNAL_ERR;
-  }
-
-  /* Take care of optional IPV4 socket addr */
-  if (tunnel_params->param_mask & QMI_WDS_FMC_TUNNEL_PARAMS_IPV4_SOCKET_ADDR)
-  {
-    /* Write V4 socket TLV */
-    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
-                                &msg_size,
-                                QMI_WDS_FMC_TUNNEL_PARAMS_V4_SOCK_ADDR_TLV_ID,
-                                4,
-                                (void *)tunnel_params->v4_socket_addr) < 0)
-    {
-      return QMI_INTERNAL_ERR;
-    }
-  }
-
-   /* Take care of optional IPV6 socket addr */
-  if (tunnel_params->param_mask & QMI_WDS_FMC_TUNNEL_PARAMS_IPV6_SOCKET_ADDR)
-  {
-    /* Write V6 socket TLV */
-    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
-                                &msg_size,
-                                QMI_WDS_FMC_TUNNEL_PARAMS_V6_SOCK_ADDR_TLV_ID,
-                                16,
-                                (void *)tunnel_params->v6_socket_addr) < 0)
-    {
-      return QMI_INTERNAL_ERR;
-    }
-  }
-
-
-  rc = qmi_service_send_msg_sync (user_handle,
-                                  QMI_WDS_SERVICE,
-                                  QMI_WDS_FMC_SET_TUNNEL_PARAMS_MSG_ID,
-                                  QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
-                                  msg,
-                                  &msg_size,
-                                  QMI_WDS_STD_MSG_SIZE,
-                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
-                                  qmi_err_code);
-
-  return rc;
-}
-
-
-/*===========================================================================
-  FUNCTION  qmi_wds_fmc_clear_tunnel_params
-===========================================================================*/
-/*!
-@brief
-  This message clears the FMC tunnel parameters from the modem
-
-@return
-  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
-  indicate which QMI error occurred.
-
-@note
-
-  - This function executes synchronously, there is not currently an
-    asynchronous option for this functionality.
-
-  - Dependencies
-    - None.
-
-  - Side Effects
-    - None.
-*/
-/*=========================================================================*/
-int
-qmi_wds_fmc_clear_tunnel_params
-(
-  int    user_handle,
-  int    *qmi_err_code
-)
-{
-  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
-  int               msg_size;
-  int rc;
-
-  if (!qmi_err_code)
-  {
-    QMI_ERR_MSG_1("qmi_wds_fmc_clear_tunnel_params bad parameters qmi_err_code=%x\n",(int) qmi_err_code);
-    return QMI_INTERNAL_ERR;
-  }
-
-  /* Set the message size to the complete buffer minus the header size */
-  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
-
-  rc = qmi_service_send_msg_sync (user_handle,
-                                  QMI_WDS_SERVICE,
-                                  QMI_WDS_FMC_CLEAR_TUNNEL_PARAMS_MSG_ID,
-                                  QMI_SRVC_PDU_PTR(msg),
-                                  0,
-                                  msg,
-                                  &msg_size,
-                                  QMI_WDS_STD_MSG_SIZE,
-                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
-                                  qmi_err_code);
-  return rc;
-}
-
-
-/*===========================================================================
-  FUNCTION  qmi_wds_fmc_get_tunnel_params
-===========================================================================*/
-/*!
-@brief
-  This command gets the FMC tunnel parameters from the modem.
-
-@return
-  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
-  indicate which QMI error occurred.
-
-@note
-
-  - This function executes synchronously, there is not currently an
-    asynchronous option for this functionality.
-
-  - Dependencies
-    - None.
-
-  - Side Effects
-    - None.
-*/
-/*=========================================================================*/
-int
-qmi_wds_fmc_get_tunnel_params
-(
-  int                             user_handle,
-  qmi_wds_fmc_tunnel_params_type  *tunnel_params,
-  int                             *qmi_err_code
-)
-{
-  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
-  int               msg_size;
-  unsigned char     *tmp_msg_ptr;
-  int rc;
-
-
-  if ((!qmi_err_code) || (!tunnel_params))
-  {
-    QMI_ERR_MSG_2("qmi_wds_fmc_get_tunnel_params bad parameters qmi_err_code=%x, tunnel_params=%x\n",
-                  (int) qmi_err_code, (int) tunnel_params);
-    return QMI_INTERNAL_ERR;
-  }
-
-  /* Set the message size to the complete buffer minus the header size */
-  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
-
-  rc = qmi_service_send_msg_sync (user_handle,
-                                  QMI_WDS_SERVICE,
-                                  QMI_WDS_FMC_GET_TUNNEL_PARAMS_MSG_ID,
-                                  QMI_SRVC_PDU_PTR(msg),
-                                  0,
-                                  msg,
-                                  &msg_size,
-                                  QMI_WDS_STD_MSG_SIZE,
-                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
-                                  qmi_err_code);
-
-  /* Set tmp_msg_ptr to return data */
-  tmp_msg_ptr = msg;
-
-  /* Retreive the profile number if success */
-  if (rc == QMI_NO_ERR)
-  {
-    unsigned long     type;
-    unsigned long     length;
-    unsigned char     *value_ptr;
-
-    /* Assume the worst */
-    rc = QMI_INTERNAL_ERR;
-
-    /* Initialize tunnel params optional param mask */
-    tunnel_params->param_mask = 0;
-
-    while (msg_size > 0)
-    {
-      unsigned long temp;
-
-      if (qmi_util_read_std_tlv (&tmp_msg_ptr,
-                                  &msg_size,
-                                  &type,
-                                  &length,
-                                  &value_ptr) < 0)
-      {
-        break;
-      }
-
-      if (type == QMI_WDS_FMC_TUNNEL_PARAMS_TLV_ID)
-      {
-        if (length != QMI_WDS_FMC_TUNNEL_PARAMS_TLV_SIZE)
-        {
-          QMI_DEBUG_MSG_1 ("qmi_wds_fmc_get_tunnel_params, tunnel param TLV length wrong = %d\n",(int)length);
-          break;
-        }
-
-        READ_32_BIT_VAL (value_ptr,temp);
-        tunnel_params->tunnel_params.stream_id = temp;
-
-        READ_8_BIT_VAL (value_ptr,temp);
-        tunnel_params->tunnel_params.nat_presence_indicator = (qmi_wds_nat_presence_type) temp;
-
-        READ_16_BIT_VAL (value_ptr,temp);
-        tunnel_params->tunnel_params.port_id = (unsigned short) temp;
-
-        rc = QMI_NO_ERR;
-      }
-      else if (type == QMI_WDS_FMC_TUNNEL_PARAMS_V4_SOCK_ADDR_TLV_ID)
-      {
-        if (length != 4)
-        {
-          QMI_DEBUG_MSG_1 ("qmi_wds_fmc_get_tunnel_params, tunnel param V4 sock addr TLV length wrong = %d\n",(int)length);
-          rc = QMI_INTERNAL_ERR;
-          break;
-        }
-        tunnel_params->param_mask |= QMI_WDS_FMC_TUNNEL_PARAMS_IPV4_SOCKET_ADDR;
-        memcpy (tunnel_params->v4_socket_addr, value_ptr, 4);
-      }
-      else if (type == QMI_WDS_FMC_TUNNEL_PARAMS_V6_SOCK_ADDR_TLV_ID)
-      {
-        if (length != 16)
-        {
-          QMI_DEBUG_MSG_1 ("qmi_wds_fmc_get_tunnel_params, tunnel param V6 sock addr TLV length wrong = %d\n",(int)length);
-          rc = QMI_INTERNAL_ERR;
-          break;
-        }
-        tunnel_params->param_mask |= QMI_WDS_FMC_TUNNEL_PARAMS_IPV6_SOCKET_ADDR;
-        memcpy (tunnel_params->v6_socket_addr, value_ptr, 16);
-      }
-      else
-      {
-        QMI_DEBUG_MSG_1 ("qmi_wds_fmc_get_tunnel_params, unknown TLV returned = %x",(int)type);
-      }
-    }
-  }
-  return rc;
 }
 
 /*===========================================================================
@@ -13684,7 +16033,7 @@ qmi_wds_set_mip_mode
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_MOBILE_IP_MODE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -13977,7 +16326,7 @@ qmi_wds_set_active_mip_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_ACTIVE_MOBILE_IP_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -14054,7 +16403,7 @@ qmi_wds_read_mip_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_READ_MOBILE_IP_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -14108,7 +16457,7 @@ qmi_wds_read_mip_profile
           /* String starts at value pointer and is length bytes long */
           if (length <= QMI_WDS_MOBILE_IP_PROFILE_MAX_STR_SIZE)
           {
-            profile_resp->nai_len = length;
+            profile_resp->nai_len = (unsigned char) length;
             memcpy (profile_resp->nai,(void *)value_ptr, length);
           }
           else
@@ -14219,7 +16568,7 @@ qmi_wds_modify_mip_profile
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_MODIFY_MOBILE_IP_PROFILE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -14635,7 +16984,7 @@ qmi_wds_set_lte_attach_pdn_list
 
   for (i = 0; i < attach_pdn_list->len; ++i)
   {
-    tmp16 = attach_pdn_list->list[i];
+    tmp16 = (unsigned short) attach_pdn_list->list[i];
     WRITE_16_BIT_VAL(tmp_msg_buf_ptr, tmp16);
   }
 
@@ -14643,7 +16992,7 @@ qmi_wds_set_lte_attach_pdn_list
   if (qmi_util_write_std_tlv (&tmp_msg_ptr,
                               &msg_size,
                               QMI_WDS_SET_LTE_ATTACH_PDN_LIST_TLV_ID,
-                              (tmp_msg_buf_ptr-tmp_msg_buf),
+                              (unsigned long)(tmp_msg_buf_ptr-tmp_msg_buf),
                               (void *)tmp_msg_buf) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -14653,7 +17002,7 @@ qmi_wds_set_lte_attach_pdn_list
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_LTE_ATTACH_PDN_LIST_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -14785,6 +17134,128 @@ qmi_wds_get_lte_attach_pdn_list
 }
 
 /*===========================================================================
+  FUNCTION  qmi_wds_get_lte_attach_params
+===========================================================================*/
+/*!
+@brief
+  This message is used to query the LTE attach Params
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_wds_get_lte_attach_params
+(
+  int                        user_handle,
+  qmi_wds_lte_attach_params  *attach_params,
+  int                        *qmi_err_code
+)
+{
+  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
+  int               msg_size;
+  int rc;
+
+  if (attach_params == NULL)
+  {
+    return QMI_INTERNAL_ERR;
+  }
+  memset(attach_params, 0x00, sizeof(qmi_wds_lte_attach_params));
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+
+  /* Send message */
+  rc = qmi_service_send_msg_sync (user_handle,
+                                  QMI_WDS_SERVICE,
+                                  QMI_WDS_GET_LTE_ATTACH_PARAMS_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  0,
+                                  msg,
+                                  &msg_size,
+                                  QMI_WDS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+
+  /* Get route look_up information */
+  if (rc == QMI_NO_ERR)
+  {
+    unsigned long type;
+    unsigned long length;
+    unsigned char *value_ptr, *tmp_msg_ptr;
+
+    /* Set tmp_msg_ptr to return data */
+    tmp_msg_ptr = msg;
+
+    while (msg_size > 0)
+    {
+      if (qmi_util_read_std_tlv (&tmp_msg_ptr,
+                                 &msg_size,
+                                 &type,
+                                 &length,
+                                 &value_ptr) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+
+      switch (type)
+      {
+        case QMI_WDS_GET_LTE_ATTACH_PARAMS_APN_STRING_TLV_ID:
+        {
+          /* String starts at value pointer and is length bytes long */
+          if (length > 0)
+          {
+            int cpy_len = (length < QMI_WDS_MAX_APN_NAME_SIZE)
+                           ? length : (QMI_WDS_MAX_APN_NAME_SIZE -1);
+            memcpy (attach_params->apn_string, (void *)value_ptr, cpy_len);
+            attach_params->apn_string[cpy_len] = '\0';
+            attach_params->apn_string_valid = TRUE;
+          }
+          else
+          {
+            attach_params->apn_string[0] = '\0';
+            attach_params->apn_string_valid = FALSE;
+          }
+        }
+        break;
+        case QMI_WDS_GET_LTE_ATTACH_PARAMS_IP_TYPE_TLV_ID:
+        {
+          READ_8_BIT_VAL(value_ptr,attach_params->ip_type);
+          attach_params->ip_type_valid = TRUE;
+        }
+        break;
+        case QMI_WDS_GET_LTE_ATTACH_PARAMS_OTA_ATTACH_PERFORMED_TLV_ID:
+        {
+          READ_8_BIT_VAL (value_ptr,attach_params->ota_attach_performed);
+          attach_params->ota_attach_performed_valid = TRUE;
+        }
+        break;
+        default:
+        {
+          QMI_ERR_MSG_1 ("qmi_wds_get_lte_attach_params: unknown response "
+                         "TLV type = %x",(unsigned int)type);
+        }
+        break;
+      }
+    }
+  }
+  return rc;
+}
+
+/*===========================================================================
   FUNCTION  qmi_wds_set_lte_data_retry
 ===========================================================================*/
 /*!
@@ -14851,7 +17322,7 @@ qmi_wds_set_lte_data_retry
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_LTE_DATA_RETRY_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -15026,7 +17497,7 @@ qmi_wds_set_lte_attach_type
   if (qmi_util_write_std_tlv (&tmp_msg_ptr,
                               &msg_size,
                               QMI_WDS_SET_LTE_ATTACH_TYPE_TLV_ID,
-                              sizeof(unsigned long),
+                              4,
                               (void *)&tmp32) < 0)
   {
     return QMI_INTERNAL_ERR;
@@ -15036,7 +17507,7 @@ qmi_wds_set_lte_attach_type
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_LTE_ATTACH_TYPE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -15221,7 +17692,7 @@ qmi_wds_rev_ip_transport_conn_ind_registration
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_REV_IP_TRANS_CONN_IND_REG_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -15290,7 +17761,7 @@ do                                                                  \
   for (i = 0; i < num_ele; ++i)                                     \
   {                                                                 \
     READ_32_BIT_VAL(val_ptr, tmp_32bit);                            \
-    cfg_ptr->mem.addr[i] = tmp_32bit;                               \
+    cfg_ptr->mem.addr[i] = (ipv4_addr_type) tmp_32bit;              \
   }                                                                 \
   cfg_ptr->mem.num_ele = num_ele;                                   \
 }                                                                   \
@@ -15540,6 +18011,11 @@ qmi_wds_read_ipsec_sa_config_tlvs
   unsigned short temp_16bit;
   unsigned char temp_8bit;
 
+  /* Temporary variables to read traffic
+   * selector address TLVs */
+  qmi_wds_ip_addr_type start_address;
+  qmi_wds_ip_addr_type end_address;
+
   if (!rx_buf || !sa_config)
   {
     QMI_ERR_MSG_0("qmi_wds_read_ipsec_sa_config_tlvs: bad input parameters\n");
@@ -15733,9 +18209,9 @@ qmi_wds_read_ipsec_sa_config_tlvs
         READ_8_BIT_VAL(value_ptr, temp_8bit);
 
         /* Determine the traffic selector list length */
-        temp_8bit = (temp_8bit < QMI_WDS_IPSEC_MAX_TRAFFIC_SEL_SIZE) ?
-                    temp_8bit :
-                    QMI_WDS_IPSEC_MAX_TRAFFIC_SEL_SIZE;
+        temp_8bit = (unsigned char)((temp_8bit < QMI_WDS_IPSEC_MAX_TRAFFIC_SEL_SIZE) ?
+                                    temp_8bit :
+                                    QMI_WDS_IPSEC_MAX_TRAFFIC_SEL_SIZE);
 
         sa_config->ts_list.len = temp_8bit;
 
@@ -15745,17 +18221,72 @@ qmi_wds_read_ipsec_sa_config_tlvs
           READ_8_BIT_VAL(value_ptr, sa_config->ts_list.ts[i].proto);
           READ_16_BIT_VAL(value_ptr, sa_config->ts_list.ts[i].start_port);
           READ_16_BIT_VAL(value_ptr, sa_config->ts_list.ts[i].end_port);
-          QMI_WDS_UTIL_READ_SA_CONFIG_IP_ADDR(value_ptr, sa_config->ts_list.ts[i].start_addr);
-          QMI_WDS_UTIL_READ_SA_CONFIG_IP_ADDR(value_ptr, sa_config->ts_list.ts[i].end_addr);
+
+          /* Read the address from TLV into temp variable */
+          QMI_WDS_UTIL_READ_SA_CONFIG_IP_ADDR(value_ptr, start_address);
+          QMI_WDS_UTIL_READ_SA_CONFIG_IP_ADDR(value_ptr, end_address);
+
+          /* Copy the address from TLV into the traffic selector array */
+          memcpy(&sa_config->ts_list.ts[i].start_addr,
+                 &start_address,
+                 sizeof(qmi_wds_ip_addr_type));
+          memcpy(&sa_config->ts_list.ts[i].end_addr,
+                 &end_address,
+                 sizeof(qmi_wds_ip_addr_type));
         }
+      }
+      break;
+
+      case QMI_WDS_REV_IP_TRANS_GET_SA_TRAFFIC_SEL_RESPONDER_TLV_ID:
+      {
+        sa_config->param_mask |= QMI_WDS_IPSEC_TS_RESP_LIST_PARAM_MASK;
+        READ_8_BIT_VAL(value_ptr, temp_8bit);
+
+        /* Determine the traffic selector list length */
+        temp_8bit = (unsigned char)((temp_8bit < QMI_WDS_IPSEC_MAX_TRAFFIC_SEL_SIZE) ?
+                                    temp_8bit :
+                                    QMI_WDS_IPSEC_MAX_TRAFFIC_SEL_SIZE);
+
+        sa_config->ts_list_resp.len = temp_8bit;
+
+        /* Read the values into the traffic selector array */
+        for (i = 0; i < temp_8bit; ++i)
+        {
+          READ_8_BIT_VAL(value_ptr, sa_config->ts_list_resp.ts[i].proto);
+          READ_16_BIT_VAL(value_ptr, sa_config->ts_list_resp.ts[i].start_port);
+          READ_16_BIT_VAL(value_ptr, sa_config->ts_list_resp.ts[i].end_port);
+
+          /* Read the address from TLV into temp variable */
+          QMI_WDS_UTIL_READ_SA_CONFIG_IP_ADDR(value_ptr, start_address);
+          QMI_WDS_UTIL_READ_SA_CONFIG_IP_ADDR(value_ptr, end_address);
+
+          /* Copy the address from TLV into the traffic selector array */
+          memcpy(&sa_config->ts_list_resp.ts[i].start_addr,
+                 &start_address,
+                 sizeof(qmi_wds_ip_addr_type));
+          memcpy(&sa_config->ts_list_resp.ts[i].end_addr,
+                 &end_address,
+                 sizeof(qmi_wds_ip_addr_type));
+        }
+      }
+      break;
+
+      case QMI_WDS_REV_IP_TRANS_GET_AES_MODE_TLV_ID:
+      {
+        sa_config->param_mask |= QMI_WDS_IPSEC_AES_MODE_PARAM_MASK;
+
+        /* Read the AES Mode value */
+        READ_32_BIT_VAL(value_ptr, temp_32bit);
+
+        sa_config->aes_mode = (qmi_wds_ipsec_aes_algo_mode_type) temp_32bit;
       }
       break;
 
       default:
       {
+        /* If the TLV is unknown, ignore it. Don't return error */
         QMI_ERR_MSG_1 ("qmi_wds_srvc_process_rev_ip_trans_ind: "
                        "unknown type = %x\n",(unsigned) type);
-        return QMI_INTERNAL_ERR;
       }
       break;
     } /*switch*/
@@ -15799,7 +18330,7 @@ qmi_wds_get_ipsec_static_sa_config
   int                               *qmi_err_code
 )
 {
-  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
+  unsigned char     *msg = NULL;
   int               msg_size;
   unsigned char     *tmp_msg_ptr;
   int rc;
@@ -15810,17 +18341,25 @@ qmi_wds_get_ipsec_static_sa_config
     return QMI_INTERNAL_ERR;
   }
 
+  msg = (unsigned char *) malloc (QMI_MAX_MSG_SIZE);
+
+  if (!msg)
+  {
+    QMI_ERR_MSG_0 ("qmi_wds_get_ipsec_static_sa_config: malloc failed\n");
+    return QMI_INTERNAL_ERR;
+  }
+
   /* Set the message size to the complete buffer minus the header size */
-  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE);
 
   rc = qmi_service_send_msg_sync (user_handle,
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_IPSEC_STATIC_SA_CONFIG,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
-                                  QMI_WDS_STD_MSG_SIZE,
+                                  QMI_MAX_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
@@ -15837,6 +18376,7 @@ qmi_wds_get_ipsec_static_sa_config
                                             sa_config);
   }
 
+  free(msg);
   return rc;
 }
 
@@ -15921,7 +18461,7 @@ qmi_wds_rev_ip_transport_config_complete
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_REV_IP_TRANS_CONFIG_COMPLETE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -15980,7 +18520,7 @@ qmi_wds_initiate_esp_rekey
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_INITIATE_ESP_REKEY,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -16059,7 +18599,7 @@ qmi_wds_set_data_path
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_SET_DATA_PATH_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -16122,7 +18662,7 @@ qmi_wds_get_data_path
                                   QMI_WDS_SERVICE,
                                   QMI_WDS_GET_DATA_PATH_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
                                   msg,
                                   &msg_size,
                                   QMI_WDS_STD_MSG_SIZE,
@@ -16184,3 +18724,84 @@ qmi_wds_get_data_path
   return rc;
 }
 
+/*===========================================================================
+  FUNCTION  qmi_wds_remove_delegated_ipv6_prefix
+===========================================================================*/
+/*!
+@brief
+  This message is used to remove IPv6 prefix from the interface
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_wds_remove_delegated_ipv6_prefix
+(
+  int                                 user_handle,
+  qmi_wds_delegated_ipv6_prefix_type  *params,
+  int                                 *qmi_err_code
+)
+{
+  unsigned char     msg[QMI_WDS_STD_MSG_SIZE];
+  int               msg_size;
+  unsigned char     *tmp_msg_ptr;
+
+  if (!qmi_err_code || NULL == params)
+  {
+    QMI_ERR_MSG_0("qmi_wds_remove_delegated_ipv6_prefix: bad input parameters\n");
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Set the tmp_msg_ptr to beginning of message-specific TLV portion of message
+   * buffer */
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE);
+
+  /* Prepare message TLV */
+  unsigned char   tmp_buf[QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_TLV_SIZE];
+  unsigned char   *tmp_buf_ptr = tmp_buf;
+  ipv6_addr_type  ipv6_addr;
+  unsigned char   tmp8;
+
+  memcpy(tmp_buf_ptr, &params->ipv6_addr, sizeof(ipv6_addr));
+  tmp_buf_ptr += QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES;
+
+  tmp8 = (unsigned char) params->prefix_len;
+  WRITE_8_BIT_VAL(tmp_buf_ptr, tmp8);
+
+  if (qmi_util_write_std_tlv(&tmp_msg_ptr,
+                             &msg_size,
+                             QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_REQ_TLV_ID,
+                             QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_TLV_SIZE,
+                             (void *) tmp_buf) < 0)
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  return qmi_service_send_msg_sync(user_handle,
+                                   QMI_WDS_SERVICE,
+                                   QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_REQ_MSG_ID,
+                                   QMI_SRVC_PDU_PTR(msg),
+                                   (int)QMI_SRVC_PDU_SIZE(QMI_WDS_STD_MSG_SIZE) - msg_size,
+                                   msg,
+                                   &msg_size,
+                                   QMI_WDS_STD_MSG_SIZE,
+                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                   qmi_err_code);
+}

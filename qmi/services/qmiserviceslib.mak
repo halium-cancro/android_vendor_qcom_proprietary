@@ -39,7 +39,8 @@ C_SRC =\
    ip_multimedia_subsystem_settings_v01.c\
    ip_multimedia_subsystem_application_v01.c\
    radio_frequency_radiated_performance_enhancement_v01.c \
-   persistent_device_configuration_v01.c
+   persistent_device_configuration_v01.c \
+   secure_filesystem_service_v01.c
 
 NEEDINC=\
    vendor/qcom/proprietary/qmi/inc\

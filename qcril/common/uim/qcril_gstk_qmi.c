@@ -37,9 +37,20 @@ $Header: //linux/pkgs/proprietary/qc-ril/main/source/qcril_gstk.c#8 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+12/17/14   hh      Support for retrieve cached proactive commands
+09/12/14   at      Change the GSTK disable property name to persist
+07/24/14   at      Resolve compiler warnings by using the right qmi_client.h
+06/12/14   at      Support for auto device configuration
+06/09/14   at      Disable QCRIL GSTK based on the property
+06/04/14   at      Support for sending activate unsol proactive cmd
+05/27/14   at      Check and set QMI CAT configuration if needed
+04/28/14   at      Added function to release QMI CAT client handle
 03/07/14   at      Clear proactive cmd cache on setup call user cnf API
+03/19/14   vdc     Added response for STK envelope commands
 01/15/14   at      Added QMI CAT initialization retry mechanism
+12/23/13   at      Support for Fusion 4.5 device configuration
 12/02/13   tkl     Avoid int overflow and dup evt tag when filtering evt list
+12/11/13   at      Switch to new QCCI framework
 10/14/13   yt      Skip filtering of setup event list based on feature flag
 10/09/13   vdc     Added support for missing third slot instances
 09/27/13   tkl     Fix filtering of non-UI events from set up event list
@@ -106,6 +117,9 @@ when       who     what, where, why
 #include "qcrili.h"
 #include "qcril_log.h"
 #include "qcril_scws.h"
+#include "qmi_client_instance_defs.h"
+#include "qmi_cci_target_ext.h"
+#include "qmi_ril_platform_dep.h"
 
 
 /*===========================================================================
@@ -218,12 +232,13 @@ when       who     what, where, why
 #define QCRIL_GSTK_QMI_CMD_STK_TIMER_MANAGEMENT       0x27
 #define QCRIL_GSTK_QMI_CMD_STK_SET_UP_IDLE_MODE_TEXT  0x28
 #define QCRIL_GSTK_QMI_CMD_STK_LANG_NOTIFICATION      0x35
-#define QCRIL_GSTK_QMI_CMD_STK_END_OF_PROACTIVE_SES   0x81
 #define QCRIL_GSTK_QMI_CMD_STK_OPEN_CHANNEL           0x40
 #define QCRIL_GSTK_QMI_CMD_STK_CLOSE_CHANNEL          0x41
 #define QCRIL_GSTK_QMI_CMD_STK_RECEIVE_DATA           0x42
 #define QCRIL_GSTK_QMI_CMD_STK_SEND_DATA              0x43
 #define QCRIL_GSTK_QMI_CMD_STK_GET_CHANNEL_STATUS     0x44
+#define QCRIL_GSTK_QMI_CMD_STK_ACTIVATE               0x70
+#define QCRIL_GSTK_QMI_CMD_STK_END_OF_PROACTIVE_SES   0x81
 
 /* not supported  */
 #define QCRIL_GSTK_QMI_CMD_STK_PERFORM_CARD_APDU      0x30
@@ -237,6 +252,7 @@ when       who     what, where, why
 #define QCRIL_GSTK_QMI_IDLE_SCRN_AVAILABLE_EVT        0x05
 #define QCRIL_GSTK_QMI_LANGUAGE_SELECTION_EVT         0x07
 #define QCRIL_GSTK_QMI_BROWSER_TERMINATION_EVT        0x08
+#define QCRIL_GSTK_QMI_HCI_CONNECTIVITY_EVT           0x13
 #define QCRIL_GSTK_QMI_PROACTIVE_CMD_LEN_OFFSET       0x01
 
 /* Android system property for fetching the modem type */
@@ -253,6 +269,12 @@ when       who     what, where, why
 #define QCRIL_GSTK_PROP_BASEBAND_VALUE_APQ         "apq"
 #define QCRIL_GSTK_PROP_BASEBAND_VALUE_DSDA        "dsda"
 #define QCRIL_GSTK_PROP_BASEBAND_VALUE_DSDA_2      "dsda2"
+#define QCRIL_GSTK_PROP_BASEBAND_VALUE_FUSION_4_5  "mdm2"
+#define QCRIL_GSTK_PROP_BASEBAND_VALUE_AUTO        "auto"
+
+/* Android property to disable for certain test scenarios */
+#define QCRIL_GSTK_PROPERTY_DISABLED               "persist.qcril_gstk.disable"
+#define QCRIL_GSTK_PROP_DISABLED_VALUE             "1"
 
 /* Slot masks for set event report */
 #define QCRIL_GSTK_QMI_SLOT_MASK_SLOT_1             0x01
@@ -264,6 +286,8 @@ when       who     what, where, why
 
 /* Synchronous message default timeout (in milli-seconds) */
 #define QMI_CAT_DEFAULT_TIMEOUT                     5000
+/* QMI Client init timeout (in seconds) */
+#define QMI_CAT_INIT_TIMEOUT                        4
 
 /* QMI init retry related defines */
 #define QCRIL_GSTK_QMI_INIT_MAX_RETRIES             10
@@ -294,6 +318,8 @@ when       who     what, where, why
 #define QMI_CAT_SET_EVENT_REPORT_SETUP_EVENT_BROWSER_TERM         (0x00200000)
 #define QMI_CAT_SET_EVENT_REPORT_PROVIDE_LOCAL_INFO_TIME          (0x00400000)
 #define QMI_CAT_SET_EVENT_REPORT_SCWS                             (0x00800000)
+#define QMI_CAT_SET_EVENT_REPORT_ACTIVATE                         (0x01000000)
+#define QMI_CAT_SET_EVENT_REPORT_SETUP_EVENT_HCI_CONN             (0x02000000)
 
 /*===========================================================================
                                LOCAL VARIABLES
@@ -412,6 +438,17 @@ struct qmi_client_struct {
   qmi_idl_service_object_type       p_service;
 } qmi_client_struct_type;
 
+/* -----------------------------------------------------------------------------
+   STRUCT:      QCRIL_GSTK_CMD_ID_QMI_REQ_ID_MAP_TYPE
+
+   DESCRIPTION:
+     Structure used to map QCRIL_GSTK_QMI_CMD_STK_XXX to cat_cached_command_id_enum
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  uint32                            gstk_cmd_id;
+  cat_cached_command_id_enum_v02    qmi_req_cmd_id;
+}qcril_gstk_cmd_id_qmi_req_id_map_type;
 
 static qcril_gstk_qmi_info_type qcril_gstk_qmi_info;
 
@@ -421,9 +458,9 @@ static const struct timeval QCRIL_GSTK_QMI_TIMER_RESEND = { 5, 0 };
 static void qcril_gstk_qmi_indication_cb
 (
   qmi_client_type                 user_handle,
-  unsigned long                   msg_id,
+  unsigned int                    msg_id,
   unsigned char                 * ind_buf_ptr,
-  int                             ind_buf_len,
+  unsigned int                    ind_buf_len,
   void                          * ind_cb_data_ptr
 );
 
@@ -452,6 +489,10 @@ static void qcril_gstk_qmi_copy_and_save_proactive_cmd
   qmi_client_type                            qmi_handle
 );
 
+static void qcril_gstk_qmi_get_recovery_proactive_cache
+(
+  qcril_instance_id_e_type  instance_id
+);
 
 /*===========================================================================
                              INTERNAL FUNCTIONS
@@ -478,7 +519,7 @@ static void qcril_gstk_qmi_deactivate_timer
   if (qcril_gstk_qmi_info.timer_id != 0)
   {
     QCRIL_LOG_INFO("%s", "De-activating QCRIL_GSTK_QMI_TIMER_RESEND");
-    qcril_cancel_timed_callback((void *) qcril_gstk_qmi_info.timer_id);
+    qcril_cancel_timed_callback((void *)(uintptr_t) qcril_gstk_qmi_info.timer_id);
     qcril_gstk_qmi_info.timer_id = 0;
   }
 } /* qcril_gstk_qmi_deactivate_timer */
@@ -499,19 +540,19 @@ static void qcril_gstk_qmi_deactivate_timer
     Mapped port string value defined by QMI service.
 */
 /*=========================================================================*/
-static char * qcril_gstk_find_primary_modem_port
+static qmi_client_qmux_instance_type qcril_gstk_find_primary_modem_port
 (
   char   * prop_value_ptr
 )
 {
-  char  * qmi_modem_port_ptr = QMI_PORT_RMNET_0;
+  qmi_client_qmux_instance_type qmi_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
 
   /* Sanity check */
   if (prop_value_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "NULL prop_value_ptr, using default port");
     QCRIL_ASSERT(0);
-    return qmi_modem_port_ptr;
+    return qmi_modem_port;
   }
 
   QCRIL_LOG_INFO("Baseband property value read: %s\n", prop_value_ptr);
@@ -521,51 +562,58 @@ static char * qcril_gstk_find_primary_modem_port
       (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SVLTE_2A) == 0) ||
       (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_CSFB)     == 0))
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_SDIO_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_SDIO_INSTANCE_0;
   }
   else if ((strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_MDMUSB) == 0) ||
-           (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SGLTE2) == 0))
+           (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SGLTE2) == 0) ||
+           (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_AUTO)   == 0))
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_USB_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
   }
   else if ((strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_MSM)   == 0) ||
            (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_APQ)   == 0) ||
            (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SGLTE) == 0))
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
   }
   else if (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_DSDA) == 0)
   {
     /* If it is a DSDA configuration, ports are set based on RILD instance */
     if (qmi_ril_get_process_instance_id() == QCRIL_DEFAULT_INSTANCE_ID)
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET_USB_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
     }
     else
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET_SMUX_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_SMUX_INSTANCE_0;
     }
   }
   else if (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_DSDA_2) == 0)
   {
-    /* If it is a DSDA2 configuration, ports are set based on RILD instance */
+    /* If it is a DSDA2 configuration, ports are set based on RILD instance.
+       Note that there is no support of RMNET2 over USB on mainline since that
+       config is not supported. Need to revisit this config for future support */
     if (qmi_ril_get_process_instance_id() == QCRIL_DEFAULT_INSTANCE_ID)
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET_USB_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
     }
     else
     {
-      qmi_modem_port_ptr = QMI_PORT_RMNET2_USB_0;
+      qmi_modem_port = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_1;
     }
+  }
+  else if (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_FUSION_4_5)   == 0)
+  {
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_MHI_INSTANCE_0;
   }
   else
   {
     QCRIL_LOG_ERROR("%s", "Property value does not match, using default port");
   }
 
-  QCRIL_LOG_INFO("QMI port found for modem: %s\n", qmi_modem_port_ptr);
+  QCRIL_LOG_INFO("QMI port found for modem: 0x%x\n", qmi_modem_port);
 
-  return qmi_modem_port_ptr;
+  return qmi_modem_port;
 } /* qcril_gstk_find_primary_modem_port */
 
 
@@ -582,36 +630,36 @@ static char * qcril_gstk_find_primary_modem_port
     Mapped port string value defined by QMI service.
 */
 /*=========================================================================*/
-static char * qcril_gstk_find_secondary_modem_port
+static qmi_client_qmux_instance_type qcril_gstk_find_secondary_modem_port
 (
   char   * prop_value_ptr
 )
 {
-  char  * qmi_modem_port_ptr = NULL;
+  qmi_client_qmux_instance_type qmi_modem_port = QMI_CLIENT_QMUX_MAX_INSTANCE_IDS;
 
   /* Sanity check */
   if (prop_value_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "NULL prop_value_ptr, returning NULL");
     QCRIL_ASSERT(0);
-    return qmi_modem_port_ptr;
+    return qmi_modem_port;
   }
 
   /* Check the read property if it is a fusion type */
   if ((strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SVLTE_1)  == 0) ||
       (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SVLTE_2A) == 0)  )
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
     QCRIL_LOG_INFO("Modem is a fusion type: %s\n", prop_value_ptr);
   }
   else if ((strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SGLTE)  == 0) ||
            (strcmp(prop_value_ptr, QCRIL_GSTK_PROP_BASEBAND_VALUE_SGLTE2) == 0))
   {
-    qmi_modem_port_ptr = QMI_PORT_RMNET_SMUX_0;
+    qmi_modem_port = QMI_CLIENT_QMUX_RMNET_SMUX_INSTANCE_0;
     QCRIL_LOG_INFO("Modem is a fusion type: %s\n", prop_value_ptr);
   }
 
-  return qmi_modem_port_ptr;
+  return qmi_modem_port;
 } /* qcril_gstk_find_secondary_modem_port */
 
 
@@ -1334,6 +1382,7 @@ static uint8 * qcril_gstk_qmi_filter_setup_events
           case QCRIL_GSTK_QMI_IDLE_SCRN_AVAILABLE_EVT:
           case QCRIL_GSTK_QMI_LANGUAGE_SELECTION_EVT:
           case QCRIL_GSTK_QMI_BROWSER_TERMINATION_EVT:
+          case QCRIL_GSTK_QMI_HCI_CONNECTIVITY_EVT:
             QCRIL_LOG_INFO("Setup Event 0x%x added \n", apdu_ptr[offset]);
             new_apdu_ptr[new_offset++] = apdu_ptr[offset++];
             break;
@@ -1794,6 +1843,21 @@ static boolean qcril_gstk_qmi_process_event_report_ind
                                           ind_msg_ptr->refresh_alpha.pc_refresh_alpha_len,
                                           &command_type);
   }
+  else if (ind_msg_ptr->activate_valid)
+  {
+    QCRIL_GSTK_QMI_RETURN_IF_OUT_OF_RANGE(ind_msg_ptr->activate.pc_activate_len,
+                                          QCRIL_GSTK_QMI_COMMAND_MIN_SIZE,
+                                          QMI_CAT_RAW_PROACTIVE_CMD_MAX_LENGTH_V02);
+
+    QCRIL_LOG_INFO("%s", "Command will be handled by Android: Activate TLV");
+
+    user_ref                      = ind_msg_ptr->activate.uim_ref_id;
+    ril_unsol_resp.ril_unsol_type = RIL_UNSOL_STK_PROACTIVE_COMMAND;
+    qcril_gstk_qmi_prepare_unsol_response(&ril_unsol_resp.ril_unsol_resp,
+                                          ind_msg_ptr->activate.pc_activate,
+                                          ind_msg_ptr->activate.pc_activate_len,
+                                          &command_type);
+  }
   else
   {
     QCRIL_LOG_ERROR( "%s", "Unhandled TLV");
@@ -1869,7 +1933,7 @@ static boolean qcril_gstk_qmi_process_event_report_ind
 
     QCRIL_LOG_QMI(ind_data_ptr->modem_id, "qmi_cat_service", "qmi_cat_event_confirmation" );
     QCRIL_LOG_INFO("%s", "Sending QCCI API QMI_CAT_EVENT_CONFIRMATION_REQ_V02");
-    qmi_err_code = qmi_client_send_msg_sync(ind_data_ptr->handle,
+    qmi_err_code = qmi_client_send_msg_sync_with_shm(ind_data_ptr->handle,
                                             QMI_CAT_EVENT_CONFIRMATION_REQ_V02,
                                             (void *) &event_conf_req,
                                             sizeof(cat_event_confirmation_req_msg_v02),
@@ -1968,7 +2032,7 @@ static void qcril_gstk_qmi_scws_open_channel
                   __FUNCTION__, open_channel_req.channel_status.ch_id,
                   open_channel_req.channel_status.state);
 
-  qmi_err_code = qmi_client_send_msg_sync( qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
+  qmi_err_code = qmi_client_send_msg_sync_with_shm( qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
                                            QMI_CAT_SCWS_OPEN_CHANNEL_REQ_V02,
                                            (void *) &open_channel_req,
                                            sizeof(cat_scws_open_channel_req_msg_v02),
@@ -2065,7 +2129,7 @@ static void qcril_gstk_qmi_scws_close_channel
                   __FUNCTION__, close_channel_req.channel_status.ch_id,
                   close_channel_req.channel_status.state);
 
-  qmi_err_code = qmi_client_send_msg_sync( qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
+  qmi_err_code = qmi_client_send_msg_sync_with_shm( qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
                                            QMI_CAT_SCWS_CLOSE_CHANNEL_REQ_V02,
                                            (void *) &close_channel_req,
                                            sizeof(cat_scws_close_channel_req_msg_v02),
@@ -2191,7 +2255,7 @@ static void qcril_gstk_qmi_scws_send_data
                     __FUNCTION__, send_data_req.result.ch_id,
                     (send_data_req.result.result == TRUE) ? "Success" : "Failure" );
 
-    qmi_err_code = qmi_client_send_msg_sync( qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
+    qmi_err_code = qmi_client_send_msg_sync_with_shm( qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
                                              QMI_CAT_SCWS_SEND_DATA_REQ_V02,
                                              (void *) &send_data_req,
                                              sizeof(cat_scws_send_data_req_msg_v02),
@@ -2253,7 +2317,7 @@ static void qcril_gstk_qmi_resend_proactive_cmd
   void *param_ptr
 )
 {
-  uint32 timer_id = (uint32) param_ptr;
+  uint32 timer_id = (uint32)(uintptr_t) param_ptr;
   qcril_instance_id_e_type instance_id =
     QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( timer_id );
   qcril_modem_id_e_type modem_id =
@@ -2420,6 +2484,7 @@ void qcril_gstk_qmi_process_raw_command_callback
       case QCRIL_GSTK_QMI_CMD_STK_SET_UP_IDLE_MODE_TEXT:
       case QCRIL_GSTK_QMI_CMD_STK_PROVIDE_LOCAL_INFO:
       case QCRIL_GSTK_QMI_CMD_STK_LANG_NOTIFICATION:
+      case QCRIL_GSTK_QMI_CMD_STK_ACTIVATE:
         QCRIL_LOG_DEBUG("Command will be handled by Android (0x%02lX)\n",
                        cmd_ptr->command_type);
         ril_unsol_type = RIL_UNSOL_STK_PROACTIVE_COMMAND;
@@ -2666,7 +2731,7 @@ static qcril_gstk_qmi_ind_params_type * qcril_gstk_qmi_copy_indication
   }
 
   /* First decode the message payload from QCCI */
-  qmi_idl_get_message_c_struct_len(user_handle_ptr->p_service,
+  qmi_idl_get_message_c_struct_len(cat_get_service_object_v02(),
                                    QMI_IDL_INDICATION,
                                    msg_id,
                                    &decoded_payload_len);
@@ -2844,10 +2909,12 @@ static int qcril_gstk_send_set_event_report
       QMI_CAT_SET_EVENT_REPORT_PROVIDE_LOCAL_INFO_LANG         |
       QMI_CAT_SET_EVENT_REPORT_PROVIDE_LOCAL_INFO_TIME         |
       QMI_CAT_SET_EVENT_REPORT_BIP                             |
-      QMI_CAT_SET_EVENT_REPORT_SETUP_EVENT_BROWSER_TERM;
+      QMI_CAT_SET_EVENT_REPORT_SETUP_EVENT_BROWSER_TERM        |
+      QMI_CAT_SET_EVENT_REPORT_ACTIVATE                        |
+      QMI_CAT_SET_EVENT_REPORT_SETUP_EVENT_HCI_CONN;
   }
 
-  return qmi_client_send_msg_sync( modem_type_ptr,
+  return qmi_client_send_msg_sync_with_shm( modem_type_ptr,
                                    QMI_CAT_SET_EVENT_REPORT_REQ_V02,
                                    (void *) &event_report_req,
                                    sizeof(cat_set_event_report_req_msg_v02),
@@ -2855,6 +2922,119 @@ static int qcril_gstk_send_set_event_report
                                    sizeof(cat_set_event_report_resp_msg_v02),
                                    QMI_CAT_DEFAULT_TIMEOUT);
 } /* qcril_gstk_send_set_event_report */
+
+
+/*=========================================================================
+
+  FUNCTION:  qcril_gstk_perform_config_check
+
+===========================================================================*/
+/*!
+    @brief
+    This function first checks if QMI CAT in the modem has correct
+    configuration for Android HLOS. If not, it sends the QMI command to put
+    QMI CAT in the right configuration. It is required to reboot the device
+    in order for this configuration to take effect.
+
+    @return
+    QMI error code
+*/
+/*=========================================================================*/
+static int qcril_gstk_perform_config_check
+(
+  qmi_client_type              modem_type_ptr
+)
+{
+  qmi_client_error_type                qmi_err_code      = QMI_INTERNAL_ERR;
+  cat_config_mode_enum_v02             config_mode       = CAT_CONFIG_MODE_DISABLED_V02;
+  cat_get_configuration_resp_msg_v02 * get_conf_resp_ptr = NULL;
+  cat_set_configuration_req_msg_v02  * set_conf_req_ptr  = NULL;
+  cat_set_configuration_resp_msg_v02   set_conf_resp;
+
+  if (modem_type_ptr == NULL)
+  {
+    QCRIL_LOG_ERROR("%s","NULL modem_type_ptr !");
+    return QMI_INTERNAL_ERR;
+  }
+
+  get_conf_resp_ptr = (cat_get_configuration_resp_msg_v02*)qcril_malloc(
+                        sizeof(cat_get_configuration_resp_msg_v02));
+  if(get_conf_resp_ptr == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  memset(get_conf_resp_ptr, 0x00, sizeof(cat_get_configuration_resp_msg_v02));
+
+  qmi_err_code = qmi_client_send_msg_sync( modem_type_ptr,
+                                           QMI_CAT_GET_CONFIGURATION_REQ_V02,
+                                           NULL,
+                                           0,
+                                           (void *) get_conf_resp_ptr,
+                                           sizeof(cat_get_configuration_resp_msg_v02),
+                                           QMI_CAT_DEFAULT_TIMEOUT);
+
+  if ((qmi_err_code                             != QMI_NO_ERR)             ||
+      (get_conf_resp_ptr->resp.result           != QMI_RESULT_SUCCESS_V01) ||
+      (get_conf_resp_ptr->resp.error            != QMI_ERR_NONE_V01)       ||
+      (get_conf_resp_ptr->cat_config_mode_valid == 0))
+  {
+    /* Nothing we can do about an error, just return */
+    QCRIL_LOG_ERROR("Error for get config, qmi_err_code: 0x%x, result: 0x%x, error: 0x%x",
+                    qmi_err_code,
+                    get_conf_resp_ptr->resp.result,
+                    get_conf_resp_ptr->resp.error);
+    qcril_free(get_conf_resp_ptr);
+    return qmi_err_code;
+  }
+
+  config_mode = get_conf_resp_ptr->cat_config_mode;
+  qcril_free(get_conf_resp_ptr);
+
+  QCRIL_LOG_INFO("cat_config_mode: 0x%x", config_mode);
+
+  if ((config_mode == CAT_CONFIG_MODE_ANDROID_V02) ||
+      (config_mode == CAT_CONFIG_MODE_CUSTOM_RAW_V02))
+  {
+    /* Nothing else to do */
+    return qmi_err_code;
+  }
+
+  /* Set it to Android mode if we found some other value */
+  set_conf_req_ptr = (cat_set_configuration_req_msg_v02*)qcril_malloc(
+                       sizeof(cat_set_configuration_req_msg_v02));
+  if(set_conf_req_ptr == NULL)
+  {
+    return QMI_SERVICE_ERR;
+  }
+
+  memset(set_conf_req_ptr, 0x00, sizeof(cat_set_configuration_req_msg_v02));
+  memset(&set_conf_resp, 0x00, sizeof(cat_set_configuration_resp_msg_v02));
+
+  set_conf_req_ptr->cat_config_mode = CAT_CONFIG_MODE_ANDROID_V02;
+
+  qmi_err_code = qmi_client_send_msg_sync( modem_type_ptr,
+                                           QMI_CAT_SET_CONFIGURATION_REQ_V02,
+                                           (void *) set_conf_req_ptr,
+                                           sizeof(cat_set_configuration_req_msg_v02),
+                                           (void *) &set_conf_resp,
+                                           sizeof(cat_set_configuration_resp_msg_v02),
+                                           QMI_CAT_DEFAULT_TIMEOUT);
+  if ((qmi_err_code              != QMI_NO_ERR)             ||
+      (set_conf_resp.resp.result != QMI_RESULT_SUCCESS_V01) ||
+      (set_conf_resp.resp.error  != QMI_ERR_NONE_V01))
+  {
+    /* Nothing we can do about an error, just return */
+    QCRIL_LOG_ERROR("Error for set config, qmi_err_code: 0x%x, result: 0x%x, error: 0x%x",
+                    qmi_err_code,
+                    set_conf_resp.resp.result,
+                    set_conf_resp.resp.error);
+  }
+
+  qcril_free(set_conf_req_ptr);
+
+  return qmi_err_code;
+} /* qcril_gstk_perform_config_check */
 
 
 /*===========================================================================
@@ -2877,21 +3057,28 @@ static int qcril_gstk_send_set_event_report
   @endmsc
 */
 /*=========================================================================*/
-void qcril_gstk_qmi_init( void )
+void qcril_gstk_qmi_init
+(
+  void
+)
 {
   qcril_modem_id_e_type            modem_id           = QCRIL_MAX_MODEM_ID - 1;
   int                              qmi_err_code       = QMI_NO_ERR;
   uint8                            slot_index         = 0;
-  char                           * qmi_pri_modem_port = NULL;
-  char                           * qmi_sec_modem_port = NULL;
+  qmi_client_qmux_instance_type    qmi_pri_modem_port = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;
+  qmi_client_qmux_instance_type    qmi_sec_modem_port = QMI_CLIENT_QMUX_MAX_INSTANCE_IDS;
   char                             prop_value[PROPERTY_VALUE_MAX];
+  char                             prop_value_disable[PROPERTY_VALUE_MAX];
   uint8                            num_slots          = 0;
   qmi_idl_service_object_type      client_service;
+  int                              time_out           = QMI_CAT_INIT_TIMEOUT;
+  qmi_client_os_params             os_params;
   uint8                            num_retries        = 0;
 
   QCRIL_LOG_DEBUG( "%s", "qcril_gstk_qmi_init");
 
   memset(&qcril_gstk_qmi_info, 0x00, sizeof(qcril_gstk_qmi_info));
+  memset(&os_params, 0x00, sizeof(qmi_client_os_params));
 
   num_slots = qcril_gstk_get_num_slots();
 
@@ -2903,13 +3090,21 @@ void qcril_gstk_qmi_init( void )
    /* Initialize QMI interface */
   QCRIL_LOG_QMI( modem_id, "qmi_cat_service", "init" );
 
+  /* If QCRIL_GSTK needs to be disabled, just return at this point */
+  memset(prop_value_disable, 0x00, sizeof(prop_value_disable));
+  property_get(QCRIL_GSTK_PROPERTY_DISABLED, prop_value_disable, "");
+  if (strcmp(prop_value_disable, QCRIL_GSTK_PROP_DISABLED_VALUE)  == 0)
+  {
+    QCRIL_LOG_INFO("%s", "QCRIL GSTK is being disabled");
+    return;
+  }
+
   /* Find out the modem type */
   memset(prop_value, 0x00, sizeof(prop_value));
   property_get(QCRIL_GSTK_PROPERTY_BASEBAND, prop_value, "");
 
   /* Map to a respective primary QMI port */
   qmi_pri_modem_port = qcril_gstk_find_primary_modem_port(prop_value);
-  QCRIL_ASSERT(qmi_pri_modem_port != NULL);
 
   /* Initialize QMI for the primary & secondary modem ports */
   client_service = cat_get_service_object_v02();
@@ -2922,12 +3117,14 @@ void qcril_gstk_qmi_init( void )
       sleep(QCRIL_GSTK_QMI_INIT_RETRY_INTERVAL);
     }
 
-    QCRIL_LOG_INFO("Trying primary qmi_client_init() try # %d", num_retries);
-    qmi_err_code = qmi_client_init(qmi_pri_modem_port,
-                                   client_service,
-                                   qcril_gstk_qmi_indication_cb,
-                                   client_service,
-                                   &qcril_gstk_qmi_info.qmi_cat_svc_client_primary);
+    QCRIL_LOG_INFO("Trying primary qmi_client_init_instance() try # %d", num_retries);
+    qmi_err_code = qmi_client_init_instance(client_service,
+                                            qmi_pri_modem_port,
+                                            qcril_gstk_qmi_indication_cb,
+                                            NULL,
+                                            &os_params,
+                                            time_out,
+                                            &qcril_gstk_qmi_info.qmi_cat_svc_client_primary);
     num_retries++;
   } while ((qcril_gstk_qmi_info.qmi_cat_svc_client_primary == NULL) &&
            (qmi_err_code != QMI_NO_ERR) &&
@@ -2940,16 +3137,13 @@ void qcril_gstk_qmi_init( void )
     return;
   }
 
-  if(qcril_gstk_qmi_info.qmi_cat_svc_client_primary->service_user_handle == 0)
-  {
-    QCRIL_LOG_ERROR("%s","Invalid QMI CAT service primary port user handle !");
-    QCRIL_ASSERT(0);
-    return;
-  }
+  /* Also get QMI CAT config & set it appropriately if needed */
+  (void)qcril_gstk_perform_config_check(
+          qcril_gstk_qmi_info.qmi_cat_svc_client_primary);
 
   /* If modem is a fusion type, also open a secondary */
   qmi_sec_modem_port = qcril_gstk_find_secondary_modem_port(prop_value);
-  if (qmi_sec_modem_port != NULL)
+  if (qmi_sec_modem_port != QMI_CLIENT_QMUX_MAX_INSTANCE_IDS)
   {
     num_retries = 0;
     do
@@ -2959,12 +3153,14 @@ void qcril_gstk_qmi_init( void )
         sleep(QCRIL_GSTK_QMI_INIT_RETRY_INTERVAL);
       }
 
-      QCRIL_LOG_INFO("Trying secondary qmi_client_init() try # %d", num_retries);
-      qmi_err_code = qmi_client_init(qmi_sec_modem_port,
-                                     client_service,
-                                     qcril_gstk_qmi_indication_cb,
-                                     client_service,
-                                     &qcril_gstk_qmi_info.qmi_cat_svc_client_secondary);
+      QCRIL_LOG_INFO("Trying secondary qmi_client_init_instance() try # %d", num_retries);
+      qmi_err_code = qmi_client_init_instance(client_service,
+                                              qmi_sec_modem_port,
+                                              qcril_gstk_qmi_indication_cb,
+                                              NULL,
+                                              &os_params,
+                                              time_out,
+                                              &qcril_gstk_qmi_info.qmi_cat_svc_client_secondary);
       num_retries++;
     } while ((qcril_gstk_qmi_info.qmi_cat_svc_client_secondary == NULL) &&
              (qmi_err_code != QMI_NO_ERR) &&
@@ -2977,12 +3173,9 @@ void qcril_gstk_qmi_init( void )
       return;
     }
 
-    if(qcril_gstk_qmi_info.qmi_cat_svc_client_secondary->service_user_handle == 0)
-    {
-      QCRIL_LOG_ERROR("%s","Invalid QMI CAT service secondary port user handle !");
-      QCRIL_ASSERT(0);
-      return;
-    }
+    /* Also get QMI CAT config & set it appropriately if needed */
+    (void)qcril_gstk_perform_config_check(
+            qcril_gstk_qmi_info.qmi_cat_svc_client_secondary);
   }
 
   /* Set event report for individual modem ports */
@@ -3025,6 +3218,52 @@ void qcril_gstk_qmi_init( void )
 } /* qcril_gstk_qmi_init */
 
 
+/*===========================================================================
+  FUNCTION:  qcril_gstk_qmi_srvc_release_client
+===========================================================================*/
+/*!
+  @brief
+    Releases a previously opened QMI CAT client service handle via the
+    qcril_gstk_qmi_init() API.
+
+  @return
+    Nothing
+
+  @msc
+  @endmsc
+*/
+/*=========================================================================*/
+void qcril_gstk_qmi_srvc_release_client
+(
+  void
+)
+{
+  qmi_client_error_type rc = -1;
+
+  QCRIL_LOG_DEBUG( "%s", "qcril_gstk_qmi_srvc_release_client");
+
+  if(qcril_gstk_qmi_info.qmi_cat_svc_client_primary != NULL)
+  {
+    rc = qmi_client_release(qcril_gstk_qmi_info.qmi_cat_svc_client_primary);
+    qcril_gstk_qmi_info.qmi_cat_svc_client_primary = NULL;
+    if (rc < 0)
+    {
+      QCRIL_LOG_ERROR("QMI CAT service primary port release failure, rc: 0x%x",rc);
+    }
+  }
+
+  if(qcril_gstk_qmi_info.qmi_cat_svc_client_secondary != NULL)
+  {
+    rc = qmi_client_release(qcril_gstk_qmi_info.qmi_cat_svc_client_secondary);
+    qcril_gstk_qmi_info.qmi_cat_svc_client_secondary = NULL;
+    if (rc < 0)
+    {
+      QCRIL_LOG_ERROR("QMI CAT service secondary port release failure, rc: 0x%x",rc);
+    }
+  }
+} /* qcril_gstk_qmi_srvc_release_client */
+
+
 /*=========================================================================
 
   FUNCTION:  qcril_gstk_qmi_indication_cb
@@ -3041,9 +3280,9 @@ void qcril_gstk_qmi_init( void )
 static void qcril_gstk_qmi_indication_cb
 (
   qmi_client_type                 user_handle,
-  unsigned long                   msg_id,
+  unsigned int                    msg_id,
   unsigned char                 * ind_buf_ptr,
-  int                             ind_buf_len,
+  unsigned int                    ind_buf_len,
   void                          * ind_cb_data_ptr
 )
 {
@@ -3206,9 +3445,9 @@ void qcril_gstk_qmi_process_qmi_indication
 static void qcril_gstk_qmi_command_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
+  unsigned int                   msg_id,
   void                         * resp_data_ptr,
-  int                            resp_data_len,
+  unsigned int                   resp_data_len,
   void                         * resp_cb_data_ptr,
   qmi_client_error_type          transp_err
 )
@@ -3511,7 +3750,6 @@ void qcril_gstk_qmi_request_stk_send_envelope_command
 {
   qcril_instance_id_e_type            instance_id     = QCRIL_DEFAULT_INSTANCE_ID;
   qcril_modem_id_e_type               modem_id        = QCRIL_DEFAULT_MODEM_ID;
-  RIL_Errno                           ril_result      = RIL_E_SUCCESS;
   int                                 len             = 0;
   int                                 qmi_err_code    = 0;
   uint8                               slot_index      = QCRIL_GSTK_INVALID_SLOT_INDEX_VALUE;
@@ -3580,7 +3818,10 @@ void qcril_gstk_qmi_request_stk_send_envelope_command
   {
     QCRIL_LOG_ERROR("Length of Envelope too long: 0x%x\n",
                      env_cmd_req_ptr->envelope_cmd.envelope_data_len);
-    ril_result = RIL_E_GENERIC_FAILURE;
+
+    qcril_default_request_resp_params(instance_id, params_ptr->t, params_ptr->event_id,
+                                      RIL_E_GENERIC_FAILURE, &resp );
+    qcril_send_request_response(&resp);
   }
   else
   {
@@ -3591,7 +3832,7 @@ void qcril_gstk_qmi_request_stk_send_envelope_command
 
     /* Primary will always send envelope commands to card */
     QCRIL_LOG_QMI( modem_id, "qmi_gstk_service", "send_envelope" );
-    qmi_err_code = qmi_client_send_msg_sync(qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
+    qmi_err_code = qmi_client_send_msg_sync_with_shm(qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
                                             QMI_CAT_SEND_ENVELOPE_CMD_REQ_V02,
                                             (void *) env_cmd_req_ptr,
                                             sizeof(cat_send_envelope_cmd_req_msg_v02),
@@ -3602,14 +3843,49 @@ void qcril_gstk_qmi_request_stk_send_envelope_command
     {
       QCRIL_LOG_ERROR("Error for SEND_ENVELOPE_CMD_REQ, client_err: 0x%x, error_code: 0x%x\n",
                       qmi_err_code, env_cmd_resp.resp.error);
-      ril_result = RIL_E_GENERIC_FAILURE;
+
+      qcril_default_request_resp_params(instance_id, params_ptr->t, params_ptr->event_id,
+                                        RIL_E_GENERIC_FAILURE, &resp );
+      qcril_send_request_response(&resp);
+    }
+    else
+    {
+      uint16   env_response_len = 0;
+      char   * env_response_ptr = NULL;
+
+      /* Since this is synchronous call to QMI we respond here with the result.
+         Fill the default data first and then the response data */
+      qcril_default_request_resp_params(instance_id, params_ptr->t, params_ptr->event_id,
+                                        RIL_E_SUCCESS, &resp);
+
+      if (env_cmd_resp.env_resp_data_valid &&
+          (env_cmd_resp.env_resp_data.env_resp_data_len > 0) &&
+          (env_cmd_resp.env_resp_data.env_resp_data_len <= QMI_CAT_RAW_ENV_RSP_DATA_MAX_LENGTH_V02))
+      {
+        env_response_len = QCRIL_GSTK_QMI_ENVRSP_DATA_SIZE(
+                             env_cmd_resp.env_resp_data.env_resp_data_len) + 1;
+        env_response_ptr = (char *)qcril_malloc(env_response_len);
+        if (env_response_ptr)
+        {
+          memset(env_response_ptr, 0, env_response_len);
+          QCRIL_GSTK_QMI_ENVRSP_COPY((uint8 *)env_response_ptr,
+                                     env_cmd_resp.env_resp_data.env_resp_data,
+                                     env_cmd_resp.env_resp_data.env_resp_data_len);
+          QCRIL_LOG_DEBUG("send_envelope_command, response data=%s\n", env_response_ptr);
+          resp.resp_pkt = env_response_ptr;
+          resp.resp_len = env_response_len;
+        }
+      }
+
+      qcril_send_request_response(&resp);
+
+      /* Free the response pointer we allocated earlier */
+      if (env_response_ptr)
+      {
+        QCRIL_GSTK_QMI_FREE_PTR(env_response_ptr);
+      }
     }
   }
-
-  /* Since this is synchronous call to QMI we should to response callback here */
-  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_result,
-                                     &resp );
-  qcril_send_request_response( &resp );
 
   /* Free allocated request pointer */
   QCRIL_GSTK_QMI_FREE_PTR(env_cmd_req_ptr);
@@ -3734,7 +4010,7 @@ void qcril_gstk_qmi_request_stk_send_terminal_response
         qcril_gstk_qmi_info.gstk_command_info[slot_index].cmd_ptr->uim_ref_id;
 
       QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "send terminal response" );
-      qmi_err_code = qmi_client_send_msg_sync(
+      qmi_err_code = qmi_client_send_msg_sync_with_shm(
                        qcril_gstk_qmi_info.gstk_command_info[slot_index].cmd_ptr->handle,
                        QMI_CAT_SEND_TR_REQ_V02,
                        (void *) send_tr_req_ptr,
@@ -3869,7 +4145,7 @@ void qcril_gstk_qmi_request_stk_handle_call_setup_requested_from_sim
          QCRIL_GSTK_QMI_CMD_STK_OPEN_CHANNEL)))
   {
     QCRIL_LOG_QMI( modem_id, "qmi_uim_service", "event confirmation" );
-    qmi_err_code = qmi_client_send_msg_sync(
+    qmi_err_code = qmi_client_send_msg_sync_with_shm(
                      qcril_gstk_qmi_info.gstk_command_info[slot_index].cmd_ptr->handle,
                      QMI_CAT_EVENT_CONFIRMATION_REQ_V02,
                      (void *) &event_conf_req,
@@ -3974,6 +4250,9 @@ void qcril_gstk_qmi_process_notify_ril_is_ready
                                 &timer_id );
     qcril_gstk_qmi_info.timer_id = timer_id;
   }
+
+  /* Get supported proactive commands from QMI CAT for STK recovery */
+  qcril_gstk_qmi_get_recovery_proactive_cache(instance_id);
 } /* qcril_gstk_process_notify_ril_is_ready */
 
 /*===========================================================================
@@ -4218,7 +4497,7 @@ void qcril_gstk_qmi_scws_channel_status_callback
   channel_status_req.channel_status.state = qcril_gstk_qmi_convert_scws_socket_state(socket_state);;
 
   QCRIL_LOG_QMI( QCRIL_DEFAULT_MODEM_ID, "qmi_uim_service", "scws channel status" );
-  qmi_err_code = qmi_client_send_msg_sync(
+  qmi_err_code = qmi_client_send_msg_sync_with_shm(
                    qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
                    QMI_CAT_SCWS_CHANNEL_STATUS_REQ_V02,
                    (void *) &channel_status_req,
@@ -4342,7 +4621,7 @@ void qcril_gstk_qmi_request_stk_send_envelope_with_status
 
   /* Primary will always send envelope commands to card */
   QCRIL_LOG_QMI( modem_id, "qmi_gstk_service", "send_envelope" );
-  qmi_err_code = qmi_client_send_msg_sync(qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
+  qmi_err_code = qmi_client_send_msg_sync_with_shm(qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
                                           QMI_CAT_SEND_ENVELOPE_CMD_REQ_V02,
                                           (void *) env_cmd_req_ptr,
                                           sizeof(cat_send_envelope_cmd_req_msg_v02),
@@ -4394,15 +4673,18 @@ void qcril_gstk_qmi_request_stk_send_envelope_with_status
                   ril_response.simResponse != NULL ? ril_response.simResponse : "NULL");
 
 send_envelope_response:
-  /* Since this is synchronous call to QMI we respond here with the result */
-  resp.resp_pkt = (void *)&ril_response;
-  resp.resp_len = sizeof(RIL_SIM_IO_Response);
+  /* Since this is synchronous call to QMI we respond here with the result.
+     Fill the default data first and then the response data */
 
   qcril_default_request_resp_params( instance_id,
                                      params_ptr->t,
                                      params_ptr->event_id,
                                      ril_result,
                                      &resp );
+
+  resp.resp_pkt = (void *)&ril_response;
+  resp.resp_len = sizeof(RIL_SIM_IO_Response);
+
   qcril_send_request_response( &resp );
 
   /* Free the response pointer we allocated earlier */
@@ -4478,6 +4760,189 @@ void qcril_gstk_qmi_process_card_error
     qcril_gstk_qmi_deactivate_timer();
   }
 } /* qcril_gstk_qmi_process_card_error */
+
+
+/*=========================================================================
+  FUNCTION:  qcril_gstk_qmi_get_recovery_proactive_cache
+===========================================================================*/
+/*!
+ *   @brief
+ *     Requests recovery proactive commands from QMI CAT and performs the
+ *     necessary data parsing, packaging the data and sends the UNSOL event
+ *     to Android Telephony.
+ *
+ *   @return
+ *     None
+ *                                                                         */
+/*=========================================================================*/
+static void qcril_gstk_qmi_get_recovery_proactive_cache
+(
+  qcril_instance_id_e_type  instance_id
+)
+{
+  qcril_gstk_qmi_unsol_info_type              ril_unsol_resp;
+  cat_get_cached_proactive_cmd_req_msg_v02    get_cache_req;
+  cat_get_cached_proactive_cmd_resp_msg_v02  *get_cache_resp_ptr = NULL;
+  qmi_client_error_type                       qmi_err_code       = QMI_NO_ERR;
+  uint8                                       slot_index         = QCRIL_GSTK_INVALID_SLOT_INDEX_VALUE;
+  uint8                                       i                  = 0;
+  /* Map STK_CMD to CAT_CACHED_COMMAND_ID */
+  qcril_gstk_cmd_id_qmi_req_id_map_type recovery_proactive_commands[] =
+  {
+    {QCRIL_GSTK_QMI_CMD_STK_SET_UP_MENU,           CAT_CACHED_COMMAND_ID_SETUP_MENU_V02},
+    {QCRIL_GSTK_QMI_CMD_STK_SET_UP_EVENT_LIST,     CAT_CACHED_COMMAND_ID_SETUP_EVENT_LIST_V02},
+    {QCRIL_GSTK_QMI_CMD_STK_SET_UP_IDLE_MODE_TEXT, CAT_CACHED_COMMAND_ID_SETUP_IDLE_TEXT_V02}
+  };
+
+  QCRIL_LOG_INFO("Enter: instance_id=0x%x", instance_id);
+
+  slot_index = qcril_gstk_qmi_convert_instance_to_slot_index(instance_id);
+
+  if ((instance_id >= QCRIL_MAX_INSTANCE_ID)               ||
+      (slot_index  == QCRIL_GSTK_INVALID_SLOT_INDEX_VALUE) ||
+      (slot_index  >= qcril_gstk_get_num_slots()))
+  {
+    QCRIL_LOG_ERROR("Invalid values, instance_id: 0x%x, slot_index: 0x%x",
+                     instance_id, slot_index);
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  get_cache_resp_ptr = (cat_get_cached_proactive_cmd_resp_msg_v02 *)qcril_malloc(
+                        sizeof(cat_get_cached_proactive_cmd_resp_msg_v02));
+  if(NULL == get_cache_resp_ptr)
+  {
+    QCRIL_LOG_ERROR("qcril_malloc fail get_cache_resp_ptr\n");
+    QCRIL_ASSERT(0);
+    return;
+  }
+
+  memset(&get_cache_req, 0x00, sizeof(get_cache_req));
+  get_cache_req.slot_valid = TRUE;
+  get_cache_req.slot.slot  = qcril_gstk_qmi_convert_slot_index_to_slot_type(slot_index);
+
+  for (i = 0;
+       i < sizeof(recovery_proactive_commands)/sizeof(recovery_proactive_commands[0]);
+       i++)
+  {
+    /* Get command from QMI only if it is not in QCRIL cache */
+    if (qcril_gstk_qmi_info.gstk_command_info[slot_index].cmd_ptr &&
+        recovery_proactive_commands[i].gstk_cmd_id ==
+          qcril_gstk_qmi_info.gstk_command_info[slot_index].cmd_ptr->command_type)
+    {
+      continue;
+    }
+
+    QCRIL_LOG_INFO("Requesting qmi_req_cmd_id=0x%x", recovery_proactive_commands[i].qmi_req_cmd_id);
+
+    get_cache_req.command_id = recovery_proactive_commands[i].qmi_req_cmd_id;
+    memset(get_cache_resp_ptr, 0x00, sizeof(*get_cache_resp_ptr));
+    qmi_err_code = qmi_client_send_msg_sync(
+                          qcril_gstk_qmi_info.qmi_cat_svc_client_primary,
+                          QMI_CAT_GET_CACHED_PROACTIVE_CMD_REQ_V02,
+                          (void *)&get_cache_req,
+                          sizeof(get_cache_req),
+                          (void *)get_cache_resp_ptr,
+                          sizeof(*get_cache_resp_ptr),
+                          QMI_CAT_DEFAULT_TIMEOUT);
+    if (qmi_err_code               != QMI_NO_ERR ||
+        get_cache_resp_ptr->resp.result != QMI_RESULT_SUCCESS_V01 ||
+        get_cache_resp_ptr->resp.error  != QMI_ERR_NONE_V01)
+    {
+      QCRIL_LOG_ERROR("Error GET_CACHED_PROACTIVE_CMD_REQ, qmi_err_code: 0x%x, result: 0x%x, error: 0x%x\n",
+                      qmi_err_code, get_cache_resp_ptr->resp.result, get_cache_resp_ptr->resp.error);
+      continue;
+    }
+
+    /* Prepare qcril_gstk_qmi_unsol_info_type */
+    memset(&ril_unsol_resp, 0x00, sizeof(ril_unsol_resp));
+    ril_unsol_resp.ril_unsol_type = RIL_UNSOL_STK_EVENT_NOTIFY;
+    switch (get_cache_req.command_id)
+    {
+      case CAT_CACHED_COMMAND_ID_SETUP_MENU_V02:
+        if (get_cache_resp_ptr->setup_menu_valid)
+        {
+          if (get_cache_resp_ptr->setup_menu.pc_setup_menu_len < QCRIL_GSTK_QMI_COMMAND_MIN_SIZE ||
+              get_cache_resp_ptr->setup_menu.pc_setup_menu_len > QMI_CAT_RAW_PROACTIVE_CMD_MAX_LENGTH_V02)
+          {
+            QCRIL_LOG_ERROR("Length out of range: 0x%x, discarding TLV",
+                            get_cache_resp_ptr->setup_menu.pc_setup_menu_len);
+            return;
+          }
+
+          /* Allocate & copy response packet's data & length */
+          QCRIL_GSTK_QMI_MALLOC_AND_CPY_CMD(ril_unsol_resp.ril_unsol_resp.resp_pkt,
+                                            ril_unsol_resp.ril_unsol_resp.resp_len,
+                                            get_cache_resp_ptr->setup_menu.pc_setup_menu,
+                                            get_cache_resp_ptr->setup_menu.pc_setup_menu_len);
+        }
+        break;
+
+      case CAT_CACHED_COMMAND_ID_SETUP_EVENT_LIST_V02:
+        if (get_cache_resp_ptr->setup_event_list_raw_valid)
+        {
+          if (get_cache_resp_ptr->setup_event_list_raw.pc_setup_event_list_len < QCRIL_GSTK_QMI_COMMAND_MIN_SIZE ||
+              get_cache_resp_ptr->setup_event_list_raw.pc_setup_event_list_len > QMI_CAT_RAW_PROACTIVE_CMD_MAX_LENGTH_V02)
+          {
+            QCRIL_LOG_ERROR("Length out of range: 0x%x, discarding TLV",
+                            get_cache_resp_ptr->setup_event_list_raw.pc_setup_event_list_len);
+            return;
+          }
+
+          /* Allocate & copy response packet's data & length */
+          QCRIL_GSTK_QMI_MALLOC_AND_CPY_CMD(ril_unsol_resp.ril_unsol_resp.resp_pkt,
+                                            ril_unsol_resp.ril_unsol_resp.resp_len,
+                                            get_cache_resp_ptr->setup_event_list_raw.pc_setup_event_list,
+                                            get_cache_resp_ptr->setup_event_list_raw.pc_setup_event_list_len);
+        }
+        break;
+
+      case CAT_CACHED_COMMAND_ID_SETUP_IDLE_TEXT_V02:
+        if (get_cache_resp_ptr->idle_mode_text_valid)
+        {
+          if (get_cache_resp_ptr->idle_mode_text.pc_setup_idle_mode_text_len < QCRIL_GSTK_QMI_COMMAND_MIN_SIZE ||
+              get_cache_resp_ptr->idle_mode_text.pc_setup_idle_mode_text_len > QMI_CAT_RAW_PROACTIVE_CMD_MAX_LENGTH_V02)
+          {
+            QCRIL_LOG_ERROR("Length out of range: 0x%x, discarding TLV",
+                            get_cache_resp_ptr->idle_mode_text.pc_setup_idle_mode_text_len);
+            return;
+          }
+
+          /* Allocate & copy response packet's data & length */
+          QCRIL_GSTK_QMI_MALLOC_AND_CPY_CMD(ril_unsol_resp.ril_unsol_resp.resp_pkt,
+                                            ril_unsol_resp.ril_unsol_resp.resp_len,
+                                            get_cache_resp_ptr->idle_mode_text.pc_setup_idle_mode_text,
+                                            get_cache_resp_ptr->idle_mode_text.pc_setup_idle_mode_text_len);
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    QCRIL_LOG_INFO("Received response: resp_pkt=0x%x, resp_len=0x%x",
+                   ril_unsol_resp.ril_unsol_resp.resp_pkt, ril_unsol_resp.ril_unsol_resp.resp_len);
+
+    /* Send qcril_unsol_resp_params_type to STK */
+    if (ril_unsol_resp.ril_unsol_resp.resp_pkt &&
+        ril_unsol_resp.ril_unsol_resp.resp_len)
+    {
+      QCRIL_LOG_INFO("Sending RIL_UNSOL_STK_EVENT_NOTIFY for 0x%x",
+                     get_cache_req.command_id);
+
+      qcril_gstk_qmi_send_unsol_resp(instance_id,
+                                     ril_unsol_resp.ril_unsol_type,
+                                     ril_unsol_resp.ril_unsol_resp.resp_pkt,
+                                     ril_unsol_resp.ril_unsol_resp.resp_len);
+
+      /* Free buffer allocated for the UNSOL response */
+      QCRIL_GSTK_QMI_FREE_PTR(ril_unsol_resp.ril_unsol_resp.resp_pkt);
+    }
+  }
+
+  /* Free  allocated get_cache_resp_ptr */
+  QCRIL_GSTK_QMI_FREE_PTR(get_cache_resp_ptr);
+}/* qcril_gstk_qmi_get_recovery_proactive_cache */
 
 
 #else  /* FEATURE_CDMA_NON_RUIM  */

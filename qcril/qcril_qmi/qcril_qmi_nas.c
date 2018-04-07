@@ -7,7 +7,7 @@
 
   ---------------------------------------------------------------------------
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -31,8 +31,13 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <fcntl.h>
+
+#ifdef QMI_RIL_UTF
+#include <signal.h>
+#include <time.h>
+#endif
+
 #include "ril.h"
 #include <telephony/librilutils.h>
 #include "IxErrno.h"
@@ -42,7 +47,6 @@
 #include "qcril_arb.h"
 #include "qcril_qmi_nas.h"
 #include "qcril_db.h"
-#include "network_access_service_v01.h"
 #include "qcril_qmi_client.h"
 #include "qcril_cm_util.h"
 #include "qcril_cm_ss.h"
@@ -59,6 +63,8 @@
 #include "qcril_qmi_ims_socket.h"
 #include "qcril_qmi_imsa.h"
 #include "qcril_am.h"
+
+#include "qmi_ril_platform_dep.h"
 
 #include "time_genoff.h"
 
@@ -91,7 +97,7 @@
 #define NAS_SIGNAL_STRENGTH_UNK     (-1)
 #define NAS_SIGNAL_STRENGTH_UNK_GW  (99)
 
-#define NAS_MCC_MNC_MAX_SIZE     (4)
+#define NAS_MCC_MNC_MAX_SIZE       (QCRIL_MCC_MNC_MAX_SIZE)
 #define NAS_3GPP2_MCC_MAX_SIZE     (5)
 
 #define NAS_REQ_MASK_SIG_STRENGTH_RSSI          0x0001
@@ -142,6 +148,9 @@
 #define NAS_VAL_ROAMING_HOME                          (1)
 #define NAS_VAL_ROAMING_FLASHING                      (2)
 #define NAS_VAL_ROAMING_HOME_EX_64                    (64)
+#define NAS_VAL_ROAMING_HOME_EX_65                    (65)
+#define NAS_VAL_ROAMING_HOME_EX_76                    (76)
+#define NAS_VAL_ROAMING_HOME_EX_83                    (83)
 
 #define NAS_CMN_DEFAULT_MODEM                         (0)
 
@@ -158,13 +167,6 @@
 #define NAS_VAL_CS_ATTACH_UNKNOWN                     (0)
 #define NAS_VAL_CS_ATTACH_ATTACHED                    (1)
 #define NAS_VAL_CS_ATTACH_DETACHED                    (2)
-
-#define QCRIL_SRV_DOMAIN_PREF_NO_SRVC_DOMAIN_V01      (QMI_SRV_DOMAIN_PREF_CS_ONLY_V01 + \
-                                                       QMI_SRV_DOMAIN_PREF_PS_ONLY_V01 + \
-                                                       QMI_SRV_DOMAIN_PREF_CS_PS_V01 + \
-                                                       QMI_SRV_DOMAIN_PREF_PS_ATTACH_V01 + \
-                                                       QMI_SRV_DOMAIN_PREF_PS_DETACH_V01 + \
-                                                       QMI_SRV_DOMAIN_PREF_PS_DETACH_NO_PREF_CHANGE_V01 )
 
 #define NAS_VAL_BAND_PREF_BC0_A                       ( (uint64_t) 1 << 0 )
 #define NAS_VAL_BAND_PREF_BC0_B                       ( (uint64_t) 1 << 1 )
@@ -325,6 +327,9 @@
 
 #define NAS_RIL_MAX_BAND_CAPACITY_LIST_SIZE  (32)
 
+#define NAS_VAL_TDD_LTE_BAND_MASK (0xFFFFFFFF00000000)
+#define NAS_VAL_FDD_LTE_BAND_MASK (0xFFFFFFFF)
+
 
 #define NAS_NW_SCAN_RES_ENTRY_PREFERRED              ( (uint8_t) 1 << 6 )
 #define NAS_NW_SCAN_RES_ENTRY_NOT_PREFERRED          ( (uint8_t) 1 << 7 )
@@ -360,6 +365,7 @@
 #define QMI_RIL_OP_NAME_NITZ_SONS_3              "persist.radio.nitz_sons_3_"
 
 #define QMI_RIL_TUNE_AWAY                        "persist.radio.tuneaway_"
+#define QMI_RIL_LTE_TUNE_AWAY                    "persist.radio.lte_tuneaway_"
 #define QMI_RIL_PAGING_PRIORITY                  "persist.radio.paging_priority_"
 
 #define QMI_RIL_SIMO_CS_PS_SVLTE                 "ro.ril.svlte1x"
@@ -373,6 +379,7 @@
 
 #define QMI_RIL_TELEPHONY_EONS_SUPPORTED         "persist.radio.eons.enabled"
 #define QMI_RIL_PREFER_SPN_OVER_PLMN_NAME        "persist.radio.prefer_spn"
+#define QMI_RIL_ALWAYS_SEND_PLMN_NAME            "persist.radio.always_send_plmn"
 #define QMI_RIL_PROCESS_DUPLICATE_NW_SCAN_NAMES  "persist.radio.proc_nw_scan"
 #define QMI_RIL_SGLTE_EONS_PREF_DOMAIN_PROPERTY  "persist.radio.sglte.eons_domain"
 #define QMI_RIL_SGLTE_EONS_PREF_ROAMING_PROPERTY "persist.radio.sglte.eons_roam"
@@ -382,7 +389,10 @@
 #define QMI_RIL_RELAY_OPRT_CHANGE                "persist.radio.relay_oprt_change"
 #define QMI_RIL_REG_DENIED_ON_REJ_CAUSE          "persist.radio.reg_den_rej_cause"
 #define QMI_RIL_1X_ROAM_MTU_SIZE                 "persist.radio.1x_roam_mtu_size"
+#define QMI_RIL_MANUAL_NW_REJECT_COUNTER_ENABLE  "persist.radio.manual_nw_rej_ct"
 #define QMI_RIL_IGNORE_SRV_DOMAIN_CAMPED_TIMER   "persist.radio.ignore_dom_time"
+
+#define QMI_RIL_MANUAL_NW_REJECT_MAX_COUNT       (4)
 
 
 #define QMI_RIL_CUSTOM_EMERGENCY_NUMBERS_ENABLED                  "persist.radio.custom_ecc"
@@ -435,6 +445,7 @@
 #define QCRIL_ERI_64_HOME                     "persist.radio.eri64_as_home"
 #define QCRIL_DO_NOT_CONSIDER_MANAGED_ROAM    "persist.radio.no_cons_man_roam"
 #define QCRIL_CSG_INFO_AVAILABLE              "persist.radio.csg_info_avlbl"
+#define QCRIL_APM_MDM_NOT_PWDN                "persist.radio.apm_mdm_not_pwdn"
 
 #define QMI_RIL_WAIT_FOR_PBM_IND                 "persist.radio.wait_for_pbm"
 #define QMI_RIL_WAIT_FOR_PBM_IND_TIMER           "persist.radio.wait_for_pbm_time"
@@ -442,7 +453,12 @@
 
 #define QMI_RIL_SIB16_SUPPORT                 "persist.radio.sib16_support"
 
+#define QMI_RIL_FULL_LTE_BAND_PREF            "persist.radio.lte_full_band"
+//like adb shell setprop persist.radio.lte_full_band 0x7ff5bdf3fff
+
 #define QCRIL_CELL_INFO_RATE_SWEEP_LIMIT          "persist.radio.cinfo_sweep_limit"
+
+#define QCRIL_IS_RAT_TLV_SUPPORTED            "is_rat_tlv_supported"
 
 #define NAS_CELL_LOCATION_VALID(resp_ptr) \
    ((resp_ptr) && ((resp_ptr)->geran_info_valid || \
@@ -533,6 +549,9 @@ typedef enum
 #define GPRS_SERVICES_NOT_ALLOWED_IN_THIS_PLMN          0x0E
 #define NO_SUITABLE_CELLS_IN_LA                         0x0F
 #define CSG_NOT_AUTHORIZED                              0x19
+
+/* Network Failure rejection cause */
+#define QCRIL_REJECT_CAUSE_NETWORK_FAIL                 (0x11)
 
 typedef enum
 {
@@ -648,7 +667,9 @@ typedef enum
 typedef enum
 {
     QMI_RIL_EMBMS_IN_COVERAGE = 0,
-    QMI_RIL_EMBMS_OUT_OF_COVERAGE
+    QMI_RIL_EMBMS_OUT_OF_COVERAGE,
+    QMI_RIL_EMBMS_OUT_OF_COVERAGE_DUE_TO_UEMODE,
+    QMI_RIL_EMBMS_OUT_OF_COVERAGE_E911,
 } qmi_ril_embms_coverage_state_e_type;
 
 typedef enum
@@ -697,14 +718,41 @@ typedef enum {
 } qcril_mcc_match_index;
 
 //radio power process handling
-#define RADIO_POWER_LOCK()      pthread_mutex_lock(&nas_common_info.radio_pwr_mutex);
-#define RADIO_POWER_UNLOCK()    pthread_mutex_unlock(&nas_common_info.radio_pwr_mutex);
+#define RADIO_POWER_LOCK() do { \
+        QCRIL_LOG_INFO("LOCK RADIO_POWER_LOCK"); \
+        pthread_mutex_lock(&nas_common_info.radio_pwr_mutex); \
+    } while(0)
+
+#define RADIO_POWER_UNLOCK() do { \
+        QCRIL_LOG_INFO("UNLOCK RADIO_POWER_LOCK"); \
+        pthread_mutex_unlock(&nas_common_info.radio_pwr_mutex); \
+    }while(0)
+
 #define RADIO_POWER_WAIT()      qcril_qmi_nas_radio_power_process_condition_wait_helper();
 #define RADIO_POWER_SIGNAL()    pthread_cond_signal(&nas_common_info.radio_pwr_cond_var);
 
+#define NAS_NW_SEL_LOCK() do { \
+        QCRIL_LOG_INFO("LOCK NAS_NW_SEL_LOCK"); \
+        pthread_mutex_lock(&nas_common_info.nw_sel_lock_mutex); \
+    }while(0)
+
+#define NAS_NW_SEL_UNLOCK() do { \
+        QCRIL_LOG_INFO("UNLOCK NAS_NW_SEL_LOCK"); \
+        pthread_mutex_unlock(&nas_common_info.nw_sel_lock_mutex); \
+    }while(0)
+
+
+
 // cache handling
-#define NAS_CACHE_LOCK()                            { pthread_mutex_lock(&nas_common_info.cache_lock_mutex); }
-#define NAS_CACHE_UNLOCK()                          { pthread_mutex_unlock(&nas_common_info.cache_lock_mutex); }
+#define NAS_CACHE_LOCK() do { \
+        QCRIL_LOG_INFO("LOCK NAS_CACHE_LOCK"); \
+        pthread_mutex_lock(&nas_common_info.cache_lock_mutex); \
+    }while(0)
+
+#define NAS_CACHE_UNLOCK() do { \
+        QCRIL_LOG_INFO("UNLOCK NAS_CACHE_LOCK"); \
+        pthread_mutex_unlock(&nas_common_info.cache_lock_mutex); \
+    }while(0)
 
 #define NAS_CACHE_STORE_ENTRY_ARR( placeholder, value )   {   if (value ## _valid) { \
                                                                                          if ( placeholder ) { qcril_free( placeholder ); placeholder = NULL;  placeholder ## _valid = FALSE;  }   \
@@ -832,12 +880,12 @@ struct nas_cached_info_type
   uint8_t mode_pref_valid;
   uint16_t mode_pref;
 
-  uint8_t prev_mode_pref_valid;
-  uint16_t prev_mode_pref;
-
   uint8_t acq_order_valid;
   uint32_t acq_order_len;
   struct { nas_radio_if_enum_v01 arr[NAS_ACQ_ORDER_LIST_MAX_V01]; } *acq_order;
+
+  uint8_t prev_mode_pref_valid;
+  uint16_t prev_mode_pref;
 
   uint8_t gw_acq_order_pref_valid;
   uint16_t gw_acq_order_pref;
@@ -853,6 +901,10 @@ struct nas_cached_info_type
 
   uint8_t lte_band_pref_valid;
   uint64_t lte_band_pref;
+
+  uint8_t deferred_lte_band_pref_valid;
+  uint64_t deferred_lte_band_pref;
+  qcril_qmi_band_pref_e_type deferred_lte_band_pref_map;
 
   uint8_t net_sel_pref_valid;
   uint8_t net_sel_pref;
@@ -1163,6 +1215,10 @@ struct nas_cached_info_type
   uint8_t                            lte_embms_coverage_valid;
   uint8_t                            lte_embms_coverage;
 
+  uint8_t                            embms_coverage_status_valid;
+  nas_lte_rrc_embms_coverage_status_enum_v01
+                                     embms_coverage_status;
+
   int32_t                            embms_enable_dbg_trace_id;
   int32_t                            embms_disable_dbg_trace_id;
 
@@ -1177,7 +1233,7 @@ struct nas_cached_info_type
   int                                is_considered_registered_cached_result;
 
   /* cache is valid when is_considered_registered_cached_result_valid is valid */
-  int                                registered_cached_rte;
+  qmi_ril_nw_reg_rte_type            registered_cached_rtes[QMI_RIL_RTE_LAST];
 
   // is in service on technology cache
   int                                is_in_service_of_technology_cache_result_valid;
@@ -1209,6 +1265,10 @@ struct nas_cached_info_type
   //Simultaneous Voice and Data Capability
   uint8_t simul_voice_and_data_capability_valid;
   dms_simul_voice_and_data_capability_mask_v01 simul_voice_and_data_capability;
+
+  //Device feature mode
+  uint8_t subs_device_feature_mode_valid;
+  dms_device_subs_feature_mode_enum_v01 subs_device_feature_mode;
 
   //last considered Telephony data technology as part of VOICE_REGISTRATION_STATE handling
   uint8_t                            considered_data_technology_valid;
@@ -1253,6 +1313,7 @@ struct nas_cached_info_type
 
   nas_get_cell_location_info_resp_msg_v01      *cell_location_info;
   uint64_t cell_location_info_time;
+
   uint8_t wcdma_csg_info_valid;
   nas_csg_info_type_v01 *wcdma_csg_info;
 
@@ -1271,11 +1332,13 @@ struct nas_cached_info_type
   uint8_t is_indication_received;
 };
 
+#ifndef QMI_RIL_UTF
 typedef struct
 {
   log_hdr_type hdr;
   int8_t log_payload[LOG_PACKET_SIZE_MAX_V01];
 } qcril_qmi_nas_embms_log_type;
+#endif
 
 #define  QMI_RIL_NWREG_INVALID_TUPLE_ID                                                                 (-1)
 
@@ -1307,6 +1370,15 @@ struct nas_dms_cached_info_type
 
     uint8_t max_subscriptions;
     uint8_t max_subscriptions_active;
+
+    uint8_t current_sub_capability_valid;
+    uint32_t current_sub_capability;
+
+    uint8_t subs_voice_data_capability_valid;
+    uint8_t subs_voice_data_capability;
+
+    uint8_t max_active_data_subs_valid;
+    uint8_t max_active_data_subs;
 };
 
 struct nas_evt_post_info_type
@@ -1411,6 +1483,9 @@ typedef struct
   int                      card_ever_present;
   char                     iccid[QMI_DMS_UIM_ID_MAX_V01 + 1];
   int                      iccid_len;
+  int                      valid;
+  char                     mcc[QCRIL_MCC_MNC_MAX_SIZE];
+  char                     mnc[QCRIL_MCC_MNC_MAX_SIZE];
 } qcril_qmi_nas_dms_card_info_type;
 
 struct nas_dsds_runtime_info_type
@@ -1422,8 +1497,18 @@ struct nas_dsds_runtime_info_type
     nas_subs_type_enum_v01      default_voice_sub;
     nas_subs_type_enum_v01      default_data_sub;
     int                         valid;
-    boolean                     pending_unsol_sub_status;
+    qcril_modem_stack_id_e_type modem_stack_id;
+    qcril_instance_id_e_type    default_data_instance_id;
+    int                         is_default_data_set;
+    int                         is_lte_tune_away;
 };
+
+typedef struct
+{
+    boolean                         is_not_bootup_radio_power_on;
+    boolean                         radio_power_process_pending;
+    int                             apm_mdm_not_pwdn;
+} qcril_qmi_modem_power_runtime_info_type;
 
 struct nas_common_runtime_info_type
 {
@@ -1449,6 +1534,7 @@ struct nas_common_runtime_info_type
     int always_report_restricted_state;
     int get_mode_pref_from_nv_10;
     qmi_ril_nas_spn_plmn_name_preference_e_type prefer_spn_over_plmn_name;
+    boolean                                     always_send_plmn_name;
 
     int process_duplicate_nw_scan_names;
     int csg_info_available;
@@ -1468,12 +1554,20 @@ struct nas_common_runtime_info_type
     int do_not_consider_managed_roam;
     int is_restore_prev_mode_pref;
 
+    int is_rat_tlv_supported;
+
     int wait_for_pbm_ind;
     int wait_for_pbm_ind_timer;
     int wait_for_pbm_ind_timer_id_valid;
     uint32 wait_for_pbm_ind_timer_id;
 
+    uint8 permanent_lte_band_pref_valid;
+    uint64_t permanent_lte_band_pref;
+
     int is_reg_denied_on_rej_cause;
+
+    int manual_nw_reject_cause_counter_enabled;
+    int manual_nw_reject_cause_counter;
 
     int sib16_support;
 
@@ -1523,6 +1617,7 @@ struct nas_common_runtime_info_type
     int unsol_cell_info_current_rate; // Current timer value for polling.
     boolean cell_info_poll_timer_id_valid;                      // Timer id of currently scheduled poll
     uint32 cell_info_poll_timer_id;                      // Timer id of currently scheduled poll
+    qcril_qmi_modem_power_runtime_info_type modem_power_info;
 };
 
 enum
@@ -1584,7 +1679,7 @@ typedef struct
   char meid[ NAS_DMS_MEID_MAX_STR_SIZE ];
 } qcril_nas_dms_device_identity_type;
 
-typedef void (*qcril_qmi_dsds_set_pref_cb) ( RIL_Errno resp_res );
+typedef void (*qcril_qmi_cb_func_ptr) ( RIL_Errno resp_res );
 
 typedef struct
 {
@@ -1611,9 +1706,6 @@ typedef struct
 
 #define NAS_TIME_UNIX_EPOCH_TIME_OFFSET_FOR_JAN_1_1900_IN_MILLI_SEC   (-2208988800000)
 #define NAS_TIME_UNIX_EPOCH_TIME_OFFSET_FOR_JAN_6_1980_IN_MILLI_SEC   (315964800000)
-
-#define NAS_VALID_FILE_HANDLE                            (0)
-#define NAS_MDM_SHUTDOWN_IOCTL_CMD                       (0x4004cc0a)
 
 #define NAS_SET_BIT( flag_variable, value)              flag_variable |= value;
 #define NAS_IS_BIT_SET( flag_variable, value)           ((flag_variable & value)? TRUE: FALSE)
@@ -1750,6 +1842,20 @@ typedef struct {
   qcril_qmi_nas_csg_nw_signal_strength_info_type csg_sig_info[NAS_3GPP_NETWORK_INFO_LIST_MAX_V01];
 }qcril_qmi_nas_perform_network_scan_csg_resp_msg;
 
+/* APN info input */
+typedef struct
+{
+    int32   apn_type_len;
+
+    /* null terminated string */
+    char   *apn_type;
+
+    int32   apn_name_len;
+
+    /* null terminated string */
+    char   *apn_name;
+} qcril_qmi_oem_evt_hook_set_set_apn_info_type;
+
 //===========================================================================
 
 //                     GLOBALS
@@ -1854,8 +1960,6 @@ static const char *pref_data_tech_name[] =  { "INVALID",
                                               "TDSCDMA",
                                               "MAX"};
 
-static const char *modem_node_name[QCRIL_MAX_INSTANCE_ID] = { "/dev/mdm",
-                                                              "/dev/mdm1"};
 
 static const qcril_arb_pref_data_tech_e_type qmi_ril_data_reg_tech_priorities[ QCRIL_ARB_PREF_DATA_TECH_MAX ] = { QCRIL_ARB_PREF_DATA_TECH_LTE,
                                                                                                                   QCRIL_ARB_PREF_DATA_TECH_EHRPD,
@@ -1881,17 +1985,6 @@ static qcril_qmi_nas_get_engineer_mode_info_timer_type qcril_qmi_nas_get_enginee
 //                                FUNCTIONS
 
 //===========================================================================
-
-void qcril_qmi_nas_get_subscription_info();
-void qcril_qmi_nas_get_multisim_device_capability();
-void qcril_qmi_nas_perform_incremental_network_scan_ind_handler
-(
-nas_perform_incremental_network_scan_ind_msg_v01 * nw_scan_ind
-);
-void qcril_qmi_nas_check_initial_attach_state
-(
-    nas_srv_domain_pref_enum_type_v01 srv_domain_pref
-);
 
 //INLINE functions
 static inline int qcril_qmi_nas_is_atel_rat_3gpp(RIL_RadioTechnology atel_rat);
@@ -1945,7 +2038,6 @@ static int qcril_qmi_nas_dms_event_report_qmi2ril(dms_event_report_ind_msg_v01 *
 
 
 static int qcril_qmi_nas_signal_strength_con_conv_cache2ril(RIL_SignalStrength* ril_msg);
-
 static void qcril_qmi_nas_set_subscription_source_generic
 (
   const qcril_request_params_type *const params_ptr,
@@ -1966,9 +2058,9 @@ static void qcril_qmi_nas_set_subscription_source_generic
 static void qcril_qmi_nas_perform_network_scan_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 );
@@ -1976,9 +2068,9 @@ static void qcril_qmi_nas_perform_network_scan_command_cb
 static void qcril_qmi_nas_get_neighboring_cells_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 );
@@ -1986,9 +2078,9 @@ static void qcril_qmi_nas_get_neighboring_cells_cb
 static void qcril_qmi_nas_csg_handle_oem_hook_perform_network_scan_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 );
@@ -2007,9 +2099,9 @@ static void qcril_qmi_nas_restore_modem_pref();
 static void qcril_qmi_nas_set_nw_selection_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 );
@@ -2076,14 +2168,16 @@ static qcril_subs_mode_pref qcril_qmi_nas_conv_nas_mode_pref_to_qcril(uint8_t in
                                                                RIL_SelectUiccSub* master_request_ref );
 
 static void qcril_qmi_nas_dsds_dual_standby_pref_ind_handler( nas_dual_standby_pref_ind_msg_v01* ind_msg );
-static void qcril_qmi_nas_dsds_subscription_info_ind_handler( nas_subscription_info_ind_msg_v01* ind_msg );
+static void qcril_qmi_nas_subscription_info_ind_handler( nas_subscription_info_ind_msg_v01* ind_msg );
+static void qcril_qmi_nas_dsds_subscription_info_ind_handle_helper( nas_subscription_info_ind_msg_v01* ind_msg );
 
+RIL_Errno qcril_qmi_nas_send_data_subscription_request();
 static void qcril_qmi_nas_dsds_fillini_default_standby_pref(nas_standby_pref_enum_v01 standby_pref, nas_set_dual_standby_pref_req_msg_v01* req_msg);
 static RIL_Errno qcril_qmi_nas_dsds_util_request_set_subscription_mode( nas_standby_pref_enum_v01 *standby_pref,
                                                                  nas_subs_type_enum_v01 * data_subs,
                                                                  nas_subs_type_enum_v01 *priority_subs,
                                                                  nas_subs_type_enum_v01 *voice_subs,
-                                                                 qcril_qmi_dsds_set_pref_cb  standby_pref_res_cb );
+                                                                 qcril_qmi_cb_func_ptr  standby_pref_res_cb );
 
 static void qcril_qmi_dsds_set_pref_ril_req_cb ( RIL_Errno resp_res );
 static void qcril_qmi_nas_drop_nw_info_cache(void);
@@ -2144,10 +2238,10 @@ static qmi_ril_nas_nw_select_state_e_type qcril_qmi_nas_get_nw_select_state(void
 static void qcril_qmi_nas_nw_select_dedicated_unsolicited_indication_cb
         (
           qmi_client_type                user_handle,
-          unsigned long                  message_id,
-          unsigned char                  *ind_buf,
-          int                            ind_buf_len,
-          void                           *ind_cb_data
+          unsigned int                   message_id,
+          void                          *ind_buf,
+          unsigned int                   ind_buf_len,
+          void                          *ind_cb_data
         );
 static void qcril_qmi_nas_nw_select_timeout_handler();
 static void qcril_qmi_nas_nw_select_timeout_cb(void * params);
@@ -2155,6 +2249,8 @@ static void qcril_qmi_nas_nw_select_limited_timeout_cb(void * params);
 static int qcril_qmi_nas_nw_select_is_reported_plmn_same_as_requested_plmn(nas_common_network_id_type_v01 * reported_plmn);
 static void qcril_qmi_nas_select_nw_conclusion_check(void);
 static void qcril_qmi_nas_nw_select_total_cleanup(void);
+void qcril_qmi_nas_initial_attach_timeout_handler(void *param);
+qmi_ril_nas_init_apn_attch_state_e_type qcril_qmi_nas_get_init_attch_state();
 static int qcril_qmi_nas_find_current_mcc_mnc
 (
     char * mcc_str_ptr,
@@ -2204,13 +2300,12 @@ static void qcril_qmi_nas_embms_set_enable_timeout_handler_handler(void * param)
 static void qcril_qmi_nas_embms_set_enable_cmd_cb
                                                     (
                                                       qmi_client_type              user_handle,
-                                                      unsigned long                message_id,
+                                                      unsigned int                 message_id,
                                                       void                         *resp_c_struct,
-                                                      int                          resp_c_struct_len,
+                                                      unsigned int                 resp_c_struct_len,
                                                       void                         *resp_cb_data,
                                                       qmi_client_error_type        transp_err
                                                     );
-static void qcril_qmi_nas_embms_set_enable_cmd_cb_retranslator(qcril_timed_callback_handler_params_type * handler_params);
 static void qcril_qmi_nas_embms_embms_status_ind_handler(nas_embms_status_ind_msg_v01* status_ind);
 static void qcril_qmi_nas_embms_embms_status_ind_handler_retranslator(qcril_timed_callback_handler_params_type * handler_params);
 static void qcril_qmi_nas_embms_enable_data_con_retranslator(qcril_timed_callback_handler_params_type * handler_params);
@@ -2218,10 +2313,10 @@ static void qcril_qmi_nas_embms_txn_disable_act( qmi_ril_embms_op_disable_transa
 static void qcril_qmi_nas_embms_set_disable_cmd_cb
                                                     (
                                                       qmi_client_type              user_handle,
-                                                      unsigned long                message_id,
-                                                      void                         *resp_c_struct,
-                                                      int                          resp_c_struct_len,
-                                                      void                         *resp_cb_data,
+                                                      unsigned int                 message_id,
+                                                      void                        *resp_c_struct,
+                                                      unsigned int                 resp_c_struct_len,
+                                                      void                        *resp_cb_data,
                                                       qmi_client_error_type        transp_err
                                                     );
 static void qcril_qmi_nas_embms_set_disable_cmd_cb_retranslator(qcril_timed_callback_handler_params_type * handler_params);
@@ -2299,21 +2394,38 @@ static void qmi_ril_nwreg_enforce_common_ind_subscription_and_force_nw_search_as
 
 static void qcril_qmi_nas_rf_band_info_ind_handler(nas_rf_band_info_ind_msg_v01* rf_band_info_ind);
 static void qcril_qmi_nas_set_builtin_plmn_list_ind_handler(nas_set_builtin_plmn_list_ind_msg_v01 * plmn_list_ind);
-static void qcril_qmi_nas_coex_control_process_rf_band_info(nas_rf_band_info_type_v01* rf_band_info);
+static void qcril_qmi_nas_coex_control_process_rf_band_info
+(
+    qcril_coex_rf_band_info_type rf_band_info[QCRIL_COEX_RD_BAND_INFO_LENGTH],
+    int                          rf_band_info_len
+);
 
 static int qmi_ril_nwreg_spawn_snapshot_timer_cl( int is_maintanance );
 
 static void qmi_ril_nw_reg_post_cfg_ban_for_data_reg_extrapolation_expired(void * param);
 
-static qmi_ril_embms_coverage_state_e_type qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage(uint8_t qmi_embms_coverage);
+static qmi_ril_embms_coverage_state_e_type qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage(
+        nas_lte_rrc_embms_coverage_status_enum_v01 qmi_embms_coverage);
 
 
-static void qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(uint8_t prev_lte_embms_coverage_valid, uint8_t prev_lte_embms_coverage);
+static void qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(uint8_t prev_lte_embms_coverage_valid,
+                    nas_lte_rrc_embms_coverage_status_enum_v01 prev_lte_embms_coverage);
 static void qcril_qmi_nas_embms_send_cell_info_changed_if_needed(boolean prev_lte_sys_info_valid, const nas_lte_sys_info_type_v01* prev_lte_sys_info);
+static void qcril_qmi_nas_embms_send_e911_state_changed_if_needed
+(
+    uint8_t new_mode_valid,
+    uint8_t new_mode
+);
 
 static void qmi_ril_nw_reg_data_roaming_tmr_expired(void * param);
 
 static void qmi_ril_nwreg_perform_dsds_specific_early_init();
+
+void qcril_qmi_nas_get_subscription_info();
+int qcril_qmi_dms_construct_modem_cap_response(uint8_t * resp_byte_stream);
+void qcril_qmi_nas_send_unsol_modem_capability();
+RIL_Errno qcril_qmi_nas_get_multisim_device_capability(int need_msim_capability, int need_sub_capability);
+uint32_t qcril_qmi_dms_convert_sub_capability_to_ril_radio_tech();
 
 static void qcril_qmi_nas_process_custom_emergency_numbers();
 static void* qcril_qmi_nas_process_custom_emergency_numbers_helper(qmi_ril_custom_emergency_numbers_source_type source, int *number_of_tuples);
@@ -2350,6 +2462,17 @@ static void qcril_qmi_nas_process_sib16_network_time
    uint8_t daylt_sav_adj_valid,
    uint8_t daylt_sav_adj
 );
+static void qcril_qmi_nas_process_sib16_network_time_for_ats_utc
+(
+   const nas_lte_sib16_julian_time_type_v01* universal_time,
+   uint64_t abs_time,
+   uint8_t time_zone_valid,
+   int8_t time_zone,
+   uint8_t daylt_sav_adj_valid,
+   uint8_t daylt_sav_adj
+);
+static void qcril_qmi_nas_process_sib16_network_time_for_ats_modem(uint64_t abs_time);
+
 static void qcril_qmi_nas_sib16_network_time_ind_hdlr(const nas_lte_sib16_network_time_ind_msg_v01* decoded_payload);
 
 static void qcril_qmi_nas_get_field_test_mode_info_for_cdma( struct cdma_ftm_data *cdma_data);
@@ -2358,17 +2481,34 @@ static void qcril_qmi_nas_get_field_test_mode_info_for_wcdma( struct wcdma_ftm_d
 
 static uint64_t qcril_qmi_nas_convert_julian_time_to_abs_time(uint16_t year, uint8_t month, uint8_t day,
                                                               uint8_t hour, uint8_t minute, uint8_t second, uint16_t milli_second);
-
 void qcril_qmi_nas_send_unsol_sib16_coverage_if_needed(uint8_t prev_lte_sib16_coverage_valid,
                                                        uint8_t prev_lte_sib16_coverage,
                                                        uint8_t curr_lte_sib16_coverage_valid,
                                                        uint8_t curr_lte_sib16_coverage);
 
+void qcril_qmi_modem_power_process_regular_shutdown();
 
 static void qcril_qmi_nas_data_update_mtu_size_if_needed(uint8_t prev_reported_state_valid,
                                                          int prev_reported_state,
                                                          uint8_t prev_reported_tech_valid,
                                                          int prev_reported_tech);
+
+static void qcril_qmi_nas_perform_incremental_network_scan_ind_handler
+(
+    nas_perform_incremental_network_scan_ind_msg_v01 * nw_scan_ind
+);
+
+static void qcril_qmi_nas_check_initial_attach_state
+(
+    uint8_t srv_domain_pref_valid,
+    nas_srv_domain_pref_enum_type_v01 srv_domain_pref
+);
+
+static qmi_ril_nw_reg_rte_type qcril_qmi_nas_choose_rte_to_retrieve_3gpp_operator_name_info
+(
+    qmi_ril_nw_reg_rte_type  registered_rtes[QMI_RIL_RTE_LAST]
+);
+
 
 //===========================================================================
 // qcril_qmi_nas_init
@@ -2377,6 +2517,7 @@ void qcril_qmi_nas_dms_commmon_pre_init()
 {
     QCRIL_LOG_FUNC_ENTRY();
     pthread_mutexattr_init( &nas_common_info.cache_lock_mtx_atr );
+    pthread_mutexattr_settype(&nas_common_info.cache_lock_mtx_atr, PTHREAD_MUTEX_RECURSIVE);
 
     pthread_mutex_init( &nas_common_info.cache_lock_mutex, &nas_common_info.cache_lock_mtx_atr );
 
@@ -2440,15 +2581,15 @@ void qcril_qmi_nas_update_iccid
 
   QCRIL_LOG_DEBUG("%s", __FUNCTION__);
   memset( &get_iccid_resp, 0, sizeof(get_iccid_resp) );
-  rc = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
-
+  rc = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                   QMI_DMS_UIM_GET_ICCID_REQ_V01,
                                                   NULL,
                                                   NAS_NIL,
                                                   &get_iccid_resp,
                                                   sizeof(get_iccid_resp),
                                                   QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-  if ((rc == RIL_E_SUCCESS) && (get_iccid_resp.resp.result == RIL_E_SUCCESS))
+
+  if ((rc == RIL_E_SUCCESS) && (get_iccid_resp.resp.result == QMI_RESULT_SUCCESS_V01))
   {
     strlcpy(nas_common_info.card_info[slot].iccid, get_iccid_resp.uim_id, QMI_DMS_UIM_ID_MAX_V01 + 1);
     nas_common_info.card_info[slot].iccid_len = strlen(get_iccid_resp.uim_id);
@@ -2466,6 +2607,7 @@ void qcril_qmi_nas_init()
 {
     int temp_len;
     unsigned long ret_val;
+    uint64_t ret_value;
     char property_name[ 40 ];
     char args[ PROPERTY_VALUE_MAX ];
     char *end_ptr;
@@ -2478,7 +2620,9 @@ void qcril_qmi_nas_init()
     qcril_qmi_nas_query_cur_power_state( &op_mode, &op_mode_valid ); // need to have current oprt mode prior to qcril_qmi_util_enable_networking_indications() call
 
     NAS_CACHE_LOCK();
-
+#ifdef QMI_RIL_UTF
+    nas_common_info.is_screen_off = FALSE;
+#endif
     nas_common_info.ct_operator_name = NAS_NIL;
     QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QCRIL_OPERATOR_PROP );
     property_get( property_name, args, "" );
@@ -2851,6 +2995,12 @@ void qcril_qmi_nas_init()
     }
     QCRIL_LOG_DEBUG( "PREFER_SPN_OVER_PLMN_NAME=%d", nas_common_info.prefer_spn_over_plmn_name );
 
+    nas_common_info.always_send_plmn_name = FALSE;
+    qmi_ril_get_property_value_from_boolean( QMI_RIL_ALWAYS_SEND_PLMN_NAME,
+                                             (boolean *)&nas_common_info.always_send_plmn_name,
+                                             FALSE );
+    QCRIL_LOG_DEBUG( "ALWAYS SEND PLMN NAME=%d", nas_common_info.always_send_plmn_name);
+
 
     nas_common_info.process_duplicate_nw_scan_names = NAS_NIL;
     QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QMI_RIL_PROCESS_DUPLICATE_NW_SCAN_NAMES );
@@ -3075,6 +3225,27 @@ void qcril_qmi_nas_init()
     }
     QCRIL_LOG_DEBUG( "SIB16_SUPPORT=%d", nas_common_info.sib16_support);
 
+    nas_common_info.permanent_lte_band_pref = NAS_NIL;
+    nas_common_info.permanent_lte_band_pref_valid = FALSE;
+    QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QMI_RIL_FULL_LTE_BAND_PREF);
+    property_get( property_name, args, "" );
+    temp_len = strlen( args );
+    if ( temp_len > 0 )
+    {
+      ret_value = strtoull( args, &end_ptr, 0 );
+      if ( ( errno == ERANGE ) && ( ret_value == ULLONG_MAX) )
+      {
+        QCRIL_LOG_ERROR( "Fail to convert lte_full_band_pref %s", args );
+      }
+      else
+      {
+        nas_common_info.permanent_lte_band_pref = ret_value;
+        nas_common_info.permanent_lte_band_pref_valid = TRUE;
+      }
+    }
+    QCRIL_LOG_DEBUG( "valid:%d lte_full_band_pref=%llx",
+        nas_common_info.permanent_lte_band_pref_valid, nas_common_info.permanent_lte_band_pref);
+
     qmi_ril_get_property_value_from_integer(QCRIL_RESTORE_MODE_PREF_SUPPORT,
                                             &nas_common_info.is_restore_prev_mode_pref,
                                             NAS_NIL);
@@ -3130,9 +3301,6 @@ void qcril_qmi_nas_init()
     nas_cached_info.common_indications_is_subscribed        = TRUE;     // because of subsequent qcril_qmi_util_enable_networking_indications() call
 
     memset( &nas_common_info.card_info, 0, QMI_UIM_MAX_CARD_COUNT * sizeof( qcril_qmi_nas_dms_card_info_type ) );
-#ifdef QMI_RIL_UTF
-    nas_common_info.card_info[0].status = QCRIL_CARD_STATUS_UP;
-#endif
 
     nas_common_info.dfr_mode_pref_set_until_online = FALSE;
     QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QCRIL_DFR_MODE_PREF_SET_UNTIL_ONLINE );
@@ -3158,6 +3326,10 @@ void qcril_qmi_nas_init()
     }
     QCRIL_LOG_DEBUG( "DFR_MODE_PREF_SET_UNTIL_ONLINE=%d", nas_common_info.dfr_mode_pref_set_until_online);
 
+    // check if rat tlv can be used for network selection
+    qcril_db_query_properties_table(QCRIL_IS_RAT_TLV_SUPPORTED,args);
+    nas_common_info.is_rat_tlv_supported = atoi(args) ? TRUE : FALSE;
+
     nas_common_info.is_reg_denied_on_rej_cause = FALSE;
     QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QMI_RIL_REG_DENIED_ON_REJ_CAUSE );
     property_get( property_name, args, "" );
@@ -3180,6 +3352,14 @@ void qcril_qmi_nas_init()
     }
     QCRIL_LOG_DEBUG( "REG_DENIED_ON_REJ_CAUSE=%d", nas_common_info.is_reg_denied_on_rej_cause);
 
+    nas_common_info.manual_nw_reject_cause_counter_enabled = FALSE;
+    qmi_ril_get_property_value_from_integer(QMI_RIL_MANUAL_NW_REJECT_COUNTER_ENABLE,
+                                            &nas_common_info.manual_nw_reject_cause_counter_enabled,
+                                            NAS_NIL);
+
+    QCRIL_LOG_DEBUG("MANUAL_NW_REJECT_COUNTER_ENABLE=%d",
+                     nas_common_info.manual_nw_reject_cause_counter_enabled);
+
     qmi_ril_get_property_value_from_integer(QMI_RIL_IGNORE_SRV_DOMAIN_CAMPED_TIMER,
                                             &nas_common_info.ignore_srv_domain_camped_timer,
                                             NAS_NIL);
@@ -3190,6 +3370,7 @@ void qcril_qmi_nas_init()
     nas_common_info.ignore_srv_domain_camped_timer_id = NAS_NIL;
     nas_common_info.prev_srv_domain_valid = FALSE;
     nas_common_info.prev_srv_domain = SYS_SRV_DOMAIN_NO_SRV_V01;
+
 
     nas_common_info.csg_info_available = NAS_NIL;
     QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QCRIL_CSG_INFO_AVAILABLE );
@@ -3236,11 +3417,10 @@ void qcril_qmi_nas_init()
     nas_cached_info.embms_cell_id_sent_after_enabled = FALSE;
     nas_cached_info.embms_coverage_sent_after_enabled = FALSE;
 
-    nas_common_info.dsds.pending_unsol_sub_status = FALSE;
     nas_cached_info.is_indication_received = FALSE;
     if( NAS_ZERO != nas_cached_info.sys_sel_pref_tmr )
     {
-        qcril_cancel_timed_callback((void *)nas_cached_info.sys_sel_pref_tmr);
+        qcril_cancel_timed_callback((void *)(intptr_t)nas_cached_info.sys_sel_pref_tmr);
         nas_cached_info.sys_sel_pref_tmr = NAS_ZERO;
     }
 
@@ -3270,10 +3450,7 @@ void qcril_qmi_nas_init()
         qcril_qmi_nas_process_custom_emergency_numbers();
     }
 
-    if (TRUE == nas_common_info.sib16_support)
-    {
-       qcril_qmi_nas_fetch_sib16_network_time();
-    }
+    qcril_qmi_nas_fetch_sib16_network_time();
 
     qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
                    QCRIL_DEFAULT_MODEM_ID,
@@ -3284,6 +3461,7 @@ void qcril_qmi_nas_init()
                    (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
 
     qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, qcril_qmi_nas_dms_send_ap_sw_ver_info_to_mp, NULL, NULL );
+    qcril_qmi_nas_update_sim_mcc_mnc(FALSE, NULL, NULL);
 
     QCRIL_LOG_FUNC_RETURN();
 
@@ -3291,14 +3469,14 @@ void qcril_qmi_nas_init()
 
 void qcril_qmi_nas_multi_sim_init()
 {
+  int res = RIL_E_SUCCESS;
   QCRIL_LOG_FUNC_ENTRY();
 
-  qcril_qmi_nas_get_subscription_info();
-  qcril_qmi_nas_get_multisim_device_capability();
+  res = qcril_qmi_nas_get_multisim_device_capability(TRUE, TRUE);
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   nas_common_info.dsds.valid = FALSE;
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   QCRIL_LOG_FUNC_RETURN();
 }
@@ -3312,7 +3490,7 @@ void qcril_qmi_nas_get_subscription_info()
   QCRIL_LOG_FUNC_ENTRY();
 
   memset(&qmi_response, 0, sizeof(qmi_response));
-  qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+  qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_SUBSCRIPTION_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,
@@ -3322,14 +3500,43 @@ void qcril_qmi_nas_get_subscription_info()
 
   ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_transport_error, &qmi_response.resp );
   QCRIL_LOG_INFO( ".. transport error %d, ril_error %d", (int)qmi_transport_error, (int)ril_req_res );
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   if ( RIL_E_SUCCESS == ril_req_res )
   {
     if ( qmi_response.voice_system_id_valid )
     {
       QCRIL_LOG_INFO("VSID %d", qmi_response.voice_system_id);
-      NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.voice_system_id, qmi_response.voice_system_id );
+#ifndef QMI_RIL_UTF
+      if(qmi_response.voice_system_id)
+      {
+        NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.voice_system_id, qmi_response.voice_system_id );
+        qcril_am_set_vsid(QCRIL_AM_VS_VOICE, qmi_response.voice_system_id);
+      }
+#endif
     }
+
+    if ( qmi_response.lte_voice_system_id_valid )
+    {
+        QCRIL_LOG_DEBUG ("LTE Voice System ID %x\n", qmi_response.lte_voice_system_id);
+#ifndef QMI_RIL_UTF
+        if ( qmi_response.lte_voice_system_id )
+        {
+            qcril_am_set_vsid(QCRIL_AM_VS_IMS, qmi_response.lte_voice_system_id);
+        }
+#endif
+    }
+
+    if ( qmi_response.wlan_voice_system_id_valid )
+    {
+        QCRIL_LOG_DEBUG ("WLAN Voice System ID %x\n", qmi_response.wlan_voice_system_id);
+#ifndef QMI_RIL_UTF
+        if ( qmi_response.wlan_voice_system_id )
+        {
+            qcril_am_set_vsid(QCRIL_AM_VS_IMS_WLAN, qmi_response.wlan_voice_system_id);
+        }
+#endif
+    }
+
     if ( qmi_response.is_priority_subs_valid )
     {
       QCRIL_LOG_INFO("is_priority_subs %d", qmi_response.is_priority_subs);
@@ -3341,35 +3548,46 @@ void qcril_qmi_nas_get_subscription_info()
       NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.dsds_is_active, qmi_response.is_active );
     }
   }
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
   QCRIL_LOG_FUNC_RETURN();
 }
 
-void qcril_qmi_nas_get_multisim_device_capability()
+uint8_t qcril_qmi_nas_get_max_subscriptions()
+{
+    uint8_t max_subs;
+
+    NAS_CACHE_LOCK();
+    max_subs = nas_dms_cached_info.max_subscriptions;
+    NAS_CACHE_UNLOCK();
+
+    return max_subs;
+}
+
+RIL_Errno qcril_qmi_nas_get_multisim_device_capability(int need_msim_capability, int need_sub_capability)
 {
   dms_get_device_cap_resp_msg_v01 qmi_dev_cap_response;
   qmi_client_error_type qmi_transport_error;
   RIL_Errno ril_req_res = RIL_E_GENERIC_FAILURE;
+  int instance_id = qmi_ril_get_process_instance_id();
+  uint8_t modem_stack_id = (uint8_t) qcril_qmi_nas_get_modem_stack_id();
 
-  if ( qmi_ril_get_process_instance_id() == QCRIL_DEFAULT_INSTANCE_ID )
-  {
-    memset( &qmi_dev_cap_response, 0, sizeof( qmi_dev_cap_response ) );
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+  memset( &qmi_dev_cap_response, 0, sizeof( qmi_dev_cap_response ) );
+  qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                        QMI_DMS_GET_DEVICE_CAP_REQ_V01,
                                                        NULL,
                                                        NAS_NIL,
                                                        (void*) &qmi_dev_cap_response,
                                                        sizeof( qmi_dev_cap_response ),
                                                        QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-    ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_transport_error, &qmi_dev_cap_response.resp);
-    QCRIL_LOG_INFO( "requested device caps %d, %d", (int)qmi_transport_error, (int)ril_req_res );
+  ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_transport_error, &qmi_dev_cap_response.resp);
+  QCRIL_LOG_INFO( "[MSIM] requested device caps %d, %d", (int)qmi_transport_error, (int)ril_req_res );
 
-    if( RIL_E_SUCCESS == ril_req_res )
-    {
-      NAS_CACHE_LOCK()
-      if ( qmi_dev_cap_response.multisim_capability_valid == TRUE )
+  if( RIL_E_SUCCESS == ril_req_res )
+  {
+      if ( ( instance_id == QCRIL_DEFAULT_INSTANCE_ID ) && ( need_msim_capability == TRUE ) && ( qmi_dev_cap_response.multisim_capability_valid == TRUE ) )
       {
         QCRIL_LOG_INFO(" max_subscriptions %d ", (int) qmi_dev_cap_response.multisim_capability.max_subscriptions);
+        NAS_CACHE_LOCK();
         nas_dms_cached_info.max_subscriptions = qmi_dev_cap_response.multisim_capability.max_subscriptions;
         if ( qmi_dev_cap_response.multisim_capability.subscription_config_list_len > 0 )
         {
@@ -3379,11 +3597,52 @@ void qcril_qmi_nas_get_multisim_device_capability()
           nas_dms_cached_info.max_subscriptions_active = qmi_dev_cap_response.multisim_capability.subscription_config_list[0].max_active;
           qcril_qmi_nas_dms_update_multisim_config_property();
         }
+        NAS_CACHE_UNLOCK();
       }
-      NAS_CACHE_UNLOCK()
-    }
+      if ( ( need_sub_capability == TRUE ) &&
+           ( qmi_dev_cap_response.multisim_capability.subscription_config_list_len > 0 &&
+             qmi_dev_cap_response.multisim_capability.subscription_config_list[0].subscription_list_len > modem_stack_id ) )
+      {
+        QCRIL_LOG_DEBUG("[MSIM] Stack capability %x", qmi_dev_cap_response.multisim_capability.subscription_config_list[0].subscription_list[modem_stack_id]);
+        NAS_CACHE_LOCK();
+        NAS_CACHE_STORE_TINY_ENTRY_VAL( nas_dms_cached_info.current_sub_capability, qmi_dev_cap_response.multisim_capability.subscription_config_list[0].subscription_list[modem_stack_id] );
+        NAS_CACHE_UNLOCK();
+      }
+      if ( ( need_sub_capability == TRUE ) && ( qmi_dev_cap_response.subs_voice_data_capability_valid == TRUE ) )
+      {
+        NAS_CACHE_LOCK();
+        QCRIL_LOG_DEBUG("[MSIM] Current sub voice data capability %d ", (int) qmi_dev_cap_response.subs_voice_data_capability[modem_stack_id].subs_voice_data_capability);
+        NAS_CACHE_STORE_TINY_ENTRY_VAL( nas_dms_cached_info.subs_voice_data_capability, qmi_dev_cap_response.subs_voice_data_capability[modem_stack_id].subs_voice_data_capability );
+        NAS_CACHE_UNLOCK();
+      }
+      if ((need_sub_capability == TRUE) &&
+           (qmi_dev_cap_response.max_active_data_subscriptions_valid == TRUE))
+      {
+        QCRIL_LOG_DEBUG("[MSIM] Max Active Data : %d", qmi_dev_cap_response.max_active_data_subscriptions);
+        NAS_CACHE_LOCK();
+        NAS_CACHE_STORE_TINY_ENTRY_VAL(nas_dms_cached_info.max_active_data_subs,
+                                       qmi_dev_cap_response.max_active_data_subscriptions);
+        NAS_CACHE_UNLOCK();
+      }
   }
-  QCRIL_LOG_FUNC_RETURN();
+  QCRIL_LOG_FUNC_RETURN_WITH_RET(ril_req_res);
+  return ril_req_res;
+}
+
+void qcril_qmi_nas_update_modem_stack_id(uint8_t stack_id)
+{
+    QCRIL_LOG_FUNC_ENTRY();
+
+    NAS_CACHE_LOCK();
+    nas_common_info.dsds.modem_stack_id = stack_id;
+    NAS_CACHE_UNLOCK();
+    QCRIL_LOG_DEBUG("[MSIM] Modem stack id %d", (int) nas_common_info.dsds.modem_stack_id);
+}
+
+qcril_modem_stack_id_e_type qcril_qmi_nas_get_modem_stack_id()
+{
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(nas_common_info.dsds.modem_stack_id);
+    return nas_common_info.dsds.modem_stack_id;
 }
 
 //===========================================================================
@@ -3485,7 +3744,7 @@ void qcril_qmi_nas_cancel_wait_for_pbm_ind_timer()
    NAS_CACHE_LOCK();
    if( nas_common_info.wait_for_pbm_ind && nas_common_info.wait_for_pbm_ind_timer_id_valid) //persist.radio.wait_for_pbm is set to "1" and timer is currently running
    {
-       qcril_cancel_timed_callback((void *)nas_common_info.wait_for_pbm_ind_timer_id);
+       qcril_cancel_timed_callback((void *)(uintptr_t)nas_common_info.wait_for_pbm_ind_timer_id);
        nas_common_info.wait_for_pbm_ind_timer_id_valid = FALSE;
        nas_common_info.wait_for_pbm_ind_timer_id = NAS_NIL;
        QCRIL_LOG_INFO("wait_for_pbm_ind_timer cancelled");
@@ -3503,6 +3762,8 @@ void qcril_qmi_nas_wait_for_pbm_ind_timeout_cb(void * params)
 {
    int action_needed;
    QCRIL_LOG_FUNC_ENTRY();
+
+   QCRIL_NOTUSED(params);
 
    action_needed = FALSE;
 
@@ -3531,7 +3792,6 @@ void qcril_qmi_nas_wait_for_pbm_ind_timeout_cb(void * params)
    QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_wait_for_pbm_ind_timeout_cb
 
-
 //===========================================================================
 // qcril_qmi_nas_check_retrieve_centralized_eons_support_status
 //===========================================================================
@@ -3544,7 +3804,7 @@ void qcril_qmi_nas_check_retrieve_centralized_eons_support_status()
     QCRIL_LOG_FUNC_ENTRY();
 
     memset(&qmi_response, 0, sizeof(qmi_response));
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_CENTRALIZED_EONS_SUPPORT_STATUS_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,
@@ -3589,11 +3849,14 @@ void qcril_qmi_nas_retrieve_rf_band_info()
     qmi_client_error_type qmi_transport_error;
     nas_get_rf_band_info_resp_msg_v01 qmi_response;
     uint32_t iter_i = 0;
+    qcril_coex_rf_band_info_type  rf_band_info_arr[QCRIL_COEX_RD_BAND_INFO_LENGTH] = {{0}};
+    qcril_coex_rf_band_info_type *rf_band_info_ptr = NULL;
+    int                           rf_band_info_len = 0;
 
     QCRIL_LOG_FUNC_ENTRY();
 
     memset(&qmi_response, 0, sizeof(qmi_response));
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_RF_BAND_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,
@@ -3608,13 +3871,28 @@ void qcril_qmi_nas_retrieve_rf_band_info()
     {
       for( iter_i = 0; iter_i < qmi_response.rf_band_info_list_len; iter_i++ )
       {
-        if( NAS_RADIO_IF_LTE_V01 == qmi_response.rf_band_info_list[iter_i].radio_if )
+        if  (( NAS_RADIO_IF_GSM_V01 == qmi_response.rf_band_info_list[iter_i].radio_if ) &&
+             ( rf_band_info_len < QCRIL_COEX_RD_BAND_INFO_LENGTH))
         {
-          qcril_qmi_nas_coex_control_process_rf_band_info(&qmi_response.rf_band_info_list[iter_i]);
+          rf_band_info_ptr = &rf_band_info_arr[rf_band_info_len];
+          rf_band_info_len++;
+          rf_band_info_ptr->rf_band_info = &qmi_response.rf_band_info_list[iter_i];
+          rf_band_info_ptr->rat          = NAS_RADIO_IF_GSM_V01;
+          QCRIL_LOG_INFO("rf band info list contains GSM");
+        }
+
+        if  (( NAS_RADIO_IF_LTE_V01 == qmi_response.rf_band_info_list[iter_i].radio_if ) &&
+             ( rf_band_info_len < QCRIL_COEX_RD_BAND_INFO_LENGTH))
+        {
+          rf_band_info_ptr = &rf_band_info_arr[rf_band_info_len];
+          rf_band_info_len++;
+          rf_band_info_ptr->rf_band_info = &qmi_response.rf_band_info_list[iter_i];
+          rf_band_info_ptr->rat          = NAS_RADIO_IF_LTE_V01;
           QCRIL_LOG_INFO("rf band info list contains LTE");
-          break;
         }
       }
+
+      qcril_qmi_nas_coex_control_process_rf_band_info(rf_band_info_arr, rf_band_info_len);
     }
 
     QCRIL_LOG_FUNC_RETURN();
@@ -3626,36 +3904,41 @@ void qcril_qmi_nas_retrieve_rf_band_info()
 void qcril_qmi_nas_rf_band_info_ind_handler(nas_rf_band_info_ind_msg_v01* rf_band_info_ind)
 {
   QCRIL_LOG_FUNC_ENTRY();
+
   if( rf_band_info_ind )
   {
-    if( NAS_RADIO_IF_LTE_V01 == rf_band_info_ind->rf_band_info.radio_if )
-    {
-      qcril_qmi_coex_process_rf_band_info(&(rf_band_info_ind->rf_band_info));
-      QCRIL_LOG_INFO("rf band info list contains LTE");
-    }
+    qcril_qmi_nas_retrieve_rf_band_info();
   }
   else
   {
     QCRIL_LOG_FATAL("Null Pointer");
   }
+
   QCRIL_LOG_FUNC_RETURN();
 } //qcril_qmi_nas_rf_band_info_ind_handler
 
 //===========================================================================
 // qcril_qmi_nas_coex_control_process_rf_band_info
 //===========================================================================
-void qcril_qmi_nas_coex_control_process_rf_band_info(nas_rf_band_info_type_v01* rf_band_info)
+void qcril_qmi_nas_coex_control_process_rf_band_info
+(
+    qcril_coex_rf_band_info_type rf_band_info[QCRIL_COEX_RD_BAND_INFO_LENGTH],
+    int                          rf_band_info_len
+)
 {
-  QCRIL_LOG_FUNC_ENTRY();
-  if( rf_band_info )
-  {
-    qcril_qmi_coex_process_rf_band_info(rf_band_info);
-  }
-  else
-  {
-    QCRIL_LOG_FATAL("Null Pointer");
-  }
-  QCRIL_LOG_FUNC_RETURN();
+
+    QCRIL_LOG_FUNC_ENTRY();
+    if( rf_band_info && rf_band_info_len )
+    {
+        qcril_qmi_coex_process_rf_band_info(rf_band_info, rf_band_info_len);
+    }
+    else
+    {
+        QCRIL_LOG_FATAL("Null Pointer");
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+
 } //qcril_qmi_nas_coex_control_process_rf_band_info
 
 //===========================================================================
@@ -3691,9 +3974,9 @@ static void qcril_qmi_dms_fusion_csfb_init()
 } // qcril_qmi_dms_fusion_csfb_init
 
 //===========================================================================
-// qcril_qmi_dms_sv_on_lte_or_do_init
+// qcril_qmi_dms_get_device_caps
 //===========================================================================
-void qcril_qmi_dms_sv_on_lte_or_do_init()
+void qcril_qmi_dms_get_device_caps()
 {
     QCRIL_LOG_FUNC_ENTRY();
 
@@ -3702,7 +3985,7 @@ void qcril_qmi_dms_sv_on_lte_or_do_init()
     qmi_client_error_type qmi_transport_error;
 
     memset( &qmi_response, 0, sizeof( qmi_response ) );
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                        QMI_DMS_GET_DEVICE_CAP_REQ_V01,
                                                        NULL,
                                                        NAS_NIL,
@@ -3744,6 +4027,13 @@ void qcril_qmi_dms_sv_on_lte_or_do_init()
             }
         }
         qcril_qmi_dms_set_simo_cs_ps_property( nas_cached_info.simul_voice_and_data_capability );
+
+        if( (TRUE == qmi_response.subs_device_feature_mode_valid) &&
+            (qcril_qmi_nas_get_modem_stack_id() < qmi_response.subs_device_feature_mode_len) )
+        {
+            nas_cached_info.subs_device_feature_mode_valid = TRUE;
+            nas_cached_info.subs_device_feature_mode = qmi_response.subs_device_feature_mode[qcril_qmi_nas_get_modem_stack_id()];
+        }
         NAS_CACHE_UNLOCK();
     }
     else
@@ -3752,7 +4042,24 @@ void qcril_qmi_dms_sv_on_lte_or_do_init()
     }
 
     QCRIL_LOG_FUNC_RETURN_WITH_RET( ril_err );
-} // qcril_qmi_dms_sv_on_lte_or_do_init
+} // qcril_qmi_dms_get_device_caps
+
+//===========================================================================
+// qcril_qmi_is_srlte_supported
+//===========================================================================
+int qcril_qmi_is_srlte_supported()
+{
+    int ret = FALSE;
+
+    NAS_CACHE_LOCK();
+    if( TRUE == nas_cached_info.subs_device_feature_mode_valid )
+    {
+        ret = (nas_cached_info.subs_device_feature_mode == DMS_DEVICE_SUBS_FEATURE_MODE_SRLTE_V01);
+    }
+    NAS_CACHE_UNLOCK();
+
+    return ret;
+} // qcril_qmi_is_srlte_supported
 
 //===========================================================================
 // qcril_qmi_dms_set_simo_cs_ps_property
@@ -3862,14 +4169,13 @@ void qcril_qmi_dms_init()
     qmi_request.report_prl_init_valid = TRUE;
     qmi_request.report_prl_init = NAS_REQ_REPORT;
 
-    if ( qmi_ril_is_multi_sim_feature_supported() &&
-       ( qmi_ril_get_process_instance_id() == QCRIL_DEFAULT_INSTANCE_ID ) )
+    if ( qmi_ril_is_multi_sim_feature_supported() )
     {
       qmi_request.report_device_multisim_info_valid = TRUE;
       qmi_request.report_device_multisim_info = NAS_REQ_REPORT;
     }
 
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                        QMI_DMS_SET_EVENT_REPORT_REQ_V01,
                                                        (void*) &qmi_request,
                                                        sizeof( qmi_request ),
@@ -3884,15 +4190,9 @@ void qcril_qmi_dms_init()
         qcril_qmi_dms_fusion_csfb_init();
     }
 
-    if ( qmi_ril_is_feature_supported(QMI_RIL_FEATURE_8960) ||
-          qmi_ril_is_feature_supported(QMI_RIL_FEATURE_8974) ||
-          qmi_ril_is_feature_supported(QMI_RIL_FEATURE_8610) ||
-          qmi_ril_is_feature_supported(QMI_RIL_FEATURE_8226) ||
-          qmi_ril_is_feature_supported(QMI_RIL_FEATURE_SVLTE2) )
-    {  // 8960/8974/SVLTE2 specific init
-        qcril_qmi_dms_sv_on_lte_or_do_init();
-    }
+    qcril_qmi_dms_get_device_caps();
 
+ 
     QCRIL_LOG_INFO( "requested dms indication reports %d, %d", (int)qmi_transport_error, (int)ril_err );
 } // qcril_qmi_dms_init
 
@@ -3969,6 +4269,9 @@ void qcril_qmi_nas_data_control_cb (qcril_data_hndl_t         hndl,
     int initiate_report = FALSE;
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(hndl);
+    QCRIL_NOTUSED(user_data);
+    QCRIL_NOTUSED(payload);
 
     QCRIL_LOG_INFO( ".. %d", (int)evt );
 
@@ -4063,8 +4366,9 @@ int qmi_ril_retrieve_data_connection_information_from_data_call_list(int *nof_da
                     memset(qcril_qmi_nas_dc_rt_info_helper_holder, 0, sizeof(*qcril_qmi_nas_dc_rt_info_helper_holder));
                     for( iter_i = 0; iter_i < *nof_data_calls; iter_i++ )
                     {
-                       // qcril_qmi_nas_dc_rt_info_helper_holder->data_call_real_time_info_list[iter_i].call_id = data_call_list[iter_i].call_id;
-                        //qcril_qmi_nas_dc_rt_info_helper_holder->data_call_real_time_info_list[iter_i].radioTech = data_call_list[iter_i].radioTech;
+                        /*
+                        qcril_qmi_nas_dc_rt_info_helper_holder->data_call_real_time_info_list[iter_i].call_id = data_call_list[iter_i].call_id;
+                        qcril_qmi_nas_dc_rt_info_helper_holder->data_call_real_time_info_list[iter_i].radioTech = data_call_list[iter_i].radioTech;
                         switch( data_call_list[iter_i].active )
                         {
                             case CALL_INACTIVE:
@@ -4084,6 +4388,7 @@ int qmi_ril_retrieve_data_connection_information_from_data_call_list(int *nof_da
                                 break;
                         }
                         qcril_qmi_nas_dc_rt_info_helper_holder->data_call_real_time_info_list_ptr[iter_i] = &qcril_qmi_nas_dc_rt_info_helper_holder->data_call_real_time_info_list[iter_i];
+                        */
                     }
                     *qcril_qmi_nas_dc_rt_info_helper_ptr = qcril_qmi_nas_dc_rt_info_helper_holder;
                     ret_code = TRUE;
@@ -4135,7 +4440,9 @@ void qmi_ril_report_data_connection_information(void * param)
     nof_data_calls = NAS_NIL;
     qcril_qmi_nas_dc_rt_info_helper = NULL;
 
+    /*
     report = qmi_ril_retrieve_data_connection_information_from_data_call_list(&nof_data_calls, &qcril_qmi_nas_dc_rt_info_helper);
+    */
 
     if( report )
     {
@@ -4178,10 +4485,12 @@ void qcril_qmi_nas_request_get_dc_rt_info
     nof_data_calls = NAS_NIL;
     qcril_qmi_nas_dc_rt_info_helper = NULL;
 
+    /*
     if( qmi_ril_retrieve_data_connection_information_from_data_call_list(&nof_data_calls, &qcril_qmi_nas_dc_rt_info_helper) )
     {
         ril_req_res = RIL_E_SUCCESS;
     }
+    */
 
     // ** respond
     qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
@@ -4306,6 +4615,7 @@ void qcril_qmi_nas_data_update_mtu_size_if_needed(uint8_t prev_reported_state_va
            ((TRUE == is_prev_3gpp2_roaming) || (TRUE == is_curr_3gpp2_roaming))
            )
         {
+#ifndef QMI_RIL_UTF
             if(TRUE == is_curr_3gpp2_roaming)
             {
                 QCRIL_LOG_INFO("mtu size being changed to %d",nas_common_info.roam_mtu_size_1x);
@@ -4316,6 +4626,7 @@ void qcril_qmi_nas_data_update_mtu_size_if_needed(uint8_t prev_reported_state_va
                 QCRIL_LOG_INFO("mtu size being changed to default value");
                 qcril_data_update_mtu(NAS_ZERO);
             }
+#endif
         }
         else
         {
@@ -4333,10 +4644,10 @@ void qcril_qmi_nas_data_update_mtu_size_if_needed(uint8_t prev_reported_state_va
 void qcril_qmi_dms_unsolicited_indication_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  message_id,
-  unsigned char                  * ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   message_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 )
 {
   qmi_ind_callback_type qmi_callback;
@@ -4369,6 +4680,160 @@ void qcril_qmi_dms_unsolicited_indication_cb
   QCRIL_LOG_FUNC_RETURN();
 }// qcril_qmi_dms_unsolicited_indication_cb
 
+#ifdef QMI_RIL_UTF
+void qcril_qmi_dsd_ind_cb
+(
+  qmi_client_type                user_handle,
+  unsigned int                   message_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
+)
+{
+  qmi_ind_callback_type qmi_callback;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  qmi_callback.data_buf = qcril_malloc(ind_buf_len);
+
+  if( qmi_callback.data_buf )
+  {
+    qmi_callback.user_handle = user_handle;
+    qmi_callback.msg_id = message_id;
+    memcpy(qmi_callback.data_buf,ind_buf,ind_buf_len);
+    qmi_callback.data_buf_len = ind_buf_len;
+    qmi_callback.cb_data = ind_cb_data;
+
+    qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
+                   QCRIL_DEFAULT_MODEM_ID,
+                   QCRIL_DATA_ON_STACK,
+                   QCRIL_EVT_QMI_DSD_HANDLE_INDICATIONS,
+                   (void*) &qmi_callback,
+                   sizeof(qmi_callback),
+                   (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+  }
+  else
+  {
+    QCRIL_LOG_FATAL("malloc failed");
+  }
+
+  QCRIL_LOG_FUNC_RETURN();
+}//qcril_qmi_dsd_ind_cb
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_dms_unsolicited_indication_cb_helper
+
+===========================================================================*/
+/*!
+    @brief
+    Handle QCRIL_EVT_QMI_DSD_HANDLE_INDICATIONS
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_dsd_unsolicited_indication_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+   void * decoded_payload = NULL;
+   dsd_system_status_ind_msg_v01  *dsd_ind = NULL;
+   qmi_client_error_type qmi_err;
+   uint32_t decoded_payload_len;
+   int result = 0;
+
+   int idx;
+
+   qmi_ind_callback_type * qmi_callback = (qmi_ind_callback_type*) params_ptr->data;
+
+   QCRIL_NOTUSED(ret_ptr);
+
+   do {
+
+      if(! qmi_callback )
+      {
+         QCRIL_LOG_ERROR("qmi_callback is NULL");
+         QCRIL_ASSERT(0); // this is a noop in release build
+         break;
+      }
+
+      QCRIL_LOG_INFO("invoked msg 0x%x", (int) qmi_callback->msg_id);
+
+      qmi_err = qmi_idl_get_message_c_struct_len( dsd_get_service_object_v01(),
+                                                  QMI_IDL_INDICATION,
+                                                  qmi_callback->msg_id,
+                                                  &decoded_payload_len);
+      if ( qmi_err != QMI_NO_ERR )
+      {
+         QCRIL_LOG_ERROR("Failed to process qmi message w/%d", qmi_err);
+         QCRIL_ASSERT(0); // this is a noop in release build
+         break;
+      }
+
+      if( !decoded_payload_len )
+      {
+         // ok, this is a null payload - don't need to process it.
+      }
+      else
+      {
+         // process the payload
+
+         decoded_payload = qcril_malloc( decoded_payload_len );
+         if (! decoded_payload )
+         {
+            QCRIL_LOG_ERROR("Failed to alloc memory for decoded payload");
+            break;
+         }
+         memset( decoded_payload, 0, decoded_payload_len );
+
+         qmi_err = qmi_client_message_decode(
+                       qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DSD ),
+                       QMI_IDL_INDICATION,
+                       qmi_callback->msg_id,
+                       qmi_callback->data_buf,
+                       qmi_callback->data_buf_len,
+                       decoded_payload,
+                       (int)decoded_payload_len );
+
+         if (qmi_err != QMI_NO_ERR)
+         {
+            QCRIL_LOG_ERROR("Failed to process qmi message w/%d", qmi_err);
+            QCRIL_ASSERT(0); // this is a noop in release build
+            qcril_free(decoded_payload);
+            break;
+         }
+
+         dsd_ind = (dsd_system_status_ind_msg_v01  *) decoded_payload;
+         /* If the available systems in invalid, report NULL bearer to RIL */
+         if (FALSE == dsd_ind->avail_sys_valid)
+         {
+          QCRIL_LOG_DEBUG( "invalid avail sys, reporting NULL bearer" );
+
+          dsd_ind->avail_sys_valid = TRUE;
+          dsd_ind->avail_sys_len = 1;
+          dsd_ind->avail_sys[0].technology = DSD_SYS_NETWORK_3GPP_V01;
+          dsd_ind->avail_sys[0].rat_value = DSD_SYS_RAT_EX_NULL_BEARER_V01;
+          dsd_ind->avail_sys[0].so_mask = 0ull;
+         }
+
+         qcril_arb_set_dsd_sys_status(dsd_ind);
+
+         qcril_free( decoded_payload );
+      }
+
+
+   } while(0);
+
+
+   if( qmi_callback && qmi_callback->data_buf )
+   {
+     qcril_free(qmi_callback->data_buf);
+   }
+}// qcril_qmi_dsd_unsolicited_indication_cb_helper
+#endif
+
 /*=========================================================================
   FUNCTION:  qcril_qmi_dms_unsolicited_indication_cb_helper
 
@@ -4400,6 +4865,7 @@ void qcril_qmi_dms_unsolicited_indication_cb_helper
 
    qmi_ind_callback_type * qmi_callback = (qmi_ind_callback_type*) params_ptr->data;
 
+   QCRIL_NOTUSED(ret_ptr);
    memset(&evt_post_info, 0, sizeof(evt_post_info));
 
    do {
@@ -4521,10 +4987,10 @@ void qcril_qmi_dms_unsolicited_indication_cb_helper
 void qcril_qmi_nas_unsolicited_indication_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  message_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   message_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 )
 {
   qmi_ind_callback_type qmi_callback;
@@ -4592,6 +5058,7 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
    int is_now_registered;
    int emergency_callback_mode_state;
 
+   QCRIL_NOTUSED(ret_ptr);
    qmi_ind_callback_type * qmi_callback = (qmi_ind_callback_type*) params_ptr->data;
 
    do {
@@ -4605,9 +5072,9 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
 
       QCRIL_LOG_INFO("invoked msg 0x%x", (int) qmi_callback->msg_id);
 
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
       is_pre_registered = qcril_qmi_nas_is_considered_registered(NULL);
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
 
       qmi_err = qmi_idl_get_message_c_struct_len( nas_get_service_object_v01(),
                                                   QMI_IDL_INDICATION,
@@ -4682,9 +5149,9 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
                   break;
                }
 
-               NAS_CACHE_LOCK()
+               NAS_CACHE_LOCK();
                is_now_registered = qcril_qmi_nas_is_considered_registered(NULL);
-               NAS_CACHE_UNLOCK()
+               NAS_CACHE_UNLOCK();
 
                if ( is_now_registered || TRUE == nas_common_info.consider_3gpp_ltd_srv_drte_update )
                {
@@ -4710,9 +5177,9 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
                   break;
                }
 
-               NAS_CACHE_LOCK()
+               NAS_CACHE_LOCK();
                is_now_registered = qcril_qmi_nas_is_considered_registered(NULL);
-               NAS_CACHE_UNLOCK()
+               NAS_CACHE_UNLOCK();
 
                if ( is_now_registered || TRUE == nas_common_info.consider_3gpp_ltd_srv_drte_update )
                {
@@ -4729,9 +5196,9 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
                   break;
                }
 
-               NAS_CACHE_LOCK()
+               NAS_CACHE_LOCK();
                is_now_registered = qcril_qmi_nas_is_considered_registered(NULL);
-               NAS_CACHE_UNLOCK()
+               NAS_CACHE_UNLOCK();
 
                if ( is_now_registered || TRUE == nas_common_info.consider_3gpp_ltd_srv_drte_update )
                {
@@ -4759,9 +5226,9 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
                   break;
                }
 
-               NAS_CACHE_LOCK()
+               NAS_CACHE_LOCK();
                is_post_registered = qcril_qmi_nas_is_considered_registered(NULL);
-               NAS_CACHE_UNLOCK()
+               NAS_CACHE_UNLOCK();
 
                if ( evt_post_info[0].engaged )
                {
@@ -4851,9 +5318,9 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
                   break;
                }
 
-               NAS_CACHE_LOCK()
+               NAS_CACHE_LOCK();
                is_post_registered = qcril_qmi_nas_is_considered_registered(NULL);
-               NAS_CACHE_UNLOCK()
+               NAS_CACHE_UNLOCK();
 
                if ( evt_post_info[0].engaged )
                {
@@ -4921,14 +5388,7 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
                break;
 
             case QMI_NAS_SUBSCRIPTION_INFO_IND_MSG_V01:
-               if ( qmi_ril_is_multi_sim_feature_supported() )
-               {
-                   qcril_qmi_nas_dsds_subscription_info_ind_handler( (nas_subscription_info_ind_msg_v01*) decoded_payload );
-               }
-               else
-               {
-                   QCRIL_LOG_INFO( "Dropping NAS Subscription info as it is not a multi sim configuration.");
-               }
+               qcril_qmi_nas_subscription_info_ind_handler( (nas_subscription_info_ind_msg_v01*) decoded_payload );
                break;
 
             case QMI_NAS_NETWORK_TIME_IND_MSG_V01:
@@ -4995,12 +5455,25 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
       QCRIL_LOG_INFO(".. operational state %d",
                       (int) qmi_ril_get_operational_status() );
 
-      // Consider cross subscription selection (single sub) scenario, do not propagate sys info ind.
       if ( qmi_ril_get_operational_status() != QMI_RIL_GEN_OPERATIONAL_STATUS_UNRESTRICTED &&
            QMI_RIL_RAT_CONFIDENCE_FULL_SVC == nas_cached_info.voice_rte_confidence_tag )
       {
-         QCRIL_LOG_INFO("Restricted state! Exiting.. ");
-         break;
+         /* Allow RIL_UNSOL_VOICE_RADIO_TECH_CHANGED in restricted state.
+         ** This is required when device is in limited service (3gpp)/service(3gpp2)
+         ** to propogate RIL_UNSOL_VOICE_RADIO_TECH_CHANGED to telephony. */
+         for ( idx = 0; idx < MAX_NOF_NAS_EVT_POST_REC; idx++ )
+         {
+            if ( evt_post_info[idx].engaged && (evt_post_info[idx].ril_evt != NAS_NIL) )
+            {
+                if ( RIL_UNSOL_VOICE_RADIO_TECH_CHANGED == evt_post_info[idx].ril_evt )
+                {
+                    qcril_qmi_nas_initiate_voice_rte_change_propagation();
+                }
+            }
+         }
+
+        QCRIL_LOG_INFO("Restricted state! Exiting.. ");
+        break;
       }
 
       // post events
@@ -5022,7 +5495,7 @@ void qcril_qmi_nas_unsolicited_indication_cb_helper
              }
              else
              {
-                 qcril_qmi_nas_initiate_voice_rte_change_propagation();
+                qcril_qmi_nas_initiate_voice_rte_change_propagation();
              }
          }
       } // end_for
@@ -5095,6 +5568,7 @@ int qcril_qmi_nas_dms_event_report_qmi2ril(dms_event_report_ind_msg_v01 * qmi_ms
   int common_modem_state_update   = FALSE;
   int operating_state_update      = FALSE;
   int follow_up_deferred_mode_set = FALSE;
+  uint8_t modem_stack_id = (uint8_t) qcril_qmi_nas_get_modem_stack_id();
 
   QCRIL_LOG_FUNC_ENTRY();
   QCRIL_LOG_INFO("oprt %d / %d", qmi_msg->operating_mode_valid, qmi_msg->operating_mode );
@@ -5105,7 +5579,7 @@ int qcril_qmi_nas_dms_event_report_qmi2ril(dms_event_report_ind_msg_v01 * qmi_ms
     if (qmi_msg->multisim_capability_valid == TRUE )
     {
         QCRIL_LOG_INFO(" max_subscriptions %d ", (int) qmi_msg->multisim_capability.max_subscriptions);
-        NAS_CACHE_LOCK()
+        NAS_CACHE_LOCK();
         nas_dms_cached_info.max_subscriptions = qmi_msg->multisim_capability.max_subscriptions;
         if ( qmi_msg->multisim_capability.subscription_config_list_len > 0 )
         {
@@ -5113,9 +5587,34 @@ int qcril_qmi_nas_dms_event_report_qmi2ril(dms_event_report_ind_msg_v01 * qmi_ms
           // Currently max_active will be uniform for all config in config list.
           // So, pick first config type.
           nas_dms_cached_info.max_subscriptions_active = qmi_msg->multisim_capability.subscription_config_list[0].max_active;
-          qcril_qmi_nas_dms_update_multisim_config_property();
+          if ( qmi_ril_get_process_instance_id() == QCRIL_DEFAULT_INSTANCE_ID )
+          {
+            qcril_qmi_nas_dms_update_multisim_config_property();
+          }
         }
-        NAS_CACHE_UNLOCK()
+        NAS_CACHE_UNLOCK();
+    }
+
+    if ( qmi_msg->max_active_data_subscriptions_valid == TRUE )
+    {
+        QCRIL_LOG_DEBUG("[MSIM] Max Active Data : %d", qmi_msg->max_active_data_subscriptions);
+        NAS_CACHE_LOCK();
+        NAS_CACHE_STORE_TINY_ENTRY_VAL(nas_dms_cached_info.max_active_data_subs,
+                                       qmi_msg->max_active_data_subscriptions);
+        NAS_CACHE_UNLOCK();
+        // Unsol modem capability shall be sent only for change in max data subscription.
+        if ( nas_dms_cached_info.max_active_data_subs != qmi_msg->max_active_data_subscriptions )
+        {
+            qcril_qmi_nas_send_unsol_modem_capability();
+        }
+    }
+    // Handle sub/stack capability for msim
+    if ( qmi_msg->subs_voice_data_capability_valid == TRUE )
+    {
+        NAS_CACHE_LOCK();
+        QCRIL_LOG_DEBUG("[MSIM] Current sub voice data capability %d ", (int) qmi_msg->subs_voice_data_capability[modem_stack_id].subs_voice_data_capability);
+        NAS_CACHE_STORE_TINY_ENTRY_VAL( nas_dms_cached_info.subs_voice_data_capability, qmi_msg->subs_voice_data_capability[modem_stack_id].subs_voice_data_capability );
+        NAS_CACHE_UNLOCK();
     }
 
     if ( qmi_msg->operating_mode_valid )
@@ -5210,7 +5709,7 @@ RIL_Errno qcril_qmi_nas_dms_fetch_cur_prl_version(uint16_t * prl_version)
 
     if ( prl_version )
     {
-        qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
+        qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
                                                          QMI_DMS_GET_CURRENT_PRL_INFO_REQ_V01,
                                                          NULL, // no request payload for QMI_DMS_GET_CURRENT_PRL_INFO_REQ_V01
                                                          NAS_NIL,
@@ -5467,6 +5966,7 @@ void qcril_qmi_nas_get_cdma_avoid_system_list
     nas_get_cdma_avoid_system_list_resp_msg_v01 cdma_get_avoid_info_list_resp;
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     do
     {
@@ -5484,7 +5984,7 @@ void qcril_qmi_nas_get_cdma_avoid_system_list
         memset(result_array, 0, sizeof(result_array));
         memset(temp, 0, sizeof(temp));
         memset(&cdma_get_avoid_info_list_resp, 0, sizeof(cdma_get_avoid_info_list_resp));
-        qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS),
+        qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS),
                                                      QMI_NAS_GET_CDMA_AVOID_SYSTEM_LIST_REQ_MSG_V01,
                                                      NULL,
                                                      QMI_RIL_ZERO,
@@ -5570,7 +6070,7 @@ void qcril_qmi_nas_cdma_avoid_system
 
     QCRIL_LOG_INFO("Avoid Type:%d",cdma_avoid_info.avoid_type);
 
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_CDMA_AVOID_SYSTEM_REQ_MSG_V01,
                                                     &cdma_avoid_info,
                                                     sizeof(cdma_avoid_info),
@@ -5629,7 +6129,7 @@ void qcril_qmi_nas_cdma_clear_avoid_list
     cdma_avoid_info.avoid_type = NAS_AVOID_SYS_CLR_LIST_V01;
     QCRIL_LOG_INFO("Clear Avoid Type:%d",cdma_avoid_info.avoid_type);
 
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_CDMA_AVOID_SYSTEM_REQ_MSG_V01,
                                                     &cdma_avoid_info,
                                                     sizeof(cdma_avoid_info),
@@ -5667,6 +6167,7 @@ void qcril_qmi_nas_set_builtin_plmn_list
   nas_set_builtin_plmn_list_ind_msg_v01 plmn_list_ind;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   do
   {
@@ -5689,7 +6190,7 @@ void qcril_qmi_nas_set_builtin_plmn_list
     if (no_of_oplmn > 0)
     {
       req_msg.oplmn_list_valid = TRUE;
-      //req_msg.oplmn_list.list_id = params_ptr->t;
+      req_msg.oplmn_list.list_id = (intptr_t)params_ptr->t;
       // total_list_entries may vary only when we send multiple oplmn lists.
       // Currently Android will send only max 500 entries.
       req_msg.oplmn_list.total_list_entries = no_of_oplmn;
@@ -5722,7 +6223,7 @@ void qcril_qmi_nas_set_builtin_plmn_list
     if ( qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &qcril_req_info_ptr ) == E_SUCCESS )
     {
       memset(&qmi_response,0,sizeof(qmi_response));
-      qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                QMI_NAS_SET_BUILTIN_PLMN_LIST_REQ_MSG_V01,
                                                &req_msg,
                                                NAS_ZERO,
@@ -5821,7 +6322,7 @@ void qcril_qmi_nas_dms_send_ap_sw_ver_info_to_mp()
     QCRIL_LOG_INFO( "length of SW Version string %d", strlen(device_sw_ver_info.ap_sw_version));
     QCRIL_LOG_INFO( "size of SW Version string %d", sizeof(device_sw_ver_info.ap_sw_version));
 
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                     QMI_DMS_SET_AP_SW_VERSION_REQ_V01,
                                                     &device_sw_ver_info,
                                                     sizeof(device_sw_ver_info),
@@ -6067,7 +6568,7 @@ IxErrnoType qcril_qmi_nas_update_presist_nitz_cache_shadow(char * op_name_long, 
     char * persist_store_name_short = NULL;
 
     QCRIL_LOG_FUNC_ENTRY();
-    QCRIL_LOG_INFO( ".. long %s, short %s, mcc %s, mnc %s", op_name_long, op_name_short, (int)op_mcc_str, (int) op_mnc_str  );
+    QCRIL_LOG_INFO( ".. long %s, short %s, mcc %s, mnc %s", op_name_long, op_name_short, op_mcc_str, op_mnc_str  );
 
     do
     {
@@ -6208,9 +6709,10 @@ void qcril_qmi_nas_nitz_persistent_cache_fetch_to_shadow(void)
     char fetched_mnc_str[NAS_MCC_MNC_MAX_SIZE];
     int sscanf_res;
 
-    QCRIL_LOG_INFO( "persistent_cached_nitz_op_name_long: %d, persistent_cached_nitz_op_name_short: %d",
-                        (int) nas_cached_info.persistent_cached_nitz_op_name_long,
-                        (int) nas_cached_info.persistent_cached_nitz_op_name_short);
+    QCRIL_LOG_INFO("persistent_cached_nitz_op_name_long: %p, persistent_cached_nitz_op_name_short: %p",
+                    nas_cached_info.persistent_cached_nitz_op_name_long,
+                    nas_cached_info.persistent_cached_nitz_op_name_short);
+
     if ( NULL == nas_cached_info.persistent_cached_nitz_op_name_long || NULL == nas_cached_info.persistent_cached_nitz_op_name_short )
     {
 
@@ -6286,8 +6788,9 @@ void qcril_qmi_nas_dsds_persistent_cache_fetch_to_shadow(void)
     char priority_paging_buf[512];
     char *end_ptr;
     unsigned long ret_val;
-    QCRIL_LOG_INFO( "dsds_is_tune_away = %d, priority_paging = %d",
-                     nas_common_info.dsds.is_tune_away, nas_common_info.dsds.paging_priority);
+    QCRIL_LOG_INFO( "dsds_is_tune_away = %d, priority_paging = %d, dsds_is_lte_tune_away = %d",
+                     nas_common_info.dsds.is_tune_away, nas_common_info.dsds.paging_priority,
+                     nas_common_info.dsds.is_lte_tune_away);
 
     moniker = (int)qmi_ril_get_process_instance_id();
     prop_req_err = E_SUCCESS;
@@ -6342,10 +6845,21 @@ void qcril_qmi_nas_dsds_persistent_cache_fetch_to_shadow(void)
     }
     QCRIL_LOG_INFO( "..  paging priority value after reading from property %d", (int) nas_common_info.dsds.paging_priority );
 
+    // lte tune away
+    snprintf( property_name, sizeof(property_name), "%s%d", QMI_RIL_LTE_TUNE_AWAY, moniker );
+    qmi_ril_get_property_value_from_integer(property_name,
+                                            &nas_common_info.dsds.is_lte_tune_away,
+                                            NAS_DSDS_TUNEAWAY_STANDBY_PREF_INITIAL_VALUE);
+
+    QCRIL_LOG_INFO( "..  lte tuneaway value after reading from property %d", (int) nas_common_info.dsds.is_lte_tune_away );
+
     nas_common_info.dsds.default_voice_sub= NAS_DSDS_TUNEAWAY_STANDBY_PREF_INITIAL_VALUE;
 
     nas_common_info.dsds.default_data_sub= NAS_DSDS_TUNEAWAY_STANDBY_PREF_INITIAL_VALUE;
 
+    nas_common_info.dsds.modem_stack_id = moniker;
+
+    nas_common_info.dsds.is_default_data_set = FALSE;
 } // qcril_qmi_nas_dsds_persistent_cache_fetch_to_shadow
 
 //===========================================================================
@@ -6373,7 +6887,7 @@ RIL_Errno qcril_qmi_fetch_system_selection_preference(void)
 
         if ( RIL_E_SUCCESS == ril_req_res )
         {
-            NAS_CACHE_LOCK()
+            NAS_CACHE_LOCK();
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.emergency_mode, qmi_response->emergency_mode );
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.mode_pref, qmi_response->mode_pref );
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.band_pref, qmi_response->band_pref );
@@ -6381,9 +6895,20 @@ RIL_Errno qcril_qmi_fetch_system_selection_preference(void)
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.roam_pref, qmi_response->roam_pref );
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.net_sel_pref, qmi_response->net_sel_pref );
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.gw_acq_order_pref, qmi_response->gw_acq_order_pref );
-            NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_disable_cause, qmi_response->lte_disable_cause );
             NAS_CACHE_STORE_ENTRY_ARR ( nas_cached_info.acq_order, qmi_response->acq_order );
-            NAS_CACHE_UNLOCK()
+            NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_disable_cause, qmi_response->lte_disable_cause );
+
+            // If srv_domain_pref is invalid, it means no domain/no srv. Reset the cache.
+            if ( qmi_response->srv_domain_pref_valid )
+            {
+                NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.srv_domain_pref, qmi_response->srv_domain_pref );
+            }
+            else
+            {
+                NAS_CACHE_INVALIDATE_TINY_ENTRY( nas_cached_info.srv_domain_pref );
+            }
+
+            NAS_CACHE_UNLOCK();
         }
 
         qcril_free( qmi_response );
@@ -6423,6 +6948,17 @@ int qcril_qmi_nas_system_selection_preference_ind_conv_qmi2ril(nas_system_select
     qcril_reqlist_public_type                   qcril_req_info;
     errno_enum_type                             found_qcril_request;
     qcril_request_resp_params_type        resp;
+    int is_mode_pref_change = FALSE;
+    qmi_ril_nas_init_apn_attch_state_e_type cur_attch_state = qcril_qmi_nas_get_init_attch_state();
+
+    is_mode_pref_change = qmi_msg->mode_pref_valid?( nas_cached_info.mode_pref_valid != qmi_msg->mode_pref_valid ):FALSE;
+    if( (FALSE == is_mode_pref_change) && qmi_msg->mode_pref_valid )
+    {
+        is_mode_pref_change = ( nas_cached_info.mode_pref != qmi_msg->mode_pref )? TRUE:FALSE;
+    }
+
+    qcril_qmi_nas_embms_send_e911_state_changed_if_needed(qmi_msg->emergency_mode_valid,
+            qmi_msg->emergency_mode);
 
     if ( qmi_msg->emergency_mode_valid )
     {
@@ -6451,7 +6987,7 @@ int qcril_qmi_nas_system_selection_preference_ind_conv_qmi2ril(nas_system_select
             QCRIL_LOG_INFO( "..Got Entry QCRIL_EVT_QMI_REQUEST_SET_SYS_SEL_PREF in list. Sent response ");
             if( NAS_ZERO != nas_cached_info.sys_sel_pref_tmr )
             {
-                qcril_cancel_timed_callback((void *)nas_cached_info.sys_sel_pref_tmr);
+                qcril_cancel_timed_callback((void *)(intptr_t)nas_cached_info.sys_sel_pref_tmr);
                 nas_cached_info.sys_sel_pref_tmr = NAS_ZERO;
             }
         }
@@ -6464,25 +7000,46 @@ int qcril_qmi_nas_system_selection_preference_ind_conv_qmi2ril(nas_system_select
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.roam_pref, qmi_msg->roam_pref );
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_band_pref, qmi_msg->lte_band_pref );
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.net_sel_pref, qmi_msg->net_sel_pref );
-    NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.srv_domain_pref, qmi_msg->srv_domain_pref );
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.gw_acq_order_pref, qmi_msg->gw_acq_order_pref );
-    NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_disable_cause, qmi_msg->lte_disable_cause );
     NAS_CACHE_STORE_ENTRY_ARR ( nas_cached_info.acq_order, qmi_msg->acq_order );
+    NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_disable_cause, qmi_msg->lte_disable_cause );
+    // If srv_domain_pref is invalid, it means no domain/no srv. Reset the cache.
+    if ( qmi_msg->srv_domain_pref_valid )
+    {
+      NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.srv_domain_pref, qmi_msg->srv_domain_pref );
+    }
+    else
+    {
+      NAS_CACHE_INVALIDATE_TINY_ENTRY( nas_cached_info.srv_domain_pref );
+    }
 
+    QCRIL_LOG_INFO( ".. new lte band pref valid %d, value %llx", (int)qmi_msg->lte_band_pref_valid, qmi_msg->lte_band_pref);
     QCRIL_LOG_INFO( ".. new mode pref valid %d, value %d", (int)qmi_msg->mode_pref_valid, (int) qmi_msg->mode_pref );
     QCRIL_LOG_INFO( ".. new net sel pref valid %d, value %d", (int)qmi_msg->net_sel_pref_valid, (int) qmi_msg->net_sel_pref );
     QCRIL_LOG_INFO( ".. new emergency mode valid %d, value %d", (int)qmi_msg->emergency_mode_valid, (int) qmi_msg->emergency_mode );
     QCRIL_LOG_INFO( ".. new prl pref valid %d, value %d", (int)qmi_msg->prl_pref_valid, (int) qmi_msg->prl_pref );
     QCRIL_LOG_INFO( ".. new gw acq order valid %d, value %d", (int)qmi_msg->gw_acq_order_pref_valid, (int) qmi_msg->gw_acq_order_pref );
     QCRIL_LOG_INFO( ".. new srv domain pref valid %d, value %d", (int)qmi_msg->srv_domain_pref_valid, (int) qmi_msg->srv_domain_pref);
-    QCRIL_LOG_INFO( ".. new lte disable cause valid %d, value %d", (int)qmi_msg->lte_disable_cause_valid, (int) qmi_msg->lte_disable_cause );
     QCRIL_LOG_INFO( ".. new acq order pref valid %d, len %d", (int)qmi_msg->acq_order_valid, (int) qmi_msg->acq_order_len );
+    QCRIL_LOG_INFO( ".. new lte disable cause valid %d, value %d", (int)qmi_msg->lte_disable_cause_valid, (int) qmi_msg->lte_disable_cause );
 
     NAS_CACHE_UNLOCK();
 
-    if (qmi_msg->srv_domain_pref_valid)
+    if ((cur_attch_state == QMI_RIL_NAS_INIT_APN_ATTCH_DETACH) ||
+        (cur_attch_state == QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH))
     {
-        qcril_qmi_nas_check_initial_attach_state(qmi_msg->srv_domain_pref);
+      qcril_qmi_nas_check_initial_attach_state(qmi_msg->srv_domain_pref_valid, qmi_msg->srv_domain_pref);
+    }
+    else if ((cur_attch_state == QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_DETACH) ||
+             (cur_attch_state == QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ATTACH) ||
+             (cur_attch_state == QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_WAIT_FOR_RAT_EXP))
+    {
+      qcril_qmi_nas_check_ps_attach_status();
+    }
+
+    if ( TRUE == is_mode_pref_change )
+    {
+        qcril_qmi_nas_initiate_voice_rte_change_propagation();
     }
 
     return E_SUCCESS;
@@ -6589,58 +7146,6 @@ int qcril_qmi_nas_fill_sys_info_details(nas_sys_info_helper_type * sys_info_help
     return res;
 }
 
-/*===========================================================================
- qcril_convert_sys_info_service_domain_to_sys_sel_service_domain
-============================================================================*/
-/*!
-    @brief
-    convert sys info service domain value to sys sel pref service domain value.
-
-    @return
-    sys selection pref service domain
-*/
-/*=========================================================================*/
-int qcril_convert_sys_info_service_domain_to_sys_sel_service_domain
-(
-    nas_service_domain_enum_type_v01 sys_info_srv_domin
-)
-{
-    int sys_sel_srv_domain = NAS_SRV_DOMAIN_PREF_ENUM_TYPE_MIN_ENUM_VAL_V01;
-
-    switch (sys_info_srv_domin)
-    {
-        case SYS_SRV_DOMAIN_NO_SRV_V01:
-        {
-            sys_sel_srv_domain = QCRIL_SRV_DOMAIN_PREF_NO_SRVC_DOMAIN_V01;
-            break;
-        }
-
-        case SYS_SRV_DOMAIN_CS_ONLY_V01:
-        {
-            sys_sel_srv_domain = QMI_SRV_DOMAIN_PREF_CS_ONLY_V01;
-            break;
-        }
-
-        case SYS_SRV_DOMAIN_PS_ONLY_V01:
-        {
-            sys_sel_srv_domain = QMI_SRV_DOMAIN_PREF_PS_ONLY_V01;
-            break;
-        }
-
-        case SYS_SRV_DOMAIN_CS_PS_V01:
-        {
-            sys_sel_srv_domain = QMI_SRV_DOMAIN_PREF_CS_PS_V01;
-            break;
-        }
-
-        default:
-            break;
-    }
-
-    QCRIL_LOG_FUNC_RETURN_WITH_RET(sys_sel_srv_domain);
-    return sys_sel_srv_domain;
-}
-
 //===========================================================================
 //qcril_qmi_nas_fetch_lte_voice_status
 //===========================================================================
@@ -6655,8 +7160,10 @@ void qcril_qmi_nas_fetch_lte_voice_status ( uint8_t *lte_voice_status_valid, nas
 //===========================================================================
 void qcril_qmi_nas_fetch_lte_sms_status ( uint8_t *lte_sms_status_valid, nas_sms_status_enum_type_v01 *lte_sms_status )
 {
+    NAS_CACHE_LOCK();
     *lte_sms_status = nas_cached_info.lte_sms_status;
     *lte_sms_status_valid = nas_cached_info.lte_sms_status_valid;
+    NAS_CACHE_UNLOCK();
 }
 
 //===========================================================================
@@ -6709,6 +7216,8 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
   uint64_t current_time;
   uint8_t                          prev_lte_embms_coverage_valid;
   uint8_t                          prev_lte_embms_coverage;
+  uint8_t                          prev_embms_coverage_status_valid;
+  nas_lte_rrc_embms_coverage_status_enum_v01  prev_embms_coverage_status;
   uint8_t                          prev_lte_sys_info_valid;
   nas_lte_sys_info_type_v01        prev_lte_sys_info;
   nas_service_status_enum_type_v01  old_service_status = NAS_SYS_SRV_STATUS_NO_SRV_V01;
@@ -6733,6 +7242,9 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
 
   RIL_Errno location_data_res;
 
+  qcril_arb_pref_data_type pref_data;
+  int extrapolation_is_under;
+  int extrapolation_is_roaming;
 
   QCRIL_LOG_FUNC_ENTRY();
 
@@ -6744,6 +7256,8 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
 
     prev_lte_embms_coverage_valid = nas_cached_info.lte_embms_coverage_valid;
     prev_lte_embms_coverage = nas_cached_info.lte_embms_coverage;
+    prev_embms_coverage_status_valid = nas_cached_info.embms_coverage_status_valid;
+    prev_embms_coverage_status = nas_cached_info.embms_coverage_status;
 
     prev_lte_sys_info_valid = nas_cached_info.lte_sys_info_valid;
     if (prev_lte_sys_info_valid)
@@ -6825,6 +7339,7 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
         NAS_CACHE_INVALIDATE_ENTRY(nas_cached_info.short_name);
         NAS_CACHE_INVALIDATE_ENTRY(nas_cached_info.long_name);
         *network_state_updated = TRUE;
+        *radio_tech_changed = TRUE;
     }
 
     NAS_CACHE_UNLOCK();
@@ -6834,7 +7349,12 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
     qmi_ril_nw_reg_snapshot_dump_log( &new_rte_snapshot );
     any_rte_change = (FALSE == qmi_ril_nw_reg_snapshot_is_same_as( &new_rte_snapshot, &old_rte_snapshot ));
     QCRIL_LOG_INFO( "any rte change %d", any_rte_change);
-    *radio_tech_changed = ( any_rte_change ) ? TRUE : FALSE;
+
+    if(FALSE == (*radio_tech_changed))
+    {
+        *radio_tech_changed = ( any_rte_change ) ? TRUE : FALSE;
+    }
+
     QCRIL_LOG_INFO( ".. rte changed %d",
                     (int)*radio_tech_changed );
 
@@ -6853,9 +7373,19 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
     {
       NAS_CACHE_LOCK();
       qcril_qmi_nas_drop_nw_info_cache();
-      NAS_CACHE_UNLOCK();
-
       qcril_qmi_nas_fetch_sys_info();
+
+      memset(&pref_data, 0, sizeof(pref_data));
+      qcril_qmi_get_pref_data_tech(&pref_data);
+      qmi_ril_nw_reg_extend_pref_data_tech_cl( &pref_data, &extrapolation_is_under, &extrapolation_is_roaming );
+      // Invalidate sig info cache if pref data tech is invalid or not extrapolating
+      if ( !extrapolation_is_under ||
+           ( extrapolation_is_under && nas_common_info.is_screen_off && ( nas_cached_info.voice_rte == nas_cached_info.data_rte ) ) )
+      {
+        qcril_qmi_drop_sig_info_cache();
+      }
+
+      NAS_CACHE_UNLOCK();
 
       *network_state_updated = TRUE; //voice and data network state need to be updated as there is a change in rte
       *data_nw_state_changed = TRUE;
@@ -6865,14 +7395,7 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
     qcril_qmi_nas_restricted_state_handle_event( QMI_RIL_NAS_RESTRICTED_DETAILS_EVENT_CHECK_FOR_CHANGE );
     NAS_CACHE_UNLOCK();
 
-    if (qmi_msg->lte_sys_info_valid && qmi_msg->lte_sys_info.common_sys_info.srv_domain_valid)
-    {
-        qcril_qmi_nas_check_initial_attach_state(
-                qcril_convert_sys_info_service_domain_to_sys_sel_service_domain(
-                                qmi_msg->lte_sys_info.common_sys_info.srv_domain));
-    }
-
-    qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(prev_lte_embms_coverage_valid, prev_lte_embms_coverage);
+    qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(prev_embms_coverage_status_valid, prev_embms_coverage_status);
     qcril_qmi_nas_embms_send_cell_info_changed_if_needed(prev_lte_sys_info_valid, &prev_lte_sys_info);
   }
 
@@ -6904,20 +7427,26 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
     }
 
     // 3gpp checks
-    if ( !*network_state_updated && ( ( nas_cached_info.voice_rte == QMI_RIL_RTE_GSM ) || ( nas_cached_info.voice_rte == QMI_RIL_RTE_WCDMA ) || ( nas_cached_info.voice_rte == QMI_RIL_RTE_TDSCDMA ) || ( nas_cached_info.voice_rte == QMI_RIL_RTE_SUB_LTE ) ) &&
-         ( NULL != prev_sys_info_helper.threegpp_only_sys_info ) && ( NULL != cur_sys_info_helper.threegpp_only_sys_info ) &&
-          ( NULL != prev_sys_info_helper.threegpp_srv_status ) && ( NULL != cur_sys_info_helper.threegpp_srv_status ) )
+    if ( (!*network_state_updated) &&
+         ( ( nas_cached_info.voice_rte == QMI_RIL_RTE_GSM ) ||
+           ( nas_cached_info.voice_rte == QMI_RIL_RTE_WCDMA ) ||
+           ( nas_cached_info.voice_rte == QMI_RIL_RTE_TDSCDMA ) ||
+           ( nas_cached_info.voice_rte == QMI_RIL_RTE_SUB_LTE ) ) &&
+         ( NULL != prev_sys_info_helper.threegpp_only_sys_info ) &&
+         ( NULL != cur_sys_info_helper.threegpp_only_sys_info ) &&
+         ( NULL != prev_sys_info_helper.threegpp_srv_status ) &&
+         ( NULL != cur_sys_info_helper.threegpp_srv_status ) )
     {
       QCRIL_LOG_INFO( " .. 3gpp check");
       *network_state_updated = ( ( prev_sys_info_helper.threegpp_only_sys_info->reg_reject_info_valid && cur_sys_info_helper.threegpp_only_sys_info->reg_reject_info_valid ) &&
-                                 ( prev_sys_info_helper.threegpp_only_sys_info->reg_reject_info.reject_srv_domain != cur_sys_info_helper.threegpp_only_sys_info->reg_reject_info.reject_srv_domain ) ||
-                                 ( prev_sys_info_helper.threegpp_only_sys_info->reg_reject_info.rej_cause != cur_sys_info_helper.threegpp_only_sys_info->reg_reject_info.rej_cause ) ) ||
+                                 (( prev_sys_info_helper.threegpp_only_sys_info->reg_reject_info.reject_srv_domain != cur_sys_info_helper.threegpp_only_sys_info->reg_reject_info.reject_srv_domain ) ||
+                                 ( prev_sys_info_helper.threegpp_only_sys_info->reg_reject_info.rej_cause != cur_sys_info_helper.threegpp_only_sys_info->reg_reject_info.rej_cause )) ) ||
                                  prev_sys_info_helper.threegpp_srv_status->true_srv_status != cur_sys_info_helper.threegpp_srv_status->true_srv_status ||
                                ( nas_common_info.location_updates_enabled &&
                                   ( ( ( prev_sys_info_helper.threegpp_only_sys_info->lac_valid && cur_sys_info_helper.threegpp_only_sys_info->lac_valid ) &&
                                     ( prev_sys_info_helper.threegpp_only_sys_info->lac != cur_sys_info_helper.threegpp_only_sys_info->lac )) ||
-                                    ( prev_sys_info_helper.threegpp_only_sys_info->cell_id_valid && cur_sys_info_helper.threegpp_only_sys_info->cell_id_valid ) &&
-                                    ( prev_sys_info_helper.threegpp_only_sys_info->cell_id != cur_sys_info_helper.threegpp_only_sys_info->cell_id ) ) );
+                                    (( prev_sys_info_helper.threegpp_only_sys_info->cell_id_valid && cur_sys_info_helper.threegpp_only_sys_info->cell_id_valid ) &&
+                                    ( prev_sys_info_helper.threegpp_only_sys_info->cell_id != cur_sys_info_helper.threegpp_only_sys_info->cell_id )) ) );
      QCRIL_LOG_INFO( "prev lac %u cur lac %u prev cid %d cur cid %d", prev_sys_info_helper.threegpp_only_sys_info->lac, cur_sys_info_helper.threegpp_only_sys_info->lac, prev_sys_info_helper.threegpp_only_sys_info->cell_id, cur_sys_info_helper.threegpp_only_sys_info->cell_id );
 
      // Check for TAC change if rte is LTE
@@ -6936,9 +7465,9 @@ int qcril_qmi_nas_sys_info_ind_conv_qmi2ril(nas_sys_info_ind_msg_v01 * qmi_msg,
      QCRIL_LOG_INFO( " .. 1x check");
      *network_state_updated =  ( nas_common_info.location_updates_enabled &&
                                ( ( prev_sys_info_helper.cdma_only_sys_info->bs_info_valid && cur_sys_info_helper.cdma_only_sys_info->bs_info_valid ) &&
-                                 ( prev_sys_info_helper.cdma_only_sys_info->bs_info.base_id != cur_sys_info_helper.cdma_only_sys_info->bs_info.base_id ) ||
+                                 (( prev_sys_info_helper.cdma_only_sys_info->bs_info.base_id != cur_sys_info_helper.cdma_only_sys_info->bs_info.base_id ) ||
                                  ( prev_sys_info_helper.cdma_only_sys_info->bs_info.base_lat != cur_sys_info_helper.cdma_only_sys_info->bs_info.base_lat ) ||
-                                 ( prev_sys_info_helper.cdma_only_sys_info->bs_info.base_long != cur_sys_info_helper.cdma_only_sys_info->bs_info.base_long ) ) );
+                                 ( prev_sys_info_helper.cdma_only_sys_info->bs_info.base_long != cur_sys_info_helper.cdma_only_sys_info->bs_info.base_long )) ) );
      QCRIL_LOG_INFO( "prev base_id %u cur base_id %u", prev_sys_info_helper.cdma_only_sys_info->bs_info.base_id, cur_sys_info_helper.cdma_only_sys_info->bs_info.base_id );
    }
    // HDR fields
@@ -6992,6 +7521,7 @@ void qmi_ril_nw_reg_update_sys_info_cache_from_ind( nas_sys_info_ind_msg_v01 * q
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.voice_support_on_lte, qmi_msg->voice_support_on_lte );
 
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_embms_coverage, qmi_msg->lte_embms_coverage );
+    NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.embms_coverage_status, qmi_msg->embms_coverage_status );
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.sim_rej_info, qmi_msg->sim_rej_info );
 
     nas_cached_info.is_considered_registered_cached_result_valid = FALSE;
@@ -7738,8 +8268,10 @@ int qcril_qmi_nas_event_report_ind_conv_qmi2ril(nas_event_report_ind_msg_v01* qm
 
         NAS_CACHE_STORE_ENTRY( nas_cached_info.registration_reject_reason , qmi_msg->registration_reject_reason );
         QCRIL_LOG_INFO( ".. reg reject valid %d", NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.registration_reject_reason ) );
-        if ( nas_cached_info.registration_reject_reason
-            && NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.registration_reject_reason ) )
+        if ( qmi_msg->registration_reject_reason_valid &&
+             nas_cached_info.registration_reject_reason &&
+             NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.registration_reject_reason )
+           )
         {
             QCRIL_LOG_INFO( ".. evt_rep reg reject cause %d", (int)nas_cached_info.registration_reject_reason->reject_cause );
             QCRIL_LOG_INFO( ".. evt_rep reg reject dmn %d", (int)nas_cached_info.registration_reject_reason->service_domain );
@@ -7884,7 +8416,9 @@ void qcril_qmi_nas_dump_sign_strength_report(RIL_SignalStrength* ril_signal_stre
                                                              ril_signal_strength->GW_SignalStrength.bitErrorRate );
 
     QCRIL_LOG_INFO( "..TDSCDMA");
+#ifndef QMI_RIL_UTF
     QCRIL_LOG_INFO( ".. signalStrength %d", ril_signal_strength->TD_SCDMA_SignalStrength.rscp );
+#endif
 
     QCRIL_LOG_INFO( "..CDMA");
     QCRIL_LOG_INFO( ".. dbm %d, ecio %d ", ril_signal_strength->CDMA_SignalStrength.dbm,
@@ -7933,7 +8467,9 @@ int qcril_qmi_nas_signal_strength_con_conv_cache2ril(RIL_SignalStrength* ril_msg
         ril_msg->LTE_SignalStrength.timingAdvance = INT_MAX;
 #endif
 
+#ifndef QMI_RIL_UTF
         ril_msg->TD_SCDMA_SignalStrength.rscp = INT_MAX;
+#endif
 
         // ??? ril_msg->CDMA_SignalStrength.signalNoiseRatio
 
@@ -8079,7 +8615,9 @@ int qcril_qmi_nas_signal_strength_con_conv_cache2ril(RIL_SignalStrength* ril_msg
                 {
                     if( NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.rscp) )
                     {
+#ifndef QMI_RIL_UTF
                         ril_msg->TD_SCDMA_SignalStrength.rscp = nas_cached_info.rscp * -1;
+#endif
                     }
                 }
 
@@ -8144,12 +8682,12 @@ void qcril_qmi_nas_request_signal_strength
 
   QCRIL_LOG_FUNC_ENTRY();
   // let's see if any info needs to be fetched
-
+  NAS_CACHE_LOCK();
   memset( &ril_response_payload, 0, sizeof( ril_response_payload ) );
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   is_registered = qcril_qmi_nas_is_considered_registered(NULL);
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   QCRIL_LOG_INFO(".. is registered %d", (int) is_registered);
 
@@ -8170,6 +8708,7 @@ void qcril_qmi_nas_request_signal_strength
       ril_req_res = RIL_E_SUCCESS; // we will retun 0 data
   }
 
+  NAS_CACHE_UNLOCK();
   qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
   if ( RIL_E_SUCCESS == ril_req_res )
   {
@@ -8204,6 +8743,8 @@ void qcril_qmi_trigger_propagate_known_signal_strength_ind
 )
 {
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(params_ptr);
+    QCRIL_NOTUSED(ret_ptr);
     qcril_qmi_nas_propagate_known_signal_strength_ind();
 }
 //===========================================================================
@@ -8261,7 +8802,7 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
 
     if( !qmi_ril_is_qmi_sys_info_available() )
     {
-    NAS_CACHE_LOCK()
+    NAS_CACHE_LOCK();
     qmi_request_mask |= NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.signal_strength_list ) ? NAS_NIL : NAS_REQ_MASK_SIG_STRENGTH_MANDATORY_FLD;
     qmi_request_mask |= NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.rssi ) ? NAS_NIL : NAS_REQ_MASK_SIG_STRENGTH_RSSI;
     qmi_request_mask |= NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.ecio ) ? NAS_NIL : NAS_REQ_MASK_SIG_STRENGTH_ECIO;
@@ -8269,7 +8810,7 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
     qmi_request_mask |= NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.io ) ? NAS_NIL : NAS_REQ_MASK_SIG_STRENGTH_IO;
     qmi_request_mask |= NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.error_rate ) ? NAS_NIL : NAS_REQ_MASK_SIG_STRENGTH_ERROR_RATE;
     qmi_request_mask |= NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.rsrq ) ? NAS_NIL : NAS_REQ_MASK_SIG_STRENGTH_RSRQ;
-    NAS_CACHE_UNLOCK()
+    NAS_CACHE_UNLOCK();
 
     QCRIL_LOG_INFO("..req mask %d", (int)qmi_request_mask);
 
@@ -8285,7 +8826,7 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
         if ( qmi_response )
         {
             QCRIL_LOG_INFO("entered IF QMI RESPONSE %d",qmi_request_mask);
-            qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+            qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_GET_SIGNAL_STRENGTH_REQ_MSG_V01,
                                                                (void*) &qmi_request,
                                                                sizeof( qmi_request ),
@@ -8298,7 +8839,7 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
             {
                 QCRIL_LOG_INFO("entered IF UTIL_RES = SUCCESS %d",qmi_request_mask);
 
-                NAS_CACHE_LOCK()
+                NAS_CACHE_LOCK();
                 NAS_CACHE_STORE_ENTRY_ARR( nas_cached_info.signal_strength_list, qmi_response->signal_strength_list );
                 NAS_CACHE_STORE_ENTRY_ARR( nas_cached_info.rssi, qmi_response->rssi );
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.io, qmi_response->io );
@@ -8306,7 +8847,7 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
                 NAS_CACHE_STORE_ENTRY_ARR( nas_cached_info.error_rate, qmi_response->error_rate );
                 NAS_CACHE_STORE_ENTRY_ARR( nas_cached_info.ecio, qmi_response->ecio );
                 NAS_CACHE_STORE_ENTRY( nas_cached_info.rsrq, qmi_response->rsrq );
-                NAS_CACHE_UNLOCK()
+                NAS_CACHE_UNLOCK();
             }
             qcril_free( qmi_response );
         }
@@ -8314,7 +8855,7 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
     }
     else
     {
-        NAS_CACHE_LOCK()
+        NAS_CACHE_LOCK();
 
         QCRIL_LOG_INFO("validity sign info GSM %d, WCDMA %d, TDSCDMA %d, 1x %d, HRPD %d, LTE %d",
                        (int) NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.gsm_sig_info),
@@ -8393,14 +8934,14 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
             }
         }
 
-        NAS_CACHE_UNLOCK()
+        NAS_CACHE_UNLOCK();
 
         QCRIL_LOG_INFO("..qmi_request_need_sig_info-%d, qmi_request_need_err_rate-%d", qmi_request_need_sig_info,qmi_request_need_err_rate);
 
         if ( qmi_request_need_sig_info )
         {
             memset( &qmi_response_sig_info, 0, sizeof( qmi_response_sig_info ) );
-            qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+            qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_GET_SIG_INFO_REQ_MSG_V01,
                                                                NULL,
                                                                NAS_NIL,
@@ -8411,14 +8952,14 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
             ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &qmi_response_sig_info.resp );
             if ( RIL_E_SUCCESS == ril_req_res )
             {
-                NAS_CACHE_LOCK()
+                NAS_CACHE_LOCK();
                 NAS_CACHE_STORE_ENTRY( nas_cached_info.cdma_sig_info, qmi_response_sig_info.cdma_sig_info );
                 NAS_CACHE_STORE_ENTRY( nas_cached_info.hdr_sig_info, qmi_response_sig_info.hdr_sig_info );
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.gsm_sig_info, qmi_response_sig_info.gsm_sig_info );
                 NAS_CACHE_STORE_ENTRY( nas_cached_info.wcdma_sig_info, qmi_response_sig_info.wcdma_sig_info );
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.rscp, qmi_response_sig_info.rscp );
                 NAS_CACHE_STORE_ENTRY( nas_cached_info.lte_sig_info, qmi_response_sig_info.lte_sig_info );
-                NAS_CACHE_UNLOCK()
+                NAS_CACHE_UNLOCK();
             }
             QCRIL_LOG_INFO("..sign info fetch res %d, %d, %d", (int) ril_req_res, (int) qmi_client_error, (int)qmi_response_sig_info.resp.error );
         }
@@ -8426,7 +8967,7 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
         if ( (RIL_E_SUCCESS == ril_req_res) && qmi_request_need_err_rate )
         {
             memset( &qmi_response_err_rate, 0, sizeof( qmi_response_err_rate ) );
-            qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+            qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_GET_ERR_RATE_REQ_MSG_V01,
                                                                NULL,
                                                                NAS_NIL,
@@ -8437,11 +8978,11 @@ RIL_Errno qcril_qmi_nas_fetch_signal_strength_observations(void)
             ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, &qmi_response_err_rate.resp );
             if ( RIL_E_SUCCESS == ril_req_res )
             {
-                NAS_CACHE_LOCK()
+                NAS_CACHE_LOCK();
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.gsm_bit_err_rate, qmi_response_err_rate.gsm_bit_err_rate );
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.wcdma_block_err_rate, qmi_response_err_rate.wcdma_block_err_rate );
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.tdscdma_block_err_rate, qmi_response_err_rate.tdscdma_block_err_rate );
-                NAS_CACHE_UNLOCK()
+                NAS_CACHE_UNLOCK();
             }
             QCRIL_LOG_INFO("..err rate fetch res %d, %d, %d", (int) ril_req_res, (int) qmi_client_error, (int)qmi_response_err_rate.resp.error );
         }
@@ -8502,7 +9043,7 @@ RIL_Errno qcril_qmi_nas_get_cell_location_data_sync
     {
         memset (get_cell_location_info_resp, 0, sizeof( *get_cell_location_info_resp));
 
-        qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+        qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                           QMI_NAS_GET_CELL_LOCATION_INFO_REQ_MSG_V01,
                                                           NULL,
                                                           NAS_NIL,
@@ -8528,6 +9069,8 @@ RIL_Errno qcril_qmi_nas_fetch_sys_info()
     qmi_client_error_type qmi_client_error;
     uint8_t prev_lte_embms_coverage_valid;
     uint8_t prev_lte_embms_coverage;
+    uint8_t prev_lte_embms_coverage_status_valid;
+    nas_lte_rrc_embms_coverage_status_enum_v01 prev_lte_embms_coverage_status;
     uint8_t                          prev_lte_sys_info_valid;
     nas_lte_sys_info_type_v01        prev_lte_sys_info;
 
@@ -8547,7 +9090,7 @@ RIL_Errno qcril_qmi_nas_fetch_sys_info()
     if ( qmi_response )
     {
 
-        qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+        qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                            QMI_NAS_GET_SYS_INFO_REQ_MSG_V01,
                                                            NULL,
                                                            NAS_NIL,  // empty request payload
@@ -8561,7 +9104,7 @@ RIL_Errno qcril_qmi_nas_fetch_sys_info()
 
         if ( RIL_E_SUCCESS == ril_req_res )
         {
-            NAS_CACHE_LOCK()
+            NAS_CACHE_LOCK();
 
             old_mcc_mnc_valid = qcril_qmi_nas_find_current_mcc_mnc(old_mcc_str, old_mnc_str, TRUE, NULL);
 
@@ -8605,6 +9148,11 @@ RIL_Errno qcril_qmi_nas_fetch_sys_info()
             prev_lte_embms_coverage_valid = nas_cached_info.lte_embms_coverage_valid;
             prev_lte_embms_coverage = nas_cached_info.lte_embms_coverage;
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_embms_coverage, qmi_response->lte_embms_coverage );
+
+            prev_lte_embms_coverage_status_valid = nas_cached_info.embms_coverage_status_valid;
+            prev_lte_embms_coverage_status = nas_cached_info.embms_coverage_status;
+            NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.embms_coverage_status, qmi_response->embms_coverage_status );
+
             NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.sim_rej_info, qmi_response->sim_rej_info );
 
             nas_cached_info.is_considered_registered_cached_result_valid = FALSE;
@@ -8635,9 +9183,11 @@ RIL_Errno qcril_qmi_nas_fetch_sys_info()
 
             NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.lte_sms_status,qmi_response->lte_sms_status);
 
-            NAS_CACHE_UNLOCK()
+            NAS_CACHE_UNLOCK();
 
-            qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(prev_lte_embms_coverage_valid, prev_lte_embms_coverage);
+            qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(
+                    prev_lte_embms_coverage_status_valid,
+                    prev_lte_embms_coverage_status);
             qcril_qmi_nas_embms_send_cell_info_changed_if_needed(prev_lte_sys_info_valid, &prev_lte_sys_info);
         }
 
@@ -8663,7 +9213,7 @@ RIL_Errno qcril_qmi_nas_fetch_serving_system_info()
     if ( qmi_response )
     {
 
-        qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+        qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                            QMI_NAS_GET_SERVING_SYSTEM_REQ_MSG_V01,
                                                            NULL,
                                                            NAS_NIL,  // empty request payload
@@ -8677,7 +9227,7 @@ RIL_Errno qcril_qmi_nas_fetch_serving_system_info()
 
         if ( RIL_E_SUCCESS == ril_req_res )
         {
-            NAS_CACHE_LOCK()
+            NAS_CACHE_LOCK();
 
             NAS_CACHE_STORE_ENTRY_VALID_VAL( nas_cached_info.serving_system, qmi_response->serving_system );
             NAS_CACHE_STORE_ENTRY( nas_cached_info.cdma_base_station_info, qmi_response->cdma_base_station_info );
@@ -8712,7 +9262,7 @@ RIL_Errno qcril_qmi_nas_fetch_serving_system_info()
 
             ril_req_res = NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.serving_system ) ? RIL_E_SUCCESS : RIL_E_GENERIC_FAILURE;
 
-            NAS_CACHE_UNLOCK()
+            NAS_CACHE_UNLOCK();
         }
 
         qcril_free( qmi_response );
@@ -8812,11 +9362,12 @@ void qcril_qmi_nas_request_registration_state
 
   qmi_ril_suppress_android_unsol_resp(RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED);
   qmi_ril_suppress_android_unsol_resp(RIL_UNSOL_VOICE_RADIO_TECH_CHANGED);
+  NAS_CACHE_LOCK();
 
   if ( !qmi_ril_is_qmi_sys_info_available() )
   { // legacy version
       // ** update cache if necessary
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
       qmi_request_need1 = ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.serving_system ) &&
                             NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.detailed_service_info ) &&
                             NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.roaming_indicator )
@@ -8843,7 +9394,7 @@ void qcril_qmi_nas_request_registration_state
                                 ? FALSE : TRUE;
 
       }
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
 
       QCRIL_LOG_INFO("cache subrequest need %d", (int) qmi_request_need1);
       if ( qmi_request_need1 )
@@ -8868,7 +9419,7 @@ void qcril_qmi_nas_request_registration_state
 
           QCRIL_LOG_INFO( "forming response");
 
-          NAS_CACHE_LOCK()
+          NAS_CACHE_LOCK();
 
           // * registartion state
           val_int = 4; // unknown
@@ -9197,14 +9748,14 @@ void qcril_qmi_nas_request_registration_state
           }
 
           // done
-          NAS_CACHE_UNLOCK()
+          NAS_CACHE_UNLOCK();
       }
 
   }
   else
   { // sys info version
 
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
 
       vrte = nas_cached_info.voice_rte;
       irte = nas_cached_info.ims_rte;
@@ -9274,7 +9825,7 @@ void qcril_qmi_nas_request_registration_state
                   break;
           }
       }
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
 
       QCRIL_LOG_INFO(".. request need %d, vrte %d, irte %d", (int) qmi_request_need1, (int) vrte, (int) irte );
       if ( qmi_request_need1 )
@@ -9288,7 +9839,7 @@ void qcril_qmi_nas_request_registration_state
 
       if ( RIL_E_SUCCESS == ril_req_res )
       {
-          NAS_CACHE_LOCK()
+          NAS_CACHE_LOCK();
 
           QCRIL_LOG_INFO(" ... cdma_srv_status_info val %d", NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.cdma_srv_status_info ) );
           QCRIL_LOG_INFO(" ... hdr_srv_status_info val %d", NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.hdr_srv_status_info ) );
@@ -9655,8 +10206,8 @@ void qcril_qmi_nas_request_registration_state
 
           // CCS
           QCRIL_LOG_INFO("ccs_supported %d", cdma_ccs_supported);
-          QCRIL_LOG_ESSENTIAL("simul_voice_and_data_capability valid %d, value %d", NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.simul_voice_and_data_capability ), nas_cached_info.simul_voice_and_data_capability);
-          QCRIL_LOG_ESSENTIAL("reported data technology %d", nas_cached_info.reported_data_technology);
+          QCRIL_LOG_DEBUG("simul_voice_and_data_capability valid %d, value %d", NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.simul_voice_and_data_capability ), nas_cached_info.simul_voice_and_data_capability);
+          QCRIL_LOG_DEBUG("reported data technology %d", nas_cached_info.reported_data_technology);
 
           ccs_is_present = FALSE;
           switch( nas_cached_info.reported_data_technology )
@@ -9790,10 +10341,11 @@ void qcril_qmi_nas_request_registration_state
           }
 
           // done with reg reporting
-          NAS_CACHE_UNLOCK()
+          NAS_CACHE_UNLOCK();
       }
   }
 
+  NAS_CACHE_UNLOCK();
   // ** respond
   qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
   if ( RIL_E_SUCCESS == ril_req_res )
@@ -9824,9 +10376,9 @@ void qcril_qmi_nas_request_registration_state
   qmi_ril_unsuppress_android_unsol_resp(RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED);
   qmi_ril_unsuppress_android_unsol_resp(RIL_UNSOL_VOICE_RADIO_TECH_CHANGED);
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   qcril_qmi_nas_restricted_state_handle_event( QMI_RIL_NAS_RESTRICTED_DETAILS_EVENT_CHECK_FOR_REPOST );
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   // check need for rerendering report
   if ( must_rerender_reg_report )
@@ -9851,6 +10403,7 @@ void qcril_qmi_nas_request_registration_state
 void qcril_qmi_nas_retranslate_cs_ps_bar_info_handler(void * param)
 {
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(param);
 
     NAS_CACHE_LOCK();
     qcril_qmi_nas_restricted_state_handle_event( QMI_RIL_NAS_RESTRICTED_DETAILS_EVENT_CHANGE_REPOST );
@@ -10318,15 +10871,16 @@ int qcril_qmi_nas_find_current_mcc_mnc
 )
 {
     int res = FALSE;
-    qmi_ril_nw_reg_rte_type registered_rte = QMI_RIL_RTE_NONE;
+    qmi_ril_nw_reg_rte_type registered_rtes[QMI_RIL_RTE_LAST] = {QMI_RIL_RTE_NONE};
+    qmi_ril_nw_reg_rte_type chosen_registered_rte             = QMI_RIL_RTE_NONE;
 
     if( NULL != mcc_str_ptr && NULL != mnc_str_ptr)
     {
         memset(mcc_str_ptr,0,NAS_MCC_MNC_MAX_SIZE);
         memset(mnc_str_ptr,0,NAS_MCC_MNC_MAX_SIZE);
 
-        if( FALSE == is_full_service_required ||
-             qcril_qmi_nas_is_considered_registered(&registered_rte) )
+        if(FALSE == is_full_service_required ||
+           qcril_qmi_nas_is_considered_registered(registered_rtes))
         {
             if( !qmi_ril_is_qmi_sys_info_available() )
             {
@@ -10347,17 +10901,14 @@ int qcril_qmi_nas_find_current_mcc_mnc
             }
             else
             {
-                if ( (qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SGLTE ) ||
-                     qcril_qmi_nas_is_sglte3()) &&
-                     !qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SGLTE_CSFB ))
-                {
-                    qcril_qmi_nas_evaluate_sglte_current_eons_rte();
-                    registered_rte = nas_cached_info.sglte_current_eons_rte;
-                }
+                chosen_registered_rte =
+                    qcril_qmi_nas_choose_rte_to_retrieve_3gpp_operator_name_info(registered_rtes);
+
+                QCRIL_LOG_INFO("chosen rte - %d", chosen_registered_rte);
 
                 if(qcril_qmi_nas_is_radio_if_plmn_available(NAS_RADIO_IF_GSM) && NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.gsm_sys_info)
                     && nas_cached_info.gsm_sys_info->threegpp_specific_sys_info.network_id_valid &&
-                    (is_full_service_required? (registered_rte == QMI_RIL_RTE_GSM) : TRUE))
+                    (is_full_service_required? (chosen_registered_rte == QMI_RIL_RTE_GSM) : TRUE))
                 {
                     QCRIL_LOG_INFO("using sys_info_ind - GSM");
                     qcril_qmi_nas_fillup_mcc_mnc_helper(nas_cached_info.gsm_sys_info->threegpp_specific_sys_info.network_id.mcc, mcc_str_ptr);
@@ -10370,7 +10921,7 @@ int qcril_qmi_nas_find_current_mcc_mnc
                 }
                 else if(qcril_qmi_nas_is_radio_if_plmn_available(NAS_RADIO_IF_UMTS) && NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.wcdma_sys_info)
                     && nas_cached_info.wcdma_sys_info->threegpp_specific_sys_info.network_id_valid &&
-                    (is_full_service_required? (registered_rte == QMI_RIL_RTE_WCDMA) : TRUE))
+                    (is_full_service_required? (chosen_registered_rte == QMI_RIL_RTE_WCDMA) : TRUE))
                 {
                     QCRIL_LOG_INFO("using sys_info_ind - WCDMA");
                     qcril_qmi_nas_fillup_mcc_mnc_helper(nas_cached_info.wcdma_sys_info->threegpp_specific_sys_info.network_id.mcc, mcc_str_ptr);
@@ -10383,7 +10934,7 @@ int qcril_qmi_nas_find_current_mcc_mnc
                 }
                 else if(qcril_qmi_nas_is_radio_if_plmn_available(NAS_RADIO_IF_TDSCDMA) && NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.tdscdma_sys_info)
                     && nas_cached_info.tdscdma_sys_info->threegpp_specific_sys_info.network_id_valid &&
-                    (is_full_service_required? (registered_rte == QMI_RIL_RTE_TDSCDMA) : TRUE))
+                    (is_full_service_required? (chosen_registered_rte == QMI_RIL_RTE_TDSCDMA) : TRUE))
                 {
                     QCRIL_LOG_INFO("using sys_info_ind - TDSCDMA");
                     qcril_qmi_nas_fillup_mcc_mnc_helper(nas_cached_info.tdscdma_sys_info->threegpp_specific_sys_info.network_id.mcc, mcc_str_ptr);
@@ -10396,7 +10947,7 @@ int qcril_qmi_nas_find_current_mcc_mnc
                 }
                 else if(qcril_qmi_nas_is_radio_if_plmn_available(NAS_RADIO_IF_LTE) && NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.lte_sys_info)
                     && nas_cached_info.lte_sys_info->threegpp_specific_sys_info.network_id_valid &&
-                    (is_full_service_required? (registered_rte == QMI_RIL_RTE_SUB_LTE) : TRUE))
+                    (is_full_service_required? (chosen_registered_rte == QMI_RIL_RTE_SUB_LTE) : TRUE))
                 {
                     QCRIL_LOG_INFO("using sys_info_ind - LTE");
                     qcril_qmi_nas_fillup_mcc_mnc_helper(nas_cached_info.lte_sys_info->threegpp_specific_sys_info.network_id.mcc, mcc_str_ptr);
@@ -10676,7 +11227,7 @@ void qcril_qmi_nas_reset_data_snapshot_cache_and_timer()
     }
     if ( NAS_NIL != nas_cached_info.data_reg_report_expiry ) //cancel timer
     {
-        qcril_cancel_timed_callback( (void*) nas_cached_info.data_reg_report_expiry );
+        qcril_cancel_timed_callback( (void*)(uintptr_t) nas_cached_info.data_reg_report_expiry );
         nas_cached_info.data_reg_report_expiry = NAS_NIL;
     }
 
@@ -10718,6 +11269,14 @@ void qcril_qmi_nas_evaluate_data_rte_on_pref_data_tech_change()
     if( any_rte_change )
     {
       qcril_qmi_nas_initiate_voice_rte_change_propagation();
+    }
+
+    if ((qcril_qmi_nas_get_init_attch_state() ==
+            QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ATTACH) ||
+        (qcril_qmi_nas_get_init_attch_state() ==
+            QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH))
+    {
+      qcril_qmi_nas_check_ps_attach_status();
     }
   }
 
@@ -10772,6 +11331,8 @@ void qcril_qmi_nas_request_data_registration_state
   nas_cdma_hdr_only_sys_info_type_v01 * cdma_hdr_only_sys_info;
 
   nas_wcdma_only_sys_info_type_v01* sys_info_wcdma;
+  nas_tdscdma_only_sys_info_type_v01* sys_info_tdscdma;
+
 
   int tech_data_reg[ QCRIL_ARB_PREF_DATA_TECH_MAX ];
   int pref_data_tech_reg_state;
@@ -10848,11 +11409,12 @@ void qcril_qmi_nas_request_data_registration_state
 
   qmi_ril_suppress_android_unsol_resp(RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED);
   qmi_ril_suppress_android_unsol_resp(RIL_UNSOL_VOICE_RADIO_TECH_CHANGED);
+  NAS_CACHE_LOCK();
 
   if ( !qmi_ril_is_qmi_sys_info_available() )
   { // classic case - 1 modem
       // ** update cache if necessary
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
 
       qmi_request_need1 = ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.serving_system ) &&
                             NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.detailed_service_info ) &&
@@ -10881,7 +11443,7 @@ void qcril_qmi_nas_request_data_registration_state
 
       }
 
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
 
       if ( qmi_request_need1 )
       {
@@ -10895,7 +11457,7 @@ void qcril_qmi_nas_request_data_registration_state
       // ** form answer
       if ( RIL_E_SUCCESS == ril_req_res )
       {
-          NAS_CACHE_LOCK()
+          NAS_CACHE_LOCK();
 
           // * registartion state
           val_int = 4; // unknown
@@ -11237,7 +11799,7 @@ void qcril_qmi_nas_request_data_registration_state
           }
           snprintf( ril_resp_helper.registration_denied_cause, sizeof(ril_resp_helper.registration_denied_cause), "%d", val_int );
 
-          NAS_CACHE_UNLOCK()
+          NAS_CACHE_UNLOCK();
       }
 
   }
@@ -11246,7 +11808,7 @@ void qcril_qmi_nas_request_data_registration_state
 
       qcril_qmi_get_pref_data_tech(&pref_data);
 
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
       prev_reported_state_valid = nas_cached_info.reported_data_reg_status_valid;
       prev_reported_state = nas_cached_info.reported_data_reg_status;
       prev_reported_tech_valid = nas_cached_info.reported_data_technology_valid;
@@ -11258,7 +11820,7 @@ void qcril_qmi_nas_request_data_registration_state
       qmi_request_need1 = qcril_qmi_nas_util_check_request_need(pref_data.pref_data_tech, drte);
 
       is_under_post_mode_pref_ban = (NAS_NIL != nas_cached_info.extrapolation_ban_expiry);
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
 
       QCRIL_LOG_INFO(".. request need %d, drte %d, pref data tech %s, post mpref ban %d",
                             (int) qmi_request_need1,
@@ -11278,7 +11840,7 @@ void qcril_qmi_nas_request_data_registration_state
       if ( RIL_E_SUCCESS == ril_req_res )
       {
 
-          NAS_CACHE_LOCK()
+          NAS_CACHE_LOCK();
 
           QCRIL_LOG_INFO(" ... cdma_srv_status_info val %d", NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.cdma_srv_status_info ) );
           QCRIL_LOG_INFO(" ... hdr_srv_status_info val %d", NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.hdr_srv_status_info ) );
@@ -11521,7 +12083,7 @@ void qcril_qmi_nas_request_data_registration_state
                 {
                     if ( nas_cached_info.data_reg_roaming_status_latest_expiry )
                     {
-                        qcril_cancel_timed_callback( (void*)nas_cached_info.data_reg_roaming_status_latest_expiry );
+                        qcril_cancel_timed_callback( (void*)(uintptr_t)nas_cached_info.data_reg_roaming_status_latest_expiry );
                         nas_cached_info.data_reg_roaming_status_latest_expiry = NAS_NIL;
                     }
                 }
@@ -11710,6 +12272,7 @@ void qcril_qmi_nas_request_data_registration_state
           {
               threegpp_sys_info = NULL;
               sys_info_wcdma    = NULL;
+              sys_info_tdscdma  = NULL;
               common_sys_info   = NULL;
               cdma_hdr_only_sys_info = NULL;
               switch ( data_tech_to_report )
@@ -11735,6 +12298,7 @@ void qcril_qmi_nas_request_data_registration_state
                       if ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.tdscdma_sys_info ) )
                       {
                           threegpp_sys_info = &nas_cached_info.tdscdma_sys_info->threegpp_specific_sys_info;
+                          sys_info_tdscdma    = &nas_cached_info.tdscdma_sys_info->tdscdma_specific_sys_info;
                           common_sys_info = &nas_cached_info.tdscdma_sys_info->common_sys_info;
                       }
                       break;
@@ -11902,7 +12466,7 @@ void qcril_qmi_nas_request_data_registration_state
 
                   case QCRIL_ARB_PREF_DATA_TECH_UMTS:
                       val_int = RADIO_TECH_UMTS; // by default
-                      QCRIL_LOG_INFO("... sys_info_wcdma %d", (int)sys_info_wcdma);
+                      QCRIL_LOG_INFO("... sys_info_wcdma %p", sys_info_wcdma);
                       if ( NULL != sys_info_wcdma )
                       {
                           QCRIL_LOG_INFO( "... hs_ind_valid, hs_ind %d, %d", (int)sys_info_wcdma->hs_ind_valid, (int)sys_info_wcdma->hs_ind );
@@ -11966,7 +12530,60 @@ void qcril_qmi_nas_request_data_registration_state
                       break;
 
                   case QCRIL_ARB_PREF_DATA_TECH_TDSCDMA:
-                      val_int = RADIO_TECH_TD_SCDMA;
+                      val_int = RADIO_TECH_TD_SCDMA; // by default
+                      QCRIL_LOG_INFO("... sys_info_tdscdma %p", sys_info_tdscdma);
+                      if ( NULL != sys_info_tdscdma )
+                      {
+                          QCRIL_LOG_INFO( "... hs_ind_valid, hs_ind %d, %d", (int)sys_info_tdscdma->hs_ind_valid, (int)sys_info_tdscdma->hs_ind );
+                          QCRIL_LOG_INFO( "... hs_call_status_valid, hs_call_status %d, %d", (int)sys_info_tdscdma->hs_call_status_valid, (int)sys_info_tdscdma->hs_call_status );
+                          if ( sys_info_tdscdma->hs_ind_valid && sys_info_tdscdma->hs_call_status_valid )
+                          {
+                            if( sys_info_tdscdma->hs_ind > sys_info_tdscdma->hs_call_status )
+                            {
+                              loc_hs_ser = sys_info_tdscdma->hs_ind;
+                            }
+                            else
+                            {
+                              loc_hs_ser = sys_info_tdscdma->hs_call_status;
+                            }
+                          }
+                          else if ( sys_info_tdscdma->hs_ind_valid )
+                          {
+                            loc_hs_ser = sys_info_tdscdma->hs_ind;
+                          }
+                          else if ( sys_info_tdscdma->hs_call_status_valid )
+                          {
+                            loc_hs_ser = sys_info_tdscdma->hs_call_status;
+                          }
+
+                          switch ( loc_hs_ser )
+                          {
+                            case SYS_HS_IND_HSDPA_SUPP_CELL_V01:          // fallthrough
+                                val_int = RADIO_TECH_HSDPA;
+                                break;
+
+                            case SYS_HS_IND_HSUPA_SUPP_CELL_V01:
+                                val_int = RADIO_TECH_HSUPA;
+                                break;
+
+                            case SYS_HS_IND_HSDPA_HSUPA_SUPP_CELL_V01:
+                                val_int = RADIO_TECH_HSPA;
+                                break;
+
+                            case SYS_HS_IND_HSDPAPLUS_SUPP_CELL_V01:      // fallthrough
+                            case SYS_HS_IND_HSDPAPLUS_64QAM_SUPP_CELL_V01:// fallthrough
+                            case SYS_HS_IND_DC_HSDPAPLUS_SUPP_CELL_V01:   // fallthrough
+                            case SYS_HS_IND_HSDPAPLUS_HSUPA_SUPP_CELL_V01:    // fallthrough
+                            case SYS_HS_IND_DC_HSDPAPLUS_HSUPA_SUPP_CELL_V01: // fallthrough
+                            case SYS_HS_IND_HSDPAPLUS_64QAM_HSUPA_SUPP_CELL_V01:
+                                val_int = RADIO_TECH_HSPAP;
+                                break;
+
+                            default:
+                                // no change, RADIO_TECH_TD_SCDMA by default
+                                break;
+                          }
+                      }
                       break;
 
                   case QCRIL_ARB_PREF_DATA_TECH_UNKNOWN:    // fallthrough
@@ -12078,16 +12695,11 @@ void qcril_qmi_nas_request_data_registration_state
 
           QCRIL_LOG_INFO("considered data technology valid %d, value %d", NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.considered_data_technology), nas_cached_info.considered_data_technology);
           QCRIL_LOG_INFO("reported data technology %d", nas_cached_info.reported_data_technology);
-          if( NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.considered_data_technology) &&
-              nas_cached_info.considered_data_technology != nas_cached_info.reported_data_technology )
-          {
-              qcril_qmi_nas_wave_voice_data_status();
-          }
           qcril_qmi_nas_data_update_mtu_size_if_needed(prev_reported_state_valid,
                                                        prev_reported_state,
                                                        prev_reported_tech_valid,
                                                        prev_reported_tech);
-          NAS_CACHE_UNLOCK()
+          NAS_CACHE_UNLOCK();
 
           // * LTE specifics
           if ( QCRIL_ARB_PREF_DATA_TECH_LTE == data_tech_to_report )
@@ -12119,9 +12731,6 @@ void qcril_qmi_nas_request_data_registration_state
   QCRIL_LOG_INFO("is snapshot feature enabled %d", (int) nas_common_info.data_snapshot_feature_enabled  );
   if ( local_reg_snapshot.valid )
   {
-      val_int = qcril_qmi_data_nas_control_get_current_calls_number(NULL);
-      QCRIL_LOG_INFO("nof data calls %d", (int) val_int  );
-
       NAS_CACHE_LOCK();
 
       if ( !pref_data.is_extrapolation || NAS_NIL == nas_cached_info.data_reg_report_expiry )
@@ -12130,7 +12739,7 @@ void qcril_qmi_nas_request_data_registration_state
           if ( NAS_NIL != nas_cached_info.data_reg_report_expiry )
           {
               QCRIL_LOG_INFO("stopping outdated tmr" );
-              qcril_cancel_timed_callback( (void*) nas_cached_info.data_reg_report_expiry );
+              qcril_cancel_timed_callback( (void*)(uintptr_t) nas_cached_info.data_reg_report_expiry );
               nas_cached_info.data_reg_report_expiry = NAS_NIL;
           }
 
@@ -12149,6 +12758,7 @@ void qcril_qmi_nas_request_data_registration_state
 
   }
 
+  NAS_CACHE_UNLOCK();
   // ** respond
   qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
   if ( RIL_E_SUCCESS == ril_req_res )
@@ -12301,7 +12911,7 @@ void qmi_ril_nw_reg_data_sys_update_pre_update_action( void )
     QCRIL_LOG_INFO("snapshot tmr 0x%x, snapshot valid %d", nas_cached_info.data_reg_report_expiry, nas_cached_info.data_reg_report_snapshot.valid );
     if ( NAS_NIL != nas_cached_info.data_reg_report_expiry && nas_cached_info.data_reg_report_snapshot.valid )
     {
-          qcril_cancel_timed_callback( (void*) nas_cached_info.data_reg_report_expiry );
+          qcril_cancel_timed_callback( (void*)(uintptr_t) nas_cached_info.data_reg_report_expiry );
           nas_cached_info.data_reg_report_expiry = NAS_NIL;
 
           (void)qmi_ril_nwreg_spawn_snapshot_timer_cl( FALSE );
@@ -12383,6 +12993,11 @@ void qmi_ril_nw_reg_extend_pref_data_tech_cl( qcril_arb_pref_data_type * pref_da
       {
           need_reset = TRUE;
       }
+      // reset if subscription is deactivated
+      if (nas_cached_info.dsds_is_active_valid && !nas_cached_info.dsds_is_active)
+      {
+          need_reset = TRUE;
+      }
     }
 
     QCRIL_LOG_INFO( "need reset %d", need_reset );
@@ -12430,7 +13045,7 @@ void qmi_ril_nw_reg_initiate_post_cfg_ban_for_data_reg_extrapolation_ncl()
     NAS_CACHE_LOCK();
     if ( NAS_NIL != nas_cached_info.extrapolation_ban_expiry )
     {
-        qcril_cancel_timed_callback( (void*) nas_cached_info.extrapolation_ban_expiry );
+        qcril_cancel_timed_callback( (void*)(uintptr_t) nas_cached_info.extrapolation_ban_expiry );
         nas_cached_info.extrapolation_ban_expiry = NAS_NIL;
     }
     NAS_CACHE_UNLOCK();
@@ -12676,8 +13291,12 @@ int qcril_qmi_nas_util_check_roaming_status(qcril_arb_pref_data_tech_e_type pref
     if ( NULL != common_sys_info &&
          common_sys_info->roam_status_valid )
     {
-        if ( NAS_SYS_ROAM_STATUS_OFF_V01 == common_sys_info->roam_status ||
-             ( (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_64 == common_sys_info->roam_status && nas_common_info.eri_64_home )
+        if ( ( NAS_SYS_ROAM_STATUS_OFF_V01 == common_sys_info->roam_status ) ||
+             ( ( ( (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_64 == common_sys_info->roam_status ) ||
+                 ( (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_65 == common_sys_info->roam_status ) ||
+                 ( (common_sys_info->roam_status >= (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_76 ) &&
+                   (common_sys_info->roam_status <= (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_83 )
+                 ) ) && nas_common_info.eri_64_home )
            )
         {
              res = RIL_VAL_REG_REGISTERED_HOME_NET;
@@ -12759,6 +13378,8 @@ void qmi_ril_nw_reg_data_reg_snapshot_validity_tmr_expry_handler(void * param)
     {
         qcril_default_unsol_resp_params( QCRIL_DEFAULT_INSTANCE_ID, RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED, &unsol_resp_params );
         qcril_send_unsol_response( &unsol_resp_params );
+        qcril_qmi_drop_sig_info_cache();
+        qcril_qmi_nas_send_known_signal_strength();
     }
 
     QCRIL_LOG_FUNC_RETURN();
@@ -12822,7 +13443,7 @@ void qmi_ril_nw_reg_data_reg_snapshot_validate_after_data_call_disconnect_handle
         {
             if ( NAS_NIL != nas_cached_info.data_reg_report_expiry )
             {
-                qcril_cancel_timed_callback( (void*) nas_cached_info.data_reg_report_expiry );
+                qcril_cancel_timed_callback( (void*)(uintptr_t) nas_cached_info.data_reg_report_expiry );
                 nas_cached_info.data_reg_report_expiry = NAS_NIL;
             }
             nas_cached_info.data_reg_report_snapshot.valid = FALSE;
@@ -12883,13 +13504,13 @@ void qmi_ril_nw_reg_data_reg_snapshot_validate_after_data_call_connect_handler(v
 //===========================================================================
 const char* qcril_qmi_util_retrieve_technology_name(int technology)
 {
-  if( technology >= RADIO_TECH_UNKNOWN && technology <= RADIO_TECH_TD_SCDMA )
+  if( technology >= RADIO_TECH_UNKNOWN && technology <= RADIO_TECH_MAX )
   {
     return radio_tech_name[technology];
   }
   else
   {
-    return radio_tech_name[RADIO_TECH_TD_SCDMA + 1];
+    return radio_tech_name[RADIO_TECH_MAX + 1];
   }
 } //qcril_qmi_util_retrieve_technology_name
 
@@ -13007,7 +13628,7 @@ int qcril_qmi_nas_util_determine_hdr_rev(nas_hdr_only_sys_info_type_v01 * hdr_de
 {
     int res = RADIO_TECH_EVDO_0;
 
-    QCRIL_LOG_INFO("hdr_details_info %x", (int) hdr_details_info  );
+    QCRIL_LOG_INFO("hdr_details_info %p", hdr_details_info);
     if ( hdr_details_info )
     {
         QCRIL_LOG_INFO("hdr_personality_valid, hdr_personality %d, %d",
@@ -13052,7 +13673,7 @@ int qcril_qmi_nas_util_determine_cdma_rev(nas_cdma_only_sys_info_type_v01 * cdma
 {
     int res;
 
-    QCRIL_LOG_INFO("cdma_details_info %d", (int) cdma_details_info  );
+    QCRIL_LOG_INFO("cdma_details_info %p", cdma_details_info );
     if ( cdma_details_info )
     {
         QCRIL_LOG_INFO("bs_p_rev_valid, bs_p_rev %d, %d", (int) cdma_details_info->bs_p_rev_valid, (int) cdma_details_info->bs_p_rev  );
@@ -13296,8 +13917,12 @@ int qcril_qmi_nas_util_convert_nas_srv_status_to_ril_reg_status( uint32_t nas_sy
             case NAS_SYS_SRV_STATUS_SRV_V01:
                 if ( NULL == common_sys_info ||
                      ( common_sys_info->roam_status_valid &&
-                       ( NAS_SYS_ROAM_STATUS_OFF_V01 == common_sys_info->roam_status ||
-                         ( (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_64 == common_sys_info->roam_status  && nas_common_info.eri_64_home )
+                       ( ( NAS_SYS_ROAM_STATUS_OFF_V01 == common_sys_info->roam_status ) ||
+                         ( ( ( (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_64 == common_sys_info->roam_status ) ||
+                             ( (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_65 == common_sys_info->roam_status ) ||
+                             ( (common_sys_info->roam_status >= (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_76 ) &&
+                               (common_sys_info->roam_status <= (nas_roam_status_enum_type_v01)NAS_VAL_ROAMING_HOME_EX_83 )
+                              ) ) && nas_common_info.eri_64_home )
                        )
                      )
                    )
@@ -13319,7 +13944,7 @@ int qcril_qmi_nas_util_convert_nas_srv_status_to_ril_reg_status( uint32_t nas_sy
                 break;
         }
 
-        QCRIL_LOG_INFO("... intermediate res 1 %d, ... common_sys_info %d", (int) res, (int) common_sys_info  );
+        QCRIL_LOG_INFO("... intermediate res 1 %d, ... common_sys_info %p", (int) res, common_sys_info  );
 
         // caps check
         if ( NULL != common_sys_info )
@@ -13379,7 +14004,7 @@ int qcril_qmi_nas_util_convert_nas_srv_status_to_ril_reg_status( uint32_t nas_sy
                 }
             }
         }
-        QCRIL_LOG_INFO("... intermediate res 2 %d, ... hdr_only_sys_info %d", (int) res, (int) hdr_only_sys_info  );
+        QCRIL_LOG_INFO("... intermediate res 2 %d, ... hdr_only_sys_info %p", (int) res, hdr_only_sys_info  );
 
         if( is_hdr )
         {
@@ -13604,7 +14229,7 @@ void qcril_qmi_nas_cancel_srv_domain_camped_timer()
    if(NAS_NIL != nas_common_info.ignore_srv_domain_camped_timer &&
       TRUE == nas_common_info.ignore_srv_domain_camped_timer_id_valid)
    {
-       qcril_cancel_timed_callback((void *)nas_common_info.ignore_srv_domain_camped_timer_id);
+       qcril_cancel_timed_callback((void *)(uintptr_t)nas_common_info.ignore_srv_domain_camped_timer_id);
        nas_common_info.ignore_srv_domain_camped_timer_id_valid = FALSE;
        nas_common_info.ignore_srv_domain_camped_timer_id = NAS_NIL;
        QCRIL_LOG_INFO("ignore_srv_domain_camped_timer cancelled");
@@ -13621,6 +14246,8 @@ void qcril_qmi_nas_ignore_srv_domain_camped_timeout_cb(void * params)
 {
    int action_needed;
    QCRIL_LOG_FUNC_ENTRY();
+
+   QCRIL_NOTUSED(params);
 
    action_needed = FALSE;
 
@@ -13803,6 +14430,7 @@ void qcril_qmi_nas_request_operator
 
   QCRIL_LOG_FUNC_ENTRY();
   QCRIL_NOTUSED( ret_ptr );
+  NAS_CACHE_LOCK();
 
   memset( &ril_resp_helper, 0, sizeof( ril_resp_helper ) );
   memset( mcc_str, 0, sizeof( mcc_str ) );
@@ -13811,9 +14439,9 @@ void qcril_qmi_nas_request_operator
   memset( mnc_3gpp2_str, 0, sizeof( mnc_3gpp2_str ) );
   memset( log_buf, 0, sizeof( log_buf ) );
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   is_now_registered = qcril_qmi_nas_is_considered_registered(NULL);
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
   QCRIL_LOG_INFO("now registered %d", (int)is_now_registered);
 
   if ( is_now_registered )
@@ -13822,19 +14450,19 @@ void qcril_qmi_nas_request_operator
       ril_resp_helper.operator_info_array[ 1 ] = ril_resp_helper.short_eons;
       ril_resp_helper.operator_info_array[ 2 ] = ril_resp_helper.mcc_mnc_ascii;
 
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
       is_service_in_3gpp = qcril_qmi_nas_is_in_service_of_technology (NAS_SELECTED_NETWORK_3GPP_V01);
       is_service_in_3gpp2 = qcril_qmi_nas_is_in_service_of_technology (NAS_SELECTED_NETWORK_3GPP2_V01);
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
       if ( is_service_in_3gpp )
       {
           if( FALSE == qcril_qmi_nas_is_centralized_eons_supported() && FALSE == qmi_ril_is_feature_supported(QMI_RIL_FEATURE_8960) )
           {
               // 3gpp
               // ** update cache if necessary
-              NAS_CACHE_LOCK()
+              NAS_CACHE_LOCK();
               everything_cached =   ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.nitz_information ) );
-              NAS_CACHE_UNLOCK()
+              NAS_CACHE_UNLOCK();
 
               QCRIL_LOG_INFO("everything cached 1 %d", (int)everything_cached);
 
@@ -13844,7 +14472,7 @@ void qcril_qmi_nas_request_operator
                   if ( qmi_response )
                   {
 
-                      qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+                      qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                  QMI_NAS_GET_OPERATOR_NAME_DATA_REQ_MSG_V01,
                                                                  NULL,
                                                                  NAS_NIL,  // empty request payload
@@ -13858,19 +14486,19 @@ void qcril_qmi_nas_request_operator
 
                       if ( RIL_E_SUCCESS == ril_req_res )
                       {
-                          NAS_CACHE_LOCK()
+                          NAS_CACHE_LOCK();
                           NAS_CACHE_STORE_ENTRY( nas_cached_info.nitz_information,  qmi_response->nitz_information );
                           qcril_qmi_nas_nitz_persistent_cache_update();
-                          NAS_CACHE_UNLOCK()
+                          NAS_CACHE_UNLOCK();
                       }
 
                       qcril_free( qmi_response );
                   }
               }
 
-              NAS_CACHE_LOCK()
+              NAS_CACHE_LOCK();
               everything_cached =   ( TRUE == qcril_qmi_nas_is_mcc_mnc_info_available() );
-              NAS_CACHE_UNLOCK()
+              NAS_CACHE_UNLOCK();
               if( !everything_cached )
               {
                   ril_req_res = qcril_qmi_nas_fetch_serving_system_info();
@@ -13880,7 +14508,7 @@ void qcril_qmi_nas_request_operator
               // ** form answer
               if ( RIL_E_SUCCESS == ril_req_res )
               {
-                    NAS_CACHE_LOCK()
+                    NAS_CACHE_LOCK();
 
                     QCRIL_LOG_INFO("..nitz_information valid %d", (int) NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.nitz_information) );
                     QCRIL_LOG_INFO("..mnc_includes_pcs_digit valid %d", (int) NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.mnc_includes_pcs_digit ) );
@@ -13908,7 +14536,7 @@ void qcril_qmi_nas_request_operator
                         ril_req_res = RIL_E_GENERIC_FAILURE;
                     }
 
-                    NAS_CACHE_UNLOCK()
+                    NAS_CACHE_UNLOCK();
               }
           }
           else
@@ -14033,9 +14661,9 @@ void qcril_qmi_nas_request_operator
               }
               else
               {
-                  NAS_CACHE_LOCK()
+                  NAS_CACHE_LOCK();
                   everything_cached =   ( TRUE == qcril_qmi_nas_is_mcc_mnc_info_available() );
-                  NAS_CACHE_UNLOCK()
+                  NAS_CACHE_UNLOCK();
                   if( FALSE == everything_cached )
                   {
                       qcril_qmi_nas_fetch_sys_info();
@@ -14118,9 +14746,9 @@ void qcril_qmi_nas_request_operator
             nid_3gpp2 = 0;
             if ( !qmi_ril_is_qmi_sys_info_available() )
             { // legacy
-                NAS_CACHE_LOCK()
+                NAS_CACHE_LOCK();
                 everything_cached =   ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.cdma_system_id_ext ) && NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.cdma_system_id) );
-                NAS_CACHE_UNLOCK()
+                NAS_CACHE_UNLOCK();
 
                 QCRIL_LOG_INFO(".. everything cached non sys_info %d", (int)everything_cached);
                 if ( !everything_cached )
@@ -14134,7 +14762,7 @@ void qcril_qmi_nas_request_operator
 
                 if ( RIL_E_SUCCESS == ril_req_res )
                 {
-                    NAS_CACHE_LOCK()
+                    NAS_CACHE_LOCK();
                     if ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.cdma_system_id_ext ) )
                     {
                         if ( nas_cached_info.cdma_system_id_ext.mcc >= 1023 )
@@ -14180,7 +14808,7 @@ void qcril_qmi_nas_request_operator
                         sid_3gpp2 = nas_cached_info.cdma_system_id->sid;
                         nid_3gpp2 = nas_cached_info.cdma_system_id->nid;
                     }
-                    NAS_CACHE_UNLOCK()
+                    NAS_CACHE_UNLOCK();
                 }
             }
             else
@@ -14188,7 +14816,7 @@ void qcril_qmi_nas_request_operator
                 ril_req_res = qcril_qmi_nas_fetch_sys_info();
                 if ( RIL_E_SUCCESS == ril_req_res )
                 {
-                  NAS_CACHE_LOCK()
+                  NAS_CACHE_LOCK();
                   if ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.cdma_sys_info ) && nas_cached_info.cdma_sys_info->cdma_specific_sys_info.network_id_valid )
                   {
                     if( TRUE == qcril_qmi_nas_is_mcc_mnc_wildcard_entry(nas_cached_info.cdma_sys_info->cdma_specific_sys_info.network_id.mcc,
@@ -14210,7 +14838,7 @@ void qcril_qmi_nas_request_operator
                       sid_3gpp2 = nas_cached_info.cdma_sys_info->cdma_specific_sys_info.cdma_sys_id.sid;
                       nid_3gpp2 = nas_cached_info.cdma_sys_info->cdma_specific_sys_info.cdma_sys_id.nid;
                   }
-                  NAS_CACHE_UNLOCK()
+                  NAS_CACHE_UNLOCK();
                 }
             }
 
@@ -14234,7 +14862,7 @@ void qcril_qmi_nas_request_operator
                 cdma_subscription_info_req.get_3gpp2_info_mask_valid = TRUE;
                 cdma_subscription_info_req.get_3gpp2_info_mask = QMI_NAS_GET_3GPP2_SUBS_INFO_NAM_NAME_V01;
 
-                qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+                qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                            QMI_NAS_GET_3GPP2_SUBSCRIPTION_INFO_REQ_MSG_V01,
                                                            (void*) &cdma_subscription_info_req,
                                                            sizeof( cdma_subscription_info_req ),
@@ -14340,6 +14968,7 @@ void qcril_qmi_nas_request_operator
       QCRIL_LOG_INFO(".. res empty as not in full service");
   }
 
+  NAS_CACHE_UNLOCK();
   // ** respond
   ril_req_res = RIL_E_SUCCESS;  // should always return success for request_operator
   qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
@@ -14502,9 +15131,12 @@ void qcril_qmi_util_handle_centralized_short_long_eons(char *mcc_str, char *mnc_
     }
     else
     {
-      // Use EONS algorithm as is, to obtain operator name
-      QCRIL_LOG_INFO("Query modem for EONS op name default.");
-      qcril_qmi_nas_get_plmn_name_from_modem (mcc_str, mnc_str, short_eons, long_eons, FALSE, FALSE, is_nw_scan, plmn_rat, csg_id_valid, csg_id );
+      if (!(nas_common_info.always_send_plmn_name && is_nw_scan))
+      {
+        // Use EONS algorithm as is, to obtain operator name
+        QCRIL_LOG_INFO("Query modem for EONS op name default.");
+        qcril_qmi_nas_get_plmn_name_from_modem (mcc_str, mnc_str, short_eons, long_eons, FALSE, FALSE, is_nw_scan, plmn_rat, csg_id_valid, csg_id );
+      }
 
       if( is_operator_name_empty_or_white_space( long_eons, NAS_OPERATOR_RESP_MAX_EONS_LEN ) &&
           is_operator_name_empty_or_white_space( short_eons, NAS_OPERATOR_RESP_MAX_EONS_LEN))
@@ -14548,7 +15180,7 @@ void qcril_qmi_util_handle_centralized_short_long_eons(char *mcc_str, char *mnc_
       }
       else
       {
-          snprintf( long_eons, NAS_OPERATOR_RESP_MAX_EONS_LEN - 1, "%s-%s", mcc_str, mnc_str );
+          snprintf( long_eons, sizeof (long_eons), "%s-%s", mcc_str, mnc_str );
       }
 
       if ( NULL != internal_short_name )
@@ -14557,7 +15189,7 @@ void qcril_qmi_util_handle_centralized_short_long_eons(char *mcc_str, char *mnc_
       }
       else
       {
-          snprintf( short_eons, NAS_OPERATOR_RESP_MAX_EONS_LEN - 1, "%s-%s", mcc_str, mnc_str );
+          snprintf( short_eons, sizeof (short_eons), "%s-%s", mcc_str, mnc_str );
       }
     } // fallback to RIL internal table case
   }
@@ -14595,6 +15227,7 @@ static void qcril_qmi_nas_get_plmn_name_from_modem
   int is_spn_present;
   int is_plmn_name_present;
   int prefer_spn;
+  uint32_t name_len;
 
   QCRIL_LOG_FUNC_ENTRY();
 
@@ -14688,7 +15321,7 @@ static void qcril_qmi_nas_get_plmn_name_from_modem
 
     NAS_CACHE_UNLOCK();
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                QMI_NAS_GET_PLMN_NAME_REQ_MSG_V01,
                                                (void*) &get_plmn_req,
                                                sizeof( get_plmn_req ),
@@ -14711,13 +15344,15 @@ static void qcril_qmi_nas_get_plmn_name_from_modem
 
         if( TRUE == prefer_spn )
         {
+          name_len = ( get_plmn_resp.eons_plmn_name_3gpp.spn_len > NAS_SPN_LEN_MAX_V01 ) ?
+                    NAS_SPN_LEN_MAX_V01 : get_plmn_resp.eons_plmn_name_3gpp.spn_len;
           if( NAS_CODING_SCHEME_CELL_BROADCAST_GSM_V01 == get_plmn_resp.eons_plmn_name_3gpp.spn_enc )
           {
               qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (const char*)get_plmn_resp.eons_plmn_name_3gpp.spn,
-                                                                get_plmn_resp.eons_plmn_name_3gpp.spn_len,
+                                                                name_len,
                                                                 short_eons );
               qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (const char*)get_plmn_resp.eons_plmn_name_3gpp.spn,
-                                                                get_plmn_resp.eons_plmn_name_3gpp.spn_len,
+                                                                name_len,
                                                                 long_eons );
               QCRIL_LOG_INFO("spn is 7-bit Unpacked data");
           }
@@ -14727,13 +15362,13 @@ static void qcril_qmi_nas_get_plmn_name_from_modem
                                                       NAS_OPERATOR_RESP_MAX_EONS_LEN,
                                                       get_plmn_resp.eons_plmn_name_3gpp.spn_enc,
                                                       (uint8*)get_plmn_resp.eons_plmn_name_3gpp.spn,
-                                                      get_plmn_resp.eons_plmn_name_3gpp.spn_len);
+                                                      name_len);
 
               qcril_qmi_util_decode_operator_name_in_little_endian(long_eons,
                                                       NAS_OPERATOR_RESP_MAX_EONS_LEN,
                                                       get_plmn_resp.eons_plmn_name_3gpp.spn_enc,
                                                       (uint8*)get_plmn_resp.eons_plmn_name_3gpp.spn,
-                                                      get_plmn_resp.eons_plmn_name_3gpp.spn_len);
+                                                      name_len);
 
          }
          QCRIL_LOG_INFO("short eons derived from spn %s",short_eons);
@@ -14741,10 +15376,12 @@ static void qcril_qmi_nas_get_plmn_name_from_modem
        }
        else
        {
+         name_len = ( get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name_len > NAS_PLMN_NAME_MAX_V01 ) ?
+                   NAS_PLMN_NAME_MAX_V01 : get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name_len;
          if( NAS_CODING_SCHEME_CELL_BROADCAST_GSM_V01 == get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name_enc )
          {
            qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (const char*)get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name,
-                                                              get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name_len,
+                                                              name_len,
                                                               short_eons );
            QCRIL_LOG_INFO("plmn short name is 7-bit Unpacked data");
          }
@@ -14754,14 +15391,16 @@ static void qcril_qmi_nas_get_plmn_name_from_modem
                                                       NAS_OPERATOR_RESP_MAX_EONS_LEN,
                                                       get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name_enc,
                                                       (uint8*)get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name,
-                                                      get_plmn_resp.eons_plmn_name_3gpp.plmn_short_name_len);
+                                                      name_len);
            QCRIL_LOG_INFO("short eons derived from plmn %s",short_eons);
          }
 
+         name_len = ( get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name_len > NAS_PLMN_NAME_MAX_V01 ) ?
+                   NAS_PLMN_NAME_MAX_V01 : get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name_len;
          if( NAS_CODING_SCHEME_CELL_BROADCAST_GSM_V01 == get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name_enc )
          {
            qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (const char*)get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name,
-                                                              get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name_len,
+                                                              name_len,
                                                               long_eons );
             QCRIL_LOG_INFO("plmn long name is 7-bit Unpacked data");
          }
@@ -14771,7 +15410,7 @@ static void qcril_qmi_nas_get_plmn_name_from_modem
                                                       NAS_OPERATOR_RESP_MAX_EONS_LEN,
                                                       get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name_enc,
                                                       (uint8*)get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name,
-                                                      get_plmn_resp.eons_plmn_name_3gpp.plmn_long_name_len);
+                                                      name_len);
              QCRIL_LOG_INFO("long eons derived from plmn %s",long_eons);
           }
         }
@@ -14932,6 +15571,38 @@ void qcril_qmi_nas_request_power
           case RIL_VAL_RADIO_POWER_MODE_ONLINE:
               requested_dms_operating_mode = DMS_VAL_ONLINE;
               res = RIL_E_SUCCESS;
+              if(qcril_qmi_nas_modem_power_is_mdm_shdn_in_apm())
+              {
+                  RADIO_POWER_LOCK();
+                  if (TRUE == nas_common_info.modem_power_info.is_not_bootup_radio_power_on)
+                  {
+                      RADIO_POWER_UNLOCK();
+                      if (0 == qcril_qmi_modem_power_voting_state())
+                      {
+                          RADIO_POWER_LOCK();
+                          nas_common_info.modem_power_info.radio_power_process_pending = TRUE;
+                          RADIO_POWER_UNLOCK();
+                          qcril_qmi_register_for_up_event();
+                          qcril_qmi_modem_power_process_apm_off();
+                          RADIO_POWER_LOCK();
+                          if (TRUE == nas_common_info.modem_power_info.radio_power_process_pending)
+                          {
+                              res = RADIO_POWER_WAIT();
+                              RADIO_POWER_UNLOCK();
+                          }
+                          else
+                          {
+                              RADIO_POWER_UNLOCK();
+                              QCRIL_LOG_INFO("Already received signal");
+                          }
+                      }
+                  }
+                  else
+                  {
+                      nas_common_info.modem_power_info.is_not_bootup_radio_power_on = TRUE;
+                      RADIO_POWER_UNLOCK();
+                  }
+              }
               break;
 
           case RIL_VAL_RADIO_POWER_MODE_OFF:
@@ -15165,6 +15836,7 @@ IxErrnoType qcril_qmi_nas_radio_power_process_condition_wait_helper()
     }
     else
     {
+        QCRIL_LOG_INFO ("Starting to wait for signal");
         res = pthread_cond_timedwait(&nas_common_info.radio_pwr_cond_var, &nas_common_info.radio_pwr_mutex, &ts);
         if( QMI_RIL_DMS_RADIO_PWR_CANCEL_NONE != nas_common_info.radio_power_cancel_type )
         {
@@ -15200,7 +15872,7 @@ void qcril_qmi_nas_log_radio_power_process_state(int requested_telephony_power_s
     cur_operating_mode = nas_dms_cached_info.operating_mode;
     NAS_CACHE_UNLOCK();
 
-    QCRIL_LOG_ESSENTIAL("telephony %s | ril %s | card %s | modem %s",radio_power_telephony_request_name[requested_telephony_power_state+1],
+    QCRIL_LOG_DEBUG("telephony %s | ril %s | card %s | modem %s",radio_power_telephony_request_name[requested_telephony_power_state+1],
                                                             radio_power_state_name[cur_state],
                                                             card_status_name[cur_card_state],
                                                             dms_op_mode_name[cur_operating_mode]);
@@ -15448,24 +16120,17 @@ RIL_Errno qcril_qmi_nas_radio_power_handle_modem_transition( int requested_telep
 //===========================================================================
 void qcril_qmi_nas_radio_power_transaction_handler( int requested_telephony_power_state )
 {
-    RIL_Errno                                       transaction_res = RIL_E_SUCCESS;
-    errno_enum_type                                 found_qcril_request;
-    qcril_reqlist_public_type                       qcril_req_info;
-    qcril_request_resp_params_type                  resp;
-
-    dms_operating_mode_enum_v01                     operating_mode;
-    int                                             operating_mode_valid;
-    qcril_card_status_e_type                        card_status;
-
-    qcril_reqlist_public_type                       oem_hook_shutdown_req_info;
-    errno_enum_type                                 found_oem_hook_shutdown_request;
-    uint32_t slot;
-    uint32_t vsid;
+    RIL_Errno                       transaction_res = RIL_E_SUCCESS;
+    errno_enum_type                 found_qcril_request;
+    qcril_reqlist_public_type       qcril_req_info;
+    qcril_request_resp_params_type  resp;
+    uint32_t                        vsid;
 
     QCRIL_LOG_FUNC_ENTRY();
     qcril_qmi_nas_log_radio_power_process_state(requested_telephony_power_state,QMI_RIL_DMS_RADIO_PWR_STATE_NONE);
 
-    if( RIL_VAL_RADIO_POWER_MODE_ONLINE != requested_telephony_power_state )
+    if (( RIL_VAL_RADIO_POWER_MODE_ONLINE != requested_telephony_power_state ) &&
+          qcril_qmi_nas_is_bootup_radio_power_off_request())
     {
         qcril_qmi_dms_save_prl_info(FALSE, NAS_NIL);
     }
@@ -15500,107 +16165,68 @@ void qcril_qmi_nas_radio_power_transaction_handler( int requested_telephony_powe
                                                         &qcril_req_info );
     if ( E_SUCCESS == found_qcril_request )
     {
-        found_oem_hook_shutdown_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
-                                                            QCRIL_DEFAULT_MODEM_ID,
-                                                            QCRIL_EVT_HOOK_INFORM_SHUTDOWN,
-                                                            &oem_hook_shutdown_req_info );
-
-        if ( E_SUCCESS == found_oem_hook_shutdown_request ) //oem hook shutdown is pending - Must be a RADIO_POWER_OFF scenario
-        {                                                   // send response for RADIO_POWER request after oem hook shutdown processing is complete
-            QCRIL_LOG_INFO( "RADIO_POWER completed with pending QCRIL_EVT_HOOK_INFORM_SHUTDOWN"  );
-            NAS_CACHE_LOCK();
-            slot = qmi_ril_get_sim_slot();
-            card_status             = nas_common_info.card_info[slot].status;
-            operating_mode          = nas_dms_cached_info.operating_mode;
-            operating_mode_valid    = nas_dms_cached_info.operating_mode_valid;
-            NAS_CACHE_UNLOCK();
-            QCRIL_LOG_INFO("ctx: card status=%d, oprt_val=%d, oprt=%d",
-                                (int) card_status,
-                                operating_mode_valid,
-                                operating_mode
-                            );
-            if (
-                  // modem LPM/poweroff
-                  ( operating_mode_valid && (DMS_OP_MODE_LOW_POWER_V01 == operating_mode ||
-                                             DMS_OP_MODE_RESETTING_V01 == operating_mode ||
-                                             DMS_OP_MODE_SHUTTING_DOWN_V01 == operating_mode )
-                  )
-               )
-            {
-                if( QCRIL_CARD_STATUS_UP == card_status ) // card is UP
-                {
-                    NAS_CACHE_LOCK();
-                    if ( !nas_dms_cached_info.card_shutdown_initiated )
-                    {
-                       (void)qcril_qmi_nas_dms_handle_card_status ( QCRIL_EVT_INTERNAL_MMGSDI_CARD_POWER_DOWN );
-                       QCRIL_LOG_ESSENTIAL( "initiating card power off as modem is down and pending INFORM_SHUTDOWN present"  );
-                       nas_dms_cached_info.card_shutdown_initiated = TRUE;
-                    }
-                    NAS_CACHE_UNLOCK();
-                }
-                else // card is not UP - Proceed to shutdown the modem
-                {
-                    qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID,
-                                                QCRIL_DEFAULT_MODEM_ID,
-                                                qmi_ril_process_oem_hook_shutdown,
-                                                NULL,  // immediate
-                                                NULL );
-                }
-            }
-            else //oem hook should only be processed when modem is in LPM/SHUTDOWN/RESETTING mode
-            {    //Fatal error, send GENERIC_FAILURE for RADIO_POWER and oem hook shutdown requests
-                QCRIL_LOG_ESSENTIAL( "Modem is in a invalid operating mode - Sending failure responses for radio_power and oem hook shutdown requests");
-                qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                                   qcril_req_info.t,
-                                                   qcril_req_info.request,
-                                                   RIL_E_GENERIC_FAILURE,
-                                                   &resp );
-                qcril_send_request_response( &resp );
-
-                qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                                   oem_hook_shutdown_req_info.t,
-                                                   oem_hook_shutdown_req_info.request,
-                                                   RIL_E_GENERIC_FAILURE,
-                                                   &resp );
-                qcril_send_request_response( &resp );
-            }
-
-        }
-        else //oem hook shutdown is NOT pending - Must be a RADIO_POWER_ON or RADIO_POWER_LPM scenario - send response for RADIO_POWER request right away
+        /* send response for RADIO_POWER request right away */
+        if ( qmi_ril_is_multi_sim_feature_supported() )
         {
-            if ( qmi_ril_is_multi_sim_feature_supported() )
-            {
-                qcril_qmi_nas_handle_multiple_rild_radio_power_sync(requested_telephony_power_state);
-            }
+            qcril_qmi_nas_handle_multiple_rild_radio_power_sync(requested_telephony_power_state);
+        }
 
-            NAS_CACHE_LOCK(); // synchronization with QCRIL_EVT_HOOK_INFORM_SHUTDOWN
-            qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                               qcril_req_info.t,
-                                               qcril_req_info.request,
-                                               transaction_res,
-                                               &resp );
-            qcril_send_request_response( &resp );
-            // Sometimes modem may send voice system id before telephony is UP.
-            // So, send unsol VSID first time after radio on. This is sent here to
-            // ensure VSID is available to telephony when it is UP and to enable
-            // emergency calls in no SIM scenario as well. It is not applicable to
-            // non-dsds as voice_system_id will not be valid.
-            if ( nas_cached_info.voice_system_id_valid && RIL_VAL_RADIO_POWER_MODE_ONLINE == requested_telephony_power_state )
+        if (RIL_E_SUCCESS == transaction_res &&
+            qcril_qmi_nas_modem_power_is_mdm_shdn_in_apm() &&
+            RIL_VAL_RADIO_POWER_MODE_ONLINE != requested_telephony_power_state)
+        {
+            if (!qcril_qmi_nas_is_bootup_radio_power_off_request())
             {
-              vsid = nas_cached_info.voice_system_id;
-              // Send QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID response
-              QCRIL_LOG_DEBUG("..Sending VSID %d", vsid);
-              qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID, &vsid, sizeof(vsid));
-              qcril_am_set_vsid(QCRIL_AM_VS_VOICE, vsid);
+                qcril_qmi_modem_power_set_voting_state(0);
+                qcril_qmi_release_services();
+                qcril_qmi_modem_power_process_regular_shutdown();
             }
-            NAS_CACHE_UNLOCK();
-
-            if( RIL_E_SUCCESS == transaction_res )
+            else
             {
-                qmi_ril_wave_modem_status();
+                if (qcril_qmi_nas_is_apm_enabled())
+                {
+                    RADIO_POWER_LOCK();
+                    nas_common_info.modem_power_info.is_not_bootup_radio_power_on = TRUE;
+                    RADIO_POWER_UNLOCK();
+                    QCRIL_LOG_INFO("Bootup in APM");
+                    qcril_qmi_modem_power_set_voting_state(0);
+                    qcril_qmi_release_services();
+                    qcril_qmi_modem_power_process_regular_shutdown();
+                }
             }
         }
 
+        NAS_CACHE_LOCK();
+        qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                           qcril_req_info.t,
+                                           qcril_req_info.request,
+                                           transaction_res,
+                                           &resp );
+        qcril_send_request_response( &resp );
+        NAS_CACHE_UNLOCK();
+
+        // Sometimes modem may send voice system id before telephony is UP.
+        // So, send unsol VSID first time after radio on. This is sent here to
+        // ensure VSID is available to telephony when it is UP and to enable
+        // emergency calls in no SIM scenario as well. It is not applicable to
+        // non-dsds as voice_system_id will not be valid.
+        if ( nas_cached_info.voice_system_id_valid && RIL_VAL_RADIO_POWER_MODE_ONLINE == requested_telephony_power_state )
+        {
+          vsid = nas_cached_info.voice_system_id;
+          // Send QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID response
+          QCRIL_LOG_DEBUG("..Sending VSID %d", vsid);
+          qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID,
+                                     QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID,
+                                     (char*)&vsid, sizeof(vsid));
+#ifndef QMI_RIL_UTF
+          qcril_am_set_vsid(QCRIL_AM_VS_VOICE, vsid);
+#endif
+        }
+
+        if( RIL_E_SUCCESS == transaction_res )
+        {
+            qmi_ril_wave_modem_status();
+        }
     }
     else
     {
@@ -15638,7 +16264,7 @@ RIL_Errno qcril_qmi_nas_dms_handle_modem_operating_mode(dms_operating_mode_enum_
         memset(&qmi_request, 0, sizeof(qmi_request));
         qmi_request.operating_mode = requested_operating_mode;
 
-        qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+        qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                            QMI_DMS_SET_OPERATING_MODE_REQ_V01,
                                                            &qmi_request,
                                                            sizeof( qmi_request ),
@@ -15692,6 +16318,220 @@ RIL_Errno qcril_qmi_nas_dms_handle_card_status(qcril_evt_e_type uim_evt)
 // QCRIL_EVT_CM_CARD_STATUS_UPDATED
 //===========================================================================
 void qcril_qmi_nas_dms_event_card_status_updated
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+    qcril_instance_id_e_type instance_id;
+    qcril_modem_id_e_type modem_id;
+    qcril_card_info_type *card_info_ptr;
+
+    QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
+
+    instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+
+    modem_id = params_ptr->modem_id;
+
+    card_info_ptr = ( qcril_card_info_type *) params_ptr->data;
+
+    if( card_info_ptr != NULL )
+    {
+        qcril_event_queue( instance_id,
+                           modem_id,
+                           QCRIL_DATA_ON_STACK,
+                           QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE,
+                           params_ptr->data,
+                           params_ptr->datalen,
+                           (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+    }
+    else
+    {
+        QCRIL_LOG_FATAL("CHECK FAILED");
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*===========================================================================
+
+    qcril_qmi_nas_get_sim_mcc_mnc
+
+============================================================================*/
+/*!
+    @brief
+    Get sim card mcc and mnc
+
+    @return
+    None
+*/
+/*=========================================================================*/
+int qcril_qmi_nas_get_sim_mcc_mnc
+(
+    char mcc[QCRIL_MCC_MNC_MAX_SIZE],
+    char mnc[QCRIL_MCC_MNC_MAX_SIZE]
+)
+{
+    int res  = E_FAILURE;
+    int slot = qmi_ril_get_sim_slot();
+
+    NAS_CACHE_LOCK();
+    if (nas_common_info.card_info[slot].valid)
+    {
+        memcpy(mcc, nas_common_info.card_info[slot].mcc, QCRIL_MCC_MNC_MAX_SIZE);
+        memcpy(mnc, nas_common_info.card_info[slot].mnc, QCRIL_MCC_MNC_MAX_SIZE);
+        res = E_SUCCESS;
+    }
+    NAS_CACHE_UNLOCK();
+
+    return res;
+}
+/*===========================================================================
+
+    qcril_qmi_nas_update_sim_mcc_mnc
+
+============================================================================*/
+/*!
+    @brief
+    Update sim card mcc and mnc
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_update_sim_mcc_mnc
+(
+    boolean valid,
+    char    mcc[QCRIL_MCC_MNC_MAX_SIZE],
+    char    mnc[QCRIL_MCC_MNC_MAX_SIZE]
+)
+{
+    int slot = qmi_ril_get_sim_slot();
+
+    NAS_CACHE_LOCK();
+
+    nas_common_info.card_info[slot].valid = valid;
+    if (valid)
+    {
+        memcpy(nas_common_info.card_info[slot].mcc, mcc, QCRIL_MCC_MNC_MAX_SIZE);
+        memcpy(nas_common_info.card_info[slot].mnc, mnc, QCRIL_MCC_MNC_MAX_SIZE);
+    }
+
+    NAS_CACHE_UNLOCK();
+}
+
+/*===========================================================================
+
+    qcril_qmi_nas_retrieve_aid_from_app_info
+
+============================================================================*/
+/*!
+    @brief
+    Retrieve aid buffer application info
+
+    @return
+    None
+*/
+/*=========================================================================*/
+int qcril_qmi_nas_retrieve_aid_from_app_info
+(
+    RIL_AppStatus *application,
+    char           aid_buffer[QMI_UIM_MAX_AID_LEN+1]
+)
+{
+    int res = E_FAILURE;
+
+    QCRIL_LOG_FUNC_ENTRY();
+    if (application && aid_buffer)
+    {
+
+        QCRIL_LOG_DEBUG("app type %d", application->app_type);
+        QCRIL_LOG_DEBUG("app state %d", application->app_state);
+
+        if ((application->app_state == RIL_APPSTATE_READY) &&
+            application->aid_ptr)
+        {
+            strlcpy(aid_buffer, application->aid_ptr, QMI_UIM_MAX_AID_LEN + 1);
+            res = E_SUCCESS;
+        }
+    }
+
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
+    return res;
+}
+
+/*===========================================================================
+
+    qcril_qmi_nas_retrieve_aid_from_card_status
+
+============================================================================*/
+/*!
+    @brief
+    Retrieve aid buffer card status info
+
+    @return
+    None
+*/
+/*=========================================================================*/
+int qcril_qmi_nas_retrieve_aid_from_card_status
+(
+    RIL_CardStatus_v6 *ril_card_status,
+    char               aid_buffer[QMI_UIM_MAX_AID_LEN+1]
+)
+{
+    RIL_AppType       card_app_type;
+    int               res = E_FAILURE;
+    int               index;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    if (ril_card_status)
+    {
+        if (ril_card_status->card_state == RIL_CARDSTATE_PRESENT)
+        {
+            if (ril_card_status->gsm_umts_subscription_app_index != -1)
+            {
+                index = ril_card_status->gsm_umts_subscription_app_index;
+
+                /* retrieve aid from gsm umts subscription app info */
+                res = qcril_qmi_nas_retrieve_aid_from_app_info(
+                                                &ril_card_status->applications[index],
+                                                aid_buffer);
+            }
+
+            if ((res == RIL_E_GENERIC_FAILURE) &&
+                (ril_card_status->cdma_subscription_app_index != -1))
+            {
+                index = ril_card_status->cdma_subscription_app_index;
+
+                /* retrieve aid from cdma subscription app info */
+                res = qcril_qmi_nas_retrieve_aid_from_app_info(
+                                                &ril_card_status->applications[index],
+                                                aid_buffer);
+            }
+
+            if ((res == RIL_E_GENERIC_FAILURE) &&
+                (ril_card_status->ims_subscription_app_index != -1))
+            {
+                index = ril_card_status->ims_subscription_app_index;
+
+                /* retrieve aid from ims subscription app info */
+                res = qcril_qmi_nas_retrieve_aid_from_app_info(
+                                                &ril_card_status->applications[index],
+                                                aid_buffer);
+            }
+        }
+    }
+
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
+    return res;
+}
+
+//===========================================================================
+// QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE
+//===========================================================================
+void qcril_qmi_nas_event_card_status_update
 (
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr
@@ -15766,7 +16606,7 @@ void qcril_qmi_nas_dms_event_card_status_updated
 
               found_qcril_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
                                           QCRIL_DEFAULT_MODEM_ID,
-                                          QCRIL_EVT_HOOK_INFORM_SHUTDOWN,
+                                          QCRIL_EVT_QMI_REQUEST_SHUTDOWN,
                                           &qcril_req_info );
               QCRIL_LOG_INFO("found qcril request %d", (int) found_qcril_request);
               if ( ( E_SUCCESS == found_qcril_request ) && card_status_changed && (QCRIL_CARD_STATUS_UP != card_info_ptr->status) )
@@ -15793,17 +16633,22 @@ void qcril_qmi_nas_dms_event_card_status_updated
                       break;
 
                   case QCRIL_CARD_STATUS_ABSENT:    // initial or card removal
+                  case QCRIL_CARD_STATUS_DOWN:
+                  {
                       need_to_evaluate_emergency_number_list = TRUE;
+                      qcril_qmi_nas_update_sim_mcc_mnc(FALSE, NULL, NULL);
 
                       NAS_CACHE_LOCK();
                       *nas_cached_info.mcc_from_imsi_cache = NAS_NIL;
                       NAS_CACHE_UNLOCK();
                       break;
+                  }
 
                   default:
                       break;
               }
           }
+
           if ( need_to_evaluate_emergency_number_list )
           {
             qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
@@ -15824,136 +16669,201 @@ void qcril_qmi_nas_dms_event_card_status_updated
   QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_dms_event_card_status_updated
 
-//===========================================================================
-// qcril_qmi_nas_dms_handle_oem_hook_shutdown_inform / QCRIL_EVT_HOOK_INFORM_SHUTDOWN
-//===========================================================================
-void qcril_qmi_nas_dms_handle_oem_hook_shutdown_inform
+/*===========================================================================
+
+    qcril_qmi_nas_event_app_status_update
+
+============================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_event_app_status_update
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type       *const ret_ptr
+)
+{
+    uint8                           slot;
+    qcril_card_app_info_type       *card_app_info;
+    RIL_CardStatus_v6               ril_card_status;
+    qcril_uim_get_mcc_mnc_req_type  get_mcc_mnc_req = {0};
+    qcril_instance_id_e_type        instance_id;
+    qcril_modem_id_e_type           modem_id;
+    char                            *aid_parm = NULL;
+    int                             aid_parm_len = 0;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    QCRIL_NOTUSED(ret_ptr);
+
+    card_app_info = (qcril_card_info_type *)params_ptr->data;
+
+    if (card_app_info != NULL)
+    {
+        /* evaluate possibility of voice radio tech change */
+        qcril_qmi_nas_initiate_voice_rte_change_propagation();
+
+        if (card_app_info->app_state == QMI_UIM_APP_STATE_READY)
+        {
+
+#ifndef QMI_RIL_UTF
+
+            /* retrieve card status info */
+            if (qcril_uim_direct_get_card_status(qmi_ril_get_process_instance_id(),
+                                                 &ril_card_status)
+                                                           == RIL_E_SUCCESS);
+            {
+                /* retrieve aid from card status */
+                if (qcril_qmi_nas_retrieve_aid_from_card_status(&ril_card_status,
+                                                  get_mcc_mnc_req.aid_buffer)
+                                                               == E_SUCCESS)
+                {
+                    // UIM expects NULL when aid is not present
+                    if ( strlen(get_mcc_mnc_req.aid_buffer) )
+                    {
+                       aid_parm = get_mcc_mnc_req.aid_buffer;
+                       aid_parm_len = strlen(get_mcc_mnc_req.aid_buffer) + 1;
+                    }
+
+                    /* Send event to retrieve mcc and mnc from the card */
+                    qcril_event_queue(instance_id, modem_id,
+                                      QCRIL_DATA_ON_STACK,
+                                      QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC,
+                                      aid_parm,
+                                      aid_parm_len,
+                                      (RIL_Token)QCRIL_TOKEN_ID_INTERNAL);
+                    QCRIL_LOG_INFO(" trigger QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC");
+                }
+            }
+#endif
+        }
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*===========================================================================
+
+    qcril_qmi_nas_request_shutdown
+
+============================================================================*/
+/*!
+    @brief
+    Handles RIL_REQUEST_SHUTDOWN
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_request_shutdown
 (
     const qcril_request_params_type *const params_ptr,
-    qcril_request_return_type *const ret_ptr
+    qcril_request_return_type       *const ret_ptr
 )
 {
     RIL_Errno                   res;
-    int                         is_apn_on;
-    int                         is_apm_sim_not_pwdn;
     int                         is_no_wait_for_card;
     qcril_card_status_e_type    card_status;
     int                         action_required;
     dms_operating_mode_enum_v01 operating_mode;
     int                         operating_mode_valid;
-    int                         action_deferred;
     uint32_t                    slot;
 
     qcril_request_resp_params_type resp;
     qcril_reqlist_public_type      qcril_req_info;
 
-    errno_enum_type             found_radio_power_request;
-
-
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     do
     {
-            res             = RIL_E_GENERIC_FAILURE;
-            action_required = FALSE;
-            action_deferred = FALSE;
+        res             = RIL_E_GENERIC_FAILURE;
+        action_required = FALSE;
 
-            qcril_reqlist_default_entry( params_ptr->t,
-                                         params_ptr->event_id,
-                                         QCRIL_DEFAULT_MODEM_ID,
-                                         QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS,
-                                         QCRIL_EVT_HOOK_INFORM_SHUTDOWN,
-                                         NULL,
-                                         &qcril_req_info );
+        qcril_reqlist_default_entry( params_ptr->t,
+                                     params_ptr->event_id,
+                                     QCRIL_DEFAULT_MODEM_ID,
+                                     QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS,
+                                     QCRIL_EVT_QMI_REQUEST_SHUTDOWN,
+                                     NULL,
+                                     &qcril_req_info );
 
-            if ( E_SUCCESS != qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &qcril_req_info )  )
-                break;
+        if (E_SUCCESS != qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &qcril_req_info ))
+        {
+            break;
+        }
 
+        NAS_CACHE_LOCK();
+        slot                 = qmi_ril_get_sim_slot();
+        is_no_wait_for_card  = nas_common_info.no_wait_for_card;
+        card_status          = nas_common_info.card_info[slot].status;
+        operating_mode       = nas_dms_cached_info.operating_mode;
+        operating_mode_valid = nas_dms_cached_info.operating_mode_valid;
+        NAS_CACHE_UNLOCK();
+
+        QCRIL_LOG_INFO("ctx: QCRIL_NO_WAIT_FOR_CARD=%d, card status=%d, oprt_val=%d, oprt=%d",
+                       is_no_wait_for_card,
+                       (int) card_status,
+                       operating_mode_valid,
+                       operating_mode);
+
+        res = RIL_E_SUCCESS;
+
+        /* If syncrhonization with card is not suppressed for RIL and
+         * card is UP then power down the card first */
+        action_required = (!is_no_wait_for_card &&
+                          (QCRIL_CARD_STATUS_UP == card_status));
+
+        QCRIL_LOG_INFO(".. action required %d", action_required );
+
+        if (operating_mode_valid && ( DMS_OP_MODE_ONLINE_V01 == operating_mode))
+        {
+            QCRIL_LOG_DEBUG("Unexpected modem operating mode");
+        }
+
+        /* to power down the card */
+        if (action_required)
+        {
             NAS_CACHE_LOCK();
-            slot = qmi_ril_get_sim_slot();
-            is_no_wait_for_card     = nas_common_info.no_wait_for_card;
-            card_status             = nas_common_info.card_info[slot].status;
-            operating_mode          = nas_dms_cached_info.operating_mode;
-            operating_mode_valid    = nas_dms_cached_info.operating_mode_valid;
-            is_apm_sim_not_pwdn     = nas_common_info.apm_sim_not_pwdn;
+            if ( !nas_dms_cached_info.card_shutdown_initiated )
+            {
+                res = qcril_qmi_nas_dms_handle_card_status(QCRIL_EVT_INTERNAL_MMGSDI_CARD_POWER_DOWN);
+                nas_dms_cached_info.card_shutdown_initiated = TRUE;
+            }
+
             NAS_CACHE_UNLOCK();
+        }
 
-            QCRIL_LOG_INFO("ctx: QCRIL_APM_SIM_NOT_PWDN=%d, QCRIL_NO_WAIT_FOR_CARD=%d, card status=%d, oprt_val=%d, oprt=%d",
-                                is_apm_sim_not_pwdn,
-                                is_no_wait_for_card,
-                                (int) card_status,
-                                operating_mode_valid,
-                                operating_mode
-                            );
-
-            res             = RIL_E_SUCCESS;
-
-            action_required = // syncrhonization with card is suppressed for RIL
-                              !is_no_wait_for_card &&
-                              // card is actually UP
-                              ( QCRIL_CARD_STATUS_UP == card_status ) &&
-                              // NEGATIVE: modem ONLINE and expected RADIO_POWER will switch off the card
-                              !( operating_mode_valid && ( DMS_OP_MODE_ONLINE_V01 == operating_mode ) && !is_apm_sim_not_pwdn)
-                              // if RADIO_POWER is in progress, it will check for QCRIL_EVT_HOOK_INFORM_SHUTDOWN upon RADIO_OWER completion
-                              ;
-            QCRIL_LOG_INFO(".. action required %d", action_required );
-
-            NAS_CACHE_LOCK();
-            found_radio_power_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
-                                                                QCRIL_DEFAULT_MODEM_ID,
-                                                                QCRIL_EVT_QMI_REQUEST_POWER_RADIO,
-                                                                &qcril_req_info );
-            NAS_CACHE_UNLOCK();
-
-            action_deferred =
-                // we got to switch off card ONLY after putting modem to LPM, so await for RADIO_POWER to perform its task first
-                ( operating_mode_valid && ( DMS_OP_MODE_ONLINE_V01 == operating_mode ) ) ||
-                // there is already pending RADIO_POWER, check for already filed QCRIL_EVT_HOOK_INFORM_SHUTDOWN will be done at end of
-                //   RADIO_POWER. Also if pending RADIO_POWER is RADIO_ON, expectation is that ATEL will then perform RADIO_POWER(RADIO_OFF)
-                ( E_SUCCESS == found_radio_power_request )
-                ;
-
-            QCRIL_LOG_INFO(".. action deferred %d", action_deferred );
-            if ( action_deferred )
-            {
-                action_required = TRUE;
-                break;
-            }
-
-            if ( action_required ) //for powering down the card
-            {
-                NAS_CACHE_LOCK();
-                if ( !nas_dms_cached_info.card_shutdown_initiated )
-                {
-                    res = qcril_qmi_nas_dms_handle_card_status ( QCRIL_EVT_INTERNAL_MMGSDI_CARD_POWER_DOWN );
-                    nas_dms_cached_info.card_shutdown_initiated = TRUE;
-                }
-                NAS_CACHE_UNLOCK();
-            }
-            else // for shutting down the modem
-            {
-                action_required = TRUE;
-                qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID,
-                                            QCRIL_DEFAULT_MODEM_ID,
-                                            qmi_ril_process_oem_hook_shutdown,
-                                            NULL,  // immediate
-                                            NULL );
-            }
-
+        /* shutdown the modem */
+        else
+        {
+            /* setup an immediate timer callback */
+            qmi_ril_process_oem_hook_shutdown(NULL);
+            qcril_setup_timed_callback(QCRIL_DEFAULT_INSTANCE_ID,
+                                       QCRIL_DEFAULT_MODEM_ID,
+                                       qmi_ril_process_oem_hook_shutdown,
+                                       NULL,
+                                       NULL);
+        }
     } while (FALSE);
 
-    if (  RIL_E_SUCCESS != res || !action_required )
+    if (RIL_E_SUCCESS != res)
     {
-        qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                       params_ptr->t,
-                                       params_ptr->event_id,
-                                       res,
-                                       &resp );
-        qcril_send_request_response( &resp );
+        qcril_default_request_resp_params(QCRIL_DEFAULT_INSTANCE_ID,
+                                          params_ptr->t,
+                                          params_ptr->event_id,
+                                          res,
+                                          &resp);
+        qcril_send_request_response(&resp);
     }
 
-    QCRIL_LOG_FUNC_RETURN_WITH_RET( (int)res );
-} // qcril_qmi_nas_dms_handle_oem_hook_shutdown_inform
+    QCRIL_LOG_FUNC_RETURN_WITH_RET((int)res);
+} // qcril_qmi_nas_request_shutdown
 
 //===========================================================================
 // qmi_ril_process_oem_hook_shutdown
@@ -15964,90 +16874,44 @@ void qmi_ril_process_oem_hook_shutdown(void * param)
     errno_enum_type                       found_qcril_request;
     qcril_request_resp_params_type        resp;
     RIL_Errno                             ril_req_res;
-    int                                   ioctl_ret_code;
-    int                                   ioctl_err_code;
-    int                                   fd;
-    qcril_instance_id_e_type              ril_instance_id;
-    char                                 *modem_dev_node_name = modem_node_name[QCRIL_DEFAULT_INSTANCE_ID];
 
 
     QCRIL_LOG_FUNC_ENTRY();
     QCRIL_NOTUSED( param );
 
-    ril_instance_id = qmi_ril_get_process_instance_id();
     found_qcril_request = E_FAILURE;
-    ioctl_ret_code = E_SUCCESS;
-    ioctl_err_code = E_SUCCESS;
     ril_req_res = RIL_E_GENERIC_FAILURE;
 
-    if( qmi_ril_is_feature_supported(QMI_RIL_FEATURE_8960) &&
-        ( qmi_ril_is_feature_supported(QMI_RIL_FEATURE_APQ) || qmi_ril_is_feature_supported(QMI_RIL_FEATURE_SGLTE2) ) )
-        //MDM shutdown is supported on FUSION3/SGLTE2 target only
+    if (qcril_qmi_modem_power_is_voting_feature_supported())
     {
-        if ((ril_instance_id == QCRIL_SECOND_INSTANCE_ID) &&
-             qmi_ril_is_feature_supported( QMI_RIL_FEATURE_DSDA2 ))
-        {
-          modem_dev_node_name = modem_node_name[ril_instance_id];
-        }
-
-        fd = open(modem_dev_node_name, O_RDONLY | O_NONBLOCK);
-        if ( fd >= NAS_VALID_FILE_HANDLE )
-        {
-            ioctl_ret_code = ioctl(fd, NAS_MDM_SHUTDOWN_IOCTL_CMD, &ioctl_err_code);
-            if ( ioctl_ret_code < NAS_NIL || ioctl_err_code != E_SUCCESS )
-            {
-                QCRIL_LOG_ERROR("error while issuing ioctl SHUTDOWN_CHARM, ret %d, err %d", ioctl_ret_code, ioctl_err_code);
-            }
-            else
-            {
-                ril_req_res = RIL_E_SUCCESS;
-            }
-            close(fd);
-        }
-        else
-        {
-            QCRIL_LOG_ERROR("Could not open device %s, fd %d", modem_dev_node_name, fd);
-        }
+        qcril_qmi_modem_power_process_regular_shutdown();
+        ril_req_res = RIL_E_SUCCESS;
+    }
+    else if ( qmi_ril_is_feature_supported(QMI_RIL_FEATURE_APQ) ||
+         qmi_ril_is_feature_supported(QMI_RIL_FEATURE_SGLTE2) )
+    {
+        ril_req_res = qcril_process_mdm_shutdown();
     }
     else
     {
         ril_req_res = RIL_E_SUCCESS;
     }
 
-    found_qcril_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
-                                QCRIL_DEFAULT_MODEM_ID,
-                                QCRIL_EVT_HOOK_INFORM_SHUTDOWN,
-                                &qcril_req_info );
+    found_qcril_request = qcril_reqlist_query_by_event(QCRIL_DEFAULT_INSTANCE_ID,
+                                                       QCRIL_DEFAULT_MODEM_ID,
+                                                       QCRIL_EVT_QMI_REQUEST_SHUTDOWN,
+                                                       &qcril_req_info);
 
-    if( E_SUCCESS == found_qcril_request ) //sending response for oem hook shutdown request
+    /* sending response for oem hook shutdown request */
+    if (E_SUCCESS == found_qcril_request)
     {
         qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
                                            qcril_req_info.t,
                                            qcril_req_info.request,
                                            ril_req_res,
                                            &resp );
-        qcril_send_request_response( &resp );
+        qcril_send_request_response(&resp);
     }
-
-    found_qcril_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
-                                                        QCRIL_DEFAULT_MODEM_ID,
-                                                        QCRIL_EVT_QMI_REQUEST_POWER_RADIO,
-                                                        &qcril_req_info );
-    if( E_SUCCESS == found_qcril_request ) //sending response for RADIO_POWER_OFF request after oem hook shutdown processing has been complete
-    {
-        qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                           qcril_req_info.t,
-                                           qcril_req_info.request,
-                                           ril_req_res,
-                                           &resp );
-        qcril_send_request_response( &resp );
-        if( RIL_E_SUCCESS == ril_req_res )
-        {
-            qmi_ril_wave_modem_status();
-        }
-    }
-
-
 
     QCRIL_LOG_FUNC_RETURN();
 } //qmi_ril_process_oem_hook_shutdown
@@ -16083,7 +16947,7 @@ RIL_RadioState qcril_qmi_nas_dms_get_current_power_state ( qcril_instance_id_e_t
         QCRIL_LOG_INFO( ".. client available" );
         instance_id = instance_id;
 
-        NAS_CACHE_LOCK()
+        NAS_CACHE_LOCK();
         cur_op_mode_valid = NAS_CACHE_IS_ENTRY_VALID( nas_dms_cached_info.operating_mode );
         if ( NAS_CACHE_IS_ENTRY_VALID( nas_dms_cached_info.operating_mode ) )
         {
@@ -16187,7 +17051,9 @@ void qcril_qmi_nas_query_cur_power_state(int * op_mode_valid, dms_operating_mode
     QCRIL_LOG_FUNC_ENTRY();
 
     memset(&qmi_response,0,sizeof(qmi_response));
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+
+    NAS_CACHE_LOCK();
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                        QMI_DMS_GET_OPERATING_MODE_REQ_V01,
                                                        NULL,
                                                        NAS_NIL,
@@ -16203,14 +17069,12 @@ void qcril_qmi_nas_query_cur_power_state(int * op_mode_valid, dms_operating_mode
     {
         QCRIL_LOG_INFO(".. known modem operating mode %d ", (int) qmi_response.operating_mode );
 
-        NAS_CACHE_LOCK()
         NAS_CACHE_STORE_TINY_ENTRY_VAL( nas_dms_cached_info.operating_mode, qmi_response.operating_mode );
 
         *op_mode_valid = TRUE;
         *op_mode = qmi_response.operating_mode;
 
         qcril_qmi_nas_dms_update_common_modem_state();
-        NAS_CACHE_UNLOCK()
 
     }
     else
@@ -16218,6 +17082,7 @@ void qcril_qmi_nas_query_cur_power_state(int * op_mode_valid, dms_operating_mode
         *op_mode_valid = FALSE;
         *op_mode = DMS_OPERATING_MODE_ENUM_MIN_ENUM_VAL_V01;
     }
+    NAS_CACHE_UNLOCK();
 
     QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_query_cur_power_state
@@ -16249,6 +17114,9 @@ void qcril_qmi_nas_send_unsol_radio_state_changed
 )
 {
     QCRIL_LOG_FUNC_ENTRY();
+
+    QCRIL_NOTUSED(params_ptr);
+    QCRIL_NOTUSED(ret_ptr);
 
     qmi_ril_wave_modem_status();
 
@@ -16473,6 +17341,8 @@ void qcril_qmi_nas_multiple_rild_radio_power_timeout_cb(void * param)
     errno_enum_type                       found_qcril_request;
     QCRIL_LOG_FUNC_ENTRY();
 
+    QCRIL_NOTUSED(param);
+
     found_qcril_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
                                                         QCRIL_DEFAULT_MODEM_ID,
                                                         QCRIL_EVT_QMI_REQUEST_POWER_RADIO,
@@ -16506,7 +17376,7 @@ void qcril_qmi_nas_handle_multiple_rild_radio_power_sync(int requested_telephony
   if( TRUE == nas_common_info.radio_power_multiple_rild_process_timer_valid )
   {
       QCRIL_LOG_INFO("Cancelling the radio power expiry timer as we have completed our radio power process");
-      qcril_cancel_timed_callback( (void*) nas_common_info.radio_power_multiple_rild_process_timer );
+      qcril_cancel_timed_callback( (void*)(uintptr_t) nas_common_info.radio_power_multiple_rild_process_timer );
       nas_common_info.radio_power_multiple_rild_process_timer_valid = FALSE;
   }
 
@@ -16621,15 +17491,14 @@ void qcril_qmi_nas_query_network_selection_mode
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
   QCRIL_NOTUSED( ret_ptr );
+  NAS_CACHE_LOCK();
 
-  NAS_CACHE_LOCK()
   is_cached = NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.net_sel_pref);
-  NAS_CACHE_UNLOCK()
   QCRIL_LOG_INFO( "is_cached=%d",is_cached );
   if( !is_cached )
   {
       memset(&qmi_response,0,sizeof(qmi_response));
-      qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                 QMI_NAS_GET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                 NULL,
                                 NAS_ZERO,
@@ -16640,13 +17509,13 @@ void qcril_qmi_nas_query_network_selection_mode
       QCRIL_LOG_INFO( "code=%d-value=%d",ril_req_res,qmi_response.net_sel_pref_valid );
       if( RIL_E_SUCCESS == ril_req_res )
       {
-          NAS_CACHE_LOCK()
+          NAS_CACHE_LOCK();
           NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.net_sel_pref, qmi_response.net_sel_pref);
           if( !NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.net_sel_pref))
           {
               ril_req_res = RIL_E_GENERIC_FAILURE;
           }
-          NAS_CACHE_UNLOCK()
+          NAS_CACHE_UNLOCK();
       }
   }
   else
@@ -16666,7 +17535,7 @@ void qcril_qmi_nas_query_network_selection_mode
   }
 
   QCRIL_LOG_INFO( "network_selection_mode: %d, ril_req_res: %d", (int)network_selection_mode, (int)ril_req_res );
-
+  NAS_CACHE_UNLOCK();
   qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, RIL_E_SUCCESS, &resp );
   resp.resp_pkt = &network_selection_mode;
   resp.resp_len = sizeof(network_selection_mode);
@@ -16795,7 +17664,7 @@ void qcril_qmi_nas_set_band_mode
 
       if ( RIL_E_SUCCESS == ril_req_res )
       {
-          qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+          qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                              QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                              &qmi_request,
                                                              sizeof( qmi_request ),
@@ -16845,7 +17714,8 @@ void qcril_qmi_nas_query_available_band_mode
   memset(&qmi_response, 0, sizeof(qmi_response));
 
   QCRIL_NOTUSED( ret_ptr );
-  qmi_client_error =  qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+  NAS_CACHE_LOCK();
+  qmi_client_error =  qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                       QMI_DMS_GET_BAND_CAPABILITY_REQ_V01,
                                                          NULL,
                                                          NAS_ZERO, // empty payload
@@ -16857,9 +17727,9 @@ void qcril_qmi_nas_query_available_band_mode
 
       if ( RIL_E_SUCCESS == ril_req_res )
       {
-          NAS_CACHE_LOCK()
+          NAS_CACHE_LOCK();
           NAS_CACHE_STORE_TINY_ENTRY_VAL( nas_dms_cached_info.band_capability, qmi_response.band_capability );
-          NAS_CACHE_UNLOCK()
+          NAS_CACHE_UNLOCK();
       }
       else
       {
@@ -16868,9 +17738,9 @@ void qcril_qmi_nas_query_available_band_mode
 
   if ( RIL_E_SUCCESS == ril_req_res )
   {
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
       band_capability_remains = nas_dms_cached_info.band_capability;
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
 
       // check for any
       if ( (band_capability_remains & NAS_VAL_BAND_PREF_COMB_ANY) == NAS_VAL_BAND_PREF_COMB_ANY )
@@ -16956,6 +17826,7 @@ void qcril_qmi_nas_query_available_band_mode
 
   }
 
+  NAS_CACHE_UNLOCK();
   // ** respond
   qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
   if ( RIL_E_SUCCESS == ril_req_res )
@@ -17031,7 +17902,11 @@ qcril_qmi_nw_scan_resp_helper_type * ril_rep_helper,
 int *p_entries
 )
 {
-  int  nw_cnt = 0, no_of_entries, iter_i, iter_j;
+  unsigned int nw_cnt = 0;
+  unsigned int no_of_entries;
+  unsigned int iter_j;
+  unsigned int iter_i;
+
   char * info_str;
   uint8_t nw_status;
   int res, is_current_nw, duplicate_name_found;
@@ -17220,7 +18095,7 @@ int *p_entries
   {
     any_changes_from_duplicate_filtering = FALSE;
     QCRIL_LOG_INFO( "attempt to filter out duplicate names" );
-    for ( iter_i = 0; iter_i < (nw_cnt - 1); iter_i++ )
+    for ( iter_i = 0; iter_i < (unsigned)(nw_cnt - 1); iter_i++ )
     {
       // long
       ref_name = ril_rep_helper->long_eons[ iter_i ];
@@ -17306,8 +18181,8 @@ nas_perform_incremental_network_scan_ind_msg_v01 * nw_scan_ind
   qcril_qmi_nw_scan_resp_helper_type *    ril_rep_helper = NULL;
   int nw_cnt = 0, iter_i, no_of_entries, scan_info_len;
   uint16_t len = 0, total_len = 0;
-  char * resp_byte_stream_ptr = NULL;
-  char * resp_byte_stream = NULL;
+  unsigned char *resp_byte_stream_ptr = NULL;
+  unsigned char *resp_byte_stream = NULL;
   qcril_qmi_nas_nw_scan_info_helper_type * nw_scan_helper = NULL;
 
   QCRIL_LOG_FUNC_ENTRY();
@@ -17448,7 +18323,7 @@ const qcril_request_params_type *const params_ptr,
   memset(&qmi_request, 0, sizeof(qmi_request));
   qmi_request.network_type_valid = qcril_qmi_nas_retrieve_scan_network_type(&qmi_request.network_type);
 
-  qmi_client_error =  qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+  qmi_client_error =  qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                  QMI_NAS_PERFORM_INCREMENTAL_NETWORK_SCAN_REQ_MSG_V01,
                                                                  &qmi_request,
                                                                  sizeof(qmi_request),
@@ -17466,6 +18341,7 @@ const qcril_request_params_type *const params_ptr,
       ril_req_res =  RIL_E_GENERIC_FAILURE;
     }
   }
+
   qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
   qcril_send_request_response( &resp );
   QCRIL_LOG_INFO("completed with %d", ril_req_res );
@@ -17519,7 +18395,7 @@ void qcril_qmi_nas_query_available_networks
               memset(&qmi_request, 0, sizeof(qmi_request));
               qmi_request.network_type_valid = qcril_qmi_nas_retrieve_scan_network_type(&qmi_request.network_type);
 
-              qmi_client_error =  qmi_client_send_msg_async( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+              qmi_client_error =  qmi_client_send_msg_async_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                  QMI_NAS_PERFORM_NETWORK_SCAN_REQ_MSG_V01,
                                                                  &qmi_request,
                                                                  sizeof(qmi_request),
@@ -17557,9 +18433,9 @@ void qcril_qmi_nas_query_available_networks
 void qcril_qmi_nas_perform_network_scan_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 )
@@ -17600,7 +18476,8 @@ int *nw_scan_len
 {
     RIL_Errno ret = RIL_E_GENERIC_FAILURE;
     qcril_qmi_nas_nw_scan_info_helper_type *nw_scan_helper;
-    int i, j;
+    unsigned int i;
+    int j;
 
     *nw_scan_len = 0;
     *p_nw_scan_helper = NULL;
@@ -17672,6 +18549,7 @@ void qcril_qmi_nas_perform_network_scan_command_cb_helper
 
     qmi_resp_callback = (qmi_resp_callback_type *) params_ptr->data;
 
+    QCRIL_NOTUSED(ret_ptr);
     if ( qmi_resp_callback )
     {
         qmi_response = qmi_resp_callback->data_buf;
@@ -17752,44 +18630,76 @@ RIL_Errno qcril_qmi_nas_parse_csg_scan_oem_req(uint8 *oem_hook_data,nas_perform_
     switch(oem_hook_data[i])
     {
       case  0x10:
-        memcpy(&len,(void *)&oem_hook_data[i+1],sizeof(uint16));
-        if(len == 1)
+        if ( i + 1 < oem_data_len )
         {
-          filled_data->network_type_valid = TRUE;
-          filled_data->network_type = oem_hook_data[i+3];
-          i=i+4;
-        }
-        else if(len == 0)
-        {
-          i=i+3;
+          memcpy(&len,(void *)&oem_hook_data[i+1],sizeof(uint16));
+          if(len == 1)
+          {
+            if ( i + 3 < oem_data_len )
+            {
+              filled_data->network_type_valid = TRUE;
+              filled_data->network_type = oem_hook_data[i+3];
+              i=i+4;
+            }
+            else
+            {
+              QCRIL_LOG_ERROR("out of boundary when parsing");
+              result = RIL_E_GENERIC_FAILURE;
+            }
+          }
+          else if(len == 0)
+          {
+            i=i+3;
+          }
+          else
+          {
+            QCRIL_LOG_ERROR("Invalid Tag length : %d, found while parsing",len);
+            result = RIL_E_GENERIC_FAILURE;
+          }
+          len=0;
         }
         else
         {
-          QCRIL_LOG_ERROR("Invalid Tag length : %d, found while parsing",len);
-          result = RIL_E_GENERIC_FAILURE;
+            QCRIL_LOG_ERROR("out of boundary when parsing");
+            result = RIL_E_GENERIC_FAILURE;
         }
-        len=0;
         break;
       case  0x11:
-        memcpy(&len,(void *)&oem_hook_data[i+1],sizeof(uint16));
-        if(len == 1)
+        if ( i + 1 < oem_data_len )
         {
-          filled_data->scan_type_valid = TRUE;
-          filled_data->scan_type = (nas_nw_scan_type_enum_v01)oem_hook_data[i+3];
-          i=i+4;
-        }
-        else if(len == 0)
-        {
-          filled_data->scan_type_valid = TRUE;
-          filled_data->scan_type = NAS_SCAN_TYPE_CSG_V01;
-          i=i+3;
+          memcpy(&len,(void *)&oem_hook_data[i+1],sizeof(uint16));
+          if(len == 1)
+          {
+            if ( i + 3 < oem_data_len )
+            {
+              filled_data->scan_type_valid = TRUE;
+              filled_data->scan_type = (nas_nw_scan_type_enum_v01)oem_hook_data[i+3];
+              i=i+4;
+            }
+            else
+            {
+              QCRIL_LOG_ERROR("out of boundary when parsing");
+              result = RIL_E_GENERIC_FAILURE;
+            }
+          }
+          else if(len == 0)
+          {
+            filled_data->scan_type_valid = TRUE;
+            filled_data->scan_type = NAS_SCAN_TYPE_CSG_V01;
+            i=i+3;
+          }
+          else
+          {
+            QCRIL_LOG_ERROR("Invalid Tag length : %d, found while parsing",len);
+            result = RIL_E_GENERIC_FAILURE;
+          }
+          len=0;
         }
         else
         {
-          QCRIL_LOG_ERROR("Invalid Tag length : %d, found while parsing",len);
-          result = RIL_E_GENERIC_FAILURE;
+            QCRIL_LOG_ERROR("out of boundary when parsing");
+            result = RIL_E_GENERIC_FAILURE;
         }
-        len=0;
         break;
       default:
         QCRIL_LOG_ERROR("Invalid Tag:%d, length :%d, found while parsing",oem_hook_data[i],len);
@@ -17851,15 +18761,22 @@ void qcril_qmi_nas_csg_handle_oem_hook_perform_network_scan
   memset(&qmi_request,0,sizeof(qmi_request));
   memset(csg_perform_nw_scan_req,0,QCRIL_QMI_NAS_MAX_CSG_REQ_PAYLOAD);
 
-  memcpy(csg_perform_nw_scan_req, params_ptr->data, params_ptr->datalen);
-
-  csg_perform_nw_scan_req_ptr = csg_perform_nw_scan_req;
-
-  QCRIL_LOG_DEBUG("Recieved Data length from oem hook: %d ",params_ptr->datalen);
-  qcril_qmi_print_hex((unsigned char *) csg_perform_nw_scan_req_ptr,params_ptr->datalen);
 
   do
   {
+    if ( params_ptr->datalen > QCRIL_QMI_NAS_MAX_CSG_REQ_PAYLOAD )
+    {
+        ril_req_res = RIL_E_GENERIC_FAILURE;
+        qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
+        qcril_send_request_response( &resp );
+        break;
+    }
+
+    memcpy(csg_perform_nw_scan_req, params_ptr->data, params_ptr->datalen);
+    csg_perform_nw_scan_req_ptr = csg_perform_nw_scan_req;
+    QCRIL_LOG_DEBUG("Recieved Data length from oem hook: %d ",params_ptr->datalen);
+    qcril_qmi_print_hex((unsigned char *) csg_perform_nw_scan_req_ptr,params_ptr->datalen);
+
     ril_req_res = qcril_qmi_nas_parse_csg_scan_oem_req(csg_perform_nw_scan_req_ptr,&qmi_request,(uint8)params_ptr->datalen);
 
     if( ril_req_res == RIL_E_GENERIC_FAILURE )
@@ -17889,7 +18806,7 @@ void qcril_qmi_nas_csg_handle_oem_hook_perform_network_scan
 
             if ( ril_rep_helper )
             {
-                qmi_client_error =  qmi_client_send_msg_async( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+                qmi_client_error =  qmi_client_send_msg_async_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                    QMI_NAS_PERFORM_NETWORK_SCAN_REQ_MSG_V01,
                                                                    &qmi_request,
                                                                    sizeof(qmi_request),
@@ -17930,9 +18847,9 @@ void qcril_qmi_nas_csg_handle_oem_hook_perform_network_scan
 void qcril_qmi_nas_csg_handle_oem_hook_perform_network_scan_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 )
@@ -18433,7 +19350,7 @@ void qcril_qmi_nas_csg_handle_oem_hook_set_sys_selection
     return;
   }
 
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+  qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                QMI_NAS_GET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                NULL,
                                                NAS_ZERO,
@@ -18465,7 +19382,7 @@ void qcril_qmi_nas_csg_handle_oem_hook_set_sys_selection
 
   if ( qcril_reqlist_new( instance_id, &qcril_req_info_ptr ) == E_SUCCESS )
   {
-    qmi_client_error =  qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error =  qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                   QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                   &qmi_request,
                                                   sizeof(qmi_request),
@@ -18726,16 +19643,15 @@ RIL_Errno qcril_qmi_nas_set_nw_select_state(qmi_ril_nas_nw_select_state_e_type n
     int                     new_timeout_set_res;
     qmi_client_error_type   qmi_transport_error;
     qmi_client_type         dedicated_client;
+    qmi_client_os_params    os_params;
+    int                     time_out = 4;
 
 
-    nas_indication_register_req_msg_v01 nwreg_indications_qmi_request;
-    nas_indication_register_resp_msg_v01 nwreg_indications_qmi_response;
+    nas_indication_register_req_msg_v01     nwreg_indications_qmi_request;
+    nas_indication_register_resp_msg_v01    nwreg_indications_qmi_response;
 
     const struct timeval nw_select_timeout = {60 , 0}; // 60 seconds
-    const struct timeval nw_select_limited_timeout = {10 , 0}; // 10 seconds
-
-    int                     dsds_config_needed;
-    RIL_SubscriptionType    dsds_sub_num;
+    const struct timeval nw_select_limited_timeout = {25 , 0}; // 25 seconds
 
     nas_bind_subscription_req_msg_v01   nas_bind_request;
     nas_bind_subscription_resp_msg_v01  nas_bind_resp;
@@ -18750,7 +19666,6 @@ RIL_Errno qcril_qmi_nas_set_nw_select_state(qmi_ril_nas_nw_select_state_e_type n
     final_new_state = cur_state;
     QCRIL_LOG_INFO( ".. cur state %d (entry)", (int) cur_state );
 
-    dsds_sub_num = NAS_NIL;
 
     switch ( new_state )
     {
@@ -18760,57 +19675,61 @@ RIL_Errno qcril_qmi_nas_set_nw_select_state(qmi_ril_nas_nw_select_state_e_type n
                 NAS_CACHE_LOCK();
                 nas_cached_info.nw_select_nas_client    = NAS_NIL;
                 nas_cached_info.nw_select_timeout_watch = NAS_NIL;
-                NAS_CACHE_UNLOCK();
+                nas_common_info.manual_nw_reject_cause_counter = 0;
 
-                dsds_config_needed = FALSE;
+                NAS_CACHE_UNLOCK();
 
                 dedicated_client = NULL;
 
                 // open new client
-                pthread_mutex_lock(&nas_common_info.nw_sel_lock_mutex);
-                client_err = qmi_client_init(qmi_ril_client_get_master_port(),
-                                 nas_get_service_object_v01(),
-                                 qcril_qmi_nas_nw_select_dedicated_unsolicited_indication_cb,
-                                 NULL,
-                                 &dedicated_client );
+                NAS_NW_SEL_LOCK();
+                client_err = qmi_client_init_instance(nas_get_service_object_v01(),
+                                                      qmi_ril_client_get_master_port(),
+                                                      qcril_qmi_nas_nw_select_dedicated_unsolicited_indication_cb,
+                                                      NULL,
+                                                      &os_params,
+                                                      time_out,
+                                                      &dedicated_client);
                 if ( client_err == QMI_NO_ERR )
                 {
                     NAS_CACHE_LOCK();
                     nas_cached_info.nw_select_nas_client = dedicated_client;
-
-                    dsds_config_needed = nas_common_info.dsds.valid;
-                    dsds_sub_num       = nas_common_info.dsds.cur_info.sub_type;
                     NAS_CACHE_UNLOCK();
                 }
 
-                if ( NULL != dedicated_client && dsds_config_needed )
+                if ( NULL != dedicated_client )
                 {
-                    memset( &nas_bind_request, 0, sizeof( nas_bind_request ) );
-                    if ( RIL_SUBSCRIPTION_3 == dsds_sub_num )
+                    /* Bind required only if its multi sim target */
+                    if ( qmi_ril_is_multi_sim_feature_supported() )
                     {
-                        nas_bind_request.subs_type = NAS_TERTIARY_SUBSCRIPTION_V01;
-                    }
-                    else if (RIL_SUBSCRIPTION_2 == dsds_sub_num)
-                    {
-                        nas_bind_request.subs_type = NAS_SECONDARY_SUBSCRIPTION_V01;
-                    }
-                    else
-                    {
-                        nas_bind_request.subs_type = NAS_PRIMARY_SUBSCRIPTION_V01;
-                    }
+                        memset( &nas_bind_request, 0, sizeof( nas_bind_request ) );
 
-                    (void)qmi_client_send_msg_sync( dedicated_client,
-                                                     QMI_NAS_BIND_SUBSCRIPTION_REQ_MSG_V01,
-                                                     (void*)&nas_bind_request,
-                                                     sizeof( nas_bind_request ),
-                                                     (void*) &nas_bind_resp,
-                                                     sizeof( nas_bind_resp ),
-                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT
-                                                      );
-                    QCRIL_LOG_INFO( " .. dsds 2nd qmi_nas client bind res %d", (int) res );
+                        if ( QCRIL_MODEM_TERTIARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id())
+                        {
+                            nas_bind_request.subs_type = NAS_TERTIARY_SUBSCRIPTION_V01;
+                        }
+                        else if (QCRIL_MODEM_SECONDARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id())
+                        {
+                            nas_bind_request.subs_type = NAS_SECONDARY_SUBSCRIPTION_V01;
+                        }
+                        else
+                        {
+                            nas_bind_request.subs_type = NAS_PRIMARY_SUBSCRIPTION_V01;
+                        }
+
+                        (void)qmi_client_send_msg_sync_with_shm( dedicated_client,
+                                                         QMI_NAS_BIND_SUBSCRIPTION_REQ_MSG_V01,
+                                                         (void*)&nas_bind_request,
+                                                         sizeof( nas_bind_request ),
+                                                         (void*) &nas_bind_resp,
+                                                         sizeof( nas_bind_resp ),
+                                                         QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT
+                                                          );
+                        QCRIL_LOG_INFO( " .. dsds 2nd qmi_nas client bind res %d", (int) res );
+                    }
                 }
 
-                pthread_mutex_unlock(&nas_common_info.nw_sel_lock_mutex);
+                NAS_NW_SEL_UNLOCK();
 
                 if ( client_err != QMI_NO_ERR )
                 {
@@ -18864,6 +19783,12 @@ RIL_Errno qcril_qmi_nas_set_nw_select_state(qmi_ril_nas_nw_select_state_e_type n
                     nwreg_indications_qmi_request.reg_current_plmn_name_valid = TRUE;
                     nwreg_indications_qmi_request.reg_current_plmn_name = FALSE;
 
+                    if (nas_common_info.manual_nw_reject_cause_counter_enabled)
+                    {
+                        nwreg_indications_qmi_request.network_reject_valid  = TRUE;
+                        nwreg_indications_qmi_request.network_reject.reg_network_reject  = TRUE;
+                        nwreg_indications_qmi_request.network_reject.suppress_sys_info   = FALSE;
+                    }
 
                     if( qmi_ril_is_qmi_sys_info_available() )
                     {
@@ -18879,7 +19804,7 @@ RIL_Errno qcril_qmi_nas_set_nw_select_state(qmi_ril_nas_nw_select_state_e_type n
                         nwreg_indications_qmi_request.req_serving_system = TRUE;
                     }
 
-                    qmi_transport_error = qmi_client_send_msg_sync(
+                    qmi_transport_error = qmi_client_send_msg_sync_with_shm(
                                             nas_cached_info.nw_select_nas_client,
                                             QMI_NAS_INDICATION_REGISTER_REQ_MSG_V01,
                                             (void*) &nwreg_indications_qmi_request,
@@ -18894,9 +19819,13 @@ RIL_Errno qcril_qmi_nas_set_nw_select_state(qmi_ril_nas_nw_select_state_e_type n
 
                     if ( RIL_E_SUCCESS == res )
                     {
-                    // set timeout
-                        new_timeout_set_res = qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, qcril_qmi_nas_nw_select_timeout_cb, &nw_select_timeout, &new_timeout_watch );
+                        // set timeout
+                        new_timeout_set_res = qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID,
+                                                                          QCRIL_DEFAULT_MODEM_ID,
+                                                                          qcril_qmi_nas_nw_select_timeout_cb,
+                                                                          &nw_select_timeout, &new_timeout_watch );
                         QCRIL_LOG_INFO( ".. set timeout cb res %d ", (int) new_timeout_set_res );
+
                         if ( NAS_NIL == new_timeout_watch || E_SUCCESS != new_timeout_set_res )
                         {
                             res = RIL_E_GENERIC_FAILURE;
@@ -19085,12 +20014,12 @@ void qcril_qmi_nas_nw_select_handle_total_cleanup
   NAS_CACHE_UNLOCK();
   if ( NAS_NIL != new_nas_client )
   {
-      pthread_mutex_lock(&nas_common_info.nw_sel_lock_mutex);
+      NAS_NW_SEL_LOCK();
       qmi_client_release(new_nas_client);
       NAS_CACHE_LOCK();
       nas_cached_info.nw_select_nas_client = NAS_NIL;
       NAS_CACHE_UNLOCK();
-      pthread_mutex_unlock(&nas_common_info.nw_sel_lock_mutex);
+      NAS_NW_SEL_UNLOCK();
   }
 
   NAS_CACHE_LOCK();
@@ -19099,7 +20028,7 @@ void qcril_qmi_nas_nw_select_handle_total_cleanup
   NAS_CACHE_UNLOCK();
   if ( NAS_NIL != new_timeout_watch )
   {
-      qcril_cancel_timed_callback((void*)new_timeout_watch);
+      qcril_cancel_timed_callback((void*)(uintptr_t)new_timeout_watch);
       NAS_CACHE_LOCK();
       nas_cached_info.nw_select_timeout_watch = NAS_NIL;
       NAS_CACHE_UNLOCK();
@@ -19107,7 +20036,7 @@ void qcril_qmi_nas_nw_select_handle_total_cleanup
 
   if ( NAS_NIL != new_limited_timeout_watch )
   {
-      qcril_cancel_timed_callback((void*)new_limited_timeout_watch);
+      qcril_cancel_timed_callback((void*)(uintptr_t)new_limited_timeout_watch);
       NAS_CACHE_LOCK();
       nas_cached_info.nw_select_limited_timeout_watch = NAS_NIL;
       NAS_CACHE_UNLOCK();
@@ -19116,6 +20045,105 @@ void qcril_qmi_nas_nw_select_handle_total_cleanup
   QCRIL_LOG_FUNC_RETURN();
 
 } // qcril_qmi_nas_nw_select_handle_total_cleanup
+
+
+/*=========================================================================
+
+    FUNCTION: qcril_qmi_nas_is_permanent_failure
+
+===========================================================================*/
+/*!
+
+    @brief
+    Check if reject_cause is a permanent failure or not.
+
+    @return
+    TRUE or FALSE
+
+*/
+/*=========================================================================*/
+boolean qcril_qmi_nas_is_permanent_failure
+(
+    int reject_cause
+)
+{
+    boolean ret;
+
+    switch (reject_cause)
+    {
+        case ILLEGAL_MS:
+        case GPRS_SERVICES_AND_NON_GPRS_SERVICES_NOT_ALLOWED:
+        case PLMN_NOT_ALLOWED:
+        case LA_NOT_ALLOWED:
+        case NATIONAL_ROAMING_NOT_ALLOWED:
+        {
+            ret = TRUE;
+            break;
+        }
+
+        default:
+        {
+            ret = FALSE;
+            break;
+        }
+    }
+
+    return ret;
+}
+/*=========================================================================
+
+    FUNCTION: qcril_qmi_nas_nw_select_restart_timer
+
+===========================================================================*/
+/*!
+
+    @brief
+    restart manual network selection timer
+
+    @return
+    0 on success.
+
+*/
+/*=========================================================================*/
+int qcril_qmi_nas_nw_select_restart_timer
+(
+    void
+)
+{
+    int             res = RIL_E_SUCCESS;
+    const struct    timeval nw_select_timeout = {60 , 0};
+    uint32          new_timeout_watch = 0;
+    int             new_timeout_set_res;
+
+    NAS_CACHE_LOCK();
+    new_timeout_watch = nas_cached_info.nw_select_timeout_watch;
+
+    if ( NAS_NIL != new_timeout_watch )
+    {
+        qcril_cancel_timed_callback((void*)(uintptr_t)new_timeout_watch);
+        nas_cached_info.nw_select_timeout_watch = NAS_NIL;
+    }
+
+    new_timeout_set_res = qcril_setup_timed_callback(QCRIL_DEFAULT_INSTANCE_ID,
+                                                     QCRIL_DEFAULT_MODEM_ID,
+                                                     qcril_qmi_nas_nw_select_timeout_cb,
+                                                     &nw_select_timeout,
+                                                     &new_timeout_watch );
+
+    QCRIL_LOG_INFO( ".. set timeout cb res %d ", (int) new_timeout_set_res );
+    if ( NAS_NIL == new_timeout_watch || E_SUCCESS != new_timeout_set_res )
+    {
+        res = RIL_E_GENERIC_FAILURE;
+    }
+    else
+    {
+        nas_cached_info.nw_select_timeout_watch = new_timeout_watch;
+    }
+
+    NAS_CACHE_UNLOCK();
+    QCRIL_LOG_FUNC_RETURN();
+    return res;
+}
 
 //===========================================================================
 //qcril_qmi_nas_nw_select_timeout_handler
@@ -19151,9 +20179,9 @@ void qcril_qmi_nas_nw_select_timeout_handler()
           {
               qcril_qmi_nas_fetch_serving_system_info();
           }
-          NAS_CACHE_LOCK()
+          NAS_CACHE_LOCK();
           is_full_service = qcril_qmi_nas_is_considered_registered(NULL);
-          NAS_CACHE_UNLOCK()
+          NAS_CACHE_UNLOCK();
           QCRIL_LOG_INFO(".. is full service %d", (int) is_full_service );
           if ( is_full_service )
           {
@@ -19285,10 +20313,10 @@ int qcril_qmi_nas_nw_select_is_reported_plmn_same_as_requested_plmn(nas_common_n
 void qcril_qmi_nas_nw_select_dedicated_unsolicited_indication_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  message_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   message_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 )
 {
   IxErrnoType res;
@@ -19379,11 +20407,13 @@ void qcril_qmi_nas_nw_select_dedicated_unsolicited_indicaton_event_thrd_handler
     uint32_t                                        decoded_payload_len;
 
     qmi_client_type                                 dedicated_nas_client;
+    int                                             cs_reg_rej;
 
     int                                             nw_reg_occured = FALSE;
     RIL_Errno                                       nw_reg_result = RIL_E_GENERIC_FAILURE;
 
     nas_system_selection_preference_ind_msg_v01 *   sys_sel_pref_ind;
+    nas_network_reject_ind_msg_v01                 *network_reject_ind_msg = NULL;
     nas_serving_system_ind_msg_v01 *                serving_system_ind;
     nas_sys_info_ind_msg_v01 *                      sys_info_ind;
     nas_3gpp_only_sys_info_type_v01*                three_3gpp_info;
@@ -19429,7 +20459,7 @@ void qcril_qmi_nas_nw_select_dedicated_unsolicited_indicaton_event_thrd_handler
                       {
                         memset( decoded_payload, 0, decoded_payload_len );
 
-                        pthread_mutex_lock(&nas_common_info.nw_sel_lock_mutex);
+                        NAS_NW_SEL_LOCK();
 
                         NAS_CACHE_LOCK();
                         dedicated_nas_client = nas_cached_info.nw_select_nas_client;
@@ -19450,7 +20480,7 @@ void qcril_qmi_nas_nw_select_dedicated_unsolicited_indicaton_event_thrd_handler
                             qmi_err = QMI_INTERNAL_ERR;
                         }
 
-                        pthread_mutex_unlock(&nas_common_info.nw_sel_lock_mutex);
+                        NAS_NW_SEL_UNLOCK();
 
                         if ( QMI_NO_ERR == qmi_err )
                         {
@@ -19515,6 +20545,34 @@ void qcril_qmi_nas_nw_select_dedicated_unsolicited_indicaton_event_thrd_handler
                                                   }
                                               }
                                           }
+                                          break;
+
+                                      case QMI_NAS_NETWORK_REJECT_IND_V01:
+                                          {
+                                              network_reject_ind_msg = (nas_network_reject_ind_msg_v01*)decoded_payload;
+                                              if (network_reject_ind_msg)
+                                              {
+                                                  QCRIL_LOG_INFO(".. reg reject domain, cause %d, %d",
+                                                                 network_reject_ind_msg->reject_srv_domain,
+                                                                 network_reject_ind_msg->rej_cause);
+
+                                                  if (nas_common_info.manual_nw_reject_cause_counter_enabled &&
+                                                       (network_reject_ind_msg->rej_cause == QCRIL_REJECT_CAUSE_NETWORK_FAIL))
+                                                  {
+                                                      QCRIL_LOG_INFO(".. counter %d",
+                                                                     nas_common_info.manual_nw_reject_cause_counter);
+                                                      nas_common_info.manual_nw_reject_cause_counter++;
+                                                      qcril_qmi_nas_nw_select_restart_timer();
+                                                      if (nas_common_info.manual_nw_reject_cause_counter == QMI_RIL_MANUAL_NW_REJECT_MAX_COUNT)
+                                                      {
+                                                          nas_common_info.manual_nw_reject_cause_counter = 0;
+                                                          nw_reg_occured = TRUE;
+                                                          nw_reg_result  = RIL_E_GENERIC_FAILURE;
+                                                      }
+                                                  }
+                                              }
+                                          }
+
                                           break;
 
                                       case QMI_NAS_SYS_INFO_IND_MSG_V01:
@@ -19757,10 +20815,31 @@ void qcril_qmi_nas_nw_select_dedicated_unsolicited_indicaton_event_thrd_handler
 
                                               if ( three_3gpp_info && three_3gpp_info->reg_reject_info_valid )
                                               {
-                                                  QCRIL_LOG_INFO(".. reg reject domain, cause %d, %d", (int) three_3gpp_info->reg_reject_info.reject_srv_domain, (int) three_3gpp_info->reg_reject_info.rej_cause);
-                                                  qcril_qmi_nas_set_nw_select_state( QMI_RIL_NAS_NW_SELECT_SETTING_PREF_LIMITED_REGD );
+                                                  QCRIL_LOG_INFO(".. reg reject domain, cause %d, %d",
+                                                                 (int) three_3gpp_info->reg_reject_info.reject_srv_domain,
+                                                                 (int) three_3gpp_info->reg_reject_info.rej_cause);
+
+                                                  if (!nas_common_info.manual_nw_reject_cause_counter_enabled ||
+                                                       (nas_common_info.manual_nw_reject_cause_counter_enabled &&
+                                                        three_3gpp_info->reg_reject_info.rej_cause !=
+                                                                                 QCRIL_REJECT_CAUSE_NETWORK_FAIL))
+                                                  {
+                                                      /* Check if we can return failure right away */
+                                                      if (qcril_qmi_nas_is_permanent_failure(
+                                                                        three_3gpp_info->reg_reject_info.rej_cause))
+                                                      {
+                                                          nw_reg_occured = TRUE;
+                                                          nw_reg_result  = RIL_E_GENERIC_FAILURE;
+                                                      }
+                                                      else
+                                                      {
+                                                          /* if temeporary failure, we should wait for modem retry */
+                                                          qcril_qmi_nas_set_nw_select_state( QMI_RIL_NAS_NW_SELECT_SETTING_PREF_LIMITED_REGD );
+                                                      }
+                                                  }
                                               }
                                           }
+
                                           break;
 
                                         case QMI_NAS_SYSTEM_SELECTION_PREFERENCE_IND_MSG_V01:
@@ -19923,7 +21002,6 @@ void qcril_qmi_nas_set_network_selection_automatic
 {
 
   QCRIL_NOTUSED( ret_ptr );
-
   qcril_qmi_util_initiate_network_selection_check(params_ptr, TRUE, NAS_NIL, NAS_NIL, TRUE, NAS_NIL, RADIO_TECH_UNKNOWN );
 } // qcril_qmi_nas_set_network_selection_automatic
 
@@ -20010,7 +21088,6 @@ void qcril_qmi_nas_set_network_selection_manual
 
       qcril_qmi_util_initiate_network_selection_check(params_ptr, FALSE, mcc, mnc, ok, pcs_digit_present, rat );
   }
-
 } // qcril_qmi_nas_set_network_selection_manual
 
 //===========================================================================
@@ -20096,10 +21173,10 @@ RIL_Errno qcril_qmi_util_initiate_network_selection(const qcril_request_params_t
             QCRIL_LOG_INFO( ".. mode_pref cache sub fetch val %d ", (int) res  );
             if ( RIL_E_SUCCESS == res )
             {
-                NAS_CACHE_LOCK()
+                NAS_CACHE_LOCK();
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.mode_pref, qmi_get_mode_pref_response.mode_pref );
                 NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.lte_disable_cause, qmi_get_mode_pref_response.lte_disable_cause );
-                NAS_CACHE_UNLOCK()
+                NAS_CACHE_UNLOCK();
                 QCRIL_LOG_INFO( ".. mode_pref cache sub fetch ok " );
             }
         }
@@ -20158,44 +21235,49 @@ RIL_Errno qcril_qmi_util_initiate_network_selection(const qcril_request_params_t
 
             if( RADIO_TECH_UNKNOWN != rat )
             {
-                qmi_request.mode_pref_valid = TRUE;
-                qmi_request.mode_pref = qcril_qmi_nas2_convert_rat_to_mode_pref(rat);
-
-                if ( !NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.mode_pref) || qmi_request.mode_pref != nas_cached_info.mode_pref ||
-                     (NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.lte_disable_cause) &&
-                      (NAS_LTE_DISABLE_CAUSE_DOM_SEL_V01 == nas_cached_info.lte_disable_cause ||
-                       NAS_LTE_DISABLE_CAUSE_DAM_V01 == nas_cached_info.lte_disable_cause))
-                   )
+                if ( !qmi_ril_is_rat_tlv_support_available() )
                 {
-                    nas_cached_info.nw_select_is_current = FALSE;
-                    if ( ( nas_common_info.is_restore_prev_mode_pref )
-                            && NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.mode_pref) )
+                    qmi_request.mode_pref_valid = TRUE;
+                    qmi_request.mode_pref = qcril_qmi_nas2_convert_rat_to_mode_pref(rat);
+                    QCRIL_LOG_INFO( ".. requesting mode_pref valid %d, value %d",
+                                    (int) qmi_request.mode_pref_valid,qmi_request.mode_pref );
+                    if ( !NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.mode_pref) || qmi_request.mode_pref != nas_cached_info.mode_pref ||
+                         (NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.lte_disable_cause) &&
+                          (NAS_LTE_DISABLE_CAUSE_DOM_SEL_V01 == nas_cached_info.lte_disable_cause ||
+                           NAS_LTE_DISABLE_CAUSE_DAM_V01 == nas_cached_info.lte_disable_cause))
+                       )
                     {
-                      NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.prev_mode_pref, nas_cached_info.mode_pref );
+                        nas_cached_info.nw_select_is_current = FALSE;
+                        if ( ( nas_common_info.is_restore_prev_mode_pref )
+                                && NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.mode_pref) )
+                        {
+                            NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.prev_mode_pref, nas_cached_info.mode_pref );
+                        }
+                        else
+                        {
+                            NAS_CACHE_INVALIDATE_TINY_ENTRY( nas_cached_info.prev_mode_pref );
+                        }
                     }
                     else
                     {
-                      NAS_CACHE_INVALIDATE_TINY_ENTRY( nas_cached_info.prev_mode_pref );
+                        // if the request mode_pref is the same as the previous one, no need to restore
+                        NAS_CACHE_INVALIDATE_TINY_ENTRY( nas_cached_info.prev_mode_pref );
                     }
                 }
                 else
                 {
-                    // if the request mode_pref is the same as the previous one, no need to restore
-                    NAS_CACHE_INVALIDATE_TINY_ENTRY( nas_cached_info.prev_mode_pref );
+                    qmi_request.rat_valid = TRUE;
+                    qmi_request.rat = qcril_qmi_nas2_convert_qcril_rat_to_qmi_rat(rat);
                 }
             }
-            else
-            {
-              NAS_CACHE_INVALIDATE_TINY_ENTRY( nas_cached_info.prev_mode_pref );
-            }
+
             NAS_CACHE_UNLOCK();
         }
 
-        QCRIL_LOG_INFO( ".. requesting mode_pref valid %d, value %d", (int) qmi_request.mode_pref_valid, qmi_request.mode_pref  );
         res_holder = qcril_malloc( sizeof(*res_holder) );
         if ( res_holder )
         {
-            qmi_client_error = qmi_client_send_msg_async( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+            qmi_client_error = qmi_client_send_msg_async_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                                (void*) &qmi_request,
                                                                sizeof( qmi_request ),
@@ -20267,7 +21349,7 @@ void qcril_qmi_nas_restore_modem_pref()
       break;
     }
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                  QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                  &qmi_request,
                                                  sizeof( qmi_request ),
@@ -20289,22 +21371,86 @@ void qcril_qmi_nas_restore_modem_pref()
   QCRIL_LOG_FUNC_RETURN();
 }
 
+
+void qcril_qmi_nas_post_event
+(
+    qmi_client_type              user_handle,
+    unsigned int                 msg_id,
+    qcril_evt_e_type             qcril_event_id,
+    void                         *resp_c_struct,
+    unsigned int                 resp_c_struct_len,
+    void                         *resp_cb_data,
+    qmi_client_error_type        transp_err
+ )
+{
+    qmi_resp_callback_type qmi_resp_callback;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    qmi_resp_callback.user_handle = user_handle;
+    qmi_resp_callback.msg_id = msg_id;
+    qmi_resp_callback.data_buf = (void*) resp_c_struct;
+    qmi_resp_callback.data_buf_len = resp_c_struct_len;
+    qmi_resp_callback.cb_data = resp_cb_data;
+    qmi_resp_callback.transp_err = transp_err;
+
+    qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
+                   QCRIL_DEFAULT_MODEM_ID,
+                   QCRIL_DATA_ON_STACK,
+                   qcril_event_id,
+                   (void*) &qmi_resp_callback,
+                   sizeof(qmi_resp_callback),
+                   (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+
 //===========================================================================
 // qcril_qmi_nas_set_nw_selection_command_cb
 //===========================================================================
 void qcril_qmi_nas_set_nw_selection_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
+    QCRIL_LOG_FUNC_ENTRY();
+
+    qcril_qmi_nas_post_event(user_handle,
+                             msg_id,
+                             QCRIL_EVT_QMI_REQUEST_NW_SELECT,
+                             resp_c_struct,
+                             resp_c_struct_len,
+                             resp_cb_data,
+                             transp_err);
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+
+//===========================================================================
+// qcril_qmi_nas_set_nw_selection_command_cb_helper
+//===========================================================================
+void qcril_qmi_nas_set_nw_selection_command_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+    void *resp_c_struct;
+    qmi_client_error_type  transp_err;
+    qmi_resp_callback_type * qmi_resp_callback;
     nas_set_system_selection_preference_resp_msg_v01 * res_holder;
     RIL_Errno                                          ril_req_res;
     qmi_ril_nas_nw_select_state_e_type                 cur_state;
+
+    qmi_resp_callback = (qmi_resp_callback_type *) params_ptr->data;
+    resp_c_struct = qmi_resp_callback->data_buf;
+    transp_err = qmi_resp_callback->transp_err;
 
     do
     {
@@ -20316,11 +21462,6 @@ void qcril_qmi_nas_set_nw_selection_command_cb
 
         res_holder = (nas_set_system_selection_preference_resp_msg_v01 *) resp_c_struct;
         QCRIL_LOG_INFO( "trans_err, resp.err  %d, %d ", (int) transp_err, (int) res_holder->resp.error );
-
-        QCRIL_NOTUSED(user_handle);
-        QCRIL_NOTUSED(msg_id);
-        QCRIL_NOTUSED(resp_c_struct_len);
-        QCRIL_NOTUSED(resp_cb_data);
 
         cur_state = qcril_qmi_nas_get_nw_select_state();
         QCRIL_LOG_INFO( ".. nw sel state %d", (int) cur_state );
@@ -20434,9 +21575,6 @@ void qcril_qmi_nas_request_screen_state
               // no action, just track UI's SCREEN_STATE
               break;
       }
-
-      /* Send the screen state to qcril_data for further processing */
-      (void) qcril_data_process_screen_state_change(enable);
 
       ril_req_res = RIL_E_SUCCESS;
   }
@@ -20650,7 +21788,7 @@ void qcril_qmi_nas_force_network_search()
 
 
     memset(&qmi_response,0,sizeof(qmi_response));
-    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                        QMI_NAS_FORCE_NETWORK_SEARCH_REQ_MSG_V01,
                                                        NULL,
                                                        NAS_NIL,
@@ -20761,7 +21899,7 @@ RIL_Errno qcril_qmi_util_enable_networking_indications( int enable, int force_up
         light_indications_qmi_request.rsrq_indicator.report_rsrq = enable_indications;
         light_indications_qmi_request.rsrq_indicator.rsrq_delta = 5;
 
-        qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+        qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                            QMI_NAS_SET_EVENT_REPORT_REQ_MSG_V01,
                                                            (void*) &light_indications_qmi_request,
                                                            sizeof( light_indications_qmi_request ),
@@ -20864,7 +22002,7 @@ RIL_Errno qcril_qmi_util_enable_networking_indications( int enable, int force_up
                 light_indications_sig_info_qmi_request->rscp_threshold_list[iter_i] = QMI_NAS_RSCP_THRESHOLD_ENTRIES_START_VALUE  + (QMI_NAS_RSCP_THRESHOLD_ENTRIES_INC_VALUE * iter_i);
             }
 
-            qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+            qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_CONFIG_SIG_INFO_REQ_MSG_V01,
                                                                (void*) light_indications_sig_info_qmi_request,
                                                                sizeof( *light_indications_sig_info_qmi_request ),
@@ -20882,7 +22020,7 @@ RIL_Errno qcril_qmi_util_enable_networking_indications( int enable, int force_up
             light_indications_qmi_request.report_reg_reject_valid = TRUE;
             light_indications_qmi_request.report_reg_reject = TRUE;
 
-            qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+            qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_SET_EVENT_REPORT_REQ_MSG_V01,
                                                                (void*) &light_indications_qmi_request,
                                                                sizeof( light_indications_qmi_request ),
@@ -20915,11 +22053,8 @@ RIL_Errno qcril_qmi_util_enable_networking_indications( int enable, int force_up
         nwreg_indications_qmi_request.reg_network_time_valid = TRUE;
         nwreg_indications_qmi_request.reg_network_time       = always_enable_action;  // receive network time update unless in LPM
 
-        if (nas_common_info.sib16_support)
-        {
-           nwreg_indications_qmi_request.reg_lte_sib16_network_time_valid = TRUE;
-           nwreg_indications_qmi_request.reg_lte_sib16_network_time = always_enable_action;
-        }
+        nwreg_indications_qmi_request.reg_lte_sib16_network_time_valid = TRUE;
+        nwreg_indications_qmi_request.reg_lte_sib16_network_time = always_enable_action;
 
         nwreg_indications_qmi_request.reg_rtre_cfg_valid = TRUE;
         nwreg_indications_qmi_request.reg_rtre_cfg       = TRUE;
@@ -20939,12 +22074,14 @@ RIL_Errno qcril_qmi_util_enable_networking_indications( int enable, int force_up
             nwreg_indications_qmi_request.req_serving_system       = FALSE;       // always suppress serving system inds when sys_info available
 
             nwreg_indications_qmi_request.reg_current_plmn_name_valid = TRUE;
-            nwreg_indications_qmi_request.reg_current_plmn_name       = always_enable_action;  // we may not miss it (while ONLINE)
+            nwreg_indications_qmi_request.reg_current_plmn_name       = enable_indications;
 
             if( QCRIL_IS_COEX_ENABLED())
             {
                 NAS_CACHE_LOCK();
-                if(NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.mode_pref) && ( NAS_NIL != ( QMI_NAS_RAT_MODE_PREF_LTE & nas_cached_info.mode_pref ) ) )
+                if(NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.mode_pref) &&
+                   (( NAS_NIL != ( QMI_NAS_RAT_MODE_PREF_LTE & nas_cached_info.mode_pref ) ) ||
+                    ( NAS_NIL != ( QMI_NAS_RAT_MODE_PREF_GSM & nas_cached_info.mode_pref ) )))
                 {
                   // Enable RF band indications if LTE
                   nwreg_indications_qmi_request.reg_rf_band_info_valid = TRUE;
@@ -20977,7 +22114,7 @@ RIL_Errno qcril_qmi_util_enable_networking_indications( int enable, int force_up
                     memset( &limit_sys_info_qmi_response, 0, sizeof( limit_sys_info_qmi_response ) );
                     limit_sys_info_qmi_request.limit_sys_info_chg_rpt = enable ? 0 : NAS_LIMIT_BY_SRV_STATUS_V01 | NAS_LIMIT_BY_SRV_DOMAIN_V01;
                     QCRIL_LOG_INFO( "Requesting nas limit sys info ind reporting [%d].. enable [%d]", limit_sys_info_qmi_request.limit_sys_info_chg_rpt, enable );
-                    qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+                    qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                              QMI_NAS_LIMIT_SYS_INFO_IND_REPORTING_REQ_MSG_V01,
                                                              &limit_sys_info_qmi_request,
                                                              sizeof( limit_sys_info_qmi_request ),
@@ -21008,7 +22145,7 @@ RIL_Errno qcril_qmi_util_enable_networking_indications( int enable, int force_up
         }
 
 
-        qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+        qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                            QMI_NAS_INDICATION_REGISTER_REQ_MSG_V01,
                                                            (void*) &nwreg_indications_qmi_request,
                                                            sizeof( nwreg_indications_qmi_request ),
@@ -21105,7 +22242,7 @@ void qcril_qmi_nas_exit_emergency_callback_mode
   if (nas_cached_info.eme_call_end_recently)
   {
     nas_cached_info.eme_call_end_recently = FALSE;
-    qcril_cancel_timed_callback((void *)nas_cached_info.eme_call_end_recently_tcb_id);
+    qcril_cancel_timed_callback((void *)(uintptr_t)nas_cached_info.eme_call_end_recently_tcb_id);
   }
   NAS_CACHE_UNLOCK();
 
@@ -21115,7 +22252,7 @@ void qcril_qmi_nas_exit_emergency_callback_mode
   qmi_request.emergency_mode_valid = TRUE;
   qmi_request.emergency_mode       = NAS_CMN_EMERGENCY_MODE_OFF;
 
-  qmi_client_error =  qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+  qmi_client_error =  qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                      QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                      &qmi_request,
                                                      sizeof( qmi_request ),
@@ -21155,6 +22292,7 @@ void qcril_qmi_nas_control_signal_nas_on_current_calls_change()
 void qcril_qmi_nas_reevaluate_vrte_helper (qcril_timed_callback_handler_params_type *param)
 {
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(param);
 
     qcril_qmi_nas_evaluate_voice_rte_propagation();
 
@@ -21166,7 +22304,6 @@ void qcril_qmi_nas_reevaluate_vrte_helper (qcril_timed_callback_handler_params_t
 //===========================================================================
 void qcril_qmi_nas_evaluate_voice_rte_propagation()
 {
-    unsigned int number_of_voice_calls = 0;
     unsigned int reported_voice_radio_tech;
     unsigned int calculated_voice_radio_tech;
     unsigned int reported_voice_radio_tech_family;
@@ -21192,8 +22329,6 @@ void qcril_qmi_nas_evaluate_voice_rte_propagation()
 
     QCRIL_LOG_FUNC_ENTRY();
 
-    number_of_voice_calls = qcril_qmi_voice_nas_control_get_current_calls_number();
-
     calculated_voice_radio_tech = qcril_qmi_get_voice_radio_technology();
     reported_voice_radio_tech = qcril_qmi_nas_get_reported_voice_radio_tech();
     reported_voice_radio_tech_family = qcril_qmi_voice_nas_control_convert_radio_tech_to_radio_tech_family(reported_voice_radio_tech);
@@ -21201,16 +22336,14 @@ void qcril_qmi_nas_evaluate_voice_rte_propagation()
 
     is_eme_oos = qmi_ril_voice_is_eme_oos();
 
-    QCRIL_LOG_INFO("num of voice calls %d, is eme oos %d", number_of_voice_calls, is_eme_oos );
+    QCRIL_LOG_INFO("is eme oos %d", is_eme_oos );
     QCRIL_LOG_INFO("reported tech %d, family %d - calculated tech %d, family %d",
                    (int)reported_voice_radio_tech,
                    (int)reported_voice_radio_tech_family,
                    (int)calculated_voice_radio_tech,
                    (int)calculated_voice_radio_tech_family);
 
-    if ( ( reported_voice_radio_tech_family != calculated_voice_radio_tech_family && ( is_eme_oos || NAS_NIL == number_of_voice_calls ) ) ||
-         ( reported_voice_radio_tech_family == calculated_voice_radio_tech_family && reported_voice_radio_tech != calculated_voice_radio_tech )
-       )
+    if (reported_voice_radio_tech != calculated_voice_radio_tech)
     {
         // RAT propagation is needed AND is inevitable under RAT family change
         if ( is_eme_oos && reported_voice_radio_tech_family != calculated_voice_radio_tech_family )
@@ -21304,7 +22437,7 @@ void qcril_qmi_nas_evaluate_voice_rte_propagation()
             }
 
 
-            qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+            qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_CONFIG_SIG_INFO_REQ_MSG_V01,
                                                                (void*) light_indications_sig_info_qmi_request,
                                                                sizeof( *light_indications_sig_info_qmi_request ),
@@ -21466,6 +22599,9 @@ void qcril_qmi_nas_post_voice_rte_change_ind_handler
 
     QCRIL_LOG_FUNC_ENTRY();
 
+    QCRIL_NOTUSED(ret_ptr);
+    QCRIL_NOTUSED(params_ptr);
+
     ril_req_res = RIL_E_GENERIC_FAILURE;
 
     if( TRUE == qcril_qmi_nas_check_power_save_and_screen_off_status() )
@@ -21498,7 +22634,6 @@ inline int qcril_qmi_nas_is_atel_rat_3gpp(RIL_RadioTechnology atel_rat)
 
     switch( atel_rat )
     {
-        case RADIO_TECH_LTE:
         case RADIO_TECH_TD_SCDMA:
         case RADIO_TECH_UMTS:
         case RADIO_TECH_GSM:
@@ -21588,6 +22723,8 @@ inline RIL_RadioTechnology process_3gpp2_radio_technology(RIL_RadioTechnology re
 {
   RIL_RadioTechnology radio_technology;
   radio_technology = RADIO_TECH_UNKNOWN;
+
+  QCRIL_NOTUSED(mode_pref);
   if( TRUE == qcril_qmi_nas_is_atel_rat_3gpp2(reported_radio_technology) )
   {
       radio_technology = reported_radio_technology; //to avoid ping pong between 3gpp2 technologies in no service
@@ -21774,6 +22911,146 @@ RIL_RadioTechnology qcril_qmi_convert_rte_to_radio_technology(qmi_ril_nw_reg_rte
     return radio_technology;
 } //qcril_qmi_convert_rte_to_radio_technology
 
+/*===========================================================================
+
+  FUNCTION  qcril_qmi_retrieve_rte_family_from_sim_app
+
+===========================================================================*/
+/*!
+    @brief
+    Retrieve radio tech family from current current sim app type
+
+    @return
+    NAS_VAL_RADIO_TECH_UNKNOWN
+    NAS_VAL_RADIO_TECH_3GPP
+    NAS_VAL_RADIO_TECH_3GPP2
+*/
+/*=========================================================================*/
+int qcril_qmi_retrieve_rte_family_from_sim_app
+(
+    void
+)
+{
+    int               radio_tech_family = NAS_VAL_RADIO_TECH_UNKNOWN;
+    RIL_CardStatus_v6 ril_card_status;
+    int               index;
+
+    do {
+
+#ifndef QMI_RIL_UTF
+
+        /* retrieve card status info */
+        if (qcril_uim_direct_get_card_status(qmi_ril_get_process_instance_id(),
+                                             &ril_card_status) != RIL_E_SUCCESS)
+        {
+            break;
+        }
+
+        QCRIL_LOG_INFO("card status : %d", ril_card_status.card_state);
+        QCRIL_LOG_INFO("gsm index : %d", ril_card_status.gsm_umts_subscription_app_index);
+        QCRIL_LOG_INFO("cdma index : %d", ril_card_status.cdma_subscription_app_index);
+
+        /* convert operator type to corresponding radio tech */
+        if (ril_card_status.card_state == RIL_CARDSTATE_PRESENT)
+        {
+            if (ril_card_status.gsm_umts_subscription_app_index != -1)
+            {
+                index = ril_card_status.gsm_umts_subscription_app_index;
+                QCRIL_LOG_INFO("gsm app state : %d",
+                               ril_card_status.applications[index].app_state);
+                if ((ril_card_status.applications[index].app_state ==
+                                                        RIL_APPSTATE_PIN) ||
+                    (ril_card_status.applications[index].app_state ==
+                                                         RIL_APPSTATE_PUK))
+                {
+                    radio_tech_family = NAS_VAL_RADIO_TECH_3GPP;
+                }
+            }
+
+            if (ril_card_status.cdma_subscription_app_index != -1)
+            {
+                if (radio_tech_family != NAS_VAL_RADIO_TECH_UNKNOWN)
+                {
+                    radio_tech_family = NAS_VAL_RADIO_TECH_UNKNOWN;
+                }
+                else
+                {
+                    index = ril_card_status.cdma_subscription_app_index;
+                    QCRIL_LOG_INFO("cdma app state : %d",
+                                   ril_card_status.applications[index].app_state);
+                    if ((ril_card_status.applications[index].app_state ==
+                                                        RIL_APPSTATE_PIN) ||
+                       (ril_card_status.applications[index].app_state ==
+                                                        RIL_APPSTATE_PUK))
+                    {
+                        radio_tech_family = NAS_VAL_RADIO_TECH_3GPP2;
+                    }
+                }
+            }
+        }
+
+#endif
+    } while (0);
+
+    QCRIL_LOG_INFO( "radio tech family: %d", radio_tech_family);
+
+    return radio_tech_family;
+}
+/*===========================================================================
+
+  FUNCTION  qcril_qmi_retrieve_rte_family_from_current_operator_info
+
+===========================================================================*/
+/*!
+    @brief
+    Retrieve radio tech family from current operator info like mcc and mnc
+
+    @return
+    NAS_VAL_RADIO_TECH_UNKNOWN
+    NAS_VAL_RADIO_TECH_3GPP
+    NAS_VAL_RADIO_TECH_3GPP2
+*/
+/*=========================================================================*/
+int qcril_qmi_retrieve_rte_family_from_current_operator_info
+(
+    void
+)
+{
+    char current_mcc_str[NAS_MCC_MNC_MAX_SIZE] = {0};
+    char current_mnc_str[NAS_MCC_MNC_MAX_SIZE] = {0};
+    char operator_type[QCRIL_DB_MAX_OPERATOR_TYPE_LEN] = {0};
+
+    int radio_tech_family  = NAS_VAL_RADIO_TECH_UNKNOWN;
+
+    do {
+        /* get mcc and mnc of current operator */
+        if (!qcril_qmi_nas_find_current_mcc_mnc(current_mcc_str,
+                                                current_mnc_str, TRUE, NULL))
+        {
+            break;
+        }
+
+
+        /* retrieve operator type using mcc and mnc */
+        qcril_db_query_operator_type(current_mcc_str, current_mnc_str, operator_type);
+
+        /* convert operator type to corresponding radio tech */
+        if (!strcmp(operator_type, "3gpp"))
+        {
+            radio_tech_family = NAS_VAL_RADIO_TECH_3GPP;
+        }
+        else if (!strcmp(operator_type, "3gpp2"))
+        {
+            radio_tech_family = NAS_VAL_RADIO_TECH_3GPP2;
+        }
+    } while (0);
+
+    QCRIL_LOG_INFO( "radio tech family: %d, operator: %s",
+                    radio_tech_family, operator_type);
+
+    return radio_tech_family;
+}
+
 //===========================================================================
 //qcril_qmi_get_voice_radio_technology
 //===========================================================================
@@ -21782,6 +23059,7 @@ RIL_RadioTechnology qcril_qmi_get_voice_radio_technology()
   RIL_RadioTechnology radio_technology;
   RIL_RadioTechnology reported_radio_technology;
   int mode_pref_info_available;
+  int radio_tech_family;
   uint16_t mode_pref;
   qmi_ril_nw_reg_rte_type voice_rte;
   qmi_ril_nw_reg_rte_type data_rte;
@@ -21853,40 +23131,6 @@ RIL_RadioTechnology qcril_qmi_get_voice_radio_technology()
              }
           }
 
-          /*If the radio_technology is reported as LTE, the lte voice and sms domain TLVs, of
-            QMI_NAS_SYS_INFO_IND and QMI_GET_SYS_INFO response messages, are checked to determine
-            whether it is 3gpp or 3gpp2 technology*/
-          if ( RADIO_TECH_LTE == radio_technology )
-          {
-             if ( lte_voice_status_valid )
-             {
-                if ( NAS_LTE_VOICE_STATUS_3GPP_V01 == lte_voice_status )
-                {
-                   radio_technology = process_3gpp_radio_technology(reported_radio_technology,mode_pref);
-                   break;
-                }
-                else if ( NAS_LTE_VOICE_STATUS_1X_V01 == lte_voice_status )
-                {
-                   radio_technology = process_3gpp2_radio_technology(reported_radio_technology,mode_pref);
-                   break;
-                }
-             }
-
-             if ( lte_sms_status_valid )
-             {
-                if ( NAS_SMS_STATUS_3GPP_V01 == lte_sms_status )
-                {
-                   radio_technology = process_3gpp_radio_technology(reported_radio_technology,mode_pref);
-                   break;
-                }
-                else if ( NAS_SMS_STATUS_1X_V01 == lte_sms_status )
-                {
-                   radio_technology = process_3gpp2_radio_technology(reported_radio_technology,mode_pref);
-                   break;
-                }
-             }
-          }
-
           if( FALSE == (QMI_NAS_RAT_MODE_PREF_GSM_UMTS_TDSCDMA & mode_pref) ) //3gpp2
           {
               radio_technology = process_3gpp2_radio_technology(reported_radio_technology,mode_pref);
@@ -21898,6 +23142,77 @@ RIL_RadioTechnology qcril_qmi_get_voice_radio_technology()
               radio_technology = process_3gpp_radio_technology(reported_radio_technology,mode_pref);
               break;
           }
+
+          /*If the radio_technology is reported as LTE, the lte voice tlv of
+            QMI_NAS_SYS_INFO_IND and QMI_GET_SYS_INFO response messages, are checked to determine
+            whether it is 3gpp or 3gpp2 technology*/
+          if ( RADIO_TECH_LTE == radio_technology )
+          {
+              if ( lte_voice_status_valid )
+              {
+                 if ( NAS_LTE_VOICE_STATUS_3GPP_V01 == lte_voice_status )
+                 {
+                    radio_technology = process_3gpp_radio_technology(reported_radio_technology,mode_pref);
+                    break;
+                 }
+                 else if ( NAS_LTE_VOICE_STATUS_1X_V01 == lte_voice_status )
+                 {
+                    radio_technology = process_3gpp2_radio_technology(reported_radio_technology,mode_pref);
+                    break;
+                 }
+              }
+
+              /* check if the operator is a 3gpp operator or 3gpp2 */
+              radio_tech_family = qcril_qmi_retrieve_rte_family_from_current_operator_info();
+
+              if (radio_tech_family == NAS_VAL_RADIO_TECH_3GPP)
+              {
+                  radio_technology = process_3gpp_radio_technology(reported_radio_technology,mode_pref);
+                  break;
+              }
+              else if (radio_tech_family == NAS_VAL_RADIO_TECH_3GPP2)
+              {
+                  radio_technology = process_3gpp2_radio_technology(reported_radio_technology,mode_pref);
+                  break;
+              }
+
+              /*If the radio_technology is reported as LTE, the lte sms tlv of
+                QMI_NAS_SYS_INFO_IND and QMI_GET_SYS_INFO response messages, are checked to determine
+                whether it is 3gpp or 3gpp2 technology*/
+              if ( lte_sms_status_valid )
+              {
+                 if ( NAS_SMS_STATUS_3GPP_V01 == lte_sms_status )
+                 {
+                    radio_technology = process_3gpp_radio_technology(reported_radio_technology,mode_pref);
+                    break;
+                 }
+                 else if ( NAS_SMS_STATUS_1X_V01 == lte_sms_status )
+                 {
+                    radio_technology = process_3gpp2_radio_technology(reported_radio_technology,mode_pref);
+                    break;
+                 }
+              }
+          }
+
+          if (RADIO_TECH_UNKNOWN == radio_technology)
+          {
+              /* check if we active sim app type can be used
+               * to remove ambiguity */
+              radio_tech_family = qcril_qmi_retrieve_rte_family_from_sim_app();
+              if (radio_tech_family == NAS_VAL_RADIO_TECH_3GPP)
+              {
+                  radio_technology = process_3gpp_radio_technology(reported_radio_technology,
+                                                                   mode_pref);
+                  break;
+              }
+              else if (radio_tech_family == NAS_VAL_RADIO_TECH_3GPP2)
+              {
+                  radio_technology = process_3gpp2_radio_technology(reported_radio_technology,
+                                                                    mode_pref);
+                  break;
+              }
+          }
+
       }while(0);
   }
   else
@@ -21906,8 +23221,7 @@ RIL_RadioTechnology qcril_qmi_get_voice_radio_technology()
   }
 
   //(global mode and not camped on non-LTE technology) or (mode pref info unavailable)
-  if( RADIO_TECH_UNKNOWN == radio_technology ||
-       ((RADIO_TECH_LTE == radio_technology ) && (QMI_NAS_RAT_MODE_PREF_LTE != mode_pref)))
+  if (RADIO_TECH_UNKNOWN == radio_technology)
   {
       radio_technology = reported_radio_technology;
   }
@@ -21929,7 +23243,7 @@ int qmi_ril_nw_reg_voice_is_voice_call_mode_reasonable_against_dev_cfg( call_mod
 
     QCRIL_LOG_FUNC_ENTRY();
 
-    NAS_CACHE_LOCK()
+    NAS_CACHE_LOCK();
     QCRIL_LOG_INFO( ".. mode_pref valid %d", (int) NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.mode_pref ) );
 
     if ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.mode_pref ) )
@@ -21940,7 +23254,7 @@ int qmi_ril_nw_reg_voice_is_voice_call_mode_reasonable_against_dev_cfg( call_mod
     {
       mode_pref = NAS_NIL;
     }
-    NAS_CACHE_UNLOCK()
+    NAS_CACHE_UNLOCK();
 
     QCRIL_LOG_INFO( ".. mode_pref %d", (int) mode_pref );
 
@@ -22105,7 +23419,7 @@ void qcril_qmi_nas_get_neighboring_cell_ids
 
           if ( ril_resp_helper )
           {
-              qmi_client_error =  qmi_client_send_msg_async( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+              qmi_client_error =  qmi_client_send_msg_async_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                  QMI_NAS_GET_CELL_LOCATION_INFO_REQ_MSG_V01,
                                                                  NULL,
                                                                  NAS_ZERO, // empty payload
@@ -22134,7 +23448,8 @@ void qcril_qmi_nas_get_neighboring_cell_ids
           qcril_free( qmi_response );
       }
   }
-  QCRIL_LOG_INFO( "completed with %d", ril_req_res);
+
+  QCRIL_LOG_ESSENTIAL( "completed with %d", ril_req_res);
 } // qcril_qmi_nas_get_neighboring_cell_ids
 
 
@@ -22144,9 +23459,9 @@ void qcril_qmi_nas_get_neighboring_cell_ids
 void qcril_qmi_nas_get_neighboring_cells_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
+  unsigned int                 msg_id,
   void                         *resp_c_struct,
-  int                          resp_c_struct_len,
+  unsigned int                 resp_c_struct_len,
   void                         *resp_cb_data,
   qmi_client_error_type        transp_err
 )
@@ -22173,7 +23488,7 @@ void qcril_qmi_nas_get_neighboring_cells_cb
     if ( qmi_response && (E_SUCCESS == found_qcril_request) && ril_resp_helper  )
     {
         ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result_ex( transp_err, &qmi_response->resp, QCRIL_QMI_ERR_CTX_NONE, NULL );
-        QCRIL_LOG_INFO(".. qmi error %d, resultqmi  %d, qmi transp_err %d, ril res %d",
+        QCRIL_LOG_ESSENTIAL(".. qmi error %d, resultqmi  %d, qmi transp_err %d, ril res %d",
                             (int)qmi_response->resp.error,
                             (int)qmi_response->resp.result,
                             (int)transp_err,
@@ -22335,7 +23650,7 @@ void qcril_qmi_nas_get_neighboring_cells_cb
     {
         qcril_free( ril_resp_helper );
     }
-    QCRIL_LOG_INFO( "completed with %d with %d entries", (int)ril_req_res, cell_info_len );
+    QCRIL_LOG_ESSENTIAL( "completed with %d with %d entries", (int)ril_req_res, cell_info_len );
 
 } // qcril_qmi_nas_get_neighboring_cells_cb
 
@@ -22465,7 +23780,7 @@ void qcril_qmi_nas_set_location_updates
   if ( params_ptr->datalen > NAS_ZERO && params_ptr->data != NULL )
   {
       req_val = (int * )params_ptr->data;
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
       switch ( *req_val )
       {
           case 1:   // enable
@@ -22481,7 +23796,7 @@ void qcril_qmi_nas_set_location_updates
           default: // no action
               break;
       }
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
   }
 
   // ** respond
@@ -22712,7 +24027,7 @@ boolean qcril_qmi_nas_is_cell_location_changed_cl
   nas_get_cell_location_info_resp_msg_v01 *resp
 )
 {
-    boolean cache_valid, resp_valid, changed = TRUE;
+    boolean cache_valid, resp_valid, changed = FALSE;
     nas_get_cell_location_info_resp_msg_v01 *cptr;
 
 
@@ -22735,6 +24050,12 @@ boolean qcril_qmi_nas_is_cell_location_changed_cl
               qcril_qmi_nas_cell_location_is_umts_changed(&cptr->umts_info, &resp->umts_info) ||
               qcril_qmi_nas_cell_location_is_wcdma_lte_changed(&cptr->wcdma_lte, &resp->wcdma_lte)
             );
+    }
+    else
+    {
+      // Marking as changed, since cache is not available.This will ensure delivery of indications
+      // even when memory allocation for cache failed
+      changed = TRUE;
     }
 
     return changed;
@@ -22904,7 +24225,7 @@ unsigned qcril_qmi_nas_convert_geran_cells_to_ril_cellinfo
       curr_cel->timeStampType = RIL_TIMESTAMP_TYPE_OEM_RIL;
       curr_cel->timeStamp = *timestamp;
       QCRIL_LOG_DEBUG("PLMN From Geran:");
-      qcril_qmi_print_hex(li->geran_info.plmn, NAS_PLMN_LEN_V01);
+      qcril_qmi_print_hex((unsigned char*)li->geran_info.plmn, NAS_PLMN_LEN_V01);
       curr_cel->CellInfo.gsm.cellIdentityGsm.mcc = QCRIL_MCC_FROM_BCD_PLMN(li->geran_info.plmn);
       curr_cel->CellInfo.gsm.cellIdentityGsm.mnc = QCRIL_MNC_FROM_BCD_PLMN(li->geran_info.plmn);
       curr_cel->CellInfo.gsm.cellIdentityGsm.lac = li->geran_info.lac;
@@ -23077,27 +24398,30 @@ void qcril_qmi_nas_initialize_cdma_ril_cellinfo
   uint64_t *timestamp
 )
 {
-  memset(cell_info, 0, sizeof(*cell_info));
-  cell_info->cellInfoType = RIL_CELL_INFO_TYPE_CDMA;
-  cell_info->registered = registered;
-  if (timestamp)
+  if (cell_info)
   {
-    cell_info->timeStamp = *timestamp;
+      memset(cell_info, 0, sizeof(*cell_info));
+      cell_info->cellInfoType = RIL_CELL_INFO_TYPE_CDMA;
+      cell_info->registered = registered;
+      if (timestamp)
+      {
+        cell_info->timeStamp = *timestamp;
+      }
+      cell_info->timeStampType = timestampType;
+
+      cell_info->CellInfo.cdma.cellIdentityCdma.networkId = INT_MAX;
+      cell_info->CellInfo.cdma.cellIdentityCdma.systemId = INT_MAX;
+      cell_info->CellInfo.cdma.cellIdentityCdma.basestationId = INT_MAX;
+      cell_info->CellInfo.cdma.cellIdentityCdma.longitude = INT_MAX;
+      cell_info->CellInfo.cdma.cellIdentityCdma.latitude = INT_MAX;
+
+      cell_info->CellInfo.cdma.signalStrengthCdma.dbm = INT_MAX;
+      cell_info->CellInfo.cdma.signalStrengthCdma.ecio = INT_MAX;
+
+      cell_info->CellInfo.cdma.signalStrengthEvdo.dbm = INT_MAX;
+      cell_info->CellInfo.cdma.signalStrengthEvdo.ecio = INT_MAX;
+      cell_info->CellInfo.cdma.signalStrengthEvdo.signalNoiseRatio = INT_MAX;
   }
-  cell_info->timeStampType = timestampType;
-
-  cell_info->CellInfo.cdma.cellIdentityCdma.networkId = INT_MAX;
-  cell_info->CellInfo.cdma.cellIdentityCdma.systemId = INT_MAX;
-  cell_info->CellInfo.cdma.cellIdentityCdma.basestationId = INT_MAX;
-  cell_info->CellInfo.cdma.cellIdentityCdma.longitude = INT_MAX;
-  cell_info->CellInfo.cdma.cellIdentityCdma.latitude = INT_MAX;
-
-  cell_info->CellInfo.cdma.signalStrengthCdma.dbm = INT_MAX;
-  cell_info->CellInfo.cdma.signalStrengthCdma.ecio = INT_MAX;
-
-  cell_info->CellInfo.cdma.signalStrengthEvdo.dbm = INT_MAX;
-  cell_info->CellInfo.cdma.signalStrengthEvdo.ecio = INT_MAX;
-  cell_info->CellInfo.cdma.signalStrengthEvdo.signalNoiseRatio = INT_MAX;
 } // qcril_qmi_nas_initialize_cdma_ril_cellinfo
 
 //===========================================================================
@@ -23587,6 +24911,8 @@ void qcril_qmi_nas_cell_info_list_changed
   qcril_request_return_type *const ret_ptr // Output parameter
 )
 {
+    QCRIL_NOTUSED(ret_ptr);
+    QCRIL_NOTUSED(params_ptr);
 } // qcril_qmi_nas_cell_info_list_changed
 
 void qcril_qmi_nas_cell_location_update_timer_cl
@@ -23659,7 +24985,7 @@ void qcril_qmi_nas_cell_info_timer_cb
   void *param
 )
 {
-    uint32 timer_id = (uint32) param;
+    uint32 timer_id = (uint32)(uintptr_t) param;
 
     NAS_CACHE_LOCK();
     if (nas_common_info.cell_info_poll_timer_id_valid &&
@@ -23692,7 +25018,7 @@ RIL_Errno qcril_qmi_nas_cell_info_schedule_polling_cl
   {
     if ( nas_common_info.cell_info_poll_timer_id_valid )
     {
-      qcril_cancel_timed_callback( (void *) nas_common_info.cell_info_poll_timer_id );
+      qcril_cancel_timed_callback( (void *)(uintptr_t) nas_common_info.cell_info_poll_timer_id );
       nas_common_info.cell_info_poll_timer_id_valid = FALSE;
     }
     // Convert the time provided as milliseconds into seconds and useconds for timeval
@@ -23738,6 +25064,9 @@ void qcril_qmi_nas_poll_cell_info_list
     uint64_t timestamp;
     // Fetch Cell Location info
     rc = qcril_qmi_nas_get_cell_location_data_sync(&get_cell_location_info_resp, &timestamp);
+
+    QCRIL_NOTUSED(ret_ptr);
+    QCRIL_NOTUSED(params_ptr);
     if (RIL_E_SUCCESS == rc)
     {
         NAS_CACHE_LOCK();
@@ -23807,6 +25136,7 @@ void qcril_qmi_nas_get_cell_info_list_ncl
   QCRIL_LOG_FUNC_ENTRY();
 
   QCRIL_NOTUSED( params_ptr );
+  QCRIL_NOTUSED(ret_ptr);
 
   qmi_client_error = qcril_qmi_nas_get_cell_location_data_sync(&get_cell_location_info_resp, &timestamp);
 
@@ -23825,7 +25155,7 @@ void qcril_qmi_nas_get_cell_info_list_ncl
     {
       memcpy(nas_cached_info.cell_location_info,
               &get_cell_location_info_resp,
-              sizeof(*nas_cached_info.cell_location_info));
+              sizeof(nas_cached_info.cell_location_info));
     }
     else
     {
@@ -23881,11 +25211,11 @@ void qcril_qmi_nas_set_cell_info_list_rate
   if ( params_ptr->datalen > NAS_ZERO && params_ptr->data != NULL )
   {
       req_val = (int * )params_ptr->data;
-      NAS_CACHE_LOCK()
+      NAS_CACHE_LOCK();
       nas_common_info.unsol_cell_info_rate = *req_val;
       nas_common_info.unsol_cell_info_current_rate = *req_val;
       qcril_qmi_nas_cell_info_schedule_polling_cl();
-      NAS_CACHE_UNLOCK()
+      NAS_CACHE_UNLOCK();
       ril_req_res = RIL_E_SUCCESS;
   }
 
@@ -23962,7 +25292,7 @@ void qcril_qmi_nas_request_cdma_subscription
       qmi_request.get_3gpp2_info_mask = QMI_NAS_GET_3GPP2_SUBS_INFO_MDN_V01 | QMI_NAS_GET_3GPP2_SUBS_INFO_HOME_SID_IND_V01
                                         | QMI_NAS_GET_3GPP2_SUBS_INFO_MIN_BASED_IMSI_V01;
 
-      qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                  QMI_NAS_GET_3GPP2_SUBSCRIPTION_INFO_REQ_MSG_V01,
                                                  (void*) &qmi_request,
                                                  sizeof( qmi_request ),
@@ -24065,7 +25395,9 @@ void qcril_qmi_nas_set_subscription_source
   qcril_request_return_type *const ret_ptr // Output parameter
 )
 {
+  NAS_CACHE_LOCK();
   qcril_qmi_nas_set_subscription_source_generic(params_ptr, FALSE, ret_ptr);
+  NAS_CACHE_UNLOCK();
 }
 
 static void qcril_qmi_nas_set_subscription_source_generic
@@ -24186,7 +25518,7 @@ static void qcril_qmi_nas_set_subscription_source_generic
   }
   if ( RIL_E_SUCCESS == ril_req_res )
   {
-      qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                          QMI_NAS_SET_RTRE_CONFIG_REQ_MSG_V01,
                                                          (void*) &qmi_request,
                                                          sizeof( qmi_request ),
@@ -24242,7 +25574,7 @@ void qcril_qmi_nas_get_subscription_source
   QCRIL_NOTUSED( ret_ptr );
 
   memset(&qmi_response,0,sizeof(qmi_response));
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+  qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                      QMI_NAS_GET_RTRE_CONFIG_REQ_MSG_V01,
                                                      NULL,
                                                      NAS_NIL,  // empty request payload
@@ -24327,7 +25659,7 @@ void qcril_qmi_nas_cdma_validate_and_write_key
 
   strlcpy((char*) akey_req_msg.akey, (const char*) params_ptr->data, sizeof(akey_req_msg.akey));
 
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+  qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                      QMI_NAS_UPDATE_AKEY_REQ_MSG_V01,
                                                      &akey_req_msg,
                                                      sizeof(akey_req_msg),
@@ -24377,7 +25709,7 @@ void qcril_qmi_nas_dms_request_device_identity
   memset( &qmi_response, 0, sizeof( qmi_response ) );
 
   // ** fetch data
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
+  qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
                                                      QMI_DMS_GET_DEVICE_SERIAL_NUMBERS_REQ_V01,
                                                      NULL,
                                                      NAS_NIL,  // empty request payload
@@ -24463,7 +25795,7 @@ void qcril_qmi_nas_dms_request_baseband_version
   QCRIL_NOTUSED( ret_ptr );
 
   // ** fetch data
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
+  qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
                                                      QMI_DMS_GET_SW_VERSION_REQ_V01,
                                                      NULL,
                                                      NAS_NIL,  // empty request payload
@@ -24537,7 +25869,8 @@ void qcril_qmi_nas_dms_event_update_fdn_status
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
-  QCRIL_NOTUSED( ret_ptr );
+  QCRIL_NOTUSED(ret_ptr);
+  QCRIL_NOTUSED(params_ptr);
 
   QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_dms_event_update_fdn_status
@@ -24699,6 +26032,7 @@ void qcril_qmi_nas_cleanup()
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_cell_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.voice_support_on_lte);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_embms_coverage);
+    NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.embms_coverage_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.sim_rej_info);
 
 
@@ -24736,6 +26070,8 @@ void qcril_qmi_nas_cleanup()
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_voice_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_sms_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_disable_cause);
+    NAS_CACHE_INVALIDATE_ENTRY(nas_cached_info.wcdma_csg_info);
+    NAS_CACHE_INVALIDATE_ENTRY(nas_cached_info.lte_csg_info);
 
     nas_common_info.prev_srv_domain_valid = FALSE;
     nas_common_info.prev_srv_domain = SYS_SRV_DOMAIN_NO_SRV_V01;
@@ -24747,12 +26083,261 @@ void qcril_qmi_nas_cleanup()
     qcril_qmi_nas_data_control_deregister_for_call_activity();
     nas_cached_info.voice_roam_status_reported = FALSE;
 
+    qcril_qmi_nas_reset_data_snapshot_cache_and_timer();
+    qcril_qmi_arb_reset_pref_data_snapshot();
+
     if( TRUE == nas_common_info.custom_emergency_numbers_enabled )
     {
         qcril_qmi_nas_cleanup_custom_emergency_numbers();
     }
 
 } // qcril_qmi_nas_cleanup
+//===========================================================================
+//QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY
+//===========================================================================
+void qcril_qmi_nas_get_modem_capability
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr // Output parameter
+)
+{
+  qcril_instance_id_e_type instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+  qcril_request_resp_params_type resp;
+  qcril_modem_id_e_type modem_id = params_ptr->modem_id;
+  RIL_Errno   ril_req_res = RIL_E_SUCCESS;
+  uint8_t * modem_capability = NULL;
+  int len = 0;
+
+  QCRIL_NOTUSED( ret_ptr );
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  if ( nas_dms_cached_info.current_sub_capability_valid != TRUE )
+  {
+      ril_req_res = qcril_qmi_nas_get_multisim_device_capability(FALSE, TRUE);
+  }
+  if ( ril_req_res == RIL_E_SUCCESS )
+  {
+      modem_capability = qcril_malloc(sizeof(uint32)+3);
+      if ( modem_capability != NULL)
+      {
+        memset(modem_capability,0,sizeof(uint32)+3);
+        if ( nas_dms_cached_info.current_sub_capability_valid == TRUE )
+        {
+          len = qcril_qmi_dms_construct_modem_cap_response(modem_capability);
+          QCRIL_LOG_DEBUG( "len %d", len);
+        }
+        else
+        {
+          ril_req_res = RIL_E_GENERIC_FAILURE;
+        }
+      }
+      else
+      {
+        ril_req_res = RIL_E_GENERIC_FAILURE;
+      }
+  }
+  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
+  if ( ril_req_res == RIL_E_SUCCESS )
+  {
+      resp.resp_pkt = (void *) modem_capability;
+      resp.resp_len = len;
+  }
+  qcril_send_request_response( &resp );
+
+  if (modem_capability)
+  {
+    qcril_free(modem_capability);
+  }
+
+  QCRIL_LOG_FUNC_RETURN();
+}
+
+int qcril_qmi_dms_construct_modem_cap_response
+(
+uint8_t * resp_byte_stream
+)
+{
+  int len = 0;
+  uint8_t * resp_ptr = NULL;
+  resp_ptr = resp_byte_stream;
+  uint32_t sub_capability;
+  uint8_t sub_voice_data_capability = 0, max_active_data_subs = 1;
+  uint8_t modem_stack_id = (uint8_t) qcril_qmi_nas_get_modem_stack_id();
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  if ( resp_byte_stream != NULL )
+  {
+    sub_capability = qcril_qmi_dms_convert_sub_capability_to_ril_radio_tech();
+    QCRIL_LOG_DEBUG( "[MSIM] Sub capability %x", sub_capability);
+    QCRIL_LOG_DEBUG( "[MSIM] Modem stack id %d", (int) modem_stack_id);
+
+    // Modem stack id -  1 byte
+    memcpy(resp_ptr, &modem_stack_id, sizeof(uint8_t));
+    resp_ptr = resp_ptr + sizeof(uint8_t);
+    len = sizeof(uint8_t);
+
+    // Stack RAT capability - 4 bytes
+    memcpy(resp_ptr, &sub_capability, sizeof(uint32));
+    resp_ptr = resp_ptr + sizeof(uint32);
+    len += sizeof(uint32);
+
+    // Stack voice data capability -  1 byte
+    if (nas_dms_cached_info.subs_voice_data_capability_valid)
+    {
+      sub_voice_data_capability = nas_dms_cached_info.subs_voice_data_capability;
+      QCRIL_LOG_DEBUG( "[MSIM] sub_voice_data_capability %d", (int) sub_voice_data_capability);
+    }
+    memcpy(resp_ptr, &sub_voice_data_capability, sizeof(uint8_t));
+    len += sizeof(uint8_t);
+    resp_ptr += sizeof(uint8_t);
+
+    // Max active data subs supported - 1 byte
+    if (nas_dms_cached_info.max_active_data_subs_valid)
+    {
+      max_active_data_subs = nas_dms_cached_info.max_active_data_subs;
+      QCRIL_LOG_DEBUG( "[MSIM] max_active_data_subs %d", (int) max_active_data_subs);
+    }
+    memcpy(resp_ptr, &max_active_data_subs, sizeof(uint8_t));
+    len += sizeof(uint8_t);
+    resp_ptr += sizeof(uint8_t);
+  }
+
+  QCRIL_LOG_FUNC_RETURN_WITH_RET(len);
+  return len;
+}
+
+uint32_t qcril_qmi_dms_convert_sub_capability_to_ril_radio_tech()
+{
+    uint32_t sub_capability = 0;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    if ( nas_dms_cached_info.current_sub_capability_valid == TRUE )
+    {
+        QCRIL_LOG_DEBUG( "[MSIM] Current sub capability %x", nas_dms_cached_info.current_sub_capability);
+        if ( nas_dms_cached_info.current_sub_capability & DMS_SUBS_CAPABILITY_CDMA_V01 )
+        {
+            sub_capability = (1 << RADIO_TECH_1xRTT);
+        }
+        if ( nas_dms_cached_info.current_sub_capability & DMS_SUBS_CAPABILITY_HDR_V01 )
+        {
+            sub_capability = sub_capability | (1 << RADIO_TECH_EVDO_A);
+        }
+        if ( nas_dms_cached_info.current_sub_capability & DMS_SUBS_CAPABILITY_GSM_V01 )
+        {
+            sub_capability = sub_capability | (1 << RADIO_TECH_GSM);
+        }
+        if ( nas_dms_cached_info.current_sub_capability & DMS_SUBS_CAPABILITY_WCDMA_V01 )
+        {
+            sub_capability = sub_capability | (1 << RADIO_TECH_UMTS);
+        }
+        if ( nas_dms_cached_info.current_sub_capability & DMS_SUBS_CAPABILITY_LTE_V01 )
+        {
+            sub_capability = sub_capability | (1 << RADIO_TECH_LTE);
+        }
+        if ( nas_dms_cached_info.current_sub_capability & DMS_SUBS_CAPABILITY_TDS_V01 )
+        {
+            sub_capability = sub_capability | (1 << RADIO_TECH_TD_SCDMA);
+        }
+    }
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(sub_capability);
+    return sub_capability;
+}
+
+void qcril_qmi_nas_send_unsol_modem_capability()
+{
+  int len = 0;
+  uint8_t * modem_capability = NULL;
+  modem_capability = qcril_malloc(sizeof(uint32)+3);
+  if ( modem_capability != NULL)
+  {
+    memset(modem_capability,0,sizeof(uint32)+3);
+    len = qcril_qmi_dms_construct_modem_cap_response(modem_capability);
+    QCRIL_LOG_DEBUG("[MSIM] len %d", len);
+    if ( len > 0 )
+    {
+      qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_EVT_HOOK_UNSOL_MODEM_CAPABILITY, (void*)modem_capability, len);
+    }
+  }
+  if ( modem_capability )
+  {
+    qcril_free(modem_capability);
+  }
+}
+
+void qcril_qmi_nas_update_sub_binding
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr // Output parameter
+)
+{
+  qcril_instance_id_e_type instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+  qcril_request_resp_params_type resp;
+  uint8_t * bind_info;
+  uint8_t stack_id = 0, bind_enable = 1;
+  RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
+  uint8_t curr_stack_id = (uint8_t) qcril_qmi_nas_get_modem_stack_id();
+
+  QCRIL_NOTUSED( ret_ptr );
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  if (!qmi_ril_is_multi_sim_feature_supported())
+  {
+    ril_req_res = RIL_E_SUCCESS;
+  }
+  else if(  params_ptr->datalen > 0 && params_ptr->data != NULL )
+  {
+    bind_info = (uint8_t *) params_ptr->data;
+    qcril_modem_stack_id_e_type stack_id = (qcril_modem_stack_id_e_type) bind_info[0];
+    bind_enable = bind_info[1];
+    QCRIL_LOG_DEBUG("[MSIM] Stack id %d bind enable %d", stack_id, bind_enable);
+    if ( bind_enable == TRUE )
+    {
+      if ( stack_id != qcril_qmi_nas_get_modem_stack_id() )
+      {
+        ril_req_res = qcril_qmi_client_dsds_bind_to_subscription(stack_id);
+        // Get and send modem capability as we are using static rat capability
+        qcril_qmi_nas_get_multisim_device_capability(FALSE, TRUE);
+        qcril_qmi_nas_send_unsol_modem_capability();
+      }
+      else
+      {
+        QCRIL_LOG_DEBUG("[MSIM] Already bound to stack %d", stack_id);
+        ril_req_res = RIL_E_SUCCESS;
+      }
+      if ( ril_req_res == RIL_E_SUCCESS )
+      {
+        qmi_ril_set_operational_status( QMI_RIL_GEN_OPERATIONAL_STATUS_INIT_ONGOING);
+        qcril_qmi_client_dsds_cri_client_reinit(stack_id);
+        qcril_data_process_stack_switch(curr_stack_id, stack_id, qmi_ril_get_process_instance_id());
+        qcril_qmi_nas_get_subscription_info();
+#ifndef QMI_RIL_UTF
+        qcril_am_set_vsid(QCRIL_AM_VS_VOICE, nas_cached_info.voice_system_id);
+#endif
+      }
+    }
+    else
+    {
+      qcril_qmi_client_dsds_cri_client_reset();
+      qmi_ril_set_operational_status( QMI_RIL_GEN_OPERATIONAL_STATUS_UNBIND);
+      ril_req_res = RIL_E_SUCCESS;
+    }
+
+    if ( bind_enable == FALSE )
+    {
+      // Clear pending requests in case of UNBIND
+      QCRIL_LOG_DEBUG("[MSIM] Cleanup pending requests as we are unbinding!");
+      qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( FALSE, TRUE );
+      qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd( RIL_E_CANCELLED, TRUE );
+    }
+  }
+
+  qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
+  qcril_send_request_response( &resp );
+}
 
 //===========================================================================
 //RIL_REQUEST_SET_UICC_SUBSCRIPTION
@@ -24800,6 +26385,10 @@ void qcril_qmi_nas_set_uicc_subscription
     if(  params_ptr->datalen > 0 && params_ptr->data != NULL )
     {
         select_uicc_sub_ptr = (RIL_SelectUiccSub *) params_ptr->data;
+        // Update sub id as stack id to handle cross mapping scenario.
+        // UIM requires stack-id to activate the subscription as pri or sec.
+        // In case of straight mapping stack id = sub id.
+        select_uicc_sub_ptr->sub_type = qcril_qmi_nas_get_modem_stack_id();
 
         QCRIL_LOG_INFO( "entry %d", select_uicc_sub_ptr->act_status );
 
@@ -24818,7 +26407,7 @@ void qcril_qmi_nas_set_uicc_subscription
           pending_state = QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS;
         }
 
-        qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+        qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                            QMI_NAS_GET_MODE_PREF_REQ_MSG_V01,
                                                            NULL,
                                                            NAS_NIL,  // empty request payload
@@ -24994,14 +26583,9 @@ void qcril_qmi_nas_event_activate_provision_status
   qcril_instance_id_e_type instance_id;
   qcril_modem_id_e_type modem_id;
   qcril_provision_info_type *provision_info_ptr;
-  qcril_reqlist_public_type req_info;
-  qcril_request_resp_params_type resp;
-  IxErrnoType err_no;
-
-  qcril_nas_dsds_activate_repost_params activate_report_params;
 
   QCRIL_LOG_FUNC_ENTRY();
-
+  QCRIL_NOTUSED(ret_ptr);
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
@@ -25011,7 +26595,57 @@ void qcril_qmi_nas_event_activate_provision_status
 
   if( provision_info_ptr != NULL )
   {
-  if ( qcril_reqlist_query_by_event( instance_id, modem_id, params_ptr->event_id, &req_info ) == E_SUCCESS )
+    qcril_event_queue( instance_id,
+                        modem_id,
+                        QCRIL_DATA_ON_STACK,
+                        QCRIL_EVT_QMI_NAS_DSDS_SUBS_FOLLOWUP,
+                        params_ptr->data,
+                        params_ptr->datalen,
+                        (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+  }
+  else
+  {
+      QCRIL_LOG_FATAL("CHECK FAILED");
+  }
+
+  QCRIL_LOG_FUNC_RETURN();
+
+}  // qcril_qmi_nas_event_activate_provision_status
+//===========================================================================
+//QCRIL_EVT_QMI_NAS_DSDS_SUBS_FOLLOWUP
+//===========================================================================
+void qcril_qmi_nas_event_subs_followup
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+  qcril_instance_id_e_type instance_id;
+  qcril_modem_id_e_type modem_id;
+  qcril_provision_info_type *provision_info_ptr;
+  qcril_reqlist_public_type req_info;
+  qcril_request_resp_params_type resp;
+  RIL_Errno bind_res = RIL_E_SUCCESS;
+  IxErrnoType err_no;
+
+  qcril_nas_dsds_activate_repost_params activate_report_params;
+  qmi_ril_gen_operational_status_type op_status;
+  qcril_unsol_resp_params_type unsol_resp_params;
+  int                          subs_status;
+  RIL_SubscriptionType sub_num;
+
+  QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
+
+  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+
+  modem_id = params_ptr->modem_id;
+
+  provision_info_ptr = ( qcril_provision_info_type *) params_ptr->data;
+
+  if( provision_info_ptr != NULL )
+  {
+  if ( qcril_reqlist_query_by_event( instance_id, modem_id, QCRIL_EVT_CM_ACTIVATE_PROVISION_STATUS, &req_info ) == E_SUCCESS )
   { // event pending
     if ( ( req_info.request == RIL_REQUEST_SET_UICC_SUBSCRIPTION ) &&
          ( req_info.sub.nas.select_uicc_sub.act_status == RIL_UICC_SUBSCRIPTION_ACTIVATE ) )
@@ -25060,7 +26694,7 @@ void qcril_qmi_nas_event_activate_provision_status
       else
       { // provision success
         NAS_CACHE_LOCK();
-        QCRIL_LOG_DEBUG( "RID %d, UIM activate subscription success, slot %d, app_index %d, session_type %d, prev dsds info valid %d, prev act_status %d",
+        QCRIL_LOG_DEBUG( "[MSIM] RID %d, UIM activate subscription success, slot %d, app_index %d, session_type %d, prev dsds info valid %d, prev act_status %d",
                          instance_id,
                          req_info.sub.nas.select_uicc_sub.slot,
                          req_info.sub.nas.select_uicc_sub.app_index,
@@ -25074,65 +26708,8 @@ void qcril_qmi_nas_event_activate_provision_status
         activate_report_params.repost_event_id = params_ptr->event_id;
         activate_report_params.provision_info  = *provision_info_ptr;
 
-        qcril_event_queue( instance_id,
-                           modem_id,
-                           QCRIL_DATA_ON_STACK,
-                           QCRIL_EVT_QMI_NAS_DSDS_SUBS_FOLLOWUP,
-                           (void *) &activate_report_params,
-                           sizeof( activate_report_params ),
-                           (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
-      }
-    }
-  }
-  }
-  else
-  {
-      QCRIL_LOG_FATAL("CHECK FAILED");
-  }
-
-  QCRIL_LOG_FUNC_RETURN();
-
-}  // qcril_qmi_nas_event_activate_provision_status
-//===========================================================================
-//QCRIL_EVT_CM_ACTIVATE_PROVISION_STATUS
-//===========================================================================
-void qcril_qmi_nas_event_subs_followup
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr
-)
-{
-  qcril_instance_id_e_type instance_id;
-  qcril_nas_dsds_activate_repost_params * activate_repost_params_ptr;
-  qcril_reqlist_public_type req_info;
-  RIL_Errno bind_res;
-  RIL_SubscriptionType sub_num;
-  qcril_request_resp_params_type resp;
-  qcril_modem_id_e_type modem_id;
-  qcril_unsol_resp_params_type unsol_resp_params;
-  int                          subs_status;
-
-  qmi_ril_gen_operational_status_type op_status;
-
-  QCRIL_LOG_FUNC_ENTRY();
-
-
-  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-
-  modem_id = params_ptr->modem_id;
-
-
-  activate_repost_params_ptr = ( qcril_nas_dsds_activate_repost_params * ) params_ptr->data;
-  QCRIL_NOTUSED( ret_ptr );
-
-  if( activate_repost_params_ptr != NULL )
-  {
-  if ( qcril_reqlist_query_by_event( instance_id, modem_id, activate_repost_params_ptr->repost_event_id, &req_info ) == E_SUCCESS )
-  {
-      QCRIL_LOG_INFO( ".. event ok");
-
-      switch ( activate_repost_params_ptr->provision_info.session_type )
-      {
+        switch ( activate_report_params.provision_info.session_type )
+        {
           case QMI_UIM_SESSION_TYPE_TER_GW_PROV:
           case QMI_UIM_SESSION_TYPE_TER_1X_PROV:
           case QMI_UIM_SESSION_TYPE_NON_PROV_SLOT_3:
@@ -25154,56 +26731,49 @@ void qcril_qmi_nas_event_subs_followup
           default:
               sub_num = RIL_SUBSCRIPTION_1;
               break;
-      }
-      // enable RIL
-      op_status = qmi_ril_get_operational_status();
-      QCRIL_LOG_INFO( ".. op status %d", (int) op_status );
-      if ( (QMI_RIL_GEN_OPERATIONAL_STATUS_INIT_ONGOING == op_status || QMI_RIL_GEN_OPERATIONAL_STATUS_RESUMING == op_status )
+        }
+        // enable RIL
+        op_status = qmi_ril_get_operational_status();
+        QCRIL_LOG_INFO( ".. op status %d", (int) op_status );
+        if ( (QMI_RIL_GEN_OPERATIONAL_STATUS_INIT_ONGOING == op_status || QMI_RIL_GEN_OPERATIONAL_STATUS_RESUMING == op_status )
            && (qmi_ril_is_multi_sim_feature_supported()  ||
               qmi_ril_is_feature_supported( QMI_RIL_FEATURE_DSDA2 ) ))
-      { // *** important *** - second phase QMI RIL init
+        { // *** important *** - second phase QMI RIL init
           QCRIL_LOG_INFO( "!QMI RIL! 2nd phase init for MULTI SIM" );
           qmi_ril_set_operational_status( QMI_RIL_GEN_OPERATIONAL_STATUS_UNRESTRICTED );
-      }
-      QCRIL_LOG_INFO( ".. invoking bind for %d", (int) sub_num );
-      bind_res = qcril_qmi_client_dsds_bind_to_subscription( sub_num );
-      QCRIL_LOG_INFO( ".. bind res %d", (int) bind_res );
+        }
 
-      if ( RIL_E_SUCCESS == bind_res )
-      {
-          NAS_CACHE_LOCK()
-          nas_common_info.dsds.cur_info.app_index         = req_info.sub.nas.select_uicc_sub.app_index;
-          nas_common_info.dsds.cur_info.slot              = req_info.sub.nas.select_uicc_sub.slot;
-          nas_common_info.dsds.cur_info.sub_type           = sub_num;
-          nas_common_info.dsds.cur_info.act_status        = RIL_UICC_SUBSCRIPTION_ACTIVATE;
-          nas_common_info.dsds.valid                      = TRUE;
-          NAS_CACHE_UNLOCK()
+        NAS_CACHE_LOCK();
+        nas_common_info.dsds.cur_info.app_index         = req_info.sub.nas.select_uicc_sub.app_index;
+        nas_common_info.dsds.cur_info.slot              = req_info.sub.nas.select_uicc_sub.slot;
+        nas_common_info.dsds.cur_info.sub_type           = sub_num;
+        nas_common_info.dsds.cur_info.act_status        = RIL_UICC_SUBSCRIPTION_ACTIVATE;
+        nas_common_info.dsds.valid                      = TRUE;
+        NAS_CACHE_UNLOCK();
 
-          qcril_qmi_fetch_system_selection_preference();
-          // Check and update voice rte if required.
-          qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
+        qcril_qmi_fetch_system_selection_preference();
+        // Check and update voice rte if required.
+        qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
                        QCRIL_DEFAULT_MODEM_ID, QCRIL_DATA_ON_STACK,
                        QCRIL_EVT_QMI_RIL_POST_VOICE_RTE_CHANGE_IND,
                        NULL, NAS_NIL, (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
-      }
 
-
-      // respond
-      QCRIL_LOG_INFO( ".. responding to RIL_REQUEST_SET_UICC_SUBSCRIPTION with %d", (int) bind_res );
-      qcril_default_request_resp_params( instance_id,
+        // respond
+        QCRIL_LOG_INFO( ".. responding to RIL_REQUEST_SET_UICC_SUBSCRIPTION  with %d", (int) bind_res );
+        qcril_default_request_resp_params( instance_id,
                                          req_info.t,
                                          req_info.request,
                                          bind_res,
                                          &resp );
-      qcril_send_request_response( &resp );
+        qcril_send_request_response( &resp );
 
-      qcril_qmi_nas_get_subscription_info();
-      if ( nas_cached_info.dsds_is_active_valid && nas_cached_info.dsds_is_active )
-      {
+        qcril_qmi_nas_get_subscription_info();
+        if ( nas_cached_info.dsds_is_active_valid && nas_cached_info.dsds_is_active )
+        {
           // Subscription is already active. Send UNSOL_SUBSCRIPTION_STATUS_CHANGED.
           qcril_default_unsol_resp_params( QCRIL_DEFAULT_INSTANCE_ID, RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED, &unsol_resp_params );
           subs_status = QMI_RIL_NAS_SUBSCRIPTION_ACTIVATED;
-          QCRIL_LOG_INFO( "Send unsol sub status %d", (int)subs_status );
+          QCRIL_LOG_INFO( "[MSIM] Send unsol sub status %d", (int)subs_status );
           unsol_resp_params.resp_pkt = (void *)&subs_status;
           unsol_resp_params.resp_len = sizeof(subs_status);
           qcril_send_unsol_response( &unsol_resp_params );
@@ -25222,7 +26792,9 @@ void qcril_qmi_nas_event_subs_followup
                          (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
                     qmi_ril_set_sms_svc_status( QMI_RIL_SMS_SVC_FULLY_OPERATIONAL );
           }
+        }
       }
+    }
   }
   }
   else
@@ -25244,14 +26816,9 @@ void qcril_qmi_nas_event_deactivate_provision_status
     qcril_instance_id_e_type instance_id;
     qcril_modem_id_e_type modem_id;
     qcril_provision_info_type *provision_info_ptr;
-    qcril_reqlist_public_type req_info;
-    qcril_request_resp_params_type resp;
-    IxErrnoType err_no;
-    qcril_unsol_resp_params_type unsol_resp_params;
-    int                          subs_status;
 
     QCRIL_LOG_FUNC_ENTRY();
-
+    QCRIL_NOTUSED(ret_ptr);
 
     instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
@@ -25261,7 +26828,52 @@ void qcril_qmi_nas_event_deactivate_provision_status
 
     if( provision_info_ptr != NULL )
     {
-    if ( qcril_reqlist_query_by_event( instance_id, modem_id, params_ptr->event_id, &req_info ) == E_SUCCESS )
+        qcril_event_queue( instance_id,
+                           modem_id,
+                           QCRIL_DATA_ON_STACK,
+                           QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP,
+                           params_ptr->data,
+                           params_ptr->datalen,
+                           (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+    }
+    else
+    {
+        QCRIL_LOG_FATAL("CHECK FAILED");
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+
+} // qcril_qmi_nas_event_deactivate_provision_status
+//===========================================================================
+//QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP
+//===========================================================================
+void qcril_qmi_nas_event_subs_deactivate_followup
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+    qcril_instance_id_e_type instance_id;
+    qcril_modem_id_e_type modem_id;
+    qcril_provision_info_type *provision_info_ptr;
+    qcril_reqlist_public_type req_info;
+    qcril_request_resp_params_type resp;
+    IxErrnoType err_no;
+    qcril_unsol_resp_params_type unsol_resp_params;
+    int                          subs_status;
+
+    QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
+
+    instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+
+    modem_id = params_ptr->modem_id;
+
+    provision_info_ptr = ( qcril_provision_info_type *) params_ptr->data;
+
+    if( provision_info_ptr != NULL )
+    {
+    if ( qcril_reqlist_query_by_event( instance_id, modem_id, QCRIL_EVT_CM_DEACTIVATE_PROVISION_STATUS, &req_info ) == E_SUCCESS )
     {  // event pending
         if ( ( req_info.request == RIL_REQUEST_SET_UICC_SUBSCRIPTION ) &&
              ( req_info.sub.nas.select_uicc_sub.act_status == RIL_UICC_SUBSCRIPTION_DEACTIVATE ) )
@@ -25288,7 +26900,7 @@ void qcril_qmi_nas_event_deactivate_provision_status
           else if ( provision_info_ptr->status == QCRIL_PROVISION_STATUS_SUCCESS )
           {  // provision success
             NAS_CACHE_LOCK();
-            QCRIL_LOG_DEBUG( "RID %d, UIM deactivate subscription success, slot %d, app_index %d, session_type %d, prev dsds info valid %d, prev act_status %d",
+            QCRIL_LOG_DEBUG( "[MSIM] RID %d, UIM deactivate subscription success, slot %d, app_index %d, session_type %d, prev dsds info valid %d, prev act_status %d",
                              instance_id,
                              req_info.sub.nas.select_uicc_sub.slot,
                              req_info.sub.nas.select_uicc_sub.app_index,
@@ -25306,14 +26918,17 @@ void qcril_qmi_nas_event_deactivate_provision_status
             qcril_default_request_resp_params( instance_id, req_info.t, req_info.request, RIL_E_SUCCESS, &resp );
             qcril_send_request_response( &resp );
 
-            // todo: invalidate nas cache and report nw change
-            qcril_event_queue( instance_id,
-                           modem_id,
-                           QCRIL_DATA_ON_STACK,
-                           QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP,
-                           NULL,
-                           NAS_NIL,
-                           (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+            qcril_qmi_nas_get_subscription_info();
+            if ( nas_cached_info.dsds_is_active_valid && !nas_cached_info.dsds_is_active )
+            {
+                // Send UNSOL_SUBSCRIPTION_STATUS_CHANGED.
+                qcril_default_unsol_resp_params( QCRIL_DEFAULT_INSTANCE_ID, RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED, &unsol_resp_params );
+                subs_status = QMI_RIL_NAS_SUBSCRIPTION_DEACTIVATED;
+                QCRIL_LOG_INFO( "[MSIM] Send unsol sub status %d", (int)subs_status );
+                unsol_resp_params.resp_pkt = (void *)&subs_status;
+                unsol_resp_params.resp_len = sizeof(subs_status);
+                qcril_send_unsol_response( &unsol_resp_params );
+            }
           }
         }
     }
@@ -25330,33 +26945,7 @@ void qcril_qmi_nas_event_deactivate_provision_status
     QCRIL_LOG_FUNC_RETURN();
 
 } // qcril_qmi_nas_event_deactivate_provision_status
-//===========================================================================
-//QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP
-//===========================================================================
-void qcril_qmi_nas_event_subs_deactivate_followup
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr
-)
-{
-  qcril_unsol_resp_params_type unsol_resp_params;
-  int                          subs_status;
 
-  QCRIL_LOG_FUNC_ENTRY();
-
-  qcril_qmi_nas_get_subscription_info();
-  if ( nas_cached_info.dsds_is_active_valid && !nas_cached_info.dsds_is_active )
-  {
-      // Send UNSOL_SUBSCRIPTION_STATUS_CHANGED.
-      qcril_default_unsol_resp_params( QCRIL_DEFAULT_INSTANCE_ID, RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED, &unsol_resp_params );
-      subs_status = QMI_RIL_NAS_SUBSCRIPTION_DEACTIVATED;
-      QCRIL_LOG_INFO( "Send unsol sub status %d", (int)subs_status );
-      unsol_resp_params.resp_pkt = (void *)&subs_status;
-      unsol_resp_params.resp_len = sizeof(subs_status);
-      qcril_send_unsol_response( &unsol_resp_params );
-  }
-  QCRIL_LOG_FUNC_RETURN();
-}
 //===========================================================================
 //qcril_qmi_nas_dsds_dual_standby_pref_ind_handler
 //===========================================================================
@@ -25364,7 +26953,7 @@ void qcril_qmi_nas_dsds_dual_standby_pref_ind_handler( nas_dual_standby_pref_ind
 {
     QCRIL_LOG_FUNC_ENTRY();
 
-    NAS_CACHE_LOCK()
+    NAS_CACHE_LOCK();
 
     NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.dsds_standby_pref, ind_msg->standby_pref  );
     QCRIL_LOG_INFO( ".. valid %d", ind_msg->standby_pref_valid );
@@ -25393,14 +26982,72 @@ void qcril_qmi_nas_dsds_dual_standby_pref_ind_handler( nas_dual_standby_pref_ind
         nas_common_info.dsds.default_voice_sub = ind_msg->default_voice_subs;
     }
 
-    NAS_CACHE_UNLOCK()
+    NAS_CACHE_UNLOCK();
 
     QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_dsds_dual_standby_pref_ind_handler
+
 //===========================================================================
-//qcril_qmi_nas_dsds_subscription_info_ind_handler
+//qcril_qmi_nas_subscription_info_ind_handler
 //===========================================================================
-void qcril_qmi_nas_dsds_subscription_info_ind_handler( nas_subscription_info_ind_msg_v01* ind_msg )
+void qcril_qmi_nas_subscription_info_ind_handler( nas_subscription_info_ind_msg_v01* ind_msg )
+{
+    uint32 vsid = 0;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    if ( ind_msg->voice_system_id_valid )
+    {
+        vsid = ind_msg->voice_system_id;
+        QCRIL_LOG_DEBUG ("Voice System ID %x\n", vsid);
+        // make sure low layer will not send vsid as 0 before update
+        if ( vsid )
+        {
+            NAS_CACHE_LOCK();
+            NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.voice_system_id, ind_msg->voice_system_id );
+            NAS_CACHE_UNLOCK();
+            // Send QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID response
+            qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID, &vsid, sizeof(vsid));
+#ifndef QMI_RIL_UTF
+            qcril_am_set_vsid(QCRIL_AM_VS_VOICE, vsid);
+#endif
+        }
+    }
+
+    if ( ind_msg->lte_voice_system_id_valid )
+    {
+        vsid = ind_msg->lte_voice_system_id;
+        QCRIL_LOG_DEBUG ("LTE Voice System ID %x\n", vsid);
+#ifndef QMI_RIL_UTF
+        if ( vsid )
+        {
+            qcril_am_set_vsid(QCRIL_AM_VS_IMS, vsid);
+        }
+#endif
+    }
+
+    if ( ind_msg->wlan_voice_system_id_valid )
+    {
+        vsid = ind_msg->wlan_voice_system_id;
+        QCRIL_LOG_DEBUG ("WLAN Voice System ID %x\n", vsid);
+#ifndef QMI_RIL_UTF
+        if ( vsid )
+        {
+            qcril_am_set_vsid(QCRIL_AM_VS_IMS_WLAN, vsid);
+        }
+#endif
+    }
+
+    if ( qmi_ril_is_multi_sim_feature_supported() )
+    {
+        qcril_qmi_nas_dsds_subscription_info_ind_handle_helper(ind_msg);
+    }
+}
+
+//===========================================================================
+//qcril_qmi_nas_dsds_subscription_info_ind_handle_helper
+//===========================================================================
+void qcril_qmi_nas_dsds_subscription_info_ind_handle_helper( nas_subscription_info_ind_msg_v01* ind_msg )
 {
     qcril_unsol_resp_params_type unsol_resp_params;
     int                          subs_status;
@@ -25413,12 +27060,11 @@ void qcril_qmi_nas_dsds_subscription_info_ind_handler( nas_subscription_info_ind
     qcril_card_status_e_type     card_status;
     int                          card_ever_present;
     uint32_t                     slot = 0;
-    uint32                       vsid = 0;
     int                          send_unsol_sub_status = TRUE;
 
     QCRIL_LOG_FUNC_ENTRY();
 
-    NAS_CACHE_LOCK()
+    NAS_CACHE_LOCK();
 
     was_active_valid       = (int)nas_cached_info.dsds_is_active_valid;
     was_active             = (int)nas_cached_info.dsds_is_active;
@@ -25435,15 +27081,7 @@ void qcril_qmi_nas_dsds_subscription_info_ind_handler( nas_subscription_info_ind
     {
       NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.dsds_is_priority_subs, ind_msg->is_priority_subs  );
     }
-    if ( ind_msg->voice_system_id_valid )
-    {
-        vsid = ind_msg->voice_system_id;
-        QCRIL_LOG_DEBUG ("Voice System ID %x\n", vsid);
-        NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.voice_system_id, ind_msg->voice_system_id );
-        // Send QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID response
-        qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID, (char *)&vsid, sizeof(vsid));
-        qcril_am_set_vsid(QCRIL_AM_VS_VOICE, vsid);
-    }
+
     if (ind_msg->is_active_valid)
     {
       NAS_CACHE_STORE_TINY_ENTRY( nas_cached_info.dsds_is_active, ind_msg->is_active  );
@@ -25466,17 +27104,17 @@ void qcril_qmi_nas_dsds_subscription_info_ind_handler( nas_subscription_info_ind
       if ( send_unsol_sub_status == TRUE )
       {
         qcril_default_unsol_resp_params( QCRIL_DEFAULT_INSTANCE_ID, RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED, &unsol_resp_params );
-        QCRIL_LOG_INFO( "Send unsol sub status %d", (int)subs_status );
+        QCRIL_LOG_INFO( "[MSIM] Send unsol sub status %d", (int)subs_status );
         unsol_resp_params.resp_pkt = (void *)&subs_status;
         unsol_resp_params.resp_len = sizeof(subs_status);
         qcril_send_unsol_response( &unsol_resp_params );
       }
     }
 
-    NAS_CACHE_UNLOCK()
+    NAS_CACHE_UNLOCK();
 
     QCRIL_LOG_INFO( ".. priority subs %d / %d", (int)ind_msg->is_priority_subs_valid, (int)ind_msg->is_priority_subs );
-    QCRIL_LOG_INFO( ".. is active subs %d / %d, was active %d / %d, oprt %d / %d, dsds valid %d, act_status %d, card status %d, card ever present %d",
+    QCRIL_LOG_INFO( "[MSIM] .. is active subs %d / %d, was active %d / %d, oprt %d / %d, dsds valid %d, act_status %d, card status %d, card ever present %d",
                             (int)ind_msg->is_active_valid,
                             (int)ind_msg->is_active,
                                  was_active_valid,
@@ -25528,8 +27166,10 @@ static void qcril_qmi_nas_network_time_ind_conv_qmi2ril
     uint8 sib16_acquired;
     uint8 sntp_available;
     int ret_code;
+    time_genoff_info_type time_set;
 
     ret_code = 0;
+    memset(&time_set, 0, sizeof(time_set));
 
     NAS_CACHE_LOCK();
     sib16_support = nas_common_info.sib16_support;
@@ -25574,33 +27214,32 @@ static void qcril_qmi_nas_network_time_ind_conv_qmi2ril
        *nitz_updated = TRUE;
        QCRIL_LOG_INFO( "ril_nitz_time_msg is: %s", ril_nitz_time_msg);
 
-       if (sib16_support)
+       if(FALSE == sib16_acquired)
        {
-           if(FALSE == sib16_acquired)
-           {
-              NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.day_light_saving);
-              NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.leap_seconds);
-              NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.local_time_offset);
+          NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.day_light_saving);
+          NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.leap_seconds);
+          NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.local_time_offset);
 
-              if(FALSE == sntp_available)
-              {
-                 NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.day_light_saving,
-                                            ind_msg->daylt_sav_adj);
-                 NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.local_time_offset,
-                                            ind_msg->time_zone);
+          if(FALSE == sntp_available)
+          {
+             NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.day_light_saving,
+                                        ind_msg->daylt_sav_adj);
+             NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.local_time_offset,
+                                        ind_msg->time_zone);
 
-                 time_genoff_info_type time_set;
+             uint64_t abs_time = qcril_qmi_nas_convert_julian_time_to_abs_time( ind_msg->universal_time.year,
+                                                                                ind_msg->universal_time.month,
+                                                                                ind_msg->universal_time.day,
+                                                                                ind_msg->universal_time.hour,
+                                                                                ind_msg->universal_time.minute,
+                                                                                ind_msg->universal_time.second,
+                                                                                0
+                                                                              );
+             if(sib16_support)
+             {
                  time_set.base = ATS_UTC;
                  time_set.unit = TIME_MSEC;
                  time_set.operation = T_SET;
-                 uint64_t abs_time = qcril_qmi_nas_convert_julian_time_to_abs_time( ind_msg->universal_time.year,
-                                                                                    ind_msg->universal_time.month,
-                                                                                    ind_msg->universal_time.day,
-                                                                                    ind_msg->universal_time.hour,
-                                                                                    ind_msg->universal_time.minute,
-                                                                                    ind_msg->universal_time.second,
-                                                                                    0
-                                                                                  );
                  time_set.ts_val = &abs_time;
                  ret_code = time_genoff_operation(&time_set);
                  if(!ret_code)
@@ -25614,8 +27253,26 @@ static void qcril_qmi_nas_network_time_ind_conv_qmi2ril
                      QCRIL_LOG_INFO("unable to set UTC using 3gpp nw time, error %d",
                                     ret_code);
                  }
-              }
-           }
+             }
+
+             memset(&time_set, 0, sizeof(time_set));
+             time_set.base = ATS_MODEM;
+             time_set.unit = TIME_MSEC;
+             time_set.operation = T_SET;
+             time_set.ts_val = &abs_time;
+             ret_code = time_genoff_operation(&time_set);
+             if(!ret_code)
+             {
+                 QCRIL_LOG_INFO("set MODEM successfully using 3gpp nw time, abs time (%x, %x)",
+                                (uint32) (abs_time >> 32),
+                                (uint32) abs_time);
+             }
+             else
+             {
+                 QCRIL_LOG_INFO("unable to set MODEM using 3gpp nw time, error %d",
+                                ret_code);
+             }
+          }
        }
     }
     else
@@ -25690,11 +27347,10 @@ void qcril_qmi_nas_dsds_request_get_uicc_subscription
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
-
-
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   if ( nas_common_info.dsds.valid )
   {
     QCRIL_LOG_DEBUG("Reply for RIL_REQUEST_GET_CURRENT_CALLS");
@@ -25710,7 +27366,7 @@ void qcril_qmi_nas_dsds_request_get_uicc_subscription
   {
       ril_err = RIL_E_SUBSCRIPTION_NOT_SUPPORTED;
   }
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   qcril_default_request_resp_params( instance_id, params_ptr->t, params_ptr->event_id, ril_err, &resp );
   if ( RIL_E_SUCCESS == ril_err )
@@ -25735,7 +27391,7 @@ void qcril_qmi_nas_dsds_fillini_default_standby_pref(nas_standby_pref_enum_v01 s
     {
         req_msg->standby_pref_valid = TRUE;
         req_msg->standby_pref = standby_pref;
-        NAS_CACHE_LOCK()
+        NAS_CACHE_LOCK();
         if ( NAS_CACHE_IS_ENTRY_VALID( nas_cached_info.dsds_standby_pref ) )
         {
             req_msg->priority_subs_valid= TRUE;
@@ -25745,11 +27401,11 @@ void qcril_qmi_nas_dsds_fillini_default_standby_pref(nas_standby_pref_enum_v01 s
         }
         else
         {   // default values
-            if ( RIL_SUBSCRIPTION_1 == nas_common_info.dsds.cur_info.sub_type )
+            if ( QCRIL_MODEM_PRIMARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id() )
             {
                 default_val = NAS_PRIMARY_SUBSCRIPTION_V01;
             }
-            else if (RIL_SUBSCRIPTION_2 == nas_common_info.dsds.cur_info.sub_type )
+            else if (QCRIL_MODEM_SECONDARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id() )
             {
                 default_val = NAS_SECONDARY_SUBSCRIPTION_V01;
             }
@@ -25762,7 +27418,7 @@ void qcril_qmi_nas_dsds_fillini_default_standby_pref(nas_standby_pref_enum_v01 s
             req_msg->default_data_subs_valid = TRUE;
             req_msg->default_data_subs = default_val;
         }
-        NAS_CACHE_UNLOCK()
+        NAS_CACHE_UNLOCK();
     } // if ( NULL != req_msg )
 } // qcril_qmi_nas_dsds_fillini_default_standby_pref
 //===========================================================================
@@ -25772,7 +27428,7 @@ RIL_Errno qcril_qmi_nas_dsds_util_request_set_subscription_mode( nas_standby_pre
                                                                  nas_subs_type_enum_v01 * data_subs,
                                                                  nas_subs_type_enum_v01 *priority_subs,
                                                                  nas_subs_type_enum_v01 *voice_subs,
-                                                                 qcril_qmi_dsds_set_pref_cb  standby_pref_res_cb )
+                                                                 qcril_qmi_cb_func_ptr  standby_pref_res_cb )
 {
     RIL_Errno res = RIL_E_GENERIC_FAILURE;
 
@@ -25838,135 +27494,71 @@ void qcril_qmi_nas_dsds_request_set_data_subscription
 {
   qcril_instance_id_e_type instance_id;
   qcril_modem_id_e_type modem_id;
-  qcril_reqlist_public_type reqlist_entry;
   qcril_request_resp_params_type resp;
   RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
-  nas_standby_pref_enum_v01 param_standby_pref;
-  nas_subs_type_enum_v01 data_pref;
-
-
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-
   modem_id = params_ptr->modem_id;
-
 
   QCRIL_NOTUSED( ret_ptr );
 
   QCRIL_LOG_FUNC_ENTRY();
 
-  if ( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_DSDA2 ) )
+  if( params_ptr->datalen > 0 && params_ptr->data != NULL )
   {
-    qcril_default_request_resp_params( instance_id,
-                                       reqlist_entry.t,
-                                       reqlist_entry.request,
-                                       RIL_E_SUCCESS, &resp );
-    qcril_send_request_response( &resp );
+    NAS_CACHE_LOCK();
+    nas_common_info.dsds.default_data_instance_id = *((int*)params_ptr->data);
+    nas_common_info.dsds.is_default_data_set = TRUE;
+    NAS_CACHE_UNLOCK();
+    QCRIL_LOG_DEBUG("Default Data Sub = %d", (int) nas_common_info.dsds.default_data_instance_id);
+    ril_req_res = RIL_E_SUCCESS;
   }
-
-  else
-  {
-    NAS_CACHE_LOCK()
-    if ( RIL_SUBSCRIPTION_1 == nas_common_info.dsds.cur_info.sub_type )
-    { // primary
-        data_pref = NAS_PRIMARY_SUBSCRIPTION_V01;
-    }
-    else if ( RIL_SUBSCRIPTION_2 == nas_common_info.dsds.cur_info.sub_type )
-    { // secondary
-        data_pref = NAS_SECONDARY_SUBSCRIPTION_V01;
-    }
-    else
-    { // tertiary
-        data_pref = NAS_TERTIARY_SUBSCRIPTION_V01;
-    }
-
-    NAS_CACHE_UNLOCK()
-
-    QCRIL_LOG_INFO( ".. data_pref %d", (int)data_pref );
-
-    qcril_reqlist_default_entry( params_ptr->t,
-                                 params_ptr->event_id,
-                                 modem_id,
-                                 QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS,
-                                 QCRIL_EVT_QMI_REQUEST_SET_SUBS_MODE,
-                                 NULL,
-                                 &reqlist_entry );
-
-    if ( qcril_reqlist_new( instance_id, &reqlist_entry ) == E_SUCCESS )
-    {
-        ril_req_res = qcril_qmi_nas_dsds_util_request_set_subscription_mode( NULL,
-                                                                             &data_pref,
-                                                                             NULL,
-                                                                             NULL,
-                                                                             qcril_qmi_dsds_set_pref_ril_req_cb );
-    }
-
-    if ( RIL_E_SUCCESS != ril_req_res )
-    {  // rollback
-        qcril_default_request_resp_params( instance_id,
-                                           reqlist_entry.t,
-                                           reqlist_entry.request,
-                                           ril_req_res,
-                                           &resp );
-        qcril_send_request_response( &resp );
-
-    }
-  }
-    QCRIL_LOG_INFO( "completed with %d", (int) ril_req_res );
-
-}// qcril_qmi_nas_dsds_request_set_data_subscription
-//===========================================================================
-//RIL_REQUEST_GET_DATA_SUBSCRIPTION
-//===========================================================================
-void qcril_qmi_nas_dsds_request_get_data_subscription
-(
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr
-)
-{
-  qcril_instance_id_e_type instance_id;
-  qcril_modem_id_e_type modem_id;
-  qcril_request_resp_params_type resp;
-
-  int ril_response;
-
-  QCRIL_LOG_FUNC_ENTRY();
-
-
-  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
-
-  modem_id = params_ptr->modem_id;
-
-
-  NAS_CACHE_LOCK()
-  if ( NAS_PRIMARY_SUBSCRIPTION_V01 == nas_cached_info.dsds_standby_pref.default_data_subs )
-  {
-      ril_response = 0;
-  }
-  else if ( NAS_PRIMARY_SUBSCRIPTION_V01 == nas_cached_info.dsds_standby_pref.default_data_subs )
-  {
-      ril_response = 1;
-  }
-  else
-  {
-      ril_response = 2;
-  }
-  NAS_CACHE_UNLOCK()
-
-  QCRIL_LOG_INFO( ".. data_subs %d", ril_response );
 
   qcril_default_request_resp_params( instance_id,
                                      params_ptr->t,
                                      params_ptr->event_id,
-                                     RIL_E_SUCCESS,
+                                     ril_req_res,
                                      &resp );
-  resp.resp_pkt = (void *) &ril_response;
-  resp.resp_len = sizeof( ril_response );
   qcril_send_request_response( &resp );
+}
 
-  QCRIL_LOG_FUNC_RETURN()
+RIL_Errno qcril_qmi_nas_send_data_subscription_request()
+{
+  RIL_Errno ril_req_res = RIL_E_GENERIC_FAILURE;
+  nas_standby_pref_enum_v01 param_standby_pref;
+  nas_subs_type_enum_v01 data_pref;
 
-} //qcril_qmi_nas_dsds_request_get_data_subscription
+  QCRIL_LOG_FUNC_ENTRY();
+
+  NAS_CACHE_LOCK();
+
+  if ( QCRIL_MODEM_PRIMARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id() )
+  { // primary
+    data_pref = NAS_PRIMARY_SUBSCRIPTION_V01;
+  }
+  else if ( QCRIL_MODEM_SECONDARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id() )
+  { // secondary
+    data_pref = NAS_SECONDARY_SUBSCRIPTION_V01;
+  }
+  else
+  { // tertiary
+    data_pref = NAS_TERTIARY_SUBSCRIPTION_V01;
+  }
+
+  NAS_CACHE_UNLOCK();
+
+  QCRIL_LOG_INFO( ".. data_pref %d", (int)data_pref );
+
+  ril_req_res = qcril_qmi_nas_dsds_util_request_set_subscription_mode( NULL,
+                                                                       &data_pref,
+                                                                       NULL,
+                                                                       NULL,
+                                                                       qcril_qmi_dsds_set_pref_ril_req_cb );
+
+  QCRIL_LOG_INFO( "completed with %d", (int) ril_req_res );
+
+  return ril_req_res;
+}// qcril_qmi_nas_send_data_subscription_request
 
 
 //===========================================================================
@@ -25998,7 +27590,7 @@ void qcril_qmi_nas_dsds_request_set_subscription_mode
   if( params_ptr->datalen > 0 && params_ptr->data != NULL )
   {
       subscription_mode_ptr = (int *) params_ptr->data;
-      QCRIL_LOG_INFO( "pre-entry %d", (int) subscription_mode_ptr );
+      QCRIL_LOG_INFO( "pre-entry %p", subscription_mode_ptr );
       ril_req_res = RIL_E_SUCCESS;
       QCRIL_LOG_INFO( "entry %d", (int) *subscription_mode_ptr );
   }
@@ -26057,7 +27649,7 @@ void qcril_qmi_nas_dsds_request_set_tune_away
       break;
   }
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   if ( nas_common_info.dsds.is_tune_away == tune_away )
   {
     ril_req_res = RIL_E_SUCCESS;
@@ -26070,10 +27662,10 @@ void qcril_qmi_nas_dsds_request_set_tune_away
                                        &resp );
     qcril_send_request_response( &resp );
 
-    NAS_CACHE_UNLOCK()
+    NAS_CACHE_UNLOCK();
         break;
   }
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   if ( tune_away )
   {
@@ -26128,6 +27720,7 @@ void qcril_qmi_nas_dsds_request_get_tune_away
   RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
@@ -26135,9 +27728,9 @@ void qcril_qmi_nas_dsds_request_get_tune_away
   modem_id = params_ptr->modem_id;
 
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   tune_away = nas_common_info.dsds.is_tune_away;
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   QCRIL_LOG_DEBUG( "RID %d stored tune away preferences = %d", instance_id, tune_away);
 
@@ -26206,8 +27799,8 @@ void qcril_qmi_nas_dsds_request_set_paging_priority
       break;
   }
 
-  NAS_CACHE_LOCK()
-  if ( nas_common_info.dsds.paging_priority == paging_priority )
+  NAS_CACHE_LOCK();
+  if ( nas_common_info.dsds.paging_priority == qcril_qmi_nas_get_modem_stack_id() )
   {
     ril_req_res = RIL_E_SUCCESS;
 
@@ -26219,18 +27812,18 @@ void qcril_qmi_nas_dsds_request_set_paging_priority
                                        &resp );
     qcril_send_request_response( &resp );
 
-    NAS_CACHE_UNLOCK()
-        break;
+    NAS_CACHE_UNLOCK();
+    break;
   }
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
-  if ( paging_priority == RIL_SUBSCRIPTION_1 )
+  if ( QCRIL_MODEM_PRIMARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id() )
   {
     param_paging_priority = NAS_PRIMARY_SUBSCRIPTION_V01;
   }
-  else if ( paging_priority == RIL_SUBSCRIPTION_2 )
+  else if ( QCRIL_MODEM_SECONDARY_STACK_ID == qcril_qmi_nas_get_modem_stack_id() )
   {
-    param_paging_priority = NAS_PRIMARY_SUBSCRIPTION_V01;
+    param_paging_priority = NAS_SECONDARY_SUBSCRIPTION_V01;
   }
   else
   {
@@ -26283,15 +27876,17 @@ void qcril_qmi_nas_dsds_request_get_paging_priority
 
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED(ret_ptr);
+
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
   modem_id = params_ptr->modem_id;
 
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   paging_priority = nas_common_info.dsds.paging_priority;
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   QCRIL_LOG_DEBUG( "RID %d stored paging priority preferences = %d", instance_id, paging_priority);
 
@@ -26358,7 +27953,7 @@ void qcril_qmi_nas_dsds_request_set_default_voice_sub
       break;
   }
 
-  NAS_CACHE_LOCK()
+  NAS_CACHE_LOCK();
   if ( nas_common_info.dsds.default_voice_sub == default_voice_sub )
   {
     ril_req_res = RIL_E_SUCCESS;
@@ -26371,10 +27966,10 @@ void qcril_qmi_nas_dsds_request_set_default_voice_sub
                                        &resp );
     qcril_send_request_response( &resp );
 
-    NAS_CACHE_UNLOCK()
+    NAS_CACHE_UNLOCK();
     break;
   }
-  NAS_CACHE_UNLOCK()
+  NAS_CACHE_UNLOCK();
 
   if ( default_voice_sub == RIL_SUBSCRIPTION_1 )
   {
@@ -26430,6 +28025,7 @@ void qcril_qmi_dsds_set_pref_ril_req_cb ( RIL_Errno resp_res )
     char property_name[ PROPERTY_VALUE_MAX ];
     char property_value[ PROPERTY_VALUE_MAX ];
     int moniker;
+    int send_resp_to_atel = TRUE;
 
     found_qcril_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
                                                           QCRIL_DEFAULT_MODEM_ID,
@@ -26466,6 +28062,172 @@ void qcril_qmi_dsds_set_pref_ril_req_cb ( RIL_Errno resp_res )
                QCRIL_LOG_ERROR( "fail to save %s to system property", QMI_RIL_PAGING_PRIORITY );
            }
         }
+    }
+    else
+    {
+      // Send resp to ALLOW_DATA request right away if failure
+      // Else, wait for PS attach to be successful.
+      found_qcril_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
+                                                          QCRIL_DEFAULT_MODEM_ID,
+                                                          QCRIL_EVT_QMI_REQUEST_ALLOW_DATA,
+                                                          &qcril_req_info );
+
+      QCRIL_LOG_INFO("Default data sub request fnd %d res %d", found_qcril_request, (int)resp_res);
+
+      if ( found_qcril_request == E_SUCCESS )
+      {
+        qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_APN_ATTCH_NONE);
+        send_resp_to_atel = TRUE;
+      }
+    }
+    if ( found_qcril_request == E_SUCCESS && send_resp_to_atel == TRUE )
+    {
+      qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                           qcril_req_info.t,
+                                           qcril_req_info.request,
+                                           resp_res ,
+                                           &resp );
+
+      qcril_send_request_response( &resp );
+    }
+} // qcril_qmi_dsds_set_pref_ril_req_cb
+
+//===========================================================================
+//QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY
+//===========================================================================
+void qcril_qmi_nas_dsds_request_set_lte_tune_away
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type *const ret_ptr
+)
+{
+    qcril_instance_id_e_type instance_id;
+    qcril_modem_id_e_type modem_id;
+    qcril_reqlist_public_type reqlist_entry;
+    qcril_request_resp_params_type resp;
+    RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
+    boolean     lte_tune_away;
+    nas_avoid_tuneaway_req_msg_v01 qmi_req_msg;
+    nas_avoid_tuneaway_resp_msg_v01 * qmi_resp_msg = NULL;
+
+    instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+
+    modem_id = params_ptr->modem_id;
+
+    QCRIL_NOTUSED( ret_ptr );
+
+    do
+    {
+        memcpy(&lte_tune_away, params_ptr->data, sizeof(lte_tune_away));
+        QCRIL_LOG_INFO( "lte_tune_away: %d", (int) lte_tune_away );
+
+        if( (lte_tune_away != TRUE) && (lte_tune_away != FALSE) )
+        {
+            qcril_default_request_resp_params( instance_id,
+                                        params_ptr->t,
+                                        params_ptr->event_id,
+                                        ril_req_res,
+                                        &resp );
+            qcril_send_request_response( &resp );
+            break;
+        }
+
+        if ( nas_common_info.dsds.is_lte_tune_away == lte_tune_away )
+        {
+            ril_req_res = RIL_E_SUCCESS;
+
+            QCRIL_LOG_DEBUG( "RID %d, is already in requested lte_tune_away settings i.e. %d", instance_id, lte_tune_away);
+            qcril_default_request_resp_params( instance_id,
+                                        params_ptr->t,
+                                        params_ptr->event_id,
+                                        ril_req_res,
+                                        &resp );
+            qcril_send_request_response( &resp );
+            break;
+        }
+
+        if ( lte_tune_away )
+        {
+            qmi_req_msg.trm_priority = 1;
+        }
+        else
+        {
+            qmi_req_msg.trm_priority = 0;
+        }
+
+        qcril_reqlist_default_entry( params_ptr->t,
+                                params_ptr->event_id,
+                                modem_id,
+                                QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS,
+                                QCRIL_EVT_QMI_REQUEST_SET_LTE_TUNE_AWAY_MODE,
+                                NULL,
+                                &reqlist_entry );
+
+        if ( qcril_reqlist_new( instance_id, &reqlist_entry ) == E_SUCCESS )
+        {
+            qmi_resp_msg = qcril_malloc( sizeof(nas_avoid_tuneaway_resp_msg_v01) );
+            if(qmi_resp_msg != NULL)
+            {
+                ril_req_res = qcril_qmi_client_send_msg_async_ex(
+                                    QCRIL_QMI_CLIENT_NAS,
+                                    QMI_NAS_AVOID_TUNEAWAY_REQ_MSG_V01,
+                                    &qmi_req_msg,
+                                    sizeof(qmi_req_msg),
+                                    qmi_resp_msg,
+                                    sizeof(*qmi_resp_msg),
+                                    &qcril_qmi_dsds_lte_tune_away_cb );
+            }
+        }
+
+        if ( RIL_E_SUCCESS != ril_req_res )
+        {  // rollback
+            qcril_default_request_resp_params( instance_id,
+                                        reqlist_entry.t,
+                                        reqlist_entry.request,
+                                        ril_req_res,
+                                        &resp );
+            qcril_send_request_response( &resp );
+
+            if(qmi_resp_msg != NULL)
+            {
+                qcril_free( qmi_resp_msg );
+            }
+        }
+        QCRIL_LOG_INFO( "completed with %d", (int) ril_req_res );
+    }while(0);
+
+}// qcril_qmi_nas_dsds_request_set_lte_tune_away
+
+//===========================================================================
+//qcril_qmi_dsds_lte_tune_away_cb
+//===========================================================================
+void qcril_qmi_dsds_lte_tune_away_cb ( RIL_Errno resp_res )
+{
+    int found_qcril_request;
+    qcril_reqlist_public_type             qcril_req_info;
+    qcril_request_resp_params_type        resp;
+    char property_name[ PROPERTY_VALUE_MAX ];
+    char property_value[ PROPERTY_VALUE_MAX ];
+    int moniker;
+
+    found_qcril_request = qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
+                                                        QCRIL_DEFAULT_MODEM_ID,
+                                                        QCRIL_EVT_QMI_REQUEST_SET_LTE_TUNE_AWAY_MODE,
+                                                        &qcril_req_info );
+
+    QCRIL_LOG_INFO("res %d, fnd %d ", (int) resp_res, (int) found_qcril_request );
+
+    if ( E_SUCCESS == found_qcril_request )
+    {
+        nas_common_info.dsds.is_lte_tune_away = ( !nas_common_info.dsds.is_lte_tune_away ) ;
+        moniker = (int)qmi_ril_get_process_instance_id();
+        snprintf( property_name, sizeof(property_name), "%s%d", QMI_RIL_LTE_TUNE_AWAY, moniker );
+        snprintf( property_value, sizeof(property_value), "%d", nas_common_info.dsds.is_lte_tune_away);
+
+        if ( property_set( property_name, property_value ) != E_SUCCESS )
+        {
+            QCRIL_LOG_ERROR( "fail to save %s to system property", QMI_RIL_LTE_TUNE_AWAY );
+        }
 
         qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
                                            qcril_req_info.t,
@@ -26476,8 +28238,7 @@ void qcril_qmi_dsds_set_pref_ril_req_cb ( RIL_Errno resp_res )
         qcril_send_request_response( &resp );
     }
 
-} // qcril_qmi_dsds_set_pref_ril_req_cb
-
+} // qcril_qmi_dsds_lte_tune_away_cb
 
 //
 //===========================================================================
@@ -26486,46 +28247,99 @@ void qcril_qmi_dsds_set_pref_ril_req_cb ( RIL_Errno resp_res )
 void qcril_qmi_nas_minority_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 msg_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
-    RIL_Errno                             ril_req_res = RIL_E_GENERIC_FAILURE;
-    void *                                qmi_resp_common = resp_c_struct;
-    nas_set_dual_standby_pref_resp_msg_v01*    qmi_set_dual_standby_pref_resp;
-    qcril_qmi_dsds_set_pref_cb            standby_pref_res_cb;
+    RIL_Errno                                ril_req_res = RIL_E_GENERIC_FAILURE;
+    qmi_resp_callback_type                   qmi_resp_callback;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    memset(&qmi_resp_callback,0,sizeof(qmi_resp_callback));
+    qmi_resp_callback.user_handle = user_handle;
+    qmi_resp_callback.msg_id = msg_id;
+    qmi_resp_callback.data_buf = (void*) resp_c_struct;
+    qmi_resp_callback.data_buf_len = resp_c_struct_len;
+    qmi_resp_callback.cb_data = resp_cb_data;
+    qmi_resp_callback.transp_err = transp_err;
 
     QCRIL_LOG_INFO( "entered msg %d, transp_err %d", (int) msg_id, (int) transp_err);
 
-    switch ( msg_id )
-    {
-        case QMI_NAS_DUAL_STANDBY_PREF_RESP_MSG_V01:
-            qmi_set_dual_standby_pref_resp = (nas_set_dual_standby_pref_resp_msg_v01*)qmi_resp_common;
-            ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( transp_err, &qmi_set_dual_standby_pref_resp->resp );
-            standby_pref_res_cb            = resp_cb_data;
-            QCRIL_LOG_INFO( ".. QMI_NAS_DUAL_STANDBY_PREF_RESP_MSG_V01 res %d, %d, %d", (int) ril_req_res, (int) transp_err, (int) qmi_set_dual_standby_pref_resp->resp.error );
-            if ( standby_pref_res_cb )
-            {
-                (*standby_pref_res_cb)( ril_req_res );
-            }
-            break;
-
-        default:
-            QCRIL_LOG_INFO( ".. msg not handled" );
-            break;
-    }
-
-    if ( qmi_resp_common )
-    {
-        qcril_free( resp_c_struct );
-    }
+    qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
+                   QCRIL_DEFAULT_MODEM_ID,
+                   QCRIL_DATA_ON_STACK,
+                   QCRIL_EVT_QMI_NAS_HANDLE_ASYNC_CB,
+                   (void*) &qmi_resp_callback,
+                   sizeof(qmi_resp_callback),
+                   (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
 
     QCRIL_LOG_FUNC_RETURN();
 
 } //qcril_qmi_nas_minority_command_cb
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_nas_async_cb_helper
+
+===========================================================================*/
+/*!
+    @brief
+    Handle QCRIL_EVT_QMI_NAS_HANDLE_ASYNC_CB
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_async_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+    RIL_Errno                               ril_req_res = RIL_E_GENERIC_FAILURE;
+    qmi_resp_callback_type                  *qmi_resp = (qmi_resp_callback_type*) params_ptr->data;
+    unsigned long                           msg_id;
+    nas_avoid_tuneaway_resp_msg_v01         *tune_away_resp;
+    nas_set_dual_standby_pref_resp_msg_v01  *dual_standby_resp;
+    qcril_qmi_cb_func_ptr                   async_cb_func_ptr;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    msg_id = qmi_resp->msg_id;
+    async_cb_func_ptr = (qcril_qmi_cb_func_ptr)qmi_resp->cb_data;
+
+    switch(msg_id)
+    {
+        case QMI_NAS_DUAL_STANDBY_PREF_RESP_MSG_V01:
+            dual_standby_resp = (nas_set_dual_standby_pref_resp_msg_v01*)qmi_resp->data_buf;
+            ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_resp->transp_err, &dual_standby_resp->resp );
+            if( async_cb_func_ptr )
+            {
+                (async_cb_func_ptr)(ril_req_res);
+            }
+            break;
+
+        case QMI_NAS_AVOID_TUNEAWAY_RESP_MSG_V01:
+            tune_away_resp = (nas_avoid_tuneaway_resp_msg_v01*)qmi_resp->data_buf;
+            ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_resp->transp_err, &tune_away_resp->resp );
+            if( async_cb_func_ptr )
+            {
+                (async_cb_func_ptr)(ril_req_res);
+            }
+            break;
+    }
+
+    if ( qmi_resp && qmi_resp->data_buf )
+    {
+        qcril_free(qmi_resp->data_buf);
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+}
+
 //===========================================================================
 //qcril_qmi_nas_drop_nw_info_cache
 //===========================================================================
@@ -26593,6 +28407,7 @@ void qcril_qmi_nas_drop_nw_info_cache(void)
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_cell_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.voice_support_on_lte);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_embms_coverage);
+    NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.embms_coverage_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.hs_call_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.sim_rej_info);
 
@@ -26602,6 +28417,8 @@ void qcril_qmi_nas_drop_nw_info_cache(void)
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.tdscdma_block_err_rate);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_voice_status);
     NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.lte_sms_status);
+    NAS_CACHE_INVALIDATE_ENTRY(nas_cached_info.wcdma_csg_info);
+    NAS_CACHE_INVALIDATE_ENTRY(nas_cached_info.lte_csg_info);
 
     nas_cached_info.voice_roam_status_reported = FALSE;
 
@@ -26664,10 +28481,9 @@ void qmi_ril_nw_reg_refresh_cache_main_thrd(void * param)
     nas_cached_info.data_reg_roaming_status_latest_val  = FALSE;
 
     qcril_qmi_nas_drop_nw_info_cache();
-
-    NAS_CACHE_UNLOCK();
-
     qcril_qmi_nas_fetch_system_info_helper();
+    qcril_qmi_nas_send_known_signal_strength();
+    NAS_CACHE_UNLOCK();
 
     QCRIL_LOG_FUNC_RETURN();
 } // qmi_ril_nw_reg_refresh_cache_main_thrd
@@ -26760,13 +28576,16 @@ void qcril_qmi_sys_info_roll_details(int * rte_reg_status,
 //===========================================================================
 int qcril_qmi_nas_is_considered_registered
 (
-    qmi_ril_nw_reg_rte_type *registered_rte
+    qmi_ril_nw_reg_rte_type registered_rtes[QMI_RIL_RTE_LAST]
 )
 {
-    int res = FALSE;
-    int rte_reg_status[ QMI_RIL_RTE_CAP ];
+    int                     rte_reg_status[ QMI_RIL_RTE_CAP ];
     qmi_ril_nw_reg_rte_type idx_rte;
-    qmi_ril_nw_reg_rte_type reg_rte = QMI_RIL_RTE_NONE;
+
+    int                     res                = FALSE;
+    qmi_ril_nw_reg_rte_type registered_rte_idx = 0;
+    qmi_ril_nw_reg_rte_type reg_rte            = QMI_RIL_RTE_NONE;
+    qmi_ril_nw_reg_rte_type tmp_registered_rtes[QMI_RIL_RTE_LAST] = {QMI_RIL_RTE_NONE};
 
     QCRIL_LOG_FUNC_ENTRY();
     if ( !qmi_ril_is_qmi_sys_info_available() )
@@ -26786,9 +28605,11 @@ int qcril_qmi_nas_is_considered_registered
         if ( nas_cached_info.is_considered_registered_cached_result_valid )
         {
             res = nas_cached_info.is_considered_registered_cached_result;
-            if (registered_rte)
+            if (registered_rtes)
             {
-                *registered_rte = nas_cached_info.registered_cached_rte;
+                memcpy(registered_rtes,
+                       nas_cached_info.registered_cached_rtes,
+                       sizeof(nas_cached_info.registered_cached_rtes));
             }
         }
         else
@@ -26803,49 +28624,131 @@ int qcril_qmi_nas_is_considered_registered
             QCRIL_LOG_INFO( ".. lte reg %d", rte_reg_status[ QMI_RIL_RTE_SUB_LTE ] );
             QCRIL_LOG_INFO( ".. hdr reg %d", rte_reg_status[ QMI_RIL_RTE_SUB_DO ] );
 
-            for ( idx_rte = QMI_RIL_RTE_FIRST; idx_rte <= QMI_RIL_RTE_LAST && !res; idx_rte++)
+            for ( idx_rte = QMI_RIL_RTE_FIRST; idx_rte <= QMI_RIL_RTE_LAST; idx_rte++)
             {
                 if ( RIL_VAL_REG_REGISTERED_HOME_NET == rte_reg_status[ idx_rte ] || RIL_VAL_REG_REGISTERED_ROAMING == rte_reg_status[ idx_rte ] )
                 {
                     res = TRUE;
-                    reg_rte = idx_rte;
+                    tmp_registered_rtes[registered_rte_idx] = idx_rte;
+                    registered_rte_idx++;
                 }
             }
 
-            if ( !res )
-            { // check if data only reg
-                memset( &rte_reg_status, 0, sizeof( rte_reg_status ) );
-                qcril_qmi_sys_info_roll_details( rte_reg_status, TRUE, NULL );
+            // check if data only reg
+            memset( &rte_reg_status, 0, sizeof( rte_reg_status ) );
+            qcril_qmi_sys_info_roll_details( rte_reg_status, TRUE, NULL );
 
-                QCRIL_LOG_INFO( ".. 1x reg data %d", rte_reg_status[ QMI_RIL_RTE_1x ] );
-                QCRIL_LOG_INFO( ".. gsm reg data %d", rte_reg_status[ QMI_RIL_RTE_GSM ] );
-                QCRIL_LOG_INFO( ".. wcdma reg data %d", rte_reg_status[ QMI_RIL_RTE_WCDMA ] );
-                QCRIL_LOG_INFO( ".. tdscdma reg data %d", rte_reg_status[ QMI_RIL_RTE_TDSCDMA ] );
-                QCRIL_LOG_INFO( ".. lte reg data %d", rte_reg_status[ QMI_RIL_RTE_SUB_LTE ] );
-                QCRIL_LOG_INFO( ".. hdr reg data %d", rte_reg_status[ QMI_RIL_RTE_SUB_DO ] );
+            QCRIL_LOG_INFO( ".. 1x reg data %d", rte_reg_status[ QMI_RIL_RTE_1x ] );
+            QCRIL_LOG_INFO( ".. gsm reg data %d", rte_reg_status[ QMI_RIL_RTE_GSM ] );
+            QCRIL_LOG_INFO( ".. wcdma reg data %d", rte_reg_status[ QMI_RIL_RTE_WCDMA ] );
+            QCRIL_LOG_INFO( ".. tdscdma reg data %d", rte_reg_status[ QMI_RIL_RTE_TDSCDMA ] );
+            QCRIL_LOG_INFO( ".. lte reg data %d", rte_reg_status[ QMI_RIL_RTE_SUB_LTE ] );
+            QCRIL_LOG_INFO( ".. hdr reg data %d", rte_reg_status[ QMI_RIL_RTE_SUB_DO ] );
 
-                for ( idx_rte = QMI_RIL_RTE_FIRST; idx_rte <= QMI_RIL_RTE_LAST && !res; idx_rte++)
+            for ( idx_rte = QMI_RIL_RTE_FIRST; idx_rte <= QMI_RIL_RTE_LAST; idx_rte++)
+            {
+                if ( RIL_VAL_REG_REGISTERED_HOME_NET == rte_reg_status[ idx_rte ] || RIL_VAL_REG_REGISTERED_ROAMING == rte_reg_status[ idx_rte ] )
                 {
-                    if ( RIL_VAL_REG_REGISTERED_HOME_NET == rte_reg_status[ idx_rte ] || RIL_VAL_REG_REGISTERED_ROAMING == rte_reg_status[ idx_rte ] )
-                    {
-                        res = TRUE;
-                        reg_rte = idx_rte;
-                    }
+                    res = TRUE;
+                    tmp_registered_rtes[registered_rte_idx] = idx_rte;
+                    registered_rte_idx++;
                 }
             }
+
             nas_cached_info.is_considered_registered_cached_result       = res;
             nas_cached_info.is_considered_registered_cached_result_valid = TRUE;
-            nas_cached_info.registered_cached_rte                        = reg_rte;
-            if (registered_rte)
+            memcpy(nas_cached_info.registered_cached_rtes,
+                   tmp_registered_rtes,
+                   sizeof(nas_cached_info.registered_cached_rtes));
+
+            if (registered_rtes)
             {
-                *registered_rte = nas_cached_info.registered_cached_rte;
+                memcpy(registered_rtes,
+                       tmp_registered_rtes,
+                       sizeof(tmp_registered_rtes));
             }
 
         }
     }
+
     QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
     return res;
 } // qcril_qmi_nas_is_considered_registered
+
+/*===========================================================================
+
+  FUNCTION  qcril_qmi_nas_choose_rte_to_retrieve_3gpp_operator_name
+
+===========================================================================*/
+/*!
+    @brief
+    check if in full service and retrieve rte satisfying the filter.
+
+    @return
+    true is in full service.
+    false if not in full service
+*/
+/*=========================================================================*/
+qmi_ril_nw_reg_rte_type qcril_qmi_nas_choose_rte_to_retrieve_3gpp_operator_name_info
+(
+    qmi_ril_nw_reg_rte_type  registered_rtes[QMI_RIL_RTE_LAST]
+)
+{
+
+    qmi_ril_nw_reg_rte_type chosen_registered_rte = QMI_RIL_RTE_NONE;
+    qmi_ril_nw_reg_rte_type idx_rte;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    do {
+
+        if ( (qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SGLTE ) ||
+             qcril_qmi_nas_is_sglte3() ||
+             qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SVLTE2 )) &&
+             !qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SGLTE_CSFB ))
+        {
+            qcril_qmi_nas_evaluate_sglte_current_eons_rte();
+            chosen_registered_rte = nas_cached_info.sglte_current_eons_rte;
+            QCRIL_LOG_INFO("choosing SGLTE rte");
+            break;
+        }
+
+        if (!registered_rtes)
+        {
+            QCRIL_LOG_INFO("invalid input");
+            break;
+        }
+
+
+        for (idx_rte = 0;
+                ((idx_rte < QMI_RIL_RTE_LAST) &&
+                (registered_rtes[idx_rte] != QMI_RIL_RTE_NONE) &&
+                (chosen_registered_rte == QMI_RIL_RTE_NONE));
+                 idx_rte++)
+        {
+            QCRIL_LOG_INFO("..rte %d", (int) registered_rtes[idx_rte]);
+            switch (registered_rtes[idx_rte])
+            {
+                case QMI_RIL_RTE_GSM:
+                case QMI_RIL_RTE_WCDMA:
+                case QMI_RIL_RTE_TDSCDMA:
+                case QMI_RIL_RTE_SUB_LTE:
+                {
+                    chosen_registered_rte = registered_rtes[idx_rte];
+                    break;
+                }
+
+                default:
+                {
+                    break;
+                }
+            }
+        }
+    } while(0);
+
+    QCRIL_LOG_INFO("completed with %d", (int) chosen_registered_rte);
+    return chosen_registered_rte;
+}
 
 //===========================================================================
 //RIL_REQUEST_GET_IMEI
@@ -26878,7 +28781,7 @@ void qcril_qmi_nas_dms_request_imei
   memset(&qmi_response, 0, sizeof(qmi_response));
 
   // ** fetch data
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
+  qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
                                                      QMI_DMS_GET_DEVICE_SERIAL_NUMBERS_REQ_V01,
                                                      NULL,
                                                      NAS_NIL,  // empty request payload
@@ -26947,7 +28850,7 @@ void qcril_qmi_nas_dms_request_imeisv
   memset(&qmi_response, 0, sizeof(qmi_response));
 
   // ** fetch data
-  qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
+  qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_DMS ),
                                                      QMI_DMS_GET_DEVICE_SERIAL_NUMBERS_REQ_V01,
                                                      NULL,
                                                      NAS_NIL,  // empty request payload
@@ -27001,12 +28904,39 @@ int qmi_ril_is_qmi_sys_info_available(void)
           qmi_ril_is_feature_supported( QMI_RIL_FEATURE_7627A ) ||
           qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8974 ) ||
           qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8226 ) ||
-          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8610 ) ||
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8610) ||
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8916) ||
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8994) ||
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8909) ||
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8992) ||
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8084) ||
           qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SGLTE ) ||
           qmi_ril_is_feature_supported( QMI_RIL_FEATURE_DSDS ) ||
-          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_TSTS );
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_TSTS ) ||
+          qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SRLTE );
     return res;
 } // qmi_ril_is_qmi_sys_info_available
+
+
+//===========================================================================
+//qmi_ril_is_rat_tlv_support_available
+//===========================================================================
+int qmi_ril_is_rat_tlv_support_available(void)
+{
+    int res = FALSE;
+
+    // for 8916 rat tlv is supported, for other targets check database.
+    res = ( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8916 ) ||
+            qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8909 ) ||
+            qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8994 ) || 
+            qmi_ril_is_feature_supported( QMI_RIL_FEATURE_8992 ) );
+    if ( FALSE == res )
+    {
+        res = nas_common_info.is_rat_tlv_supported;
+    }
+
+    return res;
+} // qmi_ril_is_rat_tlv_support_available
 
 //===========================================================================
 //qcril_qmi_nas_update_voice_rte
@@ -27488,7 +29418,7 @@ void qcril_qmi_nas_update_data_rte(void)
       }
     }
 
-    QCRIL_LOG_ESSENTIAL( "completed, new drte %d with confidence %d", (int) nas_cached_info.data_rte, (int) nas_cached_info.data_rte_confidence_tag  );
+    QCRIL_LOG_DEBUG( "completed, new drte %d with confidence %d", (int) nas_cached_info.data_rte, (int) nas_cached_info.data_rte_confidence_tag  );
 
 } // qcril_qmi_nas_update_data_rte
 
@@ -28532,7 +30462,7 @@ void qmi_ril_nwr_reg_reject_handle_event_cl( qmi_ril_nw_reg_rte_kind_type rte_ki
   {
     if ( NAS_NIL != *tmr_id )
     {
-      qcril_cancel_timed_callback( (void*)*tmr_id );
+      qcril_cancel_timed_callback( (void*)(intptr_t)*tmr_id );
       *tmr_id = NAS_NIL;
     }
   }
@@ -28982,6 +30912,7 @@ void qmi_ril_nwreg_mode_pref_enforce_deferred_op_handler
 
   QCRIL_LOG_FUNC_ENTRY();
   QCRIL_NOTUSED( ret_ptr );
+  QCRIL_NOTUSED(params_ptr);
 
   NAS_CACHE_LOCK();
   is_valid       = nas_cached_info.deferred_mode_pref_set_valid;
@@ -29012,11 +30943,15 @@ void qmi_ril_nwreg_common_ind_subscribe_consider_action_handler
 
   QCRIL_LOG_FUNC_ENTRY();
   QCRIL_NOTUSED( ret_ptr );
+  QCRIL_NOTUSED(params_ptr);
 
   qmi_ril_nwreg_enforce_common_ind_subscription_and_force_nw_search_as_applicable_ncl();
 
   qmi_ril_nwreg_enforce_data_dormancy_as_applicable_ncl();
   qmi_ril_nwreg_enforce_limited_data_sys_as_applicable_ncl();
+
+  /* Send the screen state to qcril_data for further processing */
+  (void) qcril_data_process_screen_state_change(!nas_common_info.is_screen_off);
 
   QCRIL_LOG_FUNC_RETURN();
 } // qmi_ril_nwreg_common_ind_subscribe_consider_action_handler
@@ -29037,7 +30972,8 @@ void qmi_ril_nwreg_post_oprt_online_action_handler
   RIL_Errno                                             ril_err;
 
   QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_NOTUSED( ret_ptr );
+  QCRIL_NOTUSED(ret_ptr);
+  QCRIL_NOTUSED(params_ptr);
 
   if ( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SGLTE ) && qmi_ril_is_feature_supported( QMI_RIL_FEATURE_SGLTE_CSFB ) )
   {
@@ -29174,9 +31110,8 @@ uint8_t qmi_ril_nas_get_deferred_acq_order( uint32_t *acq_order_len, nas_radio_i
         NAS_CACHE_UNLOCK();
     }
 
-    return ret;
-
     QCRIL_LOG_FUNC_RETURN();
+    return ret;
 } // qmi_ril_nas_get_deferred_acq_order
 
 //===========================================================================
@@ -29200,9 +31135,9 @@ uint8_t qmi_ril_nas_get_deferred_acq_order_map( qcril_qmi_acq_order_e_type *acq_
         NAS_CACHE_UNLOCK();
     }
 
+    QCRIL_LOG_FUNC_RETURN();
     return ret;
 
-    QCRIL_LOG_FUNC_RETURN();
 } // qmi_ril_nas_get_deferred_acq_order_map
 
 //===========================================================================
@@ -29229,6 +31164,113 @@ uint8_t qcril_qmi_nas_get_acq_order(uint32_t *acq_order_len, nas_radio_if_enum_v
 
     return ret;
 } // qcril_qmi_nas_get_acq_order
+
+//===========================================================================
+// qcril_qmi_nas_get_band_pref_map
+//===========================================================================
+uint8_t qcril_qmi_nas_get_band_pref_map
+(
+    qcril_qmi_rat_band_e_type band_type,
+    qcril_qmi_band_pref_e_type *band_pref_map
+)
+{
+    uint8_t ret = FALSE;
+
+    if ( band_pref_map != NULL)
+    {
+        if ( band_type == QCRIL_QMI_LTE_BAND )
+        {
+            NAS_CACHE_LOCK();
+            ret = nas_cached_info.deferred_lte_band_pref_valid;
+            *band_pref_map = nas_cached_info.deferred_lte_band_pref_map;
+            NAS_CACHE_UNLOCK();
+        }
+    }
+
+    return ret;
+} // qcril_qmi_nas_get_band_pref_map
+
+//===========================================================================
+// qcril_qmi_nas_get_band_pref
+//===========================================================================
+uint8_t qcril_qmi_nas_get_band_pref
+(
+    qcril_qmi_rat_band_e_type band_type,
+    uint64_t *band_pref
+)
+{
+    uint8_t ret = FALSE;
+
+    if ( band_pref != NULL)
+    {
+        if ( band_type == QCRIL_QMI_LTE_BAND )
+        {
+            NAS_CACHE_LOCK();
+            ret = nas_cached_info.deferred_lte_band_pref_valid;
+            *band_pref = nas_cached_info.deferred_lte_band_pref;
+
+            // clear, just one shot
+            nas_cached_info.deferred_lte_band_pref_valid = FALSE;
+            nas_cached_info.deferred_lte_band_pref_map = QCRIL_QMI_BAND_PREF_NONE;
+            nas_cached_info.deferred_lte_band_pref = 0;
+            NAS_CACHE_UNLOCK();
+        }
+    }
+
+    return ret;
+} // qcril_qmi_nas_get_band_pref
+
+//===========================================================================
+// qmi_ril_nas_cache_deferred_band_pref
+//===========================================================================
+uint8_t qmi_ril_nas_cache_deferred_band_pref
+(
+    qcril_qmi_rat_band_e_type band_type,
+    qcril_qmi_band_pref_e_type band_pref_map
+)
+{
+    uint8_t ret = FALSE;
+    uint32_t len = 0;
+    QCRIL_LOG_FUNC_ENTRY();
+
+    if (band_type == QCRIL_QMI_LTE_BAND) {
+        NAS_CACHE_LOCK();
+        if ( nas_common_info.permanent_lte_band_pref_valid )
+        {
+            ret = TRUE;
+            switch ( band_pref_map )
+            {
+                case QCRIL_QMI_BAND_PREF_LTE_FULL:
+                    nas_cached_info.deferred_lte_band_pref =
+                        nas_common_info.permanent_lte_band_pref;
+                    nas_cached_info.deferred_lte_band_pref_valid = TRUE;
+                    nas_cached_info.deferred_lte_band_pref_map = band_pref_map;
+                    break;
+                case QCRIL_QMI_BAND_PREF_TDD_LTE:
+                    // clear bit0 ~ bit31
+                    nas_cached_info.deferred_lte_band_pref =
+                        nas_common_info.permanent_lte_band_pref & NAS_VAL_TDD_LTE_BAND_MASK;
+                    nas_cached_info.deferred_lte_band_pref_map = band_pref_map;
+                    nas_cached_info.deferred_lte_band_pref_valid = TRUE;
+                    break;
+                case QCRIL_QMI_BAND_PREF_FDD_LTE:
+                    // clear bit32 ~ bit63
+                    nas_cached_info.deferred_lte_band_pref =
+                        nas_common_info.permanent_lte_band_pref & NAS_VAL_FDD_LTE_BAND_MASK;
+                    nas_cached_info.deferred_lte_band_pref_map = band_pref_map;
+                    nas_cached_info.deferred_lte_band_pref_valid = TRUE;
+                    break;
+                default:
+                    ret = FALSE;
+                    break;
+            }
+        }
+        NAS_CACHE_UNLOCK();
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+    return ret;
+} // qmi_ril_nas_cache_deferred_band_pref
 
 //===========================================================================
 // qcril_qmi_nas_get_gw_acq_order_pref
@@ -29750,8 +31792,9 @@ int qcril_qmi_nas_update_ril_ecclist(char *emergency_numbers)
                 memset(temp_emer_nums, 0, emer_nums_len + 1);
                 memcpy(temp_emer_nums, emer_nums_start_ptr, emer_nums_len);
                 memset(delimiters,0,sizeof(delimiters));
-                delimiters[0]= QMI_RIL_CUSTOM_MCC_EMERGENCY_NUMBERS_LIST_TUPLE_INTERNAL_DELIMITER_1;
                 temp_emer_nums[emer_nums_len]='\0';
+                delimiters[0]= QMI_RIL_CUSTOM_MCC_EMERGENCY_NUMBERS_LIST_TUPLE_INTERNAL_DELIMITER_1;
+
                 iter_temp_emer_nums_token = strtok (temp_emer_nums,delimiters);
                 while( iter_temp_emer_nums_token )
                 {
@@ -29797,6 +31840,9 @@ void qcril_qmi_nas_assess_emergency_number_list_handler
 )
 {
     QCRIL_LOG_FUNC_ENTRY();
+
+    QCRIL_NOTUSED(ret_ptr);
+    QCRIL_NOTUSED(params_ptr);
 
     QCRIL_LOG_INFO( "custom emergency numbers enabled %d", nas_common_info.custom_emergency_numbers_enabled );
 
@@ -29875,25 +31921,33 @@ int qcril_qmi_nas_get_escv_type
             }
 
             iccid = malloc(nas_common_info.card_info[slot].iccid_len + 1);
-            strlcpy(iccid, nas_common_info.card_info[slot].iccid,
-                           nas_common_info.card_info[slot].iccid_len + 1);
-            escv_type = -1;
-            for (i = nas_common_info.card_info[slot].iccid_len;
-                 (i > QCRIL_IIN_MIN_LENGTH) && (escv_type == -1);
-                 i--)
-            {
-                iccid[i] = '\0';
-                escv_type = qcril_db_query_escv_type(emergency_number,
-                                                     iccid,
-                                                     NULL,
-                                                     NULL,
-                                                     roam);
-            }
 
-            /* escv_type is -1 when there is no match from the db */
-            if (escv_type == -1)
+            if(iccid!=NULL)
             {
-                escv_type = 0;
+              strlcpy(iccid, nas_common_info.card_info[slot].iccid,
+                             nas_common_info.card_info[slot].iccid_len + 1);
+              escv_type = -1;
+              for (i = nas_common_info.card_info[slot].iccid_len;
+                   (i > QCRIL_IIN_MIN_LENGTH) && (escv_type == -1);
+                   i--)
+              {
+                  iccid[i] = '\0';
+                  escv_type = qcril_db_query_escv_type(emergency_number,
+                                                       iccid,
+                                                       NULL,
+                                                       NULL,
+                                                       roam);
+              }
+
+              /* escv_type is -1 when there is no match from the db */
+              if (escv_type == -1)
+              {
+                  escv_type = 0;
+              }
+            }
+            else
+            {
+              QCRIL_LOG_ERROR("Malloc failed for iccid");
             }
         }
         else if (res)
@@ -29919,39 +31973,47 @@ int qcril_check_mcc_part_of_emergency_numbers_table_with_service_state
     char *emergency_nums
 )
 {
-    int         res     = FALSE;
     int         ret_val = FALSE;
 
-    res = qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state(
-                source, mcc, "", emergency_nums);
-    if ( res )
+    NAS_CACHE_LOCK();
+
+    do
     {
-        // found with no service limitation
-        ret_val = res;
-        QCRIL_LOG_INFO( "source = %d, with no serivce limit", source);
-    }
-    else
-    {
-        res = qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state(
-                    source, mcc, "full", emergency_nums);
-        if ( res && ( QMI_RIL_RAT_CONFIDENCE_FULL_SVC == nas_cached_info.voice_rte_confidence_tag ) )
+        // if it is in APM mode
+        if ( NAS_CACHE_IS_ENTRY_VALID( nas_dms_cached_info.operating_mode )
+            && (nas_dms_cached_info.operating_mode == DMS_OP_MODE_LOW_POWER_V01) )
         {
-            // found with full service
-            ret_val = TRUE;
-            QCRIL_LOG_INFO( "source = %d, with full service", source);
+            ret_val = qcril_db_is_mcc_part_of_emergency_numbers_table(
+                            source, mcc, emergency_nums);
+            QCRIL_LOG_INFO("source = %d, is matched with APM %d", source, ret_val);
+            break;
         }
-        else
+
+        // none-APM case 1: check the no service limitation case
+        ret_val = qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state(
+                    source, mcc, "", emergency_nums);
+        QCRIL_LOG_INFO("source = %d, is matched with no service limit %d", source, ret_val);
+        if ( ret_val )
         {
-            res = qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state(
+            break;
+        }
+        // none-APM case 2: check the full service case
+        if ( QMI_RIL_RAT_CONFIDENCE_FULL_SVC == nas_cached_info.voice_rte_confidence_tag )
+        {
+            ret_val = qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state(
+                        source, mcc, "full", emergency_nums);
+            QCRIL_LOG_INFO("source = %d, is matched with full service %d", source, ret_val);
+        }
+        // none-APM case 3: check the limit service case
+        else if ( QMI_RIL_RAT_CONFIDENCE_LTD_SVC == nas_cached_info.voice_rte_confidence_tag )
+        {
+            ret_val = qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state(
                     source, mcc, "limited", emergency_nums);
-            if ( res && ( QMI_RIL_RAT_CONFIDENCE_LTD_SVC == nas_cached_info.voice_rte_confidence_tag ) )
-            {
-                // found with limited service
-                ret_val = TRUE;
-                QCRIL_LOG_INFO( "source = %d, with limited service", source);
-            }
+            QCRIL_LOG_INFO("source = %d, is matched with limited serivce %d", source, ret_val);
         }
-    }
+    } while (0);
+
+    NAS_CACHE_UNLOCK();
 
     return ret_val;
 }
@@ -30016,6 +32078,39 @@ void qcril_qmi_nas_evaluate_custom_emergency_numbers_for_nw()
     QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_evaluate_custom_emergency_numbers_for_nw
 
+// this function will allocate memory, need to free after use
+static inline uint8_t* qcril_iccid_to_string(uint8_t* raw, uint8_t len)
+{
+    int i;
+    uint8_t *p_str;
+    uint8_t ch;
+
+    if ( raw == NULL )
+    {
+        QCRIL_LOG_ERROR("raw parameter is NULL");
+        return NULL;
+    }
+
+    p_str = qcril_malloc ( len * 2 + 1);
+    if ( p_str == NULL )
+    {
+        QCRIL_LOG_ERROR("mem alloc failed for iccid string");
+        return NULL;
+    }
+
+    for ( i = 0; i < len; i++ )
+    {
+        ch = raw[i] & 0x0f;
+        p_str[i*2] = ( ch < 10 ) ? ( ch + '0') : (ch - 10 + 'a');
+        ch = raw[i] >> 4;
+        p_str[i*2+1] = ( ch < 10 ) ? ( ch + '0') : (ch - 10 + 'a');
+    }
+    // add '\0' at end
+    p_str[len*2] = 0;
+
+    return p_str;
+}
+
 //===========================================================================
 //qcril_qmi_nas_evaluate_custom_emergency_numbers_for_card
 //===========================================================================
@@ -30048,6 +32143,9 @@ void qcril_qmi_nas_evaluate_custom_emergency_numbers_for_card()
 
     char**                              emergency_number_candidate;
     uint32_t                            slot = 0;
+    uint8_t                             iccid_raw[ QCRIL_UIM_ICCID_LEN ];
+    uint8_t                             iccid_len = QCRIL_UIM_ICCID_LEN;
+    uint8_t*                            iccid_str = NULL;
 
     int                                 valid_case = FALSE;
     int                                 res        = FALSE;
@@ -30080,7 +32178,7 @@ void qcril_qmi_nas_evaluate_custom_emergency_numbers_for_card()
             if ( !( cur_status & QMI_RIL_NWREG_DESIGNATED_NUM_ADDON_STATUS_IMSI_FETCHED ) )
             {
                 memset( &get_msisdn_resp, 0, sizeof(get_msisdn_resp) );
-                qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
+                qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
                                                                 QMI_DMS_GET_MSISDN_REQ_V01,
                                                                 NULL,
                                                                 NAS_NIL,
@@ -30129,23 +32227,21 @@ void qcril_qmi_nas_evaluate_custom_emergency_numbers_for_card()
                     }
                     else
                     {
-                        memset( &get_iccid_resp, 0, sizeof(get_iccid_resp) );
-                        qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_DMS ),
-                                                                        QMI_DMS_UIM_GET_ICCID_REQ_V01,
-                                                                        NULL,
-                                                                        NAS_NIL,
-                                                                        &get_iccid_resp,
-                                                                        sizeof(get_iccid_resp),
-                                                                        QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
-                        ril_err = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_transport_error, &get_iccid_resp.resp );
-
-                        QCRIL_LOG_ESSENTIAL( "iccid fetch attempt ril %d - res %d / err %d", (int)ril_err, (int)get_iccid_resp.resp.result, (int)get_iccid_resp.resp.error );
-
+                        slot = qmi_ril_get_sim_slot();
+                        ril_err = qcril_uim_read_iccid( slot, iccid_raw, &iccid_len );
                         if ( RIL_E_SUCCESS == ril_err )
                         {
-                            QCRIL_LOG_ESSENTIAL( "iccid %s", get_iccid_resp.uim_id );
+                            iccid_str = qcril_iccid_to_string( iccid_raw, iccid_len );
+                        }
+                        else
+                        {
+                            QCRIL_LOG_ERROR("Failed to get iccid through SIM_IO");
+                        }
+                        if ( iccid_str != NULL )
+                        {
+                            QCRIL_LOG_ESSENTIAL( "iccid %s", iccid_str );
 
-                            mcc_from_iccid_ptr = qcril_qmi_nas2_retrieve_mcc_from_iccid(get_iccid_resp.uim_id);
+                            mcc_from_iccid_ptr = qcril_qmi_nas2_retrieve_mcc_from_iccid(iccid_str);
                             if( NULL != mcc_from_iccid_ptr )
                             {
                                 cur_status |= QMI_RIL_NWREG_DESIGNATED_NUM_ADDON_STATUS_IMSI_FETCHED;
@@ -30163,6 +32259,9 @@ void qcril_qmi_nas_evaluate_custom_emergency_numbers_for_card()
                             {
                                 QCRIL_LOG_ESSENTIAL( "Failed to retrieve mcc from iccid" );
                             }
+
+                            qcril_free( iccid_str );
+                            iccid_str = NULL;
                         } // if ( RIL_E_SUCCESS == ril_err )
                     }
                 } // else branch, consiering local cache from GET_IMSI
@@ -30240,16 +32339,18 @@ void qcril_qmi_nas_evaluate_custom_emergency_numbers_for_card()
                     valid_case = TRUE;
                 }
 
-                res = qcril_db_is_mcc_part_of_emergency_numbers_table(source,
-                            nas_cached_info.designated_number_mcc[QCRIL_IMSI_MCC_MATCH_INDEX],
-                            emergency_nums);
-
-                if( res && valid_case )
+                if ( valid_case )
                 {
-                    QCRIL_LOG_ESSENTIAL( "Update ril ecclist");
-                    qcril_qmi_nas_update_ril_ecclist(emergency_nums);
-                    cur_status |= QMI_RIL_NWREG_DESIGNATED_NUM_ADDON_STATUS_DESIGNATED_MATCH_HOME_PLMN_NUM_PROJECTED; // indicate that we injected one of designated number
-                    need_update_cur_status = TRUE;
+                    res = qcril_db_is_mcc_part_of_emergency_numbers_table(source,
+                                nas_cached_info.designated_number_mcc[QCRIL_IMSI_MCC_MATCH_INDEX],
+                                emergency_nums);
+                    if ( res )
+                    {
+                        QCRIL_LOG_ESSENTIAL( "Update ril ecclist");
+                        qcril_qmi_nas_update_ril_ecclist(emergency_nums);
+                        cur_status |= QMI_RIL_NWREG_DESIGNATED_NUM_ADDON_STATUS_DESIGNATED_MATCH_HOME_PLMN_NUM_PROJECTED; // indicate that we injected one of designated number
+                        need_update_cur_status = TRUE;
+                    }
                 }
             } // if for mcc match but not projected
         } // if ( QCRIL_CARD_STATUS_UP == card_status )
@@ -30665,7 +32766,7 @@ void qcril_qmi_nas_embms_txn_enable_act( qmi_ril_embms_op_enable_transaction_com
                 nas_enable_req.trace_id = nas_cached_info.embms_enable_dbg_trace_id;
                 NAS_CACHE_UNLOCK();
 
-                qmi_client_error =  qmi_client_send_msg_async( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+                qmi_client_error =  qmi_client_send_msg_async_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                    QMI_NAS_CONFIG_EMBMS_REQ_MSG_V01,
                                                                    (void*) &nas_enable_req,
                                                                    sizeof( nas_enable_req ),
@@ -30907,7 +33008,7 @@ void qcril_qmi_nas_embms_txn_enable_act( qmi_ril_embms_op_enable_transaction_com
         NAS_CACHE_UNLOCK();
         if ( QMI_RIL_ZERO != timeout_timer_id )
         {
-            qcril_cancel_timed_callback( (void*)timeout_timer_id );
+            qcril_cancel_timed_callback( (void*)(uintptr_t)timeout_timer_id );
         }
         NAS_CACHE_LOCK();
         nas_cached_info.embms_enable_timeout_timerid = QMI_RIL_ZERO;
@@ -30941,23 +33042,47 @@ void  qcril_qmi_nas_embms_set_enable_timeout_handler_handler(void * param)
 void qcril_qmi_nas_embms_set_enable_cmd_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                message_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 message_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
+    QCRIL_LOG_FUNC_ENTRY();
+
+    qcril_qmi_nas_post_event(user_handle,
+                             message_id,
+                             QCRIL_EVT_QMI_REQUEST_EMBMS_SET_ENABLE,
+                             resp_c_struct,
+                             resp_c_struct_len,
+                             resp_cb_data,
+                             transp_err);
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+//===========================================================================
+// qcril_qmi_nas_embms_set_enable_cmd_cb
+//===========================================================================
+void qcril_qmi_nas_embms_set_enable_cmd_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+    void *resp_c_struct = NULL;
+    qmi_client_error_type  transp_err;
+    qmi_resp_callback_type * qmi_resp_callback = NULL;
+
+    qmi_resp_callback = (qmi_resp_callback_type *) params_ptr->data;
+    resp_c_struct = qmi_resp_callback->data_buf;
+    transp_err = qmi_resp_callback->transp_err;
+
     nas_config_embms_resp_msg_v01 * qmi_response   = (nas_config_embms_resp_msg_v01 *) resp_c_struct;
     RIL_Errno                       ril_req_res = RIL_E_GENERIC_FAILURE;
 
 
     QCRIL_LOG_INFO("transp_err: %d", (int) transp_err);
-
-    QCRIL_NOTUSED(user_handle);
-    QCRIL_NOTUSED(message_id);
-    QCRIL_NOTUSED(resp_c_struct_len);
-    QCRIL_NOTUSED(resp_cb_data);
 
     if ( qmi_response )
     {
@@ -30965,44 +33090,18 @@ void qcril_qmi_nas_embms_set_enable_cmd_cb
 
         QCRIL_LOG_INFO(".. res %d, qmi trasp err %d, qmi det err %d", (int) ril_req_res, (int)transp_err, (int) qmi_response->resp.error );
 
-        qcril_setup_timed_callback_ex_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                    QCRIL_DEFAULT_MODEM_ID,
-                                    qcril_qmi_nas_embms_set_enable_cmd_cb_retranslator,
-                                    (void*)ril_req_res,
-                                    NULL,   // immediate
-                                    NULL );
-
+        qcril_qmi_nas_embms_txn_enable_act( QMI_RIL_EMBMS_ENABLE_TXN_SIGNAL_ACK_NAS_ENABLE_CON, ril_req_res, NULL );
 
         qcril_free( qmi_response );  // we own it
     }
     else
     {
-        qcril_setup_timed_callback_ex_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                    QCRIL_DEFAULT_MODEM_ID,
-                                    qcril_qmi_nas_embms_enable_error_halt_retranslator,
-                                    NULL,   // no param
-                                    NULL,   // immediate
-                                    NULL );
+        qcril_qmi_nas_embms_txn_enable_act( QMI_RIL_EMBMS_ENABLE_TXN_SIGNAL_HALT, RIL_E_SUCCESS, NULL );
     }
 
     QCRIL_LOG_FUNC_RETURN();
 
 } // qcril_qmi_nas_embms_set_enable_cmd_cb
-
-//===========================================================================
-// qcril_qmi_nas_embms_set_enable_cmd_cb_retranslator
-//===========================================================================
-void qcril_qmi_nas_embms_set_enable_cmd_cb_retranslator(qcril_timed_callback_handler_params_type * handler_params)
-{
-    RIL_Errno  ril_req_res;
-
-    QCRIL_LOG_FUNC_ENTRY();
-
-    ril_req_res = (RIL_Errno)handler_params->custom_param;
-    qcril_qmi_nas_embms_txn_enable_act( QMI_RIL_EMBMS_ENABLE_TXN_SIGNAL_ACK_NAS_ENABLE_CON, ril_req_res, NULL );
-
-    QCRIL_LOG_FUNC_RETURN();
-} // qcril_qmi_nas_embms_set_enable_cmd_cb_retranslator
 
 //===========================================================================
 // qcril_qmi_nas_embms_fetch_embms_status
@@ -31017,7 +33116,7 @@ RIL_Errno qcril_qmi_nas_embms_fetch_embms_status()
     if ( qmi_response )
     {
 
-        qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+        qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                            QMI_NAS_GET_EMBMS_STATUS_REQ_MSG_V01,
                                                            NULL,
                                                            NAS_NIL,  // empty request payload
@@ -31071,13 +33170,7 @@ void qcril_qmi_nas_embms_embms_status_ind_handler(nas_embms_status_ind_msg_v01* 
     nas_cached_info.embms_enabled = status_ind->enabled;
     NAS_CACHE_UNLOCK();
 
-    qcril_setup_timed_callback_ex_params( QCRIL_DEFAULT_INSTANCE_ID,
-                                QCRIL_DEFAULT_MODEM_ID,
-                                qcril_qmi_nas_embms_embms_status_ind_handler_retranslator,
-                                NULL,   // no param
-                                NULL,   // immediate
-                                NULL );
-
+    qcril_qmi_nas_embms_embms_status_ind_handler_retranslator(NULL);
 
     QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_embms_embms_status_ind_handler
@@ -31090,6 +33183,8 @@ void qcril_qmi_nas_embms_embms_status_ind_handler_retranslator(qcril_timed_callb
     uint8_t enabled;
 
     QCRIL_LOG_FUNC_ENTRY();
+
+    QCRIL_NOTUSED(handler_params);
 
     NAS_CACHE_LOCK();
     enabled = nas_cached_info.embms_enabled;
@@ -31222,6 +33317,7 @@ void qcril_qmi_nas_embms_requst_enable
   embms_enable_embms_resp_msg_v01   resp_payload;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   NAS_CACHE_LOCK();
   if (nas_cached_info.embms_enabled)
@@ -31348,7 +33444,7 @@ void qcril_qmi_nas_embms_txn_disable_act( qmi_ril_embms_op_disable_transaction_c
                 nas_disable_req.trace_id = nas_cached_info.embms_disable_dbg_trace_id;
                 NAS_CACHE_UNLOCK();
 
-                qmi_client_error =  qmi_client_send_msg_async( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+                qmi_client_error =  qmi_client_send_msg_async_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                    QMI_NAS_CONFIG_EMBMS_REQ_MSG_V01,
                                                                    (void*) &nas_disable_req,
                                                                    sizeof( nas_disable_req ),
@@ -31619,7 +33715,7 @@ void qcril_qmi_nas_embms_txn_disable_act( qmi_ril_embms_op_disable_transaction_c
         NAS_CACHE_UNLOCK();
         if ( QMI_RIL_ZERO != timeout_timer_id )
         {
-            qcril_cancel_timed_callback( (void*)timeout_timer_id );
+            qcril_cancel_timed_callback( (void*)(uintptr_t)timeout_timer_id );
         }
         NAS_CACHE_LOCK();
         nas_cached_info.embms_disable_timeout_timerid = QMI_RIL_ZERO;
@@ -31636,10 +33732,10 @@ void qcril_qmi_nas_embms_txn_disable_act( qmi_ril_embms_op_disable_transaction_c
 void qcril_qmi_nas_embms_set_disable_cmd_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                message_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 message_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
@@ -31821,6 +33917,7 @@ void qcril_qmi_nas_embms_requst_disable
   embms_disable_embms_resp_msg_v01      resp_payload;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   do
   {
@@ -31880,27 +33977,29 @@ void qcril_qmi_nas_embms_requst_disable
 //===========================================================================
 // qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed
 //===========================================================================
-void qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(uint8_t prev_lte_embms_coverage_valid, uint8_t prev_lte_embms_coverage)
+void qcril_qmi_nas_send_unsol_embms_coverage_status_if_needed(
+        uint8_t prev_lte_embms_coverage_status_valid,
+        nas_lte_rrc_embms_coverage_status_enum_v01 prev_lte_embms_coverage_status)
 {
     embms_unsol_broadcast_coverage_ind_msg_v01 payload;
     int need_update_embms_coverage = FALSE;
-    uint8_t embms_coverage;
+    nas_lte_rrc_embms_coverage_status_enum_v01 embms_coverage;
 
     QCRIL_LOG_FUNC_ENTRY();
 
     NAS_CACHE_LOCK();
-    if ( NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.lte_embms_coverage) &&
+    if ( NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.embms_coverage_status) &&
          nas_cached_info.embms_enabled &&
          nas_cached_info.embms_enable_success_sent_to_atel
        )
     {
        if ( !nas_cached_info.embms_coverage_sent_after_enabled ||
-            !prev_lte_embms_coverage_valid ||
-            prev_lte_embms_coverage != nas_cached_info.lte_embms_coverage
+            !prev_lte_embms_coverage_status_valid ||
+            prev_lte_embms_coverage_status != nas_cached_info.embms_coverage_status
           )
        {
           need_update_embms_coverage = TRUE;
-          embms_coverage = nas_cached_info.lte_embms_coverage;
+          embms_coverage = nas_cached_info.embms_coverage_status;
        }
     }
     NAS_CACHE_UNLOCK();
@@ -31937,6 +34036,7 @@ void qcril_qmi_nas_embms_request_get_coverage_state
     memset( &resp_payload, 0, sizeof( resp_payload ) );
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     if ( NULL == req_payload )
     {
@@ -31949,11 +34049,11 @@ void qcril_qmi_nas_embms_request_get_coverage_state
         resp_payload.resp_code = QMI_RIL_EMBMS_ERROR_UNKNOWN;
 
         NAS_CACHE_LOCK();
-        if ( NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.lte_embms_coverage) )
+        if ( NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.embms_coverage_status) )
         {
-            QCRIL_LOG_INFO("coverage_state %d", nas_cached_info.lte_embms_coverage);
+            QCRIL_LOG_INFO("coverage_state %d", nas_cached_info.embms_coverage_status);
             resp_payload.coverage_state_valid = TRUE;
-            resp_payload.coverage_state = qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage(nas_cached_info.lte_embms_coverage);
+            resp_payload.coverage_state = qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage(nas_cached_info.embms_coverage_status);
             resp_payload.resp_code = QMI_RIL_EMBMS_SUCCESS;
             ril_req_res = RIL_E_SUCCESS;
         }
@@ -31975,9 +34075,30 @@ void qcril_qmi_nas_embms_request_get_coverage_state
 //===========================================================================
 // qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage
 //===========================================================================
-qmi_ril_embms_coverage_state_e_type qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage(uint8_t qmi_embms_coverage)
+qmi_ril_embms_coverage_state_e_type qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage(
+        nas_lte_rrc_embms_coverage_status_enum_v01 qmi_embms_coverage)
 {
-    return qmi_embms_coverage ? QMI_RIL_EMBMS_IN_COVERAGE : QMI_RIL_EMBMS_OUT_OF_COVERAGE;
+    qmi_ril_embms_coverage_state_e_type coverage;
+
+    switch (qmi_embms_coverage) {
+        case NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_AVAILABLE_V01:
+            coverage = QMI_RIL_EMBMS_IN_COVERAGE;
+            break;
+
+        case NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_UEMODE_V01:
+            coverage = QMI_RIL_EMBMS_OUT_OF_COVERAGE_DUE_TO_UEMODE;
+            break;
+
+        case NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_EMERGENCY_V01:
+            coverage = QMI_RIL_EMBMS_OUT_OF_COVERAGE_E911;
+            break;
+
+        default: //fall-through
+        case NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAILABLE_V01:
+            coverage = QMI_RIL_EMBMS_OUT_OF_COVERAGE;
+            break;
+    }
+    return coverage;
 } // qcril_qmi_nas_map_qmi_embms_coverage_to_ril_embms_coverage
 
 //===========================================================================
@@ -31986,10 +34107,10 @@ qmi_ril_embms_coverage_state_e_type qcril_qmi_nas_map_qmi_embms_coverage_to_ril_
 void qcril_qmi_nas_embms_get_rssi_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                message_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 message_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
@@ -32119,6 +34240,7 @@ void qcril_qmi_nas_embms_get_rssi
     qmi_txn_handle                 txn_handle;
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     do
     {
@@ -32152,7 +34274,7 @@ void qcril_qmi_nas_embms_get_rssi
         qmi_req.trace_id_valid = TRUE;
         qmi_req.trace_id = ril_req_payload->dbg_trace_id;
 
-        qmi_client_error =  qmi_client_send_msg_async( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+        qmi_client_error =  qmi_client_send_msg_async_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                        QMI_NAS_GET_EMBMS_SIG_EXT_REQ_MSG_V01,
                                                        (void*) &qmi_req,
                                                        sizeof( qmi_req ),
@@ -32288,6 +34410,41 @@ void qcril_qmi_nas_embms_send_cell_info_changed_if_needed(boolean prev_lte_sys_i
     QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_nas_embms_send_cell_info_changed_if_needed
 
+void qcril_qmi_nas_embms_send_e911_state_changed_if_needed
+(
+  uint8_t new_mode_valid,
+  uint8_t new_mode
+)
+{
+    uint8_t old_mode_valid;
+    uint8_t old_mode;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    NAS_CACHE_LOCK();
+    old_mode_valid = nas_cached_info.emergency_mode_valid;
+    old_mode = nas_cached_info.emergency_mode;
+    NAS_CACHE_UNLOCK();
+
+    if (new_mode_valid && (old_mode != new_mode || old_mode_valid != new_mode_valid))
+    {
+        embms_unsol_e911_state_ind_msg_v01 data;
+        int data_len;
+
+        memset(&data, 0, sizeof(data));
+        data.dbg_trace_id = 0xffffffff; // Unsols have a trace id of 0xffffffff
+        data.e911_state = (new_mode == NAS_CMN_EMERGENCY_MODE_ON) ? EMBMS_E911_MODE_ACTIVE_V01 :
+                                                                          EMBMS_E911_MODE_INACTIVE_V01;
+        data_len = sizeof(data);
+        qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID,
+                                   QCRIL_EVT_HOOK_EMBMS_UNSOL_E911_STATE_CHANGED,
+                                   (void *)&data,
+                                   data_len);
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+}
+
 //===========================================================================
 // qcril_qmi_nas_embms_send_radio_state
 //===========================================================================
@@ -32319,6 +34476,7 @@ void qcril_qmi_nas_embms_send_radio_state_helper
    uint8_t embms_ssr_in_progress;
 
    QCRIL_LOG_FUNC_ENTRY();
+   QCRIL_NOTUSED(ret_ptr);
 
    if (params_ptr && params_ptr->data)
    {
@@ -32367,6 +34525,7 @@ void qcril_qmi_nas_embms_get_active_log_packet_ids
   qcril_request_return_type *const ret_ptr
 )
 {
+#ifndef QMI_RIL_UTF
     qcril_request_resp_params_type resp;
     RIL_Errno ril_req_res = RIL_E_SUCCESS;
 
@@ -32375,6 +34534,7 @@ void qcril_qmi_nas_embms_get_active_log_packet_ids
     memset( &resp_payload, 0, sizeof( resp_payload ) );
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     if ( NULL == req_payload )
     {
@@ -32412,6 +34572,7 @@ void qcril_qmi_nas_embms_get_active_log_packet_ids
     resp.resp_pkt = (void *) &resp_payload;
     resp.resp_len = sizeof( resp_payload );
     qcril_send_request_response( &resp );
+#endif
 } // qcril_qmi_nas_embms_get_active_log_packet_ids
 
 //=========================================================================
@@ -32423,6 +34584,7 @@ void qcril_qmi_nas_embms_deliver_log_packet
   qcril_request_return_type *const ret_ptr
 )
 {
+#ifndef QMI_RIL_UTF
     qcril_request_resp_params_type resp;
     RIL_Errno ril_req_res = RIL_E_SUCCESS;
     qcril_qmi_nas_embms_log_type *embms_log = NULL;
@@ -32432,6 +34594,7 @@ void qcril_qmi_nas_embms_deliver_log_packet
     memset( &resp_payload, 0, sizeof( resp_payload ) );
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     if ( NULL == req_payload )
     {
@@ -32464,6 +34627,7 @@ void qcril_qmi_nas_embms_deliver_log_packet
     resp.resp_pkt = (void *) &resp_payload;
     resp.resp_len = sizeof( resp_payload );
     qcril_send_request_response( &resp );
+#endif
 } // qcril_qmi_nas_embms_deliver_log_packet
 
 
@@ -32509,9 +34673,11 @@ voice_dial_call_service_type_enum_v02 qcril_qmi_nas_setting_srv_type_based_on_el
     {
        service_type = VOICE_DIAL_CALL_SRV_TYPE_CS_ONLY_V02;
        if ( qcril_qmi_nas_is_using_radio_if(NAS_RADIO_IF_GSM) ||
-            qcril_qmi_nas_is_using_radio_if(NAS_RADIO_IF_UMTS) )
+            qcril_qmi_nas_is_using_radio_if(NAS_RADIO_IF_UMTS) ||
+            qcril_qmi_nas_is_using_radio_if(NAS_RADIO_IF_TDSCDMA)
+          )
        {
-            service_type = VOICE_DIAL_CALL_SRV_TYPE_GSM_WCDMA_V02;
+            service_type = VOICE_DIAL_CALL_SRV_TYPE_GSM_WCDMA_TDSCDMA_V02;
        }
        else if ( qcril_qmi_nas_is_using_radio_if(NAS_RADIO_IF_CDMA2000) ||
                  qcril_qmi_nas_is_using_radio_if(NAS_RADIO_IF_CDMA2000_HRPD) )
@@ -32534,6 +34700,38 @@ voice_dial_call_service_type_enum_v02 qcril_qmi_nas_setting_srv_type_based_on_el
 // qcril_qmi_nas_process_sib16_network_time
 //===========================================================================
 void qcril_qmi_nas_process_sib16_network_time
+(
+   const nas_lte_sib16_julian_time_type_v01* universal_time,
+   uint64_t abs_time,
+   uint8_t time_zone_valid,
+   int8_t time_zone,
+   uint8_t daylt_sav_adj_valid,
+   uint8_t daylt_sav_adj
+)
+{
+   QCRIL_LOG_FUNC_ENTRY();
+
+   if(nas_common_info.sib16_support)
+   {
+       qcril_qmi_nas_process_sib16_network_time_for_ats_utc( universal_time,
+                                                             abs_time,
+                                                             time_zone_valid,
+                                                             time_zone,
+                                                             daylt_sav_adj_valid,
+                                                             daylt_sav_adj
+                                                             );
+   }
+
+   qcril_qmi_nas_process_sib16_network_time_for_ats_modem( abs_time );
+
+
+   QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_nas_process_sib16_network_time
+
+//===========================================================================
+// qcril_qmi_nas_process_sib16_network_time_for_ats_utc
+//===========================================================================
+void qcril_qmi_nas_process_sib16_network_time_for_ats_utc
 (
    const nas_lte_sib16_julian_time_type_v01* universal_time,
    uint64_t abs_time,
@@ -32615,8 +34813,42 @@ void qcril_qmi_nas_process_sib16_network_time
    {
       QCRIL_LOG_ERROR("universal_time is NULL");
    }
+
    QCRIL_LOG_FUNC_RETURN();
-} // qcril_qmi_nas_process_sib16_network_time
+} // qcril_qmi_nas_process_sib16_network_time_for_ats_utc
+
+//===========================================================================
+// qcril_qmi_nas_process_sib16_network_time_for_ats_modem
+//===========================================================================
+void qcril_qmi_nas_process_sib16_network_time_for_ats_modem(uint64_t abs_time)
+{
+   QCRIL_LOG_FUNC_ENTRY();
+
+   int ret_code;
+   time_genoff_info_type time_set;
+
+   ret_code = 0;
+   time_set.base = ATS_MODEM;
+   time_set.unit = TIME_MSEC;
+   time_set.operation = T_SET;
+   // convert the abs_time from an offset of "Jan 6, 1980 00:00:00" to an offset of "Jan 1, 1970 00:00:00"
+   abs_time = abs_time + NAS_TIME_UNIX_EPOCH_TIME_OFFSET_FOR_JAN_6_1980_IN_MILLI_SEC;
+   time_set.ts_val = &abs_time;
+   ret_code = time_genoff_operation(&time_set);
+   if(!ret_code)
+   {
+       QCRIL_LOG_INFO("set MODEM successfully using sib16 time, abs time (%x, %x)",
+                      (uint32) (abs_time >> 32),
+                      (uint32) abs_time);
+   }
+   else
+   {
+       QCRIL_LOG_INFO("unable to set MODEM using sib16 time, error %d",
+                      ret_code);
+   }
+
+   QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_nas_process_sib16_network_time_for_ats_modem
 
 //===========================================================================
 // qcril_qmi_nas_fetch_sib16_network_time
@@ -32708,62 +34940,55 @@ void qcril_qmi_nas_sib16_network_time_ind_hdlr(const nas_lte_sib16_network_time_
 
    uint8_t prev_lte_sib16_acquired_valid, prev_lte_sib16_acquired;
 
-   if (nas_common_info.sib16_support)
+   if (NULL != decoded_payload)
    {
-      if (NULL != decoded_payload)
+      NAS_CACHE_LOCK();
+      prev_lte_sib16_acquired_valid = nas_cached_info.lte_sib16_acquired_valid;
+      prev_lte_sib16_acquired = (NAS_TRI_TRUE_V01 == nas_cached_info.lte_sib16_acquired);
+      NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.lte_sib16_acquired, decoded_payload->lte_sib16_acquired);
+
+      qcril_qmi_nas_send_unsol_sib16_coverage_if_needed(
+         prev_lte_sib16_acquired_valid,
+         prev_lte_sib16_acquired,
+         nas_cached_info.lte_sib16_acquired_valid,
+         NAS_TRI_TRUE_V01 == nas_cached_info.lte_sib16_acquired );
+
+      if ( (decoded_payload->lte_sib16_acquired_valid && decoded_payload->lte_sib16_acquired) ||
+           (!decoded_payload->lte_sib16_acquired_valid && prev_lte_sib16_acquired_valid && prev_lte_sib16_acquired)
+         )
       {
-         NAS_CACHE_LOCK();
-         prev_lte_sib16_acquired_valid = nas_cached_info.lte_sib16_acquired_valid;
-         prev_lte_sib16_acquired = (NAS_TRI_TRUE_V01 == nas_cached_info.lte_sib16_acquired);
-         NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.lte_sib16_acquired, decoded_payload->lte_sib16_acquired);
+         NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.sntp_available);
+         NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.day_light_saving);
+         NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.leap_seconds);
+         NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.local_time_offset);
 
-         qcril_qmi_nas_send_unsol_sib16_coverage_if_needed(
-            prev_lte_sib16_acquired_valid,
-            prev_lte_sib16_acquired,
-            nas_cached_info.lte_sib16_acquired_valid,
-            NAS_TRI_TRUE_V01 == nas_cached_info.lte_sib16_acquired );
+         NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.day_light_saving,
+                                    decoded_payload->daylt_sav_adj);
+         NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.leap_seconds,
+                                    decoded_payload->leap_sec);
+         NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.local_time_offset,
+                                    decoded_payload->time_zone);
 
-         if ( (decoded_payload->lte_sib16_acquired_valid && decoded_payload->lte_sib16_acquired) ||
-              (!decoded_payload->lte_sib16_acquired_valid && prev_lte_sib16_acquired_valid && prev_lte_sib16_acquired)
-            )
+         if ( decoded_payload->universal_time_valid && decoded_payload->abs_time_valid )
          {
-            NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.sntp_available);
-            NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.day_light_saving);
-            NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.leap_seconds);
-            NAS_CACHE_INVALIDATE_TINY_ENTRY(nas_cached_info.local_time_offset);
-
-            NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.day_light_saving,
-                                       decoded_payload->daylt_sav_adj);
-            NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.leap_seconds,
-                                       decoded_payload->leap_sec);
-            NAS_CACHE_STORE_TINY_ENTRY(nas_cached_info.local_time_offset,
-                                       decoded_payload->time_zone);
-
-            if ( decoded_payload->universal_time_valid && decoded_payload->abs_time_valid )
-            {
-               qcril_qmi_nas_process_sib16_network_time( &(decoded_payload->universal_time),
-                                                         decoded_payload->abs_time,
-                                                         decoded_payload->time_zone_valid,
-                                                         decoded_payload->time_zone,
-                                                         decoded_payload->daylt_sav_adj_valid,
-                                                         decoded_payload->daylt_sav_adj
-                                                        );
-            }
-            else
-            {
-               QCRIL_LOG_ERROR("ignore the indication as it does not contain all the necessary information");
-            }
+            qcril_qmi_nas_process_sib16_network_time( &(decoded_payload->universal_time),
+                                                      decoded_payload->abs_time,
+                                                      decoded_payload->time_zone_valid,
+                                                      decoded_payload->time_zone,
+                                                      decoded_payload->daylt_sav_adj_valid,
+                                                      decoded_payload->daylt_sav_adj
+                                                     );
          }
-         NAS_CACHE_UNLOCK();
+         else
+         {
+            QCRIL_LOG_ERROR("ignore the indication as it does not contain all the necessary information");
+         }
       }
-      else
-      {
-         QCRIL_LOG_ERROR("decoded_payload is NULL");
-      }
+      NAS_CACHE_UNLOCK();
    }
    else
    {
-      QCRIL_LOG_DEBUG("ignore the indication as the sib16_support is not set");
+      QCRIL_LOG_ERROR("decoded_payload is NULL");
    }
 
    QCRIL_LOG_FUNC_RETURN();
@@ -32819,22 +35044,25 @@ void qcril_qmi_nas_send_unsol_sib16_coverage_if_needed(uint8_t prev_lte_sib16_co
 
     memset( &payload, 0, sizeof( payload ) );
 
-    QCRIL_LOG_INFO("lte sib16 coverage: previous valid %d, value %d, current valid %d, value %d",
-                   prev_lte_sib16_coverage_valid,
-                   prev_lte_sib16_coverage,
-                   curr_lte_sib16_coverage_valid,
-                   curr_lte_sib16_coverage);
-
-    if ( TRUE == curr_lte_sib16_coverage_valid &&
-         ((FALSE == prev_lte_sib16_coverage_valid) ||
-         (prev_lte_sib16_coverage != curr_lte_sib16_coverage))
-       )
+    if(nas_common_info.sib16_support)
     {
-        payload.in_coverage = curr_lte_sib16_coverage;
-        qcril_hook_unsol_response(QCRIL_DEFAULT_INSTANCE_ID,
-                                  QCRIL_EVT_HOOK_EMBMS_UNSOL_SIB16_COVERAGE,
-                                  (char*)&payload,
-                                  sizeof(payload));
+        QCRIL_LOG_INFO("lte sib16 coverage: previous valid %d, value %d, current valid %d, value %d",
+                       prev_lte_sib16_coverage_valid,
+                       prev_lte_sib16_coverage,
+                       curr_lte_sib16_coverage_valid,
+                       curr_lte_sib16_coverage);
+
+        if ( TRUE == curr_lte_sib16_coverage_valid &&
+             ((FALSE == prev_lte_sib16_coverage_valid) ||
+             (prev_lte_sib16_coverage != curr_lte_sib16_coverage))
+           )
+        {
+            payload.in_coverage = curr_lte_sib16_coverage;
+            qcril_hook_unsol_response(QCRIL_DEFAULT_INSTANCE_ID,
+                                      QCRIL_EVT_HOOK_EMBMS_UNSOL_SIB16_COVERAGE,
+                                      (char*)&payload,
+                                      sizeof(payload));
+        }
     }
 
     QCRIL_LOG_FUNC_RETURN();
@@ -32854,6 +35082,7 @@ void qcril_qmi_nas_embms_get_sib16_coverage
     embms_get_sib16_coverage_resp_msg_v01 resp_payload;
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     ril_req_res = RIL_E_SUCCESS;
     memset(&resp_payload,
@@ -32981,7 +35210,28 @@ void qcril_qmi_nas_embms_set_sntp_time
                                      (uint32) abs_time);
                   }
 
-                  time_set.base = ATS_UTC;
+                  if(nas_common_info.sib16_support)
+                  {
+                      time_set.base = ATS_UTC;
+                      time_set.unit = TIME_MSEC;
+                      time_set.operation = T_SET;
+                      time_set.ts_val = &abs_time;
+                      ret_code = time_genoff_operation(&time_set);
+                      if(!ret_code)
+                      {
+                          ril_req_res = RIL_E_SUCCESS;
+                          QCRIL_LOG_INFO("set UTC successfully using sntp time, abs time (%x, %x)",
+                                         (uint32) (abs_time >> 32),
+                                         (uint32) abs_time);
+                      }
+                      else
+                      {
+                          QCRIL_LOG_INFO("unable to set UTC using sntp time, error %d",
+                                         ret_code);
+                      }
+                  }
+
+                  time_set.base = ATS_MODEM;
                   time_set.unit = TIME_MSEC;
                   time_set.operation = T_SET;
                   time_set.ts_val = &abs_time;
@@ -32989,13 +35239,13 @@ void qcril_qmi_nas_embms_set_sntp_time
                   if(!ret_code)
                   {
                       ril_req_res = RIL_E_SUCCESS;
-                      QCRIL_LOG_INFO("set UTC successfully using sntp time, abs time (%x, %x)",
+                      QCRIL_LOG_INFO("set MODEM successfully using sntp time, abs time (%x, %x)",
                                      (uint32) (abs_time >> 32),
                                      (uint32) abs_time);
                   }
                   else
                   {
-                      QCRIL_LOG_INFO("unable to set UTC using sntp time, error %d",
+                      QCRIL_LOG_INFO("unable to set MODEM using sntp time, error %d",
                                      ret_code);
                   }
               }
@@ -33036,6 +35286,62 @@ void qcril_qmi_nas_embms_set_sntp_time
 } //qcril_qmi_nas_embms_set_sntp_time
 
 //===========================================================================
+// QCRIL_EVT_HOOK_EMBMS_GET_E911_STATE
+//===========================================================================
+void qcril_qmi_nas_embms_get_e911_state
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+    qcril_request_resp_params_type resp;
+    RIL_Errno ril_req_res;
+    embms_get_e911_state_req_msg_v01 *ril_req_payload;
+    embms_get_e911_state_resp_msg_v01 ril_resp_payload;
+    qmi_ril_emergency_callback_mode_state_type ecbm;
+
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    ril_req_res = RIL_E_GENERIC_FAILURE;
+
+
+    if (NULL != params_ptr &&
+        params_ptr->data &&
+        params_ptr->datalen >= sizeof(*ril_req_payload))
+    {
+
+        ril_req_payload = (embms_get_e911_state_req_msg_v01 *) params_ptr->data;
+        ril_req_res = RIL_E_SUCCESS;
+        memset(&ril_resp_payload, 0, sizeof(ril_resp_payload));
+        ril_resp_payload.dbg_trace_id = ril_req_payload->dbg_trace_id;
+        ril_resp_payload.resp_code = QMI_RIL_EMBMS_SUCCESS;
+        ril_resp_payload.e911_state_valid = TRUE;
+        ecbm = qmi_ril_nwr_get_eme_cbm();
+        if (ecbm == QMI_RIL_EME_CBM_ACTIVE) {
+            ril_resp_payload.e911_state = EMBMS_E911_MODE_ACTIVE_V01;
+        } else {
+            ril_resp_payload.e911_state = EMBMS_E911_MODE_INACTIVE_V01;
+        }
+
+        qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                           params_ptr->t,
+                                           params_ptr->event_id,
+                                           ril_req_res,
+                                           &resp );
+        resp.resp_pkt = (void *) &ril_resp_payload;
+        resp.resp_len = sizeof( ril_resp_payload );
+        qcril_send_request_response( &resp );
+    }
+    else
+    {
+        QCRIL_LOG_ERROR("params_ptr is NULL or has invalid data");
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_nas_embms_get_e911_state
+
+//===========================================================================
 // qcril_qmi_nas_embms_get_utc_time
 //===========================================================================
 void qcril_qmi_nas_embms_get_utc_time
@@ -33054,6 +35360,7 @@ void qcril_qmi_nas_embms_get_utc_time
 
 
     QCRIL_LOG_FUNC_ENTRY();
+    QCRIL_NOTUSED(ret_ptr);
 
     ril_req_res = RIL_E_GENERIC_FAILURE;
     memset(&req_payload,
@@ -33157,6 +35464,7 @@ void qcril_qmi_nas_connected_emergency_call_end_hdlr
    boolean need_to_send_unsol = FALSE;
 
    QCRIL_LOG_FUNC_ENTRY();
+   QCRIL_NOTUSED(ret_ptr);
 
    NAS_CACHE_LOCK();
 
@@ -33198,13 +35506,15 @@ void qcril_qmi_nas_emergency_mode_on_hdlr
    boolean need_to_send_unsol = FALSE;
 
    QCRIL_LOG_FUNC_ENTRY();
+   QCRIL_NOTUSED(ret_ptr);
+   QCRIL_NOTUSED(params_ptr);
 
    NAS_CACHE_LOCK();
    if (nas_cached_info.eme_call_end_recently)
    {
       need_to_send_unsol = TRUE;
       nas_cached_info.eme_call_end_recently = FALSE;
-      qcril_cancel_timed_callback((void *)nas_cached_info.eme_call_end_recently_tcb_id);
+      qcril_cancel_timed_callback((void *)(uintptr_t)nas_cached_info.eme_call_end_recently_tcb_id);
    }
    else
    {
@@ -33229,12 +35539,15 @@ void qcril_qmi_nas_emergency_mode_off_hdlr
 )
 {
    QCRIL_LOG_FUNC_ENTRY();
+
+   QCRIL_NOTUSED(ret_ptr);
+   QCRIL_NOTUSED(params_ptr);
    NAS_CACHE_LOCK();
    nas_cached_info.nas_enter_ecbm_propagation_pending = FALSE;
    if (nas_cached_info.eme_call_end_recently)
    {
       nas_cached_info.eme_call_end_recently = FALSE;
-      qcril_cancel_timed_callback((void *)nas_cached_info.eme_call_end_recently_tcb_id);
+      qcril_cancel_timed_callback((void *)(uintptr_t)nas_cached_info.eme_call_end_recently_tcb_id);
    }
    NAS_CACHE_UNLOCK();
    qmi_ril_nwr_set_eme_cbm( QMI_RIL_EME_CBM_NOT_ACTIVE );
@@ -33247,6 +35560,9 @@ void qcril_qmi_nas_emergency_mode_off_hdlr
 void qcril_qmi_nas_eme_call_end_recently_timeout_cb(void * params)
 {
    QCRIL_LOG_FUNC_ENTRY();
+
+   QCRIL_NOTUSED(params);
+
    NAS_CACHE_LOCK();
    nas_cached_info.eme_call_end_recently = FALSE;
    if ( !qcril_qmi_voice_nas_control_is_any_calls_present() )
@@ -33278,6 +35594,8 @@ static void qcril_qmi_nas_get_engineer_mode_info_timeout_handler(sigval_t sval)
   struct wcdma_ftm_data *wcdma_data = NULL;
 
   QCRIL_LOG_FUNC_ENTRY();
+
+  (void)sval;
 
   do
   {
@@ -33418,6 +35736,8 @@ static void qcril_qmi_nas_stop_get_engineer_mode_info_timer(qcril_instance_id_e_
 {
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED(instance_id);
+
   if ( ( qcril_qmi_nas_get_engineer_mode_info_timer.timer_started )
         && ( qcril_qmi_nas_get_engineer_mode_info_timer.subs_type == subs_type ) )
   {
@@ -33455,7 +35775,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_cdma( struct cdma_ftm_data *cdma
     memset(mcc_str,0,NAS_MCC_MNC_MAX_SIZE);
     memset(mnc_str,0,NAS_MCC_MNC_MAX_SIZE);
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_SYS_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,  // empty request payload
@@ -33463,7 +35783,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_cdma( struct cdma_ftm_data *cdma
                                                     sizeof( get_sys_info_response ),
                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_CELL_LOCATION_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,
@@ -33471,7 +35791,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_cdma( struct cdma_ftm_data *cdma
                                                     sizeof( get_cell_loc_info_response ),
                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_GET_SIG_INFO_REQ_MSG_V01,
                                                                NULL,
                                                                NAS_NIL,
@@ -33581,7 +35901,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_gsm( struct gsm_ftm_data *gsm_da
     memset(mcc_str,0,NAS_MCC_MNC_MAX_SIZE);
     memset(mnc_str,0,NAS_MCC_MNC_MAX_SIZE);
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_SYS_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,  // empty request payload
@@ -33589,7 +35909,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_gsm( struct gsm_ftm_data *gsm_da
                                                     sizeof( get_sys_info_response ),
                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_CELL_LOCATION_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,
@@ -33597,7 +35917,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_gsm( struct gsm_ftm_data *gsm_da
                                                     sizeof( get_cell_loc_info_response ),
                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                                QMI_NAS_GET_SIG_INFO_REQ_MSG_V01,
                                                                NULL,
                                                                NAS_NIL,
@@ -33730,7 +36050,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_wcdma( struct wcdma_ftm_data *wc
     memset(mcc_str,0,NAS_MCC_MNC_MAX_SIZE);
     memset(mnc_str,0,NAS_MCC_MNC_MAX_SIZE);
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_SYS_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,  // empty request payload
@@ -33738,7 +36058,7 @@ void qcril_qmi_nas_get_field_test_mode_info_for_wcdma( struct wcdma_ftm_data *wc
                                                     sizeof( get_sys_info_response ),
                                                     QCRIL_QMI_SYNC_REQ_UNRESTRICTED_TIMEOUT );
 
-    qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                     QMI_NAS_GET_CELL_LOCATION_INFO_REQ_MSG_V01,
                                                     NULL,
                                                     NAS_NIL,
@@ -33871,6 +36191,8 @@ void qcril_qmi_nas_enable_engineer_mode
 
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED(ret_ptr);
+
   do
   {
     if ( ( NULL == params_ptr ) )
@@ -33983,7 +36305,7 @@ RIL_Errno qcril_qmi_nas_send_attach_detach_request
     qmi_attach_req.change_duration_valid    = TRUE;
     qmi_attach_req.change_duration          = NAS_POWER_CYCLE_V01;
 
-    qmi_attach_error = qmi_client_send_msg_sync(qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
+    qmi_attach_error = qmi_client_send_msg_sync_with_shm(qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_NAS ),
                                                 QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                 (void*) &qmi_attach_req,
                                                 sizeof(qmi_attach_req),
@@ -33994,7 +36316,7 @@ RIL_Errno qcril_qmi_nas_send_attach_detach_request
     res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_attach_error, &qmi_attach_resp.resp);
     if (res != RIL_E_SUCCESS)
     {
-      QCRIL_LOG_ERROR("NAS APN detach failed with error code %d",res);
+      QCRIL_LOG_ERROR("NAS APN attach/detach failed with error code %d",res);
     }
 
     return res;
@@ -34013,26 +36335,45 @@ RIL_Errno qcril_qmi_nas_send_attach_detach_request
 /*=========================================================================*/
 void qcril_qmi_nas_initial_attach_timeout_handler
 (
-    void
+    void *param
 )
 {
     IxErrnoType                     found_qcril_request;
     qcril_request_resp_params_type  resp;
     qcril_reqlist_public_type       qcril_req_info;
+    qmi_ril_nas_init_apn_attch_state_e_type ps_attach_state;
 
     QCRIL_LOG_FUNC_ENTRY();
 
-    found_qcril_request =
+    QCRIL_NOTUSED(param);
+
+    ps_attach_state = qcril_qmi_nas_get_init_attch_state();
+
+    if ( QMI_RIL_NAS_INIT_APN_ATTCH_DETACH == ps_attach_state ||
+            QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH == ps_attach_state)
+    {
+      found_qcril_request =
          (E_SUCCESS == qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
                                                      QCRIL_DEFAULT_MODEM_ID,
                                                      QCRIL_EVT_QMI_REQUEST_INIT_ATTACH_APN,
                                                      &qcril_req_info));
-
+    }
+    else
+    {
+      found_qcril_request =
+         (E_SUCCESS == qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
+                                                     QCRIL_DEFAULT_MODEM_ID,
+                                                     QCRIL_EVT_QMI_REQUEST_ALLOW_DATA,
+                                                     &qcril_req_info));
+    }
     QCRIL_LOG_INFO( ".. found_req %d", (int) found_qcril_request );
     if (found_qcril_request)
     {
-        if (QMI_RIL_NAS_INIT_APN_ATTCH_DETACH == qcril_qmi_nas_get_init_attch_state() ||
-            QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH == qcril_qmi_nas_get_init_attch_state())
+        if (QMI_RIL_NAS_INIT_APN_ATTCH_DETACH == ps_attach_state ||
+            QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH == ps_attach_state ||
+            QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ATTACH == ps_attach_state ||
+            QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH == ps_attach_state ||
+            QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_DETACH == ps_attach_state)
         {
             qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_APN_ATTCH_NONE);
             qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
@@ -34070,11 +36411,31 @@ RIL_Errno qcril_qmi_nas_set_ps_service_domain
     uint32      new_timeout_watch = 0;
     int         new_timeout_set_res;
 
-    const struct timeval init_apn_timeout = {60 , 0};
+    nas_srv_domain_pref_enum_type_v01 attach_action;
 
+    /*
+      See Spec 3GPP TS 24.301 version 11.9.0 Release 11
+      75s - The maximum time the UE is going to wait for the detach request response.
+      2s - Buffer for communication between RIL and QMI.
+    */
+    const struct timeval init_apn_timeout = {77 , 0};
     QCRIL_LOG_FUNC_ENTRY();
 
-    res = qcril_qmi_nas_send_attach_detach_request(action);
+    if ( (action == QMI_RIL_NAS_INIT_APN_ATTCH_DETACH) ||
+         (action == QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_DETACH) )
+    {
+        attach_action = QMI_SRV_DOMAIN_PREF_PS_DETACH_V01;
+    }
+    else if (action == QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH)
+    {
+        attach_action = QMI_SRV_DOMAIN_PREF_ON_DEMAND_PS_ATTACH_V01;
+    }
+    else
+    {
+        attach_action = QMI_SRV_DOMAIN_PREF_PS_ATTACH_V01;
+    }
+
+    res = qcril_qmi_nas_send_attach_detach_request(attach_action);
     if(res != RIL_E_SUCCESS)
     {
       QCRIL_LOG_ERROR("NAS APN detach failed with error code %d", res);
@@ -34092,7 +36453,7 @@ RIL_Errno qcril_qmi_nas_set_ps_service_domain
         {
             res = RIL_E_GENERIC_FAILURE;
 
-            if (QMI_SRV_DOMAIN_PREF_PS_DETACH_V01 == action)
+            if (QMI_RIL_NAS_INIT_APN_ATTCH_DETACH == action)
             {
                 qcril_qmi_nas_send_attach_detach_request(QMI_SRV_DOMAIN_PREF_PS_ATTACH_V01);
             }
@@ -34139,6 +36500,95 @@ int qcril_qmi_nas_is_lte_ps_attached
 }
 
 /*===========================================================================
+qcril_qmi_nas_check_ps_attach_status
+===========================================================================*/
+void qcril_qmi_nas_check_ps_attach_status()
+{
+    IxErrnoType                     found_qcril_request;
+    RIL_Errno                       ril_req_res = RIL_E_SUCCESS;
+    RIL_Errno                       resp_to_tel = RIL_E_SUCCESS;
+    int                             send_resp_to_tel = FALSE;
+    qcril_request_resp_params_type  resp;
+    qcril_reqlist_public_type       qcril_req_info;
+    qmi_ril_nas_init_apn_attch_state_e_type cur_init_attach_state;
+    int ps_attch_status;
+
+    QCRIL_LOG_FUNC_ENTRY();
+    cur_init_attach_state = qcril_qmi_nas_get_init_attch_state();
+    found_qcril_request =
+         (E_SUCCESS == qcril_reqlist_query_by_event( QCRIL_DEFAULT_INSTANCE_ID,
+                                                     QCRIL_DEFAULT_MODEM_ID,
+                                                     QCRIL_EVT_QMI_REQUEST_ALLOW_DATA,
+                                                     &qcril_req_info));
+
+    ps_attch_status = (QMI_RIL_RAT_CONFIDENCE_FULL_SVC == nas_cached_info.data_rte_confidence_tag);
+    QCRIL_LOG_INFO( ".. found_req %d", (int) found_qcril_request );
+    QCRIL_LOG_INFO( "attach_state %d ps_attch_status %d",
+                                                cur_init_attach_state, ps_attch_status);
+    if (found_qcril_request)
+    {
+        if ((QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_DETACH == cur_init_attach_state &&
+            ((!NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.srv_domain_pref)) ||
+            ( nas_cached_info.srv_domain_pref == QMI_SRV_DOMAIN_PREF_CS_ONLY_V01 ))) ||
+            (((QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ATTACH == cur_init_attach_state) ||
+              (QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH == cur_init_attach_state)) &&
+             ( ps_attch_status == TRUE )))
+        {
+            send_resp_to_tel = TRUE;
+        }
+        else if (QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_WAIT_FOR_RAT_EXP == cur_init_attach_state)
+        {
+            qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH);
+        }
+
+        if (send_resp_to_tel)
+        {
+            NAS_CACHE_LOCK();
+            if (nas_cached_info.init_attch_timeout_watch)
+            {
+                qcril_cancel_timed_callback((void *)(intptr_t)nas_cached_info.init_attch_timeout_watch);
+                nas_cached_info.init_attch_timeout_watch = NAS_NIL;
+            }
+            NAS_CACHE_UNLOCK();
+            qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_APN_ATTCH_NONE);
+            qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                               qcril_req_info.t,
+                                               qcril_req_info.request,
+                                               RIL_E_SUCCESS, &resp );
+            qcril_send_request_response( &resp );
+        }
+    }
+}
+
+/*===========================================================================
+  qcril_qmi_nas_check_if_service_domain_has_ps
+============================================================================*/
+/*!
+    @brief
+    Check if service domain has PS
+
+    @return
+    TRUE or FALSE
+*/
+/*=========================================================================*/
+boolean qcril_qmi_nas_check_if_service_domain_has_ps
+(
+    void
+)
+{
+    boolean ret = FALSE;
+
+    if (NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.srv_domain_pref) &&
+        ((nas_cached_info.srv_domain_pref == QMI_SRV_DOMAIN_PREF_PS_ONLY_V01) ||
+        (nas_cached_info.srv_domain_pref == QMI_SRV_DOMAIN_PREF_CS_PS_V01)))
+    {
+        ret = TRUE;
+    }
+
+    return ret;
+}
+
+/*===========================================================================
  qcril_qmi_nas_check_initial_attach_state
 ============================================================================*/
 /*!
@@ -34151,6 +36601,7 @@ int qcril_qmi_nas_is_lte_ps_attached
 /*=========================================================================*/
 void qcril_qmi_nas_check_initial_attach_state
 (
+    uint8_t srv_domain_pref_valid,
     nas_srv_domain_pref_enum_type_v01 srv_domain_pref
 )
 {
@@ -34175,34 +36626,41 @@ void qcril_qmi_nas_check_initial_attach_state
                      srv_domain_pref, cur_init_attach_state);
     if (found_qcril_request)
     {
-        if ((QMI_RIL_NAS_INIT_APN_ATTCH_DETACH == qcril_qmi_nas_get_init_attch_state()) &&
-            ( (QMI_SRV_DOMAIN_PREF_CS_ONLY_V01 == srv_domain_pref) ||
-            (QCRIL_SRV_DOMAIN_PREF_NO_SRVC_DOMAIN_V01 == srv_domain_pref) ))
+        if ( (QMI_RIL_NAS_INIT_APN_ATTCH_DETACH == qcril_qmi_nas_get_init_attch_state()) &&
+             ( ( (TRUE == srv_domain_pref_valid) &&
+                 (QMI_SRV_DOMAIN_PREF_CS_ONLY_V01 == srv_domain_pref)
+               ) || (FALSE == srv_domain_pref_valid)
+             )
+           )
         {
             NAS_CACHE_LOCK();
             if (nas_cached_info.init_attch_timeout_watch)
             {
-                qcril_cancel_timed_callback((void*)nas_cached_info.init_attch_timeout_watch);
+                qcril_cancel_timed_callback((void*)(uintptr_t)nas_cached_info.init_attch_timeout_watch);
                 nas_cached_info.init_attch_timeout_watch = NAS_NIL;
             }
 
             NAS_CACHE_UNLOCK();
 
             qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH);
-            ril_req_res = qcril_qmi_nas_set_ps_service_domain(QMI_SRV_DOMAIN_PREF_PS_ATTACH_V01);
+            ril_req_res = qcril_qmi_nas_set_ps_service_domain(QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH);
             if (ril_req_res != RIL_E_SUCCESS)
             {
                 QCRIL_LOG_ERROR("NAS APN attach failed with error code %d", ril_req_res);
             }
         }
-        else if ((QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH == qcril_qmi_nas_get_init_attch_state()) &&
-                 ( (QMI_SRV_DOMAIN_PREF_CS_PS_V01 == srv_domain_pref) ||
-                   (QMI_SRV_DOMAIN_PREF_PS_ONLY_V01 == srv_domain_pref) ))
+        else if ( (QMI_RIL_NAS_INIT_APN_ATTCH_ATTACH == qcril_qmi_nas_get_init_attch_state()) &&
+                  ( (TRUE == srv_domain_pref_valid) &&
+                    ( (QMI_SRV_DOMAIN_PREF_CS_PS_V01 == srv_domain_pref) ||
+                      (QMI_SRV_DOMAIN_PREF_PS_ONLY_V01 == srv_domain_pref)
+                    )
+                  )
+                )
         {
             NAS_CACHE_LOCK();
             if (nas_cached_info.init_attch_timeout_watch)
             {
-                qcril_cancel_timed_callback((void*)nas_cached_info.init_attch_timeout_watch);
+                qcril_cancel_timed_callback((void*)(uintptr_t)nas_cached_info.init_attch_timeout_watch);
                 nas_cached_info.init_attch_timeout_watch = NAS_NIL;
             }
             NAS_CACHE_UNLOCK();
@@ -34259,12 +36717,13 @@ void qcril_qmi_nas_set_initial_attach_apn
     qcril_reqlist_public_type         qcril_req_info;
     qmi_client_error_type             qmi_error;
 
-    nas_get_sys_info_resp_msg_v01     qmi_get_sys_info_resp_msg  = {0};
+    nas_get_sys_info_resp_msg_v01     qmi_get_sys_info_resp_msg;
 
     QCRIL_LOG_FUNC_ENTRY();
 
     QCRIL_NOTUSED(ret_ptr);
 
+    memset (&qmi_get_sys_info_resp_msg, 0, sizeof(qmi_get_sys_info_resp_msg));
     if(NULL != params_ptr->data && params_ptr->datalen > QMI_RIL_ZERO )
     {
         do
@@ -34295,7 +36754,7 @@ void qcril_qmi_nas_set_initial_attach_apn
                 break;
             }
 
-            qmi_error = qmi_client_send_msg_sync(qcril_qmi_client_get_user_handle(QCRIL_QMI_CLIENT_NAS),
+            qmi_error = qmi_client_send_msg_sync_with_shm(qcril_qmi_client_get_user_handle(QCRIL_QMI_CLIENT_NAS),
                                                  QMI_NAS_GET_SYS_INFO_REQ_MSG_V01,
                                                  NULL,
                                                  0,
@@ -34314,7 +36773,7 @@ void qcril_qmi_nas_set_initial_attach_apn
                                                  &qmi_get_sys_info_resp_msg.lte_sys_info))
             {
                 qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_APN_ATTCH_DETACH);
-                res = qcril_qmi_nas_set_ps_service_domain(QMI_SRV_DOMAIN_PREF_PS_DETACH_V01);
+                res = qcril_qmi_nas_set_ps_service_domain(QMI_RIL_NAS_INIT_APN_ATTCH_DETACH);
                 if (res != RIL_E_SUCCESS)
                 {
                     QCRIL_LOG_ERROR("NAS APN detach failed with error code %d",res);
@@ -34449,7 +36908,7 @@ void qcril_qmi_nas_cancel_sys_sel_pref_tmr()
 
             qcril_send_request_response( &resp );
         }
-        qcril_cancel_timed_callback((void *)nas_cached_info.sys_sel_pref_tmr);
+        qcril_cancel_timed_callback((void *)(intptr_t)nas_cached_info.sys_sel_pref_tmr);
         nas_cached_info.sys_sel_pref_tmr = NAS_ZERO;
     }
     NAS_CACHE_UNLOCK();
@@ -34476,4 +36935,420 @@ RIL_Errno qcril_qmi_nas_mode_pref_request_response_helper(const qcril_request_pa
     }
     NAS_CACHE_UNLOCK();
     return ril_req_res;
+}
+
+/*=========================================================================
+ qcril_qmi_nas_request_allow_data
+============================================================================*/
+/*!
+    @brief
+    Processes RIL_REQUEST_ALLOW_DATA
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_request_allow_data
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+  RIL_Errno res = RIL_E_SUCCESS;
+  qcril_request_resp_params_type    resp;
+  qcril_reqlist_public_type             qcril_req_info;
+  int do_ps_attach;
+  int send_resp_to_atel = FALSE;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  QCRIL_NOTUSED(ret_ptr);
+
+  if(NULL != params_ptr->data && params_ptr->datalen > QMI_RIL_ZERO )
+  {
+    do
+    {
+      qcril_reqlist_default_entry( params_ptr->t,
+                                         params_ptr->event_id,
+                                         QCRIL_DEFAULT_MODEM_ID,
+                                         QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS,
+                                         QCRIL_EVT_QMI_REQUEST_ALLOW_DATA,
+                                         NULL,
+                                         &qcril_req_info );
+      if (qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &qcril_req_info ) != E_SUCCESS)
+      {
+        res = RIL_E_GENERIC_FAILURE;
+        break;
+      }
+
+      do_ps_attach = *((int*)params_ptr->data);
+
+      QCRIL_LOG_INFO("allow_data %d", do_ps_attach);
+
+      if (TRUE == do_ps_attach)
+      {
+        qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ATTACH);
+        qcril_qmi_fetch_system_selection_preference();
+
+        // DDS switch request
+        if (qmi_ril_is_multi_sim_feature_supported() &&
+              ((nas_common_info.dsds.is_default_data_set == FALSE) ||
+               ((nas_common_info.dsds.is_default_data_set == TRUE ) &&
+               (nas_common_info.dsds.default_data_instance_id == qmi_ril_get_process_instance_id()))))
+        {
+          if (qcril_qmi_nas_check_if_service_domain_has_ps())
+          {
+            qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_APN_ATTCH_NONE);
+          }
+
+          res = qcril_qmi_nas_send_data_subscription_request();
+          QCRIL_LOG_ESSENTIAL("Set data subscription request sent.. res %d", res);
+        }
+        // Return SUCCESS for regular PS attach or on demand ps attach request if already attached.
+        else if (qcril_qmi_nas_check_if_service_domain_has_ps() &&
+                 !qcril_qmi_nas_is_using_rte(QMI_RIL_RTE_1x, QMI_RIL_RTE_KIND_DATA))
+        {
+          QCRIL_LOG_ESSENTIAL("Already PS attached!");
+          send_resp_to_atel = TRUE;
+          res = RIL_E_SUCCESS;
+        }
+        else
+        {
+          //Data+MMS
+          if (qmi_ril_is_multi_sim_feature_supported())
+          {
+            if (qcril_qmi_nas_check_if_service_domain_has_ps() &&
+                qcril_qmi_nas_is_using_rte(QMI_RIL_RTE_1x, QMI_RIL_RTE_KIND_DATA))
+            {
+              QCRIL_LOG_ESSENTIAL("On demand PS attach with 1x in service!");
+              qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_WAIT_FOR_RAT_EXP);
+            }
+            else
+            {
+              QCRIL_LOG_ESSENTIAL("On demand PS attach!");
+              qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH);
+            }
+
+            res = qcril_qmi_nas_set_ps_service_domain(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ON_DEMAND_ATTACH);
+          }
+          // SS: Send PS attach request.
+          else
+          {
+            QCRIL_LOG_ESSENTIAL("PS attach!");
+            res = qcril_qmi_nas_set_ps_service_domain(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_ATTACH);
+          }
+        }
+      }
+      else
+      {
+        if ((!NAS_CACHE_IS_ENTRY_VALID(nas_cached_info.srv_domain_pref)) ||
+            ( nas_cached_info.srv_domain_pref == QMI_SRV_DOMAIN_PREF_CS_ONLY_V01 ))
+        {
+          QCRIL_LOG_ESSENTIAL("Already PS detached!");
+          send_resp_to_atel = TRUE;
+          res = RIL_E_SUCCESS;
+        }
+        else
+        {
+          QCRIL_LOG_ESSENTIAL("PS detach!");
+          qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_DETACH);
+          res = qcril_qmi_nas_set_ps_service_domain(QMI_RIL_NAS_INIT_ALLOW_DATA_ATTCH_DETACH);
+        }
+      }
+    } while (0);
+  }
+  else
+  {
+    res = RIL_E_GENERIC_FAILURE;
+  }
+  if ((res != RIL_E_SUCCESS) || (send_resp_to_atel == TRUE))
+  {
+    QCRIL_LOG_ESSENTIAL("PS ATTACH/DETACH resp %d", res);
+    qcril_qmi_nas_set_init_attch_state(QMI_RIL_NAS_INIT_APN_ATTCH_NONE);
+    qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                           params_ptr->t,
+                                           params_ptr->event_id,
+                                           res,
+                                           &resp );
+    qcril_send_request_response( &resp );
+  }
+}
+
+/*===========================================================================
+  qcril_qmi_nas_modem_power_ril_resumed
+============================================================================*/
+void qcril_qmi_nas_modem_power_ril_resumed()
+{
+    QCRIL_LOG_FUNC_ENTRY();
+    RADIO_POWER_LOCK();
+    if (nas_common_info.modem_power_info.radio_power_process_pending)
+    {
+        RADIO_POWER_SIGNAL();
+        nas_common_info.modem_power_info.radio_power_process_pending = FALSE;
+        QCRIL_LOG_INFO("Modem power signalled");
+    }
+    RADIO_POWER_UNLOCK();
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*===========================================================================
+  qcril_qmi_nas_modem_power_is_mdm_shdn_in_apm
+============================================================================*/
+boolean qcril_qmi_nas_modem_power_is_mdm_shdn_in_apm()
+{
+    boolean ret = FALSE;
+    boolean apm_mdm_not_pwdn = FALSE;
+    boolean apm_sim_not_pwdn = FALSE;
+    apm_mdm_not_pwdn = nas_common_info.modem_power_info.apm_mdm_not_pwdn;
+    apm_sim_not_pwdn = nas_common_info.apm_sim_not_pwdn;
+    if (!apm_sim_not_pwdn && !apm_mdm_not_pwdn && qcril_qmi_modem_power_is_voting_feature_supported())
+        ret = TRUE;
+
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(ret);
+    return ret;
+}
+
+/*===========================================================================
+  qcril_qmi_nas_modem_power_load_apm_mdm_not_pwdn
+============================================================================*/
+void qcril_qmi_nas_modem_power_load_apm_mdm_not_pwdn()
+{
+    nas_common_info.modem_power_info.apm_mdm_not_pwdn = FALSE;
+    qmi_ril_get_property_value_from_integer(QCRIL_APM_MDM_NOT_PWDN,
+                                            &nas_common_info.modem_power_info.apm_mdm_not_pwdn,
+                                            NAS_NIL);
+    QCRIL_LOG_INFO ("QCRIL_APM_MDM_NOT_PWDN=%d", nas_common_info.modem_power_info.apm_mdm_not_pwdn);
+}
+
+/*===========================================================================
+
+  FUNCTION:  qcril_qmi_nas_set_is_data_enabled
+
+===========================================================================*/
+/*!
+    @brief
+    set if data is enabled by the user
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_set_is_data_enabled
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type       *const ret_ptr
+)
+{
+    qcril_request_resp_params_type resp;
+    boolean                        is_data_enabled;
+    RIL_Errno                      ril_req_res = RIL_E_GENERIC_FAILURE;
+
+    QCRIL_NOTUSED( ret_ptr );
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    if ((params_ptr->datalen > 0) && (params_ptr->data != NULL))
+    {
+        is_data_enabled = *((uint8_t *)params_ptr->data);
+        QCRIL_LOG_DEBUG("is data enabled %d", is_data_enabled);
+#ifndef QMI_RIL_UTF
+      ril_req_res = qcril_data_set_is_data_enabled(is_data_enabled);
+#endif
+    }
+
+    qcril_default_request_resp_params(QCRIL_DEFAULT_INSTANCE_ID,
+                                      params_ptr->t,
+                                      params_ptr->event_id,
+                                      ril_req_res, &resp);
+    qcril_send_request_response(&resp);
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*===========================================================================
+
+  FUNCTION:  qcril_qmi_nas_set_is_data_roaming_enabled
+
+===========================================================================*/
+/*!
+    @brief
+    set if data roaming is enabled by the user
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_set_is_data_roaming_enabled
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type       *const ret_ptr
+)
+{
+    qcril_request_resp_params_type resp;
+    boolean                        is_data_roaming_enabled;
+    RIL_Errno                      ril_req_res = RIL_E_GENERIC_FAILURE;
+
+    QCRIL_NOTUSED( ret_ptr );
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    if ((params_ptr->datalen > 0) && (params_ptr->data != NULL))
+    {
+        is_data_roaming_enabled = *((uint8_t *)params_ptr->data);
+        QCRIL_LOG_DEBUG("is data roaming enabled %d", is_data_roaming_enabled);
+#ifndef QMI_RIL_UTF
+      ril_req_res = qcril_data_set_is_data_roaming_enabled(is_data_roaming_enabled);
+#endif
+    }
+
+    qcril_default_request_resp_params(QCRIL_DEFAULT_INSTANCE_ID,
+                                      params_ptr->t,
+                                      params_ptr->event_id,
+                                      ril_req_res, &resp);
+    qcril_send_request_response(&resp);
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*===========================================================================
+
+  FUNCTION:  qcril_qmi_nas_set_apn_info
+
+===========================================================================*/
+/*!
+    @brief
+    set apn info
+
+    @return
+    void
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_set_apn_info
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type       *const ret_ptr
+)
+{
+    qcril_request_resp_params_type resp;
+    qcril_qmi_oem_evt_hook_set_set_apn_info_type apn_info = {0};
+    RIL_Errno                      ril_req_res = RIL_E_GENERIC_FAILURE;
+
+#define QCRIL_OEM_EVT_APN_INFO_MIN_LEN (8)
+
+    QCRIL_NOTUSED( ret_ptr );
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    do {
+        if ((params_ptr->datalen > QCRIL_OEM_EVT_APN_INFO_MIN_LEN) &&
+            (params_ptr->data != NULL))
+        {
+            /* retrieve apn type length */
+            apn_info.apn_type_len = *((uint32_t *)params_ptr->data);
+
+            /* retrieve apn type */
+            apn_info.apn_type     = (((uint8_t *)params_ptr->data) +
+                                                  sizeof(apn_info.apn_type_len));
+            if (params_ptr->datalen <
+                    (QCRIL_OEM_EVT_APN_INFO_MIN_LEN + apn_info.apn_type_len))
+            {
+                QCRIL_LOG_DEBUG("data len and data does not match;"
+                                "datalen: %d, apn_type_len: %d",
+                                params_ptr->datalen, apn_info.apn_type_len);
+                ril_req_res = RIL_E_GENERIC_FAILURE;
+                break;
+            }
+
+            /* retrieve apn name length */
+            apn_info.apn_name_len = *(uint32_t *)(((uint8_t *)params_ptr->data) +
+                                                  sizeof(apn_info.apn_type_len)+
+                                                  apn_info.apn_type_len);
+
+            if (params_ptr->datalen !=
+                    (QCRIL_OEM_EVT_APN_INFO_MIN_LEN +
+                     apn_info.apn_type_len +
+                     apn_info.apn_name_len))
+            {
+                QCRIL_LOG_DEBUG("data len and data does not match;"
+                                "datalen: %d, apn_type_len: %d, apn_name_len: %d",
+                                params_ptr->datalen, apn_info.apn_type_len,
+                                apn_info.apn_name_len);
+
+                ril_req_res = RIL_E_GENERIC_FAILURE;
+                break;
+            }
+
+            /* retrieve apn name */
+            apn_info.apn_name     = (((uint8_t *)params_ptr->data) +
+                                                  sizeof(apn_info.apn_type_len)+
+                                                  apn_info.apn_type_len) +
+                                                  sizeof(apn_info.apn_name_len);
+
+#ifndef QMI_RIL_UTF
+            ril_req_res = qcril_data_set_apn_info(apn_info.apn_type,
+                                    apn_info.apn_name);
+#endif
+
+        }
+    } while(0);
+
+    qcril_default_request_resp_params(QCRIL_DEFAULT_INSTANCE_ID,
+                                      params_ptr->t,
+                                      params_ptr->event_id,
+                                      ril_req_res, &resp);
+    qcril_send_request_response(&resp);
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*===========================================================================
+
+    qcril_uim_process_mcc_mnc_info
+
+============================================================================*/
+/*!
+    @brief
+    Process mcc mnc info
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_process_mcc_mnc_info
+(
+    const qcril_request_params_type *const params_ptr,
+    qcril_request_return_type       *const ret_ptr
+)
+{
+    qcril_mcc_mnc_info_type *uim_mcc_mnc_info = NULL;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    do {
+        if ((params_ptr == NULL) || (ret_ptr == NULL))
+        {
+            QCRIL_LOG_ERROR("%s", "Invalid input, cannot process request");
+            break;
+        }
+
+        uim_mcc_mnc_info = (qcril_mcc_mnc_info_type*)params_ptr->data;
+        if (uim_mcc_mnc_info == NULL)
+        {
+            QCRIL_LOG_ERROR("%s", "null uim_mcc_mnc_info");
+            break;
+        }
+
+        if (uim_mcc_mnc_info->err_code != RIL_E_SUCCESS)
+        {
+            QCRIL_LOG_ERROR("%s", "uim_mcc_mnc_info error %d", uim_mcc_mnc_info->err_code);
+            break;
+        }
+
+        QCRIL_LOG_DEBUG("mcc: %s, mnc: %s", uim_mcc_mnc_info->mcc,
+                                            uim_mcc_mnc_info->mnc);
+
+        qcril_qmi_nas_update_sim_mcc_mnc(TRUE,
+                                         uim_mcc_mnc_info->mcc,
+                                         uim_mcc_mnc_info->mnc);
+
+    } while (0);
+
+    QCRIL_LOG_FUNC_RETURN();
 }

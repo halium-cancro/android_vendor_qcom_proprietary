@@ -14,7 +14,7 @@
   $Header: $
   $DateTime: $
   ---------------------------------------------------------------------------
-  Copyright (c) 2007 - 2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2007 - 2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -74,6 +74,20 @@ extern "C" {
 #define QMI_PORT_RMNET_USB_6 "rmnet_usb6"
 #define QMI_PORT_RMNET_USB_7 "rmnet_usb7"
 
+/* MHI */
+#define QMI_PORT_RMNET_MHI_0 "rmnet_mhi0"
+#define QMI_PORT_RMNET_MHI_1 "rmnet_mhi1"
+
+/* data */
+#define QMI_PORT_RMNET_DATA_0 "rmnet_data0"
+#define QMI_PORT_RMNET_DATA_1 "rmnet_data1"
+#define QMI_PORT_RMNET_DATA_2 "rmnet_data2"
+#define QMI_PORT_RMNET_DATA_3 "rmnet_data3"
+#define QMI_PORT_RMNET_DATA_4 "rmnet_data4"
+#define QMI_PORT_RMNET_DATA_5 "rmnet_data5"
+#define QMI_PORT_RMNET_DATA_6 "rmnet_data6"
+#define QMI_PORT_RMNET_DATA_7 "rmnet_data7"
+
 /* reverse rmnet_usb ports */
 #define QMI_PORT_REV_RMNET_USB_0 "rev_rmnet_usb0"
 #define QMI_PORT_REV_RMNET_USB_1 "rev_rmnet_usb1"
@@ -84,6 +98,17 @@ extern "C" {
 #define QMI_PORT_REV_RMNET_USB_6 "rev_rmnet_usb6"
 #define QMI_PORT_REV_RMNET_USB_7 "rev_rmnet_usb7"
 #define QMI_PORT_REV_RMNET_USB_8 "rev_rmnet_usb8"
+
+/* reverse rmnet_data ports*/
+#define QMI_PORT_REV_RMNET_DATA_0 "r_rmnet_data0"
+#define QMI_PORT_REV_RMNET_DATA_1 "r_rmnet_data1"
+#define QMI_PORT_REV_RMNET_DATA_2 "r_rmnet_data2"
+#define QMI_PORT_REV_RMNET_DATA_3 "r_rmnet_data3"
+#define QMI_PORT_REV_RMNET_DATA_4 "r_rmnet_data4"
+#define QMI_PORT_REV_RMNET_DATA_5 "r_rmnet_data5"
+#define QMI_PORT_REV_RMNET_DATA_6 "r_rmnet_data6"
+#define QMI_PORT_REV_RMNET_DATA_7 "r_rmnet_data7"
+#define QMI_PORT_REV_RMNET_DATA_8 "r_rmnet_data8"
 
 /* smux */
 #define QMI_PORT_RMNET_SMUX_0 "rmnet_smux0"
@@ -97,6 +122,9 @@ extern "C" {
 #define QMI_PORT_RMNET2_USB_5 "rmnet2_usb5"
 #define QMI_PORT_RMNET2_USB_6 "rmnet2_usb6"
 #define QMI_PORT_RMNET2_USB_7 "rmnet2_usb7"
+
+/* IPA */
+#define QMI_PORT_RMNET_IPA_0  "rmnet_ipa0"
 
 /* Virtual port */
 #define QMI_PORT_PROXY        "qmi_proxy"

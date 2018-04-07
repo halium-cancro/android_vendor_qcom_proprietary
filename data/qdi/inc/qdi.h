@@ -10,7 +10,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2011,2012 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2011-2012,2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -98,7 +98,7 @@ typedef void (*qdi_wds_user_async_cb_type)
 @brief
   This function is called to initialize the QDI library.  This function
   must be called prior to calling any other QDI functions.
- 
+
 @return
   QDI_SUCCESS if the operation was sucessful
   QDI_FAILURE otherwise
@@ -115,7 +115,7 @@ qdi_init (void);
 /*!
 @brief
   This function is called to deinitialize the QDI library.
- 
+
 @return
   QDI_SUCCESS if the operation was sucessful
   QDI_FAILURE otherwise
@@ -133,9 +133,9 @@ qdi_release (void);
 @brief
   This function is called to initialize the QDI service.  This function
   must be called prior to calling any other QDI service functions.
- 
+
 @return
-  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is 
+  QMI_NO_ERR if the operation was sucessful, < 0 if not. If return code is
   QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
@@ -147,6 +147,7 @@ qdi_release (void);
 qdi_client_handle_t
 qdi_wds_srvc_init_client
 (
+  const char                    *wds_id,
   const char                    *dev_id,
   qmi_wds_indication_hdlr_type  user_ind_msg_hdlr,
   void                          *user_ind_msg_hdlr_user_data,
@@ -158,7 +159,7 @@ qdi_wds_srvc_init_client
 ===========================================================================*/
 /*!
 @brief
-  This function is called to release a client created by the 
+  This function is called to release a client created by the
   qdi_wds_srvc_init_client() function.
 
 @return
@@ -223,23 +224,23 @@ qdi_release_call_handle
   FUNCTION  qdi_wds_start_nw_if
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is used to bring up a data call. Call profile parameters are
   specified in the params parameter.
-  
+
   The result of this call is reported asynchronously via the user_cb
   callback function.
-  
-@return 
+
+@return
   If the return code < 0, the operation failed and there won't be an
   asynchronous response.  If the operation doesn't fail
-  (return code >=0), the returned value will be a transaction handle which 
+  (return code >=0), the returned value will be a transaction handle which
   can be used to cancel the transaction via the qdi_wds_abort() command.
 
 @note
   - Dependencies
     - qdi_wds_srvc_init_client() must be called before calling this.
-*/    
+*/
 /*=========================================================================*/
 int
 qdi_wds_start_nw_if
@@ -250,6 +251,7 @@ qdi_wds_start_nw_if
   boolean                          partial_retry,
   qdi_wds_user_async_cb_type       user_cb,
   void                             *user_data,
+  int                              rl_qmi_inst,
   qmi_wds_call_end_reason_type     *call_end_reason_resp,
   int                              *qmi_err_code
 );
@@ -261,17 +263,17 @@ qdi_wds_start_nw_if
 @brief
   This function is used to bring down a data call. The result of this call is
   reported asynchronously via the user_cb callback function.
-  
-@return 
+
+@return
   If the return code < 0, the operation failed and there won't be an
   asynchronous response.  If the operation doesn't fail
-  (return code >=0), the returned value will be a transaction handle which 
+  (return code >=0), the returned value will be a transaction handle which
   can be used to cancel the transaction via the qdi_wds_abort() command.
 
 @note
   - Dependencies
     - qdi_wds_srvc_init_client() must be called before calling this.
-*/    
+*/
 /*=========================================================================*/
 int
 qdi_wds_stop_nw_if
@@ -288,20 +290,20 @@ qdi_wds_stop_nw_if
 ===========================================================================*/
 /*!
 @brief
-  Aborts an asynchronous QDI operation. If the user_cb function pointer is 
-  set to NULL, then this function will be invoked synchronously, otherwise 
+  Aborts an asynchronous QDI operation. If the user_cb function pointer is
+  set to NULL, then this function will be invoked synchronously, otherwise
   it will be invoked asynchronously.  The txn_handle parameter is the
   return code returned from any other asynchronous WDS call.  Note that
-  synchronous API calls cannot be aborted.  
- 
+  synchronous API calls cannot be aborted.
+
 @return
   0 if abort operation was sucessful, < 0 if not.  In the case where the
-  abort is successful, an asychronous reply to the aborted command will NOT 
-  be returned, otherwise, it will.  If return code is 
+  abort is successful, an asychronous reply to the aborted command will NOT
+  be returned, otherwise, it will.  If return code is
   QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error.  Note that asynchronous abort commands cannot
   themselves be aborted.
-    
+
 @note
   - Dependencies
     - qdi_wds_srvc_init_client() must be called before calling this.
@@ -323,10 +325,10 @@ int qdi_wds_abort
 /*!
 @brief
   This function returns the QMI-WDS handle corresponding to the QDI handle
- 
+
 @return
   QMI_INTERNAL_ERR on error or the corresponding QMI handle
-    
+
 @note
   - Dependencies
     - qdi_wds_srvc_init_client() must be called before calling this.

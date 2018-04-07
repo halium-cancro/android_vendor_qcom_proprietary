@@ -26,7 +26,7 @@
   uint8_t test_opaque[16];
 
   If only 4 elements are added to test_opaque[] then test_opaque_len must be
-  set to 4 before sending the message.  When decoding, the _len value is set
+  set to 4 before sending the message.  When decoding, the _len value is set 
   by the decode routine and should be checked so that the correct number of
   elements in the array will be accessed.
 
@@ -37,14 +37,14 @@
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/nas/main/latest/api/network_access_service_v01.h#124 $
+  $Header: //source/qcom/qct/interfaces/qmi/nas/main/latest/api/network_access_service_v01.h#141 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
-/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7
-   It was generated on: Wed Mar 26 2014 (Spin 0)
+/* This file was generated with Tool version 6.13 
+   It was generated on: Tue Sep 23 2014 (Spin 0)
    From IDL File: network_access_service_v01.idl */
 
 /** @defgroup nas_qmi_consts Constant values defined in the IDL */
@@ -71,21 +71,21 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define NAS_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define NAS_V01_IDL_MINOR_VERS 0x71
+#define NAS_V01_IDL_MINOR_VERS 0x7E
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define NAS_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define NAS_V01_MAX_MESSAGE_ID 0x0092
+#define NAS_V01_MAX_MESSAGE_ID 0x009E
 /**
     @}
   */
 
 
-/** @addtogroup nas_qmi_consts
-    @{
+/** @addtogroup nas_qmi_consts 
+    @{ 
   */
 
-/**
+/** 
 
  Constants used for various array max lengths */
 #define NAS_SIG_STRENGTH_LIST_MAX_V01 2
@@ -203,6 +203,7 @@ extern "C" {
 #define NAS_UMTS_LTE_MAX_NBR_CELL_SET_NUM_V01 32
 #define NAS_UMTS_MAX_ACTIVE_CELL_SET_NUM_V01 10
 #define NAS_SPN_LEN_MAX_V01 16
+#define NAS_SPN_EXT_LEN_MAX_V01 64
 #define NAS_MAX_SVC_STAT_V01 10
 #define NAS_MAX_SVC_DOMAIN_V01 10
 #define NAS_MAX_SVC_CAPA_V01 10
@@ -262,7 +263,7 @@ typedef enum {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_reset_req_msg_v01;
@@ -327,10 +328,10 @@ typedef struct {
 
   uint32_t report_signal_strength_threshold_list_len;  /**< Must be set to # of elements in report_signal_strength_threshold_list */
   int8_t report_signal_strength_threshold_list[NAS_SIG_STRENGTH_THRESHOLD_LIST_MAX_V01];
-  /**<   A sequence of thresholds delimiting signal strength Var bands.
+  /**<   A sequence of thresholds delimiting signal strength Var bands. 
        Each threshold specifies the signal strength (in dBm) at which
        an event report indication, including the current signal
-       strength, will be sent to the requesting control point.
+       strength, will be sent to the requesting control point. 
        Threshold is a signed 1 byte value. Valid values: -128 dBm
        to +127 dBm.
   */
@@ -439,7 +440,7 @@ typedef struct {
 
   uint8_t rsrq_delta;
   /**<   RSRQ delta level at which an event report indication, including the
-      current RSRQ, will be sent to the requesting control point.
+      current RSRQ, will be sent to the requesting control point. 
       RSRQ delta level is an unsigned 1 byte value.
   */
 }nas_rsrq_indicator_type_v01;  /* Type */
@@ -460,7 +461,7 @@ typedef struct {
 
   uint32_t threshold_list_len;  /**< Must be set to # of elements in threshold_list */
   int16_t threshold_list[NAS_ECIO_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       A sequence of thresholds delimiting ECIO event reporting bands.
       Every time a new ECIO value crosses a threshold value, an event
       report indication message with the new ECIO value is sent to the
@@ -489,7 +490,7 @@ typedef struct {
   /*  sinr threshold list */
   uint32_t threshold_list_len;  /**< Must be set to # of elements in threshold_list */
   uint8_t threshold_list[NAS_SINR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
    A sequence of thresholds delimiting SINR event reporting bands.
    Every time a new SINR value crosses a threshold value, an event
    report indication message with the new SINR value is sent to the
@@ -517,7 +518,7 @@ typedef struct {
 
   uint8_t lte_rsrp_delta;
   /**<   LTE RSRP delta level at which an event report indication, including the
-       current RSRP, will be sent to the requesting control point. LTE RSRP
+       current RSRP, will be sent to the requesting control point. LTE RSRP 
        delta level is an unsigned 1 byte value, representing the delta in dB.
   */
 }nas_rsrp_indicator_type_v01;  /* Type */
@@ -538,8 +539,8 @@ typedef struct {
 
   uint16_t lte_snr_delta;
   /**<   LTE SNR delta level at which an event report indication, including the
-       current SNR, will be sent to the requesting control point. LTE SNR delta
-       level is an unsigned 2 byte value, representing the delta in units
+       current SNR, will be sent to the requesting control point. LTE SNR delta 
+       level is an unsigned 2 byte value, representing the delta in units 
        of 0.1 dB, e.g., lte_snr_delta of 3 means a change 0.3 dB.
   */
 }nas_snr_indicator_type_v01;  /* Type */
@@ -688,10 +689,10 @@ typedef struct {
   nas_radio_if_enum_v01 radio_if;
   /**<   Radio interface technology of the signal being measured. Values: \n
        -0x00 -- RADIO_IF_NO_SVC      -- None (no service) \n
-       -0x01 -- RADIO_IF_CDMA_1X     --
+       -0x01 -- RADIO_IF_CDMA_1X     -- 
         cdma2000\textsuperscript{\textregistered} 1X             \n
-       -0x02 -- RADIO_IF_CDMA_1XEVDO --
-        cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
+       -0x02 -- RADIO_IF_CDMA_1XEVDO -- 
+        cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n 
        -0x03 -- RADIO_IF_AMPS        -- AMPS \n
        -0x04 -- RADIO_IF_GSM         -- GSM \n
        -0x05 -- RADIO_IF_UMTS        -- UMTS \n
@@ -707,85 +708,85 @@ typedef struct {
   */
 typedef enum {
   NAS_ACTIVE_BAND_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_ACTIVE_BAND_BC_0_V01 = 0,
-  NAS_ACTIVE_BAND_BC_1_V01 = 1,
-  NAS_ACTIVE_BAND_BC_3_V01 = 3,
-  NAS_ACTIVE_BAND_BC_4_V01 = 4,
-  NAS_ACTIVE_BAND_BC_5_V01 = 5,
-  NAS_ACTIVE_BAND_BC_6_V01 = 6,
-  NAS_ACTIVE_BAND_BC_7_V01 = 7,
-  NAS_ACTIVE_BAND_BC_8_V01 = 8,
-  NAS_ACTIVE_BAND_BC_9_V01 = 9,
-  NAS_ACTIVE_BAND_BC_10_V01 = 10,
-  NAS_ACTIVE_BAND_BC_11_V01 = 11,
-  NAS_ACTIVE_BAND_BC_12_V01 = 12,
-  NAS_ACTIVE_BAND_BC_13_V01 = 13,
-  NAS_ACTIVE_BAND_BC_14_V01 = 14,
-  NAS_ACTIVE_BAND_BC_15_V01 = 15,
-  NAS_ACTIVE_BAND_BC_16_V01 = 16,
-  NAS_ACTIVE_BAND_BC_17_V01 = 17,
-  NAS_ACTIVE_BAND_BC_18_V01 = 18,
-  NAS_ACTIVE_BAND_BC_19_V01 = 19,
-  NAS_ACTIVE_BAND_GSM_450_V01 = 40,
-  NAS_ACTIVE_BAND_GSM_480_V01 = 41,
-  NAS_ACTIVE_BAND_GSM_750_V01 = 42,
-  NAS_ACTIVE_BAND_GSM_850_V01 = 43,
-  NAS_ACTIVE_BAND_GSM_900_EXTENDED_V01 = 44,
-  NAS_ACTIVE_BAND_GSM_900_PRIMARY_V01 = 45,
-  NAS_ACTIVE_BAND_GSM_900_RAILWAYS_V01 = 46,
-  NAS_ACTIVE_BAND_GSM_1800_V01 = 47,
-  NAS_ACTIVE_BAND_GSM_1900_V01 = 48,
-  NAS_ACTIVE_BAND_WCDMA_2100_V01 = 80,
-  NAS_ACTIVE_BAND_WCDMA_PCS_1900_V01 = 81,
-  NAS_ACTIVE_BAND_WCDMA_DCS_1800_V01 = 82,
-  NAS_ACTIVE_BAND_WCDMA_1700_US_V01 = 83,
-  NAS_ACTIVE_BAND_WCDMA_850_V01 = 84,
-  NAS_ACTIVE_BAND_WCDMA_800_V01 = 85,
-  NAS_ACTIVE_BAND_WCDMA_2600_V01 = 86,
-  NAS_ACTIVE_BAND_WCDMA_900_V01 = 87,
-  NAS_ACTIVE_BAND_WCDMA_1700_JAPAN_V01 = 88,
-  NAS_ACTIVE_BAND_WCDMA_1500_JAPAN_V01 = 90,
-  NAS_ACTIVE_BAND_WCDMA_850_JAPAN_V01 = 91,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_1_V01 = 120,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_2_V01 = 121,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_3_V01 = 122,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_4_V01 = 123,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_5_V01 = 124,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_6_V01 = 125,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_7_V01 = 126,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_8_V01 = 127,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_9_V01 = 128,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_10_V01 = 129,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_11_V01 = 130,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_12_V01 = 131,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_13_V01 = 132,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_14_V01 = 133,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_17_V01 = 134,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_33_V01 = 135,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_34_V01 = 136,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_35_V01 = 137,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_36_V01 = 138,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_37_V01 = 139,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_38_V01 = 140,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_39_V01 = 141,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_40_V01 = 142,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_18_V01 = 143,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_19_V01 = 144,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_20_V01 = 145,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_21_V01 = 146,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_24_V01 = 147,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_25_V01 = 148,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_41_V01 = 149,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_42_V01 = 150,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_43_V01 = 151,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_23_V01 = 152,
-  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_26_V01 = 153,
-  NAS_ACTIVE_BAND_TDSCDMA_BAND_A_V01 = 200,
-  NAS_ACTIVE_BAND_TDSCDMA_BAND_B_V01 = 201,
-  NAS_ACTIVE_BAND_TDSCDMA_BAND_C_V01 = 202,
-  NAS_ACTIVE_BAND_TDSCDMA_BAND_D_V01 = 203,
-  NAS_ACTIVE_BAND_TDSCDMA_BAND_E_V01 = 204,
-  NAS_ACTIVE_BAND_TDSCDMA_BAND_F_V01 = 205,
+  NAS_ACTIVE_BAND_BC_0_V01 = 0, 
+  NAS_ACTIVE_BAND_BC_1_V01 = 1, 
+  NAS_ACTIVE_BAND_BC_3_V01 = 3, 
+  NAS_ACTIVE_BAND_BC_4_V01 = 4, 
+  NAS_ACTIVE_BAND_BC_5_V01 = 5, 
+  NAS_ACTIVE_BAND_BC_6_V01 = 6, 
+  NAS_ACTIVE_BAND_BC_7_V01 = 7, 
+  NAS_ACTIVE_BAND_BC_8_V01 = 8, 
+  NAS_ACTIVE_BAND_BC_9_V01 = 9, 
+  NAS_ACTIVE_BAND_BC_10_V01 = 10, 
+  NAS_ACTIVE_BAND_BC_11_V01 = 11, 
+  NAS_ACTIVE_BAND_BC_12_V01 = 12, 
+  NAS_ACTIVE_BAND_BC_13_V01 = 13, 
+  NAS_ACTIVE_BAND_BC_14_V01 = 14, 
+  NAS_ACTIVE_BAND_BC_15_V01 = 15, 
+  NAS_ACTIVE_BAND_BC_16_V01 = 16, 
+  NAS_ACTIVE_BAND_BC_17_V01 = 17, 
+  NAS_ACTIVE_BAND_BC_18_V01 = 18, 
+  NAS_ACTIVE_BAND_BC_19_V01 = 19, 
+  NAS_ACTIVE_BAND_GSM_450_V01 = 40, 
+  NAS_ACTIVE_BAND_GSM_480_V01 = 41, 
+  NAS_ACTIVE_BAND_GSM_750_V01 = 42, 
+  NAS_ACTIVE_BAND_GSM_850_V01 = 43, 
+  NAS_ACTIVE_BAND_GSM_900_EXTENDED_V01 = 44, 
+  NAS_ACTIVE_BAND_GSM_900_PRIMARY_V01 = 45, 
+  NAS_ACTIVE_BAND_GSM_900_RAILWAYS_V01 = 46, 
+  NAS_ACTIVE_BAND_GSM_1800_V01 = 47, 
+  NAS_ACTIVE_BAND_GSM_1900_V01 = 48, 
+  NAS_ACTIVE_BAND_WCDMA_2100_V01 = 80, 
+  NAS_ACTIVE_BAND_WCDMA_PCS_1900_V01 = 81, 
+  NAS_ACTIVE_BAND_WCDMA_DCS_1800_V01 = 82, 
+  NAS_ACTIVE_BAND_WCDMA_1700_US_V01 = 83, 
+  NAS_ACTIVE_BAND_WCDMA_850_V01 = 84, 
+  NAS_ACTIVE_BAND_WCDMA_800_V01 = 85, 
+  NAS_ACTIVE_BAND_WCDMA_2600_V01 = 86, 
+  NAS_ACTIVE_BAND_WCDMA_900_V01 = 87, 
+  NAS_ACTIVE_BAND_WCDMA_1700_JAPAN_V01 = 88, 
+  NAS_ACTIVE_BAND_WCDMA_1500_JAPAN_V01 = 90, 
+  NAS_ACTIVE_BAND_WCDMA_850_JAPAN_V01 = 91, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_1_V01 = 120, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_2_V01 = 121, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_3_V01 = 122, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_4_V01 = 123, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_5_V01 = 124, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_6_V01 = 125, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_7_V01 = 126, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_8_V01 = 127, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_9_V01 = 128, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_10_V01 = 129, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_11_V01 = 130, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_12_V01 = 131, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_13_V01 = 132, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_14_V01 = 133, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_17_V01 = 134, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_33_V01 = 135, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_34_V01 = 136, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_35_V01 = 137, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_36_V01 = 138, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_37_V01 = 139, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_38_V01 = 140, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_39_V01 = 141, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_40_V01 = 142, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_18_V01 = 143, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_19_V01 = 144, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_20_V01 = 145, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_21_V01 = 146, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_24_V01 = 147, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_25_V01 = 148, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_41_V01 = 149, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_42_V01 = 150, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_43_V01 = 151, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_23_V01 = 152, 
+  NAS_ACTIVE_BAND_E_UTRA_OPERATING_BAND_26_V01 = 153, 
+  NAS_ACTIVE_BAND_TDSCDMA_BAND_A_V01 = 200, 
+  NAS_ACTIVE_BAND_TDSCDMA_BAND_B_V01 = 201, 
+  NAS_ACTIVE_BAND_TDSCDMA_BAND_C_V01 = 202, 
+  NAS_ACTIVE_BAND_TDSCDMA_BAND_D_V01 = 203, 
+  NAS_ACTIVE_BAND_TDSCDMA_BAND_E_V01 = 204, 
+  NAS_ACTIVE_BAND_TDSCDMA_BAND_F_V01 = 205, 
   NAS_ACTIVE_BAND_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_active_band_enum_v01;
 /**
@@ -809,7 +810,7 @@ typedef struct {
   */
 
   nas_active_band_enum_v01 active_band;
-  /**<   Active band class (see Table @latexonly\ref{tbl:bandClass}@endlatexonly
+  /**<   Active band class (see Table @latexonly\ref{tbl:bandClass}@endlatexonly 
       for details). Values: \n
       - 00 to 39   -- CDMA band classes  \n
       - 40 to 79   -- GSM band classes   \n
@@ -820,7 +821,7 @@ typedef struct {
 
   uint16_t active_channel;
   /**<   Active channel. If the channel is not relevant to the
-      technology, a value of 0 will be returned.
+      technology, a value of 0 is returned.
  */
 }nas_rf_band_info_type_v01;  /* Type */
 /**
@@ -844,7 +845,7 @@ typedef struct {
   */
 
   nas_active_band_enum_v01 dedicated_band;
-  /**<   Dedicated band class (see Table @latexonly\ref{tbl:bandClass}@endlatexonly
+  /**<   Dedicated band class (see Table @latexonly\ref{tbl:bandClass}@endlatexonly 
       for details). Values: \n
       - 00 to 39   -- CDMA band classes  \n
       - 40 to 79   -- GSM band classes   \n
@@ -863,9 +864,9 @@ typedef struct {
   */
 typedef enum {
   NAS_NETWORK_SERVICE_DOMAIN_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_CIRCUIT_SWITCHED_V01 = 0x01,
-  NAS_PACKET_SWITCHED_V01 = 0x02,
-  NAS_CIRCUIT_AND_PACKET_SWITCHED_V01 = 0x03,
+  NAS_CIRCUIT_SWITCHED_V01 = 0x01, 
+  NAS_PACKET_SWITCHED_V01 = 0x02, 
+  NAS_CIRCUIT_AND_PACKET_SWITCHED_V01 = 0x03, 
   NAS_NETWORK_SERVICE_DOMAIN_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_network_service_domain_enum_v01;
 /**
@@ -885,7 +886,7 @@ typedef struct {
   */
 
   uint16_t reject_cause;
-  /**<   Reject cause; refer to \hyperref[S5]{[S5]} Sections 10.5.3.6 and 10.5.5.14,
+  /**<   Reject cause; refer to \hyperref[S5]{[S5]} Sections 10.5.3.6 and 10.5.5.14, 
        and \hyperref[S16]{[S16]} Section 9.9.3.9.
   */
 }nas_registration_reject_reason_type_v01;  /* Type */
@@ -908,9 +909,9 @@ typedef struct {
   nas_radio_if_enum_v01 radio_if;
   /**<   Radio interface technology of the signal being measured. Values:  \n
        -0x00 -- RADIO_IF_NO_SVC      -- None (no service) \n
-       -0x01 -- RADIO_IF_CDMA_1X     --
+       -0x01 -- RADIO_IF_CDMA_1X     -- 
         cdma2000\textsuperscript{\textregistered} 1X             \n
-       -0x02 -- RADIO_IF_CDMA_1XEVDO --
+       -0x02 -- RADIO_IF_CDMA_1XEVDO -- 
         cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        -0x03 -- RADIO_IF_AMPS        -- AMPS \n
        -0x04 -- RADIO_IF_GSM         -- GSM \n
@@ -928,20 +929,20 @@ typedef struct {
 typedef struct {
 
   uint8_t ecio;
-  /**<   ECIO value representing negative 0.5 dB increments, i.e.,
+  /**<   ECIO value representing negative 0.5 dB increments, i.e., 
        2 means -1 dB (14 means -7 dB, 63 means -31.5 dB).
   */
 
   nas_radio_if_enum_v01 radio_if;
   /**<   Radio interface technology of the signal being measured. Values:  \n
        -0x00 -- RADIO_IF_NO_SVC      -- None (no service) \n
-       -0x01 -- RADIO_IF_CDMA_1X     --
+       -0x01 -- RADIO_IF_CDMA_1X     -- 
         cdma2000\textsuperscript{\textregistered} 1X             \n
-       -0x02 -- RADIO_IF_CDMA_1XEVDO --
+       -0x02 -- RADIO_IF_CDMA_1XEVDO -- 
         cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        -0x03 -- RADIO_IF_AMPS        -- AMPS \n
        -0x04 -- RADIO_IF_GSM         -- GSM \n
-       -0x05 -- RADIO_IF_UMTS        -- UMTS
+       -0x05 -- RADIO_IF_UMTS        -- UMTS 
   */
 }nas_ecio_type_v01;  /* Type */
 /**
@@ -956,24 +957,24 @@ typedef struct {
   uint16_t error_rate;
   /**<   Error rate value corresponds to the RAT that is currently registered. \n
          For CDMA, the error rate reported is Frame Error Rate: \n
-         - Valid error rate values between 1 and 10000 are returned to indicate
+         - Valid error rate values between 1 and 10000 are returned to indicate 
             percentage, e.g., a value of 300 means the error rate is 3% \n
-         - A value of 0xFFFF indicates that the error rate is unknown or
+         - A value of 0xFFFF indicates that the error rate is unknown or 
             unavailable \n
          For HDR, the error rate reported is Packet Error Rate: \n
-         - Valid error rate values between 1 and 10000 are returned to indicate
+         - Valid error rate values between 1 and 10000 are returned to indicate 
             percentage, e.g., a value of 300 means the error rate is 3% \n
-         - A value of 0xFFFF indicates that the error rate is unknown or
+         - A value of 0xFFFF indicates that the error rate is unknown or 
             unavailable \n
          For GSM, the error rate reported is Bit Error Rate: \n
          - Valid values are 0, 100, 200, 300, 400, 500, 600, and 700 \n
-         - The reported value divided by 100 gives the error rate as an RxQual
-            value as defined in \hyperref[S13]{[S13]} Section 8.2.4, e.g., a value
+         - The reported value divided by 100 gives the error rate as an RxQual 
+            value as defined in \hyperref[S13]{[S13]} Section 8.2.4, e.g., a value 
             of 300 represents an RxQual value of 3 \n
          - A value of 25500 indicates No Data \n
          For WCDMA, the error rate reported is Block Error Rate (BLER): \n
          - Valid values are 1 to 10000 \n
-         - The reported value divided by 100 provides the error rate in
+         - The reported value divided by 100 provides the error rate in 
             percentages, e.g., a value of 300 represents a BLER of 3% \n
          - A value of 0 indicates No Data
   */
@@ -981,9 +982,9 @@ typedef struct {
   nas_radio_if_enum_v01 radio_if;
   /**<   Radio interface technology of the signal being measured. Values:  \n
        -0x00 -- RADIO_IF_NO_SVC      -- None (no service) \n
-       -0x01 -- RADIO_IF_CDMA_1X     --
+       -0x01 -- RADIO_IF_CDMA_1X     -- 
         cdma2000\textsuperscript{\textregistered} 1X             \n
-       -0x02 -- RADIO_IF_CDMA_1XEVDO --
+       -0x02 -- RADIO_IF_CDMA_1XEVDO -- 
         cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        -0x03 -- RADIO_IF_AMPS        -- AMPS \n
        -0x04 -- RADIO_IF_GSM         -- GSM \n
@@ -1018,15 +1019,15 @@ typedef struct {
   */
 typedef enum {
   NAS_SINR_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SINR_LEVEL_0_V01 = 0x00,
-  NAS_SINR_LEVEL_1_V01 = 0x01,
-  NAS_SINR_LEVEL_2_V01 = 0x02,
-  NAS_SINR_LEVEL_3_V01 = 0x03,
-  NAS_SINR_LEVEL_4_V01 = 0x04,
-  NAS_SINR_LEVEL_5_V01 = 0x05,
-  NAS_SINR_LEVEL_6_V01 = 0x06,
-  NAS_SINR_LEVEL_7_V01 = 0x07,
-  NAS_SINR_LEVEL_8_V01 = 0x08,
+  NAS_SINR_LEVEL_0_V01 = 0x00, 
+  NAS_SINR_LEVEL_1_V01 = 0x01, 
+  NAS_SINR_LEVEL_2_V01 = 0x02, 
+  NAS_SINR_LEVEL_3_V01 = 0x03, 
+  NAS_SINR_LEVEL_4_V01 = 0x04, 
+  NAS_SINR_LEVEL_5_V01 = 0x05, 
+  NAS_SINR_LEVEL_6_V01 = 0x06, 
+  NAS_SINR_LEVEL_7_V01 = 0x07, 
+  NAS_SINR_LEVEL_8_V01 = 0x08, 
   NAS_SINR_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_sinr_enum_v01;
 /**
@@ -1076,7 +1077,7 @@ typedef struct {
   /*  SINR* */
   uint8_t sinr_valid;  /**< Must be set to true if sinr is being passed */
   nas_sinr_enum_v01 sinr;
-  /**<   SINR level. SINR is only applicable for 1xEV-DO.
+  /**<   SINR level. SINR is only applicable for 1xEV-DO. 
        Valid levels are 0 to 8, where the maximum value for:        \n
        - 0x00 -- SINR_LEVEL_0 is -9 dB     \n
        - 0x01 -- SINR_LEVEL_1 is -6 dB     \n
@@ -1103,8 +1104,8 @@ typedef struct {
   /*  LTE SNR */
   uint8_t snr_valid;  /**< Must be set to true if snr is being passed */
   int16_t snr;
-  /**<
-     LTE SNR level as a scaled integer in units of 0.1 dB;
+  /**<   
+     LTE SNR level as a scaled integer in units of 0.1 dB; 
      e.g., -16 dB has a value of -160 and 24.6 dB has a value of 246.
       */
 
@@ -1112,8 +1113,8 @@ typedef struct {
   /*  LTE RSRP */
   uint8_t rsrp_valid;  /**< Must be set to true if rsrp is being passed */
   int16_t rsrp;
-  /**<
-     Current LTE RSRP in dBm as measured by L1.
+  /**<  
+     Current LTE RSRP in dBm as measured by L1. 
      Range: -44 to -140 (-44 means -44 dBm, -140 means -140 dBm).
   */
 }nas_event_report_ind_msg_v01;  /* Message */
@@ -1133,7 +1134,7 @@ typedef struct {
   */
 
   uint8_t suppress_sys_info;
-  /**<   Controls the reporting of QMI_NAS_SYS_INFO_IND when only the reject_cause
+  /**<   Controls the reporting of QMI_NAS_SYS_INFO_IND when only the reject_cause 
        field has changed. Values: \n
        - 0x00 -- Do not suppress (default value) \n
        - 0x01 -- Suppress
@@ -1193,7 +1194,7 @@ typedef struct {
   uint8_t subscription_info;
   /**<   Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable
+       - 0x01 -- Enable 
   */
 
   /* Optional */
@@ -1202,7 +1203,7 @@ typedef struct {
   uint8_t reg_network_time;
   /**<    Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable
+       - 0x01 -- Enable 
   */
 
   /* Optional */
@@ -1211,7 +1212,7 @@ typedef struct {
   uint8_t sys_info;
   /**<    Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable
+       - 0x01 -- Enable 
   */
 
   /* Optional */
@@ -1220,7 +1221,7 @@ typedef struct {
   uint8_t sig_info;
   /**<    Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable
+       - 0x01 -- Enable 
   */
 
   /* Optional */
@@ -1229,7 +1230,7 @@ typedef struct {
   uint8_t err_rate;
   /**<    Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable
+       - 0x01 -- Enable 
   */
 
   /* Optional */
@@ -1238,16 +1239,16 @@ typedef struct {
   uint8_t reg_hdr_uati;
   /**<   Controls the reporting of QMI_NAS_HDR_UATI_UPDATE_IND. Values: \n
        - 0x00 -- Disable (default value) \n
-       - 0x01 -- Enable
+       - 0x01 -- Enable 
   */
 
   /* Optional */
   /*  HDR Session Closed */
   uint8_t reg_hdr_session_close_valid;  /**< Must be set to true if reg_hdr_session_close is being passed */
   uint8_t reg_hdr_session_close;
-  /**<   Controls the reporting of QMI_NAS_HDR_SESSION_CLOSE_IND. Values: \n
+  /**<   Controls the reporting of QMI_NAS_HDR_SESSION_CLOSE_IND. Values: \n  
        - 0x00 -- Disable (default value) \n
-       - 0x01 -- Enable
+       - 0x01 -- Enable 
   */
 
   /* Optional */
@@ -1297,7 +1298,7 @@ typedef struct {
   uint8_t reg_operator_name_data;
   /**<   Controls the reporting of QMI_NAS_OPERATOR_NAME_DATA_IND. Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable (default value)
+       - 0x01 -- Enable (default value) 
   */
 
   /* Optional */
@@ -1306,7 +1307,7 @@ typedef struct {
   uint8_t reg_csp_plmn_mode_bit;
   /**<   Controls the reporting of QMI_NAS_CSP_PLMN_MODE_BIT_IND. Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable (default value)
+       - 0x01 -- Enable (default value) 
   */
 
   /* Optional */
@@ -1370,6 +1371,33 @@ typedef struct {
   /**<   Controls the reporting of QMI_NAS_SSAC_INFO_IND. Values: \n
        - 0x00 -- Disable (default value) \n
        - 0x01 -- Enable
+  */
+
+  /* Optional */
+  /*  T3402 Timer Value */
+  uint8_t reg_emm_t3402_change_valid;  /**< Must be set to true if reg_emm_t3402_change is being passed */
+  uint8_t reg_emm_t3402_change;
+  /**<   Controls the reporting of QMI_NAS_EMM_T3402_CHANGED_IND. Values: \n
+       - 0x00 -- Disable (default value) \n
+       - 0x01 -- Enable
+    */
+
+  /* Optional */
+  /*  Access Class Barring */
+  uint8_t reg_acb_info_change_valid;  /**< Must be set to true if reg_acb_info_change is being passed */
+  uint8_t reg_acb_info_change;
+  /**<   Controls the reporting of QMI_NAS_ACB_INFO_IND. Values: \n
+       - 0x00 -- Disable (default value) \n
+       - 0x01 -- Enable
+  */
+
+  /* Optional */
+  /*  Data Subscription Priority */
+  uint8_t reg_data_subs_priority_change_valid;  /**< Must be set to true if reg_data_subs_priority_change is being passed */
+  uint8_t reg_data_subs_priority_change;
+  /**<   Controls the reporting of QMI_NAS_DATA_SUBS_PRIORITY_IND. Values: \n
+       - 0x00 -- Disable (default value) \n
+       - 0x01 -- Enable
      */
 }nas_indication_register_req_msg_v01;  /* Message */
 /**
@@ -1394,14 +1422,14 @@ typedef struct {
   */
 
 typedef uint16_t nas_get_sig_str_req_mask_type_v01;
-#define QMI_NAS_REQUEST_SIG_INFO_RSSI_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x01)
-#define QMI_NAS_REQUEST_SIG_INFO_ECIO_MASk_V01 ((nas_get_sig_str_req_mask_type_v01)0x02)
-#define QMI_NAS_REQUEST_SIG_INFO_IO_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x04)
-#define QMI_NAS_REQUEST_SIG_INFO_SINR_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x08)
-#define QMI_NAS_REQUEST_SIG_INFO_ERROR_RATE_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x10)
-#define QMI_NAS_REQUEST_SIG_INFO_RSRQ_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x20)
-#define QMI_NAS_REQUEST_SIG_INFO_LTE_SNR_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x40)
-#define QMI_NAS_REQUEST_SIG_INFO_LTE_RSRP_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x80)
+#define QMI_NAS_REQUEST_SIG_INFO_RSSI_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x01) 
+#define QMI_NAS_REQUEST_SIG_INFO_ECIO_MASk_V01 ((nas_get_sig_str_req_mask_type_v01)0x02) 
+#define QMI_NAS_REQUEST_SIG_INFO_IO_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x04) 
+#define QMI_NAS_REQUEST_SIG_INFO_SINR_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x08) 
+#define QMI_NAS_REQUEST_SIG_INFO_ERROR_RATE_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x10) 
+#define QMI_NAS_REQUEST_SIG_INFO_RSRQ_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x20) 
+#define QMI_NAS_REQUEST_SIG_INFO_LTE_SNR_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x40) 
+#define QMI_NAS_REQUEST_SIG_INFO_LTE_RSRP_MASK_V01 ((nas_get_sig_str_req_mask_type_v01)0x80) 
 /** @addtogroup nas_qmi_messages
     @{
   */
@@ -1429,7 +1457,7 @@ typedef struct {
        Bit 3 (0x08) -- QMI_NAS_REQUEST_SIG_INFO_ SINR_MASK; values: \n
        - 0 -- Do not request additional information for SINR \n
        - 1 -- Request additional information for SINR
-
+   
        Bit 4 (0x10) -- QMI_NAS_REQUEST_SIG_INFO_ ERROR_RATE_MASK; values: \n
        - 0 -- Do not request additional information for Error Rate \n
        - 1 -- Request additional information for Error Rate
@@ -1440,11 +1468,11 @@ typedef struct {
 
        Bit 6 (0x40) -- QMI_NAS_REQUEST_SIG_INFO_ LTE_SNR_MASK; values: \n
        - 0 -- Do not request additional information for LTE SNR \n
-       - 1 -- Request additional information for LTE SNR
+       - 1 -- Request additional information for LTE SNR 
 
        Bit 7 (0x80) -- QMI_NAS_REQUEST_SIG_INFO_ LTE_RSRP_MASK; values: \n
        - 0 -- Do not request additional information for LTE RSRP \n
-       - 1 -- Request additional information for LTE RSRP
+       - 1 -- Request additional information for LTE RSRP 
   */
 }nas_get_signal_strength_req_msg_v01;  /* Message */
 /**
@@ -1464,9 +1492,9 @@ typedef struct {
 
   nas_radio_if_enum_v01 radio_if;
   /**<   Radio interface technology of the signal being measured. Values: \n
-       -0x01 -- RADIO_IF_CDMA_1X         --
+       -0x01 -- RADIO_IF_CDMA_1X         -- 
         cdma2000\textsuperscript{\textregistered} 1X                 \n
-       -0x02 -- RADIO_IF_CDMA_1XEVDO     --
+       -0x02 -- RADIO_IF_CDMA_1XEVDO     -- 
         cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO)
   */
 }nas_signal_strength_list_type_v01;  /* Type */
@@ -1551,7 +1579,7 @@ typedef struct {
   /*  LTE SNR */
   uint8_t snr_valid;  /**< Must be set to true if snr is being passed */
   int16_t snr;
-  /**<   LTE SNR level as a scaled integer in units of 0.1 dB;
+  /**<   LTE SNR level as a scaled integer in units of 0.1 dB; 
        e.g., -16 dB has a value of -160 and 24.6 dB has a value of 246.
        LTE SNR is included only when the current serving system is LTE.
       */
@@ -1560,7 +1588,7 @@ typedef struct {
   /*  LTE RSRP */
   uint8_t lte_rsrp_valid;  /**< Must be set to true if lte_rsrp is being passed */
   int16_t lte_rsrp;
-  /**<   Current LTE RSRP in dBm as measured by L1.
+  /**<   Current LTE RSRP in dBm as measured by L1. 
        Range: -44 to -140 (-44 means -44 dBm, -140 means -140 dBm).
        LTE RSRP is included only if the current serving system is LTE.
     */
@@ -1570,17 +1598,17 @@ typedef struct {
   */
 
 typedef uint8_t nas_network_type_mask_type_v01;
-#define NAS_NETWORK_TYPE_GSM_ONLY_V01 ((nas_network_type_mask_type_v01)0x01)
-#define NAS_NETWORK_TYPE_WCDMA_ONLY_V01 ((nas_network_type_mask_type_v01)0x02)
-#define NAS_NETWORK_TYPE_LTE_ONLY_V01 ((nas_network_type_mask_type_v01)0x04)
-#define NAS_NETWORK_TYPE_TDSCDMA_ONLY_V01 ((nas_network_type_mask_type_v01)0x08)
+#define NAS_NETWORK_TYPE_GSM_ONLY_V01 ((nas_network_type_mask_type_v01)0x01) 
+#define NAS_NETWORK_TYPE_WCDMA_ONLY_V01 ((nas_network_type_mask_type_v01)0x02) 
+#define NAS_NETWORK_TYPE_LTE_ONLY_V01 ((nas_network_type_mask_type_v01)0x04) 
+#define NAS_NETWORK_TYPE_TDSCDMA_ONLY_V01 ((nas_network_type_mask_type_v01)0x08) 
 /** @addtogroup nas_qmi_enums
     @{
   */
 typedef enum {
   NAS_NW_SCAN_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SCAN_TYPE_PLMN_V01 = 0x00,
-  NAS_SCAN_TYPE_CSG_V01 = 0x01,
+  NAS_SCAN_TYPE_PLMN_V01 = 0x00, 
+  NAS_SCAN_TYPE_CSG_V01 = 0x01, 
   NAS_NW_SCAN_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_nw_scan_type_enum_v01;
 /**
@@ -1687,7 +1715,7 @@ typedef struct {
        - Bit 2 -- LTE \n
        - Bit 3 -- TD-SCDMA \n
        Any combination of the bit positions can be used. If the mask is
-       sent with no bits set, the scan is performed using the currently
+       sent with no bits set, the scan is performed using the currently 
        set preference.
     */
 
@@ -1704,18 +1732,18 @@ typedef struct {
   /*  Band Preference */
   uint8_t band_pref_valid;  /**< Must be set to true if band_pref is being passed */
   nas_band_pref_mask_type_v01 band_pref;
-  /**<   Bitmask representing the band preference to be scanned.
-       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the band preference to be scanned.  
+       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly 
+       for details.   
   */
 
   /* Optional */
   /*  LTE Band Preference */
   uint8_t lte_band_pref_valid;  /**< Must be set to true if lte_band_pref is being passed */
   lte_band_pref_mask_type_v01 lte_band_pref;
-  /**<   Bitmask representing the LTE band preference to be scanned.
-       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the LTE band preference to be scanned. 
+       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly 
+       for details.  
   */
 
   /* Optional */
@@ -1723,12 +1751,12 @@ typedef struct {
   uint8_t tdscdma_band_pref_valid;  /**< Must be set to true if tdscdma_band_pref is being passed */
   nas_tdscdma_band_pref_mask_type_v01 tdscdma_band_pref;
   /**<   Bitmask representing the TD-SCDMA band preference to be scanned. Values: \n
-      - NAS_TDSCDMA_BAND_A (0x01) --  TD-SCDMA Band A \n
-      - NAS_TDSCDMA_BAND_B (0x02) --  TD-SCDMA Band B \n
-      - NAS_TDSCDMA_BAND_C (0x04) --  TD-SCDMA Band C \n
-      - NAS_TDSCDMA_BAND_D (0x08) --  TD-SCDMA Band D \n
-      - NAS_TDSCDMA_BAND_E (0x10) --  TD-SCDMA Band E \n
-      - NAS_TDSCDMA_BAND_F (0x20) --  TD-SCDMA Band F
+      - NAS_TDSCDMA_BAND_A (0x01) --  TD-SCDMA Band A \n 
+      - NAS_TDSCDMA_BAND_B (0x02) --  TD-SCDMA Band B \n 
+      - NAS_TDSCDMA_BAND_C (0x04) --  TD-SCDMA Band C \n 
+      - NAS_TDSCDMA_BAND_D (0x08) --  TD-SCDMA Band D \n 
+      - NAS_TDSCDMA_BAND_E (0x10) --  TD-SCDMA Band E \n 
+      - NAS_TDSCDMA_BAND_F (0x20) --  TD-SCDMA Band F 
 
  \vspace{3pt}
  All other bits are reserved and must be set to 0.
@@ -1743,9 +1771,9 @@ typedef struct {
   */
 typedef enum {
   NAS_SCAN_RESULT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SCAN_SUCCESS_V01 = 0x00,
-  NAS_SCAN_AS_ABORT_V01 = 0x01,
-  NAS_SCAN_REJ_IN_RLF_V01 = 0x02,
+  NAS_SCAN_SUCCESS_V01 = 0x00, 
+  NAS_SCAN_AS_ABORT_V01 = 0x01, 
+  NAS_SCAN_REJ_IN_RLF_V01 = 0x02, 
   NAS_SCAN_RESULT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_scan_result_enum_v01;
 /**
@@ -1772,7 +1800,7 @@ typedef struct {
        - 0 -- QMI_NAS_NETWORK_IN_USE_STATUS_ UNKNOWN          -- Unknown         \n
        - 1 -- QMI_NAS_NETWORK_IN_USE_STATUS_ CURRENT_SERVING  -- Current serving \n
        - 2 -- QMI_NAS_NETWORK_IN_USE_STATUS_ AVAILABLE        -- Available
-
+       
        Bits 2-3 -- QMI_NAS_NETWORK_ROAMING_ STATUS_BITS   -- Roaming status      \n
        - 0 -- QMI_NAS_NETWORK_ROAMING_ STATUS_UNKNOWN         -- Unknown         \n
        - 1 -- QMI_NAS_NETWORK_ROAMING_ STATUS_HOME            -- Home            \n
@@ -1815,7 +1843,7 @@ typedef struct {
        - 0x04 -- GERAN \n
        - 0x05 -- UMTS \n
        - 0x08 -- LTE \n
-       - 0x09 -- TD-SCDMA
+       - 0x09 -- TD-SCDMA 
   */
 }nas_network_radio_access_technology_type_v01;  /* Type */
 /**
@@ -1838,12 +1866,12 @@ typedef struct {
   /*  MNC PCS digit include status */
   uint8_t mnc_includes_pcs_digit;
   /**<   This field is used to interpret the length of the corresponding
-       MNC reported in the TLVs (in this table) with an mnc or
+       MNC reported in the TLVs (in this table) with an mnc or 
        mobile_network_code field. Values: \n
 
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90
   */
 }nas_mnc_pcs_digit_include_status_type_v01;  /* Type */
@@ -1964,7 +1992,7 @@ typedef struct {
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type.
+  /**<   Standard response type. 
  Standard response type. Contains the following data members:
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
      - qmi_error_type  -- Error code. Possible error code values are described in
@@ -1996,7 +2024,7 @@ typedef struct {
   /**<   Indicates the status of the network scan. Values: \n
        - 0x00 -- NAS_SCAN_SUCCESS -- Network scan was successful \n
        - 0x01 -- NAS_SCAN_AS_ABORT -- Network scan was aborted   \n
-       - 0x02 -- NAS_SCAN_REJ_IN_RLF -- Network scan did not complete due
+       - 0x02 -- NAS_SCAN_REJ_IN_RLF -- Network scan did not complete due 
                  to a radio link failure recovery in progress
   */
 
@@ -2018,13 +2046,13 @@ typedef struct {
   uint32_t nw_name_source_len;  /**< Must be set to # of elements in nw_name_source */
   nas_nw_name_source_enum_type_v01 nw_name_source[NAS_3GPP_NETWORK_INFO_LIST_MAX_V01];
   /**<   Network name source. Values: \n
-      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n
-      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n
-      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n
-      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n
-      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n
-      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n
-      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name
+      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n 
+      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n 
+      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n 
+      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n 
+      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n 
+      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n 
+      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name 
  */
 }nas_perform_network_scan_resp_msg_v01;  /* Message */
 /**
@@ -2047,7 +2075,7 @@ typedef struct {
   nas_radio_if_enum_v01 radio_access_technology;
   /**<   Radio access technology for which to register. Values: \n
         -0x04 -- RADIO_IF_GSM -- GSM \n
-        -0x05 -- RADIO_IF_UMTS -- UMTS \n
+        -0x05 -- RADIO_IF_UMTS -- UMTS \n 
         -0x08 -- RADIO_IF_LTE -- LTE \n
         -  -1 -- RADIO_IF_NO_CHANGE -- No change in the mode preference
   */
@@ -2061,8 +2089,8 @@ typedef struct {
   */
 typedef enum {
   NAS_REGISTER_ACTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_AUTO_REGISTER_V01 = 0x01,
-  NAS_MANUAL_REGISTER_V01 = 0x02,
+  NAS_AUTO_REGISTER_V01 = 0x01, 
+  NAS_MANUAL_REGISTER_V01 = 0x02, 
   NAS_REGISTER_ACTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_register_action_enum_v01;
 /**
@@ -2074,8 +2102,8 @@ typedef enum {
   */
 typedef enum {
   NAS_CHANGE_DURATION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_POWER_CYCLE_V01 = 0x00,
-  NAS_PERMANENT_V01 = 0x01,
+  NAS_POWER_CYCLE_V01 = 0x00, 
+  NAS_PERMANENT_V01 = 0x01, 
   NAS_CHANGE_DURATION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_change_duration_enum_v01;
 /**
@@ -2113,7 +2141,7 @@ typedef struct {
   /**<    Duration of the change. Values: \n
         - 0x00 -- Power cycle -- Remains active until the next device power cycle \n
         - 0x01 -- Permanent -- Remains active through power cycles until changed by the client \n
-        Note: The device will use "0x00 -- Power cycle" as the default value
+        Note: The device will use "0x00 -- Power cycle" as the default value 
               if the TLV is omitted.
   */
 
@@ -2121,17 +2149,17 @@ typedef struct {
   /*  MNC PCS Digit Include Status */
   uint8_t mnc_includes_pcs_digit_valid;  /**< Must be set to true if mnc_includes_pcs_digit is being passed */
   uint8_t mnc_includes_pcs_digit;
-  /**<    This TLV applies to the MNC field of the manual_network_register_info
+  /**<    This TLV applies to the MNC field of the manual_network_register_info 
         data structure. Values: \n
         - TRUE  -- MNC is a three-digit value \n
         - FALSE -- MNC is a two-digit value
 
-        If this TLV is not included in the case of a manual register option,
-        the value of the MNC value specified in manual_network_register_info
+        If this TLV is not included in the case of a manual register option, 
+        the value of the MNC value specified in manual_network_register_info 
         is interpreted as follows: \n
-        - If the MNC value is less than 100, the MNC value provided is
+        - If the MNC value is less than 100, the MNC value provided is 
           interpreted as a two-digit value. \n
-        - If the MNC value is greater than or equal to 100, the MNC value
+        - If the MNC value is greater than or equal to 100, the MNC value 
           provided is interpreted as a three-digit value.
   */
 }nas_initiate_network_register_req_msg_v01;  /* Message */
@@ -2159,8 +2187,8 @@ typedef struct {
   */
 typedef enum {
   NAS_PS_ATTACH_ACTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_PS_ACTION_ATTACH_V01 = 0x01,
-  NAS_PS_ACTION_DETACH_V01 = 0x02,
+  NAS_PS_ACTION_ATTACH_V01 = 0x01, 
+  NAS_PS_ACTION_DETACH_V01 = 0x02, 
   NAS_PS_ATTACH_ACTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_ps_attach_action_enum_v01;
 /**
@@ -2179,7 +2207,7 @@ typedef struct {
   nas_ps_attach_action_enum_v01 ps_attach_action;
   /**<   Initiates a packet domain attach or detach action. Values: \n
        - 0x01 -- PS_ACTION_ATTACH -- Initiates an immediate packet domain attach action \n
-       - 0x02 -- PS_ACTION_DETACH -- Initiates an immediate packet domain detach action
+       - 0x02 -- PS_ACTION_DETACH -- Initiates an immediate packet domain detach action 
   */
 }nas_initiate_attach_req_msg_v01;  /* Message */
 /**
@@ -2202,7 +2230,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_serving_system_req_msg_v01;
@@ -2212,11 +2240,11 @@ typedef struct {
   */
 typedef enum {
   NAS_REGISTRATION_STATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_NOT_REGISTERED_V01 = 0x00,
-  NAS_REGISTERED_V01 = 0x01,
-  NAS_NOT_REGISTERED_SEARCHING_V01 = 0x02,
-  NAS_REGISTRATION_DENIED_V01 = 0x03,
-  NAS_REGISTRATION_UNKNOWN_V01 = 0x04,
+  NAS_NOT_REGISTERED_V01 = 0x00, 
+  NAS_REGISTERED_V01 = 0x01, 
+  NAS_NOT_REGISTERED_SEARCHING_V01 = 0x02, 
+  NAS_REGISTRATION_DENIED_V01 = 0x03, 
+  NAS_REGISTRATION_UNKNOWN_V01 = 0x04, 
   NAS_REGISTRATION_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_registration_state_enum_v01;
 /**
@@ -2228,9 +2256,9 @@ typedef enum {
   */
 typedef enum {
   NAS_CS_ATTACH_STATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_CS_UNKNOWN_V01 = 0x00,
-  NAS_CS_ATTACHED_V01 = 0x01,
-  NAS_CS_DETACHED_V01 = 0x02,
+  NAS_CS_UNKNOWN_V01 = 0x00, 
+  NAS_CS_ATTACHED_V01 = 0x01, 
+  NAS_CS_DETACHED_V01 = 0x02, 
   NAS_CS_ATTACH_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_cs_attach_state_enum_v01;
 /**
@@ -2242,9 +2270,9 @@ typedef enum {
   */
 typedef enum {
   NAS_PS_ATTACH_STATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_PS_UNKNOWN_V01 = 0x00,
-  NAS_PS_ATTACHED_V01 = 0x01,
-  NAS_PS_DETACHED_V01 = 0x02,
+  NAS_PS_UNKNOWN_V01 = 0x00, 
+  NAS_PS_ATTACHED_V01 = 0x01, 
+  NAS_PS_DETACHED_V01 = 0x02, 
   NAS_PS_ATTACH_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_ps_attach_state_enum_v01;
 /**
@@ -2256,9 +2284,9 @@ typedef enum {
   */
 typedef enum {
   NAS_SELECTED_NETWORK_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SELECTED_NETWORK_UNKNOWN_V01 = 0x00,
-  NAS_SELECTED_NETWORK_3GPP2_V01 = 0x01,
-  NAS_SELECTED_NETWORK_3GPP_V01 = 0x02,
+  NAS_SELECTED_NETWORK_UNKNOWN_V01 = 0x00, 
+  NAS_SELECTED_NETWORK_3GPP2_V01 = 0x01, 
+  NAS_SELECTED_NETWORK_3GPP_V01 = 0x02, 
   NAS_SELECTED_NETWORK_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_selected_network_enum_v01;
 /**
@@ -2272,14 +2300,14 @@ typedef struct {
 
   nas_registration_state_enum_v01 registration_state;
   /**<   Registration state of the mobile. Values: \n
-       - 0x00 -- NOT_REGISTERED        -- Not registered; mobile is not currently
-                                          searching for a new network to provide
+       - 0x00 -- NOT_REGISTERED        -- Not registered; mobile is not currently 
+                                          searching for a new network to provide 
                                           service \n
        - 0x01 -- REGISTERED            -- Registered with a network \n
-       - 0x02 -- NOT_REGISTERED_SEARCHING -- Not registered, but mobile is currently
-                                             searching for a new network to provide
+       - 0x02 -- NOT_REGISTERED_SEARCHING -- Not registered, but mobile is currently 
+                                             searching for a new network to provide 
                                              service \n
-       - 0x03 -- REGISTRATION_DENIED   -- Registration denied by the visible
+       - 0x03 -- REGISTRATION_DENIED   -- Registration denied by the visible 
                                           network \n
        - 0x04 -- REGISTRATION_UNKNOWN  -- Registration state is unknown
   */
@@ -2309,14 +2337,14 @@ typedef struct {
   nas_radio_if_enum_v01 radio_if[NAS_RADIO_IF_LIST_MAX_V01];
   /**<   Radio interface currently in use. Values: \n
        -0x00 -- RADIO_IF_NO_SVC      -- None (no service) \n
-       -0x01 -- RADIO_IF_CDMA_1X     --
+       -0x01 -- RADIO_IF_CDMA_1X     -- 
         cdma2000\textsuperscript{\textregistered} 1X             \n
-       -0x02 -- RADIO_IF_CDMA_1XEVDO --
+       -0x02 -- RADIO_IF_CDMA_1XEVDO -- 
         cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        -0x03 -- RADIO_IF_AMPS        -- AMPS \n
        -0x04 -- RADIO_IF_GSM         -- GSM \n
        -0x05 -- RADIO_IF_UMTS        -- UMTS \n
-       -0x08 -- RADIO_IF_LTE         -- LTE
+       -0x08 -- RADIO_IF_LTE         -- LTE 
   */
 }nas_serving_system_type_v01;  /* Type */
 /**
@@ -2365,14 +2393,14 @@ typedef struct {
   /**<   Base station identification number.*/
 
   int32_t base_lat;
-  /**<
+  /**<   
     Base station latitude in units of 0.25 sec, expressed as a two's
     complement signed number with positive numbers signifying North
     latitudes.
   */
 
   int32_t base_long;
-  /**<
+  /**<   
     Base station longitude in units of 0.25 sec, expressed as a two's
     complement signed number with positive numbers signifying East
     longitude.
@@ -2387,9 +2415,9 @@ typedef struct {
   */
 typedef enum {
   NAS_ROAMING_INDICATOR_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_ROAMING_IND_ON_V01 = 0x00,
-  NAS_ROAMING_IND_OFF_V01 = 0x01,
-  NAS_ROAMING_IND_FLASHING_V01 = 0x02,
+  NAS_ROAMING_IND_ON_V01 = 0x00, 
+  NAS_ROAMING_IND_OFF_V01 = 0x01, 
+  NAS_ROAMING_IND_FLASHING_V01 = 0x02, 
   NAS_ROAMING_INDICATOR_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_roaming_indicator_enum_v01;
 /**
@@ -2403,9 +2431,9 @@ typedef struct {
 
   nas_radio_if_enum_v01 radio_if;
   /**<   Radio interface currently in use. Values: \n
-       -0x01 -- RADIO_IF_CDMA_1X     --
+       -0x01 -- RADIO_IF_CDMA_1X     -- 
         cdma2000\textsuperscript{\textregistered} 1X             \n
-       -0x02 -- RADIO_IF_CDMA_1XEVDO --
+       -0x02 -- RADIO_IF_CDMA_1XEVDO -- 
         cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        -0x03 -- RADIO_IF_AMPS        -- AMPS \n
        -0x04 -- RADIO_IF_GSM         -- GSM \n
@@ -2414,12 +2442,12 @@ typedef struct {
   */
 
   nas_roaming_indicator_enum_v01 roaming_indicator;
-  /**<
+  /**<   
     Roaming indicator. Values: \n
     -0x00 -- ROAMING_IND_ON                       -- Roaming \n
     -0x01 -- ROAMING_IND_OFF                      -- Home
 
-    Values from 2 onward are applicable only for 3GPP2. Refer to
+    Values from 2 onward are applicable only for 3GPP2. Refer to 
     \hyperref[S4]{[S4]} for the meanings of these values.
   */
 }nas_roaming_indicator_type_v01;  /* Type */
@@ -2456,19 +2484,19 @@ typedef struct {
   */
 typedef enum {
   NAS_DATA_CAPABILITES_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_DATA_CAPABILITIES_GPRS_V01 = 0x01,
-  NAS_DATA_CAPABILITIES_EDGE_V01 = 0x02,
-  NAS_DATA_CAPABILITIES_HSDPA_V01 = 0x03,
-  NAS_DATA_CAPABILITIES_HSUPA_V01 = 0x04,
-  NAS_DATA_CAPABILITIES_WCDMA_V01 = 0x05,
-  NAS_DATA_CAPABILITIES_CDMA_V01 = 0x06,
-  NAS_DATA_CAPABILITIES_EVDO_REV_O_V01 = 0x07,
-  NAS_DATA_CAPABILITIES_EVDO_REV_A_V01 = 0x08,
-  NAS_DATA_CAPABILITIES_GSM_V01 = 0x09,
-  NAS_DATA_CAPABILITIES_EVDO_REV_B_V01 = 0x0A,
-  NAS_DATA_CAPABILITIES_LTE_V01 = 0x0B,
-  NAS_DATA_CAPABILITIES_HSDPA_PLUS_V01 = 0x0C,
-  NAS_DATA_CAPABILITIES_DC_HSDPA_PLUS_V01 = 0x0D,
+  NAS_DATA_CAPABILITIES_GPRS_V01 = 0x01, 
+  NAS_DATA_CAPABILITIES_EDGE_V01 = 0x02, 
+  NAS_DATA_CAPABILITIES_HSDPA_V01 = 0x03, 
+  NAS_DATA_CAPABILITIES_HSUPA_V01 = 0x04, 
+  NAS_DATA_CAPABILITIES_WCDMA_V01 = 0x05, 
+  NAS_DATA_CAPABILITIES_CDMA_V01 = 0x06, 
+  NAS_DATA_CAPABILITIES_EVDO_REV_O_V01 = 0x07, 
+  NAS_DATA_CAPABILITIES_EVDO_REV_A_V01 = 0x08, 
+  NAS_DATA_CAPABILITIES_GSM_V01 = 0x09, 
+  NAS_DATA_CAPABILITIES_EVDO_REV_B_V01 = 0x0A, 
+  NAS_DATA_CAPABILITIES_LTE_V01 = 0x0B, 
+  NAS_DATA_CAPABILITIES_HSDPA_PLUS_V01 = 0x0C, 
+  NAS_DATA_CAPABILITIES_DC_HSDPA_PLUS_V01 = 0x0D, 
   NAS_DATA_CAPABILITES_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_data_capabilites_enum_v01;
 /**
@@ -2495,7 +2523,7 @@ typedef struct {
       - 0x01 -- Circuit-switched only \n
       - 0x02 -- Packet-switched only \n
       - 0x03 -- Circuit-switched and-packet switched \n
-      - 0x04 -- MS found the right system but not yet registered/attached
+      - 0x04 -- MS found the right system but not yet registered/attached 
   */
 
   uint8_t hdr_srv_status;
@@ -2530,12 +2558,12 @@ typedef struct {
 
   /*  MCC */
   uint16_t mcc;
-  /**<   Mobile country code.
+  /**<   Mobile country code. 
   */
 
   /*  imsi_11_12 */
   uint8_t imsi_11_12;
-  /**<   IMSI_11_12.
+  /**<   IMSI_11_12. 
   */
 }nas_cdma_system_id_ext_type_v01;  /* Type */
 /**
@@ -2547,9 +2575,9 @@ typedef struct {
   */
 typedef enum {
   NAS_HDR_PERSONALITY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_HDR_PERSONALITY_UNKNOWN_V01 = 0x00,
-  NAS_HDR_PERSONALITY_HRPD_V01 = 0x01,
-  NAS_HDR_PERSONALITY_EHRPD_V01 = 0x02,
+  NAS_HDR_PERSONALITY_UNKNOWN_V01 = 0x00, 
+  NAS_HDR_PERSONALITY_HRPD_V01 = 0x01, 
+  NAS_HDR_PERSONALITY_EHRPD_V01 = 0x02, 
   NAS_HDR_PERSONALITY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_hdr_personality_enum_v01;
 /**
@@ -2578,7 +2606,7 @@ typedef enum {
 typedef struct {
 
   nas_cell_access_status_e_type_v01 cs_bar_status;
-  /**<
+  /**<   
      Call barring status for circuit-switched calls. Values: \n
     - 0x00 -- NAS_CELL_ACCESS_NORMAL_ONLY     -- Cell access is allowed for normal calls only \n
     - 0x01 -- NAS_CELL_ACCESS_EMERGENCY_ ONLY -- Cell access is allowed for emergency calls only \n
@@ -2588,7 +2616,7 @@ typedef struct {
   */
 
   nas_cell_access_status_e_type_v01 ps_bar_status;
-  /**<
+  /**<  
      Call barring status for packet-switched calls. Values: \n
     - 0x00 -- NAS_CELL_ACCESS_NORMAL_ONLY     -- Cell access is allowed for normal calls only \n
     - 0x01 -- NAS_CELL_ACCESS_EMERGENCY_ ONLY -- Cell access is allowed for emergency calls only \n
@@ -2606,16 +2634,17 @@ typedef struct {
   */
 typedef enum {
   NAS_HS_SUPPORT_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  SYS_HS_IND_HSDPA_HSUPA_UNSUPP_CELL_V01 = 0x00,
-  SYS_HS_IND_HSDPA_SUPP_CELL_V01 = 0x01,
-  SYS_HS_IND_HSUPA_SUPP_CELL_V01 = 0x02,
-  SYS_HS_IND_HSDPA_HSUPA_SUPP_CELL_V01 = 0x03,
-  SYS_HS_IND_HSDPAPLUS_SUPP_CELL_V01 = 0x04,
-  SYS_HS_IND_HSDPAPLUS_HSUPA_SUPP_CELL_V01 = 0x05,
-  SYS_HS_IND_DC_HSDPAPLUS_SUPP_CELL_V01 = 0x06,
-  SYS_HS_IND_DC_HSDPAPLUS_HSUPA_SUPP_CELL_V01 = 0x07,
-  SYS_HS_IND_HSDPAPLUS_64QAM_HSUPA_SUPP_CELL_V01 = 0x08,
-  SYS_HS_IND_HSDPAPLUS_64QAM_SUPP_CELL_V01 = 0x09,
+  SYS_HS_IND_HSDPA_HSUPA_UNSUPP_CELL_V01 = 0x00, 
+  SYS_HS_IND_HSDPA_SUPP_CELL_V01 = 0x01, 
+  SYS_HS_IND_HSUPA_SUPP_CELL_V01 = 0x02, 
+  SYS_HS_IND_HSDPA_HSUPA_SUPP_CELL_V01 = 0x03, 
+  SYS_HS_IND_HSDPAPLUS_SUPP_CELL_V01 = 0x04, 
+  SYS_HS_IND_HSDPAPLUS_HSUPA_SUPP_CELL_V01 = 0x05, 
+  SYS_HS_IND_DC_HSDPAPLUS_SUPP_CELL_V01 = 0x06, 
+  SYS_HS_IND_DC_HSDPAPLUS_HSUPA_SUPP_CELL_V01 = 0x07, 
+  SYS_HS_IND_HSDPAPLUS_64QAM_HSUPA_SUPP_CELL_V01 = 0x08, 
+  SYS_HS_IND_HSDPAPLUS_64QAM_SUPP_CELL_V01 = 0x09, 
+  SYS_HS_IND_DC_HSDPAPLUS_DC_HSUPA_SUPP_CELL_V01 = 0x0A, 
   NAS_HS_SUPPORT_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_hs_support_enum_type_v01;
 /**
@@ -2625,7 +2654,7 @@ typedef enum {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Queries information regarding the system that currently
+/** Response Message; Queries information regarding the system that currently 
               provides service. (Deprecated) */
 typedef struct {
 
@@ -2646,7 +2675,7 @@ typedef struct {
   /*  Roaming Indicator Value */
   uint8_t roaming_indicator_valid;  /**< Must be set to true if roaming_indicator is being passed */
   nas_roaming_indicator_enum_v01 roaming_indicator;
-  /**<
+  /**<   
     Roaming indicator. Values: \n
     -0x00 -- ROAMING_IND_ON                       -- Roaming \n
     -0x01 -- ROAMING_IND_OFF                      -- Home    \n
@@ -2700,12 +2729,12 @@ typedef struct {
   /*  Default Roaming Indicator */
   uint8_t def_roam_ind_valid;  /**< Must be set to true if def_roam_ind is being passed */
   nas_roaming_indicator_enum_v01 def_roam_ind;
-  /**<
+  /**<   
     Roaming indicator. Values: \n
     -0x00 -- ROAMING_IND_ON                       -- Roaming \n
     -0x01 -- ROAMING_IND_OFF                      -- Home
 
-    Values from 2 onward are applicable only for 3GPP2. Refer to
+    Values from 2 onward are applicable only for 3GPP2. Refer to 
     \hyperref[S4]{[S4]} for the meanings of these values.
   */
 
@@ -2776,7 +2805,7 @@ typedef struct {
   uint8_t dtm_ind;
   /**<   Dual Transfer mode indication. Values: \n
       - 0x00 -- DTM not supported \n
-      - 0x01 -- DTM supported
+      - 0x01 -- DTM supported 
   */
 
   /* Optional */
@@ -2827,32 +2856,33 @@ typedef struct {
   /*  HS Call Status */
   uint8_t hs_call_status_valid;  /**< Must be set to true if hs_call_status is being passed */
   nas_hs_support_enum_type_v01 hs_call_status;
-  /**<
-      Call status on high speed (only applicable for WCDMA). Values: \n
-      - 0x00 -- SYS_HS_IND_HSDPA_HSUPA_ UNSUPP_CELL    -- HSDPA and HSUPA are unsupported \n
-      - 0x01 -- SYS_HS_IND_HSDPA_SUPP_CELL             -- HSDPA is supported \n
-      - 0x02 -- SYS_HS_IND_HSUPA_SUPP_CELL             -- HSUPA is supported \n
-      - 0x03 -- SYS_HS_IND_HSDPA_HSUPA_SUPP_ CELL      -- HSDPA and HSUPA are supported \n
-      - 0x04 -- SYS_HS_IND_HSDPAPLUS_SUPP_ CELL        -- HSDPA+ is supported \n
-      - 0x05 -- SYS_HS_IND_HSDPAPLUS_HSUPA_ SUPP_CELL  -- HSDPA+ and HSUPA are supported \n
-      - 0x06 -- SYS_HS_IND_DC_HSDPAPLUS_SUPP_ CELL     -- Dual-cell HSDPA+ is supported \n
-      - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n
-      - 0x08 -- SYS_HS_IND_HSDPAPLUS_64QAM_ HSUPA_SUPP_CELL -- Dual-cell HSDPA+, 64 QAM, and HSUPA are supported \n
-      - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported
-    */
+  /**<  
+ Call status on high speed (only applicable for WCDMA). Values: \n
+      - SYS_HS_IND_HSDPA_HSUPA_UNSUPP_CELL (0x00) -- 
+      - SYS_HS_IND_HSDPA_SUPP_CELL (0x01) -- 
+      - SYS_HS_IND_HSUPA_SUPP_CELL (0x02) -- 
+      - SYS_HS_IND_HSDPA_HSUPA_SUPP_CELL (0x03) -- 
+      - SYS_HS_IND_HSDPAPLUS_SUPP_CELL (0x04) -- 
+      - SYS_HS_IND_HSDPAPLUS_HSUPA_SUPP_CELL (0x05) -- 
+      - SYS_HS_IND_DC_HSDPAPLUS_SUPP_CELL (0x06) -- 
+      - SYS_HS_IND_DC_HSDPAPLUS_HSUPA_SUPP_CELL (0x07) -- 
+      - SYS_HS_IND_HSDPAPLUS_64QAM_HSUPA_SUPP_CELL (0x08) -- 
+      - SYS_HS_IND_HSDPAPLUS_64QAM_SUPP_CELL (0x09) -- 
+      - SYS_HS_IND_DC_HSDPAPLUS_DC_HSUPA_SUPP_CELL (0x0A) -- 
+ */
 
   /* Optional */
   /*  3GPP Network Name Source */
   uint8_t nas_3gpp_nw_name_source_valid;  /**< Must be set to true if nas_3gpp_nw_name_source is being passed */
   nas_nw_name_source_enum_type_v01 nas_3gpp_nw_name_source;
   /**<   Network name source. Values: \n
-      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n
-      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n
-      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n
-      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n
-      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n
-      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n
-      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name
+      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n 
+      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n 
+      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n 
+      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n 
+      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n 
+      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n 
+      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name 
  */
 }nas_get_serving_system_resp_msg_v01;  /* Message */
 /**
@@ -2906,7 +2936,7 @@ typedef struct {
   /*  Roaming Indicator Value */
   uint8_t roaming_indicator_valid;  /**< Must be set to true if roaming_indicator is being passed */
   nas_roaming_indicator_enum_v01 roaming_indicator;
-  /**<
+  /**<   
     Roaming indicator. Values: \n
     - 0x00 -- ROAMING_IND_ON       -- Roaming   \n
     - 0x01 -- ROAMING_IND_OFF      -- Home      \n
@@ -2961,12 +2991,12 @@ typedef struct {
   /*  Default Roaming Indicator */
   uint8_t def_roam_ind_valid;  /**< Must be set to true if def_roam_ind is being passed */
   nas_roaming_indicator_enum_v01 def_roam_ind;
-  /**<
+  /**<   
     Roaming indicator. Values: \n
     -0x00 -- ROAMING_IND_ON                       -- Roaming \n
     -0x01 -- ROAMING_IND_OFF                      -- Home
 
-    Values from 2 onward are applicable only for 3GPP2. Refer to
+    Values from 2 onward are applicable only for 3GPP2. Refer to 
     \hyperref[S4]{[S4]} for the meanings of these values.
   */
 
@@ -2986,7 +3016,7 @@ typedef struct {
   /*  3GPP PLMN Name Flag */
   uint8_t plmn_description_changed_valid;  /**< Must be set to true if plmn_description_changed is being passed */
   uint8_t plmn_description_changed;
-  /**<
+  /**<  
        Flag indicating that the 3GPP EONS network description changed. Values: \n
        -0x01 -- PLMN name changed
   */
@@ -3052,7 +3082,7 @@ typedef struct {
   uint8_t dtm_ind;
   /**<   Dual Transfer mode indication. Values: \n
       - 0x00 -- DTM not supported \n
-      - 0x01 -- DTM supported
+      - 0x01 -- DTM supported 
   */
 
   /* Optional */
@@ -3091,7 +3121,7 @@ typedef struct {
   /*  PLMN Change Status */
   uint8_t srv_sys_no_change_valid;  /**< Must be set to true if srv_sys_no_change is being passed */
   uint8_t srv_sys_no_change;
-  /**<   Flag used to notify clients that a request to select a network ended
+  /**<   Flag used to notify clients that a request to select a network ended 
       with no change in the PLMN. Values: \n
       - 0x01 -- No change in serving system information
   */
@@ -3112,32 +3142,33 @@ typedef struct {
   /*  HS Call Status */
   uint8_t hs_call_status_valid;  /**< Must be set to true if hs_call_status is being passed */
   nas_hs_support_enum_type_v01 hs_call_status;
-  /**<
-      Call status on high speed (only applicable for WCDMA). Values: \n
-      - 0x00 -- SYS_HS_IND_HSDPA_HSUPA_ UNSUPP_CELL    -- HSDPA and HSUPA are unsupported \n
-      - 0x01 -- SYS_HS_IND_HSDPA_SUPP_CELL             -- HSDPA is supported \n
-      - 0x02 -- SYS_HS_IND_HSUPA_SUPP_CELL             -- HSUPA is supported \n
-      - 0x03 -- SYS_HS_IND_HSDPA_HSUPA_SUPP_ CELL      -- HSDPA and HSUPA are supported \n
-      - 0x04 -- SYS_HS_IND_HSDPAPLUS_SUPP_ CELL        -- HSDPA+ is supported \n
-      - 0x05 -- SYS_HS_IND_HSDPAPLUS_HSUPA_ SUPP_CELL  -- HSDPA+ and HSUPA are supported \n
-      - 0x06 -- SYS_HS_IND_DC_HSDPAPLUS_SUPP_ CELL     -- Dual-cell HSDPA+ is supported \n
-      - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n
-      - 0x08 -- SYS_HS_IND_HSDPAPLUS_64QAM_ HSUPA_SUPP_CELL -- Dual-cell HSDPA+, 64 QAM, and HSUPA are supported \n
-      - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported
-    */
+  /**<  
+ Call status on high speed (only applicable for WCDMA). Values: \n
+      - SYS_HS_IND_HSDPA_HSUPA_UNSUPP_CELL (0x00) -- 
+      - SYS_HS_IND_HSDPA_SUPP_CELL (0x01) -- 
+      - SYS_HS_IND_HSUPA_SUPP_CELL (0x02) -- 
+      - SYS_HS_IND_HSDPA_HSUPA_SUPP_CELL (0x03) -- 
+      - SYS_HS_IND_HSDPAPLUS_SUPP_CELL (0x04) -- 
+      - SYS_HS_IND_HSDPAPLUS_HSUPA_SUPP_CELL (0x05) -- 
+      - SYS_HS_IND_DC_HSDPAPLUS_SUPP_CELL (0x06) -- 
+      - SYS_HS_IND_DC_HSDPAPLUS_HSUPA_SUPP_CELL (0x07) -- 
+      - SYS_HS_IND_HSDPAPLUS_64QAM_HSUPA_SUPP_CELL (0x08) -- 
+      - SYS_HS_IND_HSDPAPLUS_64QAM_SUPP_CELL (0x09) -- 
+      - SYS_HS_IND_DC_HSDPAPLUS_DC_HSUPA_SUPP_CELL (0x0A) -- 
+ */
 
   /* Optional */
   /*  3GPP Network Name Source */
   uint8_t nas_3gpp_nw_name_source_valid;  /**< Must be set to true if nas_3gpp_nw_name_source is being passed */
   nas_nw_name_source_enum_type_v01 nas_3gpp_nw_name_source;
   /**<   Network name source. Values: \n
-      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n
-      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n
-      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n
-      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n
-      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n
-      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n
-      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name
+      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n 
+      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n 
+      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n 
+      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n 
+      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n 
+      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n 
+      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name 
  */
 }nas_serving_system_ind_msg_v01;  /* Message */
 /**
@@ -3145,7 +3176,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_home_network_req_msg_v01;
@@ -3155,10 +3186,10 @@ typedef struct {
   */
 typedef enum {
   NAS_NETWORK_DESC_DISPLAY_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_NETWORK_DESC_DISP_FALSE_V01 = 0x00,
-  NAS_NETWORK_DESC_DISP_TRUE_V01 = 0x01,
-  NAS_NETWORK_DESC_DISP_UNKOWN_V01 = 0xFF,
-  NAS_NETWORK_DESC_DISP_UNKNOWN_V01 = 0xFF,
+  NAS_NETWORK_DESC_DISP_FALSE_V01 = 0x00, 
+  NAS_NETWORK_DESC_DISP_TRUE_V01 = 0x01, 
+  NAS_NETWORK_DESC_DISP_UNKOWN_V01 = 0xFF, 
+  NAS_NETWORK_DESC_DISP_UNKNOWN_V01 = 0xFF, 
   NAS_NETWORK_DESC_DISPLAY_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_network_desc_display_enum_type_v01;
 /**
@@ -3170,10 +3201,10 @@ typedef enum {
   */
 typedef enum {
   NAS_NETWORK_DESC_ENCODING_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_NETWORK_DESC_ENCODING_OCTECT_UNSPECIFIED_V01 = 0x00,
-  NAS_NETWORK_DESC_ENCODING_7_BIT_ASCII_V01 = 0x02,
-  NAS_NETWORK_DESC_ENCODING_UNICODE_V01 = 0x04,
-  NAS_NETWORK_DESC_ENCODING_GSM_7_BIT_DEFAULT_V01 = 0x09,
+  NAS_NETWORK_DESC_ENCODING_OCTECT_UNSPECIFIED_V01 = 0x00, 
+  NAS_NETWORK_DESC_ENCODING_7_BIT_ASCII_V01 = 0x02, 
+  NAS_NETWORK_DESC_ENCODING_UNICODE_V01 = 0x04, 
+  NAS_NETWORK_DESC_ENCODING_GSM_7_BIT_DEFAULT_V01 = 0x09, 
   NAS_NETWORK_DESC_ENCODING_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_network_desc_encoding_type_v01;
 /**
@@ -3209,7 +3240,7 @@ typedef struct {
 
   /*  Network name display status */
   nas_network_desc_display_enum_type_v01 network_desc_display;
-  /**<
+  /**<   
       Whether the network name is to be conditionally displayed: \n
       - 0x00 -- Do not display \n
       - 0x01 -- Display \n
@@ -3220,26 +3251,26 @@ typedef struct {
 
   /*  Network description encoding */
   nas_network_desc_encoding_type_v01 network_desc_encoding;
-  /**<   Encoding of the network description.
-      Refer to \hyperref[S4]{[S4]} Table 9.1.1 for list of all defined values.
+  /**<   Encoding of the network description. 
+      Refer to \hyperref[S4]{[S4]} Table 9.1.1 for list of all defined values. 
       Common (but not all) values include: \n
       - 0x00 -- Octet, unspecified \n
       - 0x02 -- 7-bit ASCII \n
       - 0x04 -- Unicode (refer to \hyperref[S10]{[S10]}) \n
       - 0x09 -- GSM 7-bit default (refer to \hyperref[S8]{[S8]}) \n
       Note: This value is ignored if the network_description_len
-            is zero. If the encoding type is not recognized the
+            is zero. If the encoding type is not recognized the 
             network_description is ignored.
    */
 
-  /*  Network description
- Length of network description string that follows.
+  /*  Network description 
+ Length of network description string that follows. 
       If the network name is unknown or not included, the length
       is 0.
    */
   uint32_t network_desc_len;  /**< Must be set to # of elements in network_desc */
   uint8_t network_desc[NAS_NETWORK_DESCRIPTION_MAX_V01];
-  /**<   Length of network description string that follows.
+  /**<   Length of network description string that follows. 
        If the network name is unknown or not included, the length
        is 0.
   */
@@ -3257,12 +3288,12 @@ typedef struct {
   /**<   TRUE if TLV 0x01 corresponds to a 3GPP network; otherwise FALSE. */
 
   uint8_t mnc_includes_pcs_digit;
-  /**<   This field is used to interpret the length of the mobile_network_code
+  /**<   This field is used to interpret the length of the mobile_network_code 
        reported in TLV 0x01. Values: \n
 
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90 \n
        Note: This value is ignored if is_3gpp_network is FALSE.
   */
@@ -3280,7 +3311,7 @@ typedef struct {
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type.
+  /**<   Standard response type. 
  Standard response type. Contains the following data members:
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
      - qmi_error_type  -- Error code. Possible error code values are described in
@@ -3311,13 +3342,13 @@ typedef struct {
   uint8_t nas_3gpp_nw_name_source_valid;  /**< Must be set to true if nas_3gpp_nw_name_source is being passed */
   nas_nw_name_source_enum_type_v01 nas_3gpp_nw_name_source;
   /**<   Network name source. Values: \n
-      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n
-      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n
-      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n
-      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n
-      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n
-      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n
-      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name
+      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n 
+      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n 
+      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n 
+      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n 
+      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n 
+      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n 
+      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name 
  */
 }nas_get_home_network_resp_msg_v01;  /* Message */
 /**
@@ -3325,7 +3356,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_preferred_networks_req_msg_v01;
@@ -3417,7 +3448,7 @@ typedef struct {
   /*  Clear Previous Preferred Networks List */
   uint8_t clear_prev_preferred_networks_valid;  /**< Must be set to true if clear_prev_preferred_networks is being passed */
   uint8_t clear_prev_preferred_networks;
-  /**<   Indicates whether to add padding to the incoming preferred networks list
+  /**<   Indicates whether to add padding to the incoming preferred networks list 
        and to fully clear out the previous preferred networks list.
     */
 }nas_set_preferred_networks_req_msg_v01;  /* Message */
@@ -3441,7 +3472,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_forbidden_networks_req_msg_v01;
@@ -3516,7 +3547,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_accolc_req_msg_v01;
@@ -3535,7 +3566,7 @@ typedef struct {
   /* Mandatory */
   /*  Access Overload Class */
   uint8_t accolc;
-  /**<   An 8-bit integer representation of the ACCOLC.
+  /**<   An 8-bit integer representation of the ACCOLC. 
        Range: 0 to 15 (0x00 to 0x0F).
   */
 }nas_get_accolc_resp_msg_v01;  /* Message */
@@ -3552,7 +3583,7 @@ typedef struct {
   /**<   Service programming code in ASCII format (digits 0 to 9 only).*/
 
   uint8_t accolc;
-  /**<   An 8-bit integer representation of the ACCOLC.
+  /**<   An 8-bit integer representation of the ACCOLC. 
        Range: 0 to 15 (0x00 to 0x0F).
   */
 }nas_accolc_set_type_v01;  /* Type */
@@ -3590,7 +3621,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_device_config_req_msg_v01;
@@ -3630,7 +3661,7 @@ typedef struct {
   uint8_t state;
   /**<   HDR custom configuration for session control protocol. Values: \n
        - 0x00 -- Disable \n
-       - 0x01 -- Enable; enable may only be specified if Force HDR Revision
+       - 0x01 -- Enable; enable may only be specified if Force HDR Revision 
                  is set to Disable
   */
 
@@ -3675,10 +3706,10 @@ typedef struct {
   */
 typedef enum {
   NAS_ROAM_CONFIG_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_ROAM_CONFIG_PREF_AUTO_V01 = 0x00,
-  NAS_ROAM_CONFIG_PREF_HOME_ONLY_V01 = 0x01,
-  NAS_ROAM_CONFIG_PREF_ROAM_ONLY_V01 = 0x02,
-  NAS_ROAM_CONFIG_PREF_HOME_AND_AFFILIATE_V01 = 0x03,
+  NAS_ROAM_CONFIG_PREF_AUTO_V01 = 0x00, 
+  NAS_ROAM_CONFIG_PREF_HOME_ONLY_V01 = 0x01, 
+  NAS_ROAM_CONFIG_PREF_ROAM_ONLY_V01 = 0x02, 
+  NAS_ROAM_CONFIG_PREF_HOME_AND_AFFILIATE_V01 = 0x03, 
   NAS_ROAM_CONFIG_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_roam_config_pref_enum_v01;
 /**
@@ -3690,12 +3721,12 @@ typedef enum {
   */
 typedef enum {
   NAS_FORCE_HDRSCP_CONFIG_AT_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_HDR_REV0_PROTOCOLS_ONLY_V01 = 0x00,
-  NAS_HDR_REVA_PROTOCOLS_MFPA_V01 = 0x01,
-  NAS_HDR_REVA_PROTOCOLS_MFPA_EMPA_V01 = 0x02,
-  NAS_HDR_REVB_PROTOCOLS_MMPA_V01 = 0x03,
-  NAS_HDR_REVA_PROTOCOLS_EHRPD_V01 = 0x04,
-  NAS_HDR_REVB_PROTOCOLS_EHRPD_V01 = 0x05,
+  NAS_HDR_REV0_PROTOCOLS_ONLY_V01 = 0x00, 
+  NAS_HDR_REVA_PROTOCOLS_MFPA_V01 = 0x01, 
+  NAS_HDR_REVA_PROTOCOLS_MFPA_EMPA_V01 = 0x02, 
+  NAS_HDR_REVB_PROTOCOLS_MMPA_V01 = 0x03, 
+  NAS_HDR_REVA_PROTOCOLS_EHRPD_V01 = 0x04, 
+  NAS_HDR_REVB_PROTOCOLS_EHRPD_V01 = 0x05, 
   NAS_FORCE_HDRSCP_CONFIG_AT_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_force_hdrscp_config_at_enum_type_v01;
 /**
@@ -3705,14 +3736,14 @@ typedef enum {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Queries the network-related configuration setting of the
+/** Response Message; Queries the network-related configuration setting of the 
               device. */
 typedef struct {
 
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type.
+  /**<   Standard response type. 
  Standard response type. Contains the following data members:
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
      - qmi_error_type  -- Error code. Possible error code values are described in
@@ -3773,7 +3804,7 @@ typedef struct {
   /*  Force HDR SCP AT Config */
   uint8_t force_hdrscp_config_at_valid;  /**< Must be set to true if force_hdrscp_config_at is being passed */
   nas_force_hdrscp_config_at_enum_type_v01 force_hdrscp_config_at;
-  /**<
+  /**<   
       Values: \n
         -0x00 -- HDR Rev0 Protocols only  \n
         -0x01 -- HDR RevA Protocols with MFPA \n
@@ -3852,7 +3883,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_rf_band_info_req_msg_v01;
@@ -3863,10 +3894,30 @@ typedef struct {
 typedef struct {
 
   nas_radio_if_enum_v01 radio_if;
+  /**<   Radio interface currently in use. Values:  \n
+        - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X             \n
+        - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
+        - 0x03 -- AMPS \n
+        - 0x04 -- GSM \n
+        - 0x05 -- UMTS \n
+        - 0x08 -- LTE \n
+        - 0x09 -- TD-SCDMA
+   */
 
   nas_active_band_enum_v01 active_band;
+  /**<   Active band class (see Table @latexonly\ref{tbl:bandClass}@endlatexonly 
+       for details). Values: \n
+       - 00 to 39   -- CDMA band classes  \n
+       - 40 to 79   -- GSM band classes   \n
+       - 80 to 91   -- WCDMA band classes \n
+       - 120 to 153 -- LTE band classes   \n
+       - 200 to 205 -- TD-SCDMA band classes
+   */
 
   uint32_t active_channel;
+  /**<   Active channel. If the channel is not relevant to the
+       technology, a value of 0 is returned.
+  */
 }nas_rf_band_info_ext_type_v01;  /* Type */
 /**
     @}
@@ -3900,13 +3951,16 @@ typedef struct {
   uint8_t rf_band_info_list_ext_valid;  /**< Must be set to true if rf_band_info_list_ext is being passed */
   uint32_t rf_band_info_list_ext_len;  /**< Must be set to # of elements in rf_band_info_list_ext */
   nas_rf_band_info_ext_type_v01 rf_band_info_list_ext[NAS_RF_BAND_INFO_LIST_MAX_V01];
+  /**<   \n
+       (Extended sizes to accommodate LTE.) 
+  */
 }nas_get_rf_band_info_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_an_aaa_status_req_msg_v01;
@@ -3916,9 +3970,9 @@ typedef struct {
   */
 typedef enum {
   NAS_AN_AAA_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_AAA_STATUS_FAILED_V01 = 0x00,
-  NAS_AAA_STATUS_SUCCESS_V01 = 0x01,
-  NAS_AAA_STATUS_NO_REQUEST_V01 = 0x02,
+  NAS_AAA_STATUS_FAILED_V01 = 0x00, 
+  NAS_AAA_STATUS_SUCCESS_V01 = 0x01, 
+  NAS_AAA_STATUS_NO_REQUEST_V01 = 0x02, 
   NAS_AN_AAA_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_an_aaa_status_enum_v01;
 /**
@@ -3944,7 +3998,7 @@ typedef struct {
        the current 1xEV-DO session. Values: \n
        - 0 -- AAA_STATUS_FAILED     -- Authentication failed \n
        - 1 -- AAA_STATUS_SUCCESS    -- Authentication success \n
-       - 2 -- AAA_STATUS_NO_REQUEST -- No authentication requested
+       - 2 -- AAA_STATUS_NO_REQUEST -- No authentication requested 
   */
 }nas_get_an_aaa_status_resp_msg_v01;  /* Message */
 /**
@@ -3956,9 +4010,9 @@ typedef struct {
   */
 typedef enum {
   NAS_PRL_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_PRL_PREF_A_SIDE_ONLY_V01 = 0x0001,
-  NAS_PRL_PREF_B_SIDE_ONLY_V01 = 0x0002,
-  NAS_PRL_PREF_ANY_V01 = 0x3FFF,
+  NAS_PRL_PREF_A_SIDE_ONLY_V01 = 0x0001, 
+  NAS_PRL_PREF_B_SIDE_ONLY_V01 = 0x0002, 
+  NAS_PRL_PREF_ANY_V01 = 0x3FFF, 
   NAS_PRL_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_prl_pref_enum_v01;
 /**
@@ -3970,10 +4024,10 @@ typedef enum {
   */
 typedef enum {
   NAS_ROAM_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_ROAMING_PREF_OFF_V01 = 0x01,
-  NAS_ROAMING_PREF_NOT_OFF_V01 = 0x02,
-  NAS_ROAMING_PREF_NOT_FLASING_V01 = 0x03,
-  NAS_ROAMING_PREF_ANY_V01 = 0xFF,
+  NAS_ROAMING_PREF_OFF_V01 = 0x01, 
+  NAS_ROAMING_PREF_NOT_OFF_V01 = 0x02, 
+  NAS_ROAMING_PREF_NOT_FLASING_V01 = 0x03, 
+  NAS_ROAMING_PREF_ANY_V01 = 0xFF, 
   NAS_ROAM_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_roam_pref_enum_v01;
 /**
@@ -3985,8 +4039,8 @@ typedef enum {
   */
 typedef enum {
   NAS_NET_SEL_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_NET_SEL_PREF_AUTOMATIC_V01 = 0x00,
-  NAS_NET_SEL_PREF_MANUAL_V01 = 0x01,
+  NAS_NET_SEL_PREF_AUTOMATIC_V01 = 0x00, 
+  NAS_NET_SEL_PREF_MANUAL_V01 = 0x01, 
   NAS_NET_SEL_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_net_sel_pref_enum_v01;
 /**
@@ -3998,12 +4052,13 @@ typedef enum {
   */
 typedef enum {
   NAS_SRV_DOMAIN_PREF_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  QMI_SRV_DOMAIN_PREF_CS_ONLY_V01 = 0x00,
-  QMI_SRV_DOMAIN_PREF_PS_ONLY_V01 = 0x01,
-  QMI_SRV_DOMAIN_PREF_CS_PS_V01 = 0x02,
-  QMI_SRV_DOMAIN_PREF_PS_ATTACH_V01 = 0x03,
-  QMI_SRV_DOMAIN_PREF_PS_DETACH_V01 = 0x04,
-  QMI_SRV_DOMAIN_PREF_PS_DETACH_NO_PREF_CHANGE_V01 = 0x05,
+  QMI_SRV_DOMAIN_PREF_CS_ONLY_V01 = 0x00, /**<  Circuit-switched only \n  */
+  QMI_SRV_DOMAIN_PREF_PS_ONLY_V01 = 0x01, /**<  Packet-switched only \n  */
+  QMI_SRV_DOMAIN_PREF_CS_PS_V01 = 0x02, /**<  Circuit-switched and packet-switched \n  */
+  QMI_SRV_DOMAIN_PREF_PS_ATTACH_V01 = 0x03, /**<  Packet-switched attach \n  */
+  QMI_SRV_DOMAIN_PREF_PS_DETACH_V01 = 0x04, /**<  Packet-switched detach \n  */
+  QMI_SRV_DOMAIN_PREF_PS_DETACH_NO_PREF_CHANGE_V01 = 0x05, /**<  Packet-switched \n  */
+  QMI_SRV_DOMAIN_PREF_ON_DEMAND_PS_ATTACH_V01 = 0x06, /**<  Packet-switched detach with no change in the service domain preference  */
   NAS_SRV_DOMAIN_PREF_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_srv_domain_pref_enum_type_v01;
 /**
@@ -4015,9 +4070,9 @@ typedef enum {
   */
 typedef enum {
   NAS_GW_ACQ_ORDER_PREF_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_GW_ACQ_ORDER_PREF_AUTOMATIC_V01 = 0x00,
-  NAS_GW_ACQ_ORDER_PREF_GSM_WCDMA_V01 = 0x01,
-  NAS_GW_ACQ_ORDER_PREF_WCDMA_GSM_V01 = 0x02,
+  NAS_GW_ACQ_ORDER_PREF_AUTOMATIC_V01 = 0x00, 
+  NAS_GW_ACQ_ORDER_PREF_GSM_WCDMA_V01 = 0x01, 
+  NAS_GW_ACQ_ORDER_PREF_WCDMA_GSM_V01 = 0x02, 
   NAS_GW_ACQ_ORDER_PREF_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_gw_acq_order_pref_enum_type_v01;
 /**
@@ -4029,9 +4084,9 @@ typedef enum {
   */
 typedef enum {
   NAS_SRV_REG_RESTRICTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SRV_REG_RESTRICTION_UNRESTRICTED_V01 = 0x00,
-  NAS_SRV_REG_RESTRICTION_CAMPED_ONLY_V01 = 0x01,
-  NAS_SRV_REG_RESTRICTION_LIMITED_V01 = 0x02,
+  NAS_SRV_REG_RESTRICTION_UNRESTRICTED_V01 = 0x00, 
+  NAS_SRV_REG_RESTRICTION_CAMPED_ONLY_V01 = 0x01, 
+  NAS_SRV_REG_RESTRICTION_LIMITED_V01 = 0x02, 
   NAS_SRV_REG_RESTRICTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_srv_reg_restriction_enum_v01;
 /**
@@ -4074,15 +4129,15 @@ typedef struct {
 
   nas_net_sel_pref_enum_v01 net_sel_pref;
   /**<   Specifies one of the following actions: \n
-       - 0x00 -- NAS_NET_SEL_PREF_AUTOMATIC --
-                 Device registers according to its provisioning;
-                 mcc and mnc fields must also contain valid values
-                 if Radio Access Technology (TLV 0x22) is present.
+       - 0x00 -- NAS_NET_SEL_PREF_AUTOMATIC -- 
+                 Device registers according to its provisioning; 
+                 mcc and mnc fields must also contain valid values 
+                 if Radio Access Technology (TLV 0x22) is present. 
                  Otherwise, mcc and mnc are ignored. \n
-       - 0x01 -- NAS_NET_SEL_PREF_MANUAL --
-                 Device registers to specified network;
+       - 0x01 -- NAS_NET_SEL_PREF_MANUAL -- 
+                 Device registers to specified network; 
                  mcc and mnc fields must also contain valid values.
-
+       
        \vspace{3pt}
        All other values are reserved.
   */
@@ -4100,12 +4155,12 @@ typedef struct {
   */
 
 typedef uint16_t mode_pref_mask_type_v01;
-#define QMI_NAS_RAT_MODE_PREF_CDMA2000_1X_V01 ((mode_pref_mask_type_v01)0x01)
-#define QMI_NAS_RAT_MODE_PREF_CDMA2000_HRPD_V01 ((mode_pref_mask_type_v01)0x02)
-#define QMI_NAS_RAT_MODE_PREF_GSM_V01 ((mode_pref_mask_type_v01)0x04)
-#define QMI_NAS_RAT_MODE_PREF_UMTS_V01 ((mode_pref_mask_type_v01)0x08)
-#define QMI_NAS_RAT_MODE_PREF_LTE_V01 ((mode_pref_mask_type_v01)0x10)
-#define QMI_NAS_RAT_MODE_PREF_TDSCDMA_V01 ((mode_pref_mask_type_v01)0x20)
+#define QMI_NAS_RAT_MODE_PREF_CDMA2000_1X_V01 ((mode_pref_mask_type_v01)0x01) 
+#define QMI_NAS_RAT_MODE_PREF_CDMA2000_HRPD_V01 ((mode_pref_mask_type_v01)0x02) 
+#define QMI_NAS_RAT_MODE_PREF_GSM_V01 ((mode_pref_mask_type_v01)0x04) 
+#define QMI_NAS_RAT_MODE_PREF_UMTS_V01 ((mode_pref_mask_type_v01)0x08) 
+#define QMI_NAS_RAT_MODE_PREF_LTE_V01 ((mode_pref_mask_type_v01)0x10) 
+#define QMI_NAS_RAT_MODE_PREF_TDSCDMA_V01 ((mode_pref_mask_type_v01)0x20) 
 /** @addtogroup nas_qmi_aggregates
     @{
   */
@@ -4121,12 +4176,12 @@ typedef struct {
 
   uint8_t mnc_includes_pcs_digit;
   /**<   This field is used to interpret the length of the corresponding
-       MNC reported in the TLVs (in this table) with an mnc or
+       MNC reported in the TLVs (in this table) with an mnc or 
        mobile_network_code field. Values: \n
 
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90
   */
 
@@ -4166,11 +4221,11 @@ typedef struct {
   /*  Mode Preference */
   uint8_t mode_pref_valid;  /**< Must be set to true if mode_pref is being passed */
   mode_pref_mask_type_v01 mode_pref;
-  /**<   Bitmask representing the radio technology mode preference to be set.
+  /**<   Bitmask representing the radio technology mode preference to be set. 
        Values: \n
-       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    --
+       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    -- 
          cdma2000\textsuperscript{\textregistered} 1X             \n
-       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  --
+       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - Bit 2 (0x04) -- QMI_NAS_RAT_MODE_PREF_ GSM            -- GSM \n
        - Bit 3 (0x08) -- QMI_NAS_RAT_MODE_PREF_ UMTS           -- UMTS \n
@@ -4186,9 +4241,9 @@ typedef struct {
   /*  Band Preference */
   uint8_t band_pref_valid;  /**< Must be set to true if band_pref is being passed */
   nas_band_pref_mask_type_v01 band_pref;
-  /**<   Bitmask representing the band preference to be set.
-       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the band preference to be set.  
+       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly 
+       for details.   
   */
 
   /* Optional */
@@ -4216,9 +4271,9 @@ typedef struct {
   /*  LTE Band Preference */
   uint8_t lte_band_pref_valid;  /**< Must be set to true if lte_band_pref is being passed */
   lte_band_pref_mask_type_v01 lte_band_pref;
-  /**<   Bitmask representing the LTE band preference to be set.
-       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the LTE band preference to be set. 
+       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly 
+       for details.  
   */
 
   /* Optional */
@@ -4233,7 +4288,7 @@ typedef struct {
   /**<    Duration of the change. Values: \n
         - 0x00 -- Power cycle -- Remains active until the next device power cycle \n
         - 0x01 -- Permanent -- Remains active through power cycles until changed by the client \n
-        Note: The device will use "0x01 -- Permanent" as the default value
+        Note: The device will use "0x01 -- Permanent" as the default value 
               if the TLV is omitted.
   */
 
@@ -4241,15 +4296,15 @@ typedef struct {
   /*  Service Domain */
   uint8_t srv_domain_pref_valid;  /**< Must be set to true if srv_domain_pref is being passed */
   nas_srv_domain_pref_enum_type_v01 srv_domain_pref;
-  /**<    Service domain preference. Values: \n
-       - 0x00  -- QMI_SRV_DOMAIN_PREF_CS_ONLY -- Circuit-switched only \n
-       - 0x01  -- QMI_SRV_DOMAIN_PREF_PS_ONLY -- Packet-switched only  \n
-       - 0x02  -- QMI_SRV_DOMAIN_PREF_CS_PS   -- Circuit-switched and packet-switched \n
-       - 0x03  -- QMI_SRV_DOMAIN_PREF_PS_ ATTACH -- Packet-switched attach \n
-       - 0x04  -- QMI_SRV_DOMAIN_PREF_PS_ DETACH -- Packet-switched detach \n
-       - 0x05  -- QMI_SRV_DOMAIN_PREF_PS_ DETACH_NO_PREF_CHANGE -- Packet-switched
-                  detach with no change in the service domain preference
-  */
+  /**<   Service domain preference. Values: \n
+      - QMI_SRV_DOMAIN_PREF_CS_ONLY (0x00) --  Circuit-switched only \n 
+      - QMI_SRV_DOMAIN_PREF_PS_ONLY (0x01) --  Packet-switched only \n 
+      - QMI_SRV_DOMAIN_PREF_CS_PS (0x02) --  Circuit-switched and packet-switched \n 
+      - QMI_SRV_DOMAIN_PREF_PS_ATTACH (0x03) --  Packet-switched attach \n 
+      - QMI_SRV_DOMAIN_PREF_PS_DETACH (0x04) --  Packet-switched detach \n 
+      - QMI_SRV_DOMAIN_PREF_PS_DETACH_NO_PREF_CHANGE (0x05) --  Packet-switched \n 
+      - QMI_SRV_DOMAIN_PREF_ON_DEMAND_PS_ATTACH (0x06) --  Packet-switched detach with no change in the service domain preference 
+ */
 
   /* Optional */
   /*  GSM/WCDMA Acquisition Order */
@@ -4268,9 +4323,9 @@ typedef struct {
   /**<   This field is used to interpret the length of the corresponding
        MNC reported in the Network Selection Preference TLV (0x16). Values: \n
 
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90
   */
 
@@ -4296,9 +4351,9 @@ typedef struct {
   uint32_t acq_order_len;  /**< Must be set to # of elements in acq_order */
   nas_radio_if_enum_v01 acq_order[NAS_ACQ_ORDER_LIST_MAX_V01];
   /**<   Acquisition order preference to be set. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -4310,13 +4365,13 @@ typedef struct {
   /*  Network Selection Registration Restriction Preference */
   uint8_t srv_reg_restriction_valid;  /**< Must be set to true if srv_reg_restriction is being passed */
   nas_srv_reg_restriction_enum_v01 srv_reg_restriction;
-  /**<   Registration restriction preference. Specifies one of the following
+  /**<   Registration restriction preference. Specifies one of the following 
        modifiers to net_sel_pref: \n
-    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal
+    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal 
               registration process \n
-    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device camps on the network
+    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device camps on the network 
               according to its provisioning, but does not register \n
-    - 0x02 -- NAS_SRV_REG_RESTRICTION_ LIMITED -- Device selects the network for
+    - 0x02 -- NAS_SRV_REG_RESTRICTION_ LIMITED -- Device selects the network for 
               limited service
 
     \vspace{3pt}
@@ -4333,19 +4388,19 @@ typedef struct {
   uint8_t usage_setting_valid;  /**< Must be set to true if usage_setting is being passed */
   nas_usage_pref_enum_v01 usage_setting;
   /**<   Modem usage preference to be set. Values: \n
-      - NAS_USAGE_VOICE_CENTRIC (1) --  Voice centric \n
-      - NAS_USAGE_DATA_CENTRIC (2) --  Data centric
+      - NAS_USAGE_VOICE_CENTRIC (1) --  Voice centric \n 
+      - NAS_USAGE_DATA_CENTRIC (2) --  Data centric 
  */
 
   /* Optional */
   /*  Radio Access Technology */
   uint8_t rat_valid;  /**< Must be set to true if rat is being passed */
   nas_radio_if_enum_v01 rat;
-  /**<   Radio access technology for the corresponding PLMN ID in the Network
-       Selection Preference TLV (0x16). If this TLV is present and the
-       net_sel_pref field is set to automatic, the provided MCC, MNC, and RAT
-       are searched for first. If they are not found, the selection falls
-       back to automatic. This TLV can also be used with the net_sel_pref
+  /**<   Radio access technology for the corresponding PLMN ID in the Network 
+       Selection Preference TLV (0x16). If this TLV is present and the 
+       net_sel_pref field is set to automatic, the provided MCC, MNC, and RAT 
+       are searched for first. If they are not found, the selection falls 
+       back to automatic. This TLV can also be used with the net_sel_pref 
        field set to manual to indicate the RAT of the specified MCC and MNC. \n
        Values: \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
@@ -4359,10 +4414,10 @@ typedef struct {
   uint8_t voice_domain_pref_valid;  /**< Must be set to true if voice_domain_pref is being passed */
   nas_voice_domain_pref_enum_type_v01 voice_domain_pref;
   /**<   Voice domain preference to be set. Values: \n
-      - NAS_VOICE_DOMAIN_PREF_CS_ONLY (0x00) --  Circuit-switched (CS) voice only \n
-      - NAS_VOICE_DOMAIN_PREF_PS_ONLY (0x01) --  Packet-switched (PS) voice only \n
-      - NAS_VOICE_DOMAIN_PREF_CS_PREF (0x02) --  CS is preferred; PS is secondary \n
-      - NAS_VOICE_DOMAIN_PREF_PS_PREF (0x03) --  PS is preferred; CS is secondary
+      - NAS_VOICE_DOMAIN_PREF_CS_ONLY (0x00) --  Circuit-switched (CS) voice only \n 
+      - NAS_VOICE_DOMAIN_PREF_PS_ONLY (0x01) --  Packet-switched (PS) voice only \n 
+      - NAS_VOICE_DOMAIN_PREF_CS_PREF (0x02) --  CS is preferred; PS is secondary \n 
+      - NAS_VOICE_DOMAIN_PREF_PS_PREF (0x03) --  PS is preferred; CS is secondary 
  */
 }nas_set_system_selection_preference_req_msg_v01;  /* Message */
 /**
@@ -4386,7 +4441,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_system_selection_preference_req_msg_v01;
@@ -4401,7 +4456,7 @@ typedef enum {
   NAS_LTE_DISABLE_CAUSE_TEMP_DS_V01 = 0x02, /**<  LTE is disabled by DS temporarily \n  */
   NAS_LTE_DISABLE_CAUSE_DOM_SEL_V01 = 0x03, /**<  LTE disable procedure is called for domain selection purpose \n  */
   NAS_LTE_DISABLE_CAUSE_DAM_V01 = 0x04, /**<  LTE disable procedure is called for device aggression management recovery  */
-  NAS_LTE_DISABLE_CAUSE_USER_V01 = 0x05, /**<  LTE disable procedure is called due to user action,
+  NAS_LTE_DISABLE_CAUSE_USER_V01 = 0x05, /**<  LTE disable procedure is called due to user action, 
        e.g., mode_pref change or PS_DETACH triggered by ATCOP/QMI \n  */
   NAS_LTE_DISABLE_CAUSE_NO_CHANGE_V01 = 0x06, /**<  No change in LTE disable cause  */
   NAS_LTE_DISABLE_CAUSE_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
@@ -4413,7 +4468,7 @@ typedef enum {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Queries the different system selection preferences of the
+/** Response Message; Queries the different system selection preferences of the 
               device.
               \label{idl:getSysSelPref} */
 typedef struct {
@@ -4436,11 +4491,11 @@ typedef struct {
   /*  Mode Preference */
   uint8_t mode_pref_valid;  /**< Must be set to true if mode_pref is being passed */
   mode_pref_mask_type_v01 mode_pref;
-  /**<   Bitmask representing the radio technology mode preference to be set.
+  /**<   Bitmask representing the radio technology mode preference to be set. 
        Values: \n
-       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    --
+       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    -- 
          cdma2000\textsuperscript{\textregistered} 1X             \n
-       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  --
+       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - Bit 2 (0x04) -- QMI_NAS_RAT_MODE_PREF_ GSM            -- GSM \n
        - Bit 3 (0x08) -- QMI_NAS_RAT_MODE_PREF_ UMTS           -- UMTS \n
@@ -4456,9 +4511,9 @@ typedef struct {
   /*  Band Preference */
   uint8_t band_pref_valid;  /**< Must be set to true if band_pref is being passed */
   nas_band_pref_mask_type_v01 band_pref;
-  /**<   Bitmask representing the band preference to be set.
-       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the band preference to be set. 
+       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly 
+       for details.   
   */
 
   /* Optional */
@@ -4580,9 +4635,9 @@ typedef struct {
   uint32_t acq_order_len;  /**< Must be set to # of elements in acq_order */
   nas_radio_if_enum_v01 acq_order[NAS_ACQ_ORDER_LIST_MAX_V01];
   /**<   Acquisition order preference to be set. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -4594,13 +4649,13 @@ typedef struct {
   /*  Network Selection Registration Restriction Preference */
   uint8_t srv_reg_restriction_valid;  /**< Must be set to true if srv_reg_restriction is being passed */
   nas_srv_reg_restriction_enum_v01 srv_reg_restriction;
-  /**<   Registration restriction preference. Specifies one of the following
+  /**<   Registration restriction preference. Specifies one of the following 
        modifiers to net_sel_pref: \n
-    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal
+    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal 
               registration process \n
-    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device camps on the network
+    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device camps on the network 
               according to its provisioning, but does not register \n
-    - 0x02 -- NAS_SRV_REG_RESTRICTION_ LIMITED -- Device selects the network for
+    - 0x02 -- NAS_SRV_REG_RESTRICTION_ LIMITED -- Device selects the network for 
               limited service
 
     \vspace{3pt}
@@ -4617,9 +4672,9 @@ typedef struct {
   uint8_t usage_setting_valid;  /**< Must be set to true if usage_setting is being passed */
   nas_usage_pref_enum_v01 usage_setting;
   /**<   Modem usage preference to be set. Values: \n
-      - NAS_USAGE_UNKNOWN (0) --  Unknown \n
-      - NAS_USAGE_VOICE_CENTRIC (1) --  Voice centric \n
-      - NAS_USAGE_DATA_CENTRIC (2) --  Data centric
+      - NAS_USAGE_UNKNOWN (0) --  Unknown \n 
+      - NAS_USAGE_VOICE_CENTRIC (1) --  Voice centric \n 
+      - NAS_USAGE_DATA_CENTRIC (2) --  Data centric 
  */
 
   /* Optional */
@@ -4627,10 +4682,10 @@ typedef struct {
   uint8_t voice_domain_pref_valid;  /**< Must be set to true if voice_domain_pref is being passed */
   nas_voice_domain_pref_enum_type_v01 voice_domain_pref;
   /**<   Voice domain preference. Values: \n
-      - NAS_VOICE_DOMAIN_PREF_CS_ONLY (0x00) --  Circuit-switched (CS) voice only \n
-      - NAS_VOICE_DOMAIN_PREF_PS_ONLY (0x01) --  Packet-switched (PS) voice only \n
-      - NAS_VOICE_DOMAIN_PREF_CS_PREF (0x02) --  CS is preferred; PS is secondary \n
-      - NAS_VOICE_DOMAIN_PREF_PS_PREF (0x03) --  PS is preferred; CS is secondary
+      - NAS_VOICE_DOMAIN_PREF_CS_ONLY (0x00) --  Circuit-switched (CS) voice only \n 
+      - NAS_VOICE_DOMAIN_PREF_PS_ONLY (0x01) --  Packet-switched (PS) voice only \n 
+      - NAS_VOICE_DOMAIN_PREF_CS_PREF (0x02) --  CS is preferred; PS is secondary \n 
+      - NAS_VOICE_DOMAIN_PREF_PS_PREF (0x03) --  PS is preferred; CS is secondary 
  */
 
   /* Optional */
@@ -4638,14 +4693,14 @@ typedef struct {
   uint8_t lte_disable_cause_valid;  /**< Must be set to true if lte_disable_cause is being passed */
   nas_lte_disable_cause_enum_type_v01 lte_disable_cause;
   /**<   LTE disable cause. Values: \n
-      - NAS_LTE_DISABLE_CAUSE_NONE (0x00) --  LTE is not disabled \n
-      - NAS_LTE_DISABLE_CAUSE_PERMANENT_DS (0x01) --  LTE is disabled by DS permanently, e.g., T3316 expiry \n
-      - NAS_LTE_DISABLE_CAUSE_TEMP_DS (0x02) --  LTE is disabled by DS temporarily \n
-      - NAS_LTE_DISABLE_CAUSE_DOM_SEL (0x03) --  LTE disable procedure is called for domain selection purpose \n
-      - NAS_LTE_DISABLE_CAUSE_DAM (0x04) --  LTE disable procedure is called for device aggression management recovery
-      - NAS_LTE_DISABLE_CAUSE_USER (0x05) --  LTE disable procedure is called due to user action,
-       e.g., mode_pref change or PS_DETACH triggered by ATCOP/QMI \n
-      - NAS_LTE_DISABLE_CAUSE_NO_CHANGE (0x06) --  No change in LTE disable cause
+      - NAS_LTE_DISABLE_CAUSE_NONE (0x00) --  LTE is not disabled \n 
+      - NAS_LTE_DISABLE_CAUSE_PERMANENT_DS (0x01) --  LTE is disabled by DS permanently, e.g., T3316 expiry \n 
+      - NAS_LTE_DISABLE_CAUSE_TEMP_DS (0x02) --  LTE is disabled by DS temporarily \n 
+      - NAS_LTE_DISABLE_CAUSE_DOM_SEL (0x03) --  LTE disable procedure is called for domain selection purpose \n 
+      - NAS_LTE_DISABLE_CAUSE_DAM (0x04) --  LTE disable procedure is called for device aggression management recovery 
+      - NAS_LTE_DISABLE_CAUSE_USER (0x05) --  LTE disable procedure is called due to user action, 
+       e.g., mode_pref change or PS_DETACH triggered by ATCOP/QMI \n 
+      - NAS_LTE_DISABLE_CAUSE_NO_CHANGE (0x06) --  No change in LTE disable cause 
  */
 }nas_get_system_selection_preference_resp_msg_v01;  /* Message */
 /**
@@ -4655,7 +4710,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Indication Message; Queries the different system selection preferences of the
+/** Indication Message; Queries the different system selection preferences of the 
               device.
               \label{idl:getSysSelPref} */
 typedef struct {
@@ -4673,11 +4728,11 @@ typedef struct {
   /*  Mode Preference */
   uint8_t mode_pref_valid;  /**< Must be set to true if mode_pref is being passed */
   mode_pref_mask_type_v01 mode_pref;
-  /**<   Bitmask representing the radio technology mode preference to be set.
+  /**<   Bitmask representing the radio technology mode preference to be set. 
        Values: \n
-       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    --
+       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    -- 
          cdma2000\textsuperscript{\textregistered} 1X \n
-       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  --
+       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - Bit 2 (0x04) -- QMI_NAS_RAT_MODE_PREF_ GSM            -- GSM \n
        - Bit 3 (0x08) -- QMI_NAS_RAT_MODE_PREF_ UMTS           -- UMTS \n
@@ -4692,9 +4747,9 @@ typedef struct {
   /*  Band Preference */
   uint8_t band_pref_valid;  /**< Must be set to true if band_pref is being passed */
   nas_band_pref_mask_type_v01 band_pref;
-  /**<   Bitmask representing the band preference to be set.
-       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the band preference to be set. 
+       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly 
+       for details.   
   */
 
   /* Optional */
@@ -4722,9 +4777,9 @@ typedef struct {
   /*  LTE Band Preference */
   uint8_t lte_band_pref_valid;  /**< Must be set to true if lte_band_pref is being passed */
   lte_band_pref_mask_type_v01 lte_band_pref;
-  /**<   Bitmask representing the LTE band preference to be set.
-       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the LTE band preference to be set. 
+       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly 
+       for details.  
   */
 
   /* Optional */
@@ -4783,9 +4838,9 @@ typedef struct {
   uint32_t acq_order_len;  /**< Must be set to # of elements in acq_order */
   nas_radio_if_enum_v01 acq_order[NAS_ACQ_ORDER_LIST_MAX_V01];
   /**<   Acquisition order preference to be set. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -4797,13 +4852,13 @@ typedef struct {
   /*  Network Selection Registration Restriction Preference */
   uint8_t srv_reg_restriction_valid;  /**< Must be set to true if srv_reg_restriction is being passed */
   nas_srv_reg_restriction_enum_v01 srv_reg_restriction;
-  /**<   Registration restriction preference. Specifies one of the following
+  /**<   Registration restriction preference. Specifies one of the following 
        modifiers to net_sel_pref: \n
-    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal
+    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal 
               registration process \n
-    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device camps on the network
+    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device camps on the network 
               according to its provisioning, but does not register \n
-    - 0x02 -- NAS_SRV_REG_RESTRICTION_ LIMITED -- Device selects the network for
+    - 0x02 -- NAS_SRV_REG_RESTRICTION_ LIMITED -- Device selects the network for 
               limited service
 
     \vspace{3pt}
@@ -4820,9 +4875,9 @@ typedef struct {
   uint8_t usage_setting_valid;  /**< Must be set to true if usage_setting is being passed */
   nas_usage_pref_enum_v01 usage_setting;
   /**<   Usage preference to be set. Values: \n
-      - NAS_USAGE_UNKNOWN (0) --  Unknown \n
-      - NAS_USAGE_VOICE_CENTRIC (1) --  Voice centric \n
-      - NAS_USAGE_DATA_CENTRIC (2) --  Data centric
+      - NAS_USAGE_UNKNOWN (0) --  Unknown \n 
+      - NAS_USAGE_VOICE_CENTRIC (1) --  Voice centric \n 
+      - NAS_USAGE_DATA_CENTRIC (2) --  Data centric 
  */
 
   /* Optional */
@@ -4830,10 +4885,10 @@ typedef struct {
   uint8_t voice_domain_pref_valid;  /**< Must be set to true if voice_domain_pref is being passed */
   nas_voice_domain_pref_enum_type_v01 voice_domain_pref;
   /**<   Voice domain preference. Values: \n
-      - NAS_VOICE_DOMAIN_PREF_CS_ONLY (0x00) --  Circuit-switched (CS) voice only \n
-      - NAS_VOICE_DOMAIN_PREF_PS_ONLY (0x01) --  Packet-switched (PS) voice only \n
-      - NAS_VOICE_DOMAIN_PREF_CS_PREF (0x02) --  CS is preferred; PS is secondary \n
-      - NAS_VOICE_DOMAIN_PREF_PS_PREF (0x03) --  PS is preferred; CS is secondary
+      - NAS_VOICE_DOMAIN_PREF_CS_ONLY (0x00) --  Circuit-switched (CS) voice only \n 
+      - NAS_VOICE_DOMAIN_PREF_PS_ONLY (0x01) --  Packet-switched (PS) voice only \n 
+      - NAS_VOICE_DOMAIN_PREF_CS_PREF (0x02) --  CS is preferred; PS is secondary \n 
+      - NAS_VOICE_DOMAIN_PREF_PS_PREF (0x03) --  PS is preferred; CS is secondary 
  */
 
   /* Optional */
@@ -4841,14 +4896,14 @@ typedef struct {
   uint8_t lte_disable_cause_valid;  /**< Must be set to true if lte_disable_cause is being passed */
   nas_lte_disable_cause_enum_type_v01 lte_disable_cause;
   /**<   LTE disable cause. Values: \n
-      - NAS_LTE_DISABLE_CAUSE_NONE (0x00) --  LTE is not disabled \n
-      - NAS_LTE_DISABLE_CAUSE_PERMANENT_DS (0x01) --  LTE is disabled by DS permanently, e.g., T3316 expiry \n
-      - NAS_LTE_DISABLE_CAUSE_TEMP_DS (0x02) --  LTE is disabled by DS temporarily \n
-      - NAS_LTE_DISABLE_CAUSE_DOM_SEL (0x03) --  LTE disable procedure is called for domain selection purpose \n
-      - NAS_LTE_DISABLE_CAUSE_DAM (0x04) --  LTE disable procedure is called for device aggression management recovery
-      - NAS_LTE_DISABLE_CAUSE_USER (0x05) --  LTE disable procedure is called due to user action,
-       e.g., mode_pref change or PS_DETACH triggered by ATCOP/QMI \n
-      - NAS_LTE_DISABLE_CAUSE_NO_CHANGE (0x06) --  No change in LTE disable cause
+      - NAS_LTE_DISABLE_CAUSE_NONE (0x00) --  LTE is not disabled \n 
+      - NAS_LTE_DISABLE_CAUSE_PERMANENT_DS (0x01) --  LTE is disabled by DS permanently, e.g., T3316 expiry \n 
+      - NAS_LTE_DISABLE_CAUSE_TEMP_DS (0x02) --  LTE is disabled by DS temporarily \n 
+      - NAS_LTE_DISABLE_CAUSE_DOM_SEL (0x03) --  LTE disable procedure is called for domain selection purpose \n 
+      - NAS_LTE_DISABLE_CAUSE_DAM (0x04) --  LTE disable procedure is called for device aggression management recovery 
+      - NAS_LTE_DISABLE_CAUSE_USER (0x05) --  LTE disable procedure is called due to user action, 
+       e.g., mode_pref change or PS_DETACH triggered by ATCOP/QMI \n 
+      - NAS_LTE_DISABLE_CAUSE_NO_CHANGE (0x06) --  No change in LTE disable cause 
  */
 }nas_system_selection_preference_ind_msg_v01;  /* Message */
 /**
@@ -4860,9 +4915,9 @@ typedef struct {
   */
 typedef enum {
   NAS_DDTM_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_DDTM_PREF_OFF_V01 = 0x00,
-  NAS_DDTM_PREF_ON_V01 = 0x01,
-  NAS_DDTM_PREF_NO_CHANGE_V01 = 0x02,
+  NAS_DDTM_PREF_OFF_V01 = 0x00, 
+  NAS_DDTM_PREF_ON_V01 = 0x01, 
+  NAS_DDTM_PREF_NO_CHANGE_V01 = 0x02, 
   NAS_DDTM_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_ddtm_pref_enum_v01;
 /**
@@ -4874,10 +4929,10 @@ typedef enum {
   */
 typedef enum {
   NAS_SO_LIST_ACTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SO_LIST_ACTION_ADD_V01 = 0x00,
-  NAS_SO_LIST_ACTION_REPLACE_V01 = 0x01,
-  NAS_SO_LIST_ACTION_DELETE_V01 = 0x02,
-  NAS_SO_LIST_ACTION_NO_CHANGE_V01 = 0x03,
+  NAS_SO_LIST_ACTION_ADD_V01 = 0x00, 
+  NAS_SO_LIST_ACTION_REPLACE_V01 = 0x01, 
+  NAS_SO_LIST_ACTION_DELETE_V01 = 0x02, 
+  NAS_SO_LIST_ACTION_NO_CHANGE_V01 = 0x03, 
   NAS_SO_LIST_ACTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_so_list_action_enum_v01;
 /**
@@ -4918,7 +4973,7 @@ typedef struct {
   uint32_t so_len;  /**< Must be set to # of elements in so */
   uint16_t so[NAS_SO_LIST_MAX_V01];
   /**<   Service option for which SO pages are ignored
-       when DDTM status is ON. Refer to \hyperref[S4]{[S4]} Table 3.1-1 for
+       when DDTM status is ON. Refer to \hyperref[S4]{[S4]} Table 3.1-1 for 
        standard SO number assignments. To ignore all SO pages, a value of 0xFFFF
        must be specified.
   */
@@ -4930,7 +4985,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Sets the Data Dedicated Transmission Mode (DDTM) preference
+/** Request Message; Sets the Data Dedicated Transmission Mode (DDTM) preference 
               for the device. */
 typedef struct {
 
@@ -4945,7 +5000,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Sets the Data Dedicated Transmission Mode (DDTM) preference
+/** Response Message; Sets the Data Dedicated Transmission Mode (DDTM) preference 
               for the device. */
 typedef struct {
 
@@ -4963,8 +5018,8 @@ typedef struct {
   */
 typedef enum {
   NAS_CURR_DDTM_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_CURRENT_DDTM_STATUS_DISABLED_V01 = 0x00,
-  NAS_CURRENT_DDTM_STATUS_ENABLED_V01 = 0x01,
+  NAS_CURRENT_DDTM_STATUS_DISABLED_V01 = 0x00, 
+  NAS_CURRENT_DDTM_STATUS_ENABLED_V01 = 0x01, 
   NAS_CURR_DDTM_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_curr_ddtm_status_enum_v01;
 /**
@@ -5009,7 +5064,7 @@ typedef struct {
   uint32_t so_len;  /**< Must be set to # of elements in so */
   uint16_t so[NAS_SO_LIST_MAX_V01];
   /**<   Service option for which SO pages are ignored
-       when DDTM status is ON. Refer to \hyperref[S4]{[S4]} Table 3.1-1 for
+       when DDTM status is ON. Refer to \hyperref[S4]{[S4]} Table 3.1-1 for 
        standard SO number assignments. To ignore all SO pages, a value of 0xFFFF
        must be specified.
   */
@@ -5033,7 +5088,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_operator_name_data_req_msg_v01;
@@ -5049,7 +5104,7 @@ typedef struct {
   uint32_t spn_len;  /**< Must be set to # of elements in spn */
   uint8_t spn[NAS_SERVICE_PROVIDER_NAME_MAX_V01];
   /**<    Service provider name string must use: \n
-        - The SMS default 7-bit coded alphabet as defined in
+        - The SMS default 7-bit coded alphabet as defined in 
           \hyperref[S8]{[S8]} with bit 8 set to 9 \n
         - One UCS2 code option defined in \hyperref[S9]{[S9]} Annex B
   */
@@ -5092,8 +5147,8 @@ typedef struct {
   */
 typedef enum {
   NAS_CODING_SCHEME_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_CODING_SCHEME_CELL_BROADCAST_GSM_V01 = 0x00,
-  NAS_CODING_SCHEME_UCS2_V01 = 0x01,
+  NAS_CODING_SCHEME_CELL_BROADCAST_GSM_V01 = 0x00, 
+  NAS_CODING_SCHEME_UCS2_V01 = 0x01, 
   NAS_CODING_SCHEME_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_coding_scheme_enum_v01;
 /**
@@ -5105,9 +5160,9 @@ typedef enum {
   */
 typedef enum {
   NAS_COUNTRY_INITIALS_ADD_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_COUNTRY_INITIALS_DO_NOT_ADD_V01 = 0x00,
-  NAS_COUNTRY_INITIALS_ADD_V01 = 0x01,
-  NAS_COUNTRY_INITIALS_UNSPEFICIED_V01 = 0xFF,
+  NAS_COUNTRY_INITIALS_DO_NOT_ADD_V01 = 0x00, 
+  NAS_COUNTRY_INITIALS_ADD_V01 = 0x01, 
+  NAS_COUNTRY_INITIALS_UNSPEFICIED_V01 = 0xFF, 
   NAS_COUNTRY_INITIALS_ADD_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_country_initials_add_enum_v01;
 /**
@@ -5119,14 +5174,14 @@ typedef enum {
   */
 typedef enum {
   NAS_SPARE_BITS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SPARE_BITS_8_V01 = 0x01,
-  NAS_SPARE_BITS_7_TO_8_V01 = 0x02,
-  NAS_SPARE_BITS_6_TO_8_V01 = 0x03,
-  NAS_SPARE_BITS_5_TO_8_V01 = 0x04,
-  NAS_SPARE_BITS_4_TO_8_V01 = 0x05,
-  NAS_SPARE_BITS_3_TO_8_V01 = 0x06,
-  NAS_SPARE_BITS_2_TO_8_V01 = 0x07,
-  NAS_SPARE_BITS_UNKNOWN_V01 = 0x00,
+  NAS_SPARE_BITS_8_V01 = 0x01, 
+  NAS_SPARE_BITS_7_TO_8_V01 = 0x02, 
+  NAS_SPARE_BITS_6_TO_8_V01 = 0x03, 
+  NAS_SPARE_BITS_5_TO_8_V01 = 0x04, 
+  NAS_SPARE_BITS_4_TO_8_V01 = 0x05, 
+  NAS_SPARE_BITS_3_TO_8_V01 = 0x06, 
+  NAS_SPARE_BITS_2_TO_8_V01 = 0x07, 
+  NAS_SPARE_BITS_UNKNOWN_V01 = 0x00, 
   NAS_SPARE_BITS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_spare_bits_enum_v01;
 /**
@@ -5140,18 +5195,18 @@ typedef struct {
 
   nas_coding_scheme_enum_v01 coding_scheme;
   /**<   Coding scheme. Values: \n
-       - 0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- Cell broadcast data
-                 coding scheme, GSM default alphabet, language unspecified;
+       - 0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- Cell broadcast data 
+                 coding scheme, GSM default alphabet, language unspecified; 
                  defined in \hyperref[S8]{[S8]} \n
        - 0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit) \hyperref[S10]{[S10]}
   */
 
   nas_country_initials_add_enum_v01 ci;
   /**<   Country's initials. Values: \n
-       - 0x00 -- COUNTRY_INITIALS_ DO_NOT_ADD -- MS does not add the letters
+       - 0x00 -- COUNTRY_INITIALS_ DO_NOT_ADD -- MS does not add the letters 
                  for the country's initials to the text string \n
-       - 0x01 -- COUNTRY_INITIALS_ADD -- MS adds the letters for the
-                 country's initials and a separator, e.g., a space, to the text
+       - 0x01 -- COUNTRY_INITIALS_ADD -- MS adds the letters for the 
+                 country's initials and a separator, e.g., a space, to the text 
                  string
   */
 
@@ -5200,7 +5255,7 @@ typedef struct {
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type.
+  /**<   Standard response type. 
  Standard response type. Contains the following data members:
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
      - qmi_error_type  -- Error code. Possible error code values are described in
@@ -5242,7 +5297,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Indication Message; Indicates a change in operator name data, which is obtained
+/** Indication Message; Indicates a change in operator name data, which is obtained 
               from multiple sources. (Deprecated) */
 typedef struct {
 
@@ -5279,7 +5334,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_csp_plmn_mode_bit_req_msg_v01;
@@ -5289,8 +5344,8 @@ typedef struct {
   */
 typedef enum {
   NAS_PLMN_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_PLMN_MODE_DO_NOT_RESTRICT_V01 = 0x00,
-  NAS_PLMN_MODE_RESTRICT_V01 = 0x01,
+  NAS_PLMN_MODE_DO_NOT_RESTRICT_V01 = 0x00, 
+  NAS_PLMN_MODE_RESTRICT_V01 = 0x01, 
   NAS_PLMN_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_plmn_mode_enum_v01;
 /**
@@ -5300,7 +5355,7 @@ typedef enum {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Retrieves the PLMN MODE bit data from the Customer Service
+/** Response Message; Retrieves the PLMN MODE bit data from the Customer Service 
               Profile (CSP). */
 typedef struct {
 
@@ -5374,13 +5429,13 @@ typedef struct {
   */
 
 typedef uint32_t get_3gpp2_info_mask_enum_type_v01;
-#define QMI_NAS_GET_3GPP2_SUBS_INFO_NAM_NAME_V01 ((get_3gpp2_info_mask_enum_type_v01)0x01)
-#define QMI_NAS_GET_3GPP2_SUBS_INFO_DIR_NUM_V01 ((get_3gpp2_info_mask_enum_type_v01)0x02)
-#define QMI_NAS_GET_3GPP2_SUBS_INFO_HOME_SID_IND_V01 ((get_3gpp2_info_mask_enum_type_v01)0x04)
-#define QMI_NAS_GET_3GPP2_SUBS_INFO_MIN_BASED_IMSI_V01 ((get_3gpp2_info_mask_enum_type_v01)0x08)
-#define QMI_NAS_GET_3GPP2_SUBS_INFO_TRUE_IMSI_V01 ((get_3gpp2_info_mask_enum_type_v01)0x10)
-#define QMI_NAS_GET_3GPP2_SUBS_INFO_CDMA_CHANNEL_V01 ((get_3gpp2_info_mask_enum_type_v01)0x20)
-#define QMI_NAS_GET_3GPP2_SUBS_INFO_MDN_V01 ((get_3gpp2_info_mask_enum_type_v01)0x40)
+#define QMI_NAS_GET_3GPP2_SUBS_INFO_NAM_NAME_V01 ((get_3gpp2_info_mask_enum_type_v01)0x01) 
+#define QMI_NAS_GET_3GPP2_SUBS_INFO_DIR_NUM_V01 ((get_3gpp2_info_mask_enum_type_v01)0x02) 
+#define QMI_NAS_GET_3GPP2_SUBS_INFO_HOME_SID_IND_V01 ((get_3gpp2_info_mask_enum_type_v01)0x04) 
+#define QMI_NAS_GET_3GPP2_SUBS_INFO_MIN_BASED_IMSI_V01 ((get_3gpp2_info_mask_enum_type_v01)0x08) 
+#define QMI_NAS_GET_3GPP2_SUBS_INFO_TRUE_IMSI_V01 ((get_3gpp2_info_mask_enum_type_v01)0x10) 
+#define QMI_NAS_GET_3GPP2_SUBS_INFO_CDMA_CHANNEL_V01 ((get_3gpp2_info_mask_enum_type_v01)0x20) 
+#define QMI_NAS_GET_3GPP2_SUBS_INFO_MDN_V01 ((get_3gpp2_info_mask_enum_type_v01)0x40) 
 /** @addtogroup nas_qmi_messages
     @{
   */
@@ -5390,7 +5445,7 @@ typedef struct {
   /* Mandatory */
   /*  NAM ID */
   uint8_t nam_id;
-  /**<   NAM ID of the information to be retrieved. The index starts from 0.
+  /**<   NAM ID of the information to be retrieved. The index starts from 0. 
        A nam_id of 0xFF is used to retrieve information of current NAM.
   */
 
@@ -5398,11 +5453,11 @@ typedef struct {
   /*  Get 3GPP2 Info Bitmask */
   uint8_t get_3gpp2_info_mask_valid;  /**< Must be set to true if get_3gpp2_info_mask is being passed */
   get_3gpp2_info_mask_enum_type_v01 get_3gpp2_info_mask;
-  /**<   Bitmasks included in this field decide which optional TLVs are to be
-       included in the response message. If this TLV is not included, all
+  /**<   Bitmasks included in this field decide which optional TLVs are to be 
+       included in the response message. If this TLV is not included, all 
        available information is sent as part of the response message. \n \vspace{-.12in}
-
-       The bitmask enum value, bitmask enum member name, and TLV that is
+       
+       The bitmask enum value, bitmask enum member name, and TLV that is 
        included are: \n
 
        - 0x01 -- QMI_NAS_GET_3GPP2_SUBS_INFO_ NAM_NAME       -- NAM Name \n
@@ -5443,7 +5498,7 @@ typedef struct {
 
   /*  MCC_M */
   char mcc_m[NAS_MCC_LEN_V01];
-  /**<   ASCII character representation of MCC_M;
+  /**<   ASCII character representation of MCC_M; 
        example: 000, 123, etc.
   */
 
@@ -5581,8 +5636,8 @@ typedef struct {
   uint8_t mdn_valid;  /**< Must be set to true if mdn is being passed */
   uint32_t mdn_len;  /**< Must be set to # of elements in mdn */
   char mdn[MDN_MAX_LEN_V01];
-  /**<   Mobile directory number represented in ASCII format with a maximum
-       length of 15 characters. Valid values for individual characters in the
+  /**<   Mobile directory number represented in ASCII format with a maximum 
+       length of 15 characters. Valid values for individual characters in the 
        MDN are digits 0 through 9, and special characters * and #.
   */
 }nas_get_3gpp2_subscription_info_resp_msg_v01;  /* Message */
@@ -5599,7 +5654,7 @@ typedef struct {
   /* Mandatory */
   /*  NAM ID */
   uint8_t nam_id;
-  /**<   NAM ID of the information to be written. The index starts from 0.
+  /**<   NAM ID of the information to be written. The index starts from 0. 
        A nam_id of 0xFF is used to write information to current NAM.
   */
 
@@ -5645,8 +5700,8 @@ typedef struct {
   uint8_t mdn_valid;  /**< Must be set to true if mdn is being passed */
   uint32_t mdn_len;  /**< Must be set to # of elements in mdn */
   char mdn[MDN_MAX_LEN_V01];
-  /**<   Mobile directory number represented in ASCII format with a maximum
-       length of 15 characters. Valid values for individual characters in the
+  /**<   Mobile directory number represented in ASCII format with a maximum 
+       length of 15 characters. Valid values for individual characters in the 
        MDN are digits 0 through 9, and special characters * and #.
   */
 
@@ -5654,9 +5709,9 @@ typedef struct {
   /*  Service Programming Code */
   uint8_t spc_valid;  /**< Must be set to true if spc is being passed */
   char spc[NAS_SPC_MAX_V01];
-  /**<   Service programming code in ASCII format (digits 0 to 9 only).
-       This TLV is required when any of the following TLVs are present:
-       Directory Number, Home SID/NID, MIN-based IMSI, CDMA Channel,
+  /**<   Service programming code in ASCII format (digits 0 to 9 only). 
+       This TLV is required when any of the following TLVs are present: 
+       Directory Number, Home SID/NID, MIN-based IMSI, CDMA Channel, 
        or Mobile Directory.
   */
 }nas_set_3gpp2_subscription_info_req_msg_v01;  /* Message */
@@ -5680,7 +5735,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_mob_cai_rev_req_v01;
@@ -5717,7 +5772,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_rtre_config_req_v01;
@@ -5727,10 +5782,10 @@ typedef struct {
   */
 typedef enum {
   NAS_RTRE_CFG_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_RTRE_CFG_RUIM_ONLY_V01 = 0x01,
-  NAS_RTRE_CFG_INTERNAL_SETTINGS_ONLY_V01 = 0x02,
-  NAS_RTRE_CFG_RUIM_IF_AVAIL_V01 = 0x03,
-  NAS_RTRE_CFG_GSM_ON_1X_V01 = 0x04,
+  NAS_RTRE_CFG_RUIM_ONLY_V01 = 0x01, 
+  NAS_RTRE_CFG_INTERNAL_SETTINGS_ONLY_V01 = 0x02, 
+  NAS_RTRE_CFG_RUIM_IF_AVAIL_V01 = 0x03, 
+  NAS_RTRE_CFG_GSM_ON_1X_V01 = 0x04, 
   NAS_RTRE_CFG_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_rtre_cfg_enum_v01;
 /**
@@ -5793,8 +5848,8 @@ typedef struct {
   /*  Service Programming Code */
   uint8_t spc_valid;  /**< Must be set to true if spc is being passed */
   char spc[NAS_SPC_MAX_V01];
-  /**<   Service programming code in ASCII format (digits 0 to 9 only).
-       This TLV is required when the RTRE Configuration Preference TLV
+  /**<   Service programming code in ASCII format (digits 0 to 9 only). 
+       This TLV is required when the RTRE Configuration Preference TLV 
        is present.
   */
 }nas_set_rtre_config_req_v01;  /* Message */
@@ -5818,7 +5873,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_cell_location_info_req_msg_v01;
@@ -5835,8 +5890,8 @@ typedef struct {
 
   /*  PLMN */
   char nmr_plmn[NAS_PLMN_LEN_V01];
-  /**<   MCC/MNC information coded as octet 3, 4, and 5 in
-       \hyperref[S5]{[S5]} Section 10.5.1.3.
+  /**<   MCC/MNC information coded as octet 3, 4, and 5 in 
+       \hyperref[S5]{[S5]} Section 10.5.1.3. 
        (This field is ignored when nmr_cell_id is not present.)
   */
 
@@ -5857,7 +5912,7 @@ typedef struct {
 
   /*  Rx Lev */
   uint16_t nmr_rx_lev;
-  /**<   Cell Rx measurement. Values range between 0 and 63, which is
+  /**<   Cell Rx measurement. Values range between 0 and 63, which is 
        mapped to a measured signal level: \n
 
        - Rxlev 0 is a signal strength less than -110 dBm \n
@@ -5884,8 +5939,8 @@ typedef struct {
 
   /*  PLMN */
   char plmn[NAS_PLMN_LEN_V01];
-  /**<   MCC/MNC information coded as octet 3, 4, and 5 in
-       \hyperref[S5]{[S5]} Section 10.5.1.3.
+  /**<   MCC/MNC information coded as octet 3, 4, and 5 in 
+       \hyperref[S5]{[S5]} Section 10.5.1.3. 
        (This field is ignored when cell_id is not present.)
   */
 
@@ -5906,15 +5961,15 @@ typedef struct {
 
   /*  Timing Advance */
   uint32_t timing_advance;
-  /**<   Measured delay (in bit periods; 1 bit period = 48/13 microsecond) of
-       an access burst transmission on the RACH or PRACH to the expected signal
+  /**<   Measured delay (in bit periods; 1 bit period = 48/13 microsecond) of 
+       an access burst transmission on the RACH or PRACH to the expected signal 
        from an MS at zero distance under static channel conditions.
        (0xFFFFFFFF indicates timing advance information is not present.)
   */
 
   /*  Rx Lev */
   uint16_t rx_lev;
-  /**<   Serving cell Rx measurement. Values range between 0 and 63, which is
+  /**<   Serving cell Rx measurement. Values range between 0 and 63, which is 
        mapped to a measured signal level: \n
 
        - Rxlev 0 is a signal strength less than -110 dBm \n
@@ -5928,7 +5983,7 @@ typedef struct {
   /*  Neighbor cell information  */
   uint32_t nmr_cell_info_len;  /**< Must be set to # of elements in nmr_cell_info */
   nas_nmr_cell_info_type_v01 nmr_cell_info[NAS_NMR_MAX_NUM_V01];
-  /**<   Contains information only if neighbors are present;
+  /**<   Contains information only if neighbors are present; 
        includes: \n
        - nmr_cell_id \n
        - nmr_plmn \n
@@ -5959,14 +6014,14 @@ typedef struct {
 
   /*  RSCP */
   int16_t umts_rscp;
-  /**<   Received signal code power; the received power on one code measured in
+  /**<   Received signal code power; the received power on one code measured in 
        dBm on the primary CPICH channel of the neighbor/monitored cell.
   */
 
   /*  Ec/Io */
   int16_t umts_ecio;
-  /**<   ECIO; the received energy per chip divided by the power density in the
-       band measured in dBm on the primary CPICH channel of the
+  /**<   ECIO; the received energy per chip divided by the power density in the 
+       band measured in dBm on the primary CPICH channel of the 
        neighbor/monitored cell.
   */
 }nas_umts_monitored_cell_set_info_type_v01;  /* Type */
@@ -6016,13 +6071,13 @@ typedef struct {
 
   /*  Physical Cell id */
   uint16_t pci;
-  /**<   Physical cell ID of the detected cell.
+  /**<   Physical cell ID of the detected cell. 
        Range is defined in \hyperref[S18]{[S18]}. */
 
   /*  RSRP */
   float rsrp;
-  /**<   Current received signal strength indication (in dBm) of the detected
-       cell.
+  /**<   Current received signal strength indication (in dBm) of the detected 
+       cell. 
   */
 
   /*  RSRQ */
@@ -6031,9 +6086,9 @@ typedef struct {
 
   /*  RX Level */
   int16_t srxlev;
-  /**<   Cell selection Rx level (Srxlev) value of the detected cell in linear
-       scale. (This field is only valid when wcdma_rrc_state is not
-       NAS_WCDMA_RRC_STATE_CELL_FACH or NAS_WCDMA_RRC_STATE_CELL_DCH.)
+  /**<   Cell selection Rx level (Srxlev) value of the detected cell in linear 
+       scale. (This field is only valid when wcdma_rrc_state is not 
+       NAS_WCDMA_RRC_STATE_CELL_FACH or NAS_WCDMA_RRC_STATE_CELL_DCH.) 
   */
 
   /*  Cell is TDD */
@@ -6056,8 +6111,8 @@ typedef struct {
 
   /*  PLMN */
   char plmn[NAS_PLMN_LEN_V01];
-  /**<   MCC/MNC information coded as octet 3, 4, and 5 in
-       \hyperref[S5]{[S5]} Section 10.5.1.3.
+  /**<   MCC/MNC information coded as octet 3, 4, and 5 in 
+       \hyperref[S5]{[S5]} Section 10.5.1.3. 
   */
 
   /*  LAC */
@@ -6135,11 +6190,11 @@ typedef struct {
   /**<   Physical cell ID. Range: 0 to 503. */
 
   int16_t rsrq;
-  /**<   Current RSRQ in 1/10 dB as measured by L1.
+  /**<   Current RSRQ in 1/10 dB as measured by L1.  
     Range: -200 to -30 (e.g., -200 means -20.0 dB). */
 
   int16_t rsrp;
-  /**<   Current RSRP in 1/10 dBm as measured by L1.
+  /**<   Current RSRP in 1/10 dBm as measured by L1. 
     Range: -1400 to -440 (e.g., -440 means -44.0 dBm). */
 
   int16_t rssi;
@@ -6147,7 +6202,7 @@ typedef struct {
     Range: -1200 to 0 (e.g., -440 means -44.0 dBm). */
 
   int16_t srxlev;
-  /**<   Cell selection Rx level (Srxlev) value. Range: -128 to 128.
+  /**<   Cell selection Rx level (Srxlev) value. Range: -128 to 128. 
     (This field is only valid when ue_in_idle is TRUE.) */
 }nas_lte_ngbr_cell_type_v01;  /* Type */
 /**
@@ -6163,7 +6218,7 @@ typedef struct {
   /**<   TRUE if the UE is in Idle mode; otherwise FALSE. */
 
   uint8_t plmn[NAS_PLMN_LEN_V01];
-  /**<   PLMN ID coded as octet 3, 4, and 5 in
+  /**<   PLMN ID coded as octet 3, 4, and 5 in 
      \hyperref[S5]{[S5]} Section 10.5.1.3. */
 
   uint16_t tac;
@@ -6173,28 +6228,28 @@ typedef struct {
   /**<   Global cell ID in the system information block. */
 
   uint16_t earfcn;
-  /**<   E-UTRA absolute radio frequency channel number of the serving cell.
+  /**<   E-UTRA absolute radio frequency channel number of the serving cell. 
      Range: 0 to 65535. */
 
   uint16_t serving_cell_id;
-  /**<   LTE serving cell ID. Range: 0 to 503. This is the cell ID of the
+  /**<   LTE serving cell ID. Range: 0 to 503. This is the cell ID of the 
     serving cell and can be found in the cell list. */
 
   uint8_t cell_resel_priority;
-  /**<   Priority for serving frequency. Range: 0 to 7. (This field is only
+  /**<   Priority for serving frequency. Range: 0 to 7. (This field is only 
     valid when ue_in_idle is TRUE.) */
 
   uint8_t s_non_intra_search;
-  /**<   S non-intra search threshold to control non-intrafrequency searches.
+  /**<   S non-intra search threshold to control non-intrafrequency searches. 
     Range: 0 to 31. (This field is only valid when ue_in_idle is TRUE.) */
 
   uint8_t thresh_serving_low;
-  /**<   Serving cell low threshold. Range: 0 to 31. (This field is only
+  /**<   Serving cell low threshold. Range: 0 to 31. (This field is only 
     valid when ue_in_idle is TRUE.) */
 
   uint8_t s_intra_search;
-  /**<   S intra search threshold. Range: 0 to 31. The current cell
-    measurement must fall below this threshold to consider intrafrequency
+  /**<   S intra search threshold. Range: 0 to 31. The current cell 
+    measurement must fall below this threshold to consider intrafrequency 
     for reselection. (This field is only valid when ue_in_idle is TRUE.) */
 
   uint32_t cells_len;  /**< Must be set to # of elements in cells */
@@ -6213,19 +6268,19 @@ typedef struct {
   /**<   E-UTRA absolute radio frequency channel number. Range: 0 to 65535. */
 
   uint8_t threshX_low;
-  /**<   Cell Srxlev low threshold. Range: 0 to 31.
-    When the serving cell does not exceed thresh_serving_low,
-    the value of an evaluated cell must be smaller than this value to be
+  /**<   Cell Srxlev low threshold. Range: 0 to 31.  
+    When the serving cell does not exceed thresh_serving_low, 
+    the value of an evaluated cell must be smaller than this value to be 
     considered for reselection. */
 
   uint8_t threshX_high;
-  /**<   Cell Srxlev high threshold. Range: 0 to 31.
-    When the serving cell exceeds thresh_serving_low,
-    the value of an evaluated cell must be greater than this value to be
+  /**<   Cell Srxlev high threshold. Range: 0 to 31. 
+    When the serving cell exceeds thresh_serving_low, 
+    the value of an evaluated cell must be greater than this value to be 
     considered for reselection. */
 
   uint8_t cell_resel_priority;
-  /**<   Cell reselection priority. Range: 0 to 7. (This field is only valid
+  /**<   Cell reselection priority. Range: 0 to 7. (This field is only valid 
     when ue_in_idle is TRUE.) */
 
   uint32_t cells_len;  /**< Must be set to # of elements in cells */
@@ -6259,8 +6314,8 @@ typedef struct {
   /**<   GSM frequency being reported. Range: 0 to 1023. */
 
   uint8_t band_1900;
-  /**<   Band indicator for the GSM ARFCN (this field is only valid if arfcn
-    is in the overlapping region). If TRUE and the cell is in the overlapping
+  /**<   Band indicator for the GSM ARFCN (this field is only valid if arfcn 
+    is in the overlapping region). If TRUE and the cell is in the overlapping 
     region, the ARFCN is on the 1900 band. If FALSE, it is on the 1800 band. */
 
   uint8_t cell_id_valid;
@@ -6271,11 +6326,11 @@ typedef struct {
     network color code. The lower 6 bits can be set to any value. */
 
   int16_t rssi;
-  /**<   Measured RSSI value in 1/10 dB.
+  /**<   Measured RSSI value in 1/10 dB. 
     Range: -2000 to 0  (e.g., -800 means -80.0 dB). */
 
   int16_t srxlev;
-  /**<   Cell selection Rx level (Srxlev) value. Range: -128 to 128.
+  /**<   Cell selection Rx level (Srxlev) value. Range: -128 to 128. 
     (This field is only valid when ue_in_idle is TRUE.) */
 }nas_lte_ngbr_gsm_cell_type_v01;  /* Type */
 /**
@@ -6288,20 +6343,20 @@ typedef struct {
 typedef struct {
 
   uint8_t cell_resel_priority;
-  /**<   Priority of this frequency group. Range: 0 to 7. (This field is only
+  /**<   Priority of this frequency group. Range: 0 to 7. (This field is only 
     valid when ue_in_idle is TRUE.) */
 
   uint8_t thresh_gsm_high;
-  /**<   Reselection threshold for high priority layers. Range: 0 to 31.
+  /**<   Reselection threshold for high priority layers. Range: 0 to 31. 
     (This field is only valid when ue_in_idle is TRUE.) */
 
   uint8_t thresh_gsm_low;
-  /**<   Reselection threshold for low priority layers. Range: 0 to 31.
+  /**<   Reselection threshold for low priority layers. Range: 0 to 31. 
     (This field is only valid when ue_in_idle is TRUE.) */
 
   uint8_t ncc_permitted;
   /**<    Bitmask specifying whether a neighbor with a specific network color
-    code is to be reported. Range: 0 to 255. Bit n set to 1 means a neighbor
+    code is to be reported. Range: 0 to 255. Bit n set to 1 means a neighbor 
     with NCC n must be included in the report. This flag is synonymous with a
     blacklist in other RATs. (This field is only valid when ue_in_idle is
     TRUE.) */
@@ -6337,18 +6392,18 @@ typedef struct {
   /**<   Primary scrambling code. Range: 0 to 511. */
 
   int16_t cpich_rscp;
-  /**<   Absolute power level (in 1/10 dBm) of the common pilot channel as
-    received by the UE. Range: -1200 to -250 (e.g., -250 means -25.0 dBm).
+  /**<   Absolute power level (in 1/10 dBm) of the common pilot channel as 
+    received by the UE. Range: -1200 to -250 (e.g., -250 means -25.0 dBm). 
     Defined in \hyperref[S14]{[S14]}. */
 
   int16_t cpich_ecno;
-  /**<   CPICH Ec/No; ratio (in 1/10 dB) of the received energy per PN chip for
-    the CPICH to the total received power spectral density at the UE antenna
-    connector. Range: -500 to 0 (e.g., -25 means -2.5 dB). Defined in
+  /**<   CPICH Ec/No; ratio (in 1/10 dB) of the received energy per PN chip for 
+    the CPICH to the total received power spectral density at the UE antenna 
+    connector. Range: -500 to 0 (e.g., -25 means -2.5 dB). Defined in 
     \hyperref[S14]{[S14]}. */
 
   int16_t srxlev;
-  /**<   Cell selection Rx level (Srxlev) value. Range: -128 to 128.
+  /**<   Cell selection Rx level (Srxlev) value. Range: -128 to 128. 
     (This field is only valid when ue_in_idle is TRUE.) */
 }nas_lte_ngbr_wcdma_cell_type_v01;  /* Type */
 /**
@@ -6364,15 +6419,15 @@ typedef struct {
   /**<   WCDMA layer frequency. Range: 0 to 16383. */
 
   uint8_t cell_resel_priority;
-  /**<   Cell reselection priority. Range: 0 to 7. (This field is only
+  /**<   Cell reselection priority. Range: 0 to 7. (This field is only 
     valid when ue_in_idle is TRUE.) */
 
   uint16_t thresh_Xhigh;
-  /**<   Reselection low threshold. Range: 0 to 31. (This field is only
+  /**<   Reselection low threshold. Range: 0 to 31. (This field is only 
     valid when ue_in_idle is TRUE.) */
 
   uint16_t thresh_Xlow;
-  /**<   Reselection high threshold. Range: 0 to 31. (This field is only
+  /**<   Reselection high threshold. Range: 0 to 31. (This field is only 
     valid when ue_in_idle is TRUE.) */
 
   uint32_t cells_len;  /**< Must be set to # of elements in cells */
@@ -6402,11 +6457,11 @@ typedef struct {
   */
 typedef enum {
   NAS_WCDMA_RRC_STATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_WCDMA_RRC_STATE_DISCONNECTED_V01 = 0x00,
-  NAS_WCDMA_RRC_STATE_CELL_PCH_V01 = 0x01,
-  NAS_WCDMA_RRC_STATE_URA_PCH_V01 = 0x02,
-  NAS_WCDMA_RRC_STATE_CELL_FACH_V01 = 0x03,
-  NAS_WCDMA_RRC_STATE_CELL_DCH_V01 = 0x04,
+  NAS_WCDMA_RRC_STATE_DISCONNECTED_V01 = 0x00, 
+  NAS_WCDMA_RRC_STATE_CELL_PCH_V01 = 0x01, 
+  NAS_WCDMA_RRC_STATE_URA_PCH_V01 = 0x02, 
+  NAS_WCDMA_RRC_STATE_CELL_FACH_V01 = 0x03, 
+  NAS_WCDMA_RRC_STATE_CELL_DCH_V01 = 0x04, 
   NAS_WCDMA_RRC_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_wcdma_rrc_state_enum_v01;
 /**
@@ -6523,7 +6578,7 @@ typedef struct {
   /*  Ec/Io */
   int16_t ecio;
   /**<   ECIO; the received energy per chip divided by the power density in the
-       band measured in dBm on the primary CPICH channel of the active set
+       band measured in dBm on the primary CPICH channel of the active set 
        cell.
   */
 
@@ -6548,8 +6603,8 @@ typedef struct {
 
   /*  PLMN */
   char plmn[NAS_PLMN_LEN_V01];
-  /**<   MCC/MNC information coded as octet 3, 4, and 5 in
-       \hyperref[S5]{[S5]} Section 10.5.1.3.
+  /**<   MCC/MNC information coded as octet 3, 4, and 5 in 
+       \hyperref[S5]{[S5]} Section 10.5.1.3. 
   */
 
   /*  LAC */
@@ -6592,14 +6647,14 @@ typedef struct {
 
   /*  RSCP */
   int16_t umts_rscp;
-  /**<   Received signal code power; the received power on one code measured in
+  /**<   Received signal code power; the received power on one code measured in 
        dBm on the primary CPICH channel of the neighbor/monitored cell.
   */
 
   /*  ECIO */
   int16_t umts_ecio;
-  /**<   ECIO; the received energy per chip divided by the power density in the
-       band measured in dBm on the primary CPICH channel of the
+  /**<   ECIO; the received energy per chip divided by the power density in the 
+       band measured in dBm on the primary CPICH channel of the 
        neighbor/monitored cell.
   */
 
@@ -6615,7 +6670,7 @@ typedef struct {
 
   /*  Rank */
   int16_t umts_rank;
-  /**<   Rank of the cell.
+  /**<   Rank of the cell. 
    */
 
   /*  Set */
@@ -6632,15 +6687,15 @@ typedef struct {
   */
 typedef enum {
   NAS_WCDMA_L1_SF_E_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_WCDMA_L1_SF_4_V01 = 0x00,
-  NAS_WCDMA_L1_SF_8_V01 = 0x01,
-  NAS_WCDMA_L1_SF_16_V01 = 0x02,
-  NAS_WCDMA_L1_SF_32_V01 = 0x03,
-  NAS_WCDMA_L1_SF_64_V01 = 0x04,
-  NAS_WCDMA_L1_SF_128_V01 = 0x05,
-  NAS_WCDMA_L1_SF_256_V01 = 0x06,
-  NAS_WCDMA_L1_SF_512_V01 = 0x07,
-  NAS_WCDMA_L1_NUM_SF_V01 = 0x08,
+  NAS_WCDMA_L1_SF_4_V01 = 0x00, 
+  NAS_WCDMA_L1_SF_8_V01 = 0x01, 
+  NAS_WCDMA_L1_SF_16_V01 = 0x02, 
+  NAS_WCDMA_L1_SF_32_V01 = 0x03, 
+  NAS_WCDMA_L1_SF_64_V01 = 0x04, 
+  NAS_WCDMA_L1_SF_128_V01 = 0x05, 
+  NAS_WCDMA_L1_SF_256_V01 = 0x06, 
+  NAS_WCDMA_L1_SF_512_V01 = 0x07, 
+  NAS_WCDMA_L1_NUM_SF_V01 = 0x08, 
   NAS_WCDMA_L1_SF_E_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_wcdma_l1_sf_e_type_v01;
 /**
@@ -6652,19 +6707,19 @@ typedef enum {
   */
 typedef enum {
   NAS_WCDMA_L1_DL_PHYCHAN_E_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_WCDMA_L1_DL_PHYCHAN_PCCPCH_S_V01 = 0x00,
-  NAS_WCDMA_L1_DL_PHYCHAN_PCCPCH_N_V01 = 0x01,
-  NAS_WCDMA_L1_DL_PHYCHAN_SCCPCH0_V01 = 0x02,
-  NAS_WCDMA_L1_DL_PHYCHAN_SCCPCH1_V01 = 0x03,
-  NAS_WCDMA_L1_DL_PHYCHAN_PICH_V01 = 0x04,
-  NAS_WCDMA_L1_DL_PHYCHAN_AICH_V01 = 0x05,
-  NAS_WCDMA_L1_DL_PHYCHAN_HS_RACH_AICH_V01 = 0x06,
-  NAS_WCDMA_L1_DL_PHYCHAN_DPCH_V01 = 0x07,
-  NAS_WCDMA_L1_DL_PHYCHAN_HS_RACH_FDPCH_V01 = 0x08,
-  NAS_WCDMA_L1_DL_PHYCHAN_FDPCH_V01 = 0x09,
-  NAS_WCDMA_L1_DL_PHYCHAN_PDSCH_V01 = 0x0A,
-  NAS_WCDMA_L1_NUM_DL_PHYCHAN_V01 = 0x0B,
-  NAS_WCDMA_L1_DL_PHYCHAN_NOCHAN_V01 = 0x0C,
+  NAS_WCDMA_L1_DL_PHYCHAN_PCCPCH_S_V01 = 0x00, 
+  NAS_WCDMA_L1_DL_PHYCHAN_PCCPCH_N_V01 = 0x01, 
+  NAS_WCDMA_L1_DL_PHYCHAN_SCCPCH0_V01 = 0x02, 
+  NAS_WCDMA_L1_DL_PHYCHAN_SCCPCH1_V01 = 0x03, 
+  NAS_WCDMA_L1_DL_PHYCHAN_PICH_V01 = 0x04, 
+  NAS_WCDMA_L1_DL_PHYCHAN_AICH_V01 = 0x05, 
+  NAS_WCDMA_L1_DL_PHYCHAN_HS_RACH_AICH_V01 = 0x06, 
+  NAS_WCDMA_L1_DL_PHYCHAN_DPCH_V01 = 0x07, 
+  NAS_WCDMA_L1_DL_PHYCHAN_HS_RACH_FDPCH_V01 = 0x08, 
+  NAS_WCDMA_L1_DL_PHYCHAN_FDPCH_V01 = 0x09, 
+  NAS_WCDMA_L1_DL_PHYCHAN_PDSCH_V01 = 0x0A, 
+  NAS_WCDMA_L1_NUM_DL_PHYCHAN_V01 = 0x0B, 
+  NAS_WCDMA_L1_DL_PHYCHAN_NOCHAN_V01 = 0x0C, 
   NAS_WCDMA_L1_DL_PHYCHAN_E_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_wcdma_l1_dl_phychan_e_type_v01;
 /**
@@ -6700,7 +6755,7 @@ typedef struct {
 
   /*  GERAN_RANK */
   int16_t geran_rank;
-  /**<   Rank of the cell.
+  /**<   Rank of the cell. 
   */
 }nas_umts_geran_nbr_cell_set_ext_info_type_v01;  /* Type */
 /**
@@ -6719,8 +6774,8 @@ typedef struct {
 
   /*  PLMN */
   char plmn[NAS_PLMN_LEN_V01];
-  /**<   MCC/MNC information coded as octet 3, 4, and 5 in
-       \hyperref[S5]{[S5]} Section 10.5.1.3.
+  /**<   MCC/MNC information coded as octet 3, 4, and 5 in 
+       \hyperref[S5]{[S5]} Section 10.5.1.3. 
   */
 
   /*  LAC */
@@ -6794,7 +6849,7 @@ typedef struct {
   /*  ECIO */
   int16_t ecio;
   /**<   ECIO; the received energy per chip divided by the power density in the
-       band measured in dBm on the primary CPICH channel of the active set
+       band measured in dBm on the primary CPICH channel of the active set 
        cell.
   */
 
@@ -6837,15 +6892,15 @@ typedef struct {
 
   /*  Slot Format for the Channel  */
   uint8_t slot_format;
-  /**<
-      Indicates slot format. Values range between 0 and 6
+  /**<   
+      Indicates slot format. Values range between 0 and 6 
       per \hyperref[S19]{[S19]}.
   */
 
   /*  Indicates CM On or Not */
   uint8_t is_compressed_mode_on;
-  /**<
-      Indicates whether the compressed mode is ON or OFF.
+  /**<   
+      Indicates whether the compressed mode is ON or OFF. 
   */
 }nas_wcdma_active_set_ext_info_type_v01;  /* Type */
 /**
@@ -6864,8 +6919,8 @@ typedef struct {
 
   /*  PLMN */
   char nmr_plmn[NAS_PLMN_LEN_V01];
-  /**<   MCC/MNC information coded as octet 3, 4, and 5 in
-       \hyperref[S5]{[S5]} Section 10.5.1.3.
+  /**<   MCC/MNC information coded as octet 3, 4, and 5 in 
+       \hyperref[S5]{[S5]} Section 10.5.1.3. 
        (This field is ignored when nmr_cell_id is not present.)
   */
 
@@ -6886,7 +6941,7 @@ typedef struct {
 
   /*  Rx Lev */
   uint16_t nmr_rx_lev;
-  /**<   Cell Rx measurement. Values range between 0 and 63, which is
+  /**<   Cell Rx measurement. Values range between 0 and 63, which is 
        mapped to a measured signal level: \n
 
        - Rxlev 0 is a signal strength less than -110 dBm \n
@@ -6933,8 +6988,8 @@ typedef struct {
 
   /*  PLMN */
   char plmn[NAS_PLMN_LEN_V01];
-  /**<   MCC/MNC information coded as octet 3, 4, and 5 in
-       \hyperref[S5]{[S5]} Section 10.5.1.3.
+  /**<   MCC/MNC information coded as octet 3, 4, and 5 in 
+       \hyperref[S5]{[S5]} Section 10.5.1.3. 
        (This field is ignored when cell_id is not present.)
   */
 
@@ -6955,15 +7010,15 @@ typedef struct {
 
   /*  Timing Advance */
   uint32_t timing_advance;
-  /**<   Measured delay (in bit periods; 1 bit period = 48/13 microsecond) of
-       an access burst transmission on the RACH or PRACH to the expected signal
+  /**<   Measured delay (in bit periods; 1 bit period = 48/13 microsecond) of 
+       an access burst transmission on the RACH or PRACH to the expected signal 
        from an MS at zero distance under static channel conditions.
        (0xFFFFFFFF indicates timing advance information is not present.)
   */
 
   /*  Rx Lev */
   uint16_t rx_lev;
-  /**<   Serving cell Rx measurement. Values range between 0 and 63, which is
+  /**<   Serving cell Rx measurement. Values range between 0 and 63, which is 
        mapped to a measured signal level: \n
 
        - Rxlev 0 is a signal strength less than -110 dBm \n
@@ -6977,7 +7032,7 @@ typedef struct {
   /*  Neighbor Cell Information  */
   uint32_t nmr_cell_info_len;  /**< Must be set to # of elements in nmr_cell_info */
   nas_nmr_cell_info_ext_type_v01 nmr_cell_info[NAS_NMR_MAX_NUM_V01];
-  /**<   Contains information only if neighbors are present;
+  /**<   Contains information only if neighbors are present; 
        includes: \n
        - nmr_cell_id \n
        - nmr_plmn \n
@@ -7007,12 +7062,12 @@ typedef struct {
        - 0xff -- Invalid */
 
   uint8_t gprs_rxlev_access_min;
-  /**<   Rx level access minimum.
+  /**<   Rx level access minimum. 
        Range: 0 to 63; 0xff is invalid; \hyperref[S13]{[S13]}.
   */
 
   uint8_t gprs_ms_txpwr_max_cch;
-  /**<   MS Tx power maximum CCH.
+  /**<   MS Tx power maximum CCH. 
       Range: 0 to 31; 0xff is invalid; \hyperref[S13]{[S13]} and \hyperref[S20]{[S20]}.
   */
 }nas_geran_eng_mode_scell_config_type_v01;  /* Type */
@@ -7111,7 +7166,7 @@ typedef struct {
   /*  LTE Info - Timing Advance */
   uint8_t timing_advance_valid;  /**< Must be set to true if timing_advance is being passed */
   int32_t timing_advance;
-  /**<   Timing advance of the LTE cell in microseconds. (0xFFFFFFFF indicates
+  /**<   Timing advance of the LTE cell in microseconds. (0xFFFFFFFF indicates 
        timing advance information is not present.) */
 
   /* Optional */
@@ -7157,30 +7212,31 @@ typedef struct {
   /*  Doppler Measurement */
   uint8_t doppler_measurement_valid;  /**< Must be set to true if doppler_measurement is being passed */
   uint16_t doppler_measurement;
-  /**<   Doppler measurement in Hz. Range: 0 to 400.
+  /**<   Doppler measurement in Hz. Range: 0 to 400. 
        Value 0xFFFF indicates that the measurement is yet to be done.
   */
 
   /* Optional */
-  /*  LTE Information Extended - Intrafrequency EARFCN */
+  /*  LTE Info Extended - Intrafrequency EARFCN */
   uint8_t lte_intra_earfcn_valid;  /**< Must be set to true if lte_intra_earfcn is being passed */
   uint32_t lte_intra_earfcn;
-  /**<   Extended size for LTE intrafrequency EARFCN
+  /**<   LTE intrafrequency EARFCN extended size.
   */
 
   /* Optional */
-  /*  LTE Information Extended - Interfrequency EARFCN */
+  /*  LTE Info Extended - Interfrequency EARFCN */
   uint8_t lte_inter_earfcn_valid;  /**< Must be set to true if lte_inter_earfcn is being passed */
   uint32_t lte_inter_earfcn_len;  /**< Must be set to # of elements in lte_inter_earfcn */
   uint32_t lte_inter_earfcn[NAS_MAX_LTE_NGBR_NUM_FREQS_V01];
-  /**<   LTE interfrequency EARFCN extended size
+  /**<   LTE interfrequency EARFCN extended size. 
   */
 
   /* Optional */
-  /*  WCDMA Information Extended - LTE Neighbor Cell Information EARFCN */
+  /*  WCDMA Info Extended - LTE Neighbor Cell Info EARFCN */
   uint8_t lte_earfcn_valid;  /**< Must be set to true if lte_earfcn is being passed */
   uint32_t lte_earfcn_len;  /**< Must be set to # of elements in lte_earfcn */
   uint32_t lte_earfcn[NAS_UMTS_LTE_MAX_NBR_CELL_SET_NUM_V01];
+  /**<   LTE neighbor cell information EARFCN. */
 }nas_get_cell_location_info_resp_msg_v01;  /* Message */
 /**
     @}
@@ -7201,11 +7257,11 @@ typedef struct {
   /*  Suppress SIM Error */
   uint8_t suppress_sim_error_valid;  /**< Must be set to true if suppress_sim_error is being passed */
   uint8_t suppress_sim_error;
-  /**<   Suppress the QMI_NAS_SIM_NOT_INITIALIZED error, so to allow network name
+  /**<   Suppress the QMI_NAS_SIM_NOT_INITIALIZED error, so to allow network name 
        retrieval even when the SIM is not initialized. Values: \n
-       - FALSE -- SIM initialization is checked; an error is returned if the SIM
+       - FALSE -- SIM initialization is checked; an error is returned if the SIM 
                   is not available (default value) \n
-       - TRUE  -- SIM initialization is not checked; if the SIM is not available,
+       - TRUE  -- SIM initialization is not checked; if the SIM is not available, 
                   retrieving the name from the SIM files is skipped
   */
 
@@ -7213,16 +7269,16 @@ typedef struct {
   /*  MNC PCS Digit Include Status */
   uint8_t mnc_includes_pcs_digit_valid;  /**< Must be set to true if mnc_includes_pcs_digit is being passed */
   uint8_t mnc_includes_pcs_digit;
-  /**<   This field is used to interpret the length of the corresponding
+  /**<   This field is used to interpret the length of the corresponding 
        MNC reported in the PLMN TLV (0x01). Values: \n
 
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90 \n \vspace{-.12in}
 
-       If this TLV is not present, an MNC smaller than 100 is assumed to be
-       a two-digit value, and an MNC greater than or equal to 100 is
+       If this TLV is not present, an MNC smaller than 100 is assumed to be 
+       a two-digit value, and an MNC greater than or equal to 100 is 
        assumed to be a three-digit value.
   */
 
@@ -7233,9 +7289,9 @@ typedef struct {
   /**<   Indicates that the client wants to receive the PLMN name regardless
        of the EF display condition. Values: \n
 
-       - FALSE -- EF SPN PLMN display condition is looked at before attempting
+       - FALSE -- EF SPN PLMN display condition is looked at before attempting 
                   to retrieve the name \n
-       - TRUE  -- PLMN name is returned regardless of the EF SPN PLMN display
+       - TRUE  -- PLMN name is returned regardless of the EF SPN PLMN display 
                   condition.
   */
 
@@ -7243,13 +7299,13 @@ typedef struct {
   /*  Use Static Table Only */
   uint8_t use_static_table_only_valid;  /**< Must be set to true if use_static_table_only is being passed */
   uint8_t use_static_table_only;
-  /**<   Indicates that the client wants to receive the network name only from
+  /**<   Indicates that the client wants to receive the network name only from 
        the SE.13 GSM Mobile Network Codes and Names Static Table. Values: \n
 
-       - FALSE -- Normal procedure is followed when determining the network
+       - FALSE -- Normal procedure is followed when determining the network 
                   name (default value) \n
-       - TRUE  -- SIM initialization state and the EF SPN PLMN display
-                  condition are ignored; the network name is read directly
+       - TRUE  -- SIM initialization state and the EF SPN PLMN display 
+                  condition are ignored; the network name is read directly 
                   from the table
   */
 
@@ -7275,11 +7331,11 @@ typedef struct {
   /*  Send All Information */
   uint8_t send_all_information_valid;  /**< Must be set to true if send_all_information is being passed */
   uint8_t send_all_information;
-  /**<   Indicates that the client wants to receive all available information,
-       including display byte information, without the modem influencing the
-       name sent. Values: \n
+  /**<   Indicates that the client wants to receive all available information, 
+       including display byte information, without the modem influencing the 
+       name sent. Values: \n       
        - FALSE -- Follow the normal procedure (default value) \n
-       - TRUE  -- Send all available information
+       - TRUE  -- Send all available information 
   */
 }nas_get_plmn_name_req_msg_v01;  /* Message */
 /**
@@ -7293,11 +7349,11 @@ typedef struct {
 
   /*  SPN coding scheme */
   nas_coding_scheme_enum_v01 spn_enc;
-  /**<
+  /**<  
         Coding scheme for the service provider name. Values: \n
-        -0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded
+        -0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded 
                  alphabet as defined in \hyperref[S8]{[S8]} with bit 8 set to 0 \n
-        -0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian)
+        -0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian) 
                  \hyperref[S8]{[S8]} \n
         Note: This value is ignored if spn_len is zero.
   */
@@ -7305,25 +7361,25 @@ typedef struct {
   /*  SPN */
   uint32_t spn_len;  /**< Must be set to # of elements in spn */
   char spn[NAS_SPN_LEN_MAX_V01];
-  /**<
+  /**<  
      Service provider name string.
   */
 
   /*  PLMN short name encoding scheme */
   nas_coding_scheme_enum_v01 plmn_short_name_enc;
-  /**<
+  /**<  
         Coding scheme for plmn_short_name. Values: \n
-        -0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded
+        -0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded 
                  alphabet as defined in \hyperref[S8]{[S8]} with bit 8 set to 0 \n
-        -0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian)
+        -0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian) 
                  \hyperref[S8]{[S8]} \n
         Note: This value is ignored if plmn_short_name_len is zero.
   */
 
   /*  PLMN short name country initial include status */
   nas_country_initials_add_enum_v01 plmn_short_name_ci;
-  /**<
-        Indicates whether the country initials are to be added to the
+  /**<  
+        Indicates whether the country initials are to be added to the 
         plmn_short_name. Values: \n
         -0x00 -- Do not add the letters for the country's initials to the name \n
         -0x01 -- Add the country's initials and a text string to the name \n
@@ -7348,28 +7404,28 @@ typedef struct {
   /*  PLMN short name */
   uint32_t plmn_short_name_len;  /**< Must be set to # of elements in plmn_short_name */
   char plmn_short_name[NAS_PLMN_NAME_MAX_V01];
-  /**<   PLMN short name. If no short name is available for the specified PLMN ID,
+  /**<   PLMN short name. If no short name is available for the specified PLMN ID, 
        MCC and MNC values are included in ASCII format with the MCC followed
-       by the MNC within double quotes. For example, for an MCC of 123 and an
-       MNC of 678, the ASCII string "123678" is returned when the short name
-       is not available.
+       by the MNC within double quotes. For example, for an MCC of 123 and an 
+       MNC of 678, the ASCII string "123678" is returned when the short name 
+       is not available.  
   */
 
   /*  PLMN long name encoding scheme */
   nas_coding_scheme_enum_v01 plmn_long_name_enc;
-  /**<
+  /**<  
         Coding scheme for plmn_long_name. Values: \n
-        -0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded
+        -0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded 
                  alphabet as defined in \hyperref[S8]{[S8]} with bit 8 set to 0 \n
-        -0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian)
+        -0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian) 
                  \hyperref[S8]{[S8]} \n
         Note: This value is ignored if plmn_long_name_len is zero.
   */
 
   /*  PLMN long name country initial include status */
   nas_country_initials_add_enum_v01 plmn_long_name_ci;
-  /**<
-        Indicates whether the country initials are to be added to the
+  /**<  
+        Indicates whether the country initials are to be added to the 
         plmn_long_name. Values: \n
         -0x00 -- Do not add the letters for the country's initials to the name \n
         -0x01 -- Add the country's initials and a text string to the name \n
@@ -7393,11 +7449,11 @@ typedef struct {
 
   uint32_t plmn_long_name_len;  /**< Must be set to # of elements in plmn_long_name */
   char plmn_long_name[NAS_PLMN_NAME_MAX_V01];
-  /**<   PLMN long name. If no long name is available for the specified PLMN ID,
+  /**<   PLMN long name. If no long name is available for the specified PLMN ID, 
        MCC and MNC values are included in ASCII format with the MCC followed
-       by the MNC within double quotes. For example, for an MCC of 123 and an
-       MNC of 678, the ASCII string "123678" is returned when the long name
-       is not available.
+       by the MNC within double quotes. For example, for an MCC of 123 and an 
+       MNC of 678, the ASCII string "123678" is returned when the long name 
+       is not available.  
   */
 }nas_3gpp_eons_plmn_name_type_v01;  /* Type */
 /**
@@ -7411,16 +7467,16 @@ typedef struct {
 
   nas_tri_state_boolean_type_v01 is_spn_set;
   /**<   Whether the SPN display bit is set. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
  */
 
   nas_tri_state_boolean_type_v01 is_plmn_set;
   /**<   Whether the PLMN display bit is set. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
  */
 }nas_display_bit_type_v01;  /* Type */
 /**
@@ -7458,9 +7514,9 @@ typedef struct {
 
   nas_lang_id_enum_v01 lang_id;
   /**<   Language ID for the PLMN long and short names. Values: \n
-      - NAS_LANG_ID_UNKNOWN (0x00) --  Unknown language ID \n
-      - NAS_LANG_ID_ZH_TRAD (0x01) --  Traditional Chinese \n
-      - NAS_LANG_ID_ZH_SIMP (0x02) --  Simplified Chinese
+      - NAS_LANG_ID_UNKNOWN (0x00) --  Unknown language ID \n 
+      - NAS_LANG_ID_ZH_TRAD (0x01) --  Traditional Chinese \n 
+      - NAS_LANG_ID_ZH_SIMP (0x02) --  Simplified Chinese 
  */
 }nas_lang_plmn_names_type_v01;  /* Type */
 /**
@@ -7494,9 +7550,9 @@ typedef struct {
   uint8_t is_home_network_valid;  /**< Must be set to true if is_home_network is being passed */
   nas_tri_state_boolean_type_v01 is_home_network;
   /**<   Whether the network is the home network. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
  */
 
   /* Optional */
@@ -7510,7 +7566,7 @@ typedef struct {
   uint8_t addl_info_valid;  /**< Must be set to true if addl_info is being passed */
   uint32_t addl_info_len;  /**< Must be set to # of elements in addl_info */
   uint16_t addl_info[NAS_PLMN_NAME_MAX_V01];
-  /**<   Additional information provided for the PLMN, in UCS2
+  /**<   Additional information provided for the PLMN, in UCS2 
        (16 bit little-endian) encoded format.
   */
 
@@ -7519,14 +7575,21 @@ typedef struct {
   uint8_t nw_name_source_valid;  /**< Must be set to true if nw_name_source is being passed */
   nas_nw_name_source_enum_type_v01 nw_name_source;
   /**<   Network name source. Values: \n
-      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n
-      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n
-      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n
-      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n
-      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n
-      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n
-      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name
+      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n 
+      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n 
+      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n 
+      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n 
+      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n 
+      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n 
+      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name 
  */
+
+  /* Optional */
+  /*  Service Provider Name Ext */
+  uint8_t spn_ext_valid;  /**< Must be set to true if spn_ext is being passed */
+  uint16_t spn_ext[NAS_SPN_EXT_LEN_MAX_V01 + 1];
+  /**<   Service provider name.
+  */
 }nas_get_plmn_name_resp_msg_v01;  /* Message */
 /**
     @}
@@ -7542,9 +7605,9 @@ typedef struct {
   /*  Subscription Type */
   nas_subs_type_enum_v01 subs_type;
   /**<   Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
  */
 }nas_bind_subscription_req_msg_v01;  /* Message */
 /**
@@ -7571,12 +7634,12 @@ typedef struct {
   */
 typedef enum {
   NAS_STANDBY_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SINGLE_STANDBY_V01 = 0x01,
-  NAS_DUAL_STANDBY_WITH_TUNE_AWAY_V01 = 0x02,
-  NAS_DUAL_STANDBY_WITHOUT_TUNE_AWAY_V01 = 0x04,
-  NAS_AUTOMATIC_WITH_TUNE_AWAY_V01 = 0x05,
-  NAS_AUTOMATIC_WITHOUT_TUNE_AWAY_V01 = 0x06,
-  NAS_TRIPLE_STANDBY_V01 = 0x07,
+  NAS_SINGLE_STANDBY_V01 = 0x01, 
+  NAS_DUAL_STANDBY_WITH_TUNE_AWAY_V01 = 0x02, 
+  NAS_DUAL_STANDBY_WITHOUT_TUNE_AWAY_V01 = 0x04, 
+  NAS_AUTOMATIC_WITH_TUNE_AWAY_V01 = 0x05, 
+  NAS_AUTOMATIC_WITHOUT_TUNE_AWAY_V01 = 0x06, 
+  NAS_TRIPLE_STANDBY_V01 = 0x07, 
   NAS_STANDBY_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_standby_pref_enum_v01;
 /**
@@ -7584,9 +7647,9 @@ typedef enum {
   */
 
 typedef uint64_t nas_active_subs_mask_type_v01;
-#define QMI_NAS_ACTIVE_SUB_PRIMARY_V01 ((nas_active_subs_mask_type_v01)0x01ull)
-#define QMI_NAS_ACTIVE_SUB_SECONDARY_V01 ((nas_active_subs_mask_type_v01)0x02ull)
-#define QMI_NAS_ACTIVE_SUB_TERTIARY_V01 ((nas_active_subs_mask_type_v01)0x04ull)
+#define QMI_NAS_ACTIVE_SUB_PRIMARY_V01 ((nas_active_subs_mask_type_v01)0x01ull) 
+#define QMI_NAS_ACTIVE_SUB_SECONDARY_V01 ((nas_active_subs_mask_type_v01)0x02ull) 
+#define QMI_NAS_ACTIVE_SUB_TERTIARY_V01 ((nas_active_subs_mask_type_v01)0x04ull) 
 /** @addtogroup nas_qmi_messages
     @{
   */
@@ -7597,7 +7660,7 @@ typedef struct {
   /*  Standby Preference */
   uint8_t standby_pref_valid;  /**< Must be set to true if standby_pref is being passed */
   nas_standby_pref_enum_v01 standby_pref;
-  /**<
+  /**<  
         Values: \n
         -0x05 -- Automatic mode with tune away where applicable \n
         -0x06 -- Automatic mode without tune away
@@ -7612,9 +7675,9 @@ typedef struct {
   nas_subs_type_enum_v01 priority_subs;
   /**<   Subscription to give priority when listening to the paging channel during
  standby. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -7625,9 +7688,9 @@ typedef struct {
   uint8_t default_data_subs_valid;  /**< Must be set to true if default_data_subs is being passed */
   nas_subs_type_enum_v01 default_data_subs;
   /**<   Default data subscription. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -7638,9 +7701,9 @@ typedef struct {
   uint8_t default_voice_subs_valid;  /**< Must be set to true if default_voice_subs is being passed */
   nas_subs_type_enum_v01 default_voice_subs;
   /**<   Default voice subscription. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -7650,7 +7713,7 @@ typedef struct {
   /*  Active Subs Mask */
   uint8_t active_subs_mask_valid;  /**< Must be set to true if active_subs_mask is being passed */
   nas_active_subs_mask_type_v01 active_subs_mask;
-  /**<   Bitmask representing the active subscriptions to be set. If a value
+  /**<   Bitmask representing the active subscriptions to be set. If a value 
        of 0 is sent, there are no active subscriptions.
        Values: \n
        - Bit 0 (0x01) -- QMI_NAS_ACTIVE_SUB_ PRIMARY   -- Primary subscription \n
@@ -7704,9 +7767,9 @@ typedef struct {
   nas_subs_type_enum_v01 priority_subs;
   /**<   Subscription to give priority when listening to the paging channel during
  dual standby. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -7714,11 +7777,11 @@ typedef struct {
 
   /*  Active subs */
   nas_subs_type_enum_v01 active_subs;
-  /**<   Subscription to enable when "standby_pref is 0x01 -- Single standby".
+  /**<   Subscription to enable when "standby_pref is 0x01 -- Single standby". 
  Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -7727,9 +7790,9 @@ typedef struct {
   /*  Default data subs */
   nas_subs_type_enum_v01 default_data_subs;
   /**<   Default data subscription. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -7756,9 +7819,9 @@ typedef struct {
   uint8_t default_voice_subs_valid;  /**< Must be set to true if default_voice_subs is being passed */
   nas_subs_type_enum_v01 default_voice_subs;
   /**<   Default voice subscription. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -7768,7 +7831,7 @@ typedef struct {
   /*  Active Subs Mask */
   uint8_t active_subs_mask_valid;  /**< Must be set to true if active_subs_mask is being passed */
   nas_active_subs_mask_type_v01 active_subs_mask;
-  /**<   Bitmask representing the active subscriptions in the device. If a value
+  /**<   Bitmask representing the active subscriptions in the device. If a value 
        of 0 is sent, there are no active subscriptions.
        Values: \n
        - Bit 0 (0x01) -- QMI_NAS_ACTIVE_SUB_ PRIMARY   -- Primary subscription \n
@@ -7789,8 +7852,8 @@ typedef struct {
   */
 typedef enum {
   NAS_IS_PRIORITY_SUBS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_PRIORITY_SUBSCRIPTION_FALSE_V01 = 0x00,
-  NAS_PRIORITY_SUBSCRIPTION_TRUE_V01 = 0x01,
+  NAS_PRIORITY_SUBSCRIPTION_FALSE_V01 = 0x00, 
+  NAS_PRIORITY_SUBSCRIPTION_TRUE_V01 = 0x01, 
   NAS_IS_PRIORITY_SUBS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_is_priority_subs_enum_v01;
 /**
@@ -7802,8 +7865,8 @@ typedef enum {
   */
 typedef enum {
   NAS_ACTIVE_SUBS_INFO_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SUBSCRIPTION_NOT_ACTIVE_V01 = 0x00,
-  NAS_SUBSCRIPTION_ACTIVE_V01 = 0x01,
+  NAS_SUBSCRIPTION_NOT_ACTIVE_V01 = 0x00, 
+  NAS_SUBSCRIPTION_ACTIVE_V01 = 0x01, 
   NAS_ACTIVE_SUBS_INFO_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_active_subs_info_enum_v01;
 /**
@@ -7820,8 +7883,8 @@ typedef struct {
   /*  Priority Subscription Info */
   uint8_t is_priority_subs_valid;  /**< Must be set to true if is_priority_subs is being passed */
   nas_is_priority_subs_enum_v01 is_priority_subs;
-  /**<
-      Information on whether the subscription is a priority subscription
+  /**<  
+      Information on whether the subscription is a priority subscription 
       in cases of dual standby. Values: \n
       -0x00 -- Not a priority subscription \n
       -0x01 -- Priority subscription
@@ -7831,7 +7894,7 @@ typedef struct {
   /*  Active Subscription Info */
   uint8_t is_active_valid;  /**< Must be set to true if is_active is being passed */
   nas_active_subs_info_enum_v01 is_active;
-  /**<
+  /**<  
       Information on whether the subscription is active. Values: \n
       -0x00 -- Not active \n
       -0x01 -- Active
@@ -7841,7 +7904,7 @@ typedef struct {
   /*  Default Data Subscription Info */
   uint8_t is_default_data_subs_valid;  /**< Must be set to true if is_default_data_subs is being passed */
   uint8_t is_default_data_subs;
-  /**<
+  /**<  
       Information on whether the subscription is the default data
       subscription in cases of dual standby. Values: \n
       -0x00 -- Not a default data subscription \n
@@ -7854,13 +7917,27 @@ typedef struct {
   uint32_t voice_system_id;
   /**<   Voice system ID.
  */
+
+  /* Optional */
+  /*  LTE Voice System ID */
+  uint8_t lte_voice_system_id_valid;  /**< Must be set to true if lte_voice_system_id is being passed */
+  uint32_t lte_voice_system_id;
+  /**<   LTE voice system ID.
+ */
+
+  /* Optional */
+  /*  WLAN Voice System ID */
+  uint8_t wlan_voice_system_id_valid;  /**< Must be set to true if wlan_voice_system_id is being passed */
+  uint32_t wlan_voice_system_id;
+  /**<   WLAN voice system ID.
+ */
 }nas_subscription_info_ind_msg_v01;  /* Message */
 /**
     @}
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_mode_pref_req_msg_v01;
@@ -7882,9 +7959,9 @@ typedef struct {
   mode_pref_mask_type_v01 idx0_mode_pref;
   /**<   Bitmask representing the radio technology mode preference set in
       NV (idx0). Values: \n
-       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    --
+       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    -- 
          cdma2000\textsuperscript{\textregistered} 1X             \n
-       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  --
+       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - Bit 2 (0x04) -- QMI_NAS_RAT_MODE_PREF_ GSM            -- GSM \n
        - Bit 3 (0x08) -- QMI_NAS_RAT_MODE_PREF_ UMTS           -- UMTS \n
@@ -7896,11 +7973,11 @@ typedef struct {
   /*  Mode Preference for idx1 */
   uint8_t idx1_mode_pref_valid;  /**< Must be set to true if idx1_mode_pref is being passed */
   mode_pref_mask_type_v01 idx1_mode_pref;
-  /**<   Bitmask representing the radio technology mode preference set in
+  /**<   Bitmask representing the radio technology mode preference set in 
       NV (idx1). Values: \n
-       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    --
+       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    -- 
          cdma2000\textsuperscript{\textregistered} 1X             \n
-       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  --
+       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - Bit 2 (0x04) -- QMI_NAS_RAT_MODE_PREF_ GSM            -- GSM \n
        - Bit 3 (0x08) -- QMI_NAS_RAT_MODE_PREF_ UMTS           -- UMTS \n
@@ -7912,11 +7989,11 @@ typedef struct {
   /*  Mode Preference for idx2 */
   uint8_t idx2_mode_pref_valid;  /**< Must be set to true if idx2_mode_pref is being passed */
   mode_pref_mask_type_v01 idx2_mode_pref;
-  /**<   Bitmask representing the radio technology mode preference set in
+  /**<   Bitmask representing the radio technology mode preference set in 
       NV (idx2). Values: \n
-       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    --
+       - Bit 0 (0x01) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_1X    -- 
          cdma2000\textsuperscript{\textregistered} 1X             \n
-       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  --
+       - Bit 1 (0x02) -- QMI_NAS_RAT_MODE_PREF_ CDMA2000_HRPD  -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - Bit 2 (0x04) -- QMI_NAS_RAT_MODE_PREF_ GSM            -- GSM \n
        - Bit 3 (0x08) -- QMI_NAS_RAT_MODE_PREF_ UMTS           -- UMTS \n
@@ -7933,13 +8010,13 @@ typedef struct {
   */
 typedef enum {
   NAS_ACTIVE_TECHNOLOGY_DURATION_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_ACTIVE_TECHNOLOGY_DURATION_PERMANENT_V01 = 0x00,
-  NAS_ACTIVE_TECHNOLOGY_DURATION_PWR_CYCLE_V01 = 0x01,
-  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_ENC_PC_V01 = 0x02,
-  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_ST_PC_V01 = 0x03,
-  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_INTERNAL1_V01 = 0x04,
-  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_INTERNAL2_V01 = 0x05,
-  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_INTERNAL3_V01 = 0x06,
+  NAS_ACTIVE_TECHNOLOGY_DURATION_PERMANENT_V01 = 0x00, 
+  NAS_ACTIVE_TECHNOLOGY_DURATION_PWR_CYCLE_V01 = 0x01, 
+  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_ENC_PC_V01 = 0x02, 
+  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_ST_PC_V01 = 0x03, 
+  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_INTERNAL1_V01 = 0x04, 
+  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_INTERNAL2_V01 = 0x05, 
+  NAS_ACTIVE_TECHNOLOGY_DURATION_1C_TUENC_INTERNAL3_V01 = 0x06, 
   NAS_ACTIVE_TECHNOLOGY_DURATION_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_active_technology_duration_enum_type_v01;
 /**
@@ -7947,12 +8024,12 @@ typedef enum {
   */
 
 typedef uint16_t nas_persistent_technology_pref_mask_type_v01;
-#define NAS_PERSISTENT_TECH_PREF_3GPP2_V01 ((nas_persistent_technology_pref_mask_type_v01)0x01)
-#define NAS_PERSISTENT_TECH_PREF_3GPP_V01 ((nas_persistent_technology_pref_mask_type_v01)0x02)
-#define NAS_PERSISTENT_TECH_PREF_ANALOG_V01 ((nas_persistent_technology_pref_mask_type_v01)0x04)
-#define NAS_PERSISTENT_TECH_PREF_DIGITAL_V01 ((nas_persistent_technology_pref_mask_type_v01)0x08)
-#define NAS_PERSISTENT_TECH_PREF_HDR_V01 ((nas_persistent_technology_pref_mask_type_v01)0x10)
-#define NAS_PERSISTENT_TECH_PREF_LTE_V01 ((nas_persistent_technology_pref_mask_type_v01)0x20)
+#define NAS_PERSISTENT_TECH_PREF_3GPP2_V01 ((nas_persistent_technology_pref_mask_type_v01)0x01) 
+#define NAS_PERSISTENT_TECH_PREF_3GPP_V01 ((nas_persistent_technology_pref_mask_type_v01)0x02) 
+#define NAS_PERSISTENT_TECH_PREF_ANALOG_V01 ((nas_persistent_technology_pref_mask_type_v01)0x04) 
+#define NAS_PERSISTENT_TECH_PREF_DIGITAL_V01 ((nas_persistent_technology_pref_mask_type_v01)0x08) 
+#define NAS_PERSISTENT_TECH_PREF_HDR_V01 ((nas_persistent_technology_pref_mask_type_v01)0x10) 
+#define NAS_PERSISTENT_TECH_PREF_LTE_V01 ((nas_persistent_technology_pref_mask_type_v01)0x20) 
 /** @addtogroup nas_qmi_aggregates
     @{
   */
@@ -7960,8 +8037,8 @@ typedef struct {
 
   /*  Technology preference */
   nas_persistent_technology_pref_mask_type_v01 technology_pref;
-  /**<
-        Bitmask representing the radio technology preference set.
+  /**<  
+        Bitmask representing the radio technology preference set. 
         No bits set indicates to the device to automatically
         determine the technology to use. Values: \n
         - Bit 0 -- Technology is 3GPP2 \n
@@ -7980,7 +8057,7 @@ typedef struct {
 
   /*  Duration */
   nas_active_technology_duration_enum_type_v01 duration;
-  /**<
+  /**<  
       Preference duration. Values: \n
       -0x00 -- Permanent   -- Preference is used permanently \n
       -0x01 -- Power cycle -- Preference is used until the next device power cycle
@@ -8020,7 +8097,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_technology_preference_req_type_v01;
@@ -8032,8 +8109,8 @@ typedef struct {
 
   /*  Technology preference */
   nas_persistent_technology_pref_mask_type_v01 technology_pref;
-  /**<
-        Bitmask representing the radio technology preference set.
+  /**<  
+        Bitmask representing the radio technology preference set. 
         No bits set indicates to the device to automatically
         determine the technology to use. Values: \n
         - Bit 0 -- Technology is 3GPP2 \n
@@ -8052,14 +8129,14 @@ typedef struct {
 
   /*  Duration */
   nas_active_technology_duration_enum_type_v01 duration;
-  /**<
+  /**<  
       Duration of the active preference. Values: \n
       -0x00 -- Permanent -- Preference is used permanently \n
       -0x01 -- Power cycle -- Preference is used until the next device power cycle \n
       -0x02 -- 1 call -- Until the end of the next call or a power cycle \n
-      -0x03 -- 1 call or time -- Until the end of the next call, a specified time,
+      -0x03 -- 1 call or time -- Until the end of the next call, a specified time, 
                                  or a power cycle \n
-      -0x04-0x06 -- Internal 1 call -- Until the end of the next call
+      -0x04-0x06 -- Internal 1 call -- Until the end of the next call 
 
   */
 }nas_active_technology_type_v01;  /* Type */
@@ -8086,7 +8163,7 @@ typedef struct {
   /*  Persistent Technology Preference */
   uint8_t persistent_technology_pref_valid;  /**< Must be set to true if persistent_technology_pref is being passed */
   nas_persistent_technology_pref_mask_type_v01 persistent_technology_pref;
-  /**<    Bitmask representing the radio technology preference set.
+  /**<    Bitmask representing the radio technology preference set. 
         No bits set indicates to the device to automatically
         determine the technology to use. Values: \n
         - Bit 0 -- Technology is 3GPP2 \n
@@ -8100,7 +8177,7 @@ typedef struct {
         - Bits 6 to 15 -- Reserved
 
         Note: Bits 0 and 1 are exclusive; only one may be set at a time.
-              All unlisted bits are reserved for future use and are ignored.
+              All unlisted bits are reserved for future use and are ignored.       
     */
 }nas_get_technology_preference_resp_type_v01;  /* Message */
 /**
@@ -8108,7 +8185,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_network_system_preference_req_v01;
@@ -8118,9 +8195,9 @@ typedef struct {
   */
 typedef enum {
   NETWORK_SYS_PREF_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_NETWORK_SYSTEM_PREFERENCE_AUTOMATIC_V01 = 0x00,
-  NAS_NETWORK_SYSTEM_PREFERENCE_AUTO_A_V01 = 0x01,
-  NAS_NETWORK_SYSTEM_PREFERENCE_AUTO_B_V01 = 0x02,
+  NAS_NETWORK_SYSTEM_PREFERENCE_AUTOMATIC_V01 = 0x00, 
+  NAS_NETWORK_SYSTEM_PREFERENCE_AUTO_A_V01 = 0x01, 
+  NAS_NETWORK_SYSTEM_PREFERENCE_AUTO_B_V01 = 0x02, 
   NETWORK_SYS_PREF_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }network_sys_pref_enum_type_v01;
 /**
@@ -8141,7 +8218,7 @@ typedef struct {
   /* Mandatory */
   /*  System Preference */
   network_sys_pref_enum_type_v01 system_pref;
-  /**<
+  /**<  
       Duration of the active preference. Values: \n
       -0x00 -- Automatic \n
       -0x01 -- Auto A \n
@@ -8174,7 +8251,7 @@ typedef struct {
 
   /*  Hour */
   uint8_t hour;
-  /**<   Hour. Range: 0 to 59.
+  /**<   Hour. Range: 0 to 23.
   */
 
   /*  Minute */
@@ -8218,7 +8295,7 @@ typedef struct {
   /*  Daylight Saving Adjustment */
   uint8_t daylt_sav_adj_valid;  /**< Must be set to true if daylt_sav_adj is being passed */
   uint8_t daylt_sav_adj;
-  /**<   Daylight saving adjustment in hours. Possible values: 0, 1, and 2. This
+  /**<   Daylight saving adjustment in hours. Possible values: 0, 1, and 2. This 
        TLV is ignored if radio_if is NAS_RADIO_IF_CDMA_1XEVDO.
   */
 
@@ -8226,11 +8303,11 @@ typedef struct {
   /*  Radio Interface */
   uint8_t radio_if_valid;  /**< Must be set to true if radio_if is being passed */
   nas_radio_if_enum_v01 radio_if;
-  /**<
+  /**<  
     Radio interface from which to get the information. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -8243,7 +8320,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_sys_info_req_msg_v01;
@@ -8253,17 +8330,17 @@ typedef struct {
   */
 typedef enum {
   NAS_CUR_IDLE_DIGITAL_MODE_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SYS_MODE_NO_SRV_V01 = 0x00,
-  NAS_SYS_MODE_AMPS_V01 = 0x01,
-  NAS_SYS_MODE_CDMA_V01 = 0x02,
-  NAS_SYS_MODE_GSM_V01 = 0x03,
-  NAS_SYS_MODE_HDR_V01 = 0x04,
-  NAS_SYS_MODE_WCDMA_V01 = 0x05,
-  NAS_SYS_MODE_GPS_V01 = 0x06,
-  NAS_SYS_MODE_GW_V01 = 0x07,
-  NAS_SYS_MODE_WLAN_V01 = 0x08,
-  NAS_SYS_MODE_LTE_V01 = 0x09,
-  NAS_SYS_MODE_GWL_V01 = 0x0A,
+  NAS_SYS_MODE_NO_SRV_V01 = 0x00, 
+  NAS_SYS_MODE_AMPS_V01 = 0x01, 
+  NAS_SYS_MODE_CDMA_V01 = 0x02, 
+  NAS_SYS_MODE_GSM_V01 = 0x03, 
+  NAS_SYS_MODE_HDR_V01 = 0x04, 
+  NAS_SYS_MODE_WCDMA_V01 = 0x05, 
+  NAS_SYS_MODE_GPS_V01 = 0x06, 
+  NAS_SYS_MODE_GW_V01 = 0x07, 
+  NAS_SYS_MODE_WLAN_V01 = 0x08, 
+  NAS_SYS_MODE_LTE_V01 = 0x09, 
+  NAS_SYS_MODE_GWL_V01 = 0x0A, 
   NAS_CUR_IDLE_DIGITAL_MODE_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_cur_idle_digital_mode_enum_type_v01;
 /**
@@ -8275,11 +8352,11 @@ typedef enum {
   */
 typedef enum {
   NAS_SERVICE_STATUS_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SYS_SRV_STATUS_NO_SRV_V01 = 0,
-  NAS_SYS_SRV_STATUS_LIMITED_V01 = 1,
-  NAS_SYS_SRV_STATUS_SRV_V01 = 2,
-  NAS_SYS_SRV_STATUS_LIMITED_REGIONAL_V01 = 3,
-  NAS_SYS_SRV_STATUS_PWR_SAVE_V01 = 4,
+  NAS_SYS_SRV_STATUS_NO_SRV_V01 = 0, 
+  NAS_SYS_SRV_STATUS_LIMITED_V01 = 1, 
+  NAS_SYS_SRV_STATUS_SRV_V01 = 2, 
+  NAS_SYS_SRV_STATUS_LIMITED_REGIONAL_V01 = 3, 
+  NAS_SYS_SRV_STATUS_PWR_SAVE_V01 = 4, 
   NAS_SERVICE_STATUS_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_service_status_enum_type_v01;
 /**
@@ -8291,11 +8368,11 @@ typedef enum {
   */
 typedef enum {
   NAS_TRUE_SERVICE_STATUS_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  SYS_SRV_STATUS_NO_SRV_V01 = 0,
-  SYS_SRV_STATUS_LIMITED_V01 = 1,
-  SYS_SRV_STATUS_SRV_V01 = 2,
-  SYS_SRV_STATUS_LIMITED_REGIONAL_V01 = 3,
-  SYS_SRV_STATUS_PWR_SAVE_V01 = 4,
+  SYS_SRV_STATUS_NO_SRV_V01 = 0, 
+  SYS_SRV_STATUS_LIMITED_V01 = 1, 
+  SYS_SRV_STATUS_SRV_V01 = 2, 
+  SYS_SRV_STATUS_LIMITED_REGIONAL_V01 = 3, 
+  SYS_SRV_STATUS_PWR_SAVE_V01 = 4, 
   NAS_TRUE_SERVICE_STATUS_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_true_service_status_enum_type_v01;
 /**
@@ -8307,11 +8384,11 @@ typedef enum {
   */
 typedef enum {
   NAS_SERVICE_DOMAIN_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  SYS_SRV_DOMAIN_NO_SRV_V01 = 0,
-  SYS_SRV_DOMAIN_CS_ONLY_V01 = 1,
-  SYS_SRV_DOMAIN_PS_ONLY_V01 = 2,
-  SYS_SRV_DOMAIN_CS_PS_V01 = 3,
-  SYS_SRV_DOMAIN_CAMPED_V01 = 4,
+  SYS_SRV_DOMAIN_NO_SRV_V01 = 0, 
+  SYS_SRV_DOMAIN_CS_ONLY_V01 = 1, 
+  SYS_SRV_DOMAIN_PS_ONLY_V01 = 2, 
+  SYS_SRV_DOMAIN_CS_PS_V01 = 3, 
+  SYS_SRV_DOMAIN_CAMPED_V01 = 4, 
   NAS_SERVICE_DOMAIN_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_service_domain_enum_type_v01;
 /**
@@ -8323,9 +8400,9 @@ typedef enum {
   */
 typedef enum {
   NAS_HDR_PERSONALITY_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SYS_PERSONALITY_NONE_V01 = 0x00,
-  NAS_SYS_PERSONALITY_HRPD_V01 = 0x02,
-  NAS_SYS_PERSONALITY_EHRPD_V01 = 0x03,
+  NAS_SYS_PERSONALITY_NONE_V01 = 0x00, 
+  NAS_SYS_PERSONALITY_HRPD_V01 = 0x02, 
+  NAS_SYS_PERSONALITY_EHRPD_V01 = 0x03, 
   NAS_HDR_PERSONALITY_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_hdr_personality_enum_type_v01;
 /**
@@ -8337,10 +8414,10 @@ typedef enum {
   */
 typedef enum {
   NAS_HDR_ACTIVE_PROT_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SYS_ACTIVE_PROT_NONE_V01 = 0x00,
-  NAS_SYS_ACTIVE_PROT_HDR_REL0_V01 = 0x02,
-  NAS_SYS_ACTIVE_PROT_HDR_RELA_V01 = 0x03,
-  NAS_SYS_ACTIVE_PROT_HDR_RELB_V01 = 0x04,
+  NAS_SYS_ACTIVE_PROT_NONE_V01 = 0x00, 
+  NAS_SYS_ACTIVE_PROT_HDR_REL0_V01 = 0x02, 
+  NAS_SYS_ACTIVE_PROT_HDR_RELA_V01 = 0x03, 
+  NAS_SYS_ACTIVE_PROT_HDR_RELB_V01 = 0x04, 
   NAS_HDR_ACTIVE_PROT_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_hdr_active_prot_enum_type_v01;
 /**
@@ -8352,19 +8429,19 @@ typedef enum {
   */
 typedef enum {
   NAS_ROAM_STATUS_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SYS_ROAM_STATUS_OFF_V01 = 0x00,
-  NAS_SYS_ROAM_STATUS_ON_V01 = 0x01,
-  NAS_SYS_ROAM_STATUS_BLINK_V01 = 0x02,
-  NAS_SYS_ROAM_STATUS_OUT_OF_NEIGHBORHOOD_V01 = 0x03,
-  NAS_SYS_ROAM_STATUS_OUT_OF_BLDG_V01 = 0x04,
-  NAS_SYS_ROAM_STATUS_PREF_SYS_V01 = 0x05,
-  NAS_SYS_ROAM_STATUS_AVAIL_SYS_V01 = 0x06,
-  NAS_SYS_ROAM_STATUS_ALLIANCE_PARTNER_V01 = 0x07,
-  NAS_SYS_ROAM_STATUS_PREMIUM_PARTNER_V01 = 0x08,
-  NAS_SYS_ROAM_STATUS_FULL_SVC_V01 = 0x09,
-  NAS_SYS_ROAM_STATUS_PARTIAL_SVC_V01 = 0x0A,
-  NAS_SYS_ROAM_STATUS_BANNER_ON_V01 = 0x0B,
-  NAS_SYS_ROAM_STATUS_BANNER_OFF_V01 = 0x0C,
+  NAS_SYS_ROAM_STATUS_OFF_V01 = 0x00, 
+  NAS_SYS_ROAM_STATUS_ON_V01 = 0x01, 
+  NAS_SYS_ROAM_STATUS_BLINK_V01 = 0x02, 
+  NAS_SYS_ROAM_STATUS_OUT_OF_NEIGHBORHOOD_V01 = 0x03, 
+  NAS_SYS_ROAM_STATUS_OUT_OF_BLDG_V01 = 0x04, 
+  NAS_SYS_ROAM_STATUS_PREF_SYS_V01 = 0x05, 
+  NAS_SYS_ROAM_STATUS_AVAIL_SYS_V01 = 0x06, 
+  NAS_SYS_ROAM_STATUS_ALLIANCE_PARTNER_V01 = 0x07, 
+  NAS_SYS_ROAM_STATUS_PREMIUM_PARTNER_V01 = 0x08, 
+  NAS_SYS_ROAM_STATUS_FULL_SVC_V01 = 0x09, 
+  NAS_SYS_ROAM_STATUS_PARTIAL_SVC_V01 = 0x0A, 
+  NAS_SYS_ROAM_STATUS_BANNER_ON_V01 = 0x0B, 
+  NAS_SYS_ROAM_STATUS_BANNER_OFF_V01 = 0x0C, 
   NAS_ROAM_STATUS_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_roam_status_enum_type_v01;
 /**
@@ -8376,10 +8453,10 @@ typedef enum {
   */
 typedef enum {
   NAS_EUTRA_CELL_STATUS_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_EUTRA_CELL_PRESENT_V01 = 0x00,
-  NAS_EUTRA_CELL_NOT_PRESENT_V01 = 0x01,
-  NAS_EUTRA_CELL_PRESENCE_UNKNOWN_V01 = 0x02,
-  NAS_EUTRA_CELL_DETECTION_UNSUPPORTED_V01 = 0x03,
+  NAS_EUTRA_CELL_PRESENT_V01 = 0x00, 
+  NAS_EUTRA_CELL_NOT_PRESENT_V01 = 0x01, 
+  NAS_EUTRA_CELL_PRESENCE_UNKNOWN_V01 = 0x02, 
+  NAS_EUTRA_CELL_DETECTION_UNSUPPORTED_V01 = 0x03, 
   NAS_EUTRA_CELL_STATUS_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_eutra_cell_status_enum_type_v01;
 /**
@@ -8393,7 +8470,7 @@ typedef struct {
 
   /*  Service Domain */
   nas_service_domain_enum_type_v01 reject_srv_domain;
-  /**<
+  /**<  
       Type of service domain in which the registration is rejected. Values: \n
       - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
       - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -8404,9 +8481,9 @@ typedef struct {
 
   /*  Registration Rejection Cause */
   uint8_t rej_cause;
-  /**<
-      Reject cause values sent are specified in
-      \hyperref[S5]{[S5]} Sections 10.5.3.6 and 10.5.5.14, and
+  /**<  
+      Reject cause values sent are specified in 
+      \hyperref[S5]{[S5]} Sections 10.5.3.6 and 10.5.5.14, and 
       \hyperref[S16]{[S16]} Section 9.9.3.9.
   */
 }nas_reg_reject_info_type_v01;  /* Type */
@@ -8421,7 +8498,7 @@ typedef struct {
 
   /*  Service Status of the System */
   nas_service_status_enum_type_v01 srv_status;
-  /**<
+  /**<   
        Service status of the system. Values: \n
        - 0x00 -- SYS_SRV_STATUS_NO_SRV  -- No service \n
        - 0x01 -- SYS_SRV_STATUS_LIMITED -- Limited service \n
@@ -8432,7 +8509,7 @@ typedef struct {
 
   /*  Is this RAT the preferred data path */
   uint8_t is_pref_data_path;
-  /**<
+  /**<  
        Whether the RAT is the preferred data path: \n
        - 0x00 -- Not preferred \n
        - 0x01 -- Preferred
@@ -8449,7 +8526,7 @@ typedef struct {
 
   /*  Service Status of the System */
   nas_service_status_enum_type_v01 srv_status;
-  /**<
+  /**<   
        Service status of the system. Values: \n
        - 0x00 -- SYS_SRV_STATUS_NO_SRV  -- No service \n
        - 0x01 -- SYS_SRV_STATUS_LIMITED -- Limited service \n
@@ -8460,7 +8537,7 @@ typedef struct {
 
   /*  True Service Status of the System (not applicable to CDMA/HDR) */
   nas_true_service_status_enum_type_v01 true_srv_status;
-  /**<
+  /**<  
       True service status of the system (not applicable to CDMA/HDR). Values: \n
       - 0x00 -- SYS_SRV_STATUS_NO_SRV  -- No service \n
       - 0x01 -- SYS_SRV_STATUS_LIMITED -- Limited service \n
@@ -8471,7 +8548,7 @@ typedef struct {
 
   /*  Is this RAT the Preferred Data Path */
   uint8_t is_pref_data_path;
-  /**<
+  /**<  
        Whether the RAT is the preferred data path: \n
        - 0x00 -- Not preferred \n
        - 0x01 -- Preferred
@@ -8502,22 +8579,22 @@ typedef struct {
 
   /*  MCC */
   char mcc[NAS_MCC_MNC_MAX_V01];
-  /**<
-      MCC digits in ASCII characters.
+  /**<  
+      MCC digits in ASCII characters. 
 
       For CDMA, the MCC wildcard value is returned as \{`3', 0xFF, 0xFF\}.
   */
 
   /*  MNC */
   char mnc[NAS_MCC_MNC_MAX_V01];
-  /**<
+  /**<  
       MNC digits in ASCII characters. For this field: \n
       - Unused byte is set to 0xFF   \n
-      - In the case of two-digit MNC values, the third (unused) digit
-        is set to 0xFF. For example, 15 (a two-digit MNC) is reported
+      - In the case of two-digit MNC values, the third (unused) digit 
+        is set to 0xFF. For example, 15 (a two-digit MNC) is reported 
         using the byte stream 0x35 0x31 0xFF.
 
-      For CDMA, the MNC wildcard value is returned as \{`7', 0xFF, 0xFF\}.
+      For CDMA, the MNC wildcard value is returned as \{`7', 0xFF, 0xFF\}. 
   */
 }nas_common_network_id_type_v01;  /* Type */
 /**
@@ -8531,13 +8608,13 @@ typedef struct {
 
   /*  Is the Service Domain Valid */
   uint8_t srv_domain_valid;
-  /**<
+  /**<   
       Indicates whether the service domain is valid.
   */
 
   /*  Service Domain */
   nas_service_domain_enum_type_v01 srv_domain;
-  /**<
+  /**<  
       Service domain registered on the system. Values:  \n
       - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
       - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -8548,13 +8625,13 @@ typedef struct {
 
   /*  Is the Service Capability Valid */
   uint8_t srv_capability_valid;
-  /**<
-      Indicates whether the service capability is valid.
+  /**<   
+      Indicates whether the service capability is valid. 
   */
 
   /*  Service Capability */
   nas_service_domain_enum_type_v01 srv_capability;
-  /**<
+  /**<  
       Current system's service capability. Values: \n
       - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
       - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -8565,13 +8642,13 @@ typedef struct {
 
   /*  Is the Roaming Status Valid */
   uint8_t roam_status_valid;
-  /**<
-      Indicates whether the roaming status is valid.
+  /**<   
+      Indicates whether the roaming status is valid. 
   */
 
   /*  Current Roaming Status */
   nas_roam_status_enum_type_v01 roam_status;
-  /**<
+  /**<  
       Current roaming status. Values: \n
       - 0x00 -- SYS_ROAM_STATUS_OFF   -- Off \n
       - 0x01 -- SYS_ROAM_STATUS_ON    -- On  \n
@@ -8593,13 +8670,13 @@ typedef struct {
 
   /*  Is the Forbidden System Valid */
   uint8_t is_sys_forbidden_valid;
-  /**<
-      Indicates whether the forbidden system is valid.
+  /**<   
+      Indicates whether the forbidden system is valid. 
   */
 
   /*  Indicates Whether the System is Forbidden */
   uint8_t is_sys_forbidden;
-  /**<
+  /**<   
       Whether the system is forbidden: \n
       - 0x00 -- Not forbidden \n
       - 0x01 -- Forbidden
@@ -8616,38 +8693,38 @@ typedef struct {
 
   /*  Is the P_Rev in Use Valid */
   uint8_t p_rev_in_use_valid;
-  /**<
-      Indicates whether the P_Rev in use is valid.
+  /**<   
+      Indicates whether the P_Rev in use is valid. 
   */
 
   /*  P_Rev in Use */
   uint8_t p_rev_in_use;
-  /**<
-     The lesser of the base station P_Rev and mobile P_Rev
+  /**<  
+     The lesser of the base station P_Rev and mobile P_Rev 
      (only applicable for CDMA).
   */
 
   /*  Is the Base Station P_Rev Valid */
   uint8_t bs_p_rev_valid;
-  /**<
-      Indicates whether the base station P_Rev is valid.
+  /**<   
+      Indicates whether the base station P_Rev is valid. 
   */
 
   /*  bs_p_rev  */
   uint8_t bs_p_rev;
-  /**<
+  /**<  
     Base station P_Rev (only applicable for CDMA).
   */
 
   /*  Is the Supported CCS Valid */
   uint8_t ccs_supported_valid;
-  /**<
-      Indicates whether the supported concurrent service is valid.
+  /**<   
+      Indicates whether the supported concurrent service is valid. 
   */
 
   /*  Is CCS Supported  */
   uint8_t ccs_supported;
-  /**<
+  /**<  
       Whether concurrent service is supported (only applicable for CDMA): \n
       - 0x00 -- Not supported \n
       - 0x01 -- Supported
@@ -8656,27 +8733,27 @@ typedef struct {
 
   /*  Is the CDMA System ID Valid */
   uint8_t cdma_sys_id_valid;
-  /**<
-      Indicates whether the CDMA system ID is valid.
+  /**<   
+      Indicates whether the CDMA system ID is valid. 
   */
 
   /*  CDMA System ID */
   nas_cdma_system_id_type_v01 cdma_sys_id;
-  /**<
+  /**<  
      CDMA system ID; includes: \n
      - SID -- System ID \n
-     - NID -- Network ID
+     - NID -- Network ID 
   */
 
   /*  Is the Base Station Information Valid */
   uint8_t bs_info_valid;
-  /**<
-      Indicates whether the base station information is valid.
+  /**<   
+      Indicates whether the base station information is valid. 
   */
 
   /*  Base Station Information */
   nas_cdma_base_station_info_type_v01 bs_info;
-  /**<
+  /**<  
    Base station information; includes: \n
    - Base station ID \n
    - Base station latitude \n
@@ -8685,26 +8762,26 @@ typedef struct {
 
   /*  Is the 3GPP2 Packet Zone Valid */
   uint8_t packet_zone_valid;
-  /**<
-      Indicates whether the packet zone is valid.
+  /**<   
+      Indicates whether the packet zone is valid. 
   */
 
   /*  3GPP2 Packet Zone */
   uint16_t packet_zone;
-  /**<
-    Packet zone (8-bit). 0xFFFF indicates no packet zone.
+  /**<  
+    Packet zone (8-bit). 0xFFFF indicates no packet zone. 
     (Only applicable for CDMA.)
   */
 
   /*  Is the Network ID Valid */
   uint8_t network_id_valid;
-  /**<
-      Indicates whether the network ID is valid.
+  /**<   
+      Indicates whether the network ID is valid. 
   */
 
   /*  Network Name */
   nas_common_network_id_type_v01 network_id;
-  /**<
+  /**<  
     Network ID consists of MCC and MNC.
   */
 }nas_cdma_only_sys_info_type_v01;  /* Type */
@@ -8719,13 +8796,13 @@ typedef struct {
 
   /*  Is the HDR Personality Valid */
   uint8_t hdr_personality_valid;
-  /**<
-      Indicates whether the HDR personality is valid.
+  /**<   
+      Indicates whether the HDR personality is valid. 
   */
 
   /*  HDR Personality */
   nas_hdr_personality_enum_type_v01 hdr_personality;
-  /**<
+  /**<  
       HDR personality information (only applicable for HDR). Values: \n
       - 0x00 -- SYS_PERSONALITY_NONE -- None \n
       - 0x02 -- SYS_PERSONALITY_HRPD -- HRPD \n
@@ -8734,14 +8811,14 @@ typedef struct {
 
   /*  Is the HDR Active Protocol Revision Information Valid */
   uint8_t hdr_active_prot_valid;
-  /**<
+  /**<   
       Indicates whether the HDR active protocol revision information is valid.
   */
 
   /*  HDR Active Protocol Revision Information  */
   nas_hdr_active_prot_enum_type_v01 hdr_active_prot;
-  /**<
-      HDR active protocol revision information (only applicable for HDR).
+  /**<  
+      HDR active protocol revision information (only applicable for HDR). 
       Values: \n
       - 0x00 -- SYS_ACTIVE_PROT_NONE -- None           \n
       - 0x02 -- SYS_ACTIVE_PROT_HDR_REL0 -- HDR Rel 0  \n
@@ -8751,13 +8828,13 @@ typedef struct {
 
   /*  Is the IS-856 System ID Valid */
   uint8_t is856_sys_id_valid;
-  /**<
-      Indicates whether the IS-856 system ID is valid.
+  /**<   
+      Indicates whether the IS-856 system ID is valid. 
   */
 
   /*  IS 856 */
   uint8_t is856_sys_id[NAS_IS_856_MAX_LEN_V01];
-  /**<
+  /**<  
       IS-856 system ID (only applicable for HDR).
     */
 }nas_hdr_only_sys_info_type_v01;  /* Type */
@@ -8772,13 +8849,13 @@ typedef struct {
 
   /*  Is the EGPRS Support Valid */
   uint8_t egprs_supp_valid;
-  /**<
-      Indicates whether EGPRS support is valid.
+  /**<   
+      Indicates whether EGPRS support is valid. 
   */
 
   /*  EGPRS indication  */
   uint8_t egprs_supp;
-  /**<
+  /**<  
       EGPRS support indication (only applicable for GSM). Values: \n
       - 0x00 -- SYS_EGPRS_SUPPORT_NOT_AVAIL -- Not available \n
       - 0x01 -- SYS_EGPRS_SUPPORT_AVAIL -- Available
@@ -8786,13 +8863,13 @@ typedef struct {
 
   /*  Is the DTM Support Valid */
   uint8_t dtm_supp_valid;
-  /**<
-      Indicates whether Dual Transfer mode support is valid.
+  /**<   
+      Indicates whether Dual Transfer mode support is valid. 
   */
 
   /*  DTM support status */
   uint8_t dtm_supp;
-  /**<
+  /**<  
       Dual Transfer mode support indication (only applicable for GSM). Values: \n
       - 0x00 -- SYS_DTM_SUPPORT_NOT_AVAIL -- Not available  \n
       - 0x01 -- SYS_DTM_SUPPORT_AVAIL -- Available
@@ -8809,13 +8886,13 @@ typedef struct {
 
   /*  Is the HS Call Status Valid */
   uint8_t hs_call_status_valid;
-  /**<
-      Indicates whether the high-speed call status is valid.
+  /**<   
+      Indicates whether the high-speed call status is valid. 
   */
 
   /*  HS Call Status */
   nas_hs_support_enum_type_v01 hs_call_status;
-  /**<
+  /**<  
       Call status on high speed (only applicable for WCDMA). Values: \n
       - 0x00 -- SYS_HS_IND_HSDPA_HSUPA_ UNSUPP_CELL    -- HSDPA and HSUPA are unsupported \n
       - 0x01 -- SYS_HS_IND_HSDPA_SUPP_CELL             -- HSDPA is supported \n
@@ -8824,20 +8901,21 @@ typedef struct {
       - 0x04 -- SYS_HS_IND_HSDPAPLUS_SUPP_ CELL        -- HSDPA+ is supported \n
       - 0x05 -- SYS_HS_IND_HSDPAPLUS_HSUPA_ SUPP_CELL  -- HSDPA+ and HSUPA are supported \n
       - 0x06 -- SYS_HS_IND_DC_HSDPAPLUS_SUPP_ CELL     -- Dual-cell HSDPA+ is supported \n
-      - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n
+      - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n 
       - 0x08 -- SYS_HS_IND_HSDPAPLUS_64QAM_ HSUPA_SUPP_CELL -- Dual-cell HSDPA+, 64 QAM, and HSUPA are supported \n
-      - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported
+      - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported \n
+      - 0x0A -- SYS_HS_IND_DC_HSDPAPLUS_DC_HSUPA_ SUPP_CELL -- Cell supports DC HSUPA
   */
 
   /*  Is the HS Service Indication Valid */
   uint8_t hs_ind_valid;
-  /**<
-      Indicates whether the high-speed service indication is valid.
+  /**<   
+      Indicates whether the high-speed service indication is valid. 
   */
 
   /*   HS service indication */
   nas_hs_support_enum_type_v01 hs_ind;
-  /**<
+  /**<  
       High-speed service indication (only applicable for WCDMA). Values: \n
       - 0x00 -- SYS_HS_IND_HSDPA_HSUPA_ UNSUPP_CELL    -- HSDPA and HSUPA are unsupported \n
       - 0x01 -- SYS_HS_IND_HSDPA_SUPP_CELL             -- HSDPA is supported \n
@@ -8846,20 +8924,21 @@ typedef struct {
       - 0x04 -- SYS_HS_IND_HSDPAPLUS_SUPP_ CELL        -- HSDPA+ is supported \n
       - 0x05 -- SYS_HS_IND_HSDPAPLUS_HSUPA_ SUPP_CELL  -- HSDPA+ and HSUPA are supported \n
       - 0x06 -- SYS_HS_IND_DC_HSDPAPLUS_SUPP_ CELL     -- Dual-cell HSDPA+ is supported \n
-      - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n
+      - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n 
       - 0x08 -- SYS_HS_IND_HSDPAPLUS_64QAM_ HSUPA_SUPP_CELL -- Dual-cell HSDPA+, 64 QAM, and HSUPA are supported \n
-      - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported
+      - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported \n
+      - 0x0A -- SYS_HS_IND_DC_HSDPAPLUS_DC_HSUPA_ SUPP_CELL -- Cell supports DC HSUPA
   */
 
   /*  Is the PSC Valid */
   uint8_t psc_valid;
-  /**<
-      Indicates whether the primary scrambling code is valid.
+  /**<   
+      Indicates whether the primary scrambling code is valid. 
   */
 
   /*  Primary Scrambling Code (PSC) */
   uint16_t psc;
-  /**<
+  /**<  
     Primary scrambling code.
     */
 }nas_wcdma_only_sys_info_type_v01;  /* Type */
@@ -8874,13 +8953,13 @@ typedef struct {
 
   /*  Is the TAC Valid */
   uint8_t tac_valid;
-  /**<
-      Indicates whether the tracking area code is valid.
+  /**<   
+      Indicates whether the tracking area code is valid. 
   */
 
   /*  Tracking Area Code */
   uint16_t tac;
-  /**<
+  /**<  
      Tracking area code (only applicable for LTE).
     */
 }nas_lte_only_sys_info_type_v01;  /* Type */
@@ -8895,21 +8974,21 @@ typedef struct {
 
   /*  Is the System PRL Match Valid */
   uint8_t is_sys_prl_match_valid;
-  /**<
-      Indicates whether the system PRL match is valid.
+  /**<   
+      Indicates whether the system PRL match is valid. 
   */
 
   /*  Indicates if the system is in PRL  */
   uint8_t is_sys_prl_match;
-  /**<
-    Indicates whether the system is in a PRL (only applies to CDMA/HDR).
+  /**<  
+    Indicates whether the system is in a PRL (only applies to CDMA/HDR). 
     Values: \n
     - 0x00 -- System is not in a PRL \n
     - 0x01 -- System is in a PRL
 
-    If the system is not in a PRL, roam_status carries the value from the
+    If the system is not in a PRL, roam_status carries the value from the 
     default roaming indicator in the PRL. \n
-    If the system is in a PRL, roam_status is set to the value based on the
+    If the system is in a PRL, roam_status is set to the value based on the 
     standard specification.
   */
 }nas_cdma_hdr_only_sys_info_type_v01;  /* Type */
@@ -8924,32 +9003,32 @@ typedef struct {
 
   /*  Is the LAC Valid */
   uint8_t lac_valid;
-  /**<
-      Indicates whether the location area code is valid.
+  /**<   
+      Indicates whether the location area code is valid. 
   */
 
   /*  Location Area Code  */
   uint16_t lac;
-  /**<
+  /**<  
     Location area code (only applicable for 3GPP).
   */
 
   /*  Is the Cell ID Valid */
   uint8_t cell_id_valid;
-  /**<
-      Indicates whether the cell ID is valid.
+  /**<   
+      Indicates whether the cell ID is valid. 
   */
 
   /*  Cell ID */
   uint32_t cell_id;
-  /**<
+  /**<  
     Cell ID.
   */
 
   /*  Is the Registration Reject Information Valid */
   uint8_t reg_reject_info_valid;
-  /**<
-      Indicates whether the registration reject information is valid.
+  /**<   
+      Indicates whether the registration reject information is valid. 
   */
 
   /*  Registration Reject Info */
@@ -8957,13 +9036,13 @@ typedef struct {
 
   /*  Is the Network ID Valid */
   uint8_t network_id_valid;
-  /**<
-      Indicates whether the network ID is valid.
+  /**<   
+      Indicates whether the network ID is valid. 
   */
 
   /*  Network name */
   nas_common_network_id_type_v01 network_id;
-  /**<
+  /**<  
     Network ID consists of MCC and MNC.
   */
 }nas_3gpp_only_sys_info_type_v01;  /* Type */
@@ -9053,13 +9132,13 @@ typedef struct {
 
   /*  Is the HS Call Status Valid */
   uint8_t hs_call_status_valid;
-  /**<
-    Indicates whether the high-speed call status is valid.
+  /**<   
+    Indicates whether the high-speed call status is valid. 
   */
 
   /*  HS Call Status */
   nas_hs_support_enum_type_v01 hs_call_status;
-  /**<
+  /**<  
     Call status on high speed (only applicable for WCDMA). Values: \n
     - 0x00 -- SYS_HS_IND_HSDPA_HSUPA_ UNSUPP_CELL    -- HSDPA and HSUPA are unsupported \n
     - 0x01 -- SYS_HS_IND_HSDPA_SUPP_CELL             -- HSDPA is supported \n
@@ -9068,20 +9147,21 @@ typedef struct {
     - 0x04 -- SYS_HS_IND_HSDPAPLUS_SUPP_ CELL        -- HSDPA+ is supported \n
     - 0x05 -- SYS_HS_IND_HSDPAPLUS_HSUPA_ SUPP_CELL  -- HSDPA+ and HSUPA are supported \n
     - 0x06 -- SYS_HS_IND_DC_HSDPAPLUS_SUPP_ CELL     -- Dual-cell HSDPA+ is supported \n
-    - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n
+    - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n 
     - 0x08 -- SYS_HS_IND_HSDPAPLUS_64QAM_ HSUPA_SUPP_CELL -- Dual-cell HSDPA+, 64 QAM, and HSUPA are supported \n
-    - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported
+    - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported \n
+    - 0x0A -- SYS_HS_IND_DC_HSDPAPLUS_DC_HSUPA_ SUPP_CELL -- Cell supports DC HSUPA
   */
 
   /*  Is the HS Service Indication Valid */
   uint8_t hs_ind_valid;
-  /**<
-    Indicates whether the high-speed service indication is valid.
+  /**<   
+    Indicates whether the high-speed service indication is valid. 
   */
 
   /*   HS service indication */
   nas_hs_support_enum_type_v01 hs_ind;
-  /**<
+  /**<  
     High-speed service indication (only applicable for WCDMA). Values: \n
     - 0x00 -- SYS_HS_IND_HSDPA_HSUPA_ UNSUPP_CELL    -- HSDPA and HSUPA are unsupported \n
     - 0x01 -- SYS_HS_IND_HSDPA_SUPP_CELL             -- HSDPA is supported \n
@@ -9090,31 +9170,32 @@ typedef struct {
     - 0x04 -- SYS_HS_IND_HSDPAPLUS_SUPP_ CELL        -- HSDPA+ is supported \n
     - 0x05 -- SYS_HS_IND_HSDPAPLUS_HSUPA_ SUPP_CELL  -- HSDPA+ and HSUPA are supported \n
     - 0x06 -- SYS_HS_IND_DC_HSDPAPLUS_SUPP_ CELL     -- Dual-cell HSDPA+ is supported \n
-    - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n
+    - 0x07 -- SYS_HS_IND_DC_HSDPAPLUS_ HSUPA_SUPP_CELL    -- Dual-cell HSDPA+ and HSUPA are supported \n 
     - 0x08 -- SYS_HS_IND_HSDPAPLUS_64QAM_ HSUPA_SUPP_CELL -- Dual-cell HSDPA+, 64 QAM, and HSUPA are supported \n
-    - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported
+    - 0x09 -- SYS_HS_IND_HSDPAPLUS_64QAM_ SUPP_CELL       -- Dual-cell HSDPA+ and 64 QAM are supported \n
+    - 0x0A -- SYS_HS_IND_DC_HSDPAPLUS_DC_HSUPA_ SUPP_CELL -- Cell supports DC HSUPA
   */
 
   /*  Is the Cell Parameter ID Valid */
   uint8_t cell_parameter_id_valid;
-  /**<
-    Indicates whether the cell parameter ID is valid.
+  /**<   
+    Indicates whether the cell parameter ID is valid. 
   */
 
   /*  Cell Parameter ID */
   uint16_t cell_parameter_id;
-  /**<
+  /**<  
     Cell parameter ID.
     */
 
   /*  Is the Cell Broadcast Capability Valid */
   uint8_t cell_broadcast_cap_valid;
-  /**<
-    Indicates whether the cell broadcast capability is valid.
+  /**<   
+    Indicates whether the cell broadcast capability is valid. 
   */
 
   nas_cell_broadcast_cap_enum_type_v01 cell_broadcast_cap;
-  /**<
+  /**<  
     Cell broadcast capability of the serving system. Values: \n
     - 0x00 -- NAS_CELL_BROADCAST_CAP_ UNKNOWN  -- Cell broadcast support is unknown \n
     - 0x01 -- NAS_CELL_BROADCAST_CAP_OFF       -- Cell broadcast is not supported \n
@@ -9123,12 +9204,12 @@ typedef struct {
 
   /*  Is the CS Bar Status Valid */
   uint8_t cs_bar_status_valid;
-  /**<
-    Indicates whether the circuit-switched call barring status is valid.
+  /**<   
+    Indicates whether the circuit-switched call barring status is valid. 
   */
 
   nas_cell_access_status_e_type_v01 cs_bar_status;
-  /**<
+  /**<  
     Call barring status for circuit-switched calls. Values: \n
     - 0x00 -- NAS_CELL_ACCESS_NORMAL_ONLY     -- Cell access is allowed for normal calls only \n
     - 0x01 -- NAS_CELL_ACCESS_EMERGENCY_ ONLY -- Cell access is allowed for emergency calls only \n
@@ -9139,12 +9220,12 @@ typedef struct {
 
   /*  Is the PS Bar Status Valid */
   uint8_t ps_bar_status_valid;
-  /**<
-    Indicates whether the packet-switched call barring status is valid.
+  /**<   
+    Indicates whether the packet-switched call barring status is valid. 
   */
 
   nas_cell_access_status_e_type_v01 ps_bar_status;
-  /**<
+  /**<  
      Call barring status for packet-switched calls. Values: \n
     - 0x00 -- NAS_CELL_ACCESS_NORMAL_ONLY     -- Cell access is allowed for normal calls only \n
     - 0x01 -- NAS_CELL_ACCESS_EMERGENCY_ ONLY -- Cell access is allowed for emergency calls only \n
@@ -9155,12 +9236,12 @@ typedef struct {
 
   /*  Is the Cipher Domain Valid */
   uint8_t cipher_domain_valid;
-  /**<
-    Indicates whether the cipher domain is valid.
+  /**<   
+    Indicates whether the cipher domain is valid. 
   */
 
   nas_service_domain_enum_type_v01 cipher_domain;
-  /**<
+  /**<  
     Ciphering on the service domain. Values: \n
     - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
     - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -9193,16 +9274,16 @@ typedef struct {
 typedef struct {
 
   uint16_t geo_sys_idx;
-  /**<
+  /**<  
     System table index referencing the beginning of the geo in which
-    the current serving system is present. When the system index
+    the current serving system is present. When the system index 
     is not known, 0xFFFF is used.
   */
 
   uint16_t reg_prd;
-  /**<
-    Registration period after the CDMA system is acquired.
-    When the CDMA registration period is not valid, 0xFFFF is used.
+  /**<  
+    Registration period after the CDMA system is acquired. 
+    When the CDMA registration period is not valid, 0xFFFF is used. 
   */
 }nas_cdma_sys_info2_type_v01;  /* Type */
 /**
@@ -9215,7 +9296,7 @@ typedef struct {
 typedef struct {
 
   uint16_t geo_sys_idx;
-  /**<
+  /**<  
     System table index referencing the beginning of the geo in which
     the current serving system is present. When the system index
     is not known, 0xFFFF is used.
@@ -9231,14 +9312,14 @@ typedef struct {
 typedef struct {
 
   uint16_t geo_sys_idx;
-  /**<
+  /**<  
     System table index referencing the beginning of the geo in which
-    the current serving system is present. When the system index
+    the current serving system is present. When the system index 
     is not known, 0xFFFF is used.
   */
 
   nas_cell_broadcast_cap_enum_type_v01 cell_broadcast_cap;
-  /**<
+  /**<  
     Cell broadcast capability of the serving system. Values: \n
     - 0x00 -- NAS_CELL_BROADCAST_CAP_ UNKNOWN -- Cell broadcast support is unknown \n
     - 0x01 -- NAS_CELL_BROADCAST_CAP_OFF      -- Cell broadcast is not supported \n
@@ -9255,14 +9336,14 @@ typedef struct {
 typedef struct {
 
   uint16_t geo_sys_idx;
-  /**<
+  /**<  
     System table index referencing the beginning of the geo in which
-    the current serving system is present. When the system index
+    the current serving system is present. When the system index 
     is not known, 0xFFFF is used.
   */
 
   nas_cell_broadcast_cap_enum_type_v01 cell_broadcast_cap;
-  /**<
+  /**<  
     Cell broadcast capability of the serving system. Values: \n
     - 0x00 -- NAS_CELL_BROADCAST_CAP_ UNKNOWN  -- Cell broadcast support is unknown \n
     - 0x01 -- NAS_CELL_BROADCAST_CAP_OFF       -- Cell broadcast is not supported \n
@@ -9279,9 +9360,9 @@ typedef struct {
 typedef struct {
 
   uint16_t geo_sys_idx;
-  /**<
+  /**<  
     System table index referencing the beginning of the geo in which
-    the current serving system is present. When the system index
+    the current serving system is present. When the system index 
     is not known, 0xFFFF is used.
   */
 }nas_lte_sys_info2_type_v01;  /* Type */
@@ -9325,11 +9406,11 @@ typedef enum {
   */
 typedef enum {
   NAS_POSSIBLE_REG_DOMAIN_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_POSSIBLE_REG_DOMAIN_NA_V01 = 0,
-  NAS_POSSIBLE_REG_DOMAIN_CS_ONLY_V01 = 1,
-  NAS_POSSIBLE_REG_DOMAIN_PS_ONLY_V01 = 2,
-  NAS_POSSIBLE_REG_DOMAIN_CS_PS_V01 = 3,
-  NAS_POSSIBLE_REG_DOMAIN_LIMITED_SERVICE_V01 = 4,
+  NAS_POSSIBLE_REG_DOMAIN_NA_V01 = 0, 
+  NAS_POSSIBLE_REG_DOMAIN_CS_ONLY_V01 = 1, 
+  NAS_POSSIBLE_REG_DOMAIN_PS_ONLY_V01 = 2, 
+  NAS_POSSIBLE_REG_DOMAIN_CS_PS_V01 = 3, 
+  NAS_POSSIBLE_REG_DOMAIN_LIMITED_SERVICE_V01 = 4, 
   NAS_POSSIBLE_REG_DOMAIN_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_possible_reg_domain_enum_type_v01;
 /**
@@ -9347,6 +9428,22 @@ typedef enum {
   NAS_SMS_STATUS_3GPP_V01 = 3, /**<  SMS is supported over 3GPP network  */
   NAS_SMS_STATUS_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_sms_status_enum_type_v01;
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_enums
+    @{
+  */
+typedef enum {
+  NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAILABLE_V01 = 0, /**<  Not available \n  */
+  NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_AVAILABLE_V01 = 1, /**<  Available \n  */
+  NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_UEMODE_V01 = 2, /**<  Not available due to the UE mode \n  */
+  NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_EMERGENCY_V01 = 3, /**<  Not available due to an emergency \n  */
+  NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_UNKNOWN_V01 = 4, /**<  Unknown  */
+  NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}nas_lte_rrc_embms_coverage_status_enum_v01;
 /**
     @}
   */
@@ -9452,7 +9549,7 @@ typedef struct {
   /*  LTE Voice Support Sys Info */
   uint8_t voice_support_on_lte_valid;  /**< Must be set to true if voice_support_on_lte is being passed */
   uint8_t voice_support_on_lte;
-  /**<
+  /**<  
     Indicates voice support status on LTE. Values: \n
     - 0x00 -- Voice is not supported \n
     - 1x01 -- Voice is supported
@@ -9462,7 +9559,7 @@ typedef struct {
   /*  GSM Cipher Domain Sys Info */
   uint8_t gsm_cipher_domain_valid;  /**< Must be set to true if gsm_cipher_domain is being passed */
   nas_service_domain_enum_type_v01 gsm_cipher_domain;
-  /**<
+  /**<  
     Ciphering on the service domain. Values: \n
     - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
     - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -9474,7 +9571,7 @@ typedef struct {
   /*  WCDMA Cipher Domain Sys Info */
   uint8_t wcdma_cipher_domain_valid;  /**< Must be set to true if wcdma_cipher_domain is being passed */
   nas_service_domain_enum_type_v01 wcdma_cipher_domain;
-  /**<
+  /**<  
     Ciphering on the service domain. Values: \n
     - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
     - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -9493,10 +9590,10 @@ typedef struct {
   nas_tdscdma_sys_info_type_v01 tdscdma_sys_info;
 
   /* Optional */
-  /*  LTE eMBMS Coverage Info */
+  /*  LTE eMBMS Coverage Info (deprecated; use LTE eMBMS Coverage Info Extended) */
   uint8_t lte_embms_coverage_valid;  /**< Must be set to true if lte_embms_coverage is being passed */
   uint8_t lte_embms_coverage;
-  /**<
+  /**<  
     Values: \n
     - TRUE  -- Current LTE system supports eMBMS \n
     - FALSE -- Current LTE system does not support eMBMS
@@ -9506,16 +9603,16 @@ typedef struct {
   /*  SIM Reject Information */
   uint8_t sim_rej_info_valid;  /**< Must be set to true if sim_rej_info is being passed */
   nas_sim_rej_info_enum_type_v01 sim_rej_info;
-  /**<
+  /**<  
     Current reject state information of the SIM. Values: \n
     - 0 -- NAS_SIM_NOT_AVAILABLE -- SIM is not available \n
     - 1 -- NAS_SIM_AVAILABLE     -- SIM is available     \n
-    - 2 -- NAS_SIM_CS_INVALID    -- SIM has been marked by the network as
+    - 2 -- NAS_SIM_CS_INVALID    -- SIM has been marked by the network as 
                                     invalid for circuit-switched services \n
-    - 3 -- NAS_SIM_PS_INVALID    -- SIM has been marked by the network as
+    - 3 -- NAS_SIM_PS_INVALID    -- SIM has been marked by the network as 
                                     invalid for packet-switched services  \n
-    - 4 -- NAS_SIM_CS_PS_INVALID -- SIM has been marked by the network as
-                                    invalid for circuit-switched and
+    - 4 -- NAS_SIM_CS_PS_INVALID -- SIM has been marked by the network as 
+                                    invalid for circuit-switched and 
                                     packet-switched services
   */
 
@@ -9523,11 +9620,11 @@ typedef struct {
   /*  WCDMA EUTRA Status Information */
   uint8_t wcdma_eutra_status_valid;  /**< Must be set to true if wcdma_eutra_status is being passed */
   nas_eutra_cell_status_enum_type_v01 wcdma_eutra_status;
-  /**<
+  /**<  
     E-UTRA detection status. Values: \n
     - 0 -- NAS_EUTRA_CELL_PRESENT           -- E-UTRA cell is detected            \n
     - 1 -- NAS_EUTRA_CELL_NOT_PRESENT       -- E-UTRA cell is not detected        \n
-    - 2 -- NAS_EUTRA_CELL_PRESENCE_ UNKNOWN -- E-UTRA cell information is unknown
+    - 2 -- NAS_EUTRA_CELL_PRESENCE_ UNKNOWN -- E-UTRA cell information is unknown 
                                                due to a state transition          \n
     - 3 -- NAS_EUTRA_CELL_DETECTION_ UNSUPPORTED -- E-UTRA detection is not supported
   */
@@ -9536,7 +9633,7 @@ typedef struct {
   /*  IMS Voice Support Status on LTE */
   uint8_t lte_ims_voice_avail_valid;  /**< Must be set to true if lte_ims_voice_avail is being passed */
   uint8_t lte_ims_voice_avail;
-  /**<
+  /**<   
     Values: \n
     - 0x00 -- Support is not available \n
     - 0x01 -- Support is available
@@ -9546,20 +9643,20 @@ typedef struct {
   /*  LTE Voice Domain */
   uint8_t lte_voice_status_valid;  /**< Must be set to true if lte_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 lte_voice_status;
-  /**<
+  /**<  
     LTE voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on LTE \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network \n
-    - 3 -- NAS_DOMAIN_SEL_DOMAIN_3GPP     -- Voice is supported over the 3GPP network
+    - 3 -- NAS_DOMAIN_SEL_DOMAIN_3GPP     -- Voice is supported over the 3GPP network 
   */
 
   /* Optional */
   /*  CDMA Reg Zone ID */
   uint8_t cdma_reg_zone_valid;  /**< Must be set to true if cdma_reg_zone is being passed */
   uint16_t cdma_reg_zone;
-  /**<
+  /**<  
     CDMA registration zone ID.
   */
 
@@ -9567,7 +9664,7 @@ typedef struct {
   /*  GSM RAC */
   uint8_t gsm_rac_valid;  /**< Must be set to true if gsm_rac is being passed */
   uint8_t gsm_rac;
-  /**<
+  /**<  
     GSM routing area code.
   */
 
@@ -9575,7 +9672,7 @@ typedef struct {
   /*  WCDMA RAC */
   uint8_t wcdma_rac_valid;  /**< Must be set to true if wcdma_rac is being passed */
   uint8_t wcdma_rac;
-  /**<
+  /**<  
     WCDMA routing area code.
   */
 
@@ -9583,11 +9680,11 @@ typedef struct {
   /*  CDMA Resolved Mobile Country Code */
   uint8_t cdma_mcc_resolved_via_sid_lookup_valid;  /**< Must be set to true if cdma_mcc_resolved_via_sid_lookup is being passed */
   uint16_t cdma_mcc_resolved_via_sid_lookup;
-  /**<
-    MCC derived by looking up the IFAST SID conflict table and configured
-    SID-MCC table (static and NV) with the SID received from the network as the
+  /**<  
+    MCC derived by looking up the IFAST SID conflict table and configured 
+    SID-MCC table (static and NV) with the SID received from the network as the 
     key. If the lookup is not successful, 0xFFFF is used. \n
-    Note: This MCC value is determined solely from the SID and may differ from
+    Note: This MCC value is determined solely from the SID and may differ from 
     the MCC value sent by the network.
   */
 
@@ -9595,11 +9692,11 @@ typedef struct {
   /*  Network Selection Registration Restriction */
   uint8_t srv_reg_restriction_valid;  /**< Must be set to true if srv_reg_restriction is being passed */
   nas_srv_reg_restriction_enum_v01 srv_reg_restriction;
-  /**<
+  /**<  
     Registration restriction. Values: \n
-    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal
+    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal 
               registration process \n
-    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device follows the camp-only
+    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device follows the camp-only 
               registration process
 
     \vspace{3pt}
@@ -9610,17 +9707,17 @@ typedef struct {
   /*  TDSCDMA Registration Domain */
   uint8_t tdscdma_reg_domain_valid;  /**< Must be set to true if tdscdma_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 tdscdma_reg_domain;
-  /**<
+  /**<  
     TD-SCDMA registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
   */
 
@@ -9628,17 +9725,17 @@ typedef struct {
   /*  LTE Registration Domain */
   uint8_t lte_reg_domain_valid;  /**< Must be set to true if lte_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 lte_reg_domain;
-  /**<
+  /**<  
     LTE registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
   */
 
@@ -9646,17 +9743,17 @@ typedef struct {
   /*  WCDMA Registration Domain */
   uint8_t wcdma_reg_domain_valid;  /**< Must be set to true if wcdma_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 wcdma_reg_domain;
-  /**<
+  /**<  
     WCDMA registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
   */
 
@@ -9664,17 +9761,17 @@ typedef struct {
   /*  GSM Registration Domain */
   uint8_t gsm_reg_domain_valid;  /**< Must be set to true if gsm_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 gsm_reg_domain;
-  /**<
+  /**<  
     GSM registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
   */
 
@@ -9682,7 +9779,7 @@ typedef struct {
   /*  LTE eMBMS Coverage Info Trace ID */
   uint8_t lte_embms_coverage_trace_id_valid;  /**< Must be set to true if lte_embms_coverage_trace_id is being passed */
   int16_t lte_embms_coverage_trace_id;
-  /**<
+  /**<   
     LTE eMBMS coverage information trace ID. Values: \n
     - 0 to 32768 -- Valid trace ID \n
     - -1 -- Trace ID is not used
@@ -9697,9 +9794,9 @@ typedef struct {
   /*  HDR Voice Domain */
   uint8_t hdr_voice_status_valid;  /**< Must be set to true if hdr_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 hdr_voice_status;
-  /**<
+  /**<  
     HDR voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on HDR \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -9709,9 +9806,9 @@ typedef struct {
   /*  HDR SMS Domain */
   uint8_t hdr_sms_status_valid;  /**< Must be set to true if hdr_sms_status is being passed */
   nas_sms_status_enum_type_v01 hdr_sms_status;
-  /**<
+  /**<  
     HDR SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on HDR \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -9721,28 +9818,28 @@ typedef struct {
   /*  LTE SMS Domain */
   uint8_t lte_sms_status_valid;  /**< Must be set to true if lte_sms_status is being passed */
   nas_sms_status_enum_type_v01 lte_sms_status;
-  /**<
+  /**<  
     LTE SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on LTE \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network \n
-    - 3 -- NAS_SMS_STATUS_3GPP   -- SMS is supported over the 3GPP network
+    - 3 -- NAS_SMS_STATUS_3GPP   -- SMS is supported over the 3GPP network 
   */
 
   /* Optional */
   /*  LTE Emergency Bearer Support */
   uint8_t lte_is_eb_supported_valid;  /**< Must be set to true if lte_is_eb_supported is being passed */
   nas_tri_state_boolean_type_v01 lte_is_eb_supported;
-  /**<
+  /**<  
  Whether LTE emergency bearer is supported. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
 
  \vspace{3pt}
- The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not
- available from the lower layers; e.g., if the UE powers up while acquiring
+ The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not 
+ available from the lower layers; e.g., if the UE powers up while acquiring 
  service or in the middle of an attach procedure.
  */
 
@@ -9750,9 +9847,9 @@ typedef struct {
   /*  GSM Voice Domain */
   uint8_t gsm_voice_status_valid;  /**< Must be set to true if gsm_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 gsm_voice_status;
-  /**<
+  /**<  
     GSM voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on GSM \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -9762,9 +9859,9 @@ typedef struct {
   /*  GSM SMS Domain */
   uint8_t gsm_sms_status_valid;  /**< Must be set to true if gsm_sms_status is being passed */
   nas_sms_status_enum_type_v01 gsm_sms_status;
-  /**<
+  /**<  
     GSM SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on GSM \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -9774,9 +9871,9 @@ typedef struct {
   /*  WCDMA Voice Domain */
   uint8_t wcdma_voice_status_valid;  /**< Must be set to true if wcdma_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 wcdma_voice_status;
-  /**<
+  /**<  
     WCDMA voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on WCDMA \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -9786,9 +9883,9 @@ typedef struct {
   /*  WCDMA SMS Domain */
   uint8_t wcdma_sms_status_valid;  /**< Must be set to true if wcdma_sms_status is being passed */
   nas_sms_status_enum_type_v01 wcdma_sms_status;
-  /**<
+  /**<  
     WCDMA SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on WCDMA \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -9798,15 +9895,15 @@ typedef struct {
   /*  LTE Emergency Access Barred */
   uint8_t emergency_access_barred_valid;  /**< Must be set to true if emergency_access_barred is being passed */
   nas_tri_state_boolean_type_v01 emergency_access_barred;
-  /**<
+  /**<  
  Whether LTE emergency access is barred on the current system. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
 
  \vspace{3pt}
- The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not
- available from the lower layers; e.g., if the UE powers up while acquiring
+ The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not 
+ available from the lower layers; e.g., if the UE powers up while acquiring 
  service or in the middle of an attach procedure.
  */
 
@@ -9814,9 +9911,9 @@ typedef struct {
   /*  CDMA Voice Domain */
   uint8_t cdma_voice_status_valid;  /**< Must be set to true if cdma_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 cdma_voice_status;
-  /**<
+  /**<  
     CDMA voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on CDMA \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -9826,9 +9923,9 @@ typedef struct {
   /*  CDMA SMS Domain */
   uint8_t cdma_sms_status_valid;  /**< Must be set to true if cdma_sms_status is being passed */
   nas_sms_status_enum_type_v01 cdma_sms_status;
-  /**<
+  /**<  
     CDMA SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on CDMA \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -9838,9 +9935,9 @@ typedef struct {
   /*  TDSCDMA Voice Domain */
   uint8_t tdscdma_voice_status_valid;  /**< Must be set to true if tdscdma_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 tdscdma_voice_status;
-  /**<
+  /**<  
     TD-SCDMA voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on TD-SCDMA \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -9850,9 +9947,9 @@ typedef struct {
   /*  TDSCDMA SMS Domain */
   uint8_t tdscdma_sms_status_valid;  /**< Must be set to true if tdscdma_sms_status is being passed */
   nas_sms_status_enum_type_v01 tdscdma_sms_status;
-  /**<
+  /**<  
     TD-SCDMA SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on TD-SCDMA \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -9867,22 +9964,34 @@ typedef struct {
   /*  LTE Cell Access Status Info */
   uint8_t lte_cell_status_valid;  /**< Must be set to true if lte_cell_status is being passed */
   nas_cell_access_status_e_type_v01 lte_cell_status;
-  /**<
+  /**<  
  Cell access status for LTE calls. Values: \n
-      - NAS_CELL_ACCESS_NORMAL_ONLY (0x00) --  Cell access is allowed for normal calls only \n
-      - NAS_CELL_ACCESS_EMERGENCY_ONLY (0x01) --  Cell access is allowed for emergency calls only \n
-      - NAS_CELL_ACCESS_NO_CALLS (0x02) --  Cell access is not allowed for any call type \n
-      - NAS_CELL_ACCESS_ALL_CALLS (0x03) --  Cell access is allowed for all call types \n
-      - NAS_CELL_ACCESS_UNKNOWN (-1) --  Cell access type is unknown
+      - NAS_CELL_ACCESS_NORMAL_ONLY (0x00) --  Cell access is allowed for normal calls only \n  
+      - NAS_CELL_ACCESS_EMERGENCY_ONLY (0x01) --  Cell access is allowed for emergency calls only \n  
+      - NAS_CELL_ACCESS_NO_CALLS (0x02) --  Cell access is not allowed for any call type \n  
+      - NAS_CELL_ACCESS_ALL_CALLS (0x03) --  Cell access is allowed for all call types \n  
+      - NAS_CELL_ACCESS_UNKNOWN (-1) --  Cell access type is unknown  
  */
 
   /* Optional */
   /*  HDR Subnet Mask Length */
   uint8_t hdr_subnet_mask_len_valid;  /**< Must be set to true if hdr_subnet_mask_len is being passed */
   uint8_t hdr_subnet_mask_len;
-  /**<
+  /**<  
       HDR subnet mask length.
   */
+
+  /* Optional */
+  /*  LTE eMBMS Coverage Info Extended */
+  uint8_t embms_coverage_status_valid;  /**< Must be set to true if embms_coverage_status is being passed */
+  nas_lte_rrc_embms_coverage_status_enum_v01 embms_coverage_status;
+  /**<   eMBMS coverage status. Values: \n
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAILABLE (0) --  Not available \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_AVAILABLE (1) --  Available \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_UEMODE (2) --  Not available due to the UE mode \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_EMERGENCY (3) --  Not available due to an emergency \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_UNKNOWN (4) --  Unknown 
+ */
 }nas_get_sys_info_resp_msg_v01;  /* Message */
 /**
     @}
@@ -9891,7 +10000,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Indication Message; Indicates a change in the system information.
+/** Indication Message; Indicates a change in the system information.   
              \label{idl:sysInfoInd} */
 typedef struct {
 
@@ -9984,7 +10093,7 @@ typedef struct {
   /*  LTE Voice Support Sys Info */
   uint8_t voice_support_on_lte_valid;  /**< Must be set to true if voice_support_on_lte is being passed */
   uint8_t voice_support_on_lte;
-  /**<
+  /**<  
     Indicates voice support status on LTE. Values: \n
     - 0x00 -- Voice is not supported \n
     - 1x01 -- Voice is supported
@@ -9994,7 +10103,7 @@ typedef struct {
   /*  GSM Cipher Domain Sys Info */
   uint8_t gsm_cipher_domain_valid;  /**< Must be set to true if gsm_cipher_domain is being passed */
   nas_service_domain_enum_type_v01 gsm_cipher_domain;
-  /**<
+  /**<  
     Ciphering on the service domain. Values: \n
     - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
     - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -10006,7 +10115,7 @@ typedef struct {
   /*  WCDMA Cipher Domain Sys Info */
   uint8_t wcdma_cipher_domain_valid;  /**< Must be set to true if wcdma_cipher_domain is being passed */
   nas_service_domain_enum_type_v01 wcdma_cipher_domain;
-  /**<
+  /**<  
     Ciphering on the service domain. Values: \n
     - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
     - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -10018,8 +10127,8 @@ typedef struct {
   /*  System Info No Change */
   uint8_t sys_info_no_change_valid;  /**< Must be set to true if sys_info_no_change is being passed */
   uint8_t sys_info_no_change;
-  /**<
-    Flag used to notify clients that a request to select a network ended
+  /**<   
+    Flag used to notify clients that a request to select a network ended 
     with no change in the PLMN. Values: \n
     - 0x01 -- No change in system information
   */
@@ -10035,10 +10144,10 @@ typedef struct {
   nas_tdscdma_sys_info_type_v01 tdscdma_sys_info;
 
   /* Optional */
-  /*  LTE eMBMS Coverage Info */
+  /*  LTE eMBMS Coverage Info (deprecated; use LTE eMBMS Coverage Info Extended) */
   uint8_t lte_embms_coverage_valid;  /**< Must be set to true if lte_embms_coverage is being passed */
   uint8_t lte_embms_coverage;
-  /**<
+  /**<  
     Values: \n
     - TRUE  -- Current LTE system supports eMBMBS \n
     - FALSE -- Current LTE system does not support eMBMBS
@@ -10048,16 +10157,16 @@ typedef struct {
   /*  SIM Reject information */
   uint8_t sim_rej_info_valid;  /**< Must be set to true if sim_rej_info is being passed */
   nas_sim_rej_info_enum_type_v01 sim_rej_info;
-  /**<
+  /**<  
     Current reject state information of the SIM. Values: \n
     - 0 -- NAS_SIM_NOT_AVAILABLE -- SIM is not available \n
     - 1 -- NAS_SIM_AVAILABLE     -- SIM is available     \n
-    - 2 -- NAS_SIM_CS_INVALID    -- SIM has been marked by the network as
+    - 2 -- NAS_SIM_CS_INVALID    -- SIM has been marked by the network as 
                                     invalid for circuit-switched services \n
-    - 3 -- NAS_SIM_PS_INVALID    -- SIM has been marked by the network as
+    - 3 -- NAS_SIM_PS_INVALID    -- SIM has been marked by the network as 
                                     invalid for packet-switched services  \n
-    - 4 -- NAS_SIM_CS_PS_INVALID -- SIM has been marked by the network as
-                                    invalid for circuit-switched and
+    - 4 -- NAS_SIM_CS_PS_INVALID -- SIM has been marked by the network as 
+                                    invalid for circuit-switched and 
                                     packet-switched services
   */
 
@@ -10065,11 +10174,11 @@ typedef struct {
   /*  WCDMA EUTRA Status Information */
   uint8_t wcdma_eutra_status_valid;  /**< Must be set to true if wcdma_eutra_status is being passed */
   nas_eutra_cell_status_enum_type_v01 wcdma_eutra_status;
-  /**<
+  /**<  
      E-UTRA detection status. Values: \n
     - 0 -- NAS_EUTRA_CELL_PRESENT           -- E-UTRA cell is detected            \n
     - 1 -- NAS_EUTRA_CELL_NOT_PRESENT       -- E-UTRA cell is not detected        \n
-    - 2 -- NAS_EUTRA_CELL_PRESENCE_ UNKNOWN -- E-UTRA cell information is unknown
+    - 2 -- NAS_EUTRA_CELL_PRESENCE_ UNKNOWN -- E-UTRA cell information is unknown 
                                                due to a state transition          \n
     - 3 -- NAS_EUTRA_CELL_DETECTION_ UNSUPPORTED -- E-UTRA detection is not supported
   */
@@ -10078,7 +10187,7 @@ typedef struct {
   /*  IMS Voice Support Status on LTE */
   uint8_t lte_ims_voice_avail_valid;  /**< Must be set to true if lte_ims_voice_avail is being passed */
   uint8_t lte_ims_voice_avail;
-  /**<
+  /**<  
     Values: \n
     - 0x00 -- Support is not available \n
     - 0x01 -- Support is available
@@ -10088,20 +10197,20 @@ typedef struct {
   /*  LTE Voice Domain */
   uint8_t lte_voice_status_valid;  /**< Must be set to true if lte_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 lte_voice_status;
-  /**<
+  /**<  
     LTE voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on LTE \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network \n
-    - 3 -- NAS_DOMAIN_SEL_DOMAIN_3GPP     -- Voice is supported over the 3GPP network
+    - 3 -- NAS_DOMAIN_SEL_DOMAIN_3GPP     -- Voice is supported over the 3GPP network 
   */
 
   /* Optional */
   /*  CDMA Reg Zone ID */
   uint8_t cdma_reg_zone_valid;  /**< Must be set to true if cdma_reg_zone is being passed */
   uint16_t cdma_reg_zone;
-  /**<
+  /**<  
     CDMA registration zone ID.
   */
 
@@ -10109,7 +10218,7 @@ typedef struct {
   /*  GSM RAC */
   uint8_t gsm_rac_valid;  /**< Must be set to true if gsm_rac is being passed */
   uint8_t gsm_rac;
-  /**<
+  /**<  
     GSM routing area code.
   */
 
@@ -10117,7 +10226,7 @@ typedef struct {
   /*  WCDMA RAC */
   uint8_t wcdma_rac_valid;  /**< Must be set to true if wcdma_rac is being passed */
   uint8_t wcdma_rac;
-  /**<
+  /**<  
     WCDMA routing area code.
   */
 
@@ -10125,11 +10234,11 @@ typedef struct {
   /*  CDMA Resolved Mobile Country Code */
   uint8_t cdma_mcc_resolved_via_sid_lookup_valid;  /**< Must be set to true if cdma_mcc_resolved_via_sid_lookup is being passed */
   uint16_t cdma_mcc_resolved_via_sid_lookup;
-  /**<
-    MCC derived by looking up the IFAST SID conflict table and configured
-    SID-MCC table (static and NV) with the SID received from the network as the
+  /**<  
+    MCC derived by looking up the IFAST SID conflict table and configured 
+    SID-MCC table (static and NV) with the SID received from the network as the 
     key. If the lookup is not successful, 0xFFFF is used. \n
-    Note: This MCC value is determined solely from the SID and may differ from
+    Note: This MCC value is determined solely from the SID and may differ from 
     the MCC value sent by the network.
 
     (This field requires version 1.35 or later.)
@@ -10139,11 +10248,11 @@ typedef struct {
   /*  Network Selection Registration Restriction */
   uint8_t srv_reg_restriction_valid;  /**< Must be set to true if srv_reg_restriction is being passed */
   nas_srv_reg_restriction_enum_v01 srv_reg_restriction;
-  /**<
+  /**<  
      Registration restriction. Values: \n
-    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal
+    - 0x00 -- NAS_SRV_REG_RESTRICTION_ UNRESTRICTED -- Device follows the normal 
               registration process \n
-    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device follows the camp-only
+    - 0x01 -- NAS_SRV_REG_RESTRICTION_ CAMPED_ONLY -- Device follows the camp-only 
               registration process
 
     \vspace{3pt}
@@ -10156,17 +10265,17 @@ typedef struct {
   /*  TDSCDMA Registration Domain */
   uint8_t tdscdma_reg_domain_valid;  /**< Must be set to true if tdscdma_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 tdscdma_reg_domain;
-  /**<
+  /**<  
     TD-SCDMA registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
 
     \vspace{3pt}
@@ -10177,17 +10286,17 @@ typedef struct {
   /*  LTE Registration Domain */
   uint8_t lte_reg_domain_valid;  /**< Must be set to true if lte_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 lte_reg_domain;
-  /**<
+  /**<  
     LTE registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
 
     \vspace{3pt}
@@ -10198,17 +10307,17 @@ typedef struct {
   /*  WCDMA Registration Domain */
   uint8_t wcdma_reg_domain_valid;  /**< Must be set to true if wcdma_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 wcdma_reg_domain;
-  /**<
+  /**<  
     WCDMA registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
 
     \vspace{3pt}
@@ -10219,17 +10328,17 @@ typedef struct {
   /*  GSM Registration Domain */
   uint8_t gsm_reg_domain_valid;  /**< Must be set to true if gsm_reg_domain is being passed */
   nas_possible_reg_domain_enum_type_v01 gsm_reg_domain;
-  /**<
+  /**<  
     GSM registration domain. Values: \n
-    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE
+    - 0 -- NAS_POSSIBLE_REG_DOMAIN_NA        -- Not applicable because the UE 
            is not in Camp Only mode \n
-    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the
+    - 1 -- NAS_POSSIBLE_REG_DOMAIN_CS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide CS service only \n
-    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the
+    - 2 -- NAS_POSSIBLE_REG_DOMAIN_PS_ONLY   -- UE is in Camp Only mode and the 
            PLMN can provide PS service only \n
-    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the
+    - 3 -- NAS_POSSIBLE_REG_DOMAIN_CS_PS     -- UE is in Camp Only mode and the 
            PLMN can provide CS and PS service \n
-    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but
+    - 4 -- NAS_POSSIBLE_REG_DOMAIN_ LIMITED_SERVICE -- UE is in Camp Only mode, but 
            the PLMN cannot provide any service
 
     \vspace{3pt}
@@ -10240,10 +10349,10 @@ typedef struct {
   /*  LTE eMBMS Coverage Info Trace ID */
   uint8_t lte_embms_coverage_trace_id_valid;  /**< Must be set to true if lte_embms_coverage_trace_id is being passed */
   int16_t lte_embms_coverage_trace_id;
-  /**<
-    LTE eMBMS coverage information trace ID. Values: \n
+  /**<   
+    LTE eMBMS coverage information trace ID. Values: \n 
     - 0 to 32768 -- Valid trace ID \n
-    - -1 -- Trace ID is not used
+    - -1 -- Trace ID is not used  
   */
 
   /* Optional */
@@ -10255,9 +10364,9 @@ typedef struct {
   /*  HDR Voice Domain */
   uint8_t hdr_voice_status_valid;  /**< Must be set to true if hdr_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 hdr_voice_status;
-  /**<
+  /**<  
     HDR voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on HDR \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -10267,9 +10376,9 @@ typedef struct {
   /*  HDR SMS Domain */
   uint8_t hdr_sms_status_valid;  /**< Must be set to true if hdr_sms_status is being passed */
   nas_sms_status_enum_type_v01 hdr_sms_status;
-  /**<
+  /**<  
     HDR SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on HDR \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -10279,28 +10388,28 @@ typedef struct {
   /*  LTE SMS Domain */
   uint8_t lte_sms_status_valid;  /**< Must be set to true if lte_sms_status is being passed */
   nas_sms_status_enum_type_v01 lte_sms_status;
-  /**<
+  /**<  
     LTE SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on LTE \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network \n
-    - 3 -- NAS_SMS_STATUS_3GPP   -- SMS is supported over the 3GPP network
+    - 3 -- NAS_SMS_STATUS_3GPP   -- SMS is supported over the 3GPP network 
   */
 
   /* Optional */
   /*  LTE Emergency Bearer Support */
   uint8_t lte_is_eb_supported_valid;  /**< Must be set to true if lte_is_eb_supported is being passed */
   nas_tri_state_boolean_type_v01 lte_is_eb_supported;
-  /**<
+  /**<  
  Whether LTE emergency bearer is supported. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
 
  \vspace{3pt}
- The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not
- available from the lower layers; e.g., if the UE powers up while acquiring
+ The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not 
+ available from the lower layers; e.g., if the UE powers up while acquiring 
  service or in the middle of an attach procedure.
  */
 
@@ -10308,9 +10417,9 @@ typedef struct {
   /*  GSM Voice Domain */
   uint8_t gsm_voice_status_valid;  /**< Must be set to true if gsm_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 gsm_voice_status;
-  /**<
+  /**<  
     GSM voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on GSM \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -10320,9 +10429,9 @@ typedef struct {
   /*  GSM SMS Domain */
   uint8_t gsm_sms_status_valid;  /**< Must be set to true if gsm_sms_status is being passed */
   nas_sms_status_enum_type_v01 gsm_sms_status;
-  /**<
+  /**<  
     GSM SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on GSM \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -10332,9 +10441,9 @@ typedef struct {
   /*  WCDMA Voice Domain */
   uint8_t wcdma_voice_status_valid;  /**< Must be set to true if wcdma_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 wcdma_voice_status;
-  /**<
+  /**<  
     WCDMA voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on WCDMA \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -10344,9 +10453,9 @@ typedef struct {
   /*  WCDMA SMS Domain */
   uint8_t wcdma_sms_status_valid;  /**< Must be set to true if wcdma_sms_status is being passed */
   nas_sms_status_enum_type_v01 wcdma_sms_status;
-  /**<
+  /**<  
     WCDMA SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on WCDMA \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -10356,15 +10465,15 @@ typedef struct {
   /*  LTE Emergency Access Barred */
   uint8_t emergency_access_barred_valid;  /**< Must be set to true if emergency_access_barred is being passed */
   nas_tri_state_boolean_type_v01 emergency_access_barred;
-  /**<
+  /**<  
  Whether LTE emergency access is barred on the current system. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
 
  \vspace{3pt}
- The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not
- available from the lower layers; e.g., if the UE powers up while acquiring
+ The TLV status is NAS_TRI_UNKNOWN for scenarios where information is not 
+ available from the lower layers; e.g., if the UE powers up while acquiring 
  service or in the middle of an attach procedure.
  */
 
@@ -10372,9 +10481,9 @@ typedef struct {
   /*  CDMA Voice Domain */
   uint8_t cdma_voice_status_valid;  /**< Must be set to true if cdma_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 cdma_voice_status;
-  /**<
+  /**<  
     CDMA voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on CDMA \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -10384,9 +10493,9 @@ typedef struct {
   /*  CDMA SMS Domain */
   uint8_t cdma_sms_status_valid;  /**< Must be set to true if cdma_sms_status is being passed */
   nas_sms_status_enum_type_v01 cdma_sms_status;
-  /**<
+  /**<  
     CDMA SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on CDMA \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -10396,9 +10505,9 @@ typedef struct {
   /*  TDSCDMA Voice Domain */
   uint8_t tdscdma_voice_status_valid;  /**< Must be set to true if tdscdma_voice_status is being passed */
   nas_lte_voice_status_enum_type_v01 tdscdma_voice_status;
-  /**<
+  /**<  
     TD-SCDMA voice domain. Values: \n
-    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices:
+    - 0 -- NAS_DOMAIN_SEL_DOMAIN_NO_VOICE -- Data-centric devices: 
                                              No voice, stay on TD-SCDMA \n
     - 1 -- NAS_DOMAIN_SEL_DOMAIN_IMS      -- Voice is supported over the IMS network \n
     - 2 -- NAS_DOMAIN_SEL_DOMAIN_1X       -- Voice is supported over the 1X network
@@ -10408,9 +10517,9 @@ typedef struct {
   /*  TDSCDMA SMS Domain */
   uint8_t tdscdma_sms_status_valid;  /**< Must be set to true if tdscdma_sms_status is being passed */
   nas_sms_status_enum_type_v01 tdscdma_sms_status;
-  /**<
+  /**<  
     TD-SCDMA SMS domain. Values: \n
-    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices:
+    - 0 -- NAS_SMS_STATUS_NO_SMS -- Data-centric devices: 
                                     No SMS, stay on TD-SCDMA \n
     - 1 -- NAS_SMS_STATUS_IMS    -- SMS is supported over the IMS network \n
     - 2 -- NAS_SMS_STATUS_1X     -- SMS is supported over the 1X network
@@ -10425,29 +10534,41 @@ typedef struct {
   /*  LTE Cell Access Status Info */
   uint8_t lte_cell_status_valid;  /**< Must be set to true if lte_cell_status is being passed */
   nas_cell_access_status_e_type_v01 lte_cell_status;
-  /**<
+  /**<  
  Cell access status for LTE calls. Values: \n
-      - NAS_CELL_ACCESS_NORMAL_ONLY (0x00) --  Cell access is allowed for normal calls only \n
-      - NAS_CELL_ACCESS_EMERGENCY_ONLY (0x01) --  Cell access is allowed for emergency calls only \n
-      - NAS_CELL_ACCESS_NO_CALLS (0x02) --  Cell access is not allowed for any call type \n
-      - NAS_CELL_ACCESS_ALL_CALLS (0x03) --  Cell access is allowed for all call types \n
-      - NAS_CELL_ACCESS_UNKNOWN (-1) --  Cell access type is unknown
+      - NAS_CELL_ACCESS_NORMAL_ONLY (0x00) --  Cell access is allowed for normal calls only \n  
+      - NAS_CELL_ACCESS_EMERGENCY_ONLY (0x01) --  Cell access is allowed for emergency calls only \n  
+      - NAS_CELL_ACCESS_NO_CALLS (0x02) --  Cell access is not allowed for any call type \n  
+      - NAS_CELL_ACCESS_ALL_CALLS (0x03) --  Cell access is allowed for all call types \n  
+      - NAS_CELL_ACCESS_UNKNOWN (-1) --  Cell access type is unknown  
  */
 
   /* Optional */
   /*  HDR Subnet Mask Length */
   uint8_t hdr_subnet_mask_len_valid;  /**< Must be set to true if hdr_subnet_mask_len is being passed */
   uint8_t hdr_subnet_mask_len;
-  /**<
+  /**<  
       HDR subnet mask length.
   */
+
+  /* Optional */
+  /*  LTE eMBMS Coverage Info Extended */
+  uint8_t embms_coverage_status_valid;  /**< Must be set to true if embms_coverage_status is being passed */
+  nas_lte_rrc_embms_coverage_status_enum_v01 embms_coverage_status;
+  /**<   eMBMS coverage status. Values: \n
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAILABLE (0) --  Not available \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_AVAILABLE (1) --  Available \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_UEMODE (2) --  Not available due to the UE mode \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_NOT_AVAIL_DUE_TO_EMERGENCY (3) --  Not available due to an emergency \n 
+      - NAS_LTE_RRC_EMBMS_COVERAGE_STATUS_UNKNOWN (4) --  Unknown 
+ */
 }nas_sys_info_ind_msg_v01;  /* Message */
 /**
     @}
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_sig_info_req_msg_v01;
@@ -10459,9 +10580,9 @@ typedef struct {
 
   /*  RSSI */
   int8_t rssi;
-  /**<
+  /**<  
       RSSI in dBm (signed value); a value of -125 dBm or lower is
-      used to indicate No Signal: \n
+      used to indicate No Signal: \n 
       - For CDMA, this indicates forward link pilot Power (AGC) + Ec/Io \n
       - For UMTS, this indicates forward link pilot Ec   \n
       - For GSM, this indicates received signal strength
@@ -10469,8 +10590,8 @@ typedef struct {
 
   /*  ECIO */
   int16_t ecio;
-  /**<
-      ECIO value representing negative 0.5 dB increments, i.e.,
+  /**<  
+      ECIO value representing negative 0.5 dB increments, i.e., 
       2 means -1 dB (14 means -7 dB, 63 means -31.5 dB).
   */
 }nas_common_sig_info_param_type_v01;  /* Type */
@@ -10487,8 +10608,8 @@ typedef struct {
 
   /*  SINR */
   nas_sinr_enum_v01 sinr;
-  /**<
-     SINR level. SINR is only applicable for 1xEV-DO.
+  /**<   
+     SINR level. SINR is only applicable for 1xEV-DO. 
      Valid levels are 0 to 8, where the maximum value for:        \n
      - 0x00 -- SINR_LEVEL_0 is -9 dB     \n
      - 0x01 -- SINR_LEVEL_1 is -6 dB     \n
@@ -10503,8 +10624,8 @@ typedef struct {
 
   /*  IO */
   int32_t io;
-  /**<
-     Received IO in dBm. IO is only applicable for 1xEV-DO.
+  /**<  
+     Received IO in dBm. IO is only applicable for 1xEV-DO. 
  */
 }nas_hdr_sig_info_type_v01;  /* Type */
 /**
@@ -10518,31 +10639,31 @@ typedef struct {
 
   /*  RSSI */
   int8_t rssi;
-  /**<
+  /**<  
      RSSI in dBm (signed value); a value of -125 dBm or lower is
-     used to indicate No Signal: \n
+     used to indicate No Signal: \n 
      - For CDMA and UMTS, this indicates forward link pilot Ec   \n
      - For GSM, this indicates received signal strength
  */
 
   /*  RSRQ */
   int8_t rsrq;
-  /**<
-     RSRQ value in dB (signed integer value) as measured by L1.
-     Range: -3 to -20 (-3 means -3 dB, -20 means -20 dB).
+  /**<  
+     RSRQ value in dB (signed integer value) as measured by L1. 
+     Range: -3 to -20 (-3 means -3 dB, -20 means -20 dB). 
  */
 
   /*  RSRP */
   int16_t rsrp;
-  /**<
-     Current RSRP in dBm as measured by L1.
+  /**<  
+     Current RSRP in dBm as measured by L1. 
      Range: -44 to -140 (-44 means -44 dBm, -140 means -140 dBm).
  */
 
   /*  SNR */
   int16_t snr;
-  /**<
-     SNR level as a scaled integer in units of 0.1 dB;
+  /**<   
+     SNR level as a scaled integer in units of 0.1 dB; 
      e.g., -16 dB has a value of -160 and 24.6 dB has a value of 246.
  */
 }nas_lte_sig_info_type_v01;  /* Type */
@@ -10557,26 +10678,26 @@ typedef struct {
 
   /*  RSSI */
   float rssi;
-  /**<
-      Measured RSSI in dBm.
+  /**<  
+      Measured RSSI in dBm. 
   */
 
   /*  RSCP */
   float rscp;
-  /**<
-      Measured RSCP in dBm.
+  /**<  
+      Measured RSCP in dBm.  
   */
 
   /*  ECIO */
   float ecio;
-  /**<
+  /**<  
       Measured ECIO in dB.
   */
 
   /*  SINR */
   float sinr;
-  /**<
-      Measured SINR in dB. -15 dB is sent to clients if the actual SINR is
+  /**<   
+      Measured SINR in dB. -15 dB is sent to clients if the actual SINR is 
       less than -15 dB.
   */
 }nas_tdscdma_sig_info_type_v01;  /* Type */
@@ -10610,8 +10731,8 @@ typedef struct {
   /*  GSM Signal Strength Info */
   uint8_t gsm_sig_info_valid;  /**< Must be set to true if gsm_sig_info is being passed */
   int8_t gsm_sig_info;
-  /**<
-    GSM signal strength is the RSSI in dBm (signed value).
+  /**<  
+    GSM signal strength is the RSSI in dBm (signed value). 
     A value of -125 dBm or lower is used to indicate No Signal.
   */
 
@@ -10629,9 +10750,9 @@ typedef struct {
   /*  TDSCDMA Signal Strength Info */
   uint8_t rscp_valid;  /**< Must be set to true if rscp is being passed */
   int8_t rscp;
-  /**<
-    RSCP of the Primary Common Control Physical Channel (PCCPCH) in dBm.
-    Measurement range: -120 dBm to -25 dBm.
+  /**<  
+    RSCP of the Primary Common Control Physical Channel (PCCPCH) in dBm. 
+    Measurement range: -120 dBm to -25 dBm. 
   */
 
   /* Optional */
@@ -10648,12 +10769,12 @@ typedef struct {
   */
 typedef enum {
   NAS_LTE_SIG_RPT_RATE_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_LTE_SIG_RPT_RATE_DEFAULT_V01 = 0,
-  NAS_LTE_SIG_RPT_RATE_1_SEC_V01 = 1,
-  NAS_LTE_SIG_RPT_RATE_2_SEC_V01 = 2,
-  NAS_LTE_SIG_RPT_RATE_3_SEC_V01 = 3,
-  NAS_LTE_SIG_RPT_RATE_4_SEC_V01 = 4,
-  NAS_LTE_SIG_RPT_RATE_5_SEC_V01 = 5,
+  NAS_LTE_SIG_RPT_RATE_DEFAULT_V01 = 0, 
+  NAS_LTE_SIG_RPT_RATE_1_SEC_V01 = 1, 
+  NAS_LTE_SIG_RPT_RATE_2_SEC_V01 = 2, 
+  NAS_LTE_SIG_RPT_RATE_3_SEC_V01 = 3, 
+  NAS_LTE_SIG_RPT_RATE_4_SEC_V01 = 4, 
+  NAS_LTE_SIG_RPT_RATE_5_SEC_V01 = 5, 
   NAS_LTE_SIG_RPT_RATE_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_lte_sig_rpt_rate_enum_type_v01;
 /**
@@ -10665,17 +10786,17 @@ typedef enum {
   */
 typedef enum {
   NAS_LTE_SIG_AVG_PRD_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_LTE_SIG_AVG_PRD_DEFAULT_V01 = 0,
-  NAS_LTE_SIG_AVG_PRD_1_SEC_V01 = 1,
-  NAS_LTE_SIG_AVG_PRD_2_SEC_V01 = 2,
-  NAS_LTE_SIG_AVG_PRD_3_SEC_V01 = 3,
-  NAS_LTE_SIG_AVG_PRD_4_SEC_V01 = 4,
-  NAS_LTE_SIG_AVG_PRD_5_SEC_V01 = 5,
-  NAS_LTE_SIG_AVG_PRD_6_SEC_V01 = 6,
-  NAS_LTE_SIG_AVG_PRD_7_SEC_V01 = 7,
-  NAS_LTE_SIG_AVG_PRD_8_SEC_V01 = 8,
-  NAS_LTE_SIG_AVG_PRD_9_SEC_V01 = 9,
-  NAS_LTE_SIG_AVG_PRD_10_SEC_V01 = 10,
+  NAS_LTE_SIG_AVG_PRD_DEFAULT_V01 = 0, 
+  NAS_LTE_SIG_AVG_PRD_1_SEC_V01 = 1, 
+  NAS_LTE_SIG_AVG_PRD_2_SEC_V01 = 2, 
+  NAS_LTE_SIG_AVG_PRD_3_SEC_V01 = 3, 
+  NAS_LTE_SIG_AVG_PRD_4_SEC_V01 = 4, 
+  NAS_LTE_SIG_AVG_PRD_5_SEC_V01 = 5, 
+  NAS_LTE_SIG_AVG_PRD_6_SEC_V01 = 6, 
+  NAS_LTE_SIG_AVG_PRD_7_SEC_V01 = 7, 
+  NAS_LTE_SIG_AVG_PRD_8_SEC_V01 = 8, 
+  NAS_LTE_SIG_AVG_PRD_9_SEC_V01 = 9, 
+  NAS_LTE_SIG_AVG_PRD_10_SEC_V01 = 10, 
   NAS_LTE_SIG_AVG_PRD_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_lte_sig_avg_prd_enum_type_v01;
 /**
@@ -10689,19 +10810,19 @@ typedef struct {
 
   /*  Report rate */
   nas_lte_sig_rpt_rate_enum_type_v01 rpt_rate;
-  /**<
+  /**<  
       Rate on how often the LTE signal must be checked for reporting. Values: \n
       - 0 -- Report using the default configuration \n
       - 1 -- Report every 1 sec \n
       - 2 -- Report every 2 sec \n
       - 3 -- Report every 3 sec \n
       - 4 -- Report every 4 sec \n
-      - 5 -- Report every 5 sec
+      - 5 -- Report every 5 sec 
    */
 
   /*  Averaging period */
   nas_lte_sig_avg_prd_enum_type_v01 avg_period;
-  /**<
+  /**<  
       Averaging period to be used for the LTE signal. Values: \n
       - 0  -- Average using the default configuration \n
       - 1  -- Average over 1 sec \n
@@ -10731,25 +10852,25 @@ typedef struct {
   uint8_t rssi_threshold_list_valid;  /**< Must be set to true if rssi_threshold_list is being passed */
   uint32_t rssi_threshold_list_len;  /**< Must be set to # of elements in rssi_threshold_list */
   int8_t rssi_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
-      RSSI in 1 dBm. A value of -125 dBm or lower is used to indicate
+  /**<  
+      RSSI in 1 dBm. A value of -125 dBm or lower is used to indicate 
       No Signal. RSSI values have the following ranges (in dBm): \n
       - CDMA:  -105 to -21 \n
       - HDR:   -118 to -13 \n
       - GSM:   -111 to -48 \n
       - WCDMA: -121 to 0   \n
       - LTE:   -120 to 0   \n
-      The threshold values specified here are used for all RATs. The
-      maximum number of threshold values is 16, each a signed byte
+      The threshold values specified here are used for all RATs. The 
+      maximum number of threshold values is 16, each a signed byte 
       value.                                                      \n \vspace{-.12in}
 
-      For CDMA and UMTS, this threshold setting results in the
+      For CDMA and UMTS, this threshold setting results in the 
       forward link pilot Ec values to be reported as part of the rssi
       field in TLV corresponding to the RAT in the QMI_NAS_SIG_INFO_IND
       indication.                                                 \n \vspace{-.12in}
 
-      For GSM, this threshold setting results in the received
-      signal strength to be reported as part of the GSM Signal Strength Info
+      For GSM, this threshold setting results in the received 
+      signal strength to be reported as part of the GSM Signal Strength Info 
       TLV in the QMI_NAS_SIG_INFO_IND indication.                 \n \vspace{-.12in}
 
       The range is based on the latest releases and may change over time.
@@ -10760,14 +10881,14 @@ typedef struct {
   uint8_t ecio_threshold_list_valid;  /**< Must be set to true if ecio_threshold_list is being passed */
   uint32_t ecio_threshold_list_len;  /**< Must be set to # of elements in ecio_threshold_list */
   int16_t ecio_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       A sequence of thresholds delimiting ECIO event reporting bands.
       Every time a new ECIO value crosses a threshold value, an event
       report indication message with the new ECIO value is sent to the
       requesting control point. For this field: \n
 
       - Each ECIO threshold value is a signed 2 byte value \n
-      - Each ECIO threshold value increments in negative 0.5 dB,
+      - Each ECIO threshold value increments in negative 0.5 dB, 
         e.g., an ECIO threshold value of 2 means -1 dB. \n
       - Maximum number of threshold values is 16        \n
       - At least one value must be specified (if report_ecio is set) \n
@@ -10779,12 +10900,12 @@ typedef struct {
   uint8_t hdr_sinr_threshold_list_valid;  /**< Must be set to true if hdr_sinr_threshold_list is being passed */
   uint32_t hdr_sinr_threshold_list_len;  /**< Must be set to # of elements in hdr_sinr_threshold_list */
   uint8_t hdr_sinr_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       A sequence of thresholds delimiting SINR event reporting bands.
       Every time a new SINR value crosses a threshold value, an event
       report indication message with the new SINR value is sent to the
       requesting control point. For this field: \n
-
+      
       - SINR is reported only for HDR \n
       - Each SINR threshold value is an unsigned 1 byte value \n
       - Maximum number of threshold values is 16              \n
@@ -10796,18 +10917,18 @@ typedef struct {
   uint8_t lte_snr_threshold_list_valid;  /**< Must be set to true if lte_snr_threshold_list is being passed */
   uint32_t lte_snr_threshold_list_len;  /**< Must be set to # of elements in lte_snr_threshold_list */
   int16_t lte_snr_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       A sequence of thresholds delimiting SNR event reporting bands.
       Every time a new SNR value crosses a threshold value, an event
       report indication message with the new snr value is sent to the
       requesting control point. For this field: \n
 
       - For LTE, each SNR threshold value is a signed 2 byte value  \n
-      - Maximum number of threshold values is 16                    \n
+      - Maximum number of threshold values is 16                    \n 
       - At least one value must be specified (if report_snr is set) \n
-      - SNR level as a scaled integer in units of 0.1 dB;
+      - SNR level as a scaled integer in units of 0.1 dB; 
         e.g., -16 dB has a value of -160 and 24.6 dB has a value of 246
-
+  
    */
 
   /* Optional */
@@ -10815,12 +10936,12 @@ typedef struct {
   uint8_t io_threshold_list_valid;  /**< Must be set to true if io_threshold_list is being passed */
   uint32_t io_threshold_list_len;  /**< Must be set to # of elements in io_threshold_list */
   int32_t io_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       A sequence of thresholds delimiting IO event reporting bands.
       Every time a new IO value crosses a threshold value, an event
       report indication message with the new IO value is sent to the
       requesting control point. For this field: \n
-
+      
       - IO is applicable only for HDR \n
       - Each IO threshold value is a signed 4 byte value \n
       - Maximum number of threshold values is 16         \n
@@ -10832,7 +10953,7 @@ typedef struct {
   uint8_t lte_rsrq_threshold_list_valid;  /**< Must be set to true if lte_rsrq_threshold_list is being passed */
   uint32_t lte_rsrq_threshold_list_len;  /**< Must be set to # of elements in lte_rsrq_threshold_list */
   int8_t lte_rsrq_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       A sequence of thresholds delimiting current RSRQ event reporting bands.
       Every time a new RSRQ value crosses a specified threshold value, an
       event report indication message with the new RSRQ value is sent
@@ -10850,7 +10971,7 @@ typedef struct {
   uint8_t lte_rsrp_threshold_list_valid;  /**< Must be set to true if lte_rsrp_threshold_list is being passed */
   uint32_t lte_rsrp_threshold_list_len;  /**< Must be set to # of elements in lte_rsrp_threshold_list */
   int16_t lte_rsrp_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       A sequence of thresholds delimiting current RSRP event reporting bands.
       Every time a new RSRP value crosses a specified threshold value, an
       event report indication message with the new RSRP value is sent
@@ -10873,7 +10994,7 @@ typedef struct {
   uint8_t rscp_threshold_list_valid;  /**< Must be set to true if rscp_threshold_list is being passed */
   uint32_t rscp_threshold_list_len;  /**< Must be set to # of elements in rscp_threshold_list */
   int8_t rscp_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       RSCP in 1 dBm. The threshold values specified here are used for all RATs.
    */
 
@@ -10882,7 +11003,7 @@ typedef struct {
   uint8_t tds_sinr_threshold_list_valid;  /**< Must be set to true if tds_sinr_threshold_list is being passed */
   uint32_t tds_sinr_threshold_list_len;  /**< Must be set to # of elements in tds_sinr_threshold_list */
   float tds_sinr_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX_V01];
-  /**<
+  /**<  
       Array of SINR thresholds (in dB) used by TD-SCDMA; maximum of 16 values.
   */
 }nas_config_sig_info_req_msg_v01;  /* Message */
@@ -10926,8 +11047,8 @@ typedef struct {
   /*  GSM Signal Strength Info */
   uint8_t gsm_sig_info_valid;  /**< Must be set to true if gsm_sig_info is being passed */
   int8_t gsm_sig_info;
-  /**<
-    GSM signal strength is the RSSI in dBm (signed value).
+  /**<  
+    GSM signal strength is the RSSI in dBm (signed value). 
     A value of -125 dBm or lower is used to indicate No Signal.
     */
 
@@ -10945,9 +11066,9 @@ typedef struct {
   /*  TDSCDMA Signal Strength Info */
   uint8_t rscp_valid;  /**< Must be set to true if rscp is being passed */
   int8_t rscp;
-  /**<
-    RSCP of the PCCPCH in dBm.
-    Measurement range: -120 dBm to -25 dBm.
+  /**<  
+    RSCP of the PCCPCH in dBm. 
+    Measurement range: -120 dBm to -25 dBm. 
   */
 
   /* Optional */
@@ -10960,7 +11081,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_err_rate_req_msg_v01;
@@ -10980,9 +11101,9 @@ typedef struct {
   /*  CDMA Frame Error Rate */
   uint8_t cdma_frame_err_rate_valid;  /**< Must be set to true if cdma_frame_err_rate is being passed */
   uint16_t cdma_frame_err_rate;
-  /**<
-      Valid error rate values between 1 and 10000 are returned to
-      indicate the percentage, e.g., a value of 300 means the error rate is 3%.
+  /**<  
+      Valid error rate values between 1 and 10000 are returned to 
+      indicate the percentage, e.g., a value of 300 means the error rate is 3%. 
       A value of 0xFFFF indicates that the error rate is unknown/unavailable.
   */
 
@@ -10990,19 +11111,19 @@ typedef struct {
   /*  HDR Packet Error Rate */
   uint8_t hdr_packet_err_rate_valid;  /**< Must be set to true if hdr_packet_err_rate is being passed */
   uint16_t hdr_packet_err_rate;
-  /**<
-      Valid error rate values between 1 and 10000 are returned to
-      indicate the percentage, e.g., a value of 300 means the error rate is 3%.
-      A value of 0xFFFF indicates that the error rate is unknown/unavailable.
+  /**<  
+      Valid error rate values between 1 and 10000 are returned to 
+      indicate the percentage, e.g., a value of 300 means the error rate is 3%. 
+      A value of 0xFFFF indicates that the error rate is unknown/unavailable. 
   */
 
   /* Optional */
   /*  GSM Bit Error Rate */
   uint8_t gsm_bit_err_rate_valid;  /**< Must be set to true if gsm_bit_err_rate is being passed */
   uint8_t gsm_bit_err_rate;
-  /**<
-      GSM bit error rate represented as an RxQual metric as defined in
-      \hyperref[S13]{[S13]} Section 8.2.4. Valid values: 0 to 7.
+  /**<  
+      GSM bit error rate represented as an RxQual metric as defined in 
+      \hyperref[S13]{[S13]} Section 8.2.4. Valid values: 0 to 7. 
       A value of 0xFF indicates No Data.
   */
 
@@ -11010,8 +11131,8 @@ typedef struct {
   /*  WCDMA Block Error Rate */
   uint8_t wcdma_block_err_rate_valid;  /**< Must be set to true if wcdma_block_err_rate is being passed */
   uint8_t wcdma_block_err_rate;
-  /**<
-      Valid error rate values between 1 and 100 are returned to
+  /**<  
+      Valid error rate values between 1 and 100 are returned to 
       indicate the percentage value. A value of 0xFF indicates
       that the error rate is unknown/unavailable.
   */
@@ -11020,8 +11141,8 @@ typedef struct {
   /*  TDSCDMA Block Error Rate */
   uint8_t tdscdma_block_err_rate_valid;  /**< Must be set to true if tdscdma_block_err_rate is being passed */
   uint8_t tdscdma_block_err_rate;
-  /**<
-      Percentage of blocks that had errors. A value of 0xFF indicates
+  /**<  
+      Percentage of blocks that had errors. A value of 0xFF indicates 
       that the error rate is unknown/unavailable.
   */
 }nas_get_err_rate_resp_msg_v01;  /* Message */
@@ -11040,9 +11161,9 @@ typedef struct {
   /*  CDMA Frame Error Rate */
   uint8_t cdma_frame_err_rate_valid;  /**< Must be set to true if cdma_frame_err_rate is being passed */
   uint16_t cdma_frame_err_rate;
-  /**<
-      Valid error rate values between 1 and 10000 are returned to
-      indicate the percentage, e.g., a value of 300 means the error rate is 3%.
+  /**<  
+      Valid error rate values between 1 and 10000 are returned to 
+      indicate the percentage, e.g., a value of 300 means the error rate is 3%. 
       A value of 0xFFFF indicates that the error rate is unknown/unavailable.
   */
 
@@ -11050,9 +11171,9 @@ typedef struct {
   /*  HDR Packet Error Rate */
   uint8_t hdr_packet_err_rate_valid;  /**< Must be set to true if hdr_packet_err_rate is being passed */
   uint16_t hdr_packet_err_rate;
-  /**<
-      Valid error rate values between 1 and 10000 are returned to
-      indicate the percentage, e.g., a value of 300 means the error rate is 3%.
+  /**<  
+      Valid error rate values between 1 and 10000 are returned to 
+      indicate the percentage, e.g., a value of 300 means the error rate is 3%. 
       A value of 0xFFFF indicates that the error rate is unknown/unavailable.
   */
 
@@ -11060,9 +11181,9 @@ typedef struct {
   /*  GSM Bit Error Rate */
   uint8_t gsm_bit_err_rate_valid;  /**< Must be set to true if gsm_bit_err_rate is being passed */
   uint8_t gsm_bit_err_rate;
-  /**<
-      GSM bit error rate represented as an RxQual metric as defined in
-      \hyperref[S13]{[S13]} Section 8.2.4. Valid values: 0 to 7.
+  /**<  
+      GSM bit error rate represented as an RxQual metric as defined in 
+      \hyperref[S13]{[S13]} Section 8.2.4. Valid values: 0 to 7. 
       A value of 0xFF indicates No Data.
   */
 
@@ -11070,8 +11191,8 @@ typedef struct {
   /*  WCDMA Block Error Rate */
   uint8_t wcdma_block_err_rate_valid;  /**< Must be set to true if wcdma_block_err_rate is being passed */
   uint8_t wcdma_block_err_rate;
-  /**<
-      Valid error rate values between 1 and 100 are returned to
+  /**<  
+      Valid error rate values between 1 and 100 are returned to 
       indicate the percentage value. A value of 0xFF indicates
       that the error rate is unknown/unavailable.
   */
@@ -11080,8 +11201,8 @@ typedef struct {
   /*  TDSCDMA Block Error Rate */
   uint8_t tdscdma_block_err_rate_valid;  /**< Must be set to true if tdscdma_block_err_rate is being passed */
   uint8_t tdscdma_block_err_rate;
-  /**<
-      Percentage of blocks that had errors. A value of 0xFF indicates
+  /**<  
+      Percentage of blocks that had errors. A value of 0xFF indicates 
       that the error rate is unknown/unavailable.
   */
 }nas_err_rate_ind_msg_v01;  /* Message */
@@ -11094,25 +11215,25 @@ typedef struct {
   */
 typedef enum {
   NAS_HDR_SESSION_CLOSE_REASON_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_HDR_CLOSE_REASON_NEW_NETWORK_V01 = 0x00,
-  NAS_HDR_CLOSE_REASON_UATI_FAIL_V01 = 0x01,
-  NAS_HDR_CLOSE_REASON_KA_EXP_V01 = 0x02,
-  NAS_HDR_CLOSE_REASON_DEACTIVATE_V01 = 0x03,
-  NAS_HDR_CLOSE_REASON_REPLY_V01 = 0x04,
-  NAS_HDR_CLOSE_REASON_CONN_OPEN_FAIL_V01 = 0x05,
-  NAS_HDR_CLOSE_REASON_CFG_MSG_FAIL_V01 = 0x06,
-  NAS_HDR_CLOSE_REASON_CFG_RSP_EXP_V01 = 0x07,
-  NAS_HDR_CLOSE_REASON_PROT_NEG_FAIL_V01 = 0x08,
-  NAS_HDR_CLOSE_REASON_AN_INIT_EXP_V01 = 0x09,
-  NAS_HDR_CLOSE_REASON_QUICK_FAILURE_V01 = 0x0A,
-  NAS_HDR_CLOSE_REASON_CONN_OPEN_DENY_V01 = 0x0B,
-  NAS_HDR_CLOSE_REASON_SILENT_DEACTIVATE_V01 = 0x0C,
-  NAS_HDR_CLOSE_REASON_NEW_ESN_V01 = 0x0D,
-  NAS_HDR_CLOSE_REASON_AN_GAUP_FAIL_V01 = 0x0E,
-  NAS_HDR_CLOSE_REASON_PERSONALITY_INDEX_INVALID_V01 = 0x0F,
-  NAS_HDR_CLOSE_REASON_NOT_MAINT_UATI_V01 = 0x10,
-  NAS_HDR_CLOSE_REASON_NEW_NAI_V01 = 0x11,
-  NAS_HDR_CLOSE_REASON_EHRPD_CREDENTIALS_CHANGED_V01 = 0x12,
+  NAS_HDR_CLOSE_REASON_NEW_NETWORK_V01 = 0x00, 
+  NAS_HDR_CLOSE_REASON_UATI_FAIL_V01 = 0x01, 
+  NAS_HDR_CLOSE_REASON_KA_EXP_V01 = 0x02, 
+  NAS_HDR_CLOSE_REASON_DEACTIVATE_V01 = 0x03, 
+  NAS_HDR_CLOSE_REASON_REPLY_V01 = 0x04, 
+  NAS_HDR_CLOSE_REASON_CONN_OPEN_FAIL_V01 = 0x05, 
+  NAS_HDR_CLOSE_REASON_CFG_MSG_FAIL_V01 = 0x06, 
+  NAS_HDR_CLOSE_REASON_CFG_RSP_EXP_V01 = 0x07, 
+  NAS_HDR_CLOSE_REASON_PROT_NEG_FAIL_V01 = 0x08, 
+  NAS_HDR_CLOSE_REASON_AN_INIT_EXP_V01 = 0x09, 
+  NAS_HDR_CLOSE_REASON_QUICK_FAILURE_V01 = 0x0A, 
+  NAS_HDR_CLOSE_REASON_CONN_OPEN_DENY_V01 = 0x0B, 
+  NAS_HDR_CLOSE_REASON_SILENT_DEACTIVATE_V01 = 0x0C, 
+  NAS_HDR_CLOSE_REASON_NEW_ESN_V01 = 0x0D, 
+  NAS_HDR_CLOSE_REASON_AN_GAUP_FAIL_V01 = 0x0E, 
+  NAS_HDR_CLOSE_REASON_PERSONALITY_INDEX_INVALID_V01 = 0x0F, 
+  NAS_HDR_CLOSE_REASON_NOT_MAINT_UATI_V01 = 0x10, 
+  NAS_HDR_CLOSE_REASON_NEW_NAI_V01 = 0x11, 
+  NAS_HDR_CLOSE_REASON_EHRPD_CREDENTIALS_CHANGED_V01 = 0x12, 
   NAS_HDR_SESSION_CLOSE_REASON_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_hdr_session_close_reason_type_v01;
 /**
@@ -11122,14 +11243,14 @@ typedef enum {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Indication Message; Indicates when an HDR session has closed and returns a
+/** Indication Message; Indicates when an HDR session has closed and returns a 
                close reason. */
 typedef struct {
 
   /* Mandatory */
   /*  HDR Session Close Reason */
   nas_hdr_session_close_reason_type_v01 close_reason;
-  /**<   HDR session close reason (see Table @latexonly\ref{tbl:closeReason}@endlatexonly
+  /**<   HDR session close reason (see Table @latexonly\ref{tbl:closeReason}@endlatexonly 
        for details). */
 }nas_hdr_session_close_ind_msg_v01;  /* Message */
 /**
@@ -11139,15 +11260,15 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Indication Message; Indicates when an HDR unique access terminal identifier has been
+/** Indication Message; Indicates when an HDR unique access terminal identifier has been 
              updated and returns its new value. */
 typedef struct {
 
   /* Mandatory */
   /*  HDR UATI */
   uint8_t uati[QMI_NAS_UATI_LENGTH_V01];
-  /**<
-      A 128-bit address that includes the access terminal identifier
+  /**<  
+      A 128-bit address that includes the access terminal identifier 
       and subnet ID.
     */
 }nas_hdr_uati_update_ind_msg_v01;  /* Message */
@@ -11164,7 +11285,7 @@ typedef struct {
   /* Mandatory */
   /*  Protocol */
   uint32_t protocol;
-  /**<   HDR protocol for which the subtype is requested (refer to
+  /**<   HDR protocol for which the subtype is requested (refer to 
        \hyperref[S15]{[S15]} Table 2.5.4-1).
   */
 }nas_get_hdr_subtype_req_msg_v01;  /* Message */
@@ -11187,7 +11308,7 @@ typedef struct {
   /*  Protocol Subtype */
   uint8_t subtype_valid;  /**< Must be set to true if subtype is being passed */
   uint16_t subtype;
-  /**<   Current HDR protocol subtype (refer to
+  /**<   Current HDR protocol subtype (refer to 
        \hyperref[S15]{[S15]} Table 6.4.7.1-1). Values: \n
        - 0x0000 -- Default \n
        - 0x0000 to 0XFFFD -- Protocol subtypes \n
@@ -11200,7 +11321,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_hdr_color_code_req_msg_v01;
@@ -11220,7 +11341,7 @@ typedef struct {
   /*  Color Code Value */
   uint8_t color_code_valid;  /**< Must be set to true if color_code is being passed */
   uint8_t color_code;
-  /**<   Color code corresponding to the sector to which the AT is sending the
+  /**<   Color code corresponding to the sector to which the AT is sending the 
        access probe (refer to \hyperref[S15]{[S15]} Section 7.11.6.2.1).
   */
 }nas_get_hdr_color_code_resp_msg_v01;  /* Message */
@@ -11229,7 +11350,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_current_acq_sys_mode_req_msg_v01;
@@ -11239,9 +11360,9 @@ typedef struct {
   */
 typedef enum {
   NAS_SYS_MODE_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_SYS_MODE_NO_SERVICE_V01 = 0x00,
-  NAS_SYS_MODE_ACQUIRING_V01 = 0x01,
-  NAS_SYS_MODE_INSERVICE_V01 = 0x02,
+  NAS_SYS_MODE_NO_SERVICE_V01 = 0x00, 
+  NAS_SYS_MODE_ACQUIRING_V01 = 0x01, 
+  NAS_SYS_MODE_INSERVICE_V01 = 0x02, 
   NAS_SYS_MODE_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_sys_mode_type_v01;
 /**
@@ -11331,9 +11452,9 @@ typedef struct {
   /*  Radio interface */
   nas_radio_if_enum_v01 radio_if;
   /**<   Radio interface for which to set the Rx diversity. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -11390,11 +11511,11 @@ typedef struct {
   /* Mandatory */
   /*  Radio Interface */
   nas_radio_if_enum_v01 radio_if;
-  /**<
+  /**<  
     Radio interface from which to get the information. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -11415,8 +11536,8 @@ typedef struct {
   /**<   Whether Rx is tuned to a channel: \n
        - 0x00 -- Not tuned \n
        - 0x01 -- Tuned \n
-       If the radio is tuned, instantaneous values are set for the signal
-       information fields below. If the radio is not tuned, or is delayed or
+       If the radio is tuned, instantaneous values are set for the signal 
+       information fields below. If the radio is not tuned, or is delayed or 
        invalid, the values are set depending on each technology.
    */
 
@@ -11433,8 +11554,8 @@ typedef struct {
   /**<   Current reference signal received power in 1/10 dbm; valid for LTE. */
 
   uint32_t phase;
-  /**<   Phase in 1/100 degrees; valid for LTE. When the phase is unknown,
-       0xFFFFFFFF is used.
+  /**<   Phase in 1/100 degrees; valid for LTE. When the phase is unknown, 
+       0xFFFFFFFF is used. 
   */
 }nas_rx_chain_info_type_v01;  /* Type */
 /**
@@ -11446,10 +11567,10 @@ typedef struct {
   */
 typedef enum {
   NAS_LTE_MODULATION_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  CMAPI_LTE_API_MODULATION_BPSK_V01 = 0x00,
-  CMAPI_LTE_API_MODULATION_QPSK_V01 = 0x01,
-  CMAPI_LTE_API_MODULATION_16QAM_V01 = 0x02,
-  CMAPI_LTE_API_MODULATION_64QAM_V01 = 0x03,
+  CMAPI_LTE_API_MODULATION_BPSK_V01 = 0x00, /**<  BPSK \n  */
+  CMAPI_LTE_API_MODULATION_QPSK_V01 = 0x01, /**<  QPSK \n  */
+  CMAPI_LTE_API_MODULATION_16QAM_V01 = 0x02, /**<  16-QAM \n  */
+  CMAPI_LTE_API_MODULATION_64QAM_V01 = 0x03, /**<  64-QAM  */
   NAS_LTE_MODULATION_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_lte_modulation_enum_type_v01;
 /**
@@ -11462,8 +11583,8 @@ typedef enum {
 typedef struct {
 
   uint8_t is_in_traffic;
-  /**<   Whether the device is in traffic. The tx_pwr field is only
-       meaningful when in the device is in traffic. If it is not in traffic,
+  /**<   Whether the device is in traffic. The tx_pwr field is only 
+       meaningful when in the device is in traffic. If it is not in traffic, 
        tx_pwr is invalid.
    */
 
@@ -11505,11 +11626,11 @@ typedef struct {
   uint8_t downlink_mod_valid;  /**< Must be set to true if downlink_mod is being passed */
   uint32_t downlink_mod_len;  /**< Must be set to # of elements in downlink_mod */
   nas_lte_modulation_enum_type_v01 downlink_mod[NAS_LTE_MODULATIONS_MAX_V01];
-  /**<   Enum representing the LTE downlink modulation. Values: \n
-      - CMAPI_LTE_API_MODULATION_BPSK (0x00) --
-      - CMAPI_LTE_API_MODULATION_QPSK (0x01) --
-      - CMAPI_LTE_API_MODULATION_16QAM (0x02) --
-      - CMAPI_LTE_API_MODULATION_64QAM (0x03) --
+  /**<   LTE downlink modulation. Values: \n
+      - CMAPI_LTE_API_MODULATION_BPSK (0x00) --  BPSK \n 
+      - CMAPI_LTE_API_MODULATION_QPSK (0x01) --  QPSK \n 
+      - CMAPI_LTE_API_MODULATION_16QAM (0x02) --  16-QAM \n 
+      - CMAPI_LTE_API_MODULATION_64QAM (0x03) --  64-QAM 
  */
 
   /* Optional */
@@ -11517,12 +11638,22 @@ typedef struct {
   uint8_t uplink_mod_valid;  /**< Must be set to true if uplink_mod is being passed */
   uint32_t uplink_mod_len;  /**< Must be set to # of elements in uplink_mod */
   nas_lte_modulation_enum_type_v01 uplink_mod[NAS_LTE_MODULATIONS_MAX_V01];
-  /**<   Enum representing the LTE uplink modulation. Values: \n
-      - CMAPI_LTE_API_MODULATION_BPSK (0x00) --
-      - CMAPI_LTE_API_MODULATION_QPSK (0x01) --
-      - CMAPI_LTE_API_MODULATION_16QAM (0x02) --
-      - CMAPI_LTE_API_MODULATION_64QAM (0x03) --
+  /**<   LTE uplink modulation. Values: \n
+      - CMAPI_LTE_API_MODULATION_BPSK (0x00) --  BPSK \n 
+      - CMAPI_LTE_API_MODULATION_QPSK (0x01) --  QPSK \n 
+      - CMAPI_LTE_API_MODULATION_16QAM (0x02) --  16-QAM \n 
+      - CMAPI_LTE_API_MODULATION_64QAM (0x03) --  64-QAM 
  */
+
+  /* Optional */
+  /*  Rx Chain 2 Info */
+  uint8_t rx_chain_2_valid;  /**< Must be set to true if rx_chain_2 is being passed */
+  nas_rx_chain_info_type_v01 rx_chain_2;
+
+  /* Optional */
+  /*  Rx Chain 3 Info */
+  uint8_t rx_chain_3_valid;  /**< Must be set to true if rx_chain_3 is being passed */
+  nas_rx_chain_info_type_v01 rx_chain_3;
 }nas_get_tx_rx_info_resp_msg_v01;  /* Message */
 /**
     @}
@@ -11589,11 +11720,11 @@ typedef struct {
   /*  Radio Interface */
   uint8_t radio_if_valid;  /**< Must be set to true if radio_if is being passed */
   nas_radio_if_enum_v01 radio_if;
-  /**<
+  /**<  
     Radio interface from which to get the information. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -11606,7 +11737,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_dual_standby_pref_req_msg_v01;
@@ -11641,20 +11772,20 @@ typedef struct {
   nas_subs_type_enum_v01 priority_subs;
   /**<   Subscription to give priority when listening to the paging channel during
  dual standby. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
  */
 
   /* Optional */
   /*  Active Subs */
   uint8_t active_subs_valid;  /**< Must be set to true if active_subs is being passed */
   nas_subs_type_enum_v01 active_subs;
-  /**<   Subscription to enable when "standby_pref is 0x01 -- Single standby".
+  /**<   Subscription to enable when "standby_pref is 0x01 -- Single standby". 
  Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
  */
 
   /* Optional */
@@ -11662,9 +11793,9 @@ typedef struct {
   uint8_t default_data_subs_valid;  /**< Must be set to true if default_data_subs is being passed */
   nas_subs_type_enum_v01 default_data_subs;
   /**<   Default data subscription. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
  */
 
   /* Optional */
@@ -11672,9 +11803,9 @@ typedef struct {
   uint8_t default_voice_subs_valid;  /**< Must be set to true if default_voice_subs is being passed */
   nas_subs_type_enum_v01 default_voice_subs;
   /**<   Default voice subscription. Values: \n
-      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n
-      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n
-      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription
+      - NAS_PRIMARY_SUBSCRIPTION (0x00) --  Primary subscription \n 
+      - NAS_SECONDARY_SUBSCRIPTION (0x01) --  Secondary subscription \n 
+      - NAS_TERTIARY_SUBSCRIPTION (0x02) --  Tertiary subscription 
 
  \vspace{3pt}
  All other values are reserved.
@@ -11684,7 +11815,7 @@ typedef struct {
   /*  Active Subs Mask */
   uint8_t active_subs_mask_valid;  /**< Must be set to true if active_subs_mask is being passed */
   nas_active_subs_mask_type_v01 active_subs_mask;
-  /**<   Bitmask representing the active subscriptions in the device. If a value
+  /**<   Bitmask representing the active subscriptions in the device. If a value 
        of 0 is sent, there are no active subscriptions.
        Values: \n
        - Bit 0 (0x01) -- QMI_NAS_ACTIVE_SUB_ PRIMARY   -- Primary subscription \n
@@ -11701,7 +11832,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_detach_lte_req_msg_v01;
@@ -11741,9 +11872,9 @@ typedef struct {
   /**<   This field is used to interpret the length of the corresponding
        MNC reported in this TLV. Values: \n
 
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90
   */
 }nas_plmn_id_ext_type_v01;  /* Type */
@@ -11824,7 +11955,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_reset_lte_plmn_blocking_req_msg_v01;
@@ -11851,11 +11982,11 @@ typedef struct {
 
   /*  SPN coding scheme */
   nas_coding_scheme_enum_v01 spn_enc;
-  /**<
+  /**<  
         Coding scheme for the service provider name. Values: \n
-        - 0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded
+        - 0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded 
                   alphabet as defined in \hyperref[S8]{[S8]} with bit 8 set to 0 \n
-        - 0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian)
+        - 0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian) 
                   \hyperref[S8]{[S8]} \n
         Note: This value is ignored if spn_len is zero.
   */
@@ -11863,7 +11994,7 @@ typedef struct {
   /*  SPN */
   uint32_t spn_len;  /**< Must be set to # of elements in spn */
   uint8_t spn[NAS_SPN_LEN_MAX_V01];
-  /**<
+  /**<  
      Service provider name string.
   */
 }nas_spn_type_v01;  /* Type */
@@ -11878,19 +12009,19 @@ typedef struct {
 
   /*  PLMN name encoding scheme */
   nas_coding_scheme_enum_v01 plmn_name_enc;
-  /**<
+  /**<  
         Coding scheme for plmn_name. Values: \n
-        - 0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded
+        - 0x00 -- NAS_CODING_SCHEME_ CELL_BROADCAST_GSM -- SMS default 7-bit coded 
                   alphabet as defined in \hyperref[S8]{[S8]} with bit 8 set to 0 \n
-        - 0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian)
+        - 0x01 -- NAS_CODING_SCHEME_ UCS2 -- UCS2 (16 bit, little-endian) 
                   \hyperref[S8]{[S8]} \n
         Note: This value is ignored if plmn_name_len is zero.
   */
 
   /*  PLMN name country initial include status */
   nas_country_initials_add_enum_v01 plmn_name_ci;
-  /**<
-        Indicates whether the country initials are to be added to the plmn_name.
+  /**<  
+        Indicates whether the country initials are to be added to the plmn_name. 
         Values: \n
         - 0x00 -- Do not add the letters for the country's initials to the name \n
         - 0x01 -- Add the country's initials and a text string to the name \n
@@ -11902,7 +12033,7 @@ typedef struct {
   nas_spare_bits_enum_v01 plmn_spare_bits;
   /**<   Values: \n
        - 0x01 -- SPARE_BITS_8       -- Bit 8 is spare and set to 0 in octet n                       \n
-       - 0x02 -- SPARE_BITS_7_TO_8  -- Bits 7 and 8 are spare and set to 0 in octet n               \n
+       - 0x02 -- SPARE_BITS_7_TO_8  -- Bits 7 and 8 are spare and set to 0 in octet n               \n               
        - 0x03 -- SPARE_BITS_6_TO_8  -- Bits 6 to 8 (inclusive) are spare and set to 0 in octet n    \n
        - 0x04 -- SPARE_BITS_5_TO_8  -- Bits 5 to 8 (inclusive) are spare and set to 0 in octet n    \n
        - 0x05 -- SPARE_BITS_4_TO_8  -- Bits 4 to 8 (inclusive) are spare and set to 0 in octet n    \n
@@ -11934,7 +12065,7 @@ typedef struct {
   nas_plmn_id_ext_type_v01 plmn_id;
 
   /* Optional */
-  /*  Service Provider Name */
+  /*  Service Provider Name (deprecated; use Service Provider Name Ext) */
   uint8_t spn_valid;  /**< Must be set to true if spn is being passed */
   nas_spn_type_v01 spn;
 
@@ -11952,7 +12083,7 @@ typedef struct {
   /*  CSG ID for Network */
   uint8_t csg_id_valid;  /**< Must be set to true if csg_id is being passed */
   uint32_t csg_id;
-  /**<   Closed subscriber group identifier; included only when the network
+  /**<   Closed subscriber group identifier; included only when the network 
        is a CSG network.
   */
 
@@ -11966,9 +12097,9 @@ typedef struct {
   uint8_t is_home_network_valid;  /**< Must be set to true if is_home_network is being passed */
   nas_tri_state_boolean_type_v01 is_home_network;
   /**<   Whether the network is the home network. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
  */
 
   /* Optional */
@@ -11993,7 +12124,7 @@ typedef struct {
   uint8_t addl_info_valid;  /**< Must be set to true if addl_info is being passed */
   uint32_t addl_info_len;  /**< Must be set to # of elements in addl_info */
   uint16_t addl_info[NAS_PLMN_NAME_MAX_V01];
-  /**<   Additional information provided for the PLMN, in UCS2
+  /**<   Additional information provided for the PLMN, in UCS2 
        (16 bit little-endian) encoded format.
   */
 
@@ -12002,14 +12133,21 @@ typedef struct {
   uint8_t nw_name_source_valid;  /**< Must be set to true if nw_name_source is being passed */
   nas_nw_name_source_enum_type_v01 nw_name_source;
   /**<   Network name source. Values: \n
-      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n
-      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n
-      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n
-      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n
-      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n
-      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n
-      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name
+      - NAS_NW_NAME_SOURCE_UNKNOWN (0x00) --  Unknown \n 
+      - NAS_NW_NAME_SOURCE_OPL_PNN (0x01) --  Operator PLMN list and PLMN network name \n 
+      - NAS_NW_NAME_SOURCE_CPHS_ONS (0x02) --  Common PCN handset specification and operator name string \n 
+      - NAS_NW_NAME_SOURCE_NITZ (0x03) --  Network identity and time zone \n 
+      - NAS_NW_NAME_SOURCE_SE13 (0x04) --  GSMA SE13 table \n 
+      - NAS_NW_NAME_SOURCE_MCC_MNC (0x05) --  Mobile country code and mobile network code \n 
+      - NAS_NW_NAME_SOURCE_SPN (0x06) --  Service provider name 
  */
+
+  /* Optional */
+  /*  Service Provider Name Ext */
+  uint8_t spn_ext_valid;  /**< Must be set to true if spn_ext is being passed */
+  uint16_t spn_ext[NAS_SPN_EXT_LEN_MAX_V01 + 1];
+  /**<   Service provider name.
+  */
 }nas_current_plmn_name_ind_msg_v01;  /* Message */
 /**
     @}
@@ -12067,7 +12205,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_embms_status_req_msg_v01;
@@ -12133,7 +12271,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_cdma_position_info_req_msg_v01;
@@ -12143,8 +12281,8 @@ typedef struct {
   */
 typedef enum {
   NAS_CDMA_PILOT_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_CDMA_PILOT_CURR_ACT_PLT_V01 = 0x00,
-  NAS_CDMA_PILOT_NEIGHBOR_PLT_V01 = 0x01,
+  NAS_CDMA_PILOT_CURR_ACT_PLT_V01 = 0x00, 
+  NAS_CDMA_PILOT_NEIGHBOR_PLT_V01 = 0x01, 
   NAS_CDMA_PILOT_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_cdma_pilot_type_enum_v01;
 /**
@@ -12163,7 +12301,7 @@ typedef struct {
    */
 
   uint16_t sid;
-  /**<   System ID. Range: 0 to 32767.
+  /**<   System ID. Range: 0 to 32767. 
    */
 
   uint16_t nid;
@@ -12190,7 +12328,7 @@ typedef struct {
   */
 
   uint64_t time_stamp;
-  /**<   Time (in milliseconds) from the start of GPS time when the measurement
+  /**<   Time (in milliseconds) from the start of GPS time when the measurement 
        was taken.
   */
 }nas_cdma_bs_info_type_v01;  /* Type */
@@ -12255,13 +12393,16 @@ typedef struct {
   /*  RF Band Information List, Extended Format */
   uint8_t rf_band_info_list_ext_valid;  /**< Must be set to true if rf_band_info_list_ext is being passed */
   nas_rf_band_info_ext_type_v01 rf_band_info_list_ext;
+  /**<   \n
+       (Extended sizes to accommodate LTE.) 
+  */
 }nas_rf_band_info_ind_msg_v01;  /* Message */
 /**
     @}
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_force_network_search_req_msg_v01;
@@ -12290,7 +12431,7 @@ typedef struct {
   /* Mandatory */
   /*  Radio Interface */
   nas_radio_if_enum_v01 radio_if;
-  /**<
+  /**<  
     Radio interface from which to get the information. Values: \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -12301,7 +12442,7 @@ typedef struct {
   /* Mandatory */
   /*  Service Domain */
   nas_service_domain_enum_type_v01 reject_srv_domain;
-  /**<
+  /**<  
     Type of service domain in which the registration is rejected. Values: \n
     - 0x00 -- SYS_SRV_DOMAIN_NO_SRV  -- No service \n
     - 0x01 -- SYS_SRV_DOMAIN_CS_ONLY -- Circuit-switched only \n
@@ -12313,9 +12454,9 @@ typedef struct {
   /* Mandatory */
   /*  Registration Rejection Cause */
   uint8_t rej_cause;
-  /**<
-    Reject cause values sent are specified in
-    \hyperref[S5]{[S5]} Sections 10.5.3.6 and 10.5.5.14, and
+  /**<  
+    Reject cause values sent are specified in 
+    \hyperref[S5]{[S5]} Sections 10.5.3.6 and 10.5.5.14, and 
     \hyperref[S16]{[S16]} Section 9.9.3.9.
   */
 
@@ -12336,7 +12477,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_managed_roaming_config_req_msg_v01;
@@ -12356,7 +12497,7 @@ typedef struct {
   /*  Managed Roaming Configuration */
   uint8_t managed_roaming_supported_valid;  /**< Must be set to true if managed_roaming_supported is being passed */
   uint8_t managed_roaming_supported;
-  /**<   Managed roaming support status (corresponds to NV item
+  /**<   Managed roaming support status (corresponds to NV item 
        NV_MGRF_SUPPORTED_I). Values: \n
        - 0 -- Not supported \n
        - 1 -- Supported
@@ -12376,9 +12517,9 @@ typedef struct {
   /*  Current RTRE Configuration */
   uint8_t rtre_cfg_valid;  /**< Must be set to true if rtre_cfg is being passed */
   nas_rtre_cfg_enum_v01 rtre_cfg;
-  /**<   Values: \n
-       - 0x01 -- R-UIM only \n
-       - 0x02 -- Internal settings only \n
+  /**<   Values: \n 
+       - 0x01 -- R-UIM only \n 
+       - 0x02 -- Internal settings only \n 
        - 0x04 -- GSM on 1X
   */
 
@@ -12386,10 +12527,10 @@ typedef struct {
   /*  RTRE Configuration Preference */
   uint8_t rtre_cfg_pref_valid;  /**< Must be set to true if rtre_cfg_pref is being passed */
   nas_rtre_cfg_enum_v01 rtre_cfg_pref;
-  /**<   Values: \n
-       - 0x01 -- R-UIM only \n
-       - 0x02 -- Internal settings only \n
-       - 0x03 -- Use R-UIM if available \n
+  /**<   Values: \n 
+       - 0x01 -- R-UIM only \n 
+       - 0x02 -- Internal settings only \n 
+       - 0x03 -- Use R-UIM if available \n 
        - 0x04 -- GSM on 1X
   */
 }nas_rtre_cfg_ind_msg_v01;  /* Message */
@@ -12398,7 +12539,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_centralized_eons_support_status_req_msg_v01;
@@ -12430,7 +12571,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Sets the signal strength reporting thresholds.
+/** Request Message; Sets the signal strength reporting thresholds. 
                \label{idl:configSigInfo2} */
 typedef struct {
 
@@ -12439,10 +12580,10 @@ typedef struct {
   uint8_t cdma_rssi_threshold_list_valid;  /**< Must be set to true if cdma_rssi_threshold_list is being passed */
   uint32_t cdma_rssi_threshold_list_len;  /**< Must be set to # of elements in cdma_rssi_threshold_list */
   int16_t cdma_rssi_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSSI values: -105 to -21 (in dBm). \n
-      For example, to set thresholds at -95 dBm and -80 dBm, the threshold
+      For example, to set thresholds at -95 dBm and -80 dBm, the threshold 
       list values are {-950, -800}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12451,9 +12592,9 @@ typedef struct {
   /*  CDMA RSSI Delta  */
   uint8_t cdma_rssi_delta_valid;  /**< Must be set to true if cdma_rssi_delta is being passed */
   uint16_t cdma_rssi_delta;
-  /**<
+  /**<  
       RSSI delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12462,10 +12603,10 @@ typedef struct {
   uint8_t cdma_ecio_threshold_list_valid;  /**< Must be set to true if cdma_ecio_threshold_list is being passed */
   uint32_t cdma_ecio_threshold_list_len;  /**< Must be set to # of elements in cdma_ecio_threshold_list */
   int16_t cdma_ecio_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of ECIO thresholds (in units of 0.1 dB); maximum of 32 values.
+  /**<  
+      Array of ECIO thresholds (in units of 0.1 dB); maximum of 32 values. 
       Range for ECIO values: -31.5 to 0 (in dB). \n
-      For example, to set thresholds at -20 dB and -15.5 dB, the threshold
+      For example, to set thresholds at -20 dB and -15.5 dB, the threshold 
       list values are {-400, -310}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12474,9 +12615,9 @@ typedef struct {
   /*  CDMA ECIO Delta */
   uint8_t cdma_ecio_delta_valid;  /**< Must be set to true if cdma_ecio_delta is being passed */
   uint16_t cdma_ecio_delta;
-  /**<
+  /**<  
       ECIO delta (in units of 0.1 dB). \n
-      For example, to set a delta of 10 dB, the delta value must be set
+      For example, to set a delta of 10 dB, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12485,10 +12626,10 @@ typedef struct {
   uint8_t hdr_rssi_threshold_list_valid;  /**< Must be set to true if hdr_rssi_threshold_list is being passed */
   uint32_t hdr_rssi_threshold_list_len;  /**< Must be set to # of elements in hdr_rssi_threshold_list */
   int16_t hdr_rssi_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSSI values: -118 to -13 (in dBm). \n
-      For example, to set thresholds at -20 dBm and -15 dBm, the threshold
+      For example, to set thresholds at -20 dBm and -15 dBm, the threshold 
       list values are {-200, -150}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12497,9 +12638,9 @@ typedef struct {
   /*  HDR RSSI Delta  */
   uint8_t hdr_rssi_delta_valid;  /**< Must be set to true if hdr_rssi_delta is being passed */
   uint16_t hdr_rssi_delta;
-  /**<
+  /**<  
       RSSI delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12508,10 +12649,10 @@ typedef struct {
   uint8_t hdr_ecio_threshold_list_valid;  /**< Must be set to true if hdr_ecio_threshold_list is being passed */
   uint32_t hdr_ecio_threshold_list_len;  /**< Must be set to # of elements in hdr_ecio_threshold_list */
   int16_t hdr_ecio_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of ECIO thresholds (in units of 0.1 dB); maximum of 32 values.
+  /**<  
+      Array of ECIO thresholds (in units of 0.1 dB); maximum of 32 values. 
       Range for ECIO values: -31.5 to 0 (in dB). \n
-      For example, to set thresholds at -20 dB and -15.5 dB, the threshold
+      For example, to set thresholds at -20 dB and -15.5 dB, the threshold 
       list values are {-400, -310}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12520,9 +12661,9 @@ typedef struct {
   /*  HDR ECIO Delta */
   uint8_t hdr_ecio_delta_valid;  /**< Must be set to true if hdr_ecio_delta is being passed */
   uint16_t hdr_ecio_delta;
-  /**<
+  /**<  
       ECIO delta (in units of 0.1 dB). \n
-      For example, to set a delta of 10 dB, the delta value must be set
+      For example, to set a delta of 10 dB, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12531,8 +12672,8 @@ typedef struct {
   uint8_t hdr_sinr_threshold_list_valid;  /**< Must be set to true if hdr_sinr_threshold_list is being passed */
   uint32_t hdr_sinr_threshold_list_len;  /**< Must be set to # of elements in hdr_sinr_threshold_list */
   uint16_t hdr_sinr_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of SINR level thresholds (in units of 1); maximum of 32 values.
+  /**<  
+      Array of SINR level thresholds (in units of 1); maximum of 32 values. 
       Valid levels are 0 to 8, where the maximum value for: \n
       - 0x00 -- SINR_LEVEL_0 is -9 dB   \n
       - 0x01 -- SINR_LEVEL_1 is -6 dB   \n
@@ -12549,9 +12690,9 @@ typedef struct {
   /*  HDR SINR Delta */
   uint8_t hdr_sinr_delta_valid;  /**< Must be set to true if hdr_sinr_delta is being passed */
   uint16_t hdr_sinr_delta;
-  /**<
+  /**<  
       SINR delta (in units of 1 SINR level). \n
-      For example, to set a delta of 1 SINR level, the delta value must be
+      For example, to set a delta of 1 SINR level, the delta value must be 
       set to 1. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12560,10 +12701,10 @@ typedef struct {
   uint8_t hdr_io_threshold_list_valid;  /**< Must be set to true if hdr_io_threshold_list is being passed */
   uint32_t hdr_io_threshold_list_len;  /**< Must be set to # of elements in hdr_io_threshold_list */
   int16_t hdr_io_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of IO thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of IO thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for IO values: -128 to -13 (in dBm). \n
-      For example, to set thresholds at -111 dBm and -73 dBm, the threshold
+      For example, to set thresholds at -111 dBm and -73 dBm, the threshold 
       list values are {-1110, -730}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12572,9 +12713,9 @@ typedef struct {
   /*  HDR IO Delta */
   uint8_t hdr_io_delta_valid;  /**< Must be set to true if hdr_io_delta is being passed */
   uint16_t hdr_io_delta;
-  /**<
+  /**<  
       IO delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12583,10 +12724,10 @@ typedef struct {
   uint8_t gsm_rssi_threshold_list_valid;  /**< Must be set to true if gsm_rssi_threshold_list is being passed */
   uint32_t gsm_rssi_threshold_list_len;  /**< Must be set to # of elements in gsm_rssi_threshold_list */
   int16_t gsm_rssi_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSSI values: -111 to -48 (in dBm). \n
-      For example, to set thresholds at -95 dBm and -80 dBm, the threshold
+      For example, to set thresholds at -95 dBm and -80 dBm, the threshold 
       list values are {-950, -800}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12595,9 +12736,9 @@ typedef struct {
   /*  GSM RSSI Delta  */
   uint8_t gsm_rssi_delta_valid;  /**< Must be set to true if gsm_rssi_delta is being passed */
   uint16_t gsm_rssi_delta;
-  /**<
+  /**<  
       RSSI delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12606,10 +12747,10 @@ typedef struct {
   uint8_t wcdma_rssi_threshold_list_valid;  /**< Must be set to true if wcdma_rssi_threshold_list is being passed */
   uint32_t wcdma_rssi_threshold_list_len;  /**< Must be set to # of elements in wcdma_rssi_threshold_list */
   int16_t wcdma_rssi_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSSI values: -121 to 0 (in dBm). \n
-      For example, to set thresholds at -20 dBm and -15 dBm, the threshold
+      For example, to set thresholds at -20 dBm and -15 dBm, the threshold 
       list values are {-200, -150}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12618,9 +12759,9 @@ typedef struct {
   /*  WCDMA RSSI Delta  */
   uint8_t wcdma_rssi_delta_valid;  /**< Must be set to true if wcdma_rssi_delta is being passed */
   uint16_t wcdma_rssi_delta;
-  /**<
+  /**<  
       RSSI delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12629,10 +12770,10 @@ typedef struct {
   uint8_t wcdma_ecio_threshold_list_valid;  /**< Must be set to true if wcdma_ecio_threshold_list is being passed */
   uint32_t wcdma_ecio_threshold_list_len;  /**< Must be set to # of elements in wcdma_ecio_threshold_list */
   int16_t wcdma_ecio_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of ECIO thresholds (in units of 0.1 dB); maximum of 32 values.
+  /**<  
+      Array of ECIO thresholds (in units of 0.1 dB); maximum of 32 values. 
       Range for ECIO values: -31.5 to 0 (in dB). \n
-      For example, to set thresholds at -20 dB and -15.5 dB, the threshold
+      For example, to set thresholds at -20 dB and -15.5 dB, the threshold 
       list values are {-400, -310}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12641,9 +12782,9 @@ typedef struct {
   /*  WCDMA ECIO Delta */
   uint8_t wcdma_ecio_delta_valid;  /**< Must be set to true if wcdma_ecio_delta is being passed */
   uint16_t wcdma_ecio_delta;
-  /**<
+  /**<  
       ECIO delta (in units of 0.1 dB). \n
-      For example, to set a delta of 10 dB, the delta value must be set
+      For example, to set a delta of 10 dB, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12652,10 +12793,10 @@ typedef struct {
   uint8_t lte_rssi_threshold_list_valid;  /**< Must be set to true if lte_rssi_threshold_list is being passed */
   uint32_t lte_rssi_threshold_list_len;  /**< Must be set to # of elements in lte_rssi_threshold_list */
   int16_t lte_rssi_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSSI thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSSI values: -120 to 0 (in dBm). \n
-      For example, to set thresholds at -20 dBm and -15 dBm, the threshold
+      For example, to set thresholds at -20 dBm and -15 dBm, the threshold 
       list values are {-200, -150}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12664,9 +12805,9 @@ typedef struct {
   /*  LTE RSSI Delta  */
   uint8_t lte_rssi_delta_valid;  /**< Must be set to true if lte_rssi_delta is being passed */
   uint16_t lte_rssi_delta;
-  /**<
+  /**<  
       RSSI delta (in units of 0.1 dBm).
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12675,10 +12816,10 @@ typedef struct {
   uint8_t lte_snr_threshold_list_valid;  /**< Must be set to true if lte_snr_threshold_list is being passed */
   uint32_t lte_snr_threshold_list_len;  /**< Must be set to # of elements in lte_snr_threshold_list */
   int16_t lte_snr_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of SNR thresholds (in units of 0.1 dB); maximum of 32 values.
+  /**<  
+      Array of SNR thresholds (in units of 0.1 dB); maximum of 32 values. 
       Range for SNR values: -20 to 30 (in dB). \n
-      For example, to set thresholds at -19.8 dB and 23 dB, the threshold
+      For example, to set thresholds at -19.8 dB and 23 dB, the threshold 
       list values are {-198, 230}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12687,9 +12828,9 @@ typedef struct {
   /*  LTE SNR Delta */
   uint8_t lte_snr_delta_valid;  /**< Must be set to true if lte_snr_delta is being passed */
   uint16_t lte_snr_delta;
-  /**<
+  /**<  
       SNR delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12698,10 +12839,10 @@ typedef struct {
   uint8_t lte_rsrq_threshold_list_valid;  /**< Must be set to true if lte_rsrq_threshold_list is being passed */
   uint32_t lte_rsrq_threshold_list_len;  /**< Must be set to # of elements in lte_rsrq_threshold_list */
   int16_t lte_rsrq_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSRQ thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSRQ thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSRQ values: -20 to -3 (in dBm). \n
-      For example, to set thresholds at -11 dBm and -6 dBm, the threshold
+      For example, to set thresholds at -11 dBm and -6 dBm, the threshold 
       list values are {-110, -60}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12710,9 +12851,9 @@ typedef struct {
   /*  LTE RSRQ Delta */
   uint8_t lte_rsrq_delta_valid;  /**< Must be set to true if lte_rsrq_delta is being passed */
   uint16_t lte_rsrq_delta;
-  /**<
+  /**<  
       RSRQ delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12721,10 +12862,10 @@ typedef struct {
   uint8_t lte_rsrp_threshold_list_valid;  /**< Must be set to true if lte_rsrp_threshold_list is being passed */
   uint32_t lte_rsrp_threshold_list_len;  /**< Must be set to # of elements in lte_rsrp_threshold_list */
   int16_t lte_rsrp_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSRP thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSRP thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSRP values: -140 to -44 (in dBm). \n
-      For example, to set thresholds at -125 dBm and -64 dBm, the threshold
+      For example, to set thresholds at -125 dBm and -64 dBm, the threshold 
       list values are {-1250, -640}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12733,9 +12874,9 @@ typedef struct {
   /*  LTE RSRP Delta */
   uint8_t lte_rsrp_delta_valid;  /**< Must be set to true if lte_rsrp_delta is being passed */
   uint16_t lte_rsrp_delta;
-  /**<
+  /**<  
       RSRP delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12749,10 +12890,10 @@ typedef struct {
   uint8_t tdscdma_rscp_threshold_list_valid;  /**< Must be set to true if tdscdma_rscp_threshold_list is being passed */
   uint32_t tdscdma_rscp_threshold_list_len;  /**< Must be set to # of elements in tdscdma_rscp_threshold_list */
   int16_t tdscdma_rscp_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
-      Array of RSCP thresholds (in units of 0.1 dBm); maximum of 32 values.
+  /**<  
+      Array of RSCP thresholds (in units of 0.1 dBm); maximum of 32 values. 
       Range for RSCP values: -120 to -25 (in dBm). \n
-      For example, to set thresholds at -95 dBm and -80 dBm, the threshold
+      For example, to set thresholds at -95 dBm and -80 dBm, the threshold 
       list values would be {-950, -800}. \n
       The range is based on the latest releases and may change over time.
  */
@@ -12761,9 +12902,9 @@ typedef struct {
   /*  TDSCDMA RSCP Delta */
   uint8_t tdscdma_rscp_delta_valid;  /**< Must be set to true if tdscdma_rscp_delta is being passed */
   uint16_t tdscdma_rscp_delta;
-  /**<
+  /**<  
       RSCP delta (in units of 0.1 dBm). \n
-      For example, to set a delta of 10 dBm, the delta value must be set
+      For example, to set a delta of 10 dBm, the delta value must be set 
       to 100. A value of 0 is rejected with a QMI_ERR_INVALID_ARG error.
  */
 
@@ -12772,7 +12913,7 @@ typedef struct {
   uint8_t tds_rssi_threshold_list_valid;  /**< Must be set to true if tds_rssi_threshold_list is being passed */
   uint32_t tds_rssi_threshold_list_len;  /**< Must be set to # of elements in tds_rssi_threshold_list */
   float tds_rssi_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
+  /**<  
       Array of RSSI thresholds (in dBm) used by TD-SCDMA; maximum of 32 values.
   */
 
@@ -12780,7 +12921,7 @@ typedef struct {
   /*  TDSCDMA RSSI Delta */
   uint8_t tdscdma_rssi_delta_valid;  /**< Must be set to true if tdscdma_rssi_delta is being passed */
   float tdscdma_rssi_delta;
-  /**<
+  /**<  
       RSSI delta (in dBm) used by TD-SCDMA.
  */
 
@@ -12789,7 +12930,7 @@ typedef struct {
   uint8_t tds_ecio_threshold_list_valid;  /**< Must be set to true if tds_ecio_threshold_list is being passed */
   uint32_t tds_ecio_threshold_list_len;  /**< Must be set to # of elements in tds_ecio_threshold_list */
   float tds_ecio_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
+  /**<  
       Array of ECIO thresholds (in dB) used by TD-SCDMA; maximum of 32 values.
   */
 
@@ -12797,7 +12938,7 @@ typedef struct {
   /*  TDSCDMA ECIO Delta */
   uint8_t tdscdma_ecio_delta_valid;  /**< Must be set to true if tdscdma_ecio_delta is being passed */
   float tdscdma_ecio_delta;
-  /**<
+  /**<  
       ECIO delta (in dB) used by TD-SCDMA.
  */
 
@@ -12806,7 +12947,7 @@ typedef struct {
   uint8_t tds_sinr_threshold_list_valid;  /**< Must be set to true if tds_sinr_threshold_list is being passed */
   uint32_t tds_sinr_threshold_list_len;  /**< Must be set to # of elements in tds_sinr_threshold_list */
   float tds_sinr_threshold_list[NAS_SIG_STR_THRESHOLD_LIST_MAX2_V01];
-  /**<
+  /**<  
       Array of SINR thresholds (in dB) used by TD-SCDMA; maximum of 32 values.
  */
 
@@ -12814,7 +12955,7 @@ typedef struct {
   /*  TDSCDMA SINR Delta */
   uint8_t tdscdma_sinr_delta_valid;  /**< Must be set to true if tdscdma_sinr_delta is being passed */
   float tdscdma_sinr_delta;
-  /**<
+  /**<  
       SINR delta (in dB) used by TD-SCDMA.
  */
 }nas_config_sig_info2_req_msg_v01;  /* Message */
@@ -12825,7 +12966,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Sets the signal strength reporting thresholds.
+/** Response Message; Sets the signal strength reporting thresholds. 
                \label{idl:configSigInfo2} */
 typedef struct {
 
@@ -12839,7 +12980,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_tds_cell_and_position_info_req_msg_v01;
@@ -12879,9 +13020,9 @@ typedef struct {
 
   /*  Timing advance */
   float timing_advance;
-  /**<   Measured delay (in seconds) of an access burst transmission on the RACH
-       or PRACH to the expected signal from an MS at zero distance under static
-       channel conditions.
+  /**<   Measured delay (in seconds) of an access burst transmission on the RACH 
+       or PRACH to the expected signal from an MS at zero distance under static 
+       channel conditions. 
   */
 
   /*  RSCP */
@@ -12920,7 +13061,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Retrieves the cell information and neighbor cell information
+/** Response Message; Retrieves the cell information and neighbor cell information 
                for TD-SCDMA. */
 typedef struct {
 
@@ -12947,14 +13088,14 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Sets the periodic search timer configuration for a
+/** Request Message; Sets the periodic search timer configuration for a 
               home operator-specific BPLMN search to LTE. */
 typedef struct {
 
   /* Mandatory */
   /*  TDSCDMA Neighbor Cell Periodic Search Timer */
   uint16_t timer_value;
-  /**<
+  /**<  
       TD-SCDMA search timer value (in minutes). \n
       0 indicates an immediate search and the timer is disabled. \n
       0xFFFF is used to disable the timer without any search.
@@ -12967,7 +13108,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Sets the periodic search timer configuration for a
+/** Response Message; Sets the periodic search timer configuration for a 
               home operator-specific BPLMN search to LTE. */
 typedef struct {
 
@@ -13006,7 +13147,7 @@ typedef struct {
 
   /*  MBSFN Area ID */
   uint8_t area_id;
-  /**<   Multicast Broadcast Single Frequency Network (MBSFN) area ID.
+  /**<   Multicast Broadcast Single Frequency Network (MBSFN) area ID. 
     Values: 0 to 255.
   */
 
@@ -13016,9 +13157,9 @@ typedef struct {
     decibels.
    */
 
-  /*  Signal Level */
+  /*  Signal Level (Deprecated) */
   int8_t signal_level;
-  /**<   Signal level of the serving cell over the last measurement period.
+  /**<   Signal level of the serving cell over the last measurement period. 
     Range: 0 to 5.
    */
 }nas_lte_cphy_mbsfn_area_signal_strength_type_v01;  /* Type */
@@ -13057,55 +13198,91 @@ typedef struct {
   */
 
 typedef uint64_t nas_limit_sys_info_ind_mask_type_v01;
-#define NAS_LIMIT_BY_SRV_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x01ull)
-#define NAS_LIMIT_BY_SRV_DOMAIN_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x02ull)
-#define NAS_LIMIT_BY_PLMN_ID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x04ull)
-#define NAS_LIMIT_BY_SID_NID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x08ull)
-#define NAS_LIMIT_BY_ROAM_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x10ull)
-#define NAS_LIMIT_BY_SRV_CAPABILITY_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x20ull)
-#define NAS_LIMIT_BY_PACKET_ZONE_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x40ull)
-#define NAS_LIMIT_BY_IS856_SYS_ID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x80ull)
-#define NAS_LIMIT_BY_CELL_ID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x100ull)
-#define NAS_LIMIT_BY_LAC_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x200ull)
-#define NAS_LIMIT_BY_RAC_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x400ull)
-#define NAS_LIMIT_BY_TAC_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x800ull)
-#define NAS_LIMIT_BY_HS_CALL_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x1000ull)
-#define NAS_LIMIT_BY_HS_IND_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x2000ull)
-#define NAS_LIMIT_BY_HDR_ACTIVE_PROTOCOL_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x4000ull)
-#define NAS_LIMIT_BY_EGPRS_SUPPORT_IND_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x8000ull)
-#define NAS_LIMIT_BY_HDR_PERSONALITY_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x10000ull)
+#define NAS_LIMIT_BY_SRV_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x01ull) 
+#define NAS_LIMIT_BY_SRV_DOMAIN_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x02ull) 
+#define NAS_LIMIT_BY_PLMN_ID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x04ull) 
+#define NAS_LIMIT_BY_SID_NID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x08ull) 
+#define NAS_LIMIT_BY_ROAM_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x10ull) 
+#define NAS_LIMIT_BY_SRV_CAPABILITY_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x20ull) 
+#define NAS_LIMIT_BY_PACKET_ZONE_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x40ull) 
+#define NAS_LIMIT_BY_IS856_SYS_ID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x80ull) 
+#define NAS_LIMIT_BY_CELL_ID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x100ull) 
+#define NAS_LIMIT_BY_LAC_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x200ull) 
+#define NAS_LIMIT_BY_RAC_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x400ull) 
+#define NAS_LIMIT_BY_TAC_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x800ull) 
+#define NAS_LIMIT_BY_HS_CALL_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x1000ull) 
+#define NAS_LIMIT_BY_HS_IND_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x2000ull) 
+#define NAS_LIMIT_BY_HDR_ACTIVE_PROTOCOL_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x4000ull) 
+#define NAS_LIMIT_BY_EGPRS_SUPPORT_IND_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x8000ull) 
+#define NAS_LIMIT_BY_HDR_PERSONALITY_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x10000ull) 
+#define NAS_LIMIT_BY_CCS_SUPPORTED_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x20000ull) 
+#define NAS_LIMIT_BY_DTM_SUPPORTED_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x40000ull) 
+#define NAS_LIMIT_BY_CS_BAR_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x80000ull) 
+#define NAS_LIMIT_BY_PS_BAR_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x100000ull) 
+#define NAS_LIMIT_BY_VOICE_SUPPORT_ON_LTE_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x200000ull) 
+#define NAS_LIMIT_BY_SYS_INFO_NO_CHANGE_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x400000ull) 
+#define NAS_LIMIT_BY_IS_SYS_FORBIDDEN_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x800000ull) 
+#define NAS_LIMIT_BY_LTE_EMBMS_COVERAGE_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x1000000ull) 
+#define NAS_LIMIT_BY_LTE_VOICE_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x2000000ull) 
+#define NAS_LIMIT_BY_LTE_SMS_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x4000000ull) 
+#define NAS_LIMIT_BY_IS_SYS_PRL_MATCH_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x8000000ull) 
+#define NAS_LIMIT_BY_P_REV_IN_USE_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x10000000ull) 
+#define NAS_LIMIT_BY_CDMA_SYS_ID_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x20000000ull) 
+#define NAS_LIMIT_BY_PSC_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x40000000ull) 
+#define NAS_LIMIT_BY_SIM_REJ_INFO_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x80000000ull) 
+#define NAS_LIMIT_BY_WCDMA_EUTRA_STATUS_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x100000000ull) 
+#define NAS_LIMIT_BY_WCDMA_CSG_INFO_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x200000000ull) 
+#define NAS_LIMIT_BY_LTE_CSG_INFO_V01 ((nas_limit_sys_info_ind_mask_type_v01)0x400000000ull) 
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Limits the reporting of QMI_NAS_SYS_INFO_IND to only when
+/** Request Message; Limits the reporting of QMI_NAS_SYS_INFO_IND to only when 
               certain fields have changed. */
 typedef struct {
 
   /* Mandatory */
   /*  Limit Sys Info Change Reporting */
   nas_limit_sys_info_ind_mask_type_v01 limit_sys_info_chg_rpt;
-  /**<   Bitmasks included in this TLV limit the reporting of QMI_NAS_SYS_INFO_IND
-       to when those values change. If a value of 0 is sent, QMI_NAS_SYS_INFO_IND
+  /**<   Bitmasks included in this TLV limit the reporting of QMI_NAS_SYS_INFO_IND 
+       to when those values change. If a value of 0 is sent, QMI_NAS_SYS_INFO_IND 
        reporting is as if no limit is set. Values: \n
-
+      
        - 0x01 -- NAS_LIMIT_BY_SRV_STATUS  -- Limit by srv_status changes \n
        - 0x02 -- NAS_LIMIT_BY_SRV_DOMAIN  -- Limit by srv_domain changes \n
        - 0x04 -- NAS_LIMIT_BY_PLMN_ID     -- Limit by mcc/mnc \n
        - 0x08 -- NAS_LIMIT_BY_SID_NID     -- Limit by sid/nid \n
        - 0x10 -- NAS_LIMIT_BY_ROAM_STATUS -- Limit by roam_status \n
-       - 0x20 --  NAS_LIMIT_BY_SRV_CAPABILITY -- Limit by srv_capability changes \n
-       - 0x40 --  NAS_LIMIT_BY_PACKET_ZONE -- Limit by packet_zone changes \n
-       - 0x80 --  NAS_LIMIT_BY_IS856_SYS_ID -- Limit by IS856_SYS_ID changes \n
-       - 0x100 --  NAS_LIMIT_BY_CELL_ID -- Limit by CELL_ID changes \n
-       - 0x200 --  NAS_LIMIT_BY_LAC -- Limit by LAC changes \n
-       - 0x400 --  NAS_LIMIT_BY_RAC -- Limit by RAC changes \n
-       - 0x800 --  NAS_LIMIT_BY_TAC -- Limit by TAC changes \n
-       - 0x1000 --  NAS_LIMIT_BY_HS_CALL_STATUS -- Limit by hs_call_status \n
-       - 0x2000 --  NAS_LIMIT_BY_HS_IND -- Limit by hs_ind \n
+       - 0x20 -- NAS_LIMIT_BY_SRV_CAPABILITY -- Limit by srv_capability changes \n
+       - 0x40 -- NAS_LIMIT_BY_PACKET_ZONE -- Limit by packet_zone changes \n
+       - 0x80 -- NAS_LIMIT_BY_IS856_SYS_ID -- Limit by IS856_sys_id changes \n
+       - 0x100 -- NAS_LIMIT_BY_CELL_ID -- Limit by cell_id changes \n
+       - 0x200 -- NAS_LIMIT_BY_LAC -- Limit by LAC changes \n
+       - 0x400 -- NAS_LIMIT_BY_RAC -- Limit by RAC changes \n
+       - 0x800 -- NAS_LIMIT_BY_TAC -- Limit by TAC changes \n
+       - 0x1000 -- NAS_LIMIT_BY_HS_CALL_STATUS -- Limit by hs_call_status \n
+       - 0x2000 -- NAS_LIMIT_BY_HS_IND -- Limit by hs_ind \n
        - 0x4000 -- NAS_LIMIT_BY_HDR_ACTIVE_ PROTOCOL -- Limit by hdr_active_prot \n
        - 0x8000 -- NAS_LIMIT_BY_EGPRS_SUPPORT_ IND -- Limit by egprs_support \n
-       - 0x10000 -- NAS_LIMIT_BY_HDR_ PERSONALITY -- Limit by hdr_personality
-
+       - 0x10000 -- NAS_LIMIT_BY_HDR_ PERSONALITY -- Limit by hdr_personality \n
+       - 0x20000 -- NAS_LIMIT_BY_CCS_SUPPORTED -- Limit by CCS_support \n
+       - 0x40000 -- NAS_LIMIT_BY_DTM_SUPPORTED -- Limit by DTM_support \n
+       - 0x80000 -- NAS_LIMIT_BY_CS_BAR_STATUS -- Limit by CS_bar_status \n
+       - 0x100000 -- NAS_LIMIT_BY_PS_BAR_STATUS -- Limit by PS_bar_status \n
+       - 0x200000 -- NAS_LIMIT_BY_VOICE_ SUPPORT_ON_LTE -- Limit by LTE_voice_support \n
+       - 0x400000 -- NAS_LIMIT_BY_SYS_INFO_ NO_CHANGE -- Limit by no_change \n
+       - 0x800000 -- NAS_LIMIT_BY_IS_SYS_ FORBIDDEN -- Limit by sys_forbidden \n
+       - 0x1000000 -- NAS_LIMIT_BY_LTE_EMBMS_ COVERAGE -- Limit by LTE_EMBMS_coverage \n
+       - 0x2000000 -- NAS_LIMIT_BY_LTE_VOICE_ STATUS -- Limit by LTE_voice_status \n
+       - 0x4000000 -- NAS_LIMIT_BY_LTE_SMS_ STATUS -- Limit by LTE_SMS_status \n
+       - 0x8000000 -- NAS_LIMIT_BY_IS_SYS_PRL_ MATCH -- Limit by is sys_prl_match \n
+       - 0x10000000 -- NAS_LIMIT_BY_P_REV_IN_USE -- Limit by p_rev_in_use \n
+       - 0x20000000 -- NAS_LIMIT_BY_CDMA_SYS_ID -- Limit by CDMA_sys_id \n
+       - 0x40000000 -- NAS_LIMIT_BY_PSC -- Limit by_PSC \n
+       - 0x80000000 -- NAS_LIMIT_BY_SIM_REJ_INFO -- Limit by sim_reject_info \n
+       - 0x100000000 -- NAS_LIMIT_BY_WCDMA_EUTRA_STATUS -- Limit by WCDMA_EUTRA_status \n
+       - 0x200000000 -- NAS_LIMIT_BY_WCDMA_CSG_INFO -- Limit by WCDMA_CSG_info \n
+       - 0x400000000 -- NAS_LIMIT_BY_LTE_CSG_INFO -- Limit by LTE_CSG_info
+	   
        \vspace{3pt}
        All other bits are reserved for future use.
   */
@@ -13117,7 +13294,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Limits the reporting of QMI_NAS_SYS_INFO_IND to only when
+/** Response Message; Limits the reporting of QMI_NAS_SYS_INFO_IND to only when 
               certain fields have changed. */
 typedef struct {
 
@@ -13131,7 +13308,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_sys_info_ind_reporting_limit_req_msg_v01;
@@ -13139,7 +13316,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Retrieves the limitations set on the reporting of
+/** Response Message; Retrieves the limitations set on the reporting of 
               QMI_NAS_SYS_INFO_IND. */
 typedef struct {
 
@@ -13151,8 +13328,8 @@ typedef struct {
   /* Mandatory */
   /*  Limit Sys Info Change Reporting */
   nas_limit_sys_info_ind_mask_type_v01 limit_sys_info_chg_rpt;
-  /**<   Bitmasks included in this TLV indicate the limits set on
-       QMI_NAS_SYS_INFO_IND reporting.  If a value of 0 is sent,
+  /**<   Bitmasks included in this TLV indicate the limits set on 
+       QMI_NAS_SYS_INFO_IND reporting.  If a value of 0 is sent, 
        QMI_NAS_SYS_INFO_IND is reporting with no limitations. Values: \n
 
        - 0x01 -- NAS_LIMIT_BY_SRV_STATUS  -- Limit by srv_status changes \n
@@ -13162,8 +13339,8 @@ typedef struct {
        - 0x10 -- NAS_LIMIT_BY_ROAM_STATUS -- Limit by roam_status \n
        - 0x20 -- NAS_LIMIT_BY_SRV_CAPABILITY -- Limit by srv_capability changes \n
        - 0x40 -- NAS_LIMIT_BY_PACKET_ZONE -- Limit by packet_zone changes \n
-       - 0x80 -- NAS_LIMIT_BY_IS856_SYS_ID -- Limit by IS856_SYS_ID changes \n
-       - 0x100 -- NAS_LIMIT_BY_CELL_ID -- Limit by CELL_ID changes \n
+       - 0x80 -- NAS_LIMIT_BY_IS856_SYS_ID -- Limit by IS856_sys_id changes \n
+       - 0x100 -- NAS_LIMIT_BY_CELL_ID -- Limit by cell_id changes \n
        - 0x200 -- NAS_LIMIT_BY_LAC -- Limit by LAC changes \n
        - 0x400 -- NAS_LIMIT_BY_RAC -- Limit by RAC changes \n
        - 0x800 -- NAS_LIMIT_BY_TAC -- Limit by TAC changes \n
@@ -13171,7 +13348,25 @@ typedef struct {
        - 0x2000 -- NAS_LIMIT_BY_HS_IND -- Limit by hs_ind \n
        - 0x4000 -- NAS_LIMIT_BY_HDR_ACTIVE_ PROTOCOL -- Limit by hdr_active_prot \n
        - 0x8000 -- NAS_LIMIT_BY_EGPRS_SUPPORT_ IND -- Limit by egprs_support \n
-       - 0x10000 -- NAS_LIMIT_BY_HDR_ PERSONALITY -- Limit by hdr_personality
+       - 0x10000 -- NAS_LIMIT_BY_HDR_ PERSONALITY -- Limit by hdr_personality \n
+       - 0x20000 -- NAS_LIMIT_BY_CCS_SUPPORTED -- Limit by CCS_support \n
+       - 0x40000 -- NAS_LIMIT_BY_DTM_SUPPORTED -- Limit by DTM_support \n
+       - 0x80000 -- NAS_LIMIT_BY_CS_BAR_STATUS -- Limit by CS_bar_status \n
+       - 0x100000 -- NAS_LIMIT_BY_PS_BAR_STATUS -- Limit by PS_bar_status \n
+       - 0x200000 -- NAS_LIMIT_BY_VOICE_SUPPORT_ON_LTE -- Limit by LTE_voice_support \n
+       - 0x400000 -- NAS_LIMIT_BY_SYS_INFO_NO_CHANGE -- Limit by no_change \n
+       - 0x800000 -- NAS_LIMIT_BY_IS_SYS_FORBIDDEN -- Limit by sys_forbidden \n
+       - 0x1000000 -- NAS_LIMIT_BY_LTE_EMBMS_COVERAGE -- Limit by LTE_EMBMS_coverage \n
+       - 0x2000000 -- NAS_LIMIT_BY_LTE_VOICE_STATUS -- Limit by LTE_voice_status \n
+       - 0x4000000 -- NAS_LIMIT_BY_LTE_SMS_STATUS -- Limit by LTE_SMS_status \n
+       - 0x8000000 -- NAS_LIMIT_BY_IS_SYS_PRL_MATCH -- Limit by is sys_prl_match \n
+       - 0x10000000 -- NAS_LIMIT_BY_P_REV_IN_USE -- Limit by p_rev_in_use \n
+       - 0x20000000 -- NAS_LIMIT_BY_CDMA_SYS_ID -- Limit by CDMA_sys_id \n
+       - 0x40000000 -- NAS_LIMIT_BY_PSC -- Limit by_PSC \n
+       - 0x80000000 -- NAS_LIMIT_BY_SIM_REJ_INFO -- Limit by sim_reject_info \n
+       - 0x100000000 -- NAS_LIMIT_BY_WCDMA_EUTRA_STATUS -- Limit by WCDMA_EUTRA_status \n
+       - 0x200000000 -- NAS_LIMIT_BY_WCDMA_CSG_INFO -- Limit by WCDMA_CSG_info \n
+       - 0x400000000 -- NAS_LIMIT_BY_LTE_CSG_INFO -- Limit by LTE_CSG_info
 
        \vspace{3pt}
        All other bits are reserved for future use.
@@ -13186,8 +13381,8 @@ typedef struct {
   */
 typedef enum {
   NAS_CALL_TYPE_ENUM_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_CALL_TYPE_E_VOICE_V01 = 0,
-  NAS_CALL_TYPE_E_SMS_V01 = 1,
+  NAS_CALL_TYPE_E_VOICE_V01 = 0, 
+  NAS_CALL_TYPE_E_SMS_V01 = 1, 
   NAS_CALL_TYPE_ENUM_TYPE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_call_type_enum_type_v01;
 /**
@@ -13201,8 +13396,8 @@ typedef struct {
 
   /*  IMS Preferred Call Types */
   nas_call_type_enum_type_v01 call_type;
-  /**<   Call type for which IMS is preferred. Values: \n
-       - 0x00 -- CALL_TYPE_E_VOICE -- Voice \n
+  /**<   Call type for which IMS is preferred. Values: \n 
+       - 0x00 -- CALL_TYPE_E_VOICE -- Voice \n 
        - 0x01 -- CALL_TYPE_E_SMS -- SMS
   */
 
@@ -13226,8 +13421,8 @@ typedef struct {
   /* Mandatory */
   /*  Radio Access Technology */
   nas_radio_if_enum_v01 sys_mode;
-  /**<   Radio interface system mode. Values: \n
-       - 0x02 -- RADIO_IF_CDMA_1XEVDO --
+  /**<   Radio interface system mode. Values: \n 
+       - 0x02 -- RADIO_IF_CDMA_1XEVDO -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x04 -- RADIO_IF_GSM         -- GSM \n
        - 0x05 -- RADIO_IF_UMTS        -- UMTS \n
@@ -13259,14 +13454,14 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_ims_pref_status_req_msg_v01;
 
 typedef uint64_t nas_call_type_mask_type_v01;
-#define NAS_CALL_TYPE_B_VOICE_V01 ((nas_call_type_mask_type_v01)0x01ull)
-#define NAS_CALL_TYPE_B_SMS_V01 ((nas_call_type_mask_type_v01)0x02ull)
+#define NAS_CALL_TYPE_B_VOICE_V01 ((nas_call_type_mask_type_v01)0x01ull) 
+#define NAS_CALL_TYPE_B_SMS_V01 ((nas_call_type_mask_type_v01)0x02ull) 
 /** @addtogroup nas_qmi_aggregates
     @{
   */
@@ -13274,8 +13469,8 @@ typedef struct {
 
   /*  Current radio access technology */
   nas_radio_if_enum_v01 sys_mode;
-  /**<   Radio interface system mode. Values: \n
-       - 0x02 -- RADIO_IF_CDMA_1XEVDO --
+  /**<   Radio interface system mode. Values: \n 
+       - 0x02 -- RADIO_IF_CDMA_1XEVDO -- 
          cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x04 -- RADIO_IF_GSM         -- GSM \n
        - 0x05 -- RADIO_IF_UMTS        -- UMTS \n
@@ -13283,7 +13478,7 @@ typedef struct {
   */
 
   nas_call_type_mask_type_v01 ims_pref_call_type;
-  /**<   Bitmask representing the IMS preferred call type.
+  /**<   Bitmask representing the IMS preferred call type. 
        Bits for call types preferring IMS must be set to 1.
        Otherwise, the bits must be set to 0. \n
        Values: \n
@@ -13332,7 +13527,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Configures whether QMI_NAS_CURRENT_PLMN_NAME_IND returns the
+/** Request Message; Configures whether QMI_NAS_CURRENT_PLMN_NAME_IND returns the 
               modem-determined name or all available information. */
 typedef struct {
 
@@ -13352,7 +13547,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Configures whether QMI_NAS_CURRENT_PLMN_NAME_IND returns the
+/** Response Message; Configures whether QMI_NAS_CURRENT_PLMN_NAME_IND returns the 
               modem-determined name or all available information. */
 typedef struct {
 
@@ -13370,7 +13565,7 @@ typedef struct {
   */
 typedef enum {
   NAS_AVOID_SYS_TYPE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_AVOID_SYS_USERZONE_V01 = 0x00, /**<  Avoid an idle system if the mobile station has a user zone currently
+  NAS_AVOID_SYS_USERZONE_V01 = 0x00, /**<  Avoid an idle system if the mobile station has a user zone currently 
        selected \n   */
   NAS_AVOID_SYS_IDLE_V01 = 0x01, /**<  Avoid an idle system \n  */
   NAS_AVOID_SYS_CLR_LIST_V01 = 0x02, /**<  Clear all avoid system lists  */
@@ -13383,18 +13578,18 @@ typedef enum {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Facilitates avoiding a CDMA system and clearing the avoided
+/** Request Message; Facilitates avoiding a CDMA system and clearing the avoided 
               systems list. */
 typedef struct {
 
   /* Mandatory */
   /*  Avoid System Information */
   nas_avoid_sys_type_v01 avoid_type;
-  /**<   Avoid system type. Values: \n
-      - NAS_AVOID_SYS_USERZONE (0x00) --  Avoid an idle system if the mobile station has a user zone currently
-       selected \n
-      - NAS_AVOID_SYS_IDLE (0x01) --  Avoid an idle system \n
-      - NAS_AVOID_SYS_CLR_LIST (0x02) --  Clear all avoid system lists
+  /**<   Avoid system type. Values: \n 
+      - NAS_AVOID_SYS_USERZONE (0x00) --  Avoid an idle system if the mobile station has a user zone currently 
+       selected \n  
+      - NAS_AVOID_SYS_IDLE (0x01) --  Avoid an idle system \n 
+      - NAS_AVOID_SYS_CLR_LIST (0x02) --  Clear all avoid system lists 
  */
 }nas_cdma_avoid_system_req_msg_v01;  /* Message */
 /**
@@ -13404,7 +13599,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Facilitates avoiding a CDMA system and clearing the avoided
+/** Response Message; Facilitates avoiding a CDMA system and clearing the avoided 
               systems list. */
 typedef struct {
 
@@ -13418,7 +13613,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_cdma_avoid_system_list_req_msg_v01;
@@ -13480,7 +13675,7 @@ typedef struct {
   /* Mandatory */
   /*  HPLMN Search Timer */
   uint32_t timer_value;
-  /**<   HPLMN search timer (in minutes).
+  /**<   HPLMN search timer (in minutes). 
        A timer value of 0xFFFFFFFF means use the SIM-defined timer.
   */
 }nas_set_hplmn_search_timer_req_msg_v01;  /* Message */
@@ -13508,7 +13703,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_hplmn_search_timer_req_msg_v01;
@@ -13536,7 +13731,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_subscription_info_req_msg_v01;
@@ -13560,8 +13755,8 @@ typedef struct {
   /*  Priority Subscription Info */
   uint8_t is_priority_subs_valid;  /**< Must be set to true if is_priority_subs is being passed */
   nas_is_priority_subs_enum_v01 is_priority_subs;
-  /**<
-       Information on whether the subscription is a priority subscription
+  /**<  
+       Information on whether the subscription is a priority subscription 
        in cases of dual standby. Values: \n
        - 0x00 -- Not a priority subscription \n
        - 0x01 -- Priority subscription
@@ -13571,7 +13766,7 @@ typedef struct {
   /*  Active Subscription Info */
   uint8_t is_active_valid;  /**< Must be set to true if is_active is being passed */
   nas_active_subs_info_enum_v01 is_active;
-  /**<
+  /**<  
        Information on whether the subscription is active. Values: \n
        - 0x00 -- Not active \n
        - 0x01 -- Active
@@ -13581,7 +13776,7 @@ typedef struct {
   /*  Default Data Subscription Info */
   uint8_t is_default_data_subs_valid;  /**< Must be set to true if is_default_data_subs is being passed */
   uint8_t is_default_data_subs;
-  /**<
+  /**<  
        Information on whether the subscription is the default data
        subscription in cases of dual standby. Values: \n
        - 0x00 -- Not a default data subscription \n
@@ -13594,13 +13789,27 @@ typedef struct {
   uint32_t voice_system_id;
   /**<   Voice system ID.
   */
+
+  /* Optional */
+  /*  LTE Voice System ID */
+  uint8_t lte_voice_system_id_valid;  /**< Must be set to true if lte_voice_system_id is being passed */
+  uint32_t lte_voice_system_id;
+  /**<   LTE Voice system ID.
+ */
+
+  /* Optional */
+  /*  WLAN Voice System ID */
+  uint8_t wlan_voice_system_id_valid;  /**< Must be set to true if wlan_voice_system_id is being passed */
+  uint32_t wlan_voice_system_id;
+  /**<   WLAN Voice system ID.
+ */
 }nas_get_subscription_info_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_network_time_req_msg_v01;
@@ -13619,17 +13828,17 @@ typedef struct {
   */
 
   uint8_t daylt_sav_adj;
-  /**<   Daylight saving adjustment in hours. Possible values: 0, 1, and 2. This
+  /**<   Daylight saving adjustment in hours. Possible values: 0, 1, and 2. This 
        field is ignored if radio_if is NAS_RADIO_IF_CDMA_1XEVDO.
   */
 
   /*  Radio Interface */
   nas_radio_if_enum_v01 radio_if;
-  /**<
+  /**<  
     Radio interface from which the information comes. Values: \n
-    - 0x01 -- NAS_RADIO_IF_CDMA_1X     --
+    - 0x01 -- NAS_RADIO_IF_CDMA_1X     -- 
       cdma2000\textsuperscript{\textregistered} 1X             \n
-    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO --
+    - 0x02 -- NAS_RADIO_IF_CDMA_1XEVDO -- 
       cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
     - 0x04 -- NAS_RADIO_IF_GSM         -- GSM \n
     - 0x05 -- NAS_RADIO_IF_UMTS        -- UMTS \n
@@ -13671,7 +13880,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_lte_sib16_network_time_req_msg_v01;
@@ -13744,11 +13953,11 @@ typedef struct {
   /*  LTE SIB16 Coverage Status */
   uint8_t lte_sib16_acquired_valid;  /**< Must be set to true if lte_sib16_acquired is being passed */
   nas_tri_state_boolean_type_v01 lte_sib16_acquired;
-  /**<
+  /**<  
  Whether LTE SIB16 is acquired. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
  */
 
   /* Optional */
@@ -13800,11 +14009,11 @@ typedef struct {
   /*  LTE SIB16 Coverage Status */
   uint8_t lte_sib16_acquired_valid;  /**< Must be set to true if lte_sib16_acquired is being passed */
   nas_tri_state_boolean_type_v01 lte_sib16_acquired;
-  /**<
+  /**<  
  Whether LTE SIB16 is acquired. Values: \n
-      - NAS_TRI_FALSE (0) --  Status: FALSE \n
-      - NAS_TRI_TRUE (1) --  Status: TRUE  \n
-      - NAS_TRI_UNKNOWN (2) --  Status: Unknown
+      - NAS_TRI_FALSE (0) --  Status: FALSE \n 
+      - NAS_TRI_TRUE (1) --  Status: TRUE  \n 
+      - NAS_TRI_UNKNOWN (2) --  Status: Unknown  
  */
 
   /* Optional */
@@ -13856,8 +14065,8 @@ typedef struct {
   /*  LTE Band Priority List */
   uint32_t band_priority_list_len;  /**< Must be set to # of elements in band_priority_list */
   nas_active_band_enum_v01 band_priority_list[NAS_LTE_BAND_PRIORITY_LIST_MAX_V01];
-  /**<   Priority list for LTE bands
-       (see Table @latexonly\ref{tbl:bandClass}@endlatexonly for details).
+  /**<   Priority list for LTE bands 
+       (see Table @latexonly\ref{tbl:bandClass}@endlatexonly for details). 
        Values: \n
        - 120 to 153 -- LTE band classes
   */
@@ -13940,7 +14149,7 @@ typedef struct {
 
   /*  MBSFN Area ID */
   uint8_t area_id;
-  /**<   Multicast Broadcast Single Frequency Network (MBSFN) area ID.
+  /**<   Multicast Broadcast Single Frequency Network (MBSFN) area ID. 
     Values: 0 to 255.
   */
 
@@ -14006,11 +14215,28 @@ typedef struct {
   */
 typedef enum {
   NAS_SCELL_STATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  NAS_LTE_CPHY_SCELL_STATE_DECONFIGURED_V01 = 0x00,
-  NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_DEACTIVATED_V01 = 0x01,
-  NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_ACTIVATED_V01 = 0x02,
+  NAS_LTE_CPHY_SCELL_STATE_DECONFIGURED_V01 = 0x00, /**<  Deconfigured \n  */
+  NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_DEACTIVATED_V01 = 0x01, /**<  Configured and deactivated \n  */
+  NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_ACTIVATED_V01 = 0x02, /**<  Configured and activated  */
   NAS_SCELL_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_scell_state_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_enums
+    @{
+  */
+typedef enum {
+  NAS_LTE_CPHY_CA_BANDWIDTH_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  NAS_LTE_CPHY_CA_BW_NRB_6_V01 = 0x00, /**<  1.4MHz bandwidth \n  */
+  NAS_LTE_CPHY_CA_BW_NRB_15_V01 = 0x01, /**<  3MHz bandwidth \n  */
+  NAS_LTE_CPHY_CA_BW_NRB_25_V01 = 0x02, /**<  5MHz bandwidth \n  */
+  NAS_LTE_CPHY_CA_BW_NRB_50_V01 = 0x03, /**<  10MHz bandwidth \n  */
+  NAS_LTE_CPHY_CA_BW_NRB_75_V01 = 0x04, /**<  15MHz bandwidth \n  */
+  NAS_LTE_CPHY_CA_BW_NRB_100_V01 = 0x05, /**<  20 MHz bandwidth  */
+  NAS_LTE_CPHY_CA_BANDWIDTH_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}nas_lte_cphy_ca_bandwidth_enum_v01;
 /**
     @}
   */
@@ -14029,15 +14255,95 @@ typedef struct {
   */
 
   nas_scell_state_enum_v01 scell_state;
-  /**<   Scell states. Values: \n
-       - 0x00 -- NAS_LTE_CPHY_SCELL_STATE_ DECONFIGURED --
-                 Deconfigured \n
-       - 0x01 -- NAS_LTE_CPHY_SCELL_STATE_ CONFIGURED_DEACTIVATED --
-                 Configured and deactivated \n
-       - 0x02 -- NAS_LTE_CPHY_SCELL_STATE_ CONFIGURED_ACTIVATED --
-                 Configured and activated
-  */
+  /**<   Scell state. Values: \n
+      - NAS_LTE_CPHY_SCELL_STATE_DECONFIGURED (0x00) --  Deconfigured \n 
+      - NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_DEACTIVATED (0x01) --  Configured and deactivated \n 
+      - NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_ACTIVATED (0x02) --  Configured and activated 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
 }nas_lte_cphy_ca_indicator_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint16_t pci;
+  /**<   Physical cell ID of the Scell. Range: 0 to 503.
+  */
+
+  uint16_t freq;
+  /**<   Absolute cell's frequency. Range: 0 to 65535.
+  */
+
+  nas_lte_cphy_ca_bandwidth_enum_v01 cphy_ca_dl_bandwidth;
+  /**<   Downlink bandwidth. Values: \n
+      - NAS_LTE_CPHY_CA_BW_NRB_6 (0x00) --  1.4MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_15 (0x01) --  3MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_25 (0x02) --  5MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_50 (0x03) --  10MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_75 (0x04) --  15MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_100 (0x05) --  20 MHz bandwidth 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+
+  nas_active_band_enum_v01 band;
+  /**<    Band. Values: \n
+        - 120 to 153 -- LTE band classes
+  */
+
+  nas_scell_state_enum_v01 scell_state;
+  /**<   Scell state. Values: \n
+      - NAS_LTE_CPHY_SCELL_STATE_DECONFIGURED (0x00) --  Deconfigured \n 
+      - NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_DEACTIVATED (0x01) --  Configured and deactivated \n 
+      - NAS_LTE_CPHY_SCELL_STATE_CONFIGURED_ACTIVATED (0x02) --  Configured and activated 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+}nas_lte_cphy_scell_info_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint16_t pci;
+  /**<   Physical cell ID of the Pcell. Range: 0 to 503.
+  */
+
+  uint16_t freq;
+  /**<   Absolute cell's frequency. Range: 0 to 65535.
+  */
+
+  nas_lte_cphy_ca_bandwidth_enum_v01 cphy_ca_dl_bandwidth;
+  /**<   Downlink bandwidth. Values: \n
+      - NAS_LTE_CPHY_CA_BW_NRB_6 (0x00) --  1.4MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_15 (0x01) --  3MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_25 (0x02) --  5MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_50 (0x03) --  10MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_75 (0x04) --  15MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_100 (0x05) --  20 MHz bandwidth 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+
+  nas_active_band_enum_v01 band;
+  /**<    Band. Values: \n
+        - 120 to 153 -- LTE band classes
+  */
+}nas_lte_cphy_pcell_info_type_v01;  /* Type */
 /**
     @}
   */
@@ -14051,13 +14357,39 @@ typedef struct {
   /* Mandatory */
   /*  Physical Carrier Aggregation of Scell Indicator Type */
   nas_lte_cphy_ca_indicator_type_v01 cphy_ca;
+
+  /* Optional */
+  /*  Physical Carrier Aggregation Downlink Bandwidth for Scell */
+  uint8_t cphy_ca_dl_bandwidth_valid;  /**< Must be set to true if cphy_ca_dl_bandwidth is being passed */
+  nas_lte_cphy_ca_bandwidth_enum_v01 cphy_ca_dl_bandwidth;
+  /**<   Downlink bandwidth. Values: \n
+      - NAS_LTE_CPHY_CA_BW_NRB_6 (0x00) --  1.4MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_15 (0x01) --  3MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_25 (0x02) --  5MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_50 (0x03) --  10MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_75 (0x04) --  15MHz bandwidth \n 
+      - NAS_LTE_CPHY_CA_BW_NRB_100 (0x05) --  20 MHz bandwidth 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+
+  /* Optional */
+  /*  Scell Information */
+  uint8_t scell_info_valid;  /**< Must be set to true if scell_info is being passed */
+  nas_lte_cphy_scell_info_type_v01 scell_info;
+
+  /* Optional */
+  /*  Pcell Information */
+  uint8_t pcell_info_valid;  /**< Must be set to true if pcell_info is being passed */
+  nas_lte_cphy_pcell_info_type_v01 pcell_info;
 }nas_lte_cphy_ca_ind_msg_v01;  /* Message */
 /**
     @}
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_lte_band_priority_list_req_msg_v01;
@@ -14082,8 +14414,8 @@ typedef struct {
   uint8_t configured_band_priority_list_valid;  /**< Must be set to true if configured_band_priority_list is being passed */
   uint32_t configured_band_priority_list_len;  /**< Must be set to # of elements in configured_band_priority_list */
   nas_active_band_enum_v01 configured_band_priority_list[NAS_LTE_BAND_PRIORITY_LIST_MAX_V01];
-  /**<   List of the user-configured LTE bands, ordered by priority. The ordering
-       of this list overrides the ordering of any bands it shares with
+  /**<   List of the user-configured LTE bands, ordered by priority. The ordering 
+       of this list overrides the ordering of any bands it shares with 
        supported_band_priority_list. Values: \n
        - 120 to 153 -- LTE band classes (see Table @latexonly\ref{tbl:bandClass}@endlatexonly for details)
   */
@@ -14093,7 +14425,7 @@ typedef struct {
   uint8_t supported_band_priority_list_valid;  /**< Must be set to true if supported_band_priority_list is being passed */
   uint32_t supported_band_priority_list_len;  /**< Must be set to # of elements in supported_band_priority_list */
   nas_active_band_enum_v01 supported_band_priority_list[NAS_LTE_BAND_PRIORITY_LIST_MAX_V01];
-  /**<   List of the LTE bands supported by the device, ordered by priority.
+  /**<   List of the LTE bands supported by the device, ordered by priority. 
 	   Values: \n
 	   - 120 to 153 -- LTE band classes (see Table @latexonly\ref{tbl:bandClass}@endlatexonly for details)
   */
@@ -14129,14 +14461,14 @@ typedef struct {
 
   /*  Total List Entries */
   uint32_t total_list_entries;
-  /**<   Total number of OPLMN entries in the list.
-       For example, if the list is a total of 500 entries and is sent in
+  /**<   Total number of OPLMN entries in the list. 
+       For example, if the list is a total of 500 entries and is sent in 
 	   multiple requests, total_list_entries is set to 500 in all requests.
   */
 
   uint32_t oplmn_len;  /**< Must be set to # of elements in oplmn */
   nas_oplmn_entry_type_v01 oplmn[NAS_MAX_BUILTIN_OPLMN_ENTRIES_V01];
-  /**<   OPLMN list. Refer to \hyperref[S7]{[S7]} Section 4.2.53 for coding of PLMN
+  /**<   OPLMN list. Refer to \hyperref[S7]{[S7]} Section 4.2.53 for coding of PLMN 
      and access technology identifier.
   */
 }nas_oplmn_list_type_v01;  /* Type */
@@ -14196,7 +14528,7 @@ typedef struct {
   qmi_error_type_v01 error;
   /**<   Error code. Values: \n
        - 0x0000 -- QMI_ERR_NONE                -- Success \n
-       - 0x0002 -- QMI_ERR_NO_MEMORY           -- Insufficient memory to store
+       - 0x0002 -- QMI_ERR_NO_MEMORY           -- Insufficient memory to store 
                                                   the list \n
        - 0x0003 -- QMI_ERR_INTERNAL            -- Internal error \n
        - 0x002D -- QMI_ERR_INVALID_DATA_FORMAT -- Invalid data format
@@ -14243,7 +14575,7 @@ typedef struct {
        - Bit 2 -- LTE \n
        - Bit 3 -- TD-SCDMA \n
        Any combination of the bit positions can be used.  If the mask is
-       sent with no bits set, the scan is performed using the currently
+       sent with no bits set, the scan is performed using the currently 
        set preference.
     */
 
@@ -14260,18 +14592,18 @@ typedef struct {
   /*  Band Preference */
   uint8_t band_pref_valid;  /**< Must be set to true if band_pref is being passed */
   nas_band_pref_mask_type_v01 band_pref;
-  /**<   Bitmask representing the band preference to be scanned.
-       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the band preference to be scanned.  
+       See Table @latexonly\ref{tbl:bandPreference}@endlatexonly 
+       for details.   
   */
 
   /* Optional */
   /*  LTE Band Preference */
   uint8_t lte_band_pref_valid;  /**< Must be set to true if lte_band_pref is being passed */
   lte_band_pref_mask_type_v01 lte_band_pref;
-  /**<   Bitmask representing the LTE band preference to be scanned.
-       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the LTE band preference to be scanned. 
+       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly 
+       for details.  
   */
 
   /* Optional */
@@ -14279,12 +14611,12 @@ typedef struct {
   uint8_t tdscdma_band_pref_valid;  /**< Must be set to true if tdscdma_band_pref is being passed */
   nas_tdscdma_band_pref_mask_type_v01 tdscdma_band_pref;
   /**<   Bitmask representing the TD-SCDMA band preference to be scanned. Values: \n
-      - NAS_TDSCDMA_BAND_A (0x01) --  TD-SCDMA Band A \n
-      - NAS_TDSCDMA_BAND_B (0x02) --  TD-SCDMA Band B \n
-      - NAS_TDSCDMA_BAND_C (0x04) --  TD-SCDMA Band C \n
-      - NAS_TDSCDMA_BAND_D (0x08) --  TD-SCDMA Band D \n
-      - NAS_TDSCDMA_BAND_E (0x10) --  TD-SCDMA Band E \n
-      - NAS_TDSCDMA_BAND_F (0x20) --  TD-SCDMA Band F
+      - NAS_TDSCDMA_BAND_A (0x01) --  TD-SCDMA Band A \n 
+      - NAS_TDSCDMA_BAND_B (0x02) --  TD-SCDMA Band B \n 
+      - NAS_TDSCDMA_BAND_C (0x04) --  TD-SCDMA Band C \n 
+      - NAS_TDSCDMA_BAND_D (0x08) --  TD-SCDMA Band D \n 
+      - NAS_TDSCDMA_BAND_E (0x10) --  TD-SCDMA Band E \n 
+      - NAS_TDSCDMA_BAND_F (0x20) --  TD-SCDMA Band F 
 
  \vspace{3pt}
  All other bits are reserved and must be set to 0.
@@ -14303,7 +14635,7 @@ typedef struct {
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type.
+  /**<   Standard response type. 
  Standard response type. Contains the following data members:
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
      - qmi_error_type  -- Error code. Possible error code values are described in
@@ -14322,7 +14654,7 @@ typedef enum {
   NAS_SCAN_STATUS_COMPLETE_V01 = 0x00, /**<  Network scan was successful and complete \n  */
   NAS_SCAN_STATUS_PARTIAL_V01 = 0x01, /**<  Network scan was partial \n  */
   NAS_SCAN_STATUS_ABORT_V01 = 0x02, /**<  Network scan was aborted \n  */
-  NAS_SCAN_STATUS_REJ_IN_RLF_V01 = 0x03, /**<   Network scan did not complete due
+  NAS_SCAN_STATUS_REJ_IN_RLF_V01 = 0x03, /**<   Network scan did not complete due 
         to a radio link failure recovery in progress  */
   NAS_SCAN_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }nas_scan_status_enum_v01;
@@ -14350,7 +14682,7 @@ typedef struct {
        - 0 -- QMI_NAS_NETWORK_IN_USE_STATUS_ UNKNOWN          -- Unknown         \n
        - 1 -- QMI_NAS_NETWORK_IN_USE_STATUS_ CURRENT_SERVING  -- Current serving \n
        - 2 -- QMI_NAS_NETWORK_IN_USE_STATUS_ AVAILABLE        -- Available
-
+       
        Bits 2-3 -- QMI_NAS_NETWORK_ROAMING_ STATUS_BITS   -- Roaming status      \n
        - 0 -- QMI_NAS_NETWORK_ROAMING_ STATUS_UNKNOWN         -- Unknown         \n
        - 1 -- QMI_NAS_NETWORK_ROAMING_ STATUS_HOME            -- Home            \n
@@ -14372,18 +14704,18 @@ typedef struct {
        - 0x04 -- GERAN \n
        - 0x05 -- UMTS \n
        - 0x08 -- LTE \n
-       - 0x09 -- TD-SCDMA
+       - 0x09 -- TD-SCDMA 
   */
 
   /*  MNC PCS Digit Include Status */
   uint8_t mnc_includes_pcs_digit;
   /**<   This field is used to interpret the length of the corresponding
-       MNC reported in the TLVs (in this table) with an mnc or
+       MNC reported in the TLVs (in this table) with an mnc or 
        mobile_network_code field. Values: \n
 
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90
   */
 
@@ -14405,11 +14737,11 @@ typedef struct {
   /*  Network Scan Status */
   nas_scan_status_enum_v01 scan_status;
   /**<   Indicates the status of the network scan. Values: \n
-      - NAS_SCAN_STATUS_COMPLETE (0x00) --  Network scan was successful and complete \n
-      - NAS_SCAN_STATUS_PARTIAL (0x01) --  Network scan was partial \n
-      - NAS_SCAN_STATUS_ABORT (0x02) --  Network scan was aborted \n
-      - NAS_SCAN_STATUS_REJ_IN_RLF (0x03) --   Network scan did not complete due
-        to a radio link failure recovery in progress
+      - NAS_SCAN_STATUS_COMPLETE (0x00) --  Network scan was successful and complete \n 
+      - NAS_SCAN_STATUS_PARTIAL (0x01) --  Network scan was partial \n 
+      - NAS_SCAN_STATUS_ABORT (0x02) --  Network scan was aborted \n 
+      - NAS_SCAN_STATUS_REJ_IN_RLF (0x03) --   Network scan did not complete due 
+        to a radio link failure recovery in progress 
  */
 
   /* Optional */
@@ -14454,11 +14786,11 @@ typedef struct {
   /*  DRX */
   nas_drx_enum_v01 drx;
   /**<   DRX setting for the device. Values: \n
-      - NAS_DRX_UNKNOWN (0x00) --  DRX is not specified \n
-      - NAS_DRX_CN6_T32 (0x06) --  \n CN = 6, T = 32 \n
-      - NAS_DRX_CN7_T64 (0x07) --  \n CN = 7, T = 64 \n
-      - NAS_DRX_CN8_T128 (0x08) --  \n CN = 8, T = 128 \n
-      - NAS_DRX_CN9_T256 (0x09) --  \n CN = 9, T = 256
+      - NAS_DRX_UNKNOWN (0x00) --  DRX is not specified \n 
+      - NAS_DRX_CN6_T32 (0x06) --  \n CN = 6, T = 32 \n 
+      - NAS_DRX_CN7_T64 (0x07) --  \n CN = 7, T = 64 \n 
+      - NAS_DRX_CN8_T128 (0x08) --  \n CN = 8, T = 128 \n 
+      - NAS_DRX_CN9_T256 (0x09) --  \n CN = 9, T = 256 
  */
 }nas_set_drx_req_msg_v01;  /* Message */
 /**
@@ -14485,7 +14817,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_drx_req_msg_v01;
@@ -14510,11 +14842,11 @@ typedef struct {
   uint8_t drx_valid;  /**< Must be set to true if drx is being passed */
   nas_drx_enum_v01 drx;
   /**<   DRX setting for the device. Values: \n
-      - NAS_DRX_UNKNOWN (0x00) --  DRX is not specified \n
-      - NAS_DRX_CN6_T32 (0x06) --  \n CN = 6, T = 32 \n
-      - NAS_DRX_CN7_T64 (0x07) --  \n CN = 7, T = 64 \n
-      - NAS_DRX_CN8_T128 (0x08) --  \n CN = 8, T = 128 \n
-      - NAS_DRX_CN9_T256 (0x09) --  \n CN = 9, T = 256
+      - NAS_DRX_UNKNOWN (0x00) --  DRX is not specified \n 
+      - NAS_DRX_CN6_T32 (0x06) --  \n CN = 6, T = 32 \n 
+      - NAS_DRX_CN7_T64 (0x07) --  \n CN = 7, T = 64 \n 
+      - NAS_DRX_CN8_T128 (0x08) --  \n CN = 8, T = 128 \n 
+      - NAS_DRX_CN9_T256 (0x09) --  \n CN = 9, T = 256 
  */
 }nas_get_drx_resp_msg_v01;  /* Message */
 /**
@@ -14581,8 +14913,8 @@ typedef enum {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Configures the CSG search and selection parameters, and triggers
-              an immediate periodic search and selection based on the
+/** Request Message; Configures the CSG search and selection parameters, and triggers 
+              an immediate periodic search and selection based on the 
               configured parameters. */
 typedef struct {
 
@@ -14591,8 +14923,8 @@ typedef struct {
   uint8_t rat_valid;  /**< Must be set to true if rat is being passed */
   nas_radio_if_enum_v01 rat;
   /**<   Radio access technology. Values: \n
-      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n
-      - NAS_RADIO_IF_LTE (0x08) --  LTE \n
+      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n 
+      - NAS_RADIO_IF_LTE (0x08) --  LTE \n 
  */
 
   /* Optional */
@@ -14600,7 +14932,7 @@ typedef struct {
   uint8_t search_timer_valid;  /**< Must be set to true if search_timer is being passed */
   uint32_t search_timer;
   /**<   Periodic search timer in minutes.
-       Timer value 0 means the periodic search is disabled and no immediate search
+       Timer value 0 means the periodic search is disabled and no immediate search 
        is performed.
     */
 
@@ -14609,38 +14941,38 @@ typedef struct {
   uint8_t search_type_valid;  /**< Must be set to true if search_type is being passed */
   nas_csg_search_type_enum_type_v01 search_type;
   /**<   Periodic search type. Values: \n
-      - NAS_CSG_SEARCH_TYPE_HOME_ONLY (0) --  Home only \n
-      - NAS_CSG_SEARCH_TYPE_ALL (1) --  All
+      - NAS_CSG_SEARCH_TYPE_HOME_ONLY (0) --  Home only \n 
+      - NAS_CSG_SEARCH_TYPE_ALL (1) --  All 
  */
 
   /* Optional */
   /*  CSG Search UMTS Band Preference */
   uint8_t umts_band_pref_valid;  /**< Must be set to true if umts_band_pref is being passed */
   nas_band_pref_mask_type_v01 umts_band_pref;
-  /**<   Bitmask representing the band preference to be scanned.
-       Values: \n
-       - Bit 22 to Bit 59 -- See Table @latexonly\ref{tbl:bandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the band preference to be scanned.  
+       Values: \n 
+       - Bit 22 to Bit 59 -- See Table @latexonly\ref{tbl:bandPreference}@endlatexonly 
+       for details.   
   */
 
   /* Optional */
   /*  CSG Search LTE Band Preference */
   uint8_t lte_band_pref_valid;  /**< Must be set to true if lte_band_pref is being passed */
   lte_band_pref_mask_type_v01 lte_band_pref;
-  /**<   Bitmask representing the LTE band preference to be scanned.
-       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the LTE band preference to be scanned. 
+       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly 
+       for details.  
   */
 
   /* Optional */
   /*  CSG Selection Category List */
   uint8_t csg_cat_list_valid;  /**< Must be set to true if csg_cat_list is being passed */
   nas_csg_list_category_mask_type_v01 csg_cat_list;
-  /**<   Bitmask representing Operator CSG List (OCSGL),
+  /**<   Bitmask representing Operator CSG List (OCSGL), 
  Allowed CSG List (ACSGL), or others. Values: \n
-      - NAS_CSG_LIST_CAT_OPERATOR_MASK (0x01) --  Operator \n
-      - NAS_CSG_LIST_CAT_ALLOWED_MASK (0x02) --  Allowed \n
-      - NAS_CSG_LIST_CAT_OTHERS_MASK (0x04) --  Others
+      - NAS_CSG_LIST_CAT_OPERATOR_MASK (0x01) --  Operator \n 
+      - NAS_CSG_LIST_CAT_ALLOWED_MASK (0x02) --  Allowed \n 
+      - NAS_CSG_LIST_CAT_OTHERS_MASK (0x04) --  Others 
  */
 
   /* Optional */
@@ -14648,10 +14980,10 @@ typedef struct {
   uint8_t sort_type_valid;  /**< Must be set to true if sort_type is being passed */
   nas_csg_sort_preference_enum_type_v01 sort_type;
   /**<   CSG sort preference type. Values: \n
-      - NAS_CSG_SORT_PREF_RAT_ONLY (0) --  RAT only \n
-      - NAS_CSG_SORT_PREF_SIGNAL_ONLY (1) --  Signal only \n
-      - NAS_CSG_SORT_PREF_RAT_THEN_SIGNAL (2) --  RAT then signal \n
-      - NAS_CSG_SORT_PREF_SIGNAL_THEN_RAT (3) --  Signal then RAT
+      - NAS_CSG_SORT_PREF_RAT_ONLY (0) --  RAT only \n 
+      - NAS_CSG_SORT_PREF_SIGNAL_ONLY (1) --  Signal only \n 
+      - NAS_CSG_SORT_PREF_RAT_THEN_SIGNAL (2) --  RAT then signal \n 
+      - NAS_CSG_SORT_PREF_SIGNAL_THEN_RAT (3) --  Signal then RAT 
  */
 
   /* Optional */
@@ -14660,8 +14992,8 @@ typedef struct {
   uint32_t rat_list_len;  /**< Must be set to # of elements in rat_list */
   nas_radio_if_enum_v01 rat_list[NAS_CSG_RAT_LIST_MAX_LEN_V01];
   /**<   Sort based on the RAT priority list. Values: \n
-      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n
-      - NAS_RADIO_IF_LTE (0x08) --  LTE \n
+      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n 
+      - NAS_RADIO_IF_LTE (0x08) --  LTE \n 
  */
 
   /* Optional */
@@ -14669,8 +15001,8 @@ typedef struct {
   uint8_t sort_signal_type_valid;  /**< Must be set to true if sort_signal_type is being passed */
   nas_csg_sort_signal_enum_type_v01 sort_signal_type;
   /**<   Sort signal type. Values: \n
-      - NAS_CSG_SORT_SIGNAL_DEC_STRENGTH (0) --  Decreasing strength \n
-      - NAS_CSG_SORT_SIGNAL_RANDOM (1) --  Random
+      - NAS_CSG_SORT_SIGNAL_DEC_STRENGTH (0) --  Decreasing strength \n 
+      - NAS_CSG_SORT_SIGNAL_RANDOM (1) --  Random 
  */
 
   /* Optional */
@@ -14678,7 +15010,7 @@ typedef struct {
   uint8_t selection_config_type_valid;  /**< Must be set to true if selection_config_type is being passed */
   nas_csg_selection_config_enum_type_v01 selection_config_type;
   /**<   CSG selection configuration type. Values: \n
-      - NAS_CSG_SELECTION_CONFIG_1 (0) --  Configuration 1
+      - NAS_CSG_SELECTION_CONFIG_1 (0) --  Configuration 1 
  */
 
   /* Optional */
@@ -14697,15 +15029,15 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Configures the CSG search and selection parameters, and triggers
-              an immediate periodic search and selection based on the
+/** Response Message; Configures the CSG search and selection parameters, and triggers 
+              an immediate periodic search and selection based on the 
               configured parameters. */
 typedef struct {
 
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type.
+  /**<   Standard response type. 
  Standard response type. Contains the following data members:
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
      - qmi_error_type  -- Error code. Possible error code values are described in
@@ -14717,7 +15049,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_csg_immediate_search_selection_req_msg_v01;
@@ -14725,14 +15057,14 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Triggers an immediate CSG search and selection based on already
+/** Response Message; Triggers an immediate CSG search and selection based on already 
               configured parameters. */
 typedef struct {
 
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type.
+  /**<   Standard response type. 
  Standard response type. Contains the following data members:
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
      - qmi_error_type  -- Error code. Possible error code values are described in
@@ -14744,7 +15076,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_csg_search_selection_configuration_req_msg_v01;
@@ -14769,8 +15101,8 @@ typedef struct {
   uint8_t rat_valid;  /**< Must be set to true if rat is being passed */
   nas_radio_if_enum_v01 rat;
   /**<   Radio access technology. Values: \n
-      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n
-      - NAS_RADIO_IF_LTE (0x08) --  LTE \n
+      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n 
+      - NAS_RADIO_IF_LTE (0x08) --  LTE \n 
  */
 
   /* Optional */
@@ -14778,7 +15110,7 @@ typedef struct {
   uint8_t search_timer_valid;  /**< Must be set to true if search_timer is being passed */
   uint32_t search_timer;
   /**<   Periodic search timer in minutes.
-       Timer value 0 means the periodic search is disabled and no immediate search
+       Timer value 0 means the periodic search is disabled and no immediate search 
        is performed.
     */
 
@@ -14787,27 +15119,27 @@ typedef struct {
   uint8_t search_type_valid;  /**< Must be set to true if search_type is being passed */
   nas_csg_search_type_enum_type_v01 search_type;
   /**<   Periodic search type. Values: \n
-      - NAS_CSG_SEARCH_TYPE_HOME_ONLY (0) --  Home only \n
-      - NAS_CSG_SEARCH_TYPE_ALL (1) --  All
+      - NAS_CSG_SEARCH_TYPE_HOME_ONLY (0) --  Home only \n 
+      - NAS_CSG_SEARCH_TYPE_ALL (1) --  All 
  */
 
   /* Optional */
   /*  CSG Search UMTS Band Preference */
   uint8_t umts_band_pref_valid;  /**< Must be set to true if umts_band_pref is being passed */
   nas_band_pref_mask_type_v01 umts_band_pref;
-  /**<   Bitmask representing the band preference to be scanned.
+  /**<   Bitmask representing the band preference to be scanned.  
        Values: \n
-       - Bit 22 to Bit 59 -- See Table @latexonly\ref{tbl:bandPreference}@endlatexonly
-       for details.
+       - Bit 22 to Bit 59 -- See Table @latexonly\ref{tbl:bandPreference}@endlatexonly 
+       for details.   
   */
 
   /* Optional */
   /*  CSG Search LTE Band Preference */
   uint8_t lte_band_pref_valid;  /**< Must be set to true if lte_band_pref is being passed */
   lte_band_pref_mask_type_v01 lte_band_pref;
-  /**<   Bitmask representing the LTE band preference to be scanned.
-       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly
-       for details.
+  /**<   Bitmask representing the LTE band preference to be scanned. 
+       See Table @latexonly\ref{tbl:lteBandPreference}@endlatexonly 
+       for details.  
   */
 
   /* Optional */
@@ -14815,9 +15147,9 @@ typedef struct {
   uint8_t csg_cat_list_valid;  /**< Must be set to true if csg_cat_list is being passed */
   nas_csg_list_category_mask_type_v01 csg_cat_list;
   /**<   Bitmask representing OCSGL/ACSGL/OTHERS. Values: \n
-      - NAS_CSG_LIST_CAT_OPERATOR_MASK (0x01) --  Operator \n
-      - NAS_CSG_LIST_CAT_ALLOWED_MASK (0x02) --  Allowed \n
-      - NAS_CSG_LIST_CAT_OTHERS_MASK (0x04) --  Others
+      - NAS_CSG_LIST_CAT_OPERATOR_MASK (0x01) --  Operator \n 
+      - NAS_CSG_LIST_CAT_ALLOWED_MASK (0x02) --  Allowed \n 
+      - NAS_CSG_LIST_CAT_OTHERS_MASK (0x04) --  Others 
  */
 
   /* Optional */
@@ -14825,10 +15157,10 @@ typedef struct {
   uint8_t sort_type_valid;  /**< Must be set to true if sort_type is being passed */
   nas_csg_sort_preference_enum_type_v01 sort_type;
   /**<   Sort type. Values: \n
-      - NAS_CSG_SORT_PREF_RAT_ONLY (0) --  RAT only \n
-      - NAS_CSG_SORT_PREF_SIGNAL_ONLY (1) --  Signal only \n
-      - NAS_CSG_SORT_PREF_RAT_THEN_SIGNAL (2) --  RAT then signal \n
-      - NAS_CSG_SORT_PREF_SIGNAL_THEN_RAT (3) --  Signal then RAT
+      - NAS_CSG_SORT_PREF_RAT_ONLY (0) --  RAT only \n 
+      - NAS_CSG_SORT_PREF_SIGNAL_ONLY (1) --  Signal only \n 
+      - NAS_CSG_SORT_PREF_RAT_THEN_SIGNAL (2) --  RAT then signal \n 
+      - NAS_CSG_SORT_PREF_SIGNAL_THEN_RAT (3) --  Signal then RAT 
  */
 
   /* Optional */
@@ -14837,8 +15169,8 @@ typedef struct {
   uint32_t rat_list_len;  /**< Must be set to # of elements in rat_list */
   nas_radio_if_enum_v01 rat_list[NAS_CSG_RAT_LIST_MAX_LEN_V01];
   /**<   Sort based on the RAT priority list. Values: \n
-      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n
-      - NAS_RADIO_IF_LTE (0x08) --  LTE \n
+      - NAS_RADIO_IF_UMTS (0x05) --  UMTS \n 
+      - NAS_RADIO_IF_LTE (0x08) --  LTE \n 
  */
 
   /* Optional */
@@ -14846,8 +15178,8 @@ typedef struct {
   uint8_t sort_signal_type_valid;  /**< Must be set to true if sort_signal_type is being passed */
   nas_csg_sort_signal_enum_type_v01 sort_signal_type;
   /**<   Sort signal type. Values: \n
-      - NAS_CSG_SORT_SIGNAL_DEC_STRENGTH (0) --  Decreasing strength \n
-      - NAS_CSG_SORT_SIGNAL_RANDOM (1) --  Random
+      - NAS_CSG_SORT_SIGNAL_DEC_STRENGTH (0) --  Decreasing strength \n 
+      - NAS_CSG_SORT_SIGNAL_RANDOM (1) --  Random 
  */
 
   /* Optional */
@@ -14855,7 +15187,7 @@ typedef struct {
   uint8_t selection_config_type_valid;  /**< Must be set to true if selection_config_type is being passed */
   nas_csg_selection_config_enum_type_v01 selection_config_type;
   /**<   CSG selection configuration type. Values: \n
-      - NAS_CSG_SELECTION_CONFIG_1 (0) --  Configuration 1
+      - NAS_CSG_SELECTION_CONFIG_1 (0) --  Configuration 1 
  */
 
   /* Optional */
@@ -14905,8 +15237,8 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Indication Message; Indicates service-specific access class barring information for
-             MMTEL voice/video originating calls.(Deprecated) */
+/** Indication Message; Indicates Service-Specific Access Class (SSAC) barring information 
+             for MMTEL voice/video originating calls. (Deprecated) */
 typedef struct {
 
   /* Optional */
@@ -14919,7 +15251,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_lte_embms_info_req_msg_v01;
@@ -14930,17 +15262,17 @@ typedef struct {
 typedef struct {
 
   uint8_t mbsfn_area_id;
+  /**<   Multicast broadcast single frequency network area ID from SIB13. 
+       Values: 0 to 255.
+  */
 
-  /*  Multicast Broadcast Single Frequency Network (MBSFN) area ID from SIB13
-      (System Information Block 13).
-    Values: 0 to 255.
-   */
   uint8_t pmch_id;
+  /**<   Physical multicast channel ID. 
+       Values: 1 to 15.
+  */
 
-  /*  Physical Multicast Channel ID.
-    Values: 1 to 15.
-   */
   uint8_t data_mcs;
+  /**<   Data modulation and coding scheme for the physical multicast channel. */
 }nas_pmch_datamcs_info_type_v01;  /* Type */
 /**
     @}
@@ -14949,33 +15281,35 @@ typedef struct {
 /** @addtogroup nas_qmi_aggregates
     @{
   */
+/**  Current signal strength information for a MBSFN (Multicast Broadcast 
+  Single Frequency Network) area. 
+ */
 typedef struct {
 
   /*  MBSFN Area ID */
   uint8_t area_id;
+  /**<   Multicast broadcast single frequency network area ID.
+       Values: 0 to 255.
+  */
 
-  /*  Multimedia Broadcast multicast service Single Frequency Network (MBSFN)
-      area ID.
-   Values: 0 to 255.
-
- SNR */
+  /*  SNR */
   int16_t snr;
-  /**<   The average SNR of the serving cell over last measurement period in dB
-       Q3[2^3] format.
-       Values: -10 to 30
+  /**<   Average SNR of the serving cell over the last measurement period in 
+       dB Q3[2^3] format.
+       Values: -10 to 30.
   */
 
   /*  Excess SNR */
   int16_t excess_snr;
-  /**<   The excess SNR of the serving cell over last measurement period in dB
-       Q3[2^3] format.
-       Values: -10 to 30
+  /**<   Excess SNR of the serving cell over the last measurement period in 
+       dB Q3[2^3] format.
+       Values: -10 to 30 
   */
 
   /*  Signal level */
   int8_t signal_level;
-  /**<   The signal level of the serving cell over last measurement period.
-       Values: Range 0 to 5 */
+  /**<   Signal level of the serving cell over the last measurement period.
+       Range: 0 to 5. */
 }nas_lte_mbsfn_area_signal_strength_info_type_v01;  /* Type */
 /**
     @}
@@ -14984,22 +15318,24 @@ typedef struct {
 /** @addtogroup nas_qmi_aggregates
     @{
   */
-/**  LTE PMCH (Physical Multicast Channel) BLER information
+/**  LTE PMCH (Physical Multicast Channel) BLER information 
  */
 typedef struct {
 
   /*  PMCH ID */
   uint32_t pmch_id;
+  /**<   Physical multicast channel ID. 
+  */
 
-  /*  Physical Multicast Channel ID.
-
- Number of CRC passes */
+  /*  Number of CRC passes */
   uint32_t num_crc_pass;
+  /**<   Number of CRC passes. 
+  */
 
-  /*  Number of CRC passes.
-
-Number of CRC failures */
+  /* Number of CRC failures */
   uint32_t num_crc_fail;
+  /**<   Number of CRC failures.
+   */
 }nas_lte_pmch_bler_info_type_v01;  /* Type */
 /**
     @}
@@ -15008,14 +15344,14 @@ Number of CRC failures */
 /** @addtogroup nas_qmi_aggregates
     @{
   */
-/**  LTE PMCH information for an area.
+/**  LTE PMCH information for an area. 
  */
 typedef struct {
 
   uint16_t area_id;
+  /**<   Area ID.
+   */
 
-  /*  Area ID.
-    */
   uint32_t pmch_bler_len;  /**< Must be set to # of elements in pmch_bler */
   nas_lte_pmch_bler_info_type_v01 pmch_bler[NAS_LTE_PMCH_PER_MBSFN_AREA_MAX_V01];
 }nas_lte_ml1_pmch_bler_per_area_info_type_v01;  /* Type */
@@ -15026,23 +15362,25 @@ typedef struct {
 /** @addtogroup nas_qmi_aggregates
     @{
   */
-/**  MTCH (Multicast traffic channel) information
+/**  MTCH (Multicast Traffic Channel) information 
  */
 typedef struct {
 
   uint8_t area_id;
+  /**<   Multicast broadcast single frequency network area ID.
+  */
 
-  /*  MBSFN area identity
-   */
   uint8_t pmch_id;
-
-  /*  PMCH identity
-    */
-  uint8_t lc_id;
-
-  /*  Logical channel identity
+  /**<   Physical multicast channel ID.
    */
+
+  uint8_t lc_id;
+  /**<   Logical channel ID. 
+  */
+
   uint64_t num_mtch_tb_bytes;
+  /**<   Number of received bytes for the multicast traffic channel transport block.
+  */
 }nas_mtch_info_s_v01;  /* Type */
 /**
     @}
@@ -15051,7 +15389,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Retrieves LTE EMBMS statistics */
+/** Response Message; Retrieves the LTE eMBMS statistics. */
 typedef struct {
 
   /* Mandatory */
@@ -15064,7 +15402,7 @@ typedef struct {
   */
 
   /* Optional */
-  /*  EMBMS Coverage Status */
+  /*  eMBMS Coverage Status */
   uint8_t coverage_status_valid;  /**< Must be set to true if coverage_status is being passed */
   uint8_t coverage_status;
   /**<   eMBMS coverage status. Values: \n
@@ -15073,41 +15411,38 @@ typedef struct {
   */
 
   /* Optional */
-  /*  Physical Multicast Channel(PMCH) Data MCS Information. */
+  /*  Physical Multicast Channel Data MCS Information */
   uint8_t pmch_data_mcs_valid;  /**< Must be set to true if pmch_data_mcs is being passed */
   uint32_t pmch_data_mcs_len;  /**< Must be set to # of elements in pmch_data_mcs */
   nas_pmch_datamcs_info_type_v01 pmch_data_mcs[NAS_LTE_ACTIVE_PMCH_MAX_V01];
-  /**<   Physical Multicast Channel(PMCH) Data MCS of all PMCHs actively being monitored.
+  /**<   \n
+       (PMCH data modulation and coding scheme of all PMCHs actively monitored)
     */
 
   /* Optional */
-  /*  Temporary Mobile Group Identity (TMGI) Active Status */
+  /*  Temporary Mobile Group Identity Active Status */
   uint8_t is_active_tmgi_valid_valid;  /**< Must be set to true if is_active_tmgi_valid is being passed */
   uint8_t is_active_tmgi_valid;
-
-  /* Optional */
-  /* Indicates if there is any activated Temporary Mobile Group Identity (TMGI).
-      Values:
+  /**<   Indicates whether there is any activated temporary mobile group identity. 
+       Values: \n
        - TRUE  -- Enabled \n
        - FALSE -- Disabled
+  */
 
- Signal Quality Information */
+  /* Optional */
+  /*  Signal Quality Information */
   uint8_t mbsfn_area_signal_data_valid;  /**< Must be set to true if mbsfn_area_signal_data is being passed */
   uint32_t mbsfn_area_signal_data_len;  /**< Must be set to # of elements in mbsfn_area_signal_data */
   nas_lte_mbsfn_area_signal_strength_info_type_v01 mbsfn_area_signal_data[NAS_LTE_EMBMS_MBSFN_AREAS_MAX_V01];
 
   /* Optional */
-  /*  Signal quality information
-
- Physical Multicast Channel(PMCH) BLER Information */
+  /*  Physical Multicast Channel BLER Information */
   uint8_t pmch_bler_info_valid;  /**< Must be set to true if pmch_bler_info is being passed */
   uint32_t pmch_bler_info_len;  /**< Must be set to # of elements in pmch_bler_info */
   nas_lte_ml1_pmch_bler_per_area_info_type_v01 pmch_bler_info[NAS_LTE_EMBMS_MBSFN_AREAS_MAX_V01];
 
   /* Optional */
-  /*  PMCH BLER information
-
- Multicast Traffic Channel(MTCH) Information */
+  /*  Multicast Traffic Channel Information */
   uint8_t mtch_info_valid;  /**< Must be set to true if mtch_info is being passed */
   uint32_t mtch_info_len;  /**< Must be set to # of elements in mtch_info */
   nas_mtch_info_s_v01 mtch_info[NAS_LTE_EMBMS_ACTIVE_SESSIONS_MAX_V01];
@@ -15125,8 +15460,8 @@ typedef struct {
   /* Mandatory */
   /*  SIB Number */
   uint8_t sib_num;
-  /**<   Serving cell SIB number to be interrogated for.
-       Valid values may range from 1 to 16
+  /**<   Serving cell SIB number for which to interrogate.
+       Valid values may range from 1 to 16.
   */
 }nas_get_serv_cell_sib_req_msg_v01;  /* Message */
 /**
@@ -15152,7 +15487,7 @@ typedef struct {
   /*  SIB Length */
   uint8_t total_size_valid;  /**< Must be set to true if total_size is being passed */
   uint16_t total_size;
-  /**<   Total length of the serving cell SIB interrogated for in bytes.
+  /**<   Total length (in bytes) of the interrogated serving cell SIB.
   */
 }nas_get_serv_cell_sib_resp_msg_v01;  /* Message */
 /**
@@ -15168,8 +15503,8 @@ typedef struct {
   /* Mandatory */
   /*  Sequence Number */
   uint8_t sequence;
-  /**<   Sequence number of this indication. Sequence number 0 indicates that
-       this indication is the start of a new sequence. The sequence number
+  /**<   Sequence number of this indication. Sequence number 0 indicates that 
+       this indication is the start of a new sequence. The sequence number 
        increments for each successive indication of a sequence.
   */
 
@@ -15177,7 +15512,7 @@ typedef struct {
   /*  SIB Packet */
   uint32_t sib_pkt_len;  /**< Must be set to # of elements in sib_pkt */
   uint8_t sib_pkt[NAS_GET_SERV_CELL_SIB_MAX_V01];
-  /**<   Packet of SIB data. May contain up to 4000 characters.
+  /**<   Packet of SIB data; may contain up to 4000 characters.
   */
 }nas_get_serv_cell_sib_ind_msg_v01;  /* Message */
 /**
@@ -15192,15 +15527,16 @@ typedef struct {
   /*  Access Barring Factor for MMTEL Voice Calls */
   uint8_t barring_factor_voice;
   /**<   Access barring factor for voice calls. Range: 0 to 100.
-       Value 100 is used when UE goes to LTE connected state. Value 0xFF indicates invalid.
+       Value 100 is used when the UE goes to the LTE Connected state. 
+       Value 0xFF indicates Invalid.
        All values are per \hyperref[S21]{[S21]}.
   */
 
   /*  Access Barring Time for MMTEL Voice Calls */
   uint16_t barring_time_voice;
-  /**<   Access barring time in seconds for voice calls. Range: 0 to 512.
-       Value 0 is used when UE goes to LTE connected state.
-       Value 0xFFFF indicates invalid.
+  /**<   Access barring time (in seconds) for voice calls. Range: 0 to 512.
+       Value 0 is used when the UE goes to the LTE Connected state.
+       Value 0xFFFF indicates Invalid.
   */
 }nas_ssac_voice_info_type_v01;  /* Type */
 /**
@@ -15215,15 +15551,16 @@ typedef struct {
   /*  Access Barring Factor for MMTEL Video Calls */
   uint8_t barring_factor_video;
   /**<   Access barring factor for video calls. Range: 0 to 100.
-       Value 100 is used when UE goes to LTE connected state. Value 0xFF indicates invalid.
+       Value 100 is used when the UE goes to the LTE Connected state. 
+       Value 0xFF indicates Invalid. 
        All values are per \hyperref[S21]{[S21]}.
   */
 
   /*  Access Barring Time for MMTEL Video Calls */
   uint16_t barring_time_video;
-  /**<   Access barring time in seconds for video calls. Range: 0 to 512.
-       Value 0 is used when UE goes to LTE connected state.
-       Value 0xFFFF indicates invalid.
+  /**<   Access barring time (in seconds) for video calls. Range: 0 to 512.
+       Value 0 is used when the UE goes to the LTE Connected state.
+       Value 0xFFFF indicates Invalid.
   */
 }nas_ssac_video_info_type_v01;  /* Type */
 /**
@@ -15233,8 +15570,9 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Indication Message; Indicates change in service-specific access class barring information for
-             MMTEL voice/video originating calls. */
+/** Indication Message; Indicates a change in SSAC class barring information for 
+             MMTEL voice/video originating calls.
+             \label{idl:ssacChangeInfo} */
 typedef struct {
 
   /* Optional */
@@ -15252,7 +15590,7 @@ typedef struct {
   */
 
 typedef struct {
-  /* This element is a placeholder to prevent the declaration of
+  /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }nas_get_ssac_info_req_msg_v01;
@@ -15260,8 +15598,8 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Retrieves the service-specific access class barring information for
-              MMTEL voice/video originating calls.. */
+/** Response Message; Retrieves the SSAC barring information for MMTEL voice/video 
+              originating calls. */
 typedef struct {
 
   /* Mandatory */
@@ -15290,13 +15628,13 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Request Message; Enables or disables periodic search */
+/** Request Message; Enables or disables a periodic search. */
 typedef struct {
 
   /* Mandatory */
   /*  Periodic Search Allowed */
   uint8_t allowed;
-  /**<   Indicates periodic search is allowed or not.
+  /**<   Whether a periodic search is allowed. 
        Values: \n
        - TRUE  -- Enabled \n
        - FALSE -- Disabled
@@ -15309,7 +15647,7 @@ typedef struct {
 /** @addtogroup nas_qmi_messages
     @{
   */
-/** Response Message; Enables or disables periodic search */
+/** Response Message; Enables or disables a periodic search. */
 typedef struct {
 
   /* Mandatory */
@@ -15324,6 +15662,711 @@ typedef struct {
 /**
     @}
   */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates a change in the T3402 timer value. */
+typedef struct {
+
+  /* Optional */
+  /*  T3402 Timer Value */
+  uint8_t t3402_timer_val_valid;  /**< Must be set to true if t3402_timer_val is being passed */
+  uint32_t t3402_timer_val;
+  /**<   T3402 timer value (in milliseconds).
+  */
+}nas_emm_t3402_changed_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}nas_get_acb_info_req_msg_v01;
+
+/** @addtogroup nas_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  /*  Access Control Barring Factor */
+  uint8_t ac_barring_factor;
+  /**<   Access control barring factor multiplied by 100, i.e., 5 means 0.05 
+       (50 means 0.50, 95 means 0.95). 
+       0xFF indicates an invalid barring factor.
+  */
+
+  /*  Access Control Barring time */
+  uint16_t ac_barring_time;
+  /**<   Access barring time value (in seconds).
+  */
+
+  uint8_t ac_barring_for_special_ac;
+  /**<   Access control barring factor for special access control. 
+       Ignore this if the value is 0xFF, which indicates special barring 
+       information is not available.
+  */
+}nas_lte_rrc_ac_barring_params_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves the Access Class Barring (ACB) information. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:
+     - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
+     - qmi_error_type  -- Error code. Possible error code values are described in
+                          the error codes section of each message definition.
+  */
+
+  /* Optional */
+  /*  Access Barring for Emergency */
+  uint8_t ac_barring_for_emergency_valid;  /**< Must be set to true if ac_barring_for_emergency is being passed */
+  uint8_t ac_barring_for_emergency;
+  /**<   Whether access barring for an emergency is present. 
+       Values: \n
+       - TRUE  -- Present \n
+       - FALSE -- Not present
+  */
+
+  /* Optional */
+  /*  Access Barring Info for MO Signaling */
+  uint8_t ac_barring_mo_signalling_valid;  /**< Must be set to true if ac_barring_mo_signalling is being passed */
+  nas_lte_rrc_ac_barring_params_type_v01 ac_barring_mo_signalling;
+
+  /* Optional */
+  /*  Access Barring Info for MO Data */
+  uint8_t ac_barring_mo_data_valid;  /**< Must be set to true if ac_barring_mo_data is being passed */
+  nas_lte_rrc_ac_barring_params_type_v01 ac_barring_mo_data;
+}nas_get_acb_info_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Indication Message; Retrieves the Access Class Barring (ACB) information. */
+typedef struct {
+
+  /* Optional */
+  /*  Access Barring for Emergency */
+  uint8_t ac_barring_for_emergency_valid;  /**< Must be set to true if ac_barring_for_emergency is being passed */
+  uint8_t ac_barring_for_emergency;
+  /**<   Whether access barring for an emergency is present. 
+       Values: \n
+       - TRUE  -- Present \n
+       - FALSE -- Not present
+  */
+
+  /* Optional */
+  /*  Access Barring Info for MO Signaling */
+  uint8_t ac_barring_mo_signalling_valid;  /**< Must be set to true if ac_barring_mo_signalling is being passed */
+  nas_lte_rrc_ac_barring_params_type_v01 ac_barring_mo_signalling;
+
+  /* Optional */
+  /*  Access Barring Info for MO Data */
+  uint8_t ac_barring_mo_data_valid;  /**< Must be set to true if ac_barring_mo_data is being passed */
+  nas_lte_rrc_ac_barring_params_type_v01 ac_barring_mo_data;
+}nas_acb_info_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_enums
+    @{
+  */
+typedef enum {
+  NAS_DATA_SUBS_PRIORITY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  NAS_DATA_SUBS_PRIORITY_LOW_V01 = 0x00, /**<  Low \n  */
+  NAS_DATA_SUBS_PRIORITY_HIGH_V01 = 0x01, /**<  High  */
+  NAS_DATA_SUBS_PRIORITY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}nas_data_subs_priority_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Request Message; Configures the data priority for a bound subscription. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Data Subscription Priority */
+  nas_data_subs_priority_enum_v01 data_subs_priority;
+  /**<   Data priority of the bound subscription.
+ Values: \n
+      - NAS_DATA_SUBS_PRIORITY_LOW (0x00) --  Low \n 
+      - NAS_DATA_SUBS_PRIORITY_HIGH (0x01) --  High 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+}nas_set_data_subs_priority_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Configures the data priority for a bound subscription. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+}nas_set_data_subs_priority_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}nas_get_data_subs_priority_req_msg_v01;
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves the current data priority status of a subscription. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+
+  /* Optional */
+  /*  Data Subscription Priority */
+  uint8_t data_subs_priority_valid;  /**< Must be set to true if data_subs_priority is being passed */
+  nas_data_subs_priority_enum_v01 data_subs_priority;
+  /**<   Data priority of the requested subscription.
+ Values: \n
+      - NAS_DATA_SUBS_PRIORITY_LOW (0x00) --  Low \n 
+      - NAS_DATA_SUBS_PRIORITY_HIGH (0x01) --  High 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+}nas_get_data_subs_priority_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Indication Message; Informs the control point of any changes in the data subscription
+             priority. */
+typedef struct {
+
+  /* Optional */
+  /*  Data Priority */
+  uint8_t data_subs_priority_valid;  /**< Must be set to true if data_subs_priority is being passed */
+  nas_data_subs_priority_enum_v01 data_subs_priority;
+  /**<   Data priority for the bound subscription.
+ Values: \n
+      - NAS_DATA_SUBS_PRIORITY_LOW (0x00) --  Low \n 
+      - NAS_DATA_SUBS_PRIORITY_HIGH (0x01) --  High 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+}nas_data_subs_priority_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Request Message; Raises or drops the Transceiver Resource Manager (TRM) priority 
+               to block tune-aways. */
+typedef struct {
+
+  /* Mandatory */
+  /*  TRM Priority */
+  uint8_t trm_priority;
+  /**<    TRM priority to be set. Values: \n
+        - 0 -- TRM low priority \n
+        - 1 -- TRM high priority
+
+        \vspace{3pt}
+        All other values are reserved.
+  */
+}nas_avoid_tuneaway_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Raises or drops the Transceiver Resource Manager (TRM) priority 
+               to block tune-aways. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+}nas_avoid_tuneaway_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_enums
+    @{
+  */
+typedef enum {
+  NAS_MCC_CONFIDENCE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  NAS_MCC_CONFIDENCE_LOW_V01 = 0x00, 
+  NAS_MCC_CONFIDENCE_MEDIUM_LOW_V01 = 0x01, 
+  NAS_MCC_CONFIDENCE_MEDIUM_V01 = 0x02, 
+  NAS_MCC_CONFIDENCE_MEDIUM_HIGH_V01 = 0x03, 
+  NAS_MCC_CONFIDENCE_HIGH_V01 = 0x04, 
+  NAS_MCC_CONFIDENCE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}nas_mcc_confidence_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_enums
+    @{
+  */
+typedef enum {
+  NAS_SET_MCC_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  NAS_SET_MCC_STATUS_SUCCESS_V01 = 0x00, /**<  Indicates valid MCC is passed in the request \n  */
+  NAS_SET_MCC_STATUS_DETECTION_DISABLED_V01 = 0x01, /**<  Indicates all mechanisms used to detect MCC (WiFi, GPS, etc) are disabled by user or control points\n  */
+  NAS_SET_MCC_STATUS_NOT_DETECTED_V01 = 0x02, /**<  Indicates MCC detection is enabled but no MCC is found  */
+  NAS_SET_MCC_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}nas_set_mcc_status_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Request Message; Notify modem of Mobile Country Code discovered by the client. */
+typedef struct {
+
+  /* Optional */
+  /*  MCC */
+  uint8_t mcc_valid;  /**< Must be set to true if mcc is being passed */
+  uint16_t mcc;
+  /**<   A 16-bit integer representation of MCC. 
+       Range: 0 to 999.
+  */
+
+  /* Optional */
+  /*  Confidence */
+  uint8_t confidence_valid;  /**< Must be set to true if confidence is being passed */
+  nas_mcc_confidence_enum_v01 confidence;
+  /**<   Confidence level.
+ Values: \n
+      - NAS_MCC_CONFIDENCE_LOW (0x00) -- 
+      - NAS_MCC_CONFIDENCE_MEDIUM_LOW (0x01) -- 
+      - NAS_MCC_CONFIDENCE_MEDIUM (0x02) -- 
+      - NAS_MCC_CONFIDENCE_MEDIUM_HIGH (0x03) -- 
+      - NAS_MCC_CONFIDENCE_HIGH (0x04) -- 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+
+  /* Optional */
+  /*  MCC detection status */
+  uint8_t mcc_status_valid;  /**< Must be set to true if mcc_status is being passed */
+  nas_set_mcc_status_enum_v01 mcc_status;
+  /**<   MCC detection status.
+ Values: \n
+      - NAS_SET_MCC_STATUS_SUCCESS (0x00) --  Indicates valid MCC is passed in the request \n 
+      - NAS_SET_MCC_STATUS_DETECTION_DISABLED (0x01) --  Indicates all mechanisms used to detect MCC (WiFi, GPS, etc) are disabled by user or control points\n 
+      - NAS_SET_MCC_STATUS_NOT_DETECTED (0x02) --  Indicates MCC detection is enabled but no MCC is found 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+}nas_set_mcc_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Notify modem of Mobile Country Code discovered by the client. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+}nas_set_mcc_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_enums
+    @{
+  */
+typedef enum {
+  NAS_DATA_ROAMING_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  NAS_DATA_ROAMING_ON_V01 = 0x00, 
+  NAS_DATA_ROAMING_INTERNATIONAL_OFF_V01 = 0x01, 
+  NAS_DATA_ROAMING_OFF_V01 = 0x02, 
+  NAS_DATA_ROAMING_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}nas_data_roaming_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Request Message; Notify modem about the Data roaming status change.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Data roam status */
+  nas_data_roaming_enum_v01 data_roam_status;
+  /**<   Configures data roam status. 
+ Values: \n
+      - NAS_DATA_ROAMING_ON (0x00) -- 
+      - NAS_DATA_ROAMING_INTERNATIONAL_OFF (0x01) -- 
+      - NAS_DATA_ROAMING_OFF (0x02) -- 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+}nas_set_data_roaming_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Notify modem about the Data roaming status change.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+
+  /* Optional */
+  /*  Device reset pending */
+  uint8_t pending_device_reset_valid;  /**< Must be set to true if pending_device_reset is being passed */
+  uint8_t pending_device_reset;
+  /**<    Indicates whether device reset is required for configured values to take effect. 
+        true = Yes\n
+        false = No\n
+  */
+}nas_set_data_roaming_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}nas_get_data_roaming_req_msg_v01;
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves the Data roaming status from modem. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+
+  /* Optional */
+  /*  Data roam status */
+  uint8_t data_roam_status_valid;  /**< Must be set to true if data_roam_status is being passed */
+  nas_data_roaming_enum_v01 data_roam_status;
+  /**<   Configures data roam state. 
+ Values: \n
+      - NAS_DATA_ROAMING_ON (0x00) -- 
+      - NAS_DATA_ROAMING_INTERNATIONAL_OFF (0x01) -- 
+      - NAS_DATA_ROAMING_OFF (0x02) -- 
+
+ \vspace{3pt}
+ All other values are reserved.
+ */
+
+  /* Optional */
+  /*  Device reset pending */
+  uint8_t pending_device_reset_valid;  /**< Must be set to true if pending_device_reset is being passed */
+  uint8_t pending_device_reset;
+  /**<    Indicates whether device reset is required for configured values to take effect. 
+        true = Yes\n
+        false = No\n
+  */
+}nas_get_data_roaming_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Request Message; Notify modem about the Single Radio Voice Call Continuity(SRVCC) status change. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Single Radio Voice Call Continuity(SRVCC) status */
+  uint8_t srvcc_status;
+  /**<    Configures the state of SRVCC. 
+        true = enable\n
+        false = disable\n
+  */
+}nas_set_srvcc_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Notify modem about the Single Radio Voice Call Continuity(SRVCC) status change. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+}nas_set_srvcc_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Request Message; Notify modem about the change in Better system reselection timer value.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Better system reselection timer */
+  uint32_t bsr_value;
+  /**<   Better system reselection timer value in seconds written to NV_SD_CFG_ITEMS_I.
+       Range: 180 to 600 seconds.
+  */
+}nas_set_bsr_timer_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Notify modem about the change in Better system reselection timer value.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+
+  /* Optional */
+  /*  Delayed until reset */
+  uint8_t delayed_until_reset_valid;  /**< Must be set to true if delayed_until_reset is being passed */
+  uint8_t delayed_until_reset;
+  /**<    Indicates whether device reset is required for configured values to take effect. 
+        true = Yes\n
+        false = No\n
+  */
+}nas_set_bsr_timer_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}nas_get_bsr_timer_req_msg_v01;
+
+/** @addtogroup nas_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves the Better system reselection timer value from modem. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. */
+
+  /* Optional */
+  /*  Better system reselection timer */
+  uint8_t bsr_value_valid;  /**< Must be set to true if bsr_value is being passed */
+  uint32_t bsr_value;
+  /**<   Better system reselection timer value in seconds from NV_SD_CFG_ITEMS_I.
+       Range: 180 to 600 seconds.
+  */
+
+  /* Optional */
+  /*  Delayed until reset */
+  uint8_t delayed_until_reset_valid;  /**< Must be set to true if delayed_until_reset is being passed */
+  uint8_t delayed_until_reset;
+  /**<    Indicates whether device reset is required for configured values to take effect. 
+        true = Yes\n
+        false = No\n
+  */
+}nas_get_bsr_timer_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_NAS_ABORT_V01 
+//#define REMOVE_QMI_NAS_AVOID_TUNEAWAY_V01 
+//#define REMOVE_QMI_NAS_BIND_SUBSCRIPTION_V01 
+//#define REMOVE_QMI_NAS_BLOCK_LTE_PLMN_V01 
+//#define REMOVE_QMI_NAS_CDMA_AVOID_SYSTEM_V01 
+//#define REMOVE_QMI_NAS_CONFIG_EMBMS_V01 
+//#define REMOVE_QMI_NAS_CONFIG_PLMN_NAME_IND_REPORTING_V01 
+//#define REMOVE_QMI_NAS_CONFIG_SIG_INFO_V01 
+//#define REMOVE_QMI_NAS_CONFIG_SIG_INFO2_V01 
+//#define REMOVE_QMI_NAS_CSG_IMMEDIATE_SEARCH_SELECTION_V01 
+//#define REMOVE_QMI_NAS_CSG_SEARCH_SELECTION_CONFIG_V01 
+//#define REMOVE_QMI_NAS_CSP_PLMN_MODE_BIT_IND_V01 
+//#define REMOVE_QMI_NAS_CURRENT_PLMN_NAME_IND_V01 
+//#define REMOVE_QMI_NAS_DATA_SUBS_PRIORITY_IND_V01 
+//#define REMOVE_QMI_NAS_DDTM_V01 
+//#define REMOVE_QMI_NAS_DETACH_LTE_V01 
+//#define REMOVE_QMI_NAS_DUAL_STANDBY_PREF_IND_V01 
+//#define REMOVE_QMI_NAS_EMBMS_STATUS_IND_V01 
+//#define REMOVE_QMI_NAS_EMM_T3402_CHANGED_IND_V01 
+//#define REMOVE_QMI_NAS_ERR_RATE_IND_V01 
+//#define REMOVE_QMI_NAS_EVENT_REPORT_IND_V01 
+//#define REMOVE_QMI_NAS_FORCE_NETWORK_SEARCH_V01 
+//#define REMOVE_QMI_NAS_GET_3GPP2_SUBSCRIPTION_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_ACB_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_ACCOLC_V01 
+//#define REMOVE_QMI_NAS_GET_AN_AAA_STATUS_V01 
+//#define REMOVE_QMI_NAS_GET_BSR_TIMER_V01 
+//#define REMOVE_QMI_NAS_GET_CDMA_AVOID_SYSTEM_LIST_V01 
+//#define REMOVE_QMI_NAS_GET_CDMA_POSITION_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_CELL_LOCATION_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_CENTRALIZED_EONS_SUPPORT_STATUS_V01 
+//#define REMOVE_QMI_NAS_GET_CSG_SEARCH_SELECTION_CONFIGURATION_V01 
+//#define REMOVE_QMI_NAS_GET_CSP_PLMN_MODE_BIT_V01 
+//#define REMOVE_QMI_NAS_GET_CURRENT_ACQ_SYS_MODE_V01 
+//#define REMOVE_QMI_NAS_GET_DATA_ROAMING_V01 
+//#define REMOVE_QMI_NAS_GET_DATA_SUBS_PRIORITY_V01 
+//#define REMOVE_QMI_NAS_GET_DEVICE_CONFIG_V01 
+//#define REMOVE_QMI_NAS_GET_DRX_V01 
+//#define REMOVE_QMI_NAS_GET_DUAL_STANDBY_PREF_V01 
+//#define REMOVE_QMI_NAS_GET_EMBMS_SIG_V01 
+//#define REMOVE_QMI_NAS_GET_EMBMS_SIG_EXT_V01 
+//#define REMOVE_QMI_NAS_GET_EMBMS_STATUS_V01 
+//#define REMOVE_QMI_NAS_GET_ERR_RATE_V01 
+//#define REMOVE_QMI_NAS_GET_FORBIDDEN_NETWORKS_V01 
+//#define REMOVE_QMI_NAS_GET_HDR_COLOR_CODE_V01 
+//#define REMOVE_QMI_NAS_GET_HDR_SUBTYPE_V01 
+//#define REMOVE_QMI_NAS_GET_HOME_NETWORK_V01 
+//#define REMOVE_QMI_NAS_GET_HPLMN_SEARCH_TIMER_V01 
+//#define REMOVE_QMI_NAS_GET_IMS_PREF_STATUS_V01 
+//#define REMOVE_QMI_NAS_GET_LTE_BAND_PRIORITY_LIST_V01 
+//#define REMOVE_QMI_NAS_GET_LTE_EMBMS_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_LTE_SIB16_NETWORK_TIME_V01 
+//#define REMOVE_QMI_NAS_GET_MANAGED_ROAMING_CONFIG_V01 
+//#define REMOVE_QMI_NAS_GET_MOB_CAI_REV_V01 
+//#define REMOVE_QMI_NAS_GET_MODE_PREF_V01 
+//#define REMOVE_QMI_NAS_GET_NETWORK_SYSTEM_PREFERENCE_V01 
+//#define REMOVE_QMI_NAS_GET_NETWORK_TIME_V01 
+//#define REMOVE_QMI_NAS_GET_OPERATOR_NAME_DATA_V01 
+//#define REMOVE_QMI_NAS_GET_PLMN_NAME_V01 
+//#define REMOVE_QMI_NAS_GET_PREFERRED_NETWORKS_V01 
+//#define REMOVE_QMI_NAS_GET_RF_BAND_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_RTRE_CONFIG_V01 
+//#define REMOVE_QMI_NAS_GET_SERVING_SYSTEM_V01 
+//#define REMOVE_QMI_NAS_GET_SERV_CELL_SIB_V01 
+//#define REMOVE_QMI_NAS_GET_SIGNAL_STRENGTH_V01 
+//#define REMOVE_QMI_NAS_GET_SIG_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_SSAC_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_SUBSCRIPTION_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_SUPPORTED_FIELDS_V01 
+//#define REMOVE_QMI_NAS_GET_SUPPORTED_MSGS_V01 
+//#define REMOVE_QMI_NAS_GET_SYSTEM_SELECTION_PREFERENCE_V01 
+//#define REMOVE_QMI_NAS_GET_SYS_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_SYS_INFO_IND_REPORTING_LIMIT_V01 
+//#define REMOVE_QMI_NAS_GET_TDS_CELL_AND_POSITION_INFO_V01 
+//#define REMOVE_QMI_NAS_GET_TECHNOLOGY_PREFERENCE_V01 
+//#define REMOVE_QMI_NAS_GET_TX_RX_INFO_V01 
+//#define REMOVE_QMI_NAS_HDR_SESSION_CLOSE_IND_V01 
+//#define REMOVE_QMI_NAS_HDR_UATI_UPDATE_IND_V01 
+//#define REMOVE_QMI_NAS_IMS_PREF_STATUS_IND_V01 
+//#define REMOVE_QMI_NAS_INDICATION_REGISTER_V01 
+//#define REMOVE_QMI_NAS_INITIATE_ATTACH_V01 
+//#define REMOVE_QMI_NAS_INITIATE_NETWORK_REGISTER_V01 
+//#define REMOVE_QMI_NAS_LIMIT_SYS_INFO_IND_REPORTING_V01 
+//#define REMOVE_QMI_NAS_LTE_CPHY_CA_IND_V01 
+//#define REMOVE_QMI_NAS_LTE_SIB16_NETWORK_TIME_IND_V01 
+//#define REMOVE_QMI_NAS_MANAGED_ROAMING_V01 
+//#define REMOVE_QMI_NAS_NETWORK_REJECT_IND_V01 
+//#define REMOVE_QMI_NAS_NETWORK_TIME_IND_V01 
+//#define REMOVE_QMI_NAS_OPERATOR_NAME_DATA_IND_V01 
+//#define REMOVE_QMI_NAS_PERFORM_INCREMENTAL_NETWORK_SCAN_V01 
+//#define REMOVE_QMI_NAS_PERFORM_NETWORK_SCAN_V01 
+//#define REMOVE_QMI_NAS_RESET_V01 
+//#define REMOVE_QMI_NAS_RESET_LTE_PLMN_BLOCKING_V01 
+//#define REMOVE_QMI_NAS_RF_BAND_INFO_IND_V01 
+//#define REMOVE_QMI_NAS_RTRE_CONFIG_IND_V01 
+//#define REMOVE_QMI_NAS_SERVING_SYSTEM_IND_V01 
+//#define REMOVE_QMI_NAS_SET_3GPP2_SUBSCRIPTION_INFO_V01 
+//#define REMOVE_QMI_NAS_SET_ACCOLC_V01 
+//#define REMOVE_QMI_NAS_SET_BSR_TIMER_V01 
+//#define REMOVE_QMI_NAS_SET_BUILTIN_PLMN_LIST_V01 
+//#define REMOVE_QMI_NAS_SET_DATA_ROAMING_V01 
+//#define REMOVE_QMI_NAS_SET_DATA_SUBS_PRIORITY_V01 
+//#define REMOVE_QMI_NAS_SET_DDTM_PREFERENCE_V01 
+//#define REMOVE_QMI_NAS_SET_DEVICE_CONFIG_V01 
+//#define REMOVE_QMI_NAS_SET_DRX_V01 
+//#define REMOVE_QMI_NAS_SET_DUAL_STANDBY_PREF_V01 
+//#define REMOVE_QMI_NAS_SET_EVENT_REPORT_V01 
+//#define REMOVE_QMI_NAS_SET_FORBIDDEN_NETWORKS_V01 
+//#define REMOVE_QMI_NAS_SET_HPLMN_IRAT_SEARCH_TIMER_V01 
+//#define REMOVE_QMI_NAS_SET_HPLMN_SEARCH_TIMER_V01 
+//#define REMOVE_QMI_NAS_SET_LTE_BAND_PRIORITY_V01 
+//#define REMOVE_QMI_NAS_SET_MCC_V01 
+//#define REMOVE_QMI_NAS_SET_PERIODIC_SEARCH_ALLOWED_V01 
+//#define REMOVE_QMI_NAS_SET_PREFERRED_NETWORKS_V01 
+//#define REMOVE_QMI_NAS_SET_RTRE_CONFIG_V01 
+//#define REMOVE_QMI_NAS_SET_RX_DIVERSITY_V01 
+//#define REMOVE_QMI_NAS_SET_SRVCC_V01 
+//#define REMOVE_QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_V01 
+//#define REMOVE_QMI_NAS_SET_TECHNOLOGY_PREFERENCE_V01 
+//#define REMOVE_QMI_NAS_SIG_INFO_IND_V01 
+//#define REMOVE_QMI_NAS_SSAC_CHANGE_INFO_IND_V01 
+//#define REMOVE_QMI_NAS_SSAC_INFO_IND_V01 
+//#define REMOVE_QMI_NAS_SUBSCRIPTION_INFO_IND_V01 
+//#define REMOVE_QMI_NAS_SYS_INFO_IND_V01 
+//#define REMOVE_QMI_NAS_UNBLOCK_LTE_PLMN_V01 
+//#define REMOVE_QMI_NAS_UPDATE_AKEY_V01 
+//#define REMOVE_QMI_NAS_UPDATE_AKEY_EXT_V01 
+//#define REMOVE_QMI_NAS_UPDATE_IMS_STATUS_V01 
 
 /*Service Message Definition*/
 /** @addtogroup nas_qmi_msg_ids
@@ -15541,26 +16584,49 @@ typedef struct {
 #define QMI_NAS_GET_SSAC_INFO_RESP_MSG_V01 0x0091
 #define QMI_NAS_SET_PERIODIC_SEARCH_ALLOWED_REQ_MSG_V01 0x0092
 #define QMI_NAS_SET_PERIODIC_SEARCH_ALLOWED_RESP_MSG_V01 0x0092
+#define QMI_NAS_EMM_T3402_CHANGED_IND_V01 0x0093
+#define QMI_NAS_GET_ACB_INFO_REQ_MSG_V01 0x0094
+#define QMI_NAS_GET_ACB_INFO_RESP_MSG_V01 0x0094
+#define QMI_NAS_ACB_INFO_IND_V01 0x0094
+#define QMI_NAS_SET_DATA_SUBS_PRIORITY_REQ_MSG_V01 0x0095
+#define QMI_NAS_SET_DATA_SUBS_PRIORITY_RESP_MSG_V01 0x0095
+#define QMI_NAS_GET_DATA_SUBS_PRIORITY_REQ_MSG_V01 0x0096
+#define QMI_NAS_GET_DATA_SUBS_PRIORITY_RESP_MSG_V01 0x0096
+#define QMI_NAS_DATA_SUBS_PRIORITY_IND_MSG_V01 0x0097
+#define QMI_NAS_AVOID_TUNEAWAY_REQ_MSG_V01 0x0098
+#define QMI_NAS_AVOID_TUNEAWAY_RESP_MSG_V01 0x0098
+#define QMI_NAS_SET_MCC_REQ_MSG_V01 0x0099
+#define QMI_NAS_SET_MCC_RESP_MSG_V01 0x0099
+#define QMI_NAS_SET_DATA_ROAMING_REQ_MSG_V01 0x009A
+#define QMI_NAS_SET_DATA_ROAMING_RESP_MSG_V01 0x009A
+#define QMI_NAS_GET_DATA_ROAMING_REQ_MSG_V01 0x009B
+#define QMI_NAS_GET_DATA_ROAMING_RESP_MSG_V01 0x009B
+#define QMI_NAS_SET_SRVCC_REQ_MSG_V01 0x009C
+#define QMI_NAS_SET_SRVCC_RESP_MSG_V01 0x009C
+#define QMI_NAS_SET_BSR_TIMER_REQ_MSG_V01 0x009D
+#define QMI_NAS_SET_BSR_TIMER_RESP_MSG_V01 0x009D
+#define QMI_NAS_GET_BSR_REQ_MSG_V01 0x009E
+#define QMI_NAS_GET_BSR_RESP_MSG_V01 0x009E
 /**
     @}
   */
 
 /* Service Object Accessor */
-/** @addtogroup wms_qmi_accessor
+/** @addtogroup wms_qmi_accessor 
     @{
   */
 /** This function is used internally by the autogenerated code.  Clients should use the
    macro nas_get_service_object_v01( ) that takes in no arguments. */
 qmi_idl_service_object_type nas_get_service_object_internal_v01
  ( int32_t idl_maj_version, int32_t idl_min_version, int32_t library_version );
-
-/** This macro should be used to get the service object */
+ 
+/** This macro should be used to get the service object */ 
 #define nas_get_service_object_v01( ) \
           nas_get_service_object_internal_v01( \
             NAS_V01_IDL_MAJOR_VERS, NAS_V01_IDL_MINOR_VERS, \
             NAS_V01_IDL_TOOL_VERS )
-/**
-    @}
+/** 
+    @} 
   */
 
 

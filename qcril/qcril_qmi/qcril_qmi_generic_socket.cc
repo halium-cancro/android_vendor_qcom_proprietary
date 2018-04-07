@@ -12,6 +12,7 @@
   ---------------------------------------------------------------------------
 ******************************************************************************/
 
+#define __STDC_FORMAT_MACROS 1
 #include <pthread.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -23,7 +24,12 @@ extern "C" {
     #include "qcril_reqlist.h"
 }
 
-#ifdef FEATURE_TARGET_GLIBC_x86
+#ifdef QMI_RIL_UTF
+#include "unistd.h"
+extern "C" uint32 qcril_get_time_milliseconds();
+#endif
+
+#if defined(FEATURE_TARGET_GLIBC_x86) || defined(QMI_RIL_UTF)
    extern "C" size_t strlcat(char *, const char *, size_t);
    extern "C" size_t strlcpy(char *, const char *, size_t);
 #endif
@@ -36,11 +42,19 @@ extern "C" {
 */
 /*=========================================================================*/
 qcril_qmi_generic_socket_agent::qcril_qmi_generic_socket_agent(int max_conn) :
-    listen_sid(0),
-    conn_sid(0),
-    recv_byte_num(0),
-    max_connections(max_conn)
+  listen_sid(0),
+  conn_sid(0),
+  recv_byte_num(0),
+#ifdef QMI_RIL_UTF
+  shutdown_request(0),
+#endif
+  max_connections(max_conn)
 {}
+
+qcril_qmi_generic_socket_agent::~qcril_qmi_generic_socket_agent()
+{
+  return;
+}
 
 /*===========================================================================
   FUNCTION  qcril_qmi_generic_socket_agent::start_socket_server
@@ -96,10 +110,16 @@ boolean qcril_qmi_generic_socket_agent::create_recv_thread
     boolean ret = 0;
     QCRIL_LOG_FUNC_ENTRY();
     pthread_attr_t attr;
+#ifdef QMI_RIL_UTF
+    pthread_attr_init (&attr);
+    if ( 0 == utf_pthread_create_handler(&thread_id, &attr, qcril_qmi_generic_socket_agent::recv_thread, this) )
+    {
+#else
     pthread_attr_init (&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     if ( 0 == pthread_create(&thread_id, &attr, qcril_qmi_generic_socket_agent::recv_thread, this) )
     {
+#endif
         qmi_ril_set_thread_name(thread_id, threadName);
     }
     else
@@ -195,8 +215,8 @@ void qcril_qmi_generic_socket_agent::recv_thread_func
 )
 {
     QCRIL_LOG_FUNC_ENTRY();
-    struct sockaddr_in cliaddr;
-    socklen_t          clilen;
+    struct sockaddr_un cliaddr;
+    socklen_t          clilen = sizeof(cliaddr);
     int                sid;
     int                read_length;
 
@@ -214,6 +234,16 @@ void qcril_qmi_generic_socket_agent::recv_thread_func
 
           if ((recv_byte_num = recv(conn_sid, recv_buffer, QCRIL_QMI_LENGTH_MESSAGE_LENGTH, 0)) < QCRIL_QMI_LENGTH_MESSAGE_LENGTH)
           {
+#ifdef QMI_RIL_UTF
+            if ( recv_byte_num == 3 )
+            {
+              if (strcmp((char*)(recv_buffer), "rs") == 0)
+              {
+                shutdown_request = 1;
+                process_incoming_message();
+              }
+            }
+#endif
               QCRIL_LOG_ERROR("receive message failed");
               break;
           }

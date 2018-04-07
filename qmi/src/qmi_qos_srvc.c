@@ -3,14 +3,14 @@
   @brief   The QMI QoS service layer.
 
   DESCRIPTION
-  QMI QoS service routines.  
+  QMI QoS service routines.
 
   INITIALIZATION AND SEQUENCING REQUIREMENTS
-  qmi_qos_srvc_init_client() needs to be called before sending or receiving of any 
+  qmi_qos_srvc_init_client() needs to be called before sending or receiving of any
   QoS service messages
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2010-2012 Qualcomm Technologies, Inc.
+  Copyright (c) 2010-2012,2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -22,9 +22,7 @@
 #include "qmi_qos_srvc_i.h"
 #include "qmi_util.h"
 
-
-#define QMI_QOS_STD_MSG_SIZE   QMI_MAX_STD_MSG_SIZE
-
+#define QMI_QOS_STD_MSG_SIZE                            QMI_MAX_STD_MSG_SIZE
 
 /* Message and TLV ID definitions */
 #define QMI_QOS_REQUEST_QOS_MSG_ID                      0x0020
@@ -41,6 +39,11 @@
 #define QMI_QOS_NW_SUPPORTED_QOS_PROFILES_MSG_ID        0x0028
 #define QMI_QOS_PERFORM_QOS_FLOW_OPERATION_MSG_ID       0xFFFE
 #define QMI_QOS_SET_CLIENT_IP_FAMILY_PREF_MSG_ID        0x002A
+#define QMI_QOS_BIND_MUX_DATA_PORT_MSG_ID               0x002B
+#define QMI_QOS_GET_FILTER_PARAMS_MSG_ID                0x002C
+#define QMI_QOS_BIND_SUBSCRIPTION_MSG_ID                0x002D
+#define QMI_QOS_GET_BIND_SUBSCRIPTION_MSG_ID            0x002E
+
 
 #define QMI_QOS_CLIENT_IP_PREF_REQ_TLV_ID                 0x01
 
@@ -53,6 +56,11 @@
 #define QMI_QOS_RX_FILTER_REQ_RSP_TLV_ID                  0x14
 #define QMI_QOS_FLOW_FILTER_ERR_VALS_TLV_ID               0x11
 #define QMI_QOS_FLOW_FILTER_SPEC_ERR_RSP_TLV_ID           0x10
+
+/* QMI_QOS_GET_FILTER_PARAMS message TLVs */
+#define QMI_QOS_GET_FILTER_PARAMS_REQ_QOS_ID_TLV_ID       0x01
+#define QMI_QOS_GET_FILTER_PARAMS_TX_FILTER_DATA_TLV_ID   0x10
+#define QMI_QOS_GET_FILTER_PARAMS_RX_FILTER_DATA_TLV_ID   0x11
 
 #define QMI_QOS_SPEC_ERR_TLV_ID                           0x10
 
@@ -129,6 +137,13 @@
 #define QMI_QOS_EVENT_REPORT_GLOBAL_FLOW_STATE_TLV_ID            0x10
 #define QMI_QOS_EVENT_REPORT_NW_SUPP_PROFILE_CHANGE_TLV_ID       0x11
 
+/* Bind MUX data port TLVs */
+#define QMI_QOS_BIND_MUX_DATA_PORT_EP_ID_TLV_ID                  0x10
+#define QMI_QOS_BIND_MUX_DATA_PORT_MUX_ID_TLV_ID                 0x11
+#define QMI_QOS_BIND_MUX_DATA_PORT_REVERSED_TLV_ID               0x12
+
+#define QMI_QOS_BIND_SUBS_ID_REQ_TLV_ID                 0x01
+#define QMI_QOS_GET_BIND_SUB_ID_TLV_ID     0x10
 
 /* Event report related indication TLV ID's */
 #define QMI_QOS_EVENT_FLOW_INFO_TLV_ID                    0x10
@@ -190,16 +205,16 @@ static int qos_service_initialized = FALSE;
   FUNCTION  qmi_qos_srvc_event_prcss_nstd_flow_tlv
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Processes a Flow Spec TLV and translates it into
-  C structure    
-  
-@return 
+  C structure
+
+@return
   QMI_NO_ERR if no error occurred, QMI_INTERNAL_ERR otherwise
 
 @note
 
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_qos_srvc_event_prcss_nstd_flow_tlv
@@ -223,7 +238,7 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
   }
 
   {
-    /*At this point value_ptr points to flow_spec 
+    /*At this point value_ptr points to flow_spec
     **value portion containing the flow spec tlvs
    ** and length contains the total length of all
     ** tlvs */
@@ -252,7 +267,7 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
         case QMI_QOS_FLOW_SPEC_REQ_RSP_TLV_ID:
           {
             READ_8_BIT_VAL (tmp_value_ptr, flow_ind_data->ip_flow_index);
-          } 
+          }
           break;
 
         case QMI_QOS_FLOW_CDMA_PROFILE_ID_REQ_TLV_ID:
@@ -262,7 +277,7 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_TC_REQ_RSP_TLV_ID: 
+        case QMI_QOS_FLOW_UMTS_TC_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_TRAFFIC_CLASS;
             READ_8_BIT_VAL (tmp_value_ptr, tmp_char);
@@ -270,7 +285,7 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_DATA_RATE_REQ_RSP_TLV_ID:  
+        case QMI_QOS_FLOW_UMTS_DATA_RATE_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_DATA_RATE;
             READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.data_rate.max_rate);
@@ -278,8 +293,8 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_BUCKET_INFO_REQ_RSP_TLV_ID:   
-          {  
+        case QMI_QOS_FLOW_UMTS_BUCKET_INFO_REQ_RSP_TLV_ID:
+          {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_BUCKET_INFO;
             READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.bucket_info.peak_rate);
             READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.bucket_info.token_rate);
@@ -287,21 +302,21 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_MAX_DELAY_REQ_RSP_TLV_ID:    
+        case QMI_QOS_FLOW_UMTS_MAX_DELAY_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_MAX_DELAY;
-            READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.max_delay);     
+            READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.max_delay);
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_MAX_JITTER_REQ_RSP_TLV_ID:     
+        case QMI_QOS_FLOW_UMTS_MAX_JITTER_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_MAX_JITTER;
-            READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.max_jitter);     
+            READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.max_jitter);
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_PKT_ERR_RATE_REQ_RSP_TLV_ID:     
+        case QMI_QOS_FLOW_UMTS_PKT_ERR_RATE_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_PKT_ERR_RATE;
             READ_16_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.pkt_err_rate.multiplier);
@@ -309,21 +324,21 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_MIN_POL_PKT_SZ_REQ_RSP_TLV_ID:   
+        case QMI_QOS_FLOW_UMTS_MIN_POL_PKT_SZ_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_MIN_POL_PKT_SZ;
             READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.min_policed_pkt_sz);
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_MAX_ALLOW_PKT_SZ_REQ_RSP_TLV_ID: 
+        case QMI_QOS_FLOW_UMTS_MAX_ALLOW_PKT_SZ_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_MAX_ALLOW_PKT_SZ;
             READ_32_BIT_VAL (tmp_value_ptr, flow_ind_data->qos_flow_granted.umts_flow_desc.max_allowed_pkt_sz);
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_RESIDUAL_BER_REQ_RSP_TLV_ID:    
+        case QMI_QOS_FLOW_UMTS_RESIDUAL_BER_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_RESIDUAL_BER;
             READ_8_BIT_VAL (tmp_value_ptr, tmp_char);
@@ -331,28 +346,28 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
           }
           break;
 
-        case QMI_QOS_FLOW_UMTS_HANDLING_PRIO_REQ_RSP_TLV_ID:    
+        case QMI_QOS_FLOW_UMTS_HANDLING_PRIO_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_HANDLING_PRIO;
             READ_8_BIT_VAL (tmp_value_ptr, tmp_char);
             flow_ind_data->qos_flow_granted.umts_flow_desc.handling_prio = (qmi_qos_umts_handling_prio_type) tmp_char;
           }
           break;
-        case QMI_QOS_FLOW_UMTS_3GPP2_IP_FLOW_PRIORITY_REQ_RSP_TLV_ID:    
+        case QMI_QOS_FLOW_UMTS_3GPP2_IP_FLOW_PRIORITY_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_3GPP2_FLOW_PRIO;
             READ_8_BIT_VAL (tmp_value_ptr, tmp_char);
             flow_ind_data->qos_flow_granted.umts_flow_desc.flow_priority_3gpp2 = (unsigned char) tmp_char;
           }
           break;
-        case QMI_QOS_FLOW_UMTS_IM_CN_FLAG_REQ_RSP_TLV_ID:    
+        case QMI_QOS_FLOW_UMTS_IM_CN_FLAG_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_IM_CN_FLAG;
             READ_8_BIT_VAL (tmp_value_ptr, tmp_char);
             flow_ind_data->qos_flow_granted.umts_flow_desc.im_cn_flag = (qmi_qos_bool_type) tmp_char;
           }
           break;
-        case QMI_QOS_FLOW_UMTS_3GPP_IP_FLOW_SIG_IND_REQ_RSP_TLV_ID:    
+        case QMI_QOS_FLOW_UMTS_3GPP_IP_FLOW_SIG_IND_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_UMTS_FLOW_PARAM_IP_FLOW_SIG_IND;
             READ_8_BIT_VAL (tmp_value_ptr, tmp_char);
@@ -360,7 +375,7 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
           }
           break;
 
-        case QMI_QOS_FLOW_LTE_QCI_REQ_RSP_TLV_ID:    
+        case QMI_QOS_FLOW_LTE_QCI_REQ_RSP_TLV_ID:
           {
             flow_ind_data->qos_flow_granted.umts_flow_desc.param_mask |= QMI_QOS_LTE_FLOW_PARAM_QCI_IND;
             READ_8_BIT_VAL (tmp_value_ptr, tmp_char);
@@ -384,16 +399,16 @@ qmi_qos_granted_flow_data_type          *flow_ind_data
   FUNCTION  qmi_qos_srvc_event_prcss_sngl_nstd_filter_tlv
 ===========================================================================*/
 /*!
-@brief 
-  Processes a single filter spec TLV's and translates into 
+@brief
+  Processes a single filter spec TLV's and translates into
   a C data structure
-  
-@return 
+
+@return
   QMI_NO_ERR if no error occurred, QMI_INTERNAL_ERR otherwise
 
 @note
 
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_qos_srvc_event_prcss_sngl_nstd_filter_tlv
@@ -407,37 +422,47 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
   unsigned long length;
   unsigned char *value_ptr;
   unsigned char *tmp_char;
+  int tlv_count = 0;
+
+  unsigned char    *tmp_msg_buf = msg_buf;
+  int               tmp_msg_buf_len = msg_buf_len;
 
   /*Set the Param mask*/
   filter_ind_data->qos_filter.filter_desc.param_mask = 0;
 
-  while (msg_buf_len > 0)
+
+  while (tmp_msg_buf_len > 0)
   {
-    if (qmi_util_read_std_tlv (&msg_buf,
-                                  &msg_buf_len,
+    if (qmi_util_read_std_tlv (&tmp_msg_buf,
+                                  &tmp_msg_buf_len,
                                   &type,
                                   &length,
                                   &value_ptr) < 0)
     {
       return QMI_INTERNAL_ERR;
     }
+    tlv_count++;
+
+    QMI_DEBUG_MSG_4 ("sngl_nstd_filter_tlv:  TLV ID=%x, len=%d value_ptr[0]=%d tlv_count=%d",
+                  (unsigned int)type,(int)length,(int)value_ptr[0],tlv_count);
+
     switch (type)
     {
-      case QMI_QOS_FILTER_INDEX_REQ_RSP_TLV_ID:                 
-        {   
+      case QMI_QOS_FILTER_INDEX_REQ_RSP_TLV_ID:
+        {
           /*Event Mask set here*/
           READ_8_BIT_VAL (value_ptr, filter_ind_data->filter_index);
         }
         break;
 
-      case QMI_QOS_FILTER_IP_VER_REQ_RSP_TLV_ID:                
+      case QMI_QOS_FILTER_IP_VER_REQ_RSP_TLV_ID:
         {
           READ_8_BIT_VAL (value_ptr, tmp_char);
           filter_ind_data->qos_filter.ip_version = (qmi_qos_ip_version_type)((unsigned long)tmp_char);
         }
         break;
 
-      case QMI_QOS_FILTER_SRC_ADDR_REQ_RSP_TLV_ID:              
+      case QMI_QOS_FILTER_SRC_ADDR_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_SRC_ADDR;
           READ_32_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.src_addr.ipv4_ip_addr);
@@ -445,7 +470,7 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_DEST_ADDR_REQ_RSP_TLV_ID:             
+      case QMI_QOS_FILTER_DEST_ADDR_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_DEST_ADDR;
           READ_32_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.dest_addr.ipv4_ip_addr);
@@ -453,7 +478,7 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_TRANS_PROTOCOL_REQ_RSP_TLV_ID:        
+      case QMI_QOS_FILTER_TRANS_PROTOCOL_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_TRANS_PROTOCOL;
           READ_8_BIT_VAL (value_ptr, tmp_char);
@@ -461,7 +486,7 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_TOS_REQ_RSP_TLV_ID:                   
+      case QMI_QOS_FILTER_TOS_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_TOS;
           READ_8_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.tos.tos_value);
@@ -469,7 +494,7 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_IPV6_SRC_ADDR_REQ_RSP_TLV_ID:                   
+      case QMI_QOS_FILTER_IPV6_SRC_ADDR_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_IPV6_SRC_ADDR;
           if (length <= sizeof(qmi_qos_ipv6_addr_filter_type))
@@ -479,7 +504,7 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_IPV6_DST_ADDR_REQ_RSP_TLV_ID:                   
+      case QMI_QOS_FILTER_IPV6_DST_ADDR_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_IPV6_DEST_ADDR;
           if (length <= sizeof(qmi_qos_ipv6_addr_filter_type))
@@ -520,7 +545,7 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_UDP_SRC_PORT_REQ_RSP_TLV_ID:          
+      case QMI_QOS_FILTER_UDP_SRC_PORT_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_UDP_SRC_PORTS;
           READ_16_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.udp_src_ports.start_port);
@@ -528,7 +553,7 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_UDP_DEST_PORT_REQ_RSP_TLV_ID:         
+      case QMI_QOS_FILTER_UDP_DEST_PORT_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_UDP_DEST_PORTS;
           READ_16_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.udp_dest_ports.start_port);
@@ -536,33 +561,33 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
         }
         break;
 
-      case QMI_QOS_FILTER_ESP_SECURITY_POLICY_REQ_RSP_TLV_ID:         
+      case QMI_QOS_FILTER_ESP_SECURITY_POLICY_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_ESP_SECURITY_POLICY;
           READ_32_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.esp_security_policy_index);
         }
         break;
 
-      case QMI_QOS_FILTER_PRECEDENCE_REQ_RSP_TLV_ID:         
+      case QMI_QOS_FILTER_PRECEDENCE_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_PRECEDENCE;
           READ_8_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.precedence);
         }
         break;
-      case QMI_QOS_FILTER_FILTER_ID_REQ_RSP_TLV_ID:         
+      case QMI_QOS_FILTER_FILTER_ID_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_FILTER_ID;
           READ_8_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.filter_id);
         }
         break;
-      case QMI_QOS_FILTER_TRANSPORT_SRC_PORT_REQ_RSP_TLV_ID:         
+      case QMI_QOS_FILTER_TRANSPORT_SRC_PORT_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_TRANSPORT_SRC_PORTS;
           READ_16_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.transport_src_ports.start_port);
           READ_16_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.transport_src_ports.range);
         }
         break;
-      case QMI_QOS_FILTER_TRANSPORT_DEST_PORT_REQ_RSP_TLV_ID:         
+      case QMI_QOS_FILTER_TRANSPORT_DEST_PORT_REQ_RSP_TLV_ID:
         {
           filter_ind_data->qos_filter.filter_desc.param_mask |= QMI_QOS_FILTER_PARAM_TRANSPORT_DEST_PORTS;
           READ_16_BIT_VAL (value_ptr, filter_ind_data->qos_filter.filter_desc.transport_dest_ports.start_port);
@@ -586,16 +611,16 @@ qmi_qos_granted_filter_data_type         *filter_ind_data
   FUNCTION  qmi_qos_srvc_event_prcss_nstd_filter_tlvs
 ===========================================================================*/
 /*!
-@brief 
-  Processes one or more filter spec TLV's and translates into 
+@brief
+  Processes one or more filter spec TLV's and translates into
   a C data structure
-  
-@return 
+
+@return
   QMI_NO_ERR if no error occurred, QMI_INTERNAL_ERR otherwise
 
 @note
 
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_qos_srvc_event_prcss_nstd_filter_tlvs
@@ -624,7 +649,7 @@ qmi_qos_srvc_event_prcss_nstd_filter_tlvs
     }
 
     if (qmi_qos_srvc_event_prcss_sngl_nstd_filter_tlv (value_ptr,
-                                                     length,
+                                                     (int)length,
                                                      &filter_ind_data[filter_index++]) < 0)
     {
       return QMI_INTERNAL_ERR;
@@ -642,16 +667,16 @@ qmi_qos_srvc_event_prcss_nstd_filter_tlvs
   FUNCTION  qmi_qos_srvc_process_event_report_ind
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Processes a event report TLVs and translates it into
-  C structure indication data   
-  
-@return 
+  C structure indication data
+
+@return
   QMI_NO_ERR if no error occurred, QMI_INTERNAL_ERR otherwise
 
 @note
 
-*/    
+*/
 /*=========================================================================*/
 
 static int
@@ -708,7 +733,7 @@ qmi_qos_srvc_process_event_report_ind
         {
           ind_data->flow_info[index].tx_granted_flow_data_is_valid = 1;
           if (qmi_qos_srvc_event_prcss_nstd_flow_tlv (value_ptr,
-                                                     length,
+                                                     (int)length,
                                                      &ind_data->flow_info[index].tx_granted_flow_data) < 0)
           {
             return QMI_INTERNAL_ERR;
@@ -720,18 +745,18 @@ qmi_qos_srvc_process_event_report_ind
         {
           ind_data->flow_info[index].rx_granted_flow_data_is_valid = 1;
           if (qmi_qos_srvc_event_prcss_nstd_flow_tlv (value_ptr,
-                                                     length,
+                                                     (int)length,
                                                      &ind_data->flow_info[index].rx_granted_flow_data) < 0)
           {
             return QMI_INTERNAL_ERR;
           }
-        } 
+        }
         break;
 
       case QMI_QOS_EVENT_TRANS_FILTER_GRANTED_TLV_ID:
         {
           if (qmi_qos_srvc_event_prcss_nstd_filter_tlvs (value_ptr,
-                                                       length,
+                                                       (int)length,
                                                          ind_data->flow_info[index].tx_granted_filter_data,
                                                          &ind_data->flow_info[index].tx_filter_count) < 0)
           {
@@ -743,7 +768,7 @@ qmi_qos_srvc_process_event_report_ind
       case QMI_QOS_EVENT_RECV_FILTER_GRANTED_TLV_ID:
         {
           if (qmi_qos_srvc_event_prcss_nstd_filter_tlvs (value_ptr,
-                                                       length,
+                                                       (int)length,
                                                          ind_data->flow_info[index].rx_granted_filter_data,
                                                          &ind_data->flow_info[index].rx_filter_count) < 0)
           {
@@ -762,7 +787,7 @@ qmi_qos_srvc_process_event_report_ind
         {
           QMI_DEBUG_MSG_2 ("qmi_qos_srvc_process_event_report_ind: Unknown TLV ID=%x, len=%d",
                            (unsigned int)type,(int)length);
-        }  
+        }
         break;
     }
   }
@@ -774,16 +799,16 @@ qmi_qos_srvc_process_event_report_ind
   FUNCTION  qmi_qos_srvc_process_status_report_ind
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Processes a service report TLVs and translates it into
-  C structure indication data   
-  
-@return 
+  C structure indication data
+
+@return
   QMI_NO_ERR if no error occurred, QMI_INTERNAL_ERR otherwise
 
 @note
 
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_qos_srvc_process_status_report_ind
@@ -812,7 +837,7 @@ qmi_qos_status_report_type     *ind_data
     }
     switch (type)
     {
-      
+
       case QMI_QOS_STATUS_INFO_TLV_ID:
         {
           READ_32_BIT_VAL (value_ptr, ind_data->qos_status_information.qos_identifier);
@@ -836,7 +861,7 @@ qmi_qos_status_report_type     *ind_data
           QMI_DEBUG_MSG_2 ("qmi_qos_srvc_process_status_report_ind: Unknown TLV ID=%x, len=%d",
                            (unsigned int)type,(int)length);
 
-        }  
+        }
         break;
     }
 
@@ -849,22 +874,22 @@ qmi_qos_status_report_type     *ind_data
   FUNCTION  qmi_qos_srvc_process_nw_status_report
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Processes a event report TLVs associated with the NW status report and
   adds to indication data.
-    
-@return 
+
+@return
   QMI_NO_ERR if no error occurred, QMI_INTERNAL_ERR otherwise
 
 @note
 
-*/    
+*/
 /*=========================================================================*/
 static int
 qmi_qos_srvc_process_nw_status_report
 (
 unsigned char                 *rx_buf,
-unsigned long                 rx_buf_len,
+int                           rx_buf_len,
 qmi_qos_nw_status_type        *reply_data
 )
 {
@@ -877,13 +902,13 @@ qmi_qos_nw_status_type        *reply_data
   {
     return QMI_INTERNAL_ERR;
   }
- 
+
   reply_data->iface_name = QMI_QOS_INVALID_IFACE_NAME;
 
   while (rx_buf_len > 0)
   {
     if (qmi_util_read_std_tlv (&rx_buf,
-                                  (int *)&rx_buf_len,
+                                  &rx_buf_len,
                                   &type,
                                   &length,
                                   &value_ptr) < 0)
@@ -913,7 +938,7 @@ qmi_qos_nw_status_type        *reply_data
       {
         QMI_DEBUG_MSG_2 ("qmi_qos_srvc_process_nw_status_report: Unknown TLV ID=%x, len=%d",
                          (unsigned int)type,(int)length);
-      }  
+      }
       break;
     }
   }
@@ -927,13 +952,13 @@ qmi_qos_nw_status_type        *reply_data
   FUNCTION  qmi_qos_srvc_indication_cb
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This is the callback function that will be called by the generic
   services layer to report asynchronous indications.  This function will
   process the indication TLV's and then call the user registered
-  functions with the indication data.   
-  
-@return 
+  functions with the indication data.
+
+@return
   None.
 
 @note
@@ -943,7 +968,7 @@ qmi_qos_nw_status_type        *reply_data
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 
 static void
@@ -1000,7 +1025,7 @@ int                   rx_msg_len
           if (type == QMI_QOS_EVENT_FLOW_INFO_TLV_ID)
           {
             if (qmi_qos_srvc_process_event_report_ind (value_ptr,
-                                                       length,
+                                                       (int)length,
                                                        &ind_data.event_report,
                                                        num_flows_counter) < 0)
             {
@@ -1088,7 +1113,7 @@ int                   rx_msg_len
         READ_16_BIT_VAL (value_ptr,temp);
         ind_data.primary_qos_modify_result = (qmi_qos_primrary_qos_event_type) temp;
       }
-      break; 
+      break;
     default:
       {
         QMI_DEBUG_MSG_1 ("qmi_qos_srvc_indication_cb: Unknown MsgId=%ld",msg_id);
@@ -1109,14 +1134,14 @@ int                   rx_msg_len
   FUNCTION  qmi_qos_write_flow_operation_request_tlvs
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Takes the input UMTS profile data, and writes it in TLV form
   to the tx buffer.  Buffer pointers and length indicators are adjusted
-  to reflect new TLV  
- 
-@return 
+  to reflect new TLV
+
+@return
   QMI_INTERNAL_ERR if an error occurred, QMI_NO_ERR if not
-    
+
 @note
 
   - Dependencies
@@ -1124,7 +1149,7 @@ int                   rx_msg_len
 
   - Side Effects
     - Writes TLV to input buffer and updates pointers and byte count
-*/    
+*/
 /*=========================================================================*/
 
 static int
@@ -1158,7 +1183,7 @@ qmi_qos_write_flow_operation_request_tlvs
       return QMI_INTERNAL_ERR;
     }
   }
-  
+
   if (params->params_mask & QMI_QOS_PERFORM_FLOW_OP_PRIMARY_FLOW_OP_PARAM)
   {
     if (qmi_util_write_std_tlv (tx_buf,
@@ -1177,11 +1202,11 @@ qmi_qos_write_flow_operation_request_tlvs
   FUNCTION  qmi_qos_srvc_init
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is a callback that will be called once during client
-  initialization  
-  
-@return 
+  initialization
+
+@return
   None.
 
 @note
@@ -1191,7 +1216,7 @@ qmi_qos_write_flow_operation_request_tlvs
 
   - Side Effects
     - None.
-*/    
+*/
 /*=========================================================================*/
 int qmi_qos_srvc_init (void)
 {
@@ -1223,11 +1248,11 @@ int qmi_qos_srvc_init (void)
   FUNCTION  qmi_qos_srvc_release
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is a callback that will be called once during client
-  release  
-  
-@return 
+  release
+
+@return
   None.
 
 @note
@@ -1237,7 +1262,7 @@ int qmi_qos_srvc_init (void)
 
   - Side Effects
     - None.
-*/    
+*/
 /*=========================================================================*/
 int qmi_qos_srvc_release (void)
 {
@@ -1268,17 +1293,17 @@ int qmi_qos_srvc_release (void)
   FUNCTION  qmi_qos_srvc_init_client
 ===========================================================================*/
 /*!
-@brief 
-  This function is called to initialize the WDS service.  This function
-  must be called prior to calling any other WDS service functions.
+@brief
+  This function is called to initialize the QoS service.  This function
+  must be called prior to calling any other QoS service functions.
   For the time being, the indication handler callback and user data
   should be set to NULL until this is implemented.  Also note that this
   function may be called multiple times to allow for multiple, independent
-  clients.   
-  
-@return 
-  0 if abort operation was sucessful, < 0 if not.  If return code is 
-  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will 
+  clients.
+
+@return
+  0 if abort operation was sucessful, < 0 if not.  If return code is
+  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
@@ -1301,9 +1326,15 @@ qmi_qos_srvc_init_client
 {
   int client_handle;
   qmi_connection_id_type conn_id;
+  int mux_id = -1;
+  int rc;
+  int qmi_err;
+  qmi_qos_bind_mux_data_port_params_type bind_params;
+  int ep_type = -1;
+  int epid = -1;
 
-
-  if ((conn_id = QMI_PLATFORM_DEV_NAME_TO_CONN_ID(dev_id)) == QMI_CONN_ID_INVALID)
+  if (QMI_CONN_ID_INVALID ==
+      (conn_id = QMI_PLATFORM_DEV_NAME_TO_CONN_ID_EX(dev_id, &ep_type, &epid, &mux_id)))
   {
     return QMI_INTERNAL_ERR;
   }
@@ -1316,27 +1347,43 @@ qmi_qos_srvc_init_client
                                    ind_hdlr_user_data,
                                    qmi_err_code);
 
-  return client_handle;    
+  if (client_handle >= 0 && 0 < mux_id)
+  {
+    /* Prepare bind_params to bind the client to a EPID/mux id */
+    memset(&bind_params, 0, sizeof(bind_params));
+    bind_params.params_mask |= QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_MUX_ID;
+    bind_params.mux_id = (unsigned char) mux_id;
+
+    if(ep_type != -1 )
+    {
+      /* We have a valid end point and a valid ep id */
+      bind_params.params_mask |= QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_EP_ID;
+      bind_params.ep_id.ep_type = (qmi_qos_per_ep_type) ep_type;
+      bind_params.ep_id.iface_id = (unsigned long) epid;
+    }
+
+    /* Bind QoS client to EPID/MUX-ID */
+    (void) qmi_qos_bind_mux_data_port(client_handle, &bind_params, &qmi_err);
+  }
+
+  return client_handle;
 }
-
-
-
 
 /*===========================================================================
   FUNCTION  qmi_qos_srvc_release_client
 ===========================================================================*/
 /*!
-@brief 
-  This function is called to release a client created by the 
+@brief
+  This function is called to release a client created by the
   qmi_qos_srvc_init_client() function.  This function should be called
   for any client created when terminating a client process, especially
-  if the modem processor is not reset.  The modem side QMI server has 
+  if the modem processor is not reset.  The modem side QMI server has
   a limited number of clients that it will allocate, and if they are not
-  released, we will run out.  
-  
-@return 
-  0 if abort operation was sucessful, < 0 if not.  If return code is 
-  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will 
+  released, we will run out.
+
+@return
+  0 if abort operation was sucessful, < 0 if not.  If return code is
+  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
@@ -1346,9 +1393,9 @@ qmi_qos_srvc_init_client
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
-int 
+int
 qmi_qos_srvc_release_client
 (
   qmi_client_handle_type  client_handle,
@@ -1357,10 +1404,297 @@ qmi_qos_srvc_release_client
 {
   int rc;
   rc = qmi_service_release (client_handle, qmi_err_code);
-  return rc;     
+  return rc;
 }
 
+/*===========================================================================
+  FUNCTION  qmi_qos_bind_mux_data_port
+===========================================================================*/
+/*!
+@brief
+  Binds a QMI-QOS client to a MUX data port. In the case of QMAP, we will
+  have a single control channel, so QOS clients need to specify which
+  data port their actions need to be associated with.
 
+@param[in]  user_handle: QMI QOS client handle.
+@param[in]  params: Bind MUX data port specification
+@param[out] qmi_err_code: QMI error code in case of failure.
+
+@see
+  qmi_qos_bind_mux_data_port_params_type
+
+@return
+  0 if operation was successful.
+  < 0 If operation failed.  qmi_err_code will contain the reason.
+
+@dependencies
+  qmi_qos_srvc_init_client() must be called before calling this.
+
+*/
+/*=========================================================================*/
+int
+qmi_qos_bind_mux_data_port
+(
+  int                                     user_handle,
+  qmi_qos_bind_mux_data_port_params_type *params,
+  int                                    *qmi_err_code
+)
+{
+  unsigned char     msg[QMI_QOS_STD_MSG_SIZE];
+  int               msg_size;
+  unsigned char    *tmp_msg_ptr;
+  int rc;
+
+  if (NULL == qmi_err_code || NULL == params)
+  {
+    QMI_ERR_MSG_0("qmi_qos_bind_mux_data_port(): Bad Input received\n");
+    return QMI_INTERNAL_ERR;
+  }
+
+  *qmi_err_code = QMI_SERVICE_ERR_NONE;
+  QMI_DEBUG_MSG_2("qmi_qos_bind_mux_data_port(): ENTRY: user handle %d, params_mask 0x%x",
+      user_handle, params->params_mask);
+  QMI_DEBUG_MSG_4("qmi_qos_bind_mux_data_port(): ENTRY: ep type %d, ep_id 0x%x, mux_id %d, reversed %d",
+      params->ep_id.ep_type, params->ep_id.iface_id, params->mux_id, params->reversed);
+
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
+  ** message buffer */
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE);
+
+  /* Write EP ID Type TLV (size 8 bytes) if appropriate */
+  if (params->params_mask & QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_EP_ID)
+  {
+    unsigned char tmp_buf[8];
+    unsigned char *tmp_buf_ptr = tmp_buf;
+
+    /* Set TLV based on parameter value */
+    WRITE_32_BIT_VAL(tmp_buf_ptr, (unsigned long)(params->ep_id.ep_type));
+    WRITE_32_BIT_VAL(tmp_buf_ptr, params->ep_id.iface_id);
+    tmp_buf_ptr = tmp_buf;
+
+    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                &msg_size,
+                                QMI_QOS_BIND_MUX_DATA_PORT_EP_ID_TLV_ID,
+                                8,
+                                (void *)tmp_buf_ptr) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Write MUX ID Type TLV (size 1 byte) if appropriate */
+  if (params->params_mask & QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_MUX_ID)
+  {
+    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                &msg_size,
+                                QMI_QOS_BIND_MUX_DATA_PORT_MUX_ID_TLV_ID,
+                                1,
+                                (void *)&params->mux_id) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  /* Write Reversed TLV (size 1 byte) if appropriate */
+  if (params->params_mask & QMI_QOS_BIND_MUX_DATA_PORT_PARAMS_REVERSED)
+  {
+    if (qmi_util_write_std_tlv (&tmp_msg_ptr,
+                                &msg_size,
+                                QMI_QOS_BIND_MUX_DATA_PORT_REVERSED_TLV_ID,
+                                1,
+                                (void *)&params->reversed) < 0)
+    {
+      return QMI_INTERNAL_ERR;
+    }
+  }
+
+  rc = qmi_service_send_msg_sync (user_handle,
+                                  QMI_QOS_SERVICE,
+                                  QMI_QOS_BIND_MUX_DATA_PORT_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
+                                  &msg_size,
+                                  QMI_QOS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  qmi_qos_bind_subscription
+===========================================================================*/
+/*!
+@brief
+ Binds a QoS client to a subscription.
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_qos_bind_subscription
+(
+  int                          user_handle,
+  qmi_qos_bind_subscription_type  subs_id,
+  int                         *qmi_err_code
+)
+{
+  unsigned char msg[QMI_QOS_STD_MSG_SIZE];
+  int msg_size;
+  unsigned char *pdu;
+
+  if (!qmi_err_code)
+  {
+    QMI_ERR_MSG_1("qmi_qos_set_client_ip_pref bad parameters qmi_err_code=%p",
+                  qmi_err_code);
+    return QMI_INTERNAL_ERR;
+  }
+
+  pdu = QMI_SRVC_PDU_PTR(msg);
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE);
+
+  if (qmi_util_write_std_tlv(&pdu,
+                             &msg_size,
+                             QMI_QOS_BIND_SUBS_ID_REQ_TLV_ID,
+                             4,
+                             &subs_id) < 0)
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  return qmi_service_send_msg_sync(user_handle,
+                                   QMI_QOS_SERVICE,
+                                   QMI_QOS_BIND_SUBSCRIPTION_MSG_ID,
+                                   QMI_SRVC_PDU_PTR(msg),
+                                   (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                   msg,
+                                   &msg_size,
+                                   QMI_QOS_STD_MSG_SIZE,
+                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                   qmi_err_code);
+
+}
+
+/*===========================================================================
+  FUNCTION  qmi_qos_get_bind_subscription
+===========================================================================*/
+/*!
+@brief
+  This message queries the current subscription the client is bound to.
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_qos_get_bind_subscription
+(
+  int                                          user_handle,
+  qmi_qos_bind_subscription_type               *subs_id,
+  int                                          *qmi_err_code
+)
+{
+  unsigned char     msg[QMI_QOS_STD_MSG_SIZE];
+  int               msg_size;
+  unsigned char    *tmp_msg_ptr;
+  int rc;
+  int temp;
+
+  if (!subs_id )
+  {
+    return QMI_INTERNAL_ERR;
+  }
+  if (!qmi_err_code )
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
+  ** message buffer
+  */
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  /* Set the message size to the complete buffer minus the header size */
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE);
+
+  rc = qmi_service_send_msg_sync (user_handle,
+                                  QMI_QOS_SERVICE,
+                                  QMI_QOS_GET_BIND_SUBSCRIPTION_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
+                                  &msg_size,
+                                  QMI_QOS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+
+  if (rc == QMI_NO_ERR)
+  {
+    unsigned long type;
+    unsigned long length;
+    unsigned char *value_ptr;
+
+    /* Set tmp_msg_ptr to return data */
+    tmp_msg_ptr = msg;
+
+    while (msg_size > 0)
+    {
+      if (qmi_util_read_std_tlv (&tmp_msg_ptr,
+                                    &msg_size,
+                                    &type,
+                                    &length,
+                                    &value_ptr) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+
+      switch (type)
+      {
+        case QMI_QOS_GET_BIND_SUB_ID_TLV_ID:
+          {
+            READ_32_BIT_VAL (value_ptr, temp);
+            *subs_id = (qmi_qos_bind_subscription_type) temp;
+          }
+          break;
+        default:
+          {
+            QMI_ERR_MSG_1 ("qmi_qos_get_bind_subscription: unknown response TLV type = %x",(unsigned int)type);
+          }
+          break;
+      }
+    }
+  }
+  return rc;
+}
 
 static int
 qmi_qos_format_single_flow_tlvs
@@ -1470,7 +1804,7 @@ qmi_qos_flow_req_type   *flow_data
 
   SET_ENVELOPE_TLV_HDR (QMI_QOS_FLOW_SPEC_REQ_RSP_TLV_ID);
   return tlv_length;
-}   
+}
 
 
 
@@ -1562,7 +1896,7 @@ qmi_qos_filter_req_type   *filter_data
   if (filter_data->filter_desc.param_mask & QMI_QOS_FILTER_PARAM_IPV6_SRC_ADDR)
   {
     tmp_buf_ptr = tmp_buf;
-    memcpy(tmp_buf_ptr,filter_data->filter_desc.ipv6_src_addr.ipv6_ip_addr, 
+    memcpy(tmp_buf_ptr,filter_data->filter_desc.ipv6_src_addr.ipv6_ip_addr,
            sizeof(qmi_qos_ipv6_addr_type));
     tmp_buf_ptr += sizeof(qmi_qos_ipv6_addr_type);
     WRITE_8_BIT_VAL (tmp_buf_ptr, filter_data->filter_desc.ipv6_src_addr.ipv6_filter_prefix_len);
@@ -1572,8 +1906,8 @@ qmi_qos_filter_req_type   *filter_data
   if (filter_data->filter_desc.param_mask & QMI_QOS_FILTER_PARAM_IPV6_DEST_ADDR)
   {
     tmp_buf_ptr = tmp_buf;
-    memcpy(tmp_buf_ptr,filter_data->filter_desc.ipv6_dest_addr.ipv6_ip_addr, 
-           sizeof(qmi_qos_ipv6_addr_type)); 
+    memcpy(tmp_buf_ptr,filter_data->filter_desc.ipv6_dest_addr.ipv6_ip_addr,
+           sizeof(qmi_qos_ipv6_addr_type));
     tmp_buf_ptr += sizeof(qmi_qos_ipv6_addr_type);
     WRITE_8_BIT_VAL (tmp_buf_ptr, filter_data->filter_desc.ipv6_dest_addr.ipv6_filter_prefix_len);
     QMI_QOSWRITE_TLV (QMI_QOS_FILTER_IPV6_DST_ADDR_REQ_RSP_TLV_ID,
@@ -1665,7 +1999,7 @@ qmi_qos_filter_req_type   *filter_data
   }
   SET_ENVELOPE_TLV_HDR (QMI_QOS_FILTER_SPEC_REQ_RSP_TLV_ID);
   return tlv_length;
-} 
+}
 
 
 
@@ -1705,7 +2039,7 @@ qmi_qos_filter_req_type   *filter_data
 #define QMI_QOS_MODIFY_QOS       0x02
 
 static int
-qmi_qos_format_spec_req_tlvs 
+qmi_qos_format_spec_req_tlvs
 (
 unsigned char           **msg_buf,
 int                     *msg_buf_size,
@@ -1729,7 +2063,7 @@ unsigned char           req_modify
     if ((rc = qmi_qos_format_all_flow_tlvs (msg_buf,
                                             msg_buf_size,
                                             QMI_QOS_TX_FLOW_REQ_RSP_TLV_ID,
-                                            qos_spec->num_tx_flow_req,
+                                            (int)qos_spec->num_tx_flow_req,
                                             qos_spec->tx_flow_req_array)) < 0)
     {
       return QMI_INTERNAL_ERR;
@@ -1744,7 +2078,7 @@ unsigned char           req_modify
     if ((rc = qmi_qos_format_all_flow_tlvs (msg_buf,
                                             msg_buf_size,
                                             QMI_QOS_RX_FLOW_REQ_RSP_TLV_ID,
-                                            qos_spec->num_rx_flow_req,
+                                            (int)qos_spec->num_rx_flow_req,
                                             qos_spec->rx_flow_req_array)) < 0)
     {
       return QMI_INTERNAL_ERR;
@@ -1759,7 +2093,7 @@ unsigned char           req_modify
     if ((rc = qmi_qos_format_all_filter_tlvs (msg_buf,
                                             msg_buf_size,
                                             QMI_QOS_TX_FILTER_REQ_RSP_TLV_ID,
-                                            qos_spec->num_tx_filter_req,
+                                            (int)qos_spec->num_tx_filter_req,
                                             qos_spec->tx_filter_req_array)) < 0)
     {
       return QMI_INTERNAL_ERR;
@@ -1774,7 +2108,7 @@ unsigned char           req_modify
     if ((rc = qmi_qos_format_all_filter_tlvs (msg_buf,
                                             msg_buf_size,
                                             QMI_QOS_RX_FILTER_REQ_RSP_TLV_ID,
-                                            qos_spec->num_rx_filter_req,
+                                            (int)qos_spec->num_rx_filter_req,
                                             qos_spec->rx_filter_req_array)) < 0)
     {
       return QMI_INTERNAL_ERR;
@@ -1788,7 +2122,7 @@ unsigned char           req_modify
 }
 
 static int
-qmi_qos_process_qos_req_success_rsp 
+qmi_qos_process_qos_req_success_rsp
 (
 unsigned char   *msg_buf,
 int             msg_buf_size,
@@ -1816,7 +2150,7 @@ unsigned long   *qos_identifiers
     return QMI_INTERNAL_ERR;
   }
 
-  /*lint -e{681) */ 
+  /*lint -e{681) */
   for (i=0; i < tlv_num_identifiers; i++)
   {
     unsigned long identifier;
@@ -1862,7 +2196,7 @@ unsigned short     *flow_err_masks
         READ_8_BIT_VAL (value_ptr, tlv_id);
         switch (tlv_id)
         {
-          
+
           case QMI_QOS_FLOW_CDMA_PROFILE_ID_REQ_TLV_ID:
             {
               err_mask |= QMI_QOS_CDMA_FLOW_PARAM_PROFILE_ID_ERR;
@@ -1977,57 +2311,57 @@ unsigned short     *filter_err_masks
         READ_8_BIT_VAL (value_ptr, tlv_id);
         switch (tlv_id)
         {
-          
+
           case QMI_QOS_FILTER_IP_VER_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_IP_VER_ERR;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_IP_VER_ERR;
             }
             break;
 
           case QMI_QOS_FILTER_SRC_ADDR_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_SRC_ADDR;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_SRC_ADDR;
             }
             break;
 
           case QMI_QOS_FILTER_DEST_ADDR_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_DEST_ADDR;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_DEST_ADDR;
             }
             break;
 
           case QMI_QOS_FILTER_TRANS_PROTOCOL_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_TRANS_PROTOCOL;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_TRANS_PROTOCOL;
             }
             break;
 
           case QMI_QOS_FILTER_TOS_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_TOS;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_TOS;
             }
             break;
           case QMI_QOS_FILTER_TCP_SRC_PORT_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_TCP_SRC_PORTS;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_TCP_SRC_PORTS;
             }
             break;
 
           case QMI_QOS_FILTER_TCP_DEST_PORT_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_TCP_DEST_PORTS;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_TCP_DEST_PORTS;
             }
             break;
 
           case QMI_QOS_FILTER_UDP_SRC_PORT_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_UDP_SRC_PORTS;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_UDP_SRC_PORTS;
             }
             break;
 
           case QMI_QOS_FILTER_UDP_DEST_PORT_REQ_RSP_TLV_ID:
             {
-              err_mask |= QMI_QOS_FILTER_PARAM_UDP_DEST_PORTS;
+              err_mask |= (unsigned short)QMI_QOS_FILTER_PARAM_UDP_DEST_PORTS;
             }
             break;
 
@@ -2077,14 +2411,14 @@ int                flow
 
     if (flow)
     {
-      if (qmi_qos_get_flow_errs (value_ptr, length, err_masks) < 0)
+      if (qmi_qos_get_flow_errs (value_ptr, (int)length, err_masks) < 0)
       {
         return QMI_INTERNAL_ERR;
       }
     }
     else
     { /* filter */
-      if (qmi_qos_get_filter_errs (value_ptr, length, err_masks) < 0)
+      if (qmi_qos_get_filter_errs (value_ptr, (int)length, err_masks) < 0)
       {
         return QMI_INTERNAL_ERR;
       }
@@ -2134,36 +2468,36 @@ qmi_qos_err_rsp_type   *qos_spec_errs
     {
       case QMI_QOS_TX_FLOW_REQ_RSP_TLV_ID:
         {
-          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr, 
-                                           length, 
-                                           this_spec_err->tx_flow_req_err_mask, 
+          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr,
+                                           (int)length,
+                                           this_spec_err->tx_flow_req_err_mask,
                                            TRUE);
         }
         break;
 
       case QMI_QOS_RX_FLOW_REQ_RSP_TLV_ID:
         {
-          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr, 
-                                           length, 
-                                           this_spec_err->rx_flow_req_err_mask, 
+          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr,
+                                           (int)length,
+                                           this_spec_err->rx_flow_req_err_mask,
                                            TRUE);
         }
         break;
 
       case QMI_QOS_TX_FILTER_REQ_RSP_TLV_ID:
         {
-          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr, 
-                                           length, 
-                                           this_spec_err->tx_filter_req_err_mask, 
+          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr,
+                                           (int)length,
+                                           this_spec_err->tx_filter_req_err_mask,
                                            FALSE);
         }
         break;
 
       case QMI_QOS_RX_FILTER_REQ_RSP_TLV_ID:
         {
-          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr, 
-                                           length, 
-                                           this_spec_err->rx_filter_req_err_mask, 
+          (void)qmi_qos_get_spec_flow_filter_errs (value_ptr,
+                                           (int)length,
+                                           this_spec_err->rx_filter_req_err_mask,
                                            FALSE);
         }
         break;
@@ -2198,14 +2532,14 @@ qmi_qos_err_rsp_type   *qos_spec_errs
     }
 
     if (qmi_qos_get_qos_spec_req_errs (value_ptr,
-                                       length,
+                                       (int)length,
                                        qos_spec_errs) < 0)
     {
       return QMI_INTERNAL_ERR;
     }
   }
-  return QMI_NO_ERR;  
-}  
+  return QMI_NO_ERR;
+}
 
 
 /*===========================================================================
@@ -2251,15 +2585,15 @@ qmi_qos_request_qos
   unsigned char     *msg;
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int              spec_index, rc;  
+  int              spec_index, rc;
 
-  
+
   if ((num_qos_specs < 1) || (num_qos_specs > 10))
   {
     QMI_DEBUG_MSG_1 ("qmi_qos_request_qos: Invalid number of QoS specs for CDMA = %d",(unsigned int) num_qos_specs);
     return QMI_INTERNAL_ERR;
   }
- 
+
   /* QoS reqest messages can be very large, so we dynamically allocate these */
   msg = (unsigned char *) malloc (QMI_MAX_MSG_SIZE);
   if (!msg)
@@ -2269,7 +2603,7 @@ qmi_qos_request_qos
   }
 
 
-  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of 
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
   ** message buffer
   */
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
@@ -2287,7 +2621,7 @@ qmi_qos_request_qos
     memset ((void *) &qos_spec_errs[spec_index], 0, sizeof (qmi_qos_err_rsp_type));
 
     if ((rc = qmi_qos_format_spec_req_tlvs (&tmp_msg_ptr,
-                                            &msg_size, 
+                                            &msg_size,
                                             spec_index,
                                             qos_spec_array++,
                                             QMI_QOS_REQUEST_QOS)) < 0)
@@ -2318,8 +2652,8 @@ qmi_qos_request_qos
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_REQUEST_QOS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_MAX_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2342,7 +2676,7 @@ qmi_qos_request_qos
 
   free (msg);
   return rc;
-} 
+}
 
 
 
@@ -2376,7 +2710,7 @@ qmi_qos_modify_secondary_qos
   unsigned char     *msg;
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int              spec_index, rc;  
+  int              spec_index, rc;
 
 
   /* Do some error checking */
@@ -2394,7 +2728,7 @@ qmi_qos_modify_secondary_qos
     return QMI_INTERNAL_ERR;
   }
 
-  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of 
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
   ** message buffer
   */
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
@@ -2411,7 +2745,7 @@ qmi_qos_modify_secondary_qos
     memset ((void *) &qos_spec_errs[spec_index], 0, sizeof (qmi_qos_err_rsp_type));
 
     if ((rc = qmi_qos_format_spec_req_tlvs (&tmp_msg_ptr,
-                                            &msg_size, 
+                                            &msg_size,
                                             spec_index,
                                             qos_spec_array++,
                                             QMI_QOS_MODIFY_QOS)) < 0)
@@ -2427,8 +2761,8 @@ qmi_qos_modify_secondary_qos
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_MODIFY_QOS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_MAX_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2475,7 +2809,7 @@ qmi_qos_modify_primary_qos
   unsigned char     *msg;
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int               rc;  
+  int               rc;
 
   /* QoS modify messages can be very large, so we dynamically allocate these */
   msg = (unsigned char *) malloc (QMI_MAX_MSG_SIZE);
@@ -2485,7 +2819,7 @@ qmi_qos_modify_primary_qos
     return QMI_INTERNAL_ERR;
   }
 
-  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of 
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
   ** message buffer
   */
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
@@ -2500,7 +2834,7 @@ qmi_qos_modify_primary_qos
   memset ((void *) qos_spec_err, 0, sizeof (qmi_qos_err_rsp_type));
 
   if ((rc = qmi_qos_format_spec_req_tlvs (&tmp_msg_ptr,
-                                          &msg_size, 
+                                          &msg_size,
                                           0,
                                           qos_spec,
                                           QMI_QOS_MODIFY_QOS)) < 0)
@@ -2529,8 +2863,8 @@ qmi_qos_modify_primary_qos
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_MODIFY_QOS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_MAX_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_MAX_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2580,7 +2914,7 @@ qmi_qos_release_qos
   unsigned char     msg[QMI_QOS_STD_MSG_SIZE], tmp_buf[50], *tmp_buf_ptr;
   int               msg_size;
   unsigned char    *tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
-  int               i, rc;  
+  int               i, rc;
 
 
   if ((num_qos_ids < 1) || (num_qos_ids > 10))
@@ -2598,7 +2932,7 @@ qmi_qos_release_qos
     WRITE_32_BIT_VAL (tmp_buf_ptr,*qos_id_array++);
   }
 
-  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of 
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
   ** message buffer
   */
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
@@ -2622,8 +2956,8 @@ qmi_qos_release_qos
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_RELEASE_QOS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2636,11 +2970,11 @@ qmi_qos_release_qos
   FUNCTION  qmi_qos_set_event_report_state
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Set the QoS event reporting state
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -2649,7 +2983,7 @@ qmi_qos_release_qos
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_qos_set_event_report_state
@@ -2660,9 +2994,9 @@ qmi_qos_set_event_report_state
 )
 {
   unsigned char     msg[QMI_QOS_STD_MSG_SIZE],*tmp_msg_ptr;
-  int               msg_size, rc;  
+  int               msg_size, rc;
 
-  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of 
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
   ** message buffer
   */
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
@@ -2696,7 +3030,7 @@ qmi_qos_set_event_report_state
                                          &msg_size,
                                          QMI_QOS_EVENT_REPORT_NW_SUPP_PROFILE_CHANGE_TLV_ID,
                                          3,
-                                         (void *)temp)) < 0)    
+                                         (void *)temp)) < 0)
     {
       return QMI_INTERNAL_ERR;
     }
@@ -2707,8 +3041,8 @@ qmi_qos_set_event_report_state
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_SET_EVENT_REPORT_STATE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2723,10 +3057,10 @@ qmi_qos_set_event_report_state
   FUNCTION  qmi_qos_does_nw_support_qos
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function queries if the current network supports QOS!
-      
-@return 
+
+@return
 
 @note
 
@@ -2735,7 +3069,7 @@ qmi_qos_set_event_report_state
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_qos_does_nw_support_qos
@@ -2753,7 +3087,7 @@ qmi_qos_does_nw_support_qos
                                   QMI_QOS_NW_STATUS_REPORT_STATE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
                                   0,
-                                  msg,                 
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2772,11 +3106,11 @@ qmi_qos_does_nw_support_qos
   FUNCTION  qmi_qos_get_status
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function queries if the current network supports QOS!
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -2785,9 +3119,9 @@ qmi_qos_does_nw_support_qos
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-int 
+int
 qmi_qos_get_status
 (
   qmi_client_handle_type            client_handle,
@@ -2816,8 +3150,8 @@ qmi_qos_get_status
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_STATUS_REPORT_STATE_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2855,17 +3189,15 @@ qmi_qos_get_status
   return rc;
 }
 
-
 /*===========================================================================
   FUNCTION  qmi_qos_get_primary_granted_qos_info
 ===========================================================================*/
 /*!
-@brief 
-  This function if successful returns the qos parameters for a
+@brief
+  This function if successful returns the qos filter parameters for a
   particular QOS flow.
-     
-  
-@return 
+
+@return
 
 @note
 
@@ -2874,7 +3206,122 @@ qmi_qos_get_status
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
+/*=========================================================================*/
+static int
+qmi_qos_get_filter_params
+(
+  qmi_client_handle_type                  client_handle,
+  unsigned long                           qos_identifier,
+  qmi_qos_granted_info_rsp_type           *granted_info,
+  int                                     *qmi_err_code
+)
+{
+  unsigned char msg[QMI_QOS_STD_MSG_SIZE], *tmp_msg_ptr;
+  int           msg_size, rc;
+
+  memset(msg, 0x0, QMI_QOS_STD_MSG_SIZE);
+  tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
+
+  msg_size = QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE);
+
+  if ((rc = qmi_util_write_std_tlv(&tmp_msg_ptr,
+                                      &msg_size,
+                                      QMI_QOS_GET_FILTER_PARAMS_REQ_QOS_ID_TLV_ID,
+                                      4,
+                                      (void *)&qos_identifier)) < 0)
+  {
+    return QMI_INTERNAL_ERR;
+  }
+
+  rc = qmi_service_send_msg_sync (client_handle,
+                                  QMI_QOS_SERVICE,
+                                  QMI_QOS_GET_FILTER_PARAMS_MSG_ID,
+                                  QMI_SRVC_PDU_PTR(msg),
+                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
+                                  &msg_size,
+                                  QMI_QOS_STD_MSG_SIZE,
+                                  QMI_SYNC_MSG_DEFAULT_TIMEOUT,
+                                  qmi_err_code);
+
+
+  tmp_msg_ptr = msg;
+
+  {
+    unsigned long type;
+    unsigned long length;
+    unsigned char *value_ptr;
+
+    tmp_msg_ptr = msg;
+
+    while (msg_size > 0)
+    {
+      if (qmi_util_read_std_tlv (&tmp_msg_ptr,
+                                    &msg_size,
+                                    &type,
+                                    &length,
+                                    &value_ptr) < 0)
+      {
+        return QMI_INTERNAL_ERR;
+      }
+
+      switch (type)
+      {
+        case QMI_QOS_GET_FILTER_PARAMS_TX_FILTER_DATA_TLV_ID:
+          {
+            if (qmi_qos_srvc_event_prcss_nstd_filter_tlvs(value_ptr,
+                                                          (int)length,
+                                                          &granted_info->tx_granted_filter_data[0],
+                                                          &granted_info->tx_filter_count) < 0)
+            {
+              return QMI_INTERNAL_ERR;
+            }
+          }
+          break;
+
+        case QMI_QOS_GET_FILTER_PARAMS_RX_FILTER_DATA_TLV_ID:
+          {
+            if (qmi_qos_srvc_event_prcss_nstd_filter_tlvs(value_ptr,
+                                                          (int)length,
+                                                          &granted_info->rx_granted_filter_data[0],
+                                                          &granted_info->rx_filter_count) < 0)
+            {
+              return QMI_INTERNAL_ERR;
+            }
+          }
+          break;
+
+        default:
+          {
+            QMI_DEBUG_MSG_1 ("qmi_qos_get_filter_params: unknown TLV type = %x",(unsigned int)type);
+          }
+          break;
+      }
+    }
+  }
+  return rc;
+}
+
+/*===========================================================================
+  FUNCTION  qmi_qos_get_primary_granted_qos_info
+===========================================================================*/
+/*!
+@brief
+  This function if successful returns the qos parameters for a
+  particular QOS flow.
+
+
+@return
+
+@note
+
+  - Dependencies
+    - qmi_qos_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - Starts event reporting
+*/
 /*=========================================================================*/
 int
 qmi_qos_get_primary_granted_qos_info
@@ -2919,8 +3366,8 @@ qmi_qos_get_primary_granted_qos_info
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_GET_GRNTD_QOS_INFO_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -2933,6 +3380,8 @@ qmi_qos_get_primary_granted_qos_info
     unsigned long type;
     unsigned long length;
     unsigned char *value_ptr;
+
+    memset(granted_info, 0, sizeof(*granted_info));
 
     granted_info->tx_granted_flow_data_is_valid = 0;
     granted_info->rx_granted_flow_data_is_valid = 0;
@@ -2954,25 +3403,25 @@ qmi_qos_get_primary_granted_qos_info
       {
         case QMI_QOS_TX_FLOW_REQ_RSP_TLV_ID:
           {
-            granted_info->tx_granted_flow_data_is_valid = 1;
             if (qmi_qos_srvc_event_prcss_nstd_flow_tlv (value_ptr,
-                                                       length,
+                                                       (int)length,
                                                        &granted_info->tx_granted_flow_data) < 0)
             {
               return QMI_INTERNAL_ERR;
             }
+            granted_info->tx_granted_flow_data_is_valid = 1;
           }
           break;
 
         case QMI_QOS_RX_FLOW_REQ_RSP_TLV_ID:
           {
-            granted_info->rx_granted_flow_data_is_valid = 1;
             if (qmi_qos_srvc_event_prcss_nstd_flow_tlv (value_ptr,
-                                                       length,
+                                                       (int)length,
                                                        &granted_info->rx_granted_flow_data) < 0)
             {
               return QMI_INTERNAL_ERR;
             }
+            granted_info->rx_granted_flow_data_is_valid = 1;
           }
           break;
 
@@ -2990,6 +3439,12 @@ qmi_qos_get_primary_granted_qos_info
       }
     }
   }
+
+  /* request modem for filter params for the qos flow */
+  rc = qmi_qos_get_filter_params(client_handle,
+                                 qos_identifier,
+                                 granted_info,
+                                 qmi_err_code);
   return rc;
 }
 
@@ -2999,12 +3454,12 @@ qmi_qos_get_primary_granted_qos_info
   FUNCTION  qmi_qos_get_secondary_granted_qos_info
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function if successful returns the qos parameters for a
   particular QOS flow.
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -3013,7 +3468,7 @@ qmi_qos_get_primary_granted_qos_info
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_qos_get_secondary_granted_qos_info
@@ -3045,8 +3500,8 @@ qmi_qos_get_secondary_granted_qos_info
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_GET_GRNTD_QOS_INFO_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -3059,6 +3514,8 @@ qmi_qos_get_secondary_granted_qos_info
     unsigned long type;
     unsigned long length;
     unsigned char *value_ptr;
+
+    memset(granted_info, 0, sizeof(*granted_info));
 
     granted_info->tx_granted_flow_data_is_valid = 0;
     granted_info->rx_granted_flow_data_is_valid = 0;
@@ -3080,25 +3537,25 @@ qmi_qos_get_secondary_granted_qos_info
       {
         case QMI_QOS_TX_FLOW_REQ_RSP_TLV_ID:
           {
-            granted_info->tx_granted_flow_data_is_valid = 1;
             if (qmi_qos_srvc_event_prcss_nstd_flow_tlv (value_ptr,
-                                                       length,
+                                                       (int)length,
                                                        &granted_info->tx_granted_flow_data) < 0)
             {
               return QMI_INTERNAL_ERR;
             }
+            granted_info->tx_granted_flow_data_is_valid = 1;
           }
           break;
 
         case QMI_QOS_RX_FLOW_REQ_RSP_TLV_ID:
           {
-            granted_info->rx_granted_flow_data_is_valid = 1;
             if (qmi_qos_srvc_event_prcss_nstd_flow_tlv (value_ptr,
-                                                       length,
+                                                       (int)length,
                                                        &granted_info->rx_granted_flow_data) < 0)
             {
               return QMI_INTERNAL_ERR;
             }
+            granted_info->rx_granted_flow_data_is_valid = 1;
           }
           break;
 
@@ -3116,6 +3573,12 @@ qmi_qos_get_secondary_granted_qos_info
       }
     }
   }
+
+  /* request modem for filter params for the qos flow */
+  rc = qmi_qos_get_filter_params(client_handle,
+                                 qos_identifier,
+                                 granted_info,
+                                 qmi_err_code);
   return rc;
 }
 
@@ -3124,10 +3587,10 @@ qmi_qos_get_secondary_granted_qos_info
   FUNCTION  qmi_qos_reset_qos_srvc_variables
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Resets the control points state which is kept by QOS.
-     
-@return 
+
+@return
 
 @note
 
@@ -3138,9 +3601,9 @@ qmi_qos_get_secondary_granted_qos_info
      before the response.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-int 
+int
 qmi_qos_reset_qos_srvc_variables
 (
 int                               client_handle,
@@ -3155,7 +3618,7 @@ int                               *qmi_err_code
                                   QMI_QOS_RESET_SRVC_VARIABLES_MSG_ID,
                                   NULL,
                                   0,
-                                  NULL,                 
+                                  NULL,
                                   NULL,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -3169,11 +3632,11 @@ int                               *qmi_err_code
   FUNCTION  qmi_qos_suspend_qos
 ===========================================================================*/
 /*!
-@brief 
-  This function is a request to suspend one or more existing QoS flows. 
+@brief
+  This function is a request to suspend one or more existing QoS flows.
   Each QoS flow is identified with its QoS identifier
 
-@return 
+@return
 
 @note
 
@@ -3181,9 +3644,9 @@ int                               *qmi_err_code
     - qmi_qos_srvc_init_client() must be called before calling this.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-int 
+int
 qmi_qos_suspend_qos
 (
   qmi_client_handle_type    client_handle,
@@ -3194,13 +3657,14 @@ qmi_qos_suspend_qos
 {
 
   unsigned char msg[QMI_QOS_STD_MSG_SIZE], *tmp_msg_ptr = NULL;
-  int           msg_size, rc,index,tlv_length;
+  int           msg_size, rc,index;
+  unsigned long tlv_length;
   unsigned char     tmp_buff[QMI_QOS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
   msg_size = QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE);
 
-  tlv_length = sizeof(unsigned char) + (num_qos_ids * sizeof(unsigned long));
+  tlv_length = sizeof(unsigned char) + (unsigned long) (num_qos_ids * 4);
 
   WRITE_8_BIT_VAL(tmp_buff_ptr,num_qos_ids);
 
@@ -3222,8 +3686,8 @@ qmi_qos_suspend_qos
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_SUSPEND_QOS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -3236,11 +3700,11 @@ qmi_qos_suspend_qos
   FUNCTION  qmi_qos_resume_qos
 ===========================================================================*/
 /*!
-@brief 
-  This function is a request to resume one or more existing QoS flows. 
+@brief
+  This function is a request to resume one or more existing QoS flows.
   Each QoS flow is identified with its QoS identifier
 
-@return 
+@return
 
 @note
   - Number of qos_identifiers for UMTS tech should always be 1
@@ -3249,9 +3713,9 @@ qmi_qos_suspend_qos
     - qmi_qos_srvc_init_client() must be called before calling this.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-int 
+int
 qmi_qos_resume_qos
 (
   qmi_client_handle_type    client_handle,
@@ -3261,14 +3725,15 @@ qmi_qos_resume_qos
 )
 {
   unsigned char     msg[QMI_QOS_STD_MSG_SIZE], *tmp_msg_ptr = NULL;
-  int               msg_size, rc,index,tlv_length;
+  int               msg_size, rc,index;
+  unsigned long     tlv_length;
   unsigned char     tmp_buff[QMI_QOS_STD_MSG_SIZE];
   unsigned char     *tmp_buff_ptr = tmp_buff;
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
   msg_size = QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE);
 
 
-  tlv_length = sizeof(unsigned char) + (num_qos_ids * sizeof(unsigned long));
+  tlv_length = sizeof(unsigned char) + (unsigned long) (num_qos_ids * 4);
 
   WRITE_8_BIT_VAL(tmp_buff_ptr,(char)num_qos_ids);
   for (index = 0; index < num_qos_ids; index++)
@@ -3289,8 +3754,8 @@ qmi_qos_resume_qos
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_RESUME_QOS_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -3304,11 +3769,11 @@ qmi_qos_resume_qos
   FUNCTION  qmi_qos_get_nw_supported_qos_profiles
 ===========================================================================*/
 /*!
-@brief 
-  This function is a request to resume one or more existing QoS flows. 
+@brief
+  This function is a request to resume one or more existing QoS flows.
   Each QoS flow is identified with its QoS identifier
 
-@return 
+@return
 
 @note
   - Number of qos_identifiers for UMTS tech should always be 1
@@ -3317,9 +3782,9 @@ qmi_qos_resume_qos
     - qmi_qos_srvc_init_client() must be called before calling this.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-int 
+int
 qmi_qos_get_nw_supported_qos_profiles
 (
   qmi_client_handle_type                         client_handle,
@@ -3347,8 +3812,8 @@ qmi_qos_get_nw_supported_qos_profiles
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_NW_SUPPORTED_QOS_PROFILES_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -3389,7 +3854,7 @@ qmi_qos_get_nw_supported_qos_profiles
               READ_16_BIT_VAL(value_ptr, rsp_data->qos_profiles.profile_info[index].iface_type);
               READ_8_BIT_VAL(value_ptr,rsp_data->qos_profiles.profile_info[index].num_profiles);
               num_profiles = rsp_data->qos_profiles.profile_info[index].num_profiles;
-              for (j = 0; j < num_profiles; j++)              
+              for (j = 0; j < num_profiles; j++)
               {
                 READ_16_BIT_VAL(value_ptr,rsp_data->qos_profiles.profile_info[index].profile[j]);
               }
@@ -3416,11 +3881,11 @@ qmi_qos_get_nw_supported_qos_profiles
   FUNCTION  qmi_qos_perform_flow_operation
 ===========================================================================*/
 /*!
-@brief 
-  This function is a request to resume one or more existing QoS flows. 
+@brief
+  This function is a request to resume one or more existing QoS flows.
   Each QoS flow is identified with its QoS identifier
 
-@return 
+@return
 
 @note
   - Number of qos_identifiers for UMTS tech should always be 1
@@ -3429,9 +3894,9 @@ qmi_qos_get_nw_supported_qos_profiles
     - qmi_qos_srvc_init_client() must be called before calling this.
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
-int 
+int
 qmi_qos_perform_flow_operation
 (
   int                                   client_handle,
@@ -3443,7 +3908,7 @@ qmi_qos_perform_flow_operation
   unsigned char     msg[QMI_QOS_STD_MSG_SIZE];
   int               msg_size;
   unsigned char    *tmp_msg_ptr;
-  int rc;  
+  int rc;
 
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
 
@@ -3472,8 +3937,8 @@ qmi_qos_perform_flow_operation
                                   QMI_QOS_SERVICE,
                                   QMI_QOS_PERFORM_QOS_FLOW_OPERATION_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_QOS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -3486,6 +3951,7 @@ qmi_qos_perform_flow_operation
     resp_data->params_mask = 0;
 
     tmp_msg_ptr = msg;
+    memset(resp_data, 0, sizeof(*resp_data));
 
     while (msg_size > 0)
     {
@@ -3509,7 +3975,7 @@ qmi_qos_perform_flow_operation
             resp_data->params_mask |= QMI_QOS_PERFORM_FLOW_OP_RESP_OP_FAILURE_PARAM;
             READ_8_BIT_VAL (value_ptr,resp_data->op_fail_info.num_failures);
             num_instances = resp_data->op_fail_info.num_failures;
-            for (index = 0; index < num_instances; index++) 
+            for (index = 0; index < num_instances; index++)
             {
               READ_8_BIT_VAL (value_ptr,resp_data->op_fail_info.fail_info[index].bit_number);
               READ_16_BIT_VAL (value_ptr,resp_data->op_fail_info.fail_info[index].dss_errno);
@@ -3620,7 +4086,7 @@ qmi_qos_set_client_ip_pref
                                    QMI_QOS_SERVICE,
                                    QMI_QOS_SET_CLIENT_IP_FAMILY_PREF_MSG_ID,
                                    QMI_SRVC_PDU_PTR(msg),
-                                   QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
+                                   (int)QMI_SRVC_PDU_SIZE(QMI_QOS_STD_MSG_SIZE) - msg_size,
                                    msg,
                                    &msg_size,
                                    QMI_QOS_STD_MSG_SIZE,

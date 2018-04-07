@@ -32,20 +32,19 @@
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2012-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2012-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header$
+  $Header: //source/qcom/qct/interfaces/qmi/imsdcm/main/latest/api/ip_multimedia_subsystem_dcm_v01.h#11 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2
-   It requires encode/decode library version 5 or later
-   It was generated on: Mon Sep 16 2013 (Spin 0)
+/* This file was generated with Tool version 6.10
+   It was generated on: Fri Aug  8 2014 (Spin 0)
    From IDL File: ip_multimedia_subsystem_dcm_v01.idl */
 
 /** @defgroup imsdcm_qmi_consts Constant values defined in the IDL */
@@ -71,11 +70,11 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define IMSDCM_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define IMSDCM_V01_IDL_MINOR_VERS 0x03
+#define IMSDCM_V01_IDL_MINOR_VERS 0x07
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define IMSDCM_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define IMSDCM_V01_MAX_MESSAGE_ID 0x0027;
+#define IMSDCM_V01_MAX_MESSAGE_ID 0x002D
 /**
     @}
   */
@@ -158,9 +157,42 @@ typedef enum {
 typedef enum {
   IMS_DCM_WIFI_QUALITY_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
   IMS_DCM_WIFI_QUALITY_GOOD_V01 = 0, /**<  Where RSSI value is beyond the threshold \n  */
-  IMS_DCM_WIFI_QUALITY_BAD_V01 = 1, /**<  Where RSSI value is below the threshold  */
+  IMS_DCM_WIFI_QUALITY_BAD_V01 = 1, /**<  Where RSSI value is below the threshold \n  */
+  IMS_DCM_WIFI_IFACE_FAILURE_V01 = 2, /**<  where ims failed to communicate with WiFi interface  */
   IMS_DCM_WIFI_QUALITY_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }ims_dcm_wifi_quality_v01;
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_enums
+    @{
+  */
+typedef enum {
+  IMS_DCM_HO_MEASUREMENT_REPORT_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_DCM_HO_MEASUREMENT_REPORT_WIFI_GOOD_V01 = 0, /**<   Where RSSI and media values are beyond the threshold \n  */
+  IMS_DCM_HO_MEASUREMENT_REPORT_WIFI_MEDIUM_V01 = 1, /**<   Where RSSI and media values are inbetween high and low  */
+  IMS_DCM_HO_MEASUREMENT_REPORT_WIFI_BAD_V01 = 2, /**<   Where RSSI and media values are below the threshold  */
+  IMS_DCM_HO_MEASUREMENT_REPORT_WIFI_FAILURE_V01 = 3, /**<   When there is a failure in WLAN driver/supplicant  */
+  IMS_DCM_HO_MEASUREMENT_REPORT_WIFI_MEDIUM_HIGH_V01 = 4, /**<   Where RSSI and media value is high  */
+  IMS_DCM_HO_MEASUREMENT_REPORT_WIFI_MEDIUM_LOW_V01 = 5, /**<   Where RSSI and media value is low  */
+  IMS_DCM_HO_MEASUREMENT_REPORT_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}ims_dcm_ho_measurement_report_v01;
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_enums
+    @{
+  */
+typedef enum {
+  IMS_DCM_HO_MEASUREMENT_MODULE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_DCM_HO_MEASUREMENT_MODULE_WLAN_UL_V01 = 0, /**<   Module is wlan uplink for which report is needed \n  */
+  IMS_DCM_HO_MEASUREMENT_MODULE_WLAN_DL_V01 = 1, /**<   Module is wlan downlink for which report is needed  \n  */
+  IMS_DCM_HO_MEASUREMENT_MODULE_MEDIA_UL_V01 = 2, /**<   Module is media uplink for which report is needed  */
+  IMS_DCM_HO_MEASUREMENT_MODULE_MEDIA_DL_V01 = 3, /**<   Module is media downlink for which report is needed  */
+  IMS_DCM_HO_MEASUREMENT_MODULE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}ims_dcm_ho_measurement_module_v01;
 /**
     @}
   */
@@ -168,6 +200,9 @@ typedef enum {
 /** @addtogroup imsdcm_qmi_aggregates
     @{
   */
+/**  Structure to hold the IP address obtained by UE.
+
+ */
 typedef struct {
 
   ims_dcm_ip_address_family_type_v01 family_type;
@@ -190,6 +225,9 @@ typedef struct {
 /** @addtogroup imsdcm_qmi_aggregates
     @{
   */
+/**  Structure to hold the link local address obtained by UE.
+
+ */
 typedef struct {
 
   uint16_t port;
@@ -215,6 +253,9 @@ typedef struct {
 /** @addtogroup imsdcm_qmi_aggregates
     @{
   */
+/**  Structure to hold Information required to bring up the PDP.
+
+ */
 typedef struct {
 
   char apn_name[IMS_DCM_APN_STRING_LEN_MAX_V01 + 1];
@@ -251,6 +292,78 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imsdcm_qmi_aggregates
+    @{
+  */
+/**  Structure to hold Information required in Algorithm.
+
+ */
+typedef struct {
+
+  uint32_t rtcp_jitter_good;
+  /**<   threshold good for RTCP jitter */
+
+  uint32_t rtcp_jitter_acceptable;
+  /**<   threshold acceptable for RTCP jitter */
+
+  uint32_t rtcp_jitter_fair;
+  /**<   threshold fair for RTCP jitter */
+
+  uint32_t rtcp_jitter_bad;
+  /**<   threshold bad for RTCP jitter */
+}ims_dcm_rtcp_jitter_threshold_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_aggregates
+    @{
+  */
+/**  Structure to hold Information required in Algorithm.
+
+ */
+typedef struct {
+
+  uint32_t rtp_frame_loss_good;
+  /**<   RTP frame loss threshold for good condition */
+
+  uint32_t rtp_frame_loss_acceptable;
+  /**<   RTP frame loss threshold for acceptable condition */
+
+  uint32_t rtp_frame_loss_fair;
+  /**<   RTP frame loss threshold for fair condition */
+
+  uint32_t rtp_frame_loss_bad;
+  /**<   RTP frame loss threshold for bad condition */
+}ims_dcm_rtp_frame_loss_threshold_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_aggregates
+    @{
+  */
+/**  Structure to hold Information required in Handover media report.
+
+ */
+typedef struct {
+
+  uint32_t rtcp_jitter_ul;
+  /**<   Current RTCP jitter buffer value for uplink */
+
+  uint32_t rtcp_jitter_dl;
+  /**<   Current RTCP jitter buffer value for downlink */
+
+  uint32_t rtp_frame_loss_ul;
+  /**<   Current RTP frame loss value for uplink */
+
+  uint32_t rtp_frame_loss_dl;
+  /**<   Current RTP frame loss value for downlink */
+}ims_dcm_handover_media_report_v01;  /* Type */
+/**
+    @}
+  */
+
 /** @addtogroup imsdcm_qmi_messages
     @{
   */
@@ -266,6 +379,14 @@ typedef struct {
   uint8_t pdp_req_seq_no_valid;  /**< Must be set to true if pdp_req_seq_no is being passed */
   uint32_t pdp_req_seq_no;
   /**<   Cookie to help the client uniquely identify this specific PDP request.
+  */
+
+  /* Optional */
+  /*  Subscription ID */
+  uint8_t pdp_subs_id_valid;  /**< Must be set to true if pdp_subs_id is being passed */
+  uint32_t pdp_subs_id;
+  /**<   Subscription ID for identifying LTE slot in case of DS-DS.
+       This value will be passed to data layer when activating PDP.
   */
 }ims_dcm_pdp_activate_req_msg_v01;  /* Message */
 /**
@@ -303,13 +424,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  PDP ID */
-  uint8_t pdp_id;
-  /**<   PDP ID to uniquely identify the interface. 0 indicates a failure. More details
-       about the reason for failure can be obtained from the pdp_error field.
-  */
-
-  /* Mandatory */
   /*  PDP Error */
   qmi_response_type_v01 pdp_error;
   /**<   PDP Error Information
@@ -319,7 +433,13 @@ typedef struct {
       - QMI_ERR_NONE -- Success case
       - QMI_ERR_INVALID_PROFILE -- Invalid ds profile specified \n
       - QMI_ERR_INVALID_PDP_TYPE -- Unsupported PDP type specified \n
+  */
 
+  /* Mandatory */
+  /*  PDP ID */
+  uint8_t pdp_id;
+  /**<   PDP ID to uniquely identify the interface. 0 indicates a failure. More details
+       about the reason for failure can be obtained from the pdp_error field.
   */
 
   /* Optional */
@@ -726,6 +846,352 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Request Message; Get Handover metrics. */
+typedef struct {
+
+  /* Mandatory */
+  /*  PDP ID */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies the interface.
+  */
+
+  /* Mandatory */
+  /*  Sample Timer Value */
+  uint32_t sampling_timer_value;
+  /**<   Sampling timer is the interval of time to collect next sample (rssi and media) in milliseconds */
+
+  /* Mandatory */
+  /*  Monitor Timer Value */
+  uint32_t monitor_timer_value;
+  /**<   monitor timer is used to monitor rssi and media metrics to collect enough samples before applying handover algorithm (in Seconds) */
+
+  /* Mandatory */
+  /*  RSSI Threshold High */
+  uint32_t rssi_threshold_high;
+  /**<   threshold value high for RSSI */
+
+  /* Mandatory */
+  /*  RSSI Threshold Low  */
+  uint32_t rssi_threshold_low;
+  /**<   threshold value low for RSSI		 */
+
+  /* Optional */
+  /*  Source RAT Type */
+  uint8_t source_rat_type_valid;  /**< Must be set to true if source_rat_type is being passed */
+  ims_dcm_rat_type_v01 source_rat_type;
+  /**<   source rat type, When the init request message sent to service at that time Source RAT, MAY NOT be available. If it is not SET in this request it will be mandatorly set in Start request message and value is essential for calculation after start request is sent */
+
+  /* Optional */
+  /*  Target RAT Type */
+  uint8_t target_rat_type_valid;  /**< Must be set to true if target_rat_type is being passed */
+  ims_dcm_rat_type_v01 target_rat_type;
+  /**<   target rat type, When the init request message sent to service at that time Target RAT, MAY NOT be available. If it is not SET in this request it will be mandatorly set in Start request message and value is essential for calculation after start request is sent */
+
+  /* Optional */
+  /*  RTCP Jitter Threshold */
+  uint8_t rtcp_jitter_threshold_valid;  /**< Must be set to true if rtcp_jitter_threshold is being passed */
+  ims_dcm_rtcp_jitter_threshold_v01 rtcp_jitter_threshold;
+  /**<   RCTP jitter threshold values to be used in algorithm */
+
+  /* Optional */
+  /*  Rtp Frame Loss Threshold */
+  uint8_t rtp_frame_loss_threshold_valid;  /**< Must be set to true if rtp_frame_loss_threshold is being passed */
+  ims_dcm_rtp_frame_loss_threshold_v01 rtp_frame_loss_threshold;
+  /**<   RTP frame loss threshold values to be used in algorithm */
+
+  /* Optional */
+  /*  RSSI Threshold Re-Point or Medium Value */
+  uint8_t rssi_threshold_repoint_valid;  /**< Must be set to true if rssi_threshold_repoint is being passed */
+  uint32_t rssi_threshold_repoint;
+  /**<   threshold value medium for RSSI */
+}ims_dcm_get_ho_measurement_init_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Response Message; Get Handover metrics. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code     */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+       - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
+       - qmi_error_type  -- Error code. Possible error code values are
+                            described in the error codes section of each
+                            message definition.
+                            Only if processing was successful, will an
+                            indication be sent which will hold information
+                            about the result of processing.
+  */
+
+  /* Optional */
+  /*  PDP ID */
+  uint8_t pdp_id_valid;  /**< Must be set to true if pdp_id is being passed */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies the interface.
+  */
+}ims_dcm_get_ho_measurement_init_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Request Message; To start Handover. */
+typedef struct {
+
+  /* Mandatory */
+  /*  PDP ID */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP request. */
+
+  /* Mandatory */
+  /*  Source RAT type */
+  ims_dcm_rat_type_v01 source_rat_type;
+  /**<   source RAT type */
+
+  /* Mandatory */
+  /*  Target RAT type */
+  ims_dcm_rat_type_v01 target_rat_type;
+  /**<   target RAT type */
+
+  /* Mandatory */
+  /*  Module Name */
+  ims_dcm_ho_measurement_module_v01 module_name;
+  /**<   module name on which measurement to be started */
+}ims_dcm_ho_measurement_start_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Response Message; To start Handover. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code     */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
+      - qmi_error_type  -- Error code. Possible error code values are
+                           described in the error codes section of each
+                           message definition
+    */
+
+  /* Optional */
+  /*  PDP ID */
+  uint8_t pdp_id_valid;  /**< Must be set to true if pdp_id is being passed */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP. */
+}ims_dcm_ho_measurement_start_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Request Message; To stop Handover. */
+typedef struct {
+
+  /* Mandatory */
+  /*  PDP ID */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP request. */
+
+  /* Mandatory */
+  /*  Module Name */
+  ims_dcm_ho_measurement_module_v01 module_name;
+  /**<   module name on which measurement to be stopped */
+}ims_dcm_ho_measurement_stop_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Response Message; To stop Handover. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code     */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
+      - qmi_error_type  -- Error code. Possible error code values are
+                           described in the error codes section of each
+                           message definition
+    */
+
+  /* Optional */
+  /*  PDP ID */
+  uint8_t pdp_id_valid;  /**< Must be set to true if pdp_id is being passed */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP. */
+}ims_dcm_ho_measurement_stop_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Indication Message; Informs the client about the change in IP address. */
+typedef struct {
+
+  /* Mandatory */
+  /*  PDP ID */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies the interface */
+
+  /* Mandatory */
+  /*  Module Name */
+  ims_dcm_ho_measurement_module_v01 module_name;
+  /**<   module name for which report needs to sent */
+
+  /* Mandatory */
+  /*  Handover Report */
+  ims_dcm_ho_measurement_report_v01 handover_report;
+  /**<     WiFi quality information indicates the quality report */
+
+  /* Optional */
+  /*  Current RSSI Value */
+  uint8_t current_rssi_value_valid;  /**< Must be set to true if current_rssi_value is being passed */
+  uint32_t current_rssi_value;
+  /**<   Current average RSSI Value */
+
+  /* Optional */
+  /*  Handover Media Report */
+  uint8_t handover_media_report_valid;  /**< Must be set to true if handover_media_report is being passed */
+  ims_dcm_handover_media_report_v01 handover_media_report;
+  /**<   Current media releated metrics */
+}ims_dcm_ho_measurement_report_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Request Message; To update Handover status. */
+typedef struct {
+
+  /* Mandatory */
+  /*  PDP ID */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP request. */
+
+  /* Mandatory */
+  /*  Source RAT type */
+  ims_dcm_rat_type_v01 source_rat_type;
+  /**<   Source RAT type */
+
+  /* Mandatory */
+  /*  Target RAT type */
+  ims_dcm_rat_type_v01 target_rat_type;
+  /**<   Target RAT type */
+}ims_dcm_ho_measurement_status_update_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Response Message; To update Handover status. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code     */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
+      - qmi_error_type  -- Error code. Possible error code values are
+                           described in the error codes section of each
+                           message definition
+    */
+
+  /* Optional */
+  /*  PDP ID */
+  uint8_t pdp_id_valid;  /**< Must be set to true if pdp_id is being passed */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP. */
+}ims_dcm_ho_measurement_status_update_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Request Message; To uninit handover */
+typedef struct {
+
+  /* Mandatory */
+  /*  PDP ID */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP request. */
+}ims_dcm_ho_measurement_uninit_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsdcm_qmi_messages
+    @{
+  */
+/** Response Message; To uninit handover */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code     */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
+      - qmi_error_type  -- Error code. Possible error code values are
+                           described in the error codes section of each
+                           message definition
+    */
+
+  /* Optional */
+  /*  PDP ID */
+  uint8_t pdp_id_valid;  /**< Must be set to true if pdp_id is being passed */
+  uint8_t pdp_id;
+  /**<   PDP ID that uniquely identifies this specific PDP. */
+}ims_dcm_ho_measurement_uninit_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */
+//#define REMOVE_QMI_IMS_DCM_ADDRESS_CHANGE_IND_V01
+//#define REMOVE_QMI_IMS_DCM_GET_IP_ADDRESS_V01
+//#define REMOVE_QMI_IMS_DCM_GET_IP_ADDRESS_IND_V01
+//#define REMOVE_QMI_IMS_DCM_GET_WIFI_QUALITY_V01
+//#define REMOVE_QMI_IMS_DCM_HO_MEASUREMENT_INIT_V01
+//#define REMOVE_QMI_IMS_DCM_HO_MEASUREMENT_REPORT_IND_V01
+//#define REMOVE_QMI_IMS_DCM_HO_MEASUREMENT_START_V01
+//#define REMOVE_QMI_IMS_DCM_HO_MEASUREMENT_STATUS_V01
+//#define REMOVE_QMI_IMS_DCM_HO_MEASUREMENT_STOP_V01
+//#define REMOVE_QMI_IMS_DCM_HO_MEASUREMENT_UNINIT_V01
+//#define REMOVE_QMI_IMS_DCM_MODEM_LINK_ADDR_V01
+//#define REMOVE_QMI_IMS_DCM_PDP_ACTIVATE_V01
+//#define REMOVE_QMI_IMS_DCM_PDP_ACTIVATE_IND_V01
+//#define REMOVE_QMI_IMS_DCM_PDP_DEACTIVATE_V01
+//#define REMOVE_QMI_IMS_DCM_STOP_WIFI_QUALITY_V01
+//#define REMOVE_QMI_IMS_DCM_UPDATE_WIFI_QUALITY_V01
+//#define REMOVE_QMI_IMS_DCM_WIFI_QUALITY_IND_V01
+
 /*Service Message Definition*/
 /** @addtogroup imsdcm_qmi_msg_ids
     @{
@@ -748,6 +1214,17 @@ typedef struct {
 #define QMI_IMS_DCM_STOP_WIFI_QUALITY_RSP_V01 0x0026
 #define QMI_IMS_DCM_UPDATE_WIFI_QUALITY_REQ_V01 0x0027
 #define QMI_IMS_DCM_UPDATE_WIFI_QUALITY_RSP_V01 0x0027
+#define QMI_IMS_DCM_HO_MEASUREMENT_INIT_REQ_V01 0x0028
+#define QMI_IMS_DCM_HO_MEASUREMENT_INIT_RSP_V01 0x0028
+#define QMI_IMS_DCM_HO_MEASUREMENT_START_REQ_V01 0x0029
+#define QMI_IMS_DCM_HO_MEASUREMENT_START_RSP_V01 0x0029
+#define QMI_IMS_DCM_HO_MEASUREMENT_STOP_REQ_V01 0x002A
+#define QMI_IMS_DCM_HO_MEASUREMENT_STOP_RSP_V01 0x002A
+#define QMI_IMS_DCM_HO_MEASUREMENT_REPORT_IND_V01 0x002B
+#define QMI_IMS_DCM_HO_MEASUREMENT_STATUS_REQ_V01 0x002C
+#define QMI_IMS_DCM_HO_MEASUREMENT_STATUS_RSP_V01 0x002C
+#define QMI_IMS_DCM_HO_MEASUREMENT_UNINIT_REQ_V01 0x002D
+#define QMI_IMS_DCM_HO_MEASUREMENT_UNINIT_RSP_V01 0x002D
 /**
     @}
   */

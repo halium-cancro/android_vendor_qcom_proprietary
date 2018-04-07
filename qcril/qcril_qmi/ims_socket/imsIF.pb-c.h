@@ -57,6 +57,7 @@ typedef struct _Ims__CallDetails Ims__CallDetails;
 typedef struct _Ims__CallModify Ims__CallModify;
 typedef struct _Ims__CallList Ims__CallList;
 typedef struct _Ims__CallList__Call Ims__CallList__Call;
+typedef struct _Ims__Colr Ims__Colr;
 typedef struct _Ims__Dial Ims__Dial;
 typedef struct _Ims__Hangup Ims__Hangup;
 typedef struct _Ims__DeflectCall Ims__DeflectCall;
@@ -80,32 +81,43 @@ typedef struct _Ims__CbNumListType Ims__CbNumListType;
 typedef struct _Ims__CallWaitingInfo Ims__CallWaitingInfo;
 typedef struct _Ims__CallForwardInfoList Ims__CallForwardInfoList;
 typedef struct _Ims__CallForwardInfoList__CallForwardInfo Ims__CallForwardInfoList__CallForwardInfo;
+typedef struct _Ims__CallFwdTimerInfo Ims__CallFwdTimerInfo;
 typedef struct _Ims__ConfInfo Ims__ConfInfo;
 typedef struct _Ims__SuppSvcNotification Ims__SuppSvcNotification;
 typedef struct _Ims__SuppSvcStatus Ims__SuppSvcStatus;
 typedef struct _Ims__SuppSvcRequest Ims__SuppSvcRequest;
 typedef struct _Ims__SuppSvcResponse Ims__SuppSvcResponse;
 typedef struct _Ims__VideoCallQuality Ims__VideoCallQuality;
+typedef struct _Ims__MwiMessageSummary Ims__MwiMessageSummary;
+typedef struct _Ims__MwiMessageDetails Ims__MwiMessageDetails;
+typedef struct _Ims__Mwi Ims__Mwi;
+typedef struct _Ims__Hold Ims__Hold;
+typedef struct _Ims__Resume Ims__Resume;
 
 
 /* --- enums --- */
 
 typedef enum _Ims__Registration__RegState {
   IMS__REGISTRATION__REG_STATE__REGISTERED = 1,
-  IMS__REGISTRATION__REG_STATE__NOT_REGISTERED = 2
+  IMS__REGISTRATION__REG_STATE__NOT_REGISTERED = 2,
+  IMS__REGISTRATION__REG_STATE__REGISTERING = 3
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__REGISTRATION__REG_STATE)
 } Ims__Registration__RegState;
 typedef enum _Ims__RingBackTone__ToneFlag {
   IMS__RING_BACK_TONE__TONE_FLAG__STOP = 0,
   IMS__RING_BACK_TONE__TONE_FLAG__START = 1
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__RING_BACK_TONE__TONE_FLAG)
 } Ims__RingBackTone__ToneFlag;
 typedef enum _Ims__IFConnected__Version {
   IMS__IFCONNECTED__VERSION__VERSION_0 = 0
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__IFCONNECTED__VERSION)
 } Ims__IFConnected__Version;
 typedef enum _Ims__MsgType {
   IMS__MSG_TYPE__UNKNOWN = 0,
   IMS__MSG_TYPE__REQUEST = 1,
   IMS__MSG_TYPE__RESPONSE = 2,
   IMS__MSG_TYPE__UNSOL_RESPONSE = 3
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__MSG_TYPE)
 } Ims__MsgType;
 typedef enum _Ims__MsgId {
   IMS__MSG_ID__UNKNOWN_REQ = 0,
@@ -141,8 +153,13 @@ typedef enum _Ims__MsgId {
   IMS__MSG_ID__REQUEST_SET_SERVICE_STATUS = 30,
   IMS__MSG_ID__REQUEST_SUPP_SVC_STATUS = 31,
   IMS__MSG_ID__REQUEST_DEFLECT_CALL = 32,
+  IMS__MSG_ID__REQUEST_GET_COLR = 33,
+  IMS__MSG_ID__REQUEST_SET_COLR = 34,
   IMS__MSG_ID__REQUEST_QUERY_VT_CALL_QUALITY = 35,
   IMS__MSG_ID__REQUEST_SET_VT_CALL_QUALITY = 36,
+  IMS__MSG_ID__REQUEST_HOLD = 37,
+  IMS__MSG_ID__REQUEST_RESUME = 38,
+  IMS__MSG_ID__REQUEST_SEND_UI_TTY_MODE = 39,
   IMS__MSG_ID__UNSOL_RSP_BASE = 200,
   IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED = 201,
   IMS__MSG_ID__UNSOL_CALL_RING = 202,
@@ -156,7 +173,9 @@ typedef enum _Ims__MsgId {
   IMS__MSG_ID__UNSOL_SRV_STATUS_UPDATE = 210,
   IMS__MSG_ID__UNSOL_SUPP_SVC_NOTIFICATION = 211,
   IMS__MSG_ID__UNSOL_TTY_NOTIFICATION = 212,
-  IMS__MSG_ID__UNSOL_RADIO_STATE_CHANGED = 213
+  IMS__MSG_ID__UNSOL_RADIO_STATE_CHANGED = 213,
+  IMS__MSG_ID__UNSOL_MWI = 214
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__MSG_ID)
 } Ims__MsgId;
 typedef enum _Ims__Error {
   IMS__ERROR__E_SUCCESS = 0,
@@ -168,6 +187,7 @@ typedef enum _Ims__Error {
   IMS__ERROR__E_INVALID_PARAMETER = 27,
   IMS__ERROR__E_REJECTED_BY_REMOTE = 28,
   IMS__ERROR__E_IMS_DEREGISTERED = 29
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__ERROR)
 } Ims__Error;
 typedef enum _Ims__CallState {
   IMS__CALL_STATE__CALL_ACTIVE = 0,
@@ -175,12 +195,15 @@ typedef enum _Ims__CallState {
   IMS__CALL_STATE__CALL_DIALING = 2,
   IMS__CALL_STATE__CALL_ALERTING = 3,
   IMS__CALL_STATE__CALL_INCOMING = 4,
-  IMS__CALL_STATE__CALL_WAITING = 5
+  IMS__CALL_STATE__CALL_WAITING = 5,
+  IMS__CALL_STATE__CALL_END = 6
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__CALL_STATE)
 } Ims__CallState;
 typedef enum _Ims__RadioState {
   IMS__RADIO_STATE__RADIO_STATE_OFF = 0,
   IMS__RADIO_STATE__RADIO_STATE_UNAVAILABLE = 1,
   IMS__RADIO_STATE__RADIO_STATE_ON = 10
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__RADIO_STATE)
 } Ims__RadioState;
 typedef enum _Ims__CallType {
   IMS__CALL_TYPE__CALL_TYPE_VOICE = 0,
@@ -193,8 +216,18 @@ typedef enum _Ims__CallType {
   IMS__CALL_TYPE__CALL_TYPE_PS_VS_TX = 7,
   IMS__CALL_TYPE__CALL_TYPE_PS_VS_RX = 8,
   IMS__CALL_TYPE__CALL_TYPE_UNKNOWN = 9,
-  IMS__CALL_TYPE__CALL_TYPE_SMS = 10
+  IMS__CALL_TYPE__CALL_TYPE_SMS = 10,
+  IMS__CALL_TYPE__CALL_TYPE_UT = 11
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__CALL_TYPE)
 } Ims__CallType;
+typedef enum _Ims__CallSubstate {
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_NONE = 0,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_AUDIO_CONNECTED_SUSPENDED = 1,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_VIDEO_CONNECTED_SUSPENDED = 2,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_AVP_RETRY = 4,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_MEDIA_PAUSED = 8
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__CALL_SUBSTATE)
+} Ims__CallSubstate;
 typedef enum _Ims__CallFailCause {
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_UNOBTAINABLE_NUMBER = 1,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_NORMAL = 16,
@@ -202,12 +235,38 @@ typedef enum _Ims__CallFailCause {
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_CONGESTION = 34,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_INCOMPATIBILITY_DESTINATION = 88,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_CALL_BARRED = 240,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_BUSY = 501,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_REJECT = 502,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_LOW_BATTERY = 503,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_BLACKLISTED_CALL_ID = 504,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_NETWORK_UNAVAILABLE = 1010,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_FEATURE_UNAVAILABLE = 1011,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_Error = 1012,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_MISC = 1013,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_ANSWERED_ELSEWHERE = 1014,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REDIRECTED = 2001,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_REQUEST = 2002,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_FORBIDDEN = 2003,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_FOUND = 2004,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_SUPPORTED = 2005,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_TIMEOUT = 2006,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_TEMPORARILY_UNAVAILABLE = 2007,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_ADDRESS = 2008,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BUSY = 2009,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_CANCELLED = 2010,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_ACCEPTABLE = 2011,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_REACHABLE = 2012,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_INTERNAL_ERROR = 2013,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVICE_UNAVAILABLE = 2014,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_TIMEOUT = 2015,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_USER_REJECTED = 2016,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_GLOBAL_ERROR = 2017,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_INIT_FAILED = 3001,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_NO_DATA = 3002,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_NOT_ACCEPTABLE = 3003,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_UNSPECIFIED_ERROR = 3004,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_ERROR_UNSPECIFIED = 65535
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__CALL_FAIL_CAUSE)
 } Ims__CallFailCause;
 typedef enum _Ims__CallDomain {
   IMS__CALL_DOMAIN__CALL_DOMAIN_UNKNOWN = 0,
@@ -215,17 +274,20 @@ typedef enum _Ims__CallDomain {
   IMS__CALL_DOMAIN__CALL_DOMAIN_PS = 2,
   IMS__CALL_DOMAIN__CALL_DOMAIN_AUTOMATIC = 3,
   IMS__CALL_DOMAIN__CALL_DOMAIN_NOT_SET = 4
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__CALL_DOMAIN)
 } Ims__CallDomain;
 typedef enum _Ims__SrvType {
   IMS__SRV_TYPE__SMS = 1,
   IMS__SRV_TYPE__VOIP = 2,
   IMS__SRV_TYPE__VT = 3
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__SRV_TYPE)
 } Ims__SrvType;
 typedef enum _Ims__StatusType {
   IMS__STATUS_TYPE__STATUS_DISABLED = 0,
   IMS__STATUS_TYPE__STATUS_PARTIALLY_ENABLED = 1,
   IMS__STATUS_TYPE__STATUS_ENABLED = 2,
   IMS__STATUS_TYPE__STATUS_NOT_SUPPORTED = 3
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__STATUS_TYPE)
 } Ims__StatusType;
 typedef enum _Ims__RadioTechType {
   IMS__RADIO_TECH_TYPE__RADIO_TECH_ANY = -1,
@@ -249,38 +311,54 @@ typedef enum _Ims__RadioTechType {
   IMS__RADIO_TECH_TYPE__RADIO_TECH_TD_SCDMA = 17,
   IMS__RADIO_TECH_TYPE__RADIO_TECH_WIFI = 18,
   IMS__RADIO_TECH_TYPE__RADIO_TECH_IWLAN = 19
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__RADIO_TECH_TYPE)
 } Ims__RadioTechType;
 typedef enum _Ims__IpPresentation {
   IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_ALLOWED = 0,
-  IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_RESTRICTED = 1
+  IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_RESTRICTED = 1,
+  IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_DEFAULT = 2
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__IP_PRESENTATION)
 } Ims__IpPresentation;
 typedef enum _Ims__HandoverMsgType {
   IMS__HANDOVER__MSG__TYPE__START = 0,
   IMS__HANDOVER__MSG__TYPE__COMPLETE_SUCCESS = 1,
   IMS__HANDOVER__MSG__TYPE__COMPLETE_FAIL = 2,
-  IMS__HANDOVER__MSG__TYPE__CANCEL = 3
+  IMS__HANDOVER__MSG__TYPE__CANCEL = 3,
+  IMS__HANDOVER__MSG__TYPE__NOT_TRIGGERED = 4
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__HANDOVER__MSG__TYPE)
 } Ims__HandoverMsgType;
 typedef enum _Ims__ExtraType {
   IMS__EXTRA__TYPE__LTE_TO_IWLAN_HO_FAIL = 1
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__EXTRA__TYPE)
 } Ims__ExtraType;
 typedef enum _Ims__TtyModeType {
   IMS__TTY__MODE__TYPE__TTY_MODE_OFF = 0,
   IMS__TTY__MODE__TYPE__TTY_MODE_FULL = 1,
   IMS__TTY__MODE__TYPE__TTY_MODE_HCO = 2,
   IMS__TTY__MODE__TYPE__TTY_MODE_VCO = 3
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__TTY__MODE__TYPE)
 } Ims__TtyModeType;
 typedef enum _Ims__ClipStatus {
   IMS__CLIP_STATUS__NOT_PROVISIONED = 0,
   IMS__CLIP_STATUS__PROVISIONED = 1,
   IMS__CLIP_STATUS__STATUS_UNKNOWN = 2
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__CLIP_STATUS)
 } Ims__ClipStatus;
 typedef enum _Ims__ServiceClassStatus {
   IMS__SERVICE_CLASS_STATUS__DISABLED = 0,
   IMS__SERVICE_CLASS_STATUS__ENABLED = 1
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__SERVICE_CLASS_STATUS)
 } Ims__ServiceClassStatus;
+typedef enum _Ims__ConfCallState {
+  IMS__CONF_CALL_STATE__RINGING = 0,
+  IMS__CONF_CALL_STATE__FOREGROUND = 1,
+  IMS__CONF_CALL_STATE__BACKGROUND = 2
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__CONF_CALL_STATE)
+} Ims__ConfCallState;
 typedef enum _Ims__NotificationType {
   IMS__NOTIFICATION_TYPE__MO = 0,
   IMS__NOTIFICATION_TYPE__MT = 1
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__NOTIFICATION_TYPE)
 } Ims__NotificationType;
 typedef enum _Ims__SuppSvcOperationType {
   IMS__SUPP_SVC_OPERATION_TYPE__ACTIVATE = 1,
@@ -288,6 +366,7 @@ typedef enum _Ims__SuppSvcOperationType {
   IMS__SUPP_SVC_OPERATION_TYPE__QUERY = 3,
   IMS__SUPP_SVC_OPERATION_TYPE__REGISTER = 4,
   IMS__SUPP_SVC_OPERATION_TYPE__ERASURE = 5
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__SUPP_SVC_OPERATION_TYPE)
 } Ims__SuppSvcOperationType;
 typedef enum _Ims__SuppSvcFacilityType {
   IMS__SUPP_SVC_FACILITY_TYPE__FACILITY_CLIP = 1,
@@ -302,11 +381,30 @@ typedef enum _Ims__SuppSvcFacilityType {
   IMS__SUPP_SVC_FACILITY_TYPE__FACILITY_BA_MT = 10,
   IMS__SUPP_SVC_FACILITY_TYPE__FACILITY_BS_MT = 11,
   IMS__SUPP_SVC_FACILITY_TYPE__FACILITY_BAICa = 12
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__SUPP_SVC_FACILITY_TYPE)
 } Ims__SuppSvcFacilityType;
 typedef enum _Ims__Quality {
   IMS__QUALITY__LOW = 0,
   IMS__QUALITY__HIGH = 1
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__QUALITY)
 } Ims__Quality;
+typedef enum _Ims__MwiMessageType {
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_NONE = -1,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_VOICE = 0,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_VIDEO = 1,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_FAX = 2,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_PAGER = 3,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_MULTIMEDIA = 4,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_TEXT = 5
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__MWI_MESSAGE_TYPE)
+} Ims__MwiMessageType;
+typedef enum _Ims__MwiPriority {
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_UNKNOWN = -1,
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_LOW = 0,
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_NORMAL = 1,
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_URGENT = 2
+    _PROTOBUF_C_FORCE_ENUM_TO_BE_INT_SIZE(IMS__MWI_PRIORITY)
+} Ims__MwiPriority;
 
 /* --- messages --- */
 
@@ -330,10 +428,11 @@ struct  _Ims__CallFailCauseResponse
   Ims__CallFailCause failcause;
   protobuf_c_boolean has_errorinfo;
   ProtobufCBinaryData errorinfo;
+  char *networkerrorstring;
 };
 #define IMS__CALL_FAIL_CAUSE_RESPONSE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__call_fail_cause_response__descriptor) \
-    , 0,0, 0,{0,NULL} }
+    , 0,0, 0,{0,NULL}, NULL }
 
 
 struct  _Ims__StatusForAccessTech
@@ -399,10 +498,14 @@ struct  _Ims__CallDetails
   char **extras;
   Ims__SrvStatusList *localability;
   Ims__SrvStatusList *peerability;
+  protobuf_c_boolean has_callsubstate;
+  Ims__CallSubstate callsubstate;
+  protobuf_c_boolean has_mediaid;
+  int32_t mediaid;
 };
 #define IMS__CALL_DETAILS__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__call_details__descriptor) \
-    , 0,0, 0,0, 0,0, 0,NULL, NULL, NULL }
+    , 0,0, 0,0, 0,0, 0,NULL, NULL, NULL, 0,0, 0,-1 }
 
 
 struct  _Ims__CallModify
@@ -445,10 +548,11 @@ struct  _Ims__CallList__Call
   protobuf_c_boolean has_namepresentation;
   uint32_t namepresentation;
   Ims__CallDetails *calldetails;
+  Ims__CallFailCauseResponse *failcause;
 };
 #define IMS__CALL_LIST__CALL__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__call_list__call__descriptor) \
-    , 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, NULL, 0,0, NULL, 0,0, NULL }
+    , 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, NULL, 0,0, NULL, 0,0, NULL, NULL }
 
 
 struct  _Ims__CallList
@@ -460,6 +564,17 @@ struct  _Ims__CallList
 #define IMS__CALL_LIST__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__call_list__descriptor) \
     , 0,NULL }
+
+
+struct  _Ims__Colr
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_presentation;
+  Ims__IpPresentation presentation;
+};
+#define IMS__COLR__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ims__colr__descriptor) \
+    , 0,0 }
 
 
 struct  _Ims__Dial
@@ -571,10 +686,13 @@ struct  _Ims__Registration
   ProtobufCMessage base;
   protobuf_c_boolean has_state;
   Ims__Registration__RegState state;
+  protobuf_c_boolean has_errorcode;
+  uint32_t errorcode;
+  char *errormessage;
 };
 #define IMS__REGISTRATION__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__registration__descriptor) \
-    , 0,0 }
+    , 0,0, 0,0, NULL }
 
 
 struct  _Ims__RingBackTone
@@ -633,10 +751,12 @@ struct  _Ims__Handover
   protobuf_c_boolean has_targettech;
   Ims__RadioTechType targettech;
   Ims__Extra *hoextra;
+  char *errorcode;
+  char *errormessage;
 };
 #define IMS__HANDOVER__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__handover__descriptor) \
-    , 0,0, 0,0, 0,0, NULL }
+    , 0,0, 0,0, 0,0, NULL, NULL, NULL }
 
 
 struct  _Ims__TtyNotify
@@ -735,10 +855,12 @@ struct  _Ims__CallForwardInfoList__CallForwardInfo
   char *number;
   protobuf_c_boolean has_time_seconds;
   uint32_t time_seconds;
+  Ims__CallFwdTimerInfo *callfwdtimerstart;
+  Ims__CallFwdTimerInfo *callfwdtimerend;
 };
 #define IMS__CALL_FORWARD_INFO_LIST__CALL_FORWARD_INFO__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__call_forward_info_list__call_forward_info__descriptor) \
-    , 0,0, 0,0, 0,0, 0,0, NULL, 0,0 }
+    , 0,0, 0,0, 0,0, 0,0, NULL, 0,0, NULL, NULL }
 
 
 struct  _Ims__CallForwardInfoList
@@ -752,15 +874,40 @@ struct  _Ims__CallForwardInfoList
     , 0,NULL }
 
 
+struct  _Ims__CallFwdTimerInfo
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_year;
+  uint32_t year;
+  protobuf_c_boolean has_month;
+  uint32_t month;
+  protobuf_c_boolean has_day;
+  uint32_t day;
+  protobuf_c_boolean has_hour;
+  uint32_t hour;
+  protobuf_c_boolean has_minute;
+  uint32_t minute;
+  protobuf_c_boolean has_second;
+  uint32_t second;
+  protobuf_c_boolean has_timezone;
+  uint32_t timezone;
+};
+#define IMS__CALL_FWD_TIMER_INFO__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ims__call_fwd_timer_info__descriptor) \
+    , 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 }
+
+
 struct  _Ims__ConfInfo
 {
   ProtobufCMessage base;
   protobuf_c_boolean has_conf_info_uri;
   ProtobufCBinaryData conf_info_uri;
+  protobuf_c_boolean has_confcallstate;
+  Ims__ConfCallState confcallstate;
 };
 #define IMS__CONF_INFO__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__conf_info__descriptor) \
-    , 0,{0,NULL} }
+    , 0,{0,NULL}, 0,0 }
 
 
 struct  _Ims__SuppSvcNotification
@@ -777,10 +924,11 @@ struct  _Ims__SuppSvcNotification
   char *number;
   protobuf_c_boolean has_connid;
   uint32_t connid;
+  char *history_info;
 };
 #define IMS__SUPP_SVC_NOTIFICATION__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__supp_svc_notification__descriptor) \
-    , 0,0, 0,0, 0,0, 0,0, NULL, 0,0 }
+    , 0,0, 0,0, 0,0, 0,0, NULL, 0,0, NULL }
 
 
 struct  _Ims__SuppSvcStatus
@@ -832,6 +980,79 @@ struct  _Ims__VideoCallQuality
 };
 #define IMS__VIDEO_CALL_QUALITY__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&ims__video_call_quality__descriptor) \
+    , 0,0 }
+
+
+struct  _Ims__MwiMessageSummary
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_messagetype;
+  Ims__MwiMessageType messagetype;
+  protobuf_c_boolean has_newmessage;
+  uint32_t newmessage;
+  protobuf_c_boolean has_oldmessage;
+  uint32_t oldmessage;
+  protobuf_c_boolean has_newurgent;
+  uint32_t newurgent;
+  protobuf_c_boolean has_oldurgent;
+  uint32_t oldurgent;
+};
+#define IMS__MWI_MESSAGE_SUMMARY__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ims__mwi_message_summary__descriptor) \
+    , 0,0, 0,0, 0,0, 0,0, 0,0 }
+
+
+struct  _Ims__MwiMessageDetails
+{
+  ProtobufCMessage base;
+  char *toaddress;
+  char *fromaddress;
+  char *subject;
+  char *date;
+  protobuf_c_boolean has_priority;
+  Ims__MwiPriority priority;
+  char *messageid;
+  protobuf_c_boolean has_messagetype;
+  Ims__MwiMessageType messagetype;
+};
+#define IMS__MWI_MESSAGE_DETAILS__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ims__mwi_message_details__descriptor) \
+    , NULL, NULL, NULL, NULL, 0,0, NULL, 0,0 }
+
+
+struct  _Ims__Mwi
+{
+  ProtobufCMessage base;
+  size_t n_mwimsgsummary;
+  Ims__MwiMessageSummary **mwimsgsummary;
+  char *ueaddress;
+  size_t n_mwimsgdetail;
+  Ims__MwiMessageDetails **mwimsgdetail;
+};
+#define IMS__MWI__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ims__mwi__descriptor) \
+    , 0,NULL, NULL, 0,NULL }
+
+
+struct  _Ims__Hold
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_callid;
+  uint32_t callid;
+};
+#define IMS__HOLD__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ims__hold__descriptor) \
+    , 0,0 }
+
+
+struct  _Ims__Resume
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_callid;
+  uint32_t callid;
+};
+#define IMS__RESUME__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&ims__resume__descriptor) \
     , 0,0 }
 
 
@@ -989,6 +1210,25 @@ Ims__CallList *
                       const uint8_t       *data);
 void   ims__call_list__free_unpacked
                      (Ims__CallList *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__Colr methods */
+void   ims__colr__init
+                     (Ims__Colr         *message);
+size_t ims__colr__get_packed_size
+                     (const Ims__Colr   *message);
+size_t ims__colr__pack
+                     (const Ims__Colr   *message,
+                      uint8_t             *out);
+size_t ims__colr__pack_to_buffer
+                     (const Ims__Colr   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Colr *
+       ims__colr__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ims__colr__free_unpacked
+                     (Ims__Colr *message,
                       ProtobufCAllocator *allocator);
 /* Ims__Dial methods */
 void   ims__dial__init
@@ -1411,6 +1651,25 @@ Ims__CallForwardInfoList *
 void   ims__call_forward_info_list__free_unpacked
                      (Ims__CallForwardInfoList *message,
                       ProtobufCAllocator *allocator);
+/* Ims__CallFwdTimerInfo methods */
+void   ims__call_fwd_timer_info__init
+                     (Ims__CallFwdTimerInfo         *message);
+size_t ims__call_fwd_timer_info__get_packed_size
+                     (const Ims__CallFwdTimerInfo   *message);
+size_t ims__call_fwd_timer_info__pack
+                     (const Ims__CallFwdTimerInfo   *message,
+                      uint8_t             *out);
+size_t ims__call_fwd_timer_info__pack_to_buffer
+                     (const Ims__CallFwdTimerInfo   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__CallFwdTimerInfo *
+       ims__call_fwd_timer_info__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ims__call_fwd_timer_info__free_unpacked
+                     (Ims__CallFwdTimerInfo *message,
+                      ProtobufCAllocator *allocator);
 /* Ims__ConfInfo methods */
 void   ims__conf_info__init
                      (Ims__ConfInfo         *message);
@@ -1525,6 +1784,101 @@ Ims__VideoCallQuality *
 void   ims__video_call_quality__free_unpacked
                      (Ims__VideoCallQuality *message,
                       ProtobufCAllocator *allocator);
+/* Ims__MwiMessageSummary methods */
+void   ims__mwi_message_summary__init
+                     (Ims__MwiMessageSummary         *message);
+size_t ims__mwi_message_summary__get_packed_size
+                     (const Ims__MwiMessageSummary   *message);
+size_t ims__mwi_message_summary__pack
+                     (const Ims__MwiMessageSummary   *message,
+                      uint8_t             *out);
+size_t ims__mwi_message_summary__pack_to_buffer
+                     (const Ims__MwiMessageSummary   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__MwiMessageSummary *
+       ims__mwi_message_summary__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ims__mwi_message_summary__free_unpacked
+                     (Ims__MwiMessageSummary *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__MwiMessageDetails methods */
+void   ims__mwi_message_details__init
+                     (Ims__MwiMessageDetails         *message);
+size_t ims__mwi_message_details__get_packed_size
+                     (const Ims__MwiMessageDetails   *message);
+size_t ims__mwi_message_details__pack
+                     (const Ims__MwiMessageDetails   *message,
+                      uint8_t             *out);
+size_t ims__mwi_message_details__pack_to_buffer
+                     (const Ims__MwiMessageDetails   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__MwiMessageDetails *
+       ims__mwi_message_details__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ims__mwi_message_details__free_unpacked
+                     (Ims__MwiMessageDetails *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__Mwi methods */
+void   ims__mwi__init
+                     (Ims__Mwi         *message);
+size_t ims__mwi__get_packed_size
+                     (const Ims__Mwi   *message);
+size_t ims__mwi__pack
+                     (const Ims__Mwi   *message,
+                      uint8_t             *out);
+size_t ims__mwi__pack_to_buffer
+                     (const Ims__Mwi   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Mwi *
+       ims__mwi__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ims__mwi__free_unpacked
+                     (Ims__Mwi *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__Hold methods */
+void   ims__hold__init
+                     (Ims__Hold         *message);
+size_t ims__hold__get_packed_size
+                     (const Ims__Hold   *message);
+size_t ims__hold__pack
+                     (const Ims__Hold   *message,
+                      uint8_t             *out);
+size_t ims__hold__pack_to_buffer
+                     (const Ims__Hold   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Hold *
+       ims__hold__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ims__hold__free_unpacked
+                     (Ims__Hold *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__Resume methods */
+void   ims__resume__init
+                     (Ims__Resume         *message);
+size_t ims__resume__get_packed_size
+                     (const Ims__Resume   *message);
+size_t ims__resume__pack
+                     (const Ims__Resume   *message,
+                      uint8_t             *out);
+size_t ims__resume__pack_to_buffer
+                     (const Ims__Resume   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Resume *
+       ims__resume__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   ims__resume__free_unpacked
+                     (Ims__Resume *message,
+                      ProtobufCAllocator *allocator);
 /* --- per-message closures --- */
 
 typedef void (*Ims__MsgTag_Closure)
@@ -1553,6 +1907,9 @@ typedef void (*Ims__CallList__Call_Closure)
                   void *closure_data);
 typedef void (*Ims__CallList_Closure)
                  (const Ims__CallList *message,
+                  void *closure_data);
+typedef void (*Ims__Colr_Closure)
+                 (const Ims__Colr *message,
                   void *closure_data);
 typedef void (*Ims__Dial_Closure)
                  (const Ims__Dial *message,
@@ -1623,6 +1980,9 @@ typedef void (*Ims__CallForwardInfoList__CallForwardInfo_Closure)
 typedef void (*Ims__CallForwardInfoList_Closure)
                  (const Ims__CallForwardInfoList *message,
                   void *closure_data);
+typedef void (*Ims__CallFwdTimerInfo_Closure)
+                 (const Ims__CallFwdTimerInfo *message,
+                  void *closure_data);
 typedef void (*Ims__ConfInfo_Closure)
                  (const Ims__ConfInfo *message,
                   void *closure_data);
@@ -1641,6 +2001,21 @@ typedef void (*Ims__SuppSvcResponse_Closure)
 typedef void (*Ims__VideoCallQuality_Closure)
                  (const Ims__VideoCallQuality *message,
                   void *closure_data);
+typedef void (*Ims__MwiMessageSummary_Closure)
+                 (const Ims__MwiMessageSummary *message,
+                  void *closure_data);
+typedef void (*Ims__MwiMessageDetails_Closure)
+                 (const Ims__MwiMessageDetails *message,
+                  void *closure_data);
+typedef void (*Ims__Mwi_Closure)
+                 (const Ims__Mwi *message,
+                  void *closure_data);
+typedef void (*Ims__Hold_Closure)
+                 (const Ims__Hold *message,
+                  void *closure_data);
+typedef void (*Ims__Resume_Closure)
+                 (const Ims__Resume *message,
+                  void *closure_data);
 
 /* --- services --- */
 
@@ -1653,6 +2028,7 @@ extern const ProtobufCEnumDescriptor    ims__error__descriptor;
 extern const ProtobufCEnumDescriptor    ims__call_state__descriptor;
 extern const ProtobufCEnumDescriptor    ims__radio_state__descriptor;
 extern const ProtobufCEnumDescriptor    ims__call_type__descriptor;
+extern const ProtobufCEnumDescriptor    ims__call_substate__descriptor;
 extern const ProtobufCEnumDescriptor    ims__call_fail_cause__descriptor;
 extern const ProtobufCEnumDescriptor    ims__call_domain__descriptor;
 extern const ProtobufCEnumDescriptor    ims__srv_type__descriptor;
@@ -1664,10 +2040,13 @@ extern const ProtobufCEnumDescriptor    ims__extra__type__descriptor;
 extern const ProtobufCEnumDescriptor    ims__tty__mode__type__descriptor;
 extern const ProtobufCEnumDescriptor    ims__clip_status__descriptor;
 extern const ProtobufCEnumDescriptor    ims__service_class_status__descriptor;
+extern const ProtobufCEnumDescriptor    ims__conf_call_state__descriptor;
 extern const ProtobufCEnumDescriptor    ims__notification_type__descriptor;
 extern const ProtobufCEnumDescriptor    ims__supp_svc_operation_type__descriptor;
 extern const ProtobufCEnumDescriptor    ims__supp_svc_facility_type__descriptor;
 extern const ProtobufCEnumDescriptor    ims__quality__descriptor;
+extern const ProtobufCEnumDescriptor    ims__mwi_message_type__descriptor;
+extern const ProtobufCEnumDescriptor    ims__mwi_priority__descriptor;
 extern const ProtobufCMessageDescriptor ims__msg_tag__descriptor;
 extern const ProtobufCMessageDescriptor ims__call_fail_cause_response__descriptor;
 extern const ProtobufCMessageDescriptor ims__status_for_access_tech__descriptor;
@@ -1677,6 +2056,7 @@ extern const ProtobufCMessageDescriptor ims__call_details__descriptor;
 extern const ProtobufCMessageDescriptor ims__call_modify__descriptor;
 extern const ProtobufCMessageDescriptor ims__call_list__descriptor;
 extern const ProtobufCMessageDescriptor ims__call_list__call__descriptor;
+extern const ProtobufCMessageDescriptor ims__colr__descriptor;
 extern const ProtobufCMessageDescriptor ims__dial__descriptor;
 extern const ProtobufCMessageDescriptor ims__hangup__descriptor;
 extern const ProtobufCMessageDescriptor ims__deflect_call__descriptor;
@@ -1703,12 +2083,18 @@ extern const ProtobufCMessageDescriptor ims__cb_num_list_type__descriptor;
 extern const ProtobufCMessageDescriptor ims__call_waiting_info__descriptor;
 extern const ProtobufCMessageDescriptor ims__call_forward_info_list__descriptor;
 extern const ProtobufCMessageDescriptor ims__call_forward_info_list__call_forward_info__descriptor;
+extern const ProtobufCMessageDescriptor ims__call_fwd_timer_info__descriptor;
 extern const ProtobufCMessageDescriptor ims__conf_info__descriptor;
 extern const ProtobufCMessageDescriptor ims__supp_svc_notification__descriptor;
 extern const ProtobufCMessageDescriptor ims__supp_svc_status__descriptor;
 extern const ProtobufCMessageDescriptor ims__supp_svc_request__descriptor;
 extern const ProtobufCMessageDescriptor ims__supp_svc_response__descriptor;
 extern const ProtobufCMessageDescriptor ims__video_call_quality__descriptor;
+extern const ProtobufCMessageDescriptor ims__mwi_message_summary__descriptor;
+extern const ProtobufCMessageDescriptor ims__mwi_message_details__descriptor;
+extern const ProtobufCMessageDescriptor ims__mwi__descriptor;
+extern const ProtobufCMessageDescriptor ims__hold__descriptor;
+extern const ProtobufCMessageDescriptor ims__resume__descriptor;
 
 PROTOBUF_C_END_DECLS
 

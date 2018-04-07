@@ -1,5 +1,5 @@
-#ifndef WDS_SERVICE_H
-#define WDS_SERVICE_H
+#ifndef WDS_SERVICE_01_H
+#define WDS_SERVICE_01_H
 /**
   @file wireless_data_service_v01.h
 
@@ -26,26 +26,25 @@
   uint8_t test_opaque[16];
 
   If only 4 elements are added to test_opaque[] then test_opaque_len must be
-  set to 4 before sending the message.  When decoding, the _len value is set
+  set to 4 before sending the message.  When decoding, the _len value is set 
   by the decode routine and should be checked so that the correct number of
   elements in the array will be accessed.
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2006-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2006-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/wds/main/latest/api/wireless_data_service_v01.h#40 $
+  $Header$
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
-/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.1
-   It requires encode/decode library version 5 or later
-   It was generated on: Fri Feb 15 2013 (Spin 0)
+/* This file was generated with Tool version 6.14.2 
+   It was generated on: Wed Dec 10 2014 (Spin 0)
    From IDL File: wireless_data_service_v01.idl */
 
 /** @defgroup wds_qmi_consts Constant values defined in the IDL */
@@ -59,6 +58,7 @@
 #include <stdint.h>
 #include "qmi_idl_lib.h"
 #include "common_v01.h"
+#include "data_common_v01.h"
 
 
 #ifdef __cplusplus
@@ -71,18 +71,18 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define WDS_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define WDS_V01_IDL_MINOR_VERS 0x29
+#define WDS_V01_IDL_MINOR_VERS 0x58
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define WDS_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define WDS_V01_MAX_MESSAGE_ID 0x0091;
+#define WDS_V01_MAX_MESSAGE_ID 0xFFFE
 /**
     @}
   */
 
 
-/** @addtogroup wds_qmi_consts
-    @{
+/** @addtogroup wds_qmi_consts 
+    @{ 
   */
 #define QMI_WDS_RAT_DONT_CARE_V01 0
 #define QMI_WDS_RAT_NULL_BEARER_V01 0x8000
@@ -95,6 +95,7 @@ extern "C" {
 #define QMI_WDS_USER_NAME_MAX_V01 127
 #define QMI_WDS_PASSWORD_MAX_V01 127
 #define QMI_WDS_PROFILE_NAME_MAX_V01 50
+#define QMI_WDS_APN_NAME_LIST_MAX_V01 20
 #define QMI_WDS_MAX_NAI_LEN_V01 72
 #define QMI_WDS_MAX_MN_HA_KEY_LEN_V01 16
 #define QMI_WDS_MAX_MN_AAA_KEY_LEN_V01 16
@@ -111,7 +112,7 @@ extern "C" {
 #define QMI_WDS_PROFILE_LIST_MAX_V01 255
 #define QMI_WDS_MAX_BEARER_CONTEXT_V01 8
 #define QMI_WDS_EMBMS_MAX_TMGI_V01 128
-#define QMI_WDS_EMBMS_MAX_EARFCN_V01 32
+#define QMI_WDS_EMBMS_MAX_EARFCN_V01 64
 #define QMI_WDS_SYS_NETWORK_MAX_V01 16
 #define QMI_WDS_APNS_MAX_V01 8
 #define QMI_WDS_ADDITIONAL_PDN_FILTERS_MAX_V01 50
@@ -122,6 +123,14 @@ extern "C" {
 #define QMI_WDS_IPSEC_SA_CFG_DATA_SIZE_MAX_V01 32
 #define QMI_WDS_IPSEC_SA_MAX_TS_COUNT_V01 4
 #define QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01 3
+#define QMI_WDS_MAX_FAILURE_TIMER_V01 6
+#define QMI_WDS_MAX_DISALLOW_TIMER_V01 6
+#define QMI_WDS_ATTACH_PDN_MAX_V01 56
+#define QMI_WDS_EMBMS_FREQ_SAI_MAX_V01 18
+#define QMI_WDS_EMBMS_SAI_LIST_MAX_V01 64
+#define QMI_WDS_MAX_RUNTIME_SETTINGS_FAILURES_V01 15
+#define QMI_WDS_MAX_THROUGHPUT_INFO_V01 50
+#define QMI_WDS_MAX_BEARER_RLP_MAC_ID_CONTEXT_V01 50
 /**
     @}
   */
@@ -131,99 +140,126 @@ extern "C" {
   */
 typedef enum {
   WDS_IP_VERSION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_IP_VERSION_IPV4_V01 = 0x04,
-  WDS_IP_VERSION_IPV6_V01 = 0x06,
+  WDS_IP_VERSION_IPV4_V01 = 0x04, 
+  WDS_IP_VERSION_IPV6_V01 = 0x06, 
   WDS_IP_VERSION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ip_version_enum_v01;
 /**
     @}
   */
 
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_BIND_SUBSCRIPTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_DEFAULT_SUBS_V01 = 0x0000, /**<  Default data subscription \n  */
+  WDS_PRIMARY_SUBS_V01 = 0x0001, /**<  Primary \n  */
+  WDS_SECONDARY_SUBS_V01 = 0x0002, /**<  Secondary \n  */
+  WDS_TERTIARY_SUBS_V01 = 0x0003, /**<  Tertiary \n  */
+  WDS_DONT_CARE_SUBS_V01 = 0x00FF, /**<  Default value used in the absence of
+       explicit binding */
+  WDS_BIND_SUBSCRIPTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_bind_subscription_enum_v01;
+/**
+    @}
+  */
+
 typedef uint32_t wds_rat_cdma_mask_v01;
-#define QMI_WDS_MASK_RAT_CDMA_1X_V01 ((wds_rat_cdma_mask_v01)0x01)
-#define QMI_WDS_MASK_RAT_EVDO_REVO_V01 ((wds_rat_cdma_mask_v01)0x02)
-#define QMI_WDS_MASK_RAT_EVDO_REVA_V01 ((wds_rat_cdma_mask_v01)0x04)
-#define QMI_WDS_MASK_RAT_EVDO_REVB_V01 ((wds_rat_cdma_mask_v01)0x08)
-#define QMI_WDS_MASK_RAT_EHRPD_V01 ((wds_rat_cdma_mask_v01)0x10)
-#define QMI_WDS_MASK_RAT_FMC_V01 ((wds_rat_cdma_mask_v01)0x20)
+#define QMI_WDS_MASK_RAT_CDMA_1X_V01 ((wds_rat_cdma_mask_v01)0x01) 
+#define QMI_WDS_MASK_RAT_EVDO_REVO_V01 ((wds_rat_cdma_mask_v01)0x02) 
+#define QMI_WDS_MASK_RAT_EVDO_REVA_V01 ((wds_rat_cdma_mask_v01)0x04) 
+#define QMI_WDS_MASK_RAT_EVDO_REVB_V01 ((wds_rat_cdma_mask_v01)0x08) 
+#define QMI_WDS_MASK_RAT_EHRPD_V01 ((wds_rat_cdma_mask_v01)0x10) 
+#define QMI_WDS_MASK_RAT_FMC_V01 ((wds_rat_cdma_mask_v01)0x20) 
 typedef uint32_t wds_rat_umts_mask_v01;
-#define QMI_WDS_MASK_RAT_WCDMA_V01 ((wds_rat_umts_mask_v01)0x01)
-#define QMI_WDS_MASK_RAT_GPRS_V01 ((wds_rat_umts_mask_v01)0x02)
-#define QMI_WDS_MASK_RAT_HSDPA_V01 ((wds_rat_umts_mask_v01)0x04)
-#define QMI_WDS_MASK_RAT_HSUPA_V01 ((wds_rat_umts_mask_v01)0x08)
-#define QMI_WDS_MASK_RAT_EDGE_V01 ((wds_rat_umts_mask_v01)0x10)
-#define QMI_WDS_MASK_RAT_LTE_V01 ((wds_rat_umts_mask_v01)0x20)
-#define QMI_WDS_MASK_RAT_HSDPA_PLUS_V01 ((wds_rat_umts_mask_v01)0x40)
-#define QMI_WDS_MASK_RAT_DC_HSDAP_PLUS_V01 ((wds_rat_umts_mask_v01)0x80)
-#define QMI_WDS_MASK_RAT_64_QAM_V01 ((wds_rat_umts_mask_v01)0x100)
-#define QMI_WDS_MASK_RAT_TDSCDMA_V01 ((wds_rat_umts_mask_v01)0x200)
+#define QMI_WDS_MASK_RAT_WCDMA_V01 ((wds_rat_umts_mask_v01)0x01) 
+#define QMI_WDS_MASK_RAT_GPRS_V01 ((wds_rat_umts_mask_v01)0x02) 
+#define QMI_WDS_MASK_RAT_HSDPA_V01 ((wds_rat_umts_mask_v01)0x04) 
+#define QMI_WDS_MASK_RAT_HSUPA_V01 ((wds_rat_umts_mask_v01)0x08) 
+#define QMI_WDS_MASK_RAT_EDGE_V01 ((wds_rat_umts_mask_v01)0x10) 
+#define QMI_WDS_MASK_RAT_LTE_V01 ((wds_rat_umts_mask_v01)0x20) 
+#define QMI_WDS_MASK_RAT_HSDPA_PLUS_V01 ((wds_rat_umts_mask_v01)0x40) 
+#define QMI_WDS_MASK_RAT_DC_HSDAP_PLUS_V01 ((wds_rat_umts_mask_v01)0x80) 
+#define QMI_WDS_MASK_RAT_64_QAM_V01 ((wds_rat_umts_mask_v01)0x100) 
+#define QMI_WDS_MASK_RAT_TDSCDMA_V01 ((wds_rat_umts_mask_v01)0x200) 
 typedef uint32_t wds_so_cdma_1x_mask_v01;
-#define QMI_WDS_MASK_SO_CDMA_1X_IS95_V01 ((wds_so_cdma_1x_mask_v01)0x01)
-#define QMI_WDS_MASK_SO_CDMA_1X_IS2000_V01 ((wds_so_cdma_1x_mask_v01)0x02)
-#define QMI_WDS_MASK_SO_CDMA_1X_IS2000_REL_A_V01 ((wds_so_cdma_1x_mask_v01)0x04)
+#define QMI_WDS_MASK_SO_CDMA_1X_IS95_V01 ((wds_so_cdma_1x_mask_v01)0x01) 
+#define QMI_WDS_MASK_SO_CDMA_1X_IS2000_V01 ((wds_so_cdma_1x_mask_v01)0x02) 
+#define QMI_WDS_MASK_SO_CDMA_1X_IS2000_REL_A_V01 ((wds_so_cdma_1x_mask_v01)0x04) 
 typedef uint32_t wds_so_cdma_evdo_reva_mask_v01;
-#define QMI_WDS_MASK_SO_EVDO_REVA_DPA_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x01)
-#define QMI_WDS_MASK_SO_EVDO_REVA_MFPA_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x02)
-#define QMI_WDS_MASK_SO_EVDO_REVA_EMPA_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x04)
-#define QMI_WDS_MASK_SO_EVDO_REVA_EMPA_EHRPD_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x08)
+#define QMI_WDS_MASK_SO_EVDO_REVA_DPA_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x01) 
+#define QMI_WDS_MASK_SO_EVDO_REVA_MFPA_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x02) 
+#define QMI_WDS_MASK_SO_EVDO_REVA_EMPA_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x04) 
+#define QMI_WDS_MASK_SO_EVDO_REVA_EMPA_EHRPD_V01 ((wds_so_cdma_evdo_reva_mask_v01)0x08) 
 typedef uint32_t wds_so_cdma_evdo_revb_mask_v01;
-#define QMI_WDS_MASK_SO_EVDO_REVB_DPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x01)
-#define QMI_WDS_MASK_SO_EVDO_REVB_MFPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x02)
-#define QMI_WDS_MASK_SO_EVDO_REVB_EMPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x04)
-#define QMI_WDS_MASK_SO_EVDO_REVB_EMPA_EHRPD_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x08)
-#define QMI_WDS_MASK_SO_EVDO_REVB_MMPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x10)
-#define QMI_WDS_MASK_SO_EVDO_REVB_MMPA_EHRPD_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x20)
+#define QMI_WDS_MASK_SO_EVDO_REVB_DPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x01) 
+#define QMI_WDS_MASK_SO_EVDO_REVB_MFPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x02) 
+#define QMI_WDS_MASK_SO_EVDO_REVB_EMPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x04) 
+#define QMI_WDS_MASK_SO_EVDO_REVB_EMPA_EHRPD_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x08) 
+#define QMI_WDS_MASK_SO_EVDO_REVB_MMPA_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x10) 
+#define QMI_WDS_MASK_SO_EVDO_REVB_MMPA_EHRPD_V01 ((wds_so_cdma_evdo_revb_mask_v01)0x20) 
 typedef uint8_t wds_auth_pref_mask_v01;
-#define QMI_WDS_MASK_AUTH_PREF_PAP_V01 ((wds_auth_pref_mask_v01)0x01)
-#define QMI_WDS_MASK_AUTH_PREF_CHAP_V01 ((wds_auth_pref_mask_v01)0x02)
+#define QMI_WDS_MASK_AUTH_PREF_PAP_V01 ((wds_auth_pref_mask_v01)0x01) 
+#define QMI_WDS_MASK_AUTH_PREF_CHAP_V01 ((wds_auth_pref_mask_v01)0x02) 
 typedef uint8_t wds_tech_pref_mask_v01;
-#define QMI_WDS_MASK_TECH_PREF_3GPP_V01 ((wds_tech_pref_mask_v01)0x01)
-#define QMI_WDS_MASK_TECH_PREF_3GPP2_V01 ((wds_tech_pref_mask_v01)0x02)
+#define QMI_WDS_MASK_TECH_PREF_3GPP_V01 ((wds_tech_pref_mask_v01)0x01) 
+#define QMI_WDS_MASK_TECH_PREF_3GPP2_V01 ((wds_tech_pref_mask_v01)0x02) 
 typedef uint32_t wds_stats_mask_v01;
-#define QMI_WDS_MASK_STATS_TX_PACKETS_OK_V01 ((wds_stats_mask_v01)0x00000001)
-#define QMI_WDS_MASK_STATS_RX_PACKETS_OK_V01 ((wds_stats_mask_v01)0x00000002)
-#define QMI_WDS_MASK_STATS_TX_PACKET_ERRORS_V01 ((wds_stats_mask_v01)0x00000004)
-#define QMI_WDS_MASK_STATS_RX_PACKET_ERRORS_V01 ((wds_stats_mask_v01)0x00000008)
-#define QMI_WDS_MASK_STATS_TX_OVERFLOWS_V01 ((wds_stats_mask_v01)0x00000010)
-#define QMI_WDS_MASK_STATS_RX_OVERFLOWS_V01 ((wds_stats_mask_v01)0x00000020)
-#define QMI_WDS_MASK_STATS_TX_BYTES_OK_V01 ((wds_stats_mask_v01)0x00000040)
-#define QMI_WDS_MASK_STATS_RX_BYTES_OK_V01 ((wds_stats_mask_v01)0x00000080)
-#define QMI_WDS_MASK_STATS_TX_PKTS_DROPPED_V01 ((wds_stats_mask_v01)0x00000100)
-#define QMI_WDS_MASK_STATS_RX_PKTS_DROPPED_V01 ((wds_stats_mask_v01)0x00000200)
+#define QMI_WDS_MASK_STATS_TX_PACKETS_OK_V01 ((wds_stats_mask_v01)0x00000001) 
+#define QMI_WDS_MASK_STATS_RX_PACKETS_OK_V01 ((wds_stats_mask_v01)0x00000002) 
+#define QMI_WDS_MASK_STATS_TX_PACKET_ERRORS_V01 ((wds_stats_mask_v01)0x00000004) 
+#define QMI_WDS_MASK_STATS_RX_PACKET_ERRORS_V01 ((wds_stats_mask_v01)0x00000008) 
+#define QMI_WDS_MASK_STATS_TX_OVERFLOWS_V01 ((wds_stats_mask_v01)0x00000010) 
+#define QMI_WDS_MASK_STATS_RX_OVERFLOWS_V01 ((wds_stats_mask_v01)0x00000020) 
+#define QMI_WDS_MASK_STATS_TX_BYTES_OK_V01 ((wds_stats_mask_v01)0x00000040) 
+#define QMI_WDS_MASK_STATS_RX_BYTES_OK_V01 ((wds_stats_mask_v01)0x00000080) 
+#define QMI_WDS_MASK_STATS_TX_PKTS_DROPPED_V01 ((wds_stats_mask_v01)0x00000100) 
+#define QMI_WDS_MASK_STATS_RX_PKTS_DROPPED_V01 ((wds_stats_mask_v01)0x00000200) 
 typedef uint32_t wds_req_settings_mask_v01;
-#define QMI_WDS_MASK_REQ_SETTINGS_PROFILE_ID_V01 ((wds_req_settings_mask_v01)0x00000001)
-#define QMI_WDS_MASK_REQ_SETTINGS_PROFILE_NAME_V01 ((wds_req_settings_mask_v01)0x00000002)
-#define QMI_WDS_MASK_REQ_SETTINGS_PDP_TYPE_V01 ((wds_req_settings_mask_v01)0x00000004)
-#define QMI_WDS_MASK_REQ_SETTINGS_APN_NAME_V01 ((wds_req_settings_mask_v01)0x00000008)
-#define QMI_WDS_MASK_REQ_SETTINGS_DNS_ADDR_V01 ((wds_req_settings_mask_v01)0x00000010)
-#define QMI_WDS_MASK_REQ_SETTINGS_UMTS_GPRS_GRANTED_QOS_V01 ((wds_req_settings_mask_v01)0x00000020)
-#define QMI_WDS_MASK_REQ_SETTINGS_USERNAME_V01 ((wds_req_settings_mask_v01)0x00000040)
-#define QMI_WDS_MASK_REQ_SETTINGS_AUTH_PROTOCOL_V01 ((wds_req_settings_mask_v01)0x00000080)
-#define QMI_WDS_MASK_REQ_SETTINGS_IP_ADDR_V01 ((wds_req_settings_mask_v01)0x00000100)
-#define QMI_WDS_MASK_REQ_SETTINGS_GATEWAY_INFO_V01 ((wds_req_settings_mask_v01)0x00000200)
-#define QMI_WDS_MASK_REQ_SETTINGS_PCSCF_ADDR_USING_PCO_V01 ((wds_req_settings_mask_v01)0x00000400)
-#define QMI_WDS_MASK_REQ_SETTINGS_PCSCF_SERVER_ADDR_LIST_V01 ((wds_req_settings_mask_v01)0x00000800)
-#define QMI_WDS_MASK_REQ_SETTINGS_PCSCF_DOMAIN_NAME_LIST_V01 ((wds_req_settings_mask_v01)0x00001000)
-#define QMI_WDS_MASK_REQ_SETTINGS_MTU_V01 ((wds_req_settings_mask_v01)0x00002000)
-#define QMI_WDS_MASK_REQ_SETTINGS_DOMAIN_NAME_LIST_V01 ((wds_req_settings_mask_v01)0x00004000)
-#define QMI_WDS_MASK_REQ_SETTINGS_IP_FAMILY_V01 ((wds_req_settings_mask_v01)0x00008000)
-#define QMI_WDS_MASK_REQ_SETTINGS_IM_CN_FLAG_V01 ((wds_req_settings_mask_v01)0x00010000)
-#define QMI_WDS_MASK_REQ_SETTINGS_TECHNOLOGY_NAME_V01 ((wds_req_settings_mask_v01)0x00020000)
-#define QMI_WDS_MASK_REQ_SETTINGS_OP_RES_PCO_V01 ((wds_req_settings_mask_v01)0x00040000)
+#define QMI_WDS_MASK_REQ_SETTINGS_PROFILE_ID_V01 ((wds_req_settings_mask_v01)0x00000001) 
+#define QMI_WDS_MASK_REQ_SETTINGS_PROFILE_NAME_V01 ((wds_req_settings_mask_v01)0x00000002) 
+#define QMI_WDS_MASK_REQ_SETTINGS_PDP_TYPE_V01 ((wds_req_settings_mask_v01)0x00000004) 
+#define QMI_WDS_MASK_REQ_SETTINGS_APN_NAME_V01 ((wds_req_settings_mask_v01)0x00000008) 
+#define QMI_WDS_MASK_REQ_SETTINGS_DNS_ADDR_V01 ((wds_req_settings_mask_v01)0x00000010) 
+#define QMI_WDS_MASK_REQ_SETTINGS_UMTS_GPRS_GRANTED_QOS_V01 ((wds_req_settings_mask_v01)0x00000020) 
+#define QMI_WDS_MASK_REQ_SETTINGS_USERNAME_V01 ((wds_req_settings_mask_v01)0x00000040) 
+#define QMI_WDS_MASK_REQ_SETTINGS_AUTH_PROTOCOL_V01 ((wds_req_settings_mask_v01)0x00000080) 
+#define QMI_WDS_MASK_REQ_SETTINGS_IP_ADDR_V01 ((wds_req_settings_mask_v01)0x00000100) 
+#define QMI_WDS_MASK_REQ_SETTINGS_GATEWAY_INFO_V01 ((wds_req_settings_mask_v01)0x00000200) 
+#define QMI_WDS_MASK_REQ_SETTINGS_PCSCF_ADDR_USING_PCO_V01 ((wds_req_settings_mask_v01)0x00000400) 
+#define QMI_WDS_MASK_REQ_SETTINGS_PCSCF_SERVER_ADDR_LIST_V01 ((wds_req_settings_mask_v01)0x00000800) 
+#define QMI_WDS_MASK_REQ_SETTINGS_PCSCF_DOMAIN_NAME_LIST_V01 ((wds_req_settings_mask_v01)0x00001000) 
+#define QMI_WDS_MASK_REQ_SETTINGS_MTU_V01 ((wds_req_settings_mask_v01)0x00002000) 
+#define QMI_WDS_MASK_REQ_SETTINGS_DOMAIN_NAME_LIST_V01 ((wds_req_settings_mask_v01)0x00004000) 
+#define QMI_WDS_MASK_REQ_SETTINGS_IP_FAMILY_V01 ((wds_req_settings_mask_v01)0x00008000) 
+#define QMI_WDS_MASK_REQ_SETTINGS_IM_CN_FLAG_V01 ((wds_req_settings_mask_v01)0x00010000) 
+#define QMI_WDS_MASK_REQ_SETTINGS_TECHNOLOGY_NAME_V01 ((wds_req_settings_mask_v01)0x00020000) 
+#define QMI_WDS_MASK_REQ_SETTINGS_OP_RES_PCO_V01 ((wds_req_settings_mask_v01)0x00040000) 
 typedef uint8_t wds_dun_ctrl_event_report_mask_v01;
-#define QMI_WDS_CTRL_EVENT_REPORT_DUN_CALL_COMPLETE_V01 ((wds_dun_ctrl_event_report_mask_v01)0x01)
-#define QMI_WDS_CTRL_EVENT_REPORT_DUN_ENTITLEMENT_V01 ((wds_dun_ctrl_event_report_mask_v01)0x02)
-#define QMI_WDS_CTRL_EVENT_REPORT_DUN_SILENT_REDIAL_V01 ((wds_dun_ctrl_event_report_mask_v01)0x04)
-/*
- * wds_reset_req_msg is empty
- * typedef struct {
- * }wds_reset_req_msg_v01;
- */
+#define QMI_WDS_CTRL_EVENT_REPORT_DUN_CALL_COMPLETE_V01 ((wds_dun_ctrl_event_report_mask_v01)0x01) 
+#define QMI_WDS_CTRL_EVENT_REPORT_DUN_ENTITLEMENT_V01 ((wds_dun_ctrl_event_report_mask_v01)0x02) 
+#define QMI_WDS_CTRL_EVENT_REPORT_DUN_SILENT_REDIAL_V01 ((wds_dun_ctrl_event_report_mask_v01)0x04) 
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Resets the WDS service state variables of the 
+           requesting control point. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_reset_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Resets the WDS service state variables of the
+/** Response Message; Resets the WDS service state variables of the 
            requesting control point. */
 typedef struct {
 
@@ -244,11 +280,11 @@ typedef struct {
   uint8_t stats_period;
   /**<   Period between transfer statistics reports. Values: \n
        - 0 -- Do not report \n
-       - Other -- Period between reports (seconds)
+       - Other -- Period between reports (in seconds)
   */
 
   wds_stats_mask_v01 stats_mask;
-  /**<   Requested statistic bit mask. Values: \n
+  /**<   Requested statistic bitmask. Values: \n
        - 0x00000001 -- Tx packets OK    \n
        - 0x00000002 -- Rx packets OK    \n
        - 0x00000004 -- Tx packet errors \n
@@ -258,8 +294,8 @@ typedef struct {
        - 0x00000040 -- Tx bytes OK      \n
        - 0x00000080 -- Rx bytes OK      \n
        - 0x00000100 -- Tx packets dropped \n
-       - 0x00000200 -- Rx packets dropped
-
+       - 0x00000200 -- Rx packets dropped      
+  
        Each bit set causes the corresponding optional TLV to be
        sent in QMI_WDS_EVENT_REPORT_IND.
 
@@ -274,7 +310,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Sets the wireless data connection state reporting conditions for
+/** Request Message; Sets the wireless data connection state reporting conditions for 
     the requesting control point. */
 typedef struct {
 
@@ -383,14 +419,14 @@ typedef struct {
   /**<   Values: \n
        - 0 -- Do not report limited data system status \n
        - 1 -- Report interfamily transition of data system status \n
-
-       Indications for transition between RATs belonging to two different
-       families would be reported. Control points are expected to
-       deregister from Data System Status Change Indicator reporting (using TLV 0x1A)
-       and register for the Limited Data System Status Change Indicator (to only get
-       QMI_WDS_EVENT_REPORT_IND with the Data System Status TLV (0x24) for
-       interfamily system status changes).
-
+       
+       Indications for transition between RATs belonging to two different 
+       families would be reported. Control points are expected to 
+       deregister from Data System Status Change Indicator reporting (using TLV 0x1A) 
+       and register for the Limited Data System Status Change Indicator (to only get 
+       QMI_WDS_EVENT_REPORT_IND with the Data System Status TLV (0x24) for 
+       interfamily system status changes). 
+       
        WCDMA family : \n
        - WCDMA \n
        - HSDPA \n
@@ -399,14 +435,14 @@ typedef struct {
        - DC_HSDPA+ \n
        - 64_QAM \n
 
-       GSM family \n
+       GSM family \n  
        - GPRS \n
        - EDGE \n
-
+      
        LTE family \n
        - LTE \n
-
-       TDSCDMA family \n
+      
+       TDSCDMA family \n         
        - TDSCDMA
   */
 
@@ -416,7 +452,7 @@ typedef struct {
   uint8_t report_additional_pdn_filters_removal;
   /**<   Values: \n
        - 0 -- Do not report \n
-       - 1 -- Report Additional PDN Filters Removal event
+       - 1 -- Report additional PDN filters removal event       
   */
 
   /* Optional */
@@ -435,7 +471,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Sets the wireless data connection state reporting conditions for
+/** Response Message; Sets the wireless data connection state reporting conditions for 
     the requesting control point. */
 typedef struct {
 
@@ -468,9 +504,9 @@ typedef struct {
   */
 typedef enum {
   WDS_CURRENT_NW_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_CURRENT_NETWORK_UNKNOWN_V01 = 0x00,
-  WDS_CURRENT_NETWORK_3GPP2_V01 = 0x01,
-  WDS_CURRENT_NETWORK_3GPP_V01 = 0x02,
+  WDS_CURRENT_NETWORK_UNKNOWN_V01 = 0x00, /**<  Unknown\n  */
+  WDS_CURRENT_NETWORK_3GPP2_V01 = 0x01, /**<  3GPP2 \n  */
+  WDS_CURRENT_NETWORK_3GPP_V01 = 0x02, /**<  3GPP  */
   WDS_CURRENT_NW_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_current_nw_enum_v01;
 /**
@@ -484,13 +520,13 @@ typedef struct {
 
   wds_current_nw_enum_v01 current_nw;
   /**<   Current network type of data bearer. Values: \n
-       - 0 -- UNKNOWN \n
-       - 1 -- 3GPP2 \n
-       - 2 -- 3GPP
-  */
+      - WDS_CURRENT_NETWORK_UNKNOWN (0x00) --  Unknown\n 
+      - WDS_CURRENT_NETWORK_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_CURRENT_NETWORK_3GPP (0x02) --  3GPP  
+ */
 
   uint32_t rat_mask;
-  /**<   Radio access technology (RAT) mask to indicate the type of technology.
+  /**<   RAT mask to indicate the type of technology.
        A RAT mask value of zero indicates that this field is ignored. Values: \n
        - 0x00 -- DONT_CARE \n
        - 0x8000 -- NULL_BEARER \n
@@ -517,10 +553,10 @@ typedef struct {
   */
 
   uint32_t so_mask;
-  /**<   Service Option (SO) mask to indicate the service option or type of
+  /**<   SO mask to indicate the service option or type of
        application.
 
-       SO mask value of zero indicates that this field is ignored. Values: \n
+       An SO mask value of zero indicates that this field is ignored. Values: \n
        - 0x00 -- DONT_CARE \n
 
        CDMA 1X SO mask: \n
@@ -555,28 +591,28 @@ typedef struct {
   */
 typedef enum {
   WDS_DATA_BEARER_TECH_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DATA_BEARER_TECH_1X_V01 = 0x01,
-  WDS_DATA_BEARER_TECH_1XEVDO_V01 = 0x02,
-  WDS_DATA_BEARER_TECH_GSM_V01 = 0x03,
-  WDS_DATA_BEARER_TECH_UMTS_V01 = 0x04,
-  WDS_DATA_BEARER_TECH_CDMA_EVDO_REVA_V01 = 0x05,
-  WDS_DATA_BEARER_TECH_EDGE_V01 = 0x06,
-  WDS_DATA_BEARER_TECH_HSDPA_WCDMA_V01 = 0x07,
-  WDS_DATA_BEARER_TECH_WCDMA_HSUPA_V01 = 0x08,
-  WDS_DATA_BEARER_TECH_HSDPA_HSUPA_V01 = 0x09,
-  WDS_DATA_BEARER_TECH_LTE_V01 = 0x0A,
-  WDS_DATA_BEARER_TECH_CDMA_EVDO_EHRPD_V01 = 0x0B,
-  WDS_DATA_BEARER_TECH_HSDPA_PLUS_WCDMA_V01 = 0x0C,
-  WDS_DATA_BEARER_TECH_HSDPA_PLUS_HSUPA_V01 = 0x0D,
-  WDS_DATA_BEARER_TECH_DC_HSDPA_PLUS_WCDMA_V01 = 0x0E,
-  WDS_DATA_BEARER_TECH_DC_HSDPA_PLUS_HSUPA_V01 = 0x0F,
-  WDS_DATA_BEARER_TECH_HSDPA_PLUS_64QAM_V01 = 0x10,
-  WDS_DATA_BEARER_TECH_HSDPA_PLUS_64QAM_HSUPA_V01 = 0x11,
-  WDS_DATA_BEARER_TECH_TDSCDMA_V01 = 0x12,
-  WDS_DATA_BEARER_TECH_TDSCDMA_HSDPA_V01 = 0x13,
-  WDS_DATA_BEARER_TECH_TDSCDMA_HSUPA_V01 = 0x14,
-  WDS_DATA_BEARER_TECH_IWLAN_S2B_V01 = 0x15,
-  WDS_DATA_BEARER_TECH_UNKNOWN_V01 = -1,
+  WDS_DATA_BEARER_TECH_1X_V01 = 0x01, 
+  WDS_DATA_BEARER_TECH_1XEVDO_V01 = 0x02, 
+  WDS_DATA_BEARER_TECH_GSM_V01 = 0x03, 
+  WDS_DATA_BEARER_TECH_UMTS_V01 = 0x04, 
+  WDS_DATA_BEARER_TECH_CDMA_EVDO_REVA_V01 = 0x05, 
+  WDS_DATA_BEARER_TECH_EDGE_V01 = 0x06, 
+  WDS_DATA_BEARER_TECH_HSDPA_WCDMA_V01 = 0x07, 
+  WDS_DATA_BEARER_TECH_WCDMA_HSUPA_V01 = 0x08, 
+  WDS_DATA_BEARER_TECH_HSDPA_HSUPA_V01 = 0x09, 
+  WDS_DATA_BEARER_TECH_LTE_V01 = 0x0A, 
+  WDS_DATA_BEARER_TECH_CDMA_EVDO_EHRPD_V01 = 0x0B, 
+  WDS_DATA_BEARER_TECH_HSDPA_PLUS_WCDMA_V01 = 0x0C, 
+  WDS_DATA_BEARER_TECH_HSDPA_PLUS_HSUPA_V01 = 0x0D, 
+  WDS_DATA_BEARER_TECH_DC_HSDPA_PLUS_WCDMA_V01 = 0x0E, 
+  WDS_DATA_BEARER_TECH_DC_HSDPA_PLUS_HSUPA_V01 = 0x0F, 
+  WDS_DATA_BEARER_TECH_HSDPA_PLUS_64QAM_V01 = 0x10, 
+  WDS_DATA_BEARER_TECH_HSDPA_PLUS_64QAM_HSUPA_V01 = 0x11, 
+  WDS_DATA_BEARER_TECH_TDSCDMA_V01 = 0x12, 
+  WDS_DATA_BEARER_TECH_TDSCDMA_HSDPA_V01 = 0x13, 
+  WDS_DATA_BEARER_TECH_TDSCDMA_HSUPA_V01 = 0x14, 
+  WDS_DATA_BEARER_TECH_IWLAN_S2B_V01 = 0x15, 
+  WDS_DATA_BEARER_TECH_UNKNOWN_V01 = -1, 
   WDS_DATA_BEARER_TECH_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_data_bearer_tech_enum_v01;
 /**
@@ -588,8 +624,8 @@ typedef enum {
   */
 typedef enum {
   WDS_DORMANCY_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DORMANCY_STATUS_DORMANT_V01 = 0x01,
-  WDS_DORMANCY_STATUS_ACTIVE_V01 = 0x02,
+  WDS_DORMANCY_STATUS_DORMANT_V01 = 0x01, 
+  WDS_DORMANCY_STATUS_ACTIVE_V01 = 0x02, 
   WDS_DORMANCY_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_dormancy_status_enum_v01;
 /**
@@ -601,36 +637,36 @@ typedef enum {
   */
 typedef enum {
   WDS_EVDO_SLOT_CYCLE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EVDO_SLOT_CYCLE_6_MSECS_V01 = 0x00,
-  WDS_EVDO_SLOT_CYCLE_13_MSECS_V01 = 0x01,
-  WDS_EVDO_SLOT_CYCLE_26_MSECS_V01 = 0x02,
-  WDS_EVDO_SLOT_CYCLE_53_MSECS_V01 = 0x03,
-  WDS_EVDO_SLOT_CYCLE_106_MSECS_V01 = 0x04,
-  WDS_EVDO_SLOT_CYCLE_213_MSECS_V01 = 0x05,
-  WDS_EVDO_SLOT_CYCLE_426_MSECS_V01 = 0x06,
-  WDS_EVDO_SLOT_CYCLE_1280_MSECS_V01 = 0x07,
-  WDS_EVDO_SLOT_CYCLE_2560_MSECS_V01 = 0x08,
-  WDS_EVDO_SLOT_CYCLE_5120_MSECS_V01 = 0x09,
-  WDS_EVDO_SLOT_CYCLE_10240_MSECS_V01 = 0x0A,
-  WDS_EVDO_SLOT_CYCLE_20480_MSECS_V01 = 0x0B,
-  WDS_EVDO_SLOT_CYCLE_40960_MSECS_V01 = 0x0C,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_6_MSECS_V01 = 0x0D,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_7_MSECS_V01 = 0x0E,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_8_MSECS_V01 = 0x0F,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_9_MSECS_V01 = 0x10,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_10_MSECS_V01 = 0x11,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_11_MSECS_V01 = 0x12,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_12_MSECS_V01 = 0x13,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_13_MSECS_V01 = 0x14,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_14_MSECS_V01 = 0x15,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_15_MSECS_V01 = 0x16,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_16_MSECS_V01 = 0x17,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_17_MSECS_V01 = 0x18,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_18_MSECS_V01 = 0x19,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_19_MSECS_V01 = 0x1A,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_20_MSECS_V01 = 0x1B,
-  WDS_EVDO_SLOT_CYCLE_1280_TIMES_21_MSECS_V01 = 0x1C,
-  WDS_EVDO_SLOT_CYCLE_DEFAULT_V01 = -1,
+  WDS_EVDO_SLOT_CYCLE_6_MSECS_V01 = 0x00, 
+  WDS_EVDO_SLOT_CYCLE_13_MSECS_V01 = 0x01, 
+  WDS_EVDO_SLOT_CYCLE_26_MSECS_V01 = 0x02, 
+  WDS_EVDO_SLOT_CYCLE_53_MSECS_V01 = 0x03, 
+  WDS_EVDO_SLOT_CYCLE_106_MSECS_V01 = 0x04, 
+  WDS_EVDO_SLOT_CYCLE_213_MSECS_V01 = 0x05, 
+  WDS_EVDO_SLOT_CYCLE_426_MSECS_V01 = 0x06, 
+  WDS_EVDO_SLOT_CYCLE_1280_MSECS_V01 = 0x07, 
+  WDS_EVDO_SLOT_CYCLE_2560_MSECS_V01 = 0x08, 
+  WDS_EVDO_SLOT_CYCLE_5120_MSECS_V01 = 0x09, 
+  WDS_EVDO_SLOT_CYCLE_10240_MSECS_V01 = 0x0A, 
+  WDS_EVDO_SLOT_CYCLE_20480_MSECS_V01 = 0x0B, 
+  WDS_EVDO_SLOT_CYCLE_40960_MSECS_V01 = 0x0C, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_6_MSECS_V01 = 0x0D, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_7_MSECS_V01 = 0x0E, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_8_MSECS_V01 = 0x0F, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_9_MSECS_V01 = 0x10, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_10_MSECS_V01 = 0x11, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_11_MSECS_V01 = 0x12, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_12_MSECS_V01 = 0x13, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_13_MSECS_V01 = 0x14, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_14_MSECS_V01 = 0x15, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_15_MSECS_V01 = 0x16, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_16_MSECS_V01 = 0x17, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_17_MSECS_V01 = 0x18, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_18_MSECS_V01 = 0x19, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_19_MSECS_V01 = 0x1A, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_20_MSECS_V01 = 0x1B, 
+  WDS_EVDO_SLOT_CYCLE_1280_TIMES_21_MSECS_V01 = 0x1C, 
+  WDS_EVDO_SLOT_CYCLE_DEFAULT_V01 = -1, 
   WDS_EVDO_SLOT_CYCLE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_evdo_slot_cycle_enum_v01;
 /**
@@ -647,7 +683,7 @@ typedef struct {
   */
 
   uint8_t evdo_force_long_sleep;
-  /**<   Set to 1 if EV-DO is currently forced to ignore the slot cycle setting
+  /**<   Set to 1 if EV-DO is currently forced to ignore the slot cycle setting 
        and instead sleep for long periods, potentially missing pages
   */
 }wds_evdo_page_monitor_period_type_v01;  /* Type */
@@ -660,9 +696,9 @@ typedef struct {
   */
 typedef enum {
   WDS_DATA_CALL_STATUS_CHANGE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DATA_CALL_UNKNOWN_V01 = 0x00,
-  WDS_DATA_CALL_ACTIVATED_V01 = 0x01,
-  WDS_DATA_CALL_TERMINATED_V01 = 0x02,
+  WDS_DATA_CALL_UNKNOWN_V01 = 0x00, 
+  WDS_DATA_CALL_ACTIVATED_V01 = 0x01, 
+  WDS_DATA_CALL_TERMINATED_V01 = 0x02, 
   WDS_DATA_CALL_STATUS_CHANGE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_data_call_status_change_enum_v01;
 /**
@@ -674,13 +710,13 @@ typedef enum {
   */
 typedef enum {
   WDS_CURR_PREF_DATA_SYS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_CURR_PREF_SYS_UNKNOWN_V01 = 0x00,
-  WDS_CURR_PREF_SYS_CDMA_1X_V01 = 0x01,
-  WDS_CURR_PREF_SYS_EVDO_V01 = 0x02,
-  WDS_CURR_PREF_SYS_GPRS_V01 = 0x03,
-  WDS_CURR_PREF_SYS_WCDMA_V01 = 0x04,
-  WDS_CURR_PREF_SYS_LTE_V01 = 0x05,
-  WDS_CURR_PREF_SYS_TDSCDMA_V01 = 0x06,
+  WDS_CURR_PREF_SYS_UNKNOWN_V01 = 0x00, 
+  WDS_CURR_PREF_SYS_CDMA_1X_V01 = 0x01, 
+  WDS_CURR_PREF_SYS_EVDO_V01 = 0x02, 
+  WDS_CURR_PREF_SYS_GPRS_V01 = 0x03, 
+  WDS_CURR_PREF_SYS_WCDMA_V01 = 0x04, 
+  WDS_CURR_PREF_SYS_LTE_V01 = 0x05, 
+  WDS_CURR_PREF_SYS_TDSCDMA_V01 = 0x06, 
   WDS_CURR_PREF_DATA_SYS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_curr_pref_data_sys_enum_v01;
 /**
@@ -692,10 +728,10 @@ typedef enum {
   */
 typedef enum {
   WDS_EVENT_DATA_CALL_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DATA_CALL_NONE_V01 = 0x00,
-  WDS_DATA_CALL_EMBEDDED_V01 = 0x01,
-  WDS_DATA_CALL_TETHERED_V01 = 0x02,
-  WDS_DATA_CALL_MODEM_EMBEDDED_V01 = 0x03,
+  WDS_DATA_CALL_NONE_V01 = 0x00, 
+  WDS_DATA_CALL_EMBEDDED_V01 = 0x01, 
+  WDS_DATA_CALL_TETHERED_V01 = 0x02, 
+  WDS_DATA_CALL_MODEM_EMBEDDED_V01 = 0x03, 
   WDS_EVENT_DATA_CALL_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_event_data_call_type_enum_v01;
 /**
@@ -707,9 +743,9 @@ typedef enum {
   */
 typedef enum {
   WDS_EVENT_TETHERED_CALL_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_TETHERED_CALL_NONE_V01 = 0x00,
-  WDS_TETHERED_CALL_RMNET_V01 = 0x01,
-  WDS_TETHERED_CALL_DUN_V01 = 0x02,
+  WDS_TETHERED_CALL_NONE_V01 = 0x00, 
+  WDS_TETHERED_CALL_RMNET_V01 = 0x01, 
+  WDS_TETHERED_CALL_DUN_V01 = 0x02, 
   WDS_EVENT_TETHERED_CALL_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_event_tethered_call_type_enum_v01;
 /**
@@ -744,8 +780,8 @@ typedef struct {
   */
 typedef enum {
   WDS_SYS_NETWORK_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_SYS_NETWORK_3GPP_V01 = 0x00,
-  WDS_SYS_NETWORK_3GPP2_V01 = 0x01,
+  WDS_SYS_NETWORK_3GPP_V01 = 0x00, 
+  WDS_SYS_NETWORK_3GPP2_V01 = 0x01, 
   WDS_SYS_NETWORK_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_sys_network_enum_v01;
 /**
@@ -764,7 +800,7 @@ typedef struct {
   */
 
   uint32_t rat_mask;
-  /**<   Radio access technology (RAT) mask to indicate the type of technology.
+  /**<   RAT mask to indicate the type of technology.
 
        A RAT mask value of zero indicates that this field is ignored. Values: \n
        - 0x00 -- DONT_CARE \n
@@ -792,7 +828,7 @@ typedef struct {
   */
 
   uint32_t so_mask;
-  /**<   Service option (SO) mask to indicate the service option or type of
+  /**<   SO mask to indicate the service option or type of
        application.
 
        An SO mask value of zero indicates that this field is ignored.
@@ -849,9 +885,9 @@ typedef struct {
   */
 typedef enum {
   WDS_DATA_CALL_ADDR_FAMILY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DATA_CALL_ADDR_FAMILY_UNKNOWN_V01 = 0,
-  WDS_DATA_CALL_ADDR_FAMILY_IPV4_V01 = 4,
-  WDS_DATA_CALL_ADDR_FAMILY_IPV6_V01 = 6,
+  WDS_DATA_CALL_ADDR_FAMILY_UNKNOWN_V01 = 0, 
+  WDS_DATA_CALL_ADDR_FAMILY_IPV4_V01 = 4, 
+  WDS_DATA_CALL_ADDR_FAMILY_IPV6_V01 = 6, 
   WDS_DATA_CALL_ADDR_FAMILY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_data_call_addr_family_enum_v01;
 /**
@@ -876,18 +912,18 @@ typedef enum {
   */
 typedef enum {
   WDS_BEARER_TECH_RAT_EX_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_BEARER_TECH_RAT_EX_NULL_BEARER_V01 = 0x00,
-  WDS_BEARER_TECH_RAT_EX_3GPP_WCDMA_V01 = 0x01,
-  WDS_BEARER_TECH_RAT_EX_3GPP_GERAN_V01 = 0x02,
-  WDS_BEARER_TECH_RAT_EX_3GPP_LTE_V01 = 0x03,
-  WDS_BEARER_TECH_RAT_EX_3GPP_TDSCDMA_V01 = 0x04,
-  WDS_BEARER_TECH_RAT_EX_3GPP_WLAN_V01 = 0x05,
-  WDS_BEARER_TECH_RAT_EX_3GPP_MAX_V01 = 0x64,
-  WDS_BEARER_TECH_RAT_EX_3GPP2_1X_V01 = 0x65,
-  WDS_BEARER_TECH_RAT_EX_3GPP2_HRPD_V01 = 0x66,
-  WDS_BEARER_TECH_RAT_EX_3GPP2_EHRPD_V01 = 0x67,
-  WDS_BEARER_TECH_RAT_EX_3GPP2_WLAN_V01 = 0x68,
-  WDS_BEARER_TECH_RAT_EX_3GPP2_MAX_V01 = 0xC8,
+  WDS_BEARER_TECH_RAT_EX_NULL_BEARER_V01 = 0x00, /**<  NULL bearer  */
+  WDS_BEARER_TECH_RAT_EX_3GPP_WCDMA_V01 = 0x01, /**<  3GPP WCDMA  */
+  WDS_BEARER_TECH_RAT_EX_3GPP_GERAN_V01 = 0x02, /**<  3GPP GERAN  */
+  WDS_BEARER_TECH_RAT_EX_3GPP_LTE_V01 = 0x03, /**<  3GPP LTE  */
+  WDS_BEARER_TECH_RAT_EX_3GPP_TDSCDMA_V01 = 0x04, /**<  3GPP TDSCDMA */
+  WDS_BEARER_TECH_RAT_EX_3GPP_WLAN_V01 = 0x05, /**<  3GPP WLAN  */
+  WDS_BEARER_TECH_RAT_EX_3GPP_MAX_V01 = 0x64, /**<  3GPP maximum  */
+  WDS_BEARER_TECH_RAT_EX_3GPP2_1X_V01 = 0x65, /**<  3GPP2 1X  */
+  WDS_BEARER_TECH_RAT_EX_3GPP2_HRPD_V01 = 0x66, /**<  3GPP2 HRPD  */
+  WDS_BEARER_TECH_RAT_EX_3GPP2_EHRPD_V01 = 0x67, /**<  3GPP2 EHRPD  */
+  WDS_BEARER_TECH_RAT_EX_3GPP2_WLAN_V01 = 0x68, /**<  3GPP2 WLAN  */
+  WDS_BEARER_TECH_RAT_EX_3GPP2_MAX_V01 = 0xC8, /**<  3GPP2 maximum  */
   WDS_BEARER_TECH_RAT_EX_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_bearer_tech_rat_ex_enum_v01;
 /**
@@ -895,54 +931,71 @@ typedef enum {
   */
 
 typedef uint64_t wds_bearer_tech_so_mask_v01;
-#define QMI_WDS_SO_MASK_UNSPECIFIED_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000000ull)
-#define QMI_WDS_3GPP_SO_MASK_WCDMA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000001ull)
-#define QMI_WDS_3GPP_SO_MASK_HSDPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000002ull)
-#define QMI_WDS_3GPP_SO_MASK_HSUPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000004ull)
-#define QMI_WDS_3GPP_SO_MASK_HSDPAPLUS_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000008ull)
-#define QMI_WDS_3GPP_SO_MASK_DC_HSDPAPLUS_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000010ull)
-#define QMI_WDS_3GPP_SO_MASK_64_QAM_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000020ull)
-#define QMI_WDS_3GPP_SO_MASK_HSPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000040ull)
-#define QMI_WDS_3GPP_SO_MASK_GPRS_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000080ull)
-#define QMI_WDS_3GPP_SO_MASK_EDGE_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000100ull)
-#define QMI_WDS_3GPP_SO_MASK_GSM_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000200ull)
-#define QMI_WDS_3GPP_SO_MASK_S2B_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000400ull)
-#define QMI_WDS_3GPP_SO_MASK_LTE_LIMITED_SRVC_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000800ull)
-#define QMI_WDS_3GPP2_SO_MASK_1X_IS95_V01 ((wds_bearer_tech_so_mask_v01)0x0000000001000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_1X_IS2000_V01 ((wds_bearer_tech_so_mask_v01)0x0000000002000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_1X_IS2000_REL_A_V01 ((wds_bearer_tech_so_mask_v01)0x0000000004000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REV0_DPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000008000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REVA_DPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000010000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_DPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000020000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REVA_MPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000040000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_MPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000080000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REVA_EMPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000100000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_EMPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000200000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_MMPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000400000000ull)
-#define QMI_WDS_3GPP2_SO_MASK_HDR_EVDO_FMC_V01 ((wds_bearer_tech_so_mask_v01)0x0000000800000000ull)
+#define QMI_WDS_SO_MASK_UNSPECIFIED_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000000ull) 
+#define QMI_WDS_3GPP_SO_MASK_WCDMA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000001ull) 
+#define QMI_WDS_3GPP_SO_MASK_HSDPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000002ull) 
+#define QMI_WDS_3GPP_SO_MASK_HSUPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000004ull) 
+#define QMI_WDS_3GPP_SO_MASK_HSDPAPLUS_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000008ull) 
+#define QMI_WDS_3GPP_SO_MASK_DC_HSDPAPLUS_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000010ull) 
+#define QMI_WDS_3GPP_SO_MASK_64_QAM_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000020ull) 
+#define QMI_WDS_3GPP_SO_MASK_HSPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000040ull) 
+#define QMI_WDS_3GPP_SO_MASK_GPRS_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000080ull) 
+#define QMI_WDS_3GPP_SO_MASK_EDGE_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000100ull) 
+#define QMI_WDS_3GPP_SO_MASK_GSM_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000200ull) 
+#define QMI_WDS_3GPP_SO_MASK_S2B_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000400ull) 
+#define QMI_WDS_3GPP_SO_MASK_LTE_LIMITED_SRVC_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000000800ull) 
+#define QMI_WDS_3GPP_SO_MASK_LTE_FDD_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000001000ull) 
+#define QMI_WDS_3GPP_SO_MASK_LTE_TDD_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000002000ull) 
+#define QMI_WDS_3GPP_SO_MASK_TDSCDMA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000004000ull) 
+#define QMI_WDS_3GPP_SO_MASK_DC_HSUPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000000008000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_1X_IS95_V01 ((wds_bearer_tech_so_mask_v01)0x0000000001000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_1X_IS2000_V01 ((wds_bearer_tech_so_mask_v01)0x0000000002000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_1X_IS2000_REL_A_V01 ((wds_bearer_tech_so_mask_v01)0x0000000004000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REV0_DPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000008000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REVA_DPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000010000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_DPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000020000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REVA_MPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000040000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_MPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000080000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REVA_EMPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000100000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_EMPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000200000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_REVB_MMPA_V01 ((wds_bearer_tech_so_mask_v01)0x0000000400000000ull) 
+#define QMI_WDS_3GPP2_SO_MASK_HDR_EVDO_FMC_V01 ((wds_bearer_tech_so_mask_v01)0x0000000800000000ull) 
 /** @addtogroup wds_qmi_aggregates
     @{
   */
 typedef struct {
 
   wds_bearer_tech_network_enum_v01 technology;
-  /**<   Technology type. Values: \n
-      - WDS_BEARER_TECH_NETWORK_3GPP (0) --  3GPP \n
-      - WDS_BEARER_TECH_NETWORK_3GPP2 (1) --  3GPP2
+  /**<   Technology type. Values: \n 
+      - WDS_BEARER_TECH_NETWORK_3GPP (0) --  3GPP \n 
+      - WDS_BEARER_TECH_NETWORK_3GPP2 (1) --  3GPP2 
  */
 
   wds_bearer_tech_rat_ex_enum_v01 rat_value;
-  /**<    RAT Value */
+  /**<   RAT value. Values: \n
+      - WDS_BEARER_TECH_RAT_EX_NULL_BEARER (0x00) --  NULL bearer 
+      - WDS_BEARER_TECH_RAT_EX_3GPP_WCDMA (0x01) --  3GPP WCDMA 
+      - WDS_BEARER_TECH_RAT_EX_3GPP_GERAN (0x02) --  3GPP GERAN 
+      - WDS_BEARER_TECH_RAT_EX_3GPP_LTE (0x03) --  3GPP LTE 
+      - WDS_BEARER_TECH_RAT_EX_3GPP_TDSCDMA (0x04) --  3GPP TDSCDMA
+      - WDS_BEARER_TECH_RAT_EX_3GPP_WLAN (0x05) --  3GPP WLAN 
+      - WDS_BEARER_TECH_RAT_EX_3GPP_MAX (0x64) --  3GPP maximum 
+      - WDS_BEARER_TECH_RAT_EX_3GPP2_1X (0x65) --  3GPP2 1X 
+      - WDS_BEARER_TECH_RAT_EX_3GPP2_HRPD (0x66) --  3GPP2 HRPD 
+      - WDS_BEARER_TECH_RAT_EX_3GPP2_EHRPD (0x67) --  3GPP2 EHRPD 
+      - WDS_BEARER_TECH_RAT_EX_3GPP2_WLAN (0x68) --  3GPP2 WLAN 
+      - WDS_BEARER_TECH_RAT_EX_3GPP2_MAX (0xC8) --  3GPP2 maximum  
+ */
 
   wds_bearer_tech_so_mask_v01 so_mask;
-  /**<   Service option (SO) mask to indicate the service option or type of
+  /**<   SO mask to indicate the service option or type of
        application.
 
        An SO mask value of zero indicates that this field is ignored.
        Values: \n
-       - 0x00 -- SO Mask Unspecified \n
+       - 0x00 -- SO mask unspecified \n     
 
-       3GPP SO Mask: \n
+       3GPP SO mask: \n
        - 0x01  -- WCDMA \n
        - 0x02  -- HSDPA \n
        - 0x04  -- HSUPA \n
@@ -954,9 +1007,13 @@ typedef struct {
        - 0x100 -- EDGE \n
        - 0x200 -- GSM \n
        - 0x400 -- S2B \n
-       - 0x800 -- LTE Limited Service \n
-
-       3GPP2 SO Mask: \n
+       - 0x800 -- LTE limited service \n
+       - 0x1000 -- LTE FDD \n
+       - 0x2000 -- LTE TDD \n
+       - 0x4000 -- TDSCDMA \n
+       - 0x8000 -- DC HSUPA \n
+       
+       3GPP2 SO mask: \n
        - 0x01000000   -- 1X IS95 \n
        - 0x02000000   -- 1X IS2000 \n
        - 0x04000000   -- 1X IS2000 REL A \n
@@ -968,7 +1025,7 @@ typedef struct {
        - 0x100000000  -- HDR REVA EMPA \n
        - 0x200000000  -- HDR REVB EMPA \n
        - 0x400000000  -- HDR REVB MMPA \n
-       - 0x800000000  -- HDR EVDO FMC\n
+       - 0x800000000  -- HDR EVDO FMC       
   */
 }wds_bearer_tech_info_type_v01;  /* Type */
 /**
@@ -1028,17 +1085,17 @@ typedef struct {
   wds_data_bearer_tech_enum_v01 data_bearer_tech;
   /**<   Note: This TLV is deprecated in QMI_WDS version 1.4 and later. \n
         Values: \n
-       - 0x01 -- cdma2000 1X             \n
-       - 0x02 -- cdma2000 HRPD (1xEV-DO) \n
+       - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X             \n
+       - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x03 -- GSM                     \n
        - 0x04 -- UMTS                    \n
-       - 0x05 -- cdma200 HRPD (1xEV-DO RevA) \n
+       - 0x05 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO RevA) \n
        - 0x06 -- EDGE                    \n
        - 0x07 -- HSDPA and WCDMA         \n
        - 0x08 -- WCDMA and HSUPA         \n
        - 0x09 -- HSDPA and HSUPA         \n
        - 0x0A -- LTE                     \n
-       - 0x0B -- cdma2000 EHRPD          \n
+       - 0x0B -- cdma2000\textsuperscript{\textregistered} EHRPD          \n
        - 0x0C -- HSDPA+ and WCDMA        \n
        - 0x0D -- HSDPA+ and HSUPA        \n
        - 0x0E -- DC_HSDPA+ and WCDMA     \n
@@ -1048,7 +1105,7 @@ typedef struct {
        - 0x12 -- TDSCDMA                 \n
        - 0x13 -- TDSCDMA and HSDPA       \n
        - 0x14 -- TDSCDMA and HSUPA       \n
-       - -1   -- Unknown
+       - -1   -- Unknown                 
   */
 
   /* Optional */
@@ -1165,7 +1222,7 @@ typedef struct {
   uint8_t removed_filter_handles_valid;  /**< Must be set to true if removed_filter_handles is being passed */
   uint32_t removed_filter_handles_len;  /**< Must be set to # of elements in removed_filter_handles */
   uint32_t removed_filter_handles[QMI_WDS_ADDITIONAL_PDN_FILTERS_MAX_V01];
-  /**<   Removed filter handles. This TLV contains the list of all removed
+  /**<   Removed filter handles. This TLV contains the list of all removed 
        filters that were set by the client on the RmNet port. Each filter is
        identified by a filter handle.
    */
@@ -1174,6 +1231,18 @@ typedef struct {
   /*  Data Bearer Technology Extended */
   uint8_t bearer_tech_ex_valid;  /**< Must be set to true if bearer_tech_ex is being passed */
   wds_bearer_tech_info_type_v01 bearer_tech_ex;
+
+  /* Optional */
+  /*  Uplink Flow Control Sequence Number */
+  uint8_t uplink_fc_seq_num_valid;  /**< Must be set to true if uplink_fc_seq_num is being passed */
+  uint16_t uplink_fc_seq_num;
+  /**<   Sequence number of each flow enable and disable event. This TLV
+       is sent with the Uplink Flow Control TLV.
+       Each time the flow is disabled (flow controlled), the sequence number
+       is increased. It can be used in conjunction with the QMAP in-band flow
+       control sequence number to determine the validity of the message 
+       received by the control point.
+  */
 }wds_event_report_ind_msg_v01;  /* Message */
 /**
     @}
@@ -1241,6 +1310,89 @@ typedef struct {
        - 0 -- Do not report \n
        - 1 -- Report extended IP configuration information change
   */
+
+  /* Optional */
+  /*  Changed LTE Attach PDN List */
+  uint8_t report_lte_attach_pdn_list_change_valid;  /**< Must be set to true if report_lte_attach_pdn_list_change is being passed */
+  uint8_t report_lte_attach_pdn_list_change;
+  /**<   Whether to report a changed LTE attach PDN list. Values: \n
+ 	   - 0 -- Do not report \n
+       - 1 -- Report changed LTE attach PDN list
+   */
+
+  /* Optional */
+  /*  Report Reverse IP Transport Filter Setup */
+  uint8_t report_reverse_ip_transport_filter_setup_valid;  /**< Must be set to true if report_reverse_ip_transport_filter_setup is being passed */
+  uint8_t report_reverse_ip_transport_filter_setup;
+  /**<   Whether to report a reverse IP transport filter setup. Values: \n
+       - 0 -- Do not report \n
+       - 1 -- Report reverse IP transport filter setup
+  */
+
+  /* Optional */
+  /*  Report Handoff Information */
+  uint8_t report_handoff_information_valid;  /**< Must be set to true if report_handoff_information is being passed */
+  uint8_t report_handoff_information;
+  /**<   Whether to report handoff information. Values:  \n
+       - 0 -- Do not report \n
+       - 1 -- Report handoff information
+  
+ TLV 0x16 is reserved. 
+  */
+
+  /* Optional */
+  /*  Report eMBMS SAI List Changes */
+  uint8_t report_embms_sai_list_valid;  /**< Must be set to true if report_embms_sai_list is being passed */
+  uint8_t report_embms_sai_list;
+  /**<   Whether to report an eMBMS SAI list change. Values:  \n
+       - 0 -- Do not report \n
+       - 1 -- Report 
+  */
+
+  /* Optional */
+  /*  Report Uplink Throughput Information */
+  uint8_t report_throughput_valid;  /**< Must be set to true if report_throughput is being passed */
+  uint8_t report_throughput;
+  /**<    Values: \n
+       - 0 -- Do not report \n
+       - 1 -- Report throughput information
+  */
+
+  /* Optional */
+  /*  Report Profile Changes */
+  uint8_t report_profile_changed_events_valid;  /**< Must be set to true if report_profile_changed_events is being passed */
+  uint8_t report_profile_changed_events;
+  /**<    Values: \n
+       - 0 -- Do not report \n
+       - 1 -- Report profile changed events
+  */
+
+  /* Optional */
+  /*  Report APN List in Roaming */
+  uint8_t report_roaming_apn_list_valid;  /**< Must be set to true if report_roaming_apn_list is being passed */
+  uint8_t report_roaming_apn_list;
+  /**<    Values: \n
+       - 0 -- Do not report \n
+       - 1 -- Report the list of APNs in Roaming mode
+  */
+
+  /* Optional */
+  /*  Report Downlink throughput info */
+  uint8_t report_dl_throughput_valid;  /**< Must be set to true if report_dl_throughput is being passed */
+  uint8_t report_dl_throughput;
+  /**<    Values: \n
+       - 0 -- Do not report \n
+       - 1 -- Report Downlink throughput info
+  */
+
+  /* Optional */
+  /*  Report eMBMS Content Description Control */
+  uint8_t report_embms_content_desc_control_valid;  /**< Must be set to true if report_embms_content_desc_control is being passed */
+  uint8_t report_embms_content_desc_control;
+  /**<    Values: \n
+       - 0 -- Do not report \n
+       - 1 -- Report eMBMS content description control
+  */
 }wds_indication_register_req_msg_v01;  /* Message */
 /**
     @}
@@ -1266,9 +1418,9 @@ typedef struct {
   */
 typedef enum {
   WDS_IP_FAMILY_PREFERENCE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_IP_FAMILY_PREF_IPV4_V01 = 0x04,
-  WDS_IP_FAMILY_PREF_IPV6_V01 = 0x06,
-  WDS_IP_FAMILY_PREF_UNSPEC_V01 = 0x08,
+  WDS_IP_FAMILY_PREF_IPV4_V01 = 0x04, 
+  WDS_IP_FAMILY_PREF_IPV6_V01 = 0x06, 
+  WDS_IP_FAMILY_PREF_UNSPEC_V01 = 0x08, 
   WDS_IP_FAMILY_PREFERENCE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ip_family_preference_enum_v01;
 /**
@@ -1280,10 +1432,10 @@ typedef enum {
   */
 typedef enum {
   WDS_EXT_TECH_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EXT_TECH_PREF_CDMA_V01 = -32767,
-  WDS_EXT_TECH_PREF_UMTS_V01 = -32764,
-  WDS_EXT_TECH_PREF_EMBMS_V01 = -30590,
-  WDS_EXT_TECH_PREF_MODEM_LINK_LOCAL_V01 = -30584,
+  WDS_EXT_TECH_PREF_CDMA_V01 = -32767, 
+  WDS_EXT_TECH_PREF_UMTS_V01 = -32764, 
+  WDS_EXT_TECH_PREF_EMBMS_V01 = -30590, 
+  WDS_EXT_TECH_PREF_MODEM_LINK_LOCAL_V01 = -30584, 
   WDS_EXT_TECH_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ext_tech_pref_enum_v01;
 /**
@@ -1295,10 +1447,62 @@ typedef enum {
   */
 typedef enum {
   WDS_CALL_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_CALL_TYPE_LAPTOP_CALL_V01 = 0x00,
-  WDS_CALL_TYPE_EMBEDDED_CALL_V01 = 0x01,
+  WDS_CALL_TYPE_LAPTOP_CALL_V01 = 0x00, 
+  WDS_CALL_TYPE_EMBEDDED_CALL_V01 = 0x01, 
   WDS_CALL_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_call_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_IP_SUPPORT_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_IP_SUPPORT_TYPE_IPV4_V01 = 0x00, /**<  IPv4 \n  */
+  WDS_IP_SUPPORT_TYPE_IPV6_V01 = 0x01, /**<  IPv6 \n  */
+  WDS_IP_SUPPORT_TYPE_IPV4V6_V01 = 0x02, /**<  IPv4v6  */
+  WDS_IP_SUPPORT_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_ip_support_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint32_t ipv4_addr;
+  /**<   PDN's IPv4 address.
+  */
+
+  uint8_t ipv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   PDN's IPv6 address.
+  */
+
+  wds_ip_support_type_enum_v01 bearer_ip_type;
+  /**<   Type of bearer IP. Values: \n
+      - WDS_IP_SUPPORT_TYPE_IPV4 (0x00) --  IPv4 \n 
+      - WDS_IP_SUPPORT_TYPE_IPV6 (0x01) --  IPv6 \n 
+      - WDS_IP_SUPPORT_TYPE_IPV4V6 (0x02) --  IPv4v6 
+ */
+}wds_handoff_context_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_APN_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_APN_TYPE_UNSPECIFIED_V01 = 0, /**<  APN type unspecified  */
+  WDS_APN_TYPE_INTERNET_V01 = 1, /**<  APN type for Internet traffic  */
+  WDS_APN_TYPE_IMS_V01 = 2, /**<  APN type for IMS  */
+  WDS_APN_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_apn_type_enum_v01;
 /**
     @}
   */
@@ -1306,7 +1510,7 @@ typedef enum {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Activates a packet data session (if not already
+/** Request Message; Activates a packet data session (if not already 
            started) on behalf of the requesting control point. */
 typedef struct {
 
@@ -1314,19 +1518,19 @@ typedef struct {
   /*  Primary DNS Address Preference */
   uint8_t primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if primary_DNS_IPv4_address_preference is being passed */
   uint32_t primary_DNS_IPv4_address_preference;
-  /**<   This value is used as a preference during negotiation with the network;
+  /**<   Used as a preference during negotiation with the network;
        if not specified, the wireless device attempts to obtain the DNS
        address automatically from the network. The negotiated value is provided
-       to host via DHCP.
+       to the host via DHCP.
   */
 
   /* Optional */
   /*  Secondary DNS Address Preference */
   uint8_t secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if secondary_DNS_IPv4_address_preference is being passed */
   uint32_t secondary_DNS_IPv4_address_preference;
-  /**<   This value is used as a preference during negotiation with the network;
+  /**<   Used as a preference during negotiation with the network;
        if not specified, the wireless device attempts to obtain the DNS
-       address automatically from the network; the negotiated value is provided
+       address automatically from the network. The negotiated value is provided
        to the host via DHCP.
   */
 
@@ -1356,15 +1560,13 @@ typedef struct {
   /*  Context Access Point Node (APN) Name */
   uint8_t apn_name_valid;  /**< Must be set to true if apn_name is being passed */
   char apn_name[QMI_WDS_APN_NAME_MAX_V01 + 1];
-  /**<   Access point name -- A string parameter that is a logical name used to
-       select GGSN and external packet data network.
-
-       If the value is NULL or omitted, the subscription default value
-       is requested.
+  /**<   String parameter that is a logical name used to
+       select the GGSN and external packet data network. If the value is NULL 
+	   or omitted, the subscription default value is requested.
 
        QMI_ERR_ARG_TOO_LONG is returned if the APN name is too long.
 
-       This TLV is ignored if the 3GPP configured profile TLV is
+       This TLV is ignored if the 3GPP-configured profile TLV is
        present, i.e., the APN name cannot be overridden.
   */
 
@@ -1402,7 +1604,7 @@ typedef struct {
   /*  Username */
   uint8_t username_valid;  /**< Must be set to true if username is being passed */
   char username[QMI_WDS_USER_NAME_MAX_V01 + 1];
-  /**<   The username to be used during data network authentication.
+  /**<   The username to be used during data network authentication.  
        QMI_ERR_ARG_TOO_LONG is returned if the storage on the wireless
        device is insufficient in size to hold the value.
   */
@@ -1425,7 +1627,7 @@ typedef struct {
        behavioral backward compatability). Values: \n
        - 4 -- IPv4 \n
        - 6 -- IPv6 \n
-       - 8 -- Unspecified
+       - 8 -- Unspecified 
   */
 
   /* Optional */
@@ -1437,9 +1639,9 @@ typedef struct {
        - Bit 0 -- 3GPP \n
        - Bit 1 -- 3GPP2 \n
        All other bits are reserved and ignored even if they are set
-       in the request. If a single value of the technology preference bit
-       mask is set, the device attempts to use that technology. If two
-       or more bits in the technology preference bit mask are set, the
+       in the request. If a single value of the technology preference bitmask 
+	   is set, the device attempts to use that technology. If two
+       or more bits in the technology preference bitmask are set, the
        device determines which technology to use from those specified. If
        this TLV is absent, the device assumes all supported technologies
        are acceptable.
@@ -1500,6 +1702,30 @@ typedef struct {
        If this TLV is not present, by default the call is considered
        to be a laptop call.
   */
+
+  /* Optional */
+  /*  Handoff Context */
+  uint8_t handoff_context_valid;  /**< Must be set to true if handoff_context is being passed */
+  wds_handoff_context_type_v01 handoff_context;
+  /**<   \n
+     Context information needed if the TE is handing off a call to the modem.
+  */
+
+  /* Optional */
+  /*  IP Stream ID */
+  uint8_t ips_id_valid;  /**< Must be set to true if ips_id is being passed */
+  uint8_t ips_id;
+  /**<   IP stream ID associated with the data call.
+  */
+
+  /* Optional */
+  /*  APN type enum */
+  uint8_t apn_type_valid;  /**< Must be set to true if apn_type is being passed */
+  wds_apn_type_enum_v01 apn_type;
+  /**<        - WDS_APN_TYPE_UNSPECIFIED (0) --  APN type unspecified 
+      - WDS_APN_TYPE_INTERNET (1) --  APN type for Internet traffic 
+      - WDS_APN_TYPE_IMS (2) --  APN type for IMS  
+ */
 }wds_start_network_interface_req_msg_v01;  /* Message */
 /**
     @}
@@ -1510,14 +1736,14 @@ typedef struct {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_TYPE_UNSPECIFIED_V01 = 0x00,
-  WDS_VCER_TYPE_MOBILE_IP_V01 = 0x01,
-  WDS_VCER_TYPE_INTERNAL_V01 = 0x02,
-  WDS_VCER_TYPE_CALL_MANAGER_DEFINED_V01 = 0x03,
-  WDS_VCER_TYPE_3GPP_SPEC_DEFINED_V01 = 0x06,
-  WDS_VCER_TYPE_PPP_V01 = 0x07,
-  WDS_VCER_TYPE_EHRPD_V01 = 0x08,
-  WDS_VCER_TYPE_IPV6_V01 = 0x09,
+  WDS_VCER_TYPE_UNSPECIFIED_V01 = 0x00, 
+  WDS_VCER_TYPE_MOBILE_IP_V01 = 0x01, 
+  WDS_VCER_TYPE_INTERNAL_V01 = 0x02, 
+  WDS_VCER_TYPE_CALL_MANAGER_DEFINED_V01 = 0x03, 
+  WDS_VCER_TYPE_3GPP_SPEC_DEFINED_V01 = 0x06, 
+  WDS_VCER_TYPE_PPP_V01 = 0x07, 
+  WDS_VCER_TYPE_EHRPD_V01 = 0x08, 
+  WDS_VCER_TYPE_IPV6_V01 = 0x09, 
   WDS_VERBOSE_CALL_END_REASON_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_type_enum_v01;
 /**
@@ -1529,37 +1755,37 @@ typedef enum {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_MIP_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_MIP_FA_REASON_UNSPECIFIED_V01 = 0x0040,
-  WDS_VCER_MIP_FA_ADMIN_PROHIBITED_V01 = 0x0041,
-  WDS_VCER_MIP_FA_INSUFFICIENT_RESOURCES_V01 = 0x0042,
-  WDS_VCER_MIP_FA_MOBILE_NODE_AUTH_FAILURE_V01 = 0x0043,
-  WDS_VCER_MIP_FA_HA_AUTH_FAILURE_V01 = 0x0044,
-  WDS_VCER_MIP_FA_REQ_LIFETIME_TOO_LONG_V01 = 0x0045,
-  WDS_VCER_MIP_FA_MALFORMED_REQUEST_V01 = 0x0046,
-  WDS_VCER_MIP_FA_MALFOMED_REPLY_V01 = 0x0047,
-  WDS_VCER_MIP_FA_ENCAPSULATION_UNAVAILABLE_V01 = 0x0048,
-  WDS_VCER_MIP_FA_VJHC_UNAVAILABLE_V01 = 0x0049,
-  WDS_VCER_MIP_FA_REV_TUNNEL_UNAVAILABLE_V01 = 0x004A,
-  WDS_VCER_MIP_FA_REV_TUNNEL_IS_MAND_AND_T_BIT_NOT_SET_V01 = 0x4B,
-  WDS_VCER_MIP_FA_DELIVERY_STYLE_NOT_SUPP_V01 = 0x4F,
-  WDS_VCER_MIP_FA_MISSING_NAI_V01 = 0x0061,
-  WDS_VCER_MIP_FA_MISSING_HA_V01 = 0x0062,
-  WDS_VCER_MIP_FA_MISSING_HOME_ADDR_V01 = 0x0063,
-  WDS_VCER_MIP_FA_UNKNOWN_CHALLENGE_V01 = 0x0068,
-  WDS_VCER_MIP_FA_MISSING_CHALLENGE_V01 = 0x0069,
-  WDS_VCER_MIP_FA_STALE_CHALLENGE_V01 = 0x006A,
-  WDS_VCER_MIP_HA_REASON_UNSPECIFIED_V01 = 0x0080,
-  WDS_VCER_MIP_HA_ADMIN_PROHIBITED_V01 = 0x0081,
-  WDS_VCER_MIP_HA_INSUFFICIENT_RESOURCES_V01 = 0x0082,
-  WDS_VCER_MIP_HA_MOBILE_NODE_AUTH_FAILURE_V01 = 0x0083,
-  WDS_VCER_MIP_HA_FA_AUTH_FAILURE_V01 = 0x0084,
-  WDS_VCER_MIP_HA_REGISTRATION_ID_MISMATCH_V01 = 0x0085,
-  WDS_VCER_MIP_HA_MALFORMED_REQUEST_V01 = 0x0086,
-  WDS_VCER_MIP_HA_UNKNOWN_HA_ADDR_V01 = 0x0088,
-  WDS_VCER_MIP_HA_REV_TUNNEL_UNAVAILABLE_V01 = 0x0089,
-  WDS_VCER_MIP_HA_REV_TUNNEL_IS_MAND_AND_T_BIT_NOT_SET_V01 = 0x008A,
-  WDS_VCER_MIP_HA_ENCAPSULATION_UNAVAILABLE_V01 = 0x008B,
-  WDS_VCER_MIP_HA_REASON_UNKNOWN_V01 = -1,
+  WDS_VCER_MIP_FA_REASON_UNSPECIFIED_V01 = 0x0040, 
+  WDS_VCER_MIP_FA_ADMIN_PROHIBITED_V01 = 0x0041, 
+  WDS_VCER_MIP_FA_INSUFFICIENT_RESOURCES_V01 = 0x0042, 
+  WDS_VCER_MIP_FA_MOBILE_NODE_AUTH_FAILURE_V01 = 0x0043, 
+  WDS_VCER_MIP_FA_HA_AUTH_FAILURE_V01 = 0x0044, 
+  WDS_VCER_MIP_FA_REQ_LIFETIME_TOO_LONG_V01 = 0x0045, 
+  WDS_VCER_MIP_FA_MALFORMED_REQUEST_V01 = 0x0046, 
+  WDS_VCER_MIP_FA_MALFOMED_REPLY_V01 = 0x0047, 
+  WDS_VCER_MIP_FA_ENCAPSULATION_UNAVAILABLE_V01 = 0x0048, 
+  WDS_VCER_MIP_FA_VJHC_UNAVAILABLE_V01 = 0x0049, 
+  WDS_VCER_MIP_FA_REV_TUNNEL_UNAVAILABLE_V01 = 0x004A, 
+  WDS_VCER_MIP_FA_REV_TUNNEL_IS_MAND_AND_T_BIT_NOT_SET_V01 = 0x4B, 
+  WDS_VCER_MIP_FA_DELIVERY_STYLE_NOT_SUPP_V01 = 0x4F, 
+  WDS_VCER_MIP_FA_MISSING_NAI_V01 = 0x0061, 
+  WDS_VCER_MIP_FA_MISSING_HA_V01 = 0x0062, 
+  WDS_VCER_MIP_FA_MISSING_HOME_ADDR_V01 = 0x0063, 
+  WDS_VCER_MIP_FA_UNKNOWN_CHALLENGE_V01 = 0x0068, 
+  WDS_VCER_MIP_FA_MISSING_CHALLENGE_V01 = 0x0069, 
+  WDS_VCER_MIP_FA_STALE_CHALLENGE_V01 = 0x006A, 
+  WDS_VCER_MIP_HA_REASON_UNSPECIFIED_V01 = 0x0080, 
+  WDS_VCER_MIP_HA_ADMIN_PROHIBITED_V01 = 0x0081, 
+  WDS_VCER_MIP_HA_INSUFFICIENT_RESOURCES_V01 = 0x0082, 
+  WDS_VCER_MIP_HA_MOBILE_NODE_AUTH_FAILURE_V01 = 0x0083, 
+  WDS_VCER_MIP_HA_FA_AUTH_FAILURE_V01 = 0x0084, 
+  WDS_VCER_MIP_HA_REGISTRATION_ID_MISMATCH_V01 = 0x0085, 
+  WDS_VCER_MIP_HA_MALFORMED_REQUEST_V01 = 0x0086, 
+  WDS_VCER_MIP_HA_UNKNOWN_HA_ADDR_V01 = 0x0088, 
+  WDS_VCER_MIP_HA_REV_TUNNEL_UNAVAILABLE_V01 = 0x0089, 
+  WDS_VCER_MIP_HA_REV_TUNNEL_IS_MAND_AND_T_BIT_NOT_SET_V01 = 0x008A, 
+  WDS_VCER_MIP_HA_ENCAPSULATION_UNAVAILABLE_V01 = 0x008B, 
+  WDS_VCER_MIP_HA_REASON_UNKNOWN_V01 = -1, 
   WDS_VERBOSE_CALL_END_REASON_MIP_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_mip_enum_v01;
 /**
@@ -1571,29 +1797,48 @@ typedef enum {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_INTERNAL_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_INTERNAL_INTERNAL_ERROR_V01 = 0xC9,
-  WDS_VCER_INTERNAL_CALL_ENDED_V01 = 0xCA,
-  WDS_VCER_INTERNAL_INTERNAL_UNKNOWN_CAUSE_CODE_V01 = 0xCB,
-  WDS_VCER_INTERNAL_UNKNOWN_CAUSE_CODE_V01 = 0xCC,
-  WDS_VCER_INTERNAL_CLOSE_IN_PROGRESS_V01 = 0xCD,
-  WDS_VCER_INTERNAL_NW_INITIATED_TERMINATION_V01 = 0xCE,
-  WDS_VCER_INTERNAL_APP_PREEMPTED_V01 = 0xCF,
-  WDS_VCER_INTERNAL_ERR_PDN_IPV4_CALL_DISALLOWED_V01 = 0xD0,
-  WDS_VCER_INTERNAL_ERR_PDN_IPV4_CALL_THROTTLED_V01 = 0xD1,
-  WDS_VCER_INTERNAL_ERR_PDN_IPV6_CALL_DISALLOWED_V01 = 0xD2,
-  WDS_VCER_INTERNAL_ERR_PDN_IPV6_CALL_THROTTLED_V01 = 0xD3,
-  WDS_VCER_INTERNAL_MODEM_RESTART_V01 = 0xD4,
-  WDS_VCER_INTERNAL_PDP_PPP_NOT_SUPPORTED_V01 = 0xD5,
-  WDS_VCER_INTERNAL_UNPREFERRED_RAT_V01 = 0xD6,
-  WDS_VCER_INTERNAL_PHYS_LINK_CLOSE_IN_PROGRESS_V01 = 0xD7,
-  WDS_VCER_INTERNAL_APN_PENDING_HANDOVER_V01 = 0xD8,
-  WDS_VCER_INTERNAL_PROFILE_BEARER_INCOMPATIBLE_V01 = 0xD9,
-  WDS_VCER_INTERNAL_MMGSDI_CARD_EVT_V01 = 0xDA,
-  WDS_VCER_INTERNAL_LPM_OR_PWR_DOWN_V01 = 0xDB,
-  WDS_VCER_INTERNAL_APN_DISABLED_V01 = 0xDC,
-  WDS_VCER_INTERNAL_MPIT_EXPIRED_V01 = 0xDD,
-  WDS_VCER_INTERNAL_IPV6_ADDR_TRANSFER_FAILED_V01 = 0xDE,
-  WDS_VCER_INTERNAL_TRAT_SWAP_FAILED_V01 = 0xDF,
+  WDS_VCER_INTERNAL_INTERNAL_ERROR_V01 = 0xC9, 
+  WDS_VCER_INTERNAL_CALL_ENDED_V01 = 0xCA, 
+  WDS_VCER_INTERNAL_INTERNAL_UNKNOWN_CAUSE_CODE_V01 = 0xCB, 
+  WDS_VCER_INTERNAL_UNKNOWN_CAUSE_CODE_V01 = 0xCC, 
+  WDS_VCER_INTERNAL_CLOSE_IN_PROGRESS_V01 = 0xCD, 
+  WDS_VCER_INTERNAL_NW_INITIATED_TERMINATION_V01 = 0xCE, 
+  WDS_VCER_INTERNAL_APP_PREEMPTED_V01 = 0xCF, 
+  WDS_VCER_INTERNAL_ERR_PDN_IPV4_CALL_DISALLOWED_V01 = 0xD0, 
+  WDS_VCER_INTERNAL_ERR_PDN_IPV4_CALL_THROTTLED_V01 = 0xD1, 
+  WDS_VCER_INTERNAL_ERR_PDN_IPV6_CALL_DISALLOWED_V01 = 0xD2, 
+  WDS_VCER_INTERNAL_ERR_PDN_IPV6_CALL_THROTTLED_V01 = 0xD3, 
+  WDS_VCER_INTERNAL_MODEM_RESTART_V01 = 0xD4, 
+  WDS_VCER_INTERNAL_PDP_PPP_NOT_SUPPORTED_V01 = 0xD5, 
+  WDS_VCER_INTERNAL_UNPREFERRED_RAT_V01 = 0xD6, 
+  WDS_VCER_INTERNAL_PHYS_LINK_CLOSE_IN_PROGRESS_V01 = 0xD7, 
+  WDS_VCER_INTERNAL_APN_PENDING_HANDOVER_V01 = 0xD8, 
+  WDS_VCER_INTERNAL_PROFILE_BEARER_INCOMPATIBLE_V01 = 0xD9, 
+  WDS_VCER_INTERNAL_MMGSDI_CARD_EVT_V01 = 0xDA, 
+  WDS_VCER_INTERNAL_LPM_OR_PWR_DOWN_V01 = 0xDB, 
+  WDS_VCER_INTERNAL_APN_DISABLED_V01 = 0xDC, 
+  WDS_VCER_INTERNAL_MPIT_EXPIRED_V01 = 0xDD, 
+  WDS_VCER_INTERNAL_IPV6_ADDR_TRANSFER_FAILED_V01 = 0xDE, 
+  WDS_VCER_INTERNAL_TRAT_SWAP_FAILED_V01 = 0xDF, 
+  WDS_VCER_INTERNAL_INTERNAL_EHRPD_TO_HRPD_FALLBACK_V01 = 0xE0, 
+  WDS_VCER_INTERNAL_MANDATORY_APN_DISABLED_V01 = 0xE1, 
+  WDS_VCER_INTERNAL_MIP_CONFIG_FAILURE_V01 = 0xE2, 
+  WDS_VCER_INTERNAL_INTERNAL_PDN_INACTIVITY_TIMER_EXPIRED_V01 = 0xE3, 
+  WDS_VCER_INTERNAL_MAX_V4_CONNECTIONS_V01 = 0xE4, 
+  WDS_VCER_INTERNAL_MAX_V6_CONNECTIONS_V01 = 0xE5, 
+  WDS_VCER_INTERNAL_APN_MISMATCH_V01 = 0xE6, 
+  WDS_VCER_INTERNAL_IP_VERSION_MISMATCH_V01 = 0xE7, 
+  WDS_VCER_INTERNAL_DUN_CALL_DISALLOWED_V01 = 0xE8, 
+  WDS_VCER_INTERNAL_INVALID_PROFILE_V01 = 0xE9, 
+  WDS_VCER_INTERNAL_INTERNAL_EPC_NONEPC_TRANSITION_V01 = 0xEA, 
+  WDS_VCER_INTERNAL_INVALID_PROFILE_ID_V01 = 0xEB, 
+  WDS_VCER_INTERNAL_INTERNAL_CALL_ALREADY_PRESENT_V01 = 0xEC, 
+  WDS_VCER_INTERNAL_IFACE_IN_USE_V01 = 0xED, 
+  WDS_VCER_INTERNAL_IP_PDP_MISMATCH_V01 = 0xEE, 
+  WDS_VCER_INTERNAL_APN_DISALLOWED_ON_ROAMING_V01 = 0xEF, 
+  WDS_VCER_INTERNAL_APN_PRM_CHG_V01 = 0xF0, 
+  WDS_VCER_INTERNAL_IFACE_IN_USE_CFG_MATCH_V01 = 0xF1, 
+  WDS_VCER_INTERNAL_NULL_APN_DISALLOWED_V01 = 0xF2, 
   WDS_VERBOSE_CALL_END_REASON_INTERNAL_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_internal_enum_v01;
 /**
@@ -1605,39 +1850,40 @@ typedef enum {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_CM_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_CM_CDMA_LOCK_V01 = 0x1F4,
-  WDS_VCER_CM_INTERCEPT_V01 = 0x1F5,
-  WDS_VCER_CM_REORDER_V01 = 0x1F6,
-  WDS_VCER_CM_REL_SO_REJ_V01 = 0x1F7,
-  WDS_VCER_CM_INCOM_CALL_V01 = 0x1F8,
-  WDS_VCER_CM_ALERT_STOP_V01 = 0x1F9,
-  WDS_VCER_CM_ACTIVATION_V01 = 0x1FA,
-  WDS_VCER_CM_MAX_ACCESS_PROBE_V01 = 0x1FB,
-  WDS_VCER_CM_CCS_NOT_SUPP_BY_BS_V01 = 0x1FC,
-  WDS_VCER_CM_NO_RESPONSE_FROM_BS_V01 = 0x1FD,
-  WDS_VCER_CM_REJECTED_BY_BS_V01 = 0x1FE,
-  WDS_VCER_CM_INCOMPATIBLE_V01 = 0x1FF,
-  WDS_VCER_CM_ALREADY_IN_TC_V01 = 0x200,
-  WDS_VCER_CM_USER_CALL_ORIG_DURING_GPS_V01 = 0x201,
-  WDS_VCER_CM_USER_CALL_ORIG_DURING_SMS_V01 = 0x202,
-  WDS_VCER_CM_NO_CDMA_SRV_V01 = 0x203,
-  WDS_VCER_CM_MC_ABORT_V01 = 0x204,
-  WDS_VCER_CM_PSIST_NG_V01 = 0x205,
-  WDS_VCER_CM_UIM_NOT_PRESENT_V01 = 0x206,
-  WDS_VCER_CM_RETRY_ORDER_V01 = 0x207,
-  WDS_VCER_CM_ACCESS_BLOCK_V01 = 0x208,
-  WDS_VCER_CM_ACCESS_BLOCK_ALL_V01 = 0x209,
-  WDS_VCER_CM_IS707B_MAX_ACC_V01 = 0x20A,
-  WDS_VCER_CM_THERMAL_EMERGENCY_V01 = 0x20B,
-  WDS_VCER_CM_CALL_ORIG_THROTTLED_V01 = 0x20C,
-  WDS_VCER_CM_CONF_FAILED_V01 = 0x3E8,
-  WDS_VCER_CM_INCOM_REJ_V01 = 0x3E9,
-  WDS_VCER_CM_NEW_NO_GW_SERV_V01 = 0x3EA,
-  WDS_VCER_CM_NEW_NO_GPRS_CONTEXT_V01 = 0x3EB,
-  WDS_VCER_CM_NEW_ILLEGAL_MS_V01 = 0x3EC,
-  WDS_VCER_CM_NEW_ILLEGAL_ME_V01 = 0x3ED,
-  WDS_VCER_CM_NEW_GPRS_SERV_AND_NON_GPRS_SERV_NOT_ALLOWED_V01 = 0x3EE,
-  WDS_VCER_CM_NEW_GPRS_SERV_NOT_ALLOWED_V01 = 0x3EF,
+  WDS_VCER_CM_CDMA_LOCK_V01 = 0x1F4, 
+  WDS_VCER_CM_INTERCEPT_V01 = 0x1F5, 
+  WDS_VCER_CM_REORDER_V01 = 0x1F6, 
+  WDS_VCER_CM_REL_SO_REJ_V01 = 0x1F7, 
+  WDS_VCER_CM_INCOM_CALL_V01 = 0x1F8, 
+  WDS_VCER_CM_ALERT_STOP_V01 = 0x1F9, 
+  WDS_VCER_CM_ACTIVATION_V01 = 0x1FA, 
+  WDS_VCER_CM_MAX_ACCESS_PROBE_V01 = 0x1FB, 
+  WDS_VCER_CM_CCS_NOT_SUPP_BY_BS_V01 = 0x1FC, 
+  WDS_VCER_CM_NO_RESPONSE_FROM_BS_V01 = 0x1FD, 
+  WDS_VCER_CM_REJECTED_BY_BS_V01 = 0x1FE, 
+  WDS_VCER_CM_INCOMPATIBLE_V01 = 0x1FF, 
+  WDS_VCER_CM_ALREADY_IN_TC_V01 = 0x200, 
+  WDS_VCER_CM_USER_CALL_ORIG_DURING_GPS_V01 = 0x201, 
+  WDS_VCER_CM_USER_CALL_ORIG_DURING_SMS_V01 = 0x202, 
+  WDS_VCER_CM_NO_CDMA_SRV_V01 = 0x203, 
+  WDS_VCER_CM_MC_ABORT_V01 = 0x204, 
+  WDS_VCER_CM_PSIST_NG_V01 = 0x205, 
+  WDS_VCER_CM_UIM_NOT_PRESENT_V01 = 0x206, 
+  WDS_VCER_CM_RETRY_ORDER_V01 = 0x207, 
+  WDS_VCER_CM_ACCESS_BLOCK_V01 = 0x208, 
+  WDS_VCER_CM_ACCESS_BLOCK_ALL_V01 = 0x209, 
+  WDS_VCER_CM_IS707B_MAX_ACC_V01 = 0x20A, 
+  WDS_VCER_CM_THERMAL_EMERGENCY_V01 = 0x20B, 
+  WDS_VCER_CM_CALL_ORIG_THROTTLED_V01 = 0x20C, 
+  WDS_VCER_CM_USER_CALL_ORIG_DURING_VOICE_CALL_V01 = 0x20D, 
+  WDS_VCER_CM_CONF_FAILED_V01 = 0x3E8, 
+  WDS_VCER_CM_INCOM_REJ_V01 = 0x3E9, 
+  WDS_VCER_CM_NEW_NO_GW_SERV_V01 = 0x3EA, 
+  WDS_VCER_CM_NEW_NO_GPRS_CONTEXT_V01 = 0x3EB, 
+  WDS_VCER_CM_NEW_ILLEGAL_MS_V01 = 0x3EC, 
+  WDS_VCER_CM_NEW_ILLEGAL_ME_V01 = 0x3ED, 
+  WDS_VCER_CM_NEW_GPRS_SERV_AND_NON_GPRS_SERV_NOT_ALLOWED_V01 = 0x3EE, 
+  WDS_VCER_CM_NEW_GPRS_SERV_NOT_ALLOWED_V01 = 0x3EF, 
   WDS_VCER_CM_NO_GW_SERV_V01 = 0x3F0, /**<  Deprecated rev 1.26  */
   WDS_VCER_CM_NO_GPRS_CONTEXT_V01 = 0x3F1, /**<  Deprecated rev 1.26  */
   WDS_VCER_CM_ILLEGAL_MS_V01 = 0x3F2, /**<  Deprecated rev 1.26  */
@@ -1654,90 +1900,139 @@ typedef enum {
   WDS_VCER_CM_CONGESTION_V01 = 0x3FD, /**<  Deprecated rev 1.26  */
   WDS_VCER_CM_NO_PDP_CONTEXT_ACTIVATED_V01 = 0x3FE, /**<  Deprecated rev 1.26  */
   WDS_VCER_CM_ACCESS_CLASS_DSAC_REJECTION_V01 = 0x3FF, /**<  Deprecated rev 1.26  */
-  WDS_VCER_CM_NEW_MS_IDENTITY_CANNOT_BE_DERIVED_BY_THE_NETWORK_V01 = 0x3F0,
-  WDS_VCER_CM_NEW_IMPLICITLY_DETACHED_V01 = 0x3F1,
-  WDS_VCER_CM_NEW_PLMN_NOT_ALLOWED_V01 = 0x3F2,
-  WDS_VCER_CM_NEW_LA_NOT_ALLOWED_V01 = 0x3F3,
-  WDS_VCER_CM_NEW_GPRS_SERV_NOT_ALLOWED_IN_THIS_PLMN_V01 = 0x3F4,
-  WDS_VCER_CM_NEW_PDP_DUPLICATE_V01 = 0x3F5,
-  WDS_VCER_CM_NEW_UE_RAT_CHANGE_V01 = 0x3F6,
-  WDS_VCER_CM_NEW_CONGESTION_V01 = 0x3F7,
-  WDS_VCER_CM_NEW_NO_PDP_CONTEXT_ACTIVATED_V01 = 0x3F8,
-  WDS_VCER_CM_NEW_ACCESS_CLASS_DSAC_REJECTION_V01 = 0x3F9,
-  WDS_VCER_CM_PDP_ACTIVATE_MAX_RETRY_FAILED_V01 = 0x3FA,
-  WDS_VCER_CM_RAB_FAILURE_V01 = 0x3FB,
-  WDS_VCER_CM_EPS_SERVICES_NOT_ALLOWED_V01 = 0x3FC,
-  WDS_VCER_CM_TRACKING_AREA_NOT_ALLOWED_V01 = 0x3FD,
-  WDS_VCER_CM_ROAMING_NOT_ALLOWED_IN_THIS_TRACKING_AREA_V01 = 0x3FE,
-  WDS_VCER_CM_NO_SUITABLE_CELLS_IN_TRACKING_AREA_V01 = 0x3FF,
-  WDS_VCER_CM_NOT_AUTHORIZED_FOR_THIS_CSG_V01 = 0x400,
-  WDS_VCER_CM_ESM_UNKNOWN_EPS_BEARER_CONTEXT_V01 = 0x401,
-  WDS_VCER_CM_DRB_RELEASED_AT_RRC_V01 = 0x402,
-  WDS_VCER_CM_NAS_SIG_CONN_RELEASED_V01 = 0x403,
-  WDS_VCER_CM_EMM_DETACHED_V01 = 0x404,
-  WDS_VCER_CM_EMM_ATTACH_FAILED_V01 = 0x405,
-  WDS_VCER_CM_EMM_ATTACH_STARTED_V01 = 0x406,
-  WDS_VCER_CM_LTE_NAS_SERVICE_REQ_FAILED_V01 = 0x407,
-  WDS_VCER_CM_ESM_ACTIVE_DEDICATED_BEARER_REACTIVATED_BY_NW_V01 = 0x408,
-  WDS_VCER_CM_ESM_LOWER_LAYER_FAILURE_V01 = 0x409,
-  WDS_VCER_CM_ESM_SYNC_UP_WITH_NW_V01 = 0x40A,
-  WDS_VCER_CM_ESM_NW_ACTIVATED_DED_BEARER_WITH_ID_OF_DEF_BEARER_V01 = 0x40B,
-  WDS_VCER_CM_ESM_BAD_OTA_MESSAGE_V01 = 0x40C,
-  WDS_VCER_CM_ESM_DS_REJECTED_THE_CALL_V01 = 0x40D,
-  WDS_VCER_CM_ESM_CONTEXT_TRANSFERED_DUE_TO_IRAT_V01 = 0x40E,
-  WDS_VCER_CM_DS_EXPLICIT_DEACT_V01 = 0x40F,
-  WDS_VCER_CM_ESM_LOCAL_CAUSE_NONE_V01 = 0x410,
-  WDS_VCER_CM_LTE_NAS_SERVICE_REQ_FAILED_NO_THROTTLE_V01 = 0x411,
-  WDS_VCER_CM_ACL_FAILURE_V01 = 0x412,
-  WDS_VCER_CM_LTE_NAS_SERVICE_REQ_FAILED_DS_DISALLOW_V01 = 0x413,
-  WDS_VCER_CM_EMM_T3417_EXPIRED_V01 = 0x414,
-  WDS_VCER_CM_EMM_T3417_EXT_EXPIRED_V01 = 0x415,
-  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_TXN_V01 = 0x416,
-  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_HO_V01 = 0x417,
-  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_CONN_REL_V01 = 0x418,
-  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_RLF_V01 = 0x419,
-  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_CTRL_NOT_CONN_V01 = 0x41A,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_V01 = 0x41B,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_ABORTED_V01 = 0x41C,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_ACCESS_BARRED_V01 = 0x41D,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_CELL_RESEL_V01 = 0x41E,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_CONFIG_FAILURE_V01 = 0x41F,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_TIMER_EXPIRED_V01 = 0x420,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_LINK_FAILURE_V01 = 0x421,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_NOT_CAMPED_V01 = 0x422,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_SI_FAILURE_V01 = 0x423,
-  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_CONN_REJECT_V01 = 0x424,
-  WDS_VCER_CM_LRRC_CONN_REL_NORMAL_V01 = 0x425,
-  WDS_VCER_CM_LRRC_CONN_REL_RLF_V01 = 0x426,
-  WDS_VCER_CM_LRRC_CONN_REL_CRE_FAILURE_V01 = 0x427,
-  WDS_VCER_CM_LRRC_CONN_REL_OOS_DURING_CRE_V01 = 0x428,
-  WDS_VCER_CM_LRRC_CONN_REL_ABORTED_V01 = 0x429,
-  WDS_VCER_CM_LRRC_CONN_REL_SIB_READ_ERROR_V01 = 0x42A,
-  WDS_VCER_CM_DETACH_WITH_REATTACH_LTE_NW_DETACH_V01 = 0x42B,
-  WDS_VCER_CM_DETACH_WITH_OUT_REATTACH_LTE_NW_DETACH_V01 = 0x42C,
-  WDS_VCER_CM_CD_GEN_OR_BUSY_V01 = 0x5DC,
-  WDS_VCER_CM_CD_BILL_OR_AUTH_V01 = 0x5DD,
-  WDS_VCER_CM_CHG_HDR_V01 = 0x5DE,
-  WDS_VCER_CM_EXIT_HDR_V01 = 0x5DF,
-  WDS_VCER_CM_HDR_NO_SESSION_V01 = 0x5E0,
-  WDS_VCER_CM_HDR_ORIG_DURING_GPS_FIX_V01 = 0x5E1,
-  WDS_VCER_CM_HDR_CS_TIMEOUT_V01 = 0x5E2,
-  WDS_VCER_CM_HDR_RELEASED_BY_CM_V01 = 0x5E3,
-  WDS_VCER_CM_NO_HYBR_HDR_SRV_V01 = 0x5E6,
-  WDS_VCER_CM_CLIENT_END_V01 = 0x7D0,
-  WDS_VCER_CM_NO_SRV_V01 = 0x7D1,
-  WDS_VCER_CM_FADE_V01 = 0x7D2,
-  WDS_VCER_CM_REL_NORMAL_V01 = 0x7D3,
-  WDS_VCER_CM_ACC_IN_PROG_V01 = 0x7D4,
-  WDS_VCER_CM_ACC_FAIL_V01 = 0x7D5,
-  WDS_VCER_CM_REDIR_OR_HANDOFF_V01 = 0x7D6,
-  WDS_VCER_CM_OFFLINE_V01 = 0x9C4,
-  WDS_VCER_CM_EMERGENCY_MODE_V01 = 0x9C5,
-  WDS_VCER_CM_PHONE_IN_USE_V01 = 0x9C6,
-  WDS_VCER_CM_INVALID_MODE_V01 = 0x9C7,
-  WDS_VCER_CM_INVALID_SIM_STATE_V01 = 0x9C8,
-  WDS_VCER_CM_NO_COLLOC_HDR_V01 = 0x9C9,
-  WDS_VCER_CM_CALL_CONTROL_REJECTED_V01 = 0x9CA,
+  WDS_VCER_CM_NEW_MS_IDENTITY_CANNOT_BE_DERIVED_BY_THE_NETWORK_V01 = 0x3F0, 
+  WDS_VCER_CM_NEW_IMPLICITLY_DETACHED_V01 = 0x3F1, 
+  WDS_VCER_CM_NEW_PLMN_NOT_ALLOWED_V01 = 0x3F2, 
+  WDS_VCER_CM_NEW_LA_NOT_ALLOWED_V01 = 0x3F3, 
+  WDS_VCER_CM_NEW_GPRS_SERV_NOT_ALLOWED_IN_THIS_PLMN_V01 = 0x3F4, 
+  WDS_VCER_CM_NEW_PDP_DUPLICATE_V01 = 0x3F5, 
+  WDS_VCER_CM_NEW_UE_RAT_CHANGE_V01 = 0x3F6, 
+  WDS_VCER_CM_NEW_CONGESTION_V01 = 0x3F7, 
+  WDS_VCER_CM_NEW_NO_PDP_CONTEXT_ACTIVATED_V01 = 0x3F8, 
+  WDS_VCER_CM_NEW_ACCESS_CLASS_DSAC_REJECTION_V01 = 0x3F9, 
+  WDS_VCER_CM_PDP_ACTIVATE_MAX_RETRY_FAILED_V01 = 0x3FA, 
+  WDS_VCER_CM_RAB_FAILURE_V01 = 0x3FB, 
+  WDS_VCER_CM_EPS_SERVICES_NOT_ALLOWED_V01 = 0x3FC, 
+  WDS_VCER_CM_TRACKING_AREA_NOT_ALLOWED_V01 = 0x3FD, 
+  WDS_VCER_CM_ROAMING_NOT_ALLOWED_IN_THIS_TRACKING_AREA_V01 = 0x3FE, 
+  WDS_VCER_CM_NO_SUITABLE_CELLS_IN_TRACKING_AREA_V01 = 0x3FF, 
+  WDS_VCER_CM_NOT_AUTHORIZED_FOR_THIS_CSG_V01 = 0x400, 
+  WDS_VCER_CM_ESM_UNKNOWN_EPS_BEARER_CONTEXT_V01 = 0x401, 
+  WDS_VCER_CM_DRB_RELEASED_AT_RRC_V01 = 0x402, 
+  WDS_VCER_CM_NAS_SIG_CONN_RELEASED_V01 = 0x403, 
+  WDS_VCER_CM_EMM_DETACHED_V01 = 0x404, 
+  WDS_VCER_CM_EMM_ATTACH_FAILED_V01 = 0x405, 
+  WDS_VCER_CM_EMM_ATTACH_STARTED_V01 = 0x406, 
+  WDS_VCER_CM_LTE_NAS_SERVICE_REQ_FAILED_V01 = 0x407, 
+  WDS_VCER_CM_ESM_ACTIVE_DEDICATED_BEARER_REACTIVATED_BY_NW_V01 = 0x408, 
+  WDS_VCER_CM_ESM_LOWER_LAYER_FAILURE_V01 = 0x409, 
+  WDS_VCER_CM_ESM_SYNC_UP_WITH_NW_V01 = 0x40A, 
+  WDS_VCER_CM_ESM_NW_ACTIVATED_DED_BEARER_WITH_ID_OF_DEF_BEARER_V01 = 0x40B, 
+  WDS_VCER_CM_ESM_BAD_OTA_MESSAGE_V01 = 0x40C, 
+  WDS_VCER_CM_ESM_DS_REJECTED_THE_CALL_V01 = 0x40D, 
+  WDS_VCER_CM_ESM_CONTEXT_TRANSFERED_DUE_TO_IRAT_V01 = 0x40E, 
+  WDS_VCER_CM_DS_EXPLICIT_DEACT_V01 = 0x40F, 
+  WDS_VCER_CM_ESM_LOCAL_CAUSE_NONE_V01 = 0x410, 
+  WDS_VCER_CM_LTE_NAS_SERVICE_REQ_FAILED_NO_THROTTLE_V01 = 0x411, 
+  WDS_VCER_CM_ACL_FAILURE_V01 = 0x412, 
+  WDS_VCER_CM_LTE_NAS_SERVICE_REQ_FAILED_DS_DISALLOW_V01 = 0x413, 
+  WDS_VCER_CM_EMM_T3417_EXPIRED_V01 = 0x414, 
+  WDS_VCER_CM_EMM_T3417_EXT_EXPIRED_V01 = 0x415, 
+  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_TXN_V01 = 0x416, 
+  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_HO_V01 = 0x417, 
+  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_CONN_REL_V01 = 0x418, 
+  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_RLF_V01 = 0x419, 
+  WDS_VCER_CM_LRRC_UL_DATA_CNF_FAILURE_CTRL_NOT_CONN_V01 = 0x41A, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_V01 = 0x41B, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_ABORTED_V01 = 0x41C, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_ACCESS_BARRED_V01 = 0x41D, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_CELL_RESEL_V01 = 0x41E, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_CONFIG_FAILURE_V01 = 0x41F, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_TIMER_EXPIRED_V01 = 0x420, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_LINK_FAILURE_V01 = 0x421, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_NOT_CAMPED_V01 = 0x422, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_SI_FAILURE_V01 = 0x423, 
+  WDS_VCER_CM_LRRC_CONN_EST_FAILURE_CONN_REJECT_V01 = 0x424, 
+  WDS_VCER_CM_LRRC_CONN_REL_NORMAL_V01 = 0x425, 
+  WDS_VCER_CM_LRRC_CONN_REL_RLF_V01 = 0x426, 
+  WDS_VCER_CM_LRRC_CONN_REL_CRE_FAILURE_V01 = 0x427, 
+  WDS_VCER_CM_LRRC_CONN_REL_OOS_DURING_CRE_V01 = 0x428, 
+  WDS_VCER_CM_LRRC_CONN_REL_ABORTED_V01 = 0x429, 
+  WDS_VCER_CM_LRRC_CONN_REL_SIB_READ_ERROR_V01 = 0x42A, 
+  WDS_VCER_CM_DETACH_WITH_REATTACH_LTE_NW_DETACH_V01 = 0x42B, 
+  WDS_VCER_CM_DETACH_WITH_OUT_REATTACH_LTE_NW_DETACH_V01 = 0x42C, 
+  WDS_VCER_CM_ESM_PROC_TIME_OUT_V01 = 0x42D, 
+  WDS_VCER_CM_INVALID_CONNECTION_ID_V01 = 0x42E, 
+  WDS_VCER_CM_INVALID_NSAPI_V01 = 0x42F, 
+  WDS_VCER_CM_INVALID_PRI_NSAPI_V01 = 0x430, 
+  WDS_VCER_CM_INVALID_FIELD_V01 = 0x431, 
+  WDS_VCER_CM_RAB_SETUP_FAILURE_V01 = 0x432, 
+  WDS_VCER_CM_PDP_ESTABLISH_MAX_TIMEOUT_V01 = 0x433, 
+  WDS_VCER_CM_PDP_MODIFY_MAX_TIMEOUT_V01 = 0x434, 
+  WDS_VCER_CM_PDP_INACTIVE_MAX_TIMEOUT_V01 = 0x435, 
+  WDS_VCER_CM_PDP_LOWERLAYER_ERROR_V01 = 0x436, 
+  WDS_VCER_CM_PPD_UNKNOWN_REASON_V01 = 0x437, 
+  WDS_VCER_CM_PDP_MODIFY_COLLISION_V01 = 0x438, 
+  WDS_VCER_CM_PDP_MBMS_REQUEST_COLLISION_V01 = 0x439, 
+  WDS_VCER_CM_MBMS_DUPLICATE_V01 = 0x43A, 
+  WDS_VCER_CM_SM_PS_DETACHED_V01 = 0x43B, 
+  WDS_VCER_CM_SM_NO_RADIO_AVAILABLE_V01 = 0x43C, 
+  WDS_VCER_CM_SM_ABORT_SERVICE_NOT_AVAILABLE_V01 = 0x43D, 
+  WDS_VCER_CM_MESSAGE_EXCEED_MAX_L2_LIMIT_V01 = 0x43E, 
+  WDS_VCER_CM_SM_NAS_SRV_REQ_FAILURE_V01 = 0x43F, 
+  WDS_VCER_CM_RRC_CONN_EST_FAILURE_REQ_ERROR_V01 = 0x440, 
+  WDS_VCER_CM_RRC_CONN_EST_FAILURE_TAI_CHANGE_V01 = 0x441, 
+  WDS_VCER_CM_RRC_CONN_EST_FAILURE_RF_UNAVAILABLE_V01 = 0x442, 
+  WDS_VCER_CM_RRC_CONN_REL_ABORTED_IRAT_SUCCESS_V01 = 0x443, 
+  WDS_VCER_CM_RRC_CONN_REL_RLF_SEC_NOT_ACTIVE_V01 = 0x444, 
+  WDS_VCER_CM_RRC_CONN_REL_IRAT_TO_LTE_ABORTED_V01 = 0x445, 
+  WDS_VCER_CM_RRC_CONN_REL_IRAT_FROM_LTE_TO_G_CCO_SUCCESS_V01 = 0x446, 
+  WDS_VCER_CM_RRC_CONN_REL_IRAT_FROM_LTE_TO_G_CCO_ABORTED_V01 = 0x447, 
+  WDS_VCER_CM_IMSI_UNKNOWN_IN_HSS_V01 = 0x448, 
+  WDS_VCER_CM_IMEI_NOT_ACCEPTED_V01 = 0x449, 
+  WDS_VCER_CM_EPS_SERVICES_AND_NON_EPS_SERVICES_NOT_ALLOWED_V01 = 0x44A, 
+  WDS_VCER_CM_EPS_SERVICES_NOT_ALLOWED_IN_PLMN_V01 = 0x44B, 
+  WDS_VCER_CM_MSC_TEMPORARILY_NOT_REACHABLE_V01 = 0x44C, 
+  WDS_VCER_CM_CS_DOMAIN_NOT_AVAILABLE_V01 = 0x44D, 
+  WDS_VCER_CM_ESM_FAILURE_V01 = 0x44E, 
+  WDS_VCER_CM_MAC_FAILURE_V01 = 0x44F, 
+  WDS_VCER_CM_SYNCH_FAILURE_V01 = 0x450, 
+  WDS_VCER_CM_UE_SECURITY_CAPABILITIES_MISMATCH_V01 = 0x451, 
+  WDS_VCER_CM_SECURITY_MODE_REJ_UNSPECIFIED_V01 = 0x452, 
+  WDS_VCER_CM_NON_EPS_AUTH_UNACCEPTABLE_V01 = 0x453, 
+  WDS_VCER_CM_CS_FALLBACK_CALL_EST_NOT_ALLOWED_V01 = 0x454, 
+  WDS_VCER_CM_NO_EPS_BEARER_CONTEXT_ACTIVATED_V01 = 0x455, 
+  WDS_VCER_CM_EMM_INVALID_STATE_V01 = 0x456, 
+  WDS_VCER_CM_NAS_LAYER_FAILURE_V01 = 0x457, 
+  WDS_VCER_CM_CD_GEN_OR_BUSY_V01 = 0x5DC, 
+  WDS_VCER_CM_CD_BILL_OR_AUTH_V01 = 0x5DD, 
+  WDS_VCER_CM_CHG_HDR_V01 = 0x5DE, 
+  WDS_VCER_CM_EXIT_HDR_V01 = 0x5DF, 
+  WDS_VCER_CM_HDR_NO_SESSION_V01 = 0x5E0, 
+  WDS_VCER_CM_HDR_ORIG_DURING_GPS_FIX_V01 = 0x5E1, 
+  WDS_VCER_CM_HDR_CS_TIMEOUT_V01 = 0x5E2, 
+  WDS_VCER_CM_HDR_RELEASED_BY_CM_V01 = 0x5E3, 
+  WDS_VCER_CM_COLLOC_ACQ_FAIL_V01 = 0x5E4, 
+  WDS_VCER_CM_OTASP_COMMIT_IN_PROG_V01 = 0x5E5, 
+  WDS_VCER_CM_NO_HYBR_HDR_SRV_V01 = 0x5E6, 
+  WDS_VCER_CM_HDR_NO_LOCK_GRANTED_V01 = 0x5E7, 
+  WDS_VCER_CM_HOLD_OTHER_IN_PROG_V01 = 0x5E8, 
+  WDS_VCER_CM_HDR_FADE_V01 = 0x5E9, 
+  WDS_VCER_CM_HDR_ACC_FAIL_V01 = 0x5EA, 
+  WDS_VCER_CM_CLIENT_END_V01 = 0x7D0, 
+  WDS_VCER_CM_NO_SRV_V01 = 0x7D1, 
+  WDS_VCER_CM_FADE_V01 = 0x7D2, 
+  WDS_VCER_CM_REL_NORMAL_V01 = 0x7D3, 
+  WDS_VCER_CM_ACC_IN_PROG_V01 = 0x7D4, 
+  WDS_VCER_CM_ACC_FAIL_V01 = 0x7D5, 
+  WDS_VCER_CM_REDIR_OR_HANDOFF_V01 = 0x7D6, 
+  WDS_VCER_CM_OFFLINE_V01 = 0x9C4, 
+  WDS_VCER_CM_EMERGENCY_MODE_V01 = 0x9C5, 
+  WDS_VCER_CM_PHONE_IN_USE_V01 = 0x9C6, 
+  WDS_VCER_CM_INVALID_MODE_V01 = 0x9C7, 
+  WDS_VCER_CM_INVALID_SIM_STATE_V01 = 0x9C8, 
+  WDS_VCER_CM_NO_COLLOC_HDR_V01 = 0x9C9, 
+  WDS_VCER_CM_CALL_CONTROL_REJECTED_V01 = 0x9CA, 
   WDS_VERBOSE_CALL_END_REASON_CM_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_cm_enum_v01;
 /**
@@ -1749,39 +2044,58 @@ typedef enum {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_3GPP_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_3GPP_OPERATOR_DETERMINED_BARRING_V01 = 0x08,
-  WDS_VCER_3GPP_LLC_SNDCP_FAILURE_V01 = 0x19,
-  WDS_VCER_3GPP_INSUFFICIENT_RESOURCES_V01 = 0x1A,
-  WDS_VCER_3GPP_UNKNOWN_APN_V01 = 0x1B,
-  WDS_VCER_3GPP_UNKNOWN_PDP_V01 = 0x1C,
-  WDS_VCER_3GPP_AUTH_FAILED_V01 = 0x1D,
-  WDS_VCER_3GPP_GGSN_REJECT_V01 = 0x1E,
-  WDS_VCER_3GPP_ACTIVATION_REJECT_V01 = 0x1F,
-  WDS_VCER_3GPP_OPTION_NOT_SUPPORTED_V01 = 0x20,
-  WDS_VCER_3GPP_OPTION_UNSUBSCRIBED_V01 = 0x21,
-  WDS_VCER_3GPP_OPTION_TEMP_OOO_V01 = 0x22,
-  WDS_VCER_3GPP_NSAPI_ALREADY_USED_V01 = 0x23,
-  WDS_VCER_3GPP_REGULAR_DEACTIVATION_V01 = 0x24,
-  WDS_VCER_3GPP_QOS_NOT_ACCEPTED_V01 = 0x25,
-  WDS_VCER_3GPP_NETWORK_FAILURE_V01 = 0x26,
-  WDS_VCER_3GPP_UMTS_REACTIVATION_REQ_V01 = 0x27,
-  WDS_VCER_3GPP_FEATURE_NOT_SUPP_V01 = 0x28,
-  WDS_VCER_3GPP_TFT_SEMANTIC_ERROR_V01 = 0x29,
-  WDS_VCER_3GPP_TFT_SYTAX_ERROR_V01 = 0x2A,
-  WDS_VCER_3GPP_UNKNOWN_PDP_CONTEXT_V01 = 0x2B,
-  WDS_VCER_3GPP_FILTER_SEMANTIC_ERROR_V01 = 0x2C,
-  WDS_VCER_3GPP_FILTER_SYTAX_ERROR_V01 = 0x2D,
-  WDS_VCER_3GPP_PDP_WITHOUT_ACTIVE_TFT_V01 = 0x2E,
-  WDS_VCER_3GPP_INVALID_TRANSACTION_ID_V01 = 0x51,
-  WDS_VCER_3GPP_MESSAGE_INCORRECT_SEMANTIC_V01 = 0x5F,
-  WDS_VCER_3GPP_INVALID_MANDATORY_INFO_V01 = 0x60,
-  WDS_VCER_3GPP_MESSAGE_TYPE_UNSUPPORTED_V01 = 0x61,
-  WDS_VCER_3GPP_MSG_TYPE_NONCOMPATIBLE_STATE_V01 = 0x62,
-  WDS_VCER_3GPP_UNKNOWN_INFO_ELEMENT_V01 = 0x63,
-  WDS_VCER_3GPP_CONDITIONAL_IE_ERROR_V01 = 0x64,
-  WDS_VCER_3GPP_MSG_AND_PROTOCOL_STATE_UNCOMPATIBLE_V01 = 0x65,
-  WDS_VCER_3GPP_PROTOCOL_ERROR_V01 = 0x6F,
-  WDS_VCER_3GPP_APN_TYPE_CONFLICT_V01 = 0x70,
+  WDS_VCER_3GPP_OPERATOR_DETERMINED_BARRING_V01 = 0x08, 
+  WDS_VCER_3GPP_NAS_SIGNALLING_ERROR_V01 = 0x0E, 
+  WDS_VCER_3GPP_LLC_SNDCP_FAILURE_V01 = 0x19, 
+  WDS_VCER_3GPP_INSUFFICIENT_RESOURCES_V01 = 0x1A, 
+  WDS_VCER_3GPP_UNKNOWN_APN_V01 = 0x1B, 
+  WDS_VCER_3GPP_UNKNOWN_PDP_V01 = 0x1C, 
+  WDS_VCER_3GPP_AUTH_FAILED_V01 = 0x1D, 
+  WDS_VCER_3GPP_GGSN_REJECT_V01 = 0x1E, 
+  WDS_VCER_3GPP_ACTIVATION_REJECT_V01 = 0x1F, 
+  WDS_VCER_3GPP_OPTION_NOT_SUPPORTED_V01 = 0x20, 
+  WDS_VCER_3GPP_OPTION_UNSUBSCRIBED_V01 = 0x21, 
+  WDS_VCER_3GPP_OPTION_TEMP_OOO_V01 = 0x22, 
+  WDS_VCER_3GPP_NSAPI_ALREADY_USED_V01 = 0x23, 
+  WDS_VCER_3GPP_REGULAR_DEACTIVATION_V01 = 0x24, 
+  WDS_VCER_3GPP_QOS_NOT_ACCEPTED_V01 = 0x25, 
+  WDS_VCER_3GPP_NETWORK_FAILURE_V01 = 0x26, 
+  WDS_VCER_3GPP_UMTS_REACTIVATION_REQ_V01 = 0x27, 
+  WDS_VCER_3GPP_FEATURE_NOT_SUPP_V01 = 0x28, 
+  WDS_VCER_3GPP_TFT_SEMANTIC_ERROR_V01 = 0x29, 
+  WDS_VCER_3GPP_TFT_SYTAX_ERROR_V01 = 0x2A, 
+  WDS_VCER_3GPP_UNKNOWN_PDP_CONTEXT_V01 = 0x2B, 
+  WDS_VCER_3GPP_FILTER_SEMANTIC_ERROR_V01 = 0x2C, 
+  WDS_VCER_3GPP_FILTER_SYTAX_ERROR_V01 = 0x2D, 
+  WDS_VCER_3GPP_PDP_WITHOUT_ACTIVE_TFT_V01 = 0x2E, 
+  WDS_VCER_3GPP_IP_V4_ONLY_ALLOWED_V01 = 0x32, 
+  WDS_VCER_3GPP_IP_V6_ONLY_ALLOWED_V01 = 0x33, 
+  WDS_VCER_3GPP_SINGLE_ADDR_BEARER_ONLY_V01 = 0x34, 
+  WDS_VCER_3GPP_ESM_INFO_NOT_RECEIVED_V01 = 0x35, 
+  WDS_VCER_3GPP_PDN_CONN_DOES_NOT_EXIST_V01 = 0x36, 
+  WDS_VCER_3GPP_MULTI_CONN_TO_SAME_PDN_NOT_ALLOWED_V01 = 0x37, 
+  WDS_VCER_3GPP_MAX_ACTIVE_PDP_CONTEXT_REACHED_V01 = 0x41, 
+  WDS_VCER_3GPP_UNSUPPORTED_APN_IN_CURRENT_PLMN_V01 = 0x42, 
+  WDS_VCER_3GPP_INVALID_TRANSACTION_ID_V01 = 0x51, 
+  WDS_VCER_3GPP_MESSAGE_INCORRECT_SEMANTIC_V01 = 0x5F, 
+  WDS_VCER_3GPP_INVALID_MANDATORY_INFO_V01 = 0x60, 
+  WDS_VCER_3GPP_MESSAGE_TYPE_UNSUPPORTED_V01 = 0x61, 
+  WDS_VCER_3GPP_MSG_TYPE_NONCOMPATIBLE_STATE_V01 = 0x62, 
+  WDS_VCER_3GPP_UNKNOWN_INFO_ELEMENT_V01 = 0x63, 
+  WDS_VCER_3GPP_CONDITIONAL_IE_ERROR_V01 = 0x64, 
+  WDS_VCER_3GPP_MSG_AND_PROTOCOL_STATE_UNCOMPATIBLE_V01 = 0x65, 
+  WDS_VCER_3GPP_PROTOCOL_ERROR_V01 = 0x6F, 
+  WDS_VCER_3GPP_APN_TYPE_CONFLICT_V01 = 0x70, 
+  WDS_VCER_3GPP_INVALID_PCSCF_ADDR_V01 = 0x71, 
+  WDS_VCER_3GPP_INTERNAL_CALL_PREEMPT_BY_HIGH_PRIO_APN_V01 = 0x72, 
+  WDS_VCER_3GPP_EMM_ACCESS_BARRED_V01 = 0x73, 
+  WDS_VCER_3GPP_EMERGENCY_IFACE_ONLY_V01 = 0x74, 
+  WDS_VCER_3GPP_IFACE_MISMATCH_V01 = 0x75, 
+  WDS_VCER_3GPP_COMPANION_IFACE_IN_USE_V01 = 0x76, 
+  WDS_VCER_3GPP_IP_ADDRESS_MISMATCH_V01 = 0x77, 
+  WDS_VCER_3GPP_IFACE_AND_POL_FAMILY_MISMATCH_V01 = 0x78, 
+  WDS_VCER_3GPP_EMM_ACCESS_BARRED_INFINITE_RETRY_V01 = 0x79, 
+  WDS_VCER_3GPP_AUTH_FAILURE_ON_EMERGENCY_CALL_V01 = 0x7A, 
   WDS_VERBOSE_CALL_END_REASON_3GPP_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_3gpp_enum_v01;
 /**
@@ -1793,12 +2107,14 @@ typedef enum {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_PPP_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_PPP_TIMEOUT_V01 = 0x01,
-  WDS_VCER_PPP_AUTH_FAILURE_V01 = 0x02,
-  WDS_VCER_PPP_OPTION_MISMATCH_V01 = 0x03,
-  WDS_VCER_PPP_PAP_FAILURE_V01 = 0x1F,
-  WDS_VCER_PPP_CHAP_FAILURE_V01 = 0x20,
-  WDS_VCER_PPP_UNKNOWN_V01 = -1,
+  WDS_VCER_PPP_TIMEOUT_V01 = 0x01, 
+  WDS_VCER_PPP_AUTH_FAILURE_V01 = 0x02, 
+  WDS_VCER_PPP_OPTION_MISMATCH_V01 = 0x03, 
+  WDS_VCER_PPP_PAP_FAILURE_V01 = 0x1F, 
+  WDS_VCER_PPP_CHAP_FAILURE_V01 = 0x20, 
+  WDS_VCER_PPP_ERR_CLOSE_IN_PROGRESS_V01 = 0x21, 
+  WDS_VCER_PPPNV_REFRESH_IN_PROGRESS_V01 = 0x22, 
+  WDS_VCER_PPP_UNKNOWN_V01 = -1, 
   WDS_VERBOSE_CALL_END_REASON_PPP_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_ppp_enum_v01;
 /**
@@ -1810,22 +2126,23 @@ typedef enum {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_EHRPD_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_EHRPD_SUBS_LIMITED_TO_V4_V01 = 0x01,
-  WDS_VCER_EHRPD_SUBS_LIMITED_TO_V6_V01 = 0x02,
-  WDS_VCER_EHRPD_VSNCP_TIMEOUT_V01 = 0x04,
-  WDS_VCER_EHRPD_VSNCP_FAILURE_V01 = 0x05,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_GEN_ERROR_V01 = 0x06,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_UNAUTH_APN_V01 = 0x07,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_LIMIT_EXCEED_V01 = 0x08,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_NO_PDN_GW_V01 = 0x09,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_GW_UNREACH_V01 = 0x0A,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_GW_REJ_V01 = 0x0B,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_INSUFF_PARAM_V01 = 0x0C,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_RESOURCE_UNAVAIL_V01 = 0x0D,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_ADMIN_PROHIBIT_V01 = 0x0E,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_ID_IN_USE_V01 = 0x0F,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_SUBSCR_LIMITATION_V01 = 0x10,
-  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_EXISTS_FOR_THIS_APN_V01 = 0x11,
+  WDS_VCER_EHRPD_SUBS_LIMITED_TO_V4_V01 = 0x01, 
+  WDS_VCER_EHRPD_SUBS_LIMITED_TO_V6_V01 = 0x02, 
+  WDS_VCER_EHRPD_VSNCP_TIMEOUT_V01 = 0x04, 
+  WDS_VCER_EHRPD_VSNCP_FAILURE_V01 = 0x05, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_GEN_ERROR_V01 = 0x06, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_UNAUTH_APN_V01 = 0x07, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_LIMIT_EXCEED_V01 = 0x08, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_NO_PDN_GW_V01 = 0x09, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_GW_UNREACH_V01 = 0x0A, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_GW_REJ_V01 = 0x0B, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_INSUFF_PARAM_V01 = 0x0C, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_RESOURCE_UNAVAIL_V01 = 0x0D, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_ADMIN_PROHIBIT_V01 = 0x0E, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_ID_IN_USE_V01 = 0x0F, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_SUBSCR_LIMITATION_V01 = 0x10, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_PDN_EXISTS_FOR_THIS_APN_V01 = 0x11, 
+  WDS_VCER_EHRPD_VSNCP_3GPP2I_RECONNECT_NOT_ALLOWED_V01 = 0x13, 
   WDS_VERBOSE_CALL_END_REASON_EHRPD_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_ehrpd_enum_v01;
 /**
@@ -1837,8 +2154,9 @@ typedef enum {
   */
 typedef enum {
   WDS_VERBOSE_CALL_END_REASON_IPV6_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_VCER_IPV6_PREFIX_UNAVAILABLE_V01 = 0x01,
-  WDS_VCER_IPV6_ERR_HRPD_IPV6_DISABLED_V01 = 0x02,
+  WDS_VCER_IPV6_PREFIX_UNAVAILABLE_V01 = 0x01, 
+  WDS_VCER_IPV6_ERR_HRPD_IPV6_DISABLED_V01 = 0x02, 
+  WDS_VCER_IPV6_DISABLED_V01 = 0x03, 
   WDS_VERBOSE_CALL_END_REASON_IPV6_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_verbose_call_end_reason_ipv6_enum_v01;
 /**
@@ -1850,78 +2168,78 @@ typedef enum {
   */
 typedef enum {
   WDS_CALL_END_REASON_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_CER_UNSPECIFIED_V01 = 0x001,
-  WDS_CER_CLIENT_END_V01 = 0x002,
-  WDS_CER_NO_SRV_V01 = 0x003,
-  WDS_CER_FADE_V01 = 0x004,
-  WDS_CER_REL_NORMAL_V01 = 0x005,
-  WDS_CER_ACC_IN_PROG_V01 = 0x006,
-  WDS_CER_ACC_FAIL_V01 = 0x007,
-  WDS_CER_REDIR_OR_HANDOFF_V01 = 0x008,
-  WDS_CER_CLOSE_IN_PROGRESS_V01 = 0x009,
-  WDS_CER_AUTH_FAILED_V01 = 0x00A,
-  WDS_CER_INTERNAL_CALL_END_V01 = 0x00B,
-  WDS_CER_CDMA_LOCK_V01 = 0x1F4,
-  WDS_CER_INTERCEPT_V01 = 0x1F5,
-  WDS_CER_REORDER_V01 = 0x1F6,
-  WDS_CER_REL_SO_REJ_V01 = 0x1F7,
-  WDS_CER_INCOM_CALL_V01 = 0x1F8,
-  WDS_CER_ALERT_STOP_V01 = 0x1F9,
-  WDS_CER_ACTIVATION_V01 = 0x1FA,
-  WDS_CER_MAX_ACCESS_PROBE_V01 = 0x1FB,
-  WDS_CER_CCS_NOT_SUPP_BY_BS_V01 = 0x1FC,
-  WDS_CER_NO_RESPONSE_FROM_BS_V01 = 0x1FD,
-  WDS_CER_REJECTED_BY_BS_V01 = 0x1FE,
-  WDS_CER_INCOMPATIBLE_V01 = 0x1FF,
-  WDS_CER_ALREADY_IN_TC_V01 = 0x200,
-  WDS_CER_USER_CALL_ORIG_DURING_GPS_V01 = 0x201,
-  WDS_CER_USER_CALL_ORIG_DURING_SMS_V01 = 0x202,
-  WDS_CER_NO_CDMA_SRV_V01 = 0x203,
-  WDS_CER_CONF_FAILED_V01 = 0x3E8,
-  WDS_CER_INCOM_REJ_V01 = 0x3E9,
-  WDS_CER_NO_GW_SRV_V01 = 0x3EA,
-  WDS_CER_NETWORK_END_V01 = 0x3EB,
-  WDS_CER_LLC_SNDCP_FAILURE_V01 = 0x3EC,
-  WDS_CER_INSUFFICIENT_RESOURCES_V01 = 0x3ED,
-  WDS_CER_OPTION_TEMP_OOO_V01 = 0x3EE,
-  WDS_CER_NSAPI_ALREADY_USED_V01 = 0x3EF,
-  WDS_CER_REGULAR_DEACTIVATION_V01 = 0x3F0,
-  WDS_CER_NETWORK_FAILURE_V01 = 0x3F1,
-  WDS_CER_UMTS_REATTACH_REQ_V01 = 0x3F2,
-  WDS_CER_PROTOCOL_ERROR_V01 = 0x3F3,
-  WDS_CER_OPERATOR_DETERMINED_BARRING_V01 = 0x3F4,
-  WDS_CER_UNKNOWN_APN_V01 = 0x3F5,
-  WDS_CER_UNKNOWN_PDP_V01 = 0x3F6,
-  WDS_CER_GGSN_REJECT_V01 = 0x3F7,
-  WDS_CER_ACTIVATION_REJECT_V01 = 0x3F8,
-  WDS_CER_OPTION_NOT_SUPP_V01 = 0x3F9,
-  WDS_CER_OPTION_UNSUBSCRIBED_V01 = 0x3FA,
-  WDS_CER_QOS_NOT_ACCEPTED_V01 = 0x3FB,
-  WDS_CER_TFT_SEMANTIC_ERROR_V01 = 0x3FC,
-  WDS_CER_TFT_SYNTAX_ERROR_V01 = 0x3FD,
-  WDS_CER_UNKNOWN_PDP_CONTEXT_V01 = 0x3FE,
-  WDS_CER_FILTER_SEMANTIC_ERROR_V01 = 0x3FF,
-  WDS_CER_FILTER_SYNTAX_ERROR_V01 = 0x400,
-  WDS_CER_PDP_WITHOUT_ACTIVE_TFT_V01 = 0x401,
-  WDS_CER_INVALID_TRANSACTION_ID_V01 = 0x402,
-  WDS_CER_MESSAGE_INCORRECT_SEMANTIC_V01 = 0x403,
-  WDS_CER_INVALID_MANDATORY_INFO_V01 = 0x404,
-  WDS_CER_MESSAGE_TYPE_UNSUPPORTED_V01 = 0x405,
-  WDS_CER_MSG_TYPE_NONCOMPATIBLE_STATE_V01 = 0x406,
-  WDS_CER_UNKNOWN_INFO_ELEMENT_V01 = 0x407,
-  WDS_CER_CONDITIONAL_IE_ERROR_V01 = 0x408,
-  WDS_CER_MSG_AND_PROTOCOL_STATE_UNCOMPATIBLE_V01 = 0x409,
-  WDS_CER_APN_TYPE_CONFLICT_V01 = 0x40A,
-  WDS_CER_NO_GPRS_CONTEXT_V01 = 0x40B,
-  WDS_CER_FEATURE_NOT_SUPPORTED_V01 = 0x40C,
-  WDS_CER_CD_GEN_OR_BUSY_V01 = 0x5DC,
-  WDS_CER_CD_BILL_OR_AUTH_V01 = 0x5DD,
-  WDS_CER_CHG_HDR_V01 = 0x5DE,
-  WDS_CER_EXIT_HDR_V01 = 0x5DF,
-  WDS_CER_HDR_NO_SESSION_V01 = 0x5E0,
-  WDS_CER_HDR_ORIG_DURING_GPS_FIX_V01 = 0x5E1,
-  WDS_CER_HDR_CS_TIMEOUT_V01 = 0x5E2,
-  WDS_CER_HDR_RELEASED_BY_CM_V01 = 0x5E3,
+  WDS_CER_UNSPECIFIED_V01 = 0x001, 
+  WDS_CER_CLIENT_END_V01 = 0x002, 
+  WDS_CER_NO_SRV_V01 = 0x003, 
+  WDS_CER_FADE_V01 = 0x004, 
+  WDS_CER_REL_NORMAL_V01 = 0x005, 
+  WDS_CER_ACC_IN_PROG_V01 = 0x006, 
+  WDS_CER_ACC_FAIL_V01 = 0x007, 
+  WDS_CER_REDIR_OR_HANDOFF_V01 = 0x008, 
+  WDS_CER_CLOSE_IN_PROGRESS_V01 = 0x009, 
+  WDS_CER_AUTH_FAILED_V01 = 0x00A, 
+  WDS_CER_INTERNAL_CALL_END_V01 = 0x00B, 
+  WDS_CER_CDMA_LOCK_V01 = 0x1F4, 
+  WDS_CER_INTERCEPT_V01 = 0x1F5, 
+  WDS_CER_REORDER_V01 = 0x1F6, 
+  WDS_CER_REL_SO_REJ_V01 = 0x1F7, 
+  WDS_CER_INCOM_CALL_V01 = 0x1F8, 
+  WDS_CER_ALERT_STOP_V01 = 0x1F9, 
+  WDS_CER_ACTIVATION_V01 = 0x1FA, 
+  WDS_CER_MAX_ACCESS_PROBE_V01 = 0x1FB, 
+  WDS_CER_CCS_NOT_SUPP_BY_BS_V01 = 0x1FC, 
+  WDS_CER_NO_RESPONSE_FROM_BS_V01 = 0x1FD, 
+  WDS_CER_REJECTED_BY_BS_V01 = 0x1FE, 
+  WDS_CER_INCOMPATIBLE_V01 = 0x1FF, 
+  WDS_CER_ALREADY_IN_TC_V01 = 0x200, 
+  WDS_CER_USER_CALL_ORIG_DURING_GPS_V01 = 0x201, 
+  WDS_CER_USER_CALL_ORIG_DURING_SMS_V01 = 0x202, 
+  WDS_CER_NO_CDMA_SRV_V01 = 0x203, 
+  WDS_CER_CONF_FAILED_V01 = 0x3E8, 
+  WDS_CER_INCOM_REJ_V01 = 0x3E9, 
+  WDS_CER_NO_GW_SRV_V01 = 0x3EA, 
+  WDS_CER_NETWORK_END_V01 = 0x3EB, 
+  WDS_CER_LLC_SNDCP_FAILURE_V01 = 0x3EC, 
+  WDS_CER_INSUFFICIENT_RESOURCES_V01 = 0x3ED, 
+  WDS_CER_OPTION_TEMP_OOO_V01 = 0x3EE, 
+  WDS_CER_NSAPI_ALREADY_USED_V01 = 0x3EF, 
+  WDS_CER_REGULAR_DEACTIVATION_V01 = 0x3F0, 
+  WDS_CER_NETWORK_FAILURE_V01 = 0x3F1, 
+  WDS_CER_UMTS_REATTACH_REQ_V01 = 0x3F2, 
+  WDS_CER_PROTOCOL_ERROR_V01 = 0x3F3, 
+  WDS_CER_OPERATOR_DETERMINED_BARRING_V01 = 0x3F4, 
+  WDS_CER_UNKNOWN_APN_V01 = 0x3F5, 
+  WDS_CER_UNKNOWN_PDP_V01 = 0x3F6, 
+  WDS_CER_GGSN_REJECT_V01 = 0x3F7, 
+  WDS_CER_ACTIVATION_REJECT_V01 = 0x3F8, 
+  WDS_CER_OPTION_NOT_SUPP_V01 = 0x3F9, 
+  WDS_CER_OPTION_UNSUBSCRIBED_V01 = 0x3FA, 
+  WDS_CER_QOS_NOT_ACCEPTED_V01 = 0x3FB, 
+  WDS_CER_TFT_SEMANTIC_ERROR_V01 = 0x3FC, 
+  WDS_CER_TFT_SYNTAX_ERROR_V01 = 0x3FD, 
+  WDS_CER_UNKNOWN_PDP_CONTEXT_V01 = 0x3FE, 
+  WDS_CER_FILTER_SEMANTIC_ERROR_V01 = 0x3FF, 
+  WDS_CER_FILTER_SYNTAX_ERROR_V01 = 0x400, 
+  WDS_CER_PDP_WITHOUT_ACTIVE_TFT_V01 = 0x401, 
+  WDS_CER_INVALID_TRANSACTION_ID_V01 = 0x402, 
+  WDS_CER_MESSAGE_INCORRECT_SEMANTIC_V01 = 0x403, 
+  WDS_CER_INVALID_MANDATORY_INFO_V01 = 0x404, 
+  WDS_CER_MESSAGE_TYPE_UNSUPPORTED_V01 = 0x405, 
+  WDS_CER_MSG_TYPE_NONCOMPATIBLE_STATE_V01 = 0x406, 
+  WDS_CER_UNKNOWN_INFO_ELEMENT_V01 = 0x407, 
+  WDS_CER_CONDITIONAL_IE_ERROR_V01 = 0x408, 
+  WDS_CER_MSG_AND_PROTOCOL_STATE_UNCOMPATIBLE_V01 = 0x409, 
+  WDS_CER_APN_TYPE_CONFLICT_V01 = 0x40A, 
+  WDS_CER_NO_GPRS_CONTEXT_V01 = 0x40B, 
+  WDS_CER_FEATURE_NOT_SUPPORTED_V01 = 0x40C, 
+  WDS_CER_CD_GEN_OR_BUSY_V01 = 0x5DC, 
+  WDS_CER_CD_BILL_OR_AUTH_V01 = 0x5DD, 
+  WDS_CER_CHG_HDR_V01 = 0x5DE, 
+  WDS_CER_EXIT_HDR_V01 = 0x5DF, 
+  WDS_CER_HDR_NO_SESSION_V01 = 0x5E0, 
+  WDS_CER_HDR_ORIG_DURING_GPS_FIX_V01 = 0x5E1, 
+  WDS_CER_HDR_CS_TIMEOUT_V01 = 0x5E2, 
+  WDS_CER_HDR_RELEASED_BY_CM_V01 = 0x5E3, 
   WDS_CALL_END_REASON_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_call_end_reason_enum_v01;
 /**
@@ -1957,9 +2275,13 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Activates a packet data session (if not already
+/** Response Message; Activates a packet data session (if not already 
            started) on behalf of the requesting control point. */
 typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
 
   /* Mandatory */
   /*  Packet Data Handle  */
@@ -1971,21 +2293,31 @@ typedef struct {
        point is finished with the packet data session.
   */
 
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
-
   /* Optional */
   /*  Call End Reason */
   uint8_t call_end_reason_valid;  /**< Must be set to true if call_end_reason is being passed */
   wds_call_end_reason_enum_v01 call_end_reason;
-  /**<   Reason the call ended; see Appendix \ref{app:callEndReasons} for the definition of these
+  /**<   Reason the call ended; see Appendix \ref{app:callEndReasons} for the definition of these 
        values. */
 
   /* Optional */
   /*  Verbose Call End Reason */
   uint8_t verbose_call_end_reason_valid;  /**< Must be set to true if verbose_call_end_reason is being passed */
   wds_verbose_call_end_reason_type_v01 verbose_call_end_reason;
+
+  /* Optional */
+  /*  Peripheral End Point ID */
+  uint8_t ep_id_valid;  /**< Must be set to true if ep_id is being passed */
+  data_ep_id_type_v01 ep_id;
+  /**<   \n The peripheral end point of the RmNet instance where a data call is already present.
+  */
+
+  /* Optional */
+  /*  Mux ID */
+  uint8_t mux_id_valid;  /**< Must be set to true if mux_id is being passed */
+  uint8_t mux_id;
+  /**<   Mux ID of the RmNet instance where a data call is already present.
+  */
 }wds_start_network_interface_resp_msg_v01;  /* Message */
 /**
     @}
@@ -2001,7 +2333,7 @@ typedef struct {
   /* Mandatory */
   /*  Packet Data Handle */
   uint32_t pkt_data_handle;
-  /**<   Handle identifying the call instance from which
+  /**<   Handle identifying the call instance from which 
        to unbind the control point.
        The value must be the handle previously returned by
        QMI_WDS_START_NETWORK_ INTERFACE_REQ.
@@ -2038,21 +2370,30 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_pkt_srvc_status_req_msg is empty
- * typedef struct {
- * }wds_get_pkt_srvc_status_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current packet data connection status. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_pkt_srvc_status_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_enums
     @{
   */
 typedef enum {
   WDS_CONNECTION_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_CONNECTION_STATUS_DISCONNECTED_V01 = 0x01,
-  WDS_CONNECTION_STATUS_CONNECTED_V01 = 0x02,
-  WDS_CONNECTION_STATUS_SUSPENDED_V01 = 0x03,
-  WDS_CONNECTION_STATUS_AUTHENTICATING_V01 = 0x04,
+  WDS_CONNECTION_STATUS_DISCONNECTED_V01 = 0x01, 
+  WDS_CONNECTION_STATUS_CONNECTED_V01 = 0x02, 
+  WDS_CONNECTION_STATUS_SUSPENDED_V01 = 0x03, 
+  WDS_CONNECTION_STATUS_AUTHENTICATING_V01 = 0x04, 
   WDS_CONNECTION_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_connection_status_enum_v01;
 /**
@@ -2066,6 +2407,10 @@ typedef enum {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Connection status. */
   wds_connection_status_enum_v01 connection_status;
   /**<   Current link status. Values: \n
@@ -2074,10 +2419,6 @@ typedef struct {
         - 3 -- SUSPENDED \n
         - 4 -- AUTHENTICATING
    */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_pkt_srvc_status_resp_msg_v01;  /* Message */
 /**
     @}
@@ -2099,7 +2440,7 @@ typedef struct {
 
   /*  Reconfiguration required */
   uint8_t reconfiguration_required;
-  /**<   Indicates if the network interface on the host needs to be
+  /**<   Indicates whether the network interface on the host needs to be
        reconfigured. Values: \n
        - 0 -- No need to reconfigure \n
        - 1 -- Reconfiguration required
@@ -2114,8 +2455,8 @@ typedef struct {
   */
 typedef enum {
   WDS_IP_FAMILY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_IP_FAMILY_IPV4_V01 = 0x04,
-  WDS_IP_FAMILY_IPV6_V01 = 0x06,
+  WDS_IP_FAMILY_IPV4_V01 = 0x04, /**<  IPv4 \n  */
+  WDS_IP_FAMILY_IPV6_V01 = 0x06, /**<  IPv6   */
   WDS_IP_FAMILY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ip_family_enum_v01;
 /**
@@ -2127,13 +2468,13 @@ typedef enum {
   */
 typedef enum {
   WDS_TECHNOLOGY_NAME_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_TECHNOLOGY_NAME_CDMA_V01 = -32767,
-  WDS_TECHNOLOGY_NAME_UMTS_V01 = -32764,
-  WDS_TECHNOLOGY_NAME_WLAN_LOCAL_BRKOUT_V01 = -32736,
-  WDS_TECHNOLOGY_NAME_IWLAN_S2B_V01 = -32735,
-  WDS_TECHNOLOGY_NAME_EPC_V01 = -30592,
-  WDS_TECHNOLOGY_NAME_EMBMS_V01 = -30590,
-  WDS_TECHNOLOGY_NAME_MODEM_LINK_LOCAL_V01 = -30584,
+  WDS_TECHNOLOGY_NAME_CDMA_V01 = -32767, 
+  WDS_TECHNOLOGY_NAME_UMTS_V01 = -32764, 
+  WDS_TECHNOLOGY_NAME_WLAN_LOCAL_BRKOUT_V01 = -32736, 
+  WDS_TECHNOLOGY_NAME_IWLAN_S2B_V01 = -32735, 
+  WDS_TECHNOLOGY_NAME_EPC_V01 = -30592, 
+  WDS_TECHNOLOGY_NAME_EMBMS_V01 = -30590, 
+  WDS_TECHNOLOGY_NAME_MODEM_LINK_LOCAL_V01 = -30584, 
   WDS_TECHNOLOGY_NAME_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_technology_name_enum_v01;
 /**
@@ -2143,7 +2484,7 @@ typedef enum {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Indication Message; Indicates a change in the current packet data
+/** Indication Message; Indicates a change in the current packet data 
            connection status. */
 typedef struct {
 
@@ -2183,22 +2524,47 @@ typedef struct {
        - -30592 -- EPC \n
        - -30590 -- EMBMS \n
        - -30584 -- Modem Link Local \n
-      EPC is a logical interface to support LTE/eHRPD handoff.
+      EPC is a logical interface to support LTE/eHRPD handoff. 
       It is returned if the device supports IP session continuity.
 
       Modem Link Local is an interface for transferring data
       between entities on the AP and modem.
+  */
+
+  /* Optional */
+  /*  Bearer ID */
+  uint8_t bearer_id_valid;  /**< Must be set to true if bearer_id is being passed */
+  uint8_t bearer_id;
+  /**<   Bearer ID (3GPP) or RLP ID (3GPP2) of the packet data connection.
+  */
+
+  /* Optional */
+  /*  XLAT capability */
+  uint8_t xlat_capable_valid;  /**< Must be set to true if xlat_capable is being passed */
+  uint8_t xlat_capable;
+  /**<   Indicates xlat capability of the data session.Values: \n
+       - 0 -- XLAT not capable \n
+       - 1 -- XLAT capable
   */
 }wds_pkt_srvc_status_ind_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_current_channel_rate_req_msg is empty
- * typedef struct {
- * }wds_get_current_channel_rate_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current bit rate of the packet data connection. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_current_channel_rate_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_aggregates
     @{
@@ -2232,12 +2598,12 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Channel Rate */
-  wds_current_channel_rate_type_v01 rates;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Channel Rate */
+  wds_current_channel_rate_type_v01 rates;
 }wds_get_current_channel_rate_resp_msg_v01;  /* Message */
 /**
     @}
@@ -2246,7 +2612,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Queries the packet data transfer statistics from the start of the
+/** Request Message; Queries the packet data transfer statistics from the start of the 
     current packet data session. */
 typedef struct {
 
@@ -2276,7 +2642,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Queries the packet data transfer statistics from the start of the
+/** Response Message; Queries the packet data transfer statistics from the start of the 
     current packet data session. */
 typedef struct {
 
@@ -2372,16 +2738,27 @@ typedef struct {
     @}
   */
 
-/*
- * wds_go_dormant_req_msg is empty
- * typedef struct {
- * }wds_go_dormant_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Forces the device to immediately drop the traffic channel on the 
+    serving radio interface. */
+typedef struct {
+
+  /* Optional */
+  /*  Delay Time in Milliseconds */
+  uint8_t delay_timer_valid;  /**< Must be set to true if delay_timer is being passed */
+  uint32_t delay_timer;
+  /**<   Delay time, in milliseconds. */
+}wds_go_dormant_req_msg_v01;  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Forces the device to immediately drop the traffic channel on the
+/** Response Message; Forces the device to immediately drop the traffic channel on the 
     serving radio interface. */
 typedef struct {
 
@@ -2393,16 +2770,26 @@ typedef struct {
     @}
   */
 
-/*
- * wds_go_active_req_msg is empty
- * typedef struct {
- * }wds_go_active_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Forces the device to immediately reestablish the 
+           traffic channel on the serving radio interface. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_go_active_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Forces the device to immediately reestablish the
+/** Response Message; Forces the device to immediately reestablish the 
            traffic channel on the serving radio interface. */
 typedef struct {
 
@@ -2419,11 +2806,11 @@ typedef struct {
   */
 typedef enum {
   WDS_TRAFFIC_CLASS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_TRAFFIC_CLASS_SUBSCRIBED_V01 = 0x00,
-  WDS_TRAFFIC_CLASS_CONVERSATIONAL_V01 = 0x01,
-  WDS_TRAFFIC_CLASS_STREAMING_V01 = 0x02,
-  WDS_TRAFFIC_CLASS_INTERACTIVE_V01 = 0x03,
-  WDS_TRAFFIC_CLASS_BACKGROUND_V01 = 0x04,
+  WDS_TRAFFIC_CLASS_SUBSCRIBED_V01 = 0x00, 
+  WDS_TRAFFIC_CLASS_CONVERSATIONAL_V01 = 0x01, 
+  WDS_TRAFFIC_CLASS_STREAMING_V01 = 0x02, 
+  WDS_TRAFFIC_CLASS_INTERACTIVE_V01 = 0x03, 
+  WDS_TRAFFIC_CLASS_BACKGROUND_V01 = 0x04, 
   WDS_TRAFFIC_CLASS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_traffic_class_enum_v01;
 /**
@@ -2435,9 +2822,9 @@ typedef enum {
   */
 typedef enum {
   WDS_QOS_DELIVERY_ORDER_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_QOS_DELIVERY_ORDER_SUBSCRIBE_V01 = 0x00,
-  WDS_QOS_DELIVERY_ORDER_ON_V01 = 0x01,
-  WDS_QOS_DELIVERY_ORDER_OFF_V01 = 0x02,
+  WDS_QOS_DELIVERY_ORDER_SUBSCRIBE_V01 = 0x00, 
+  WDS_QOS_DELIVERY_ORDER_ON_V01 = 0x01, 
+  WDS_QOS_DELIVERY_ORDER_OFF_V01 = 0x02, 
   WDS_QOS_DELIVERY_ORDER_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_qos_delivery_order_enum_v01;
 /**
@@ -2449,10 +2836,10 @@ typedef enum {
   */
 typedef enum {
   WDS_DELIVERY_ERRONEOUS_SDUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DELIVERY_ERRONEOUS_SDUS_SUBSCRIBE_V01 = 0x00,
-  WDS_DELIVERY_ERRONEOUS_SDUS_NO_DETECTION_V01 = 0x01,
-  WDS_DELIVERY_ERRONEOUS_SDUS_YES_V01 = 0x02,
-  WDS_DELIVERY_ERRONEOUS_SDUS_NO_V01 = 0x03,
+  WDS_DELIVERY_ERRONEOUS_SDUS_SUBSCRIBE_V01 = 0x00, 
+  WDS_DELIVERY_ERRONEOUS_SDUS_NO_DETECTION_V01 = 0x01, 
+  WDS_DELIVERY_ERRONEOUS_SDUS_YES_V01 = 0x02, 
+  WDS_DELIVERY_ERRONEOUS_SDUS_NO_V01 = 0x03, 
   WDS_DELIVERY_ERRONEOUS_SDUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_delivery_erroneous_SDUs_enum_v01;
 /**
@@ -2464,14 +2851,14 @@ typedef enum {
   */
 typedef enum {
   WDS_SDU_ERROR_RATIO_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_SDU_ERROR_RATIO_SUBSCRIBE_V01 = 0x00,
-  WDS_SDU_ERROR_RATIO_1X10_2_V01 = 0x01,
-  WDS_SDU_ERROR_RATIO_7X10_3_V01 = 0x02,
-  WDS_SDU_ERROR_RATIO_1X10_3_V01 = 0x03,
-  WDS_SDU_ERROR_RATIO_1X10_4_V01 = 0x04,
-  WDS_SDU_ERROR_RATIO_1X10_5_V01 = 0x05,
-  WDS_SDU_ERROR_RATIO_1X10_6_V01 = 0x06,
-  WDS_SDU_ERROR_RATIO_1X10_1_V01 = 0x07,
+  WDS_SDU_ERROR_RATIO_SUBSCRIBE_V01 = 0x00, 
+  WDS_SDU_ERROR_RATIO_1X10_2_V01 = 0x01, 
+  WDS_SDU_ERROR_RATIO_7X10_3_V01 = 0x02, 
+  WDS_SDU_ERROR_RATIO_1X10_3_V01 = 0x03, 
+  WDS_SDU_ERROR_RATIO_1X10_4_V01 = 0x04, 
+  WDS_SDU_ERROR_RATIO_1X10_5_V01 = 0x05, 
+  WDS_SDU_ERROR_RATIO_1X10_6_V01 = 0x06, 
+  WDS_SDU_ERROR_RATIO_1X10_1_V01 = 0x07, 
   WDS_SDU_ERROR_RATIO_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_sdu_error_ratio_enum_v01;
 /**
@@ -2483,16 +2870,16 @@ typedef enum {
   */
 typedef enum {
   WDS_RESIDUAL_BIT_ERROR_RATIO_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_RESIDUAL_BIT_ERROR_RATIO_SUBSCRIBE_V01 = 0x00,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_5X10_2_V01 = 0x01,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_2_V01 = 0x02,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_5X10_3_V01 = 0x03,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_4X10_3_V01 = 0x04,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_3_V01 = 0x05,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_4_V01 = 0x06,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_5_V01 = 0x07,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_6_V01 = 0x08,
-  WDS_RESIDUAL_BIT_ERROR_RATIO_6X10_8_V01 = 0x09,
+  WDS_RESIDUAL_BIT_ERROR_RATIO_SUBSCRIBE_V01 = 0x00, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_5X10_2_V01 = 0x01, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_2_V01 = 0x02, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_5X10_3_V01 = 0x03, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_4X10_3_V01 = 0x04, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_3_V01 = 0x05, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_4_V01 = 0x06, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_5_V01 = 0x07, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_1X10_6_V01 = 0x08, 
+  WDS_RESIDUAL_BIT_ERROR_RATIO_6X10_8_V01 = 0x09, 
   WDS_RESIDUAL_BIT_ERROR_RATIO_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_residual_bit_error_ratio_enum_v01;
 /**
@@ -2548,7 +2935,7 @@ typedef struct {
    */
 
   wds_residual_bit_error_ratio_enum_v01 residual_bit_error_ratio;
-  /**<   Target value for the undetected bit error ratio in the delivered
+  /**<   Target value for the undetected bit error ratio in the delivered 
        SDUs. Values: \n
         - 0 -- Subscribe \n
         - 1 -- 5x@latexonly$10^2$@endlatexonly \n
@@ -2674,7 +3061,7 @@ typedef struct {
   /**<   End value for the source port range.*/
 
   uint32_t ipsec_spi;
-  /**<   IPSEC security parameter index.*/
+  /**<   IPSec security parameter index.*/
 
   uint16_t tos_mask;
   /**<   TOS mask (traffic class for IPv6).*/
@@ -2721,8 +3108,9 @@ typedef struct {
   */
 typedef enum {
   WDS_PROFILE_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_TYPE_3GPP_V01 = 0x00,
-  WDS_PROFILE_TYPE_3GPP2_V01 = 0x01,
+  WDS_PROFILE_TYPE_3GPP_V01 = 0x00, /**<  3GPP \n  */
+  WDS_PROFILE_TYPE_3GPP2_V01 = 0x01, /**<  3GPP2 \n  */
+  WDS_PROFILE_TYPE_EPC_V01 = 0x02, /**<  EPC  */
   WDS_PROFILE_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_type_enum_v01;
 /**
@@ -2733,11 +3121,26 @@ typedef enum {
     @{
   */
 typedef enum {
+  WDS_PROFILE_CHANGED_EVENT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_PROFILE_CREATE_PROFILE_EVENT_V01 = 0x01, /**<  Create profile event \n  */
+  WDS_PROFILE_DELETE_PROFILE_EVENT_V01 = 0x02, /**<  Delete profile event \n  */
+  WDS_PROFILE_MODIFY_PROFILE_EVENT_V01 = 0x03, /**<  Modify profile event \n  */
+  WDS_PROFILE_SUBSCRIPTION_CHANGE_EVENT_V01 = 0x04, /**<  Subscription changed event  */
+  WDS_PROFILE_CHANGED_EVENT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_profile_changed_event_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
   WDS_PDP_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PDP_TYPE_PDP_IPV4_V01 = 0x00,
-  WDS_PDP_TYPE_PDP_PPP_V01 = 0x01,
-  WDS_PDP_TYPE_PDP_IPV6_V01 = 0x02,
-  WDS_PDP_TYPE_PDP_IPV4V6_V01 = 0x03,
+  WDS_PDP_TYPE_PDP_IPV4_V01 = 0x00, 
+  WDS_PDP_TYPE_PDP_PPP_V01 = 0x01, 
+  WDS_PDP_TYPE_PDP_IPV6_V01 = 0x02, 
+  WDS_PDP_TYPE_PDP_IPV4V6_V01 = 0x03, 
   WDS_PDP_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_pdp_type_enum_v01;
 /**
@@ -2749,11 +3152,11 @@ typedef enum {
   */
 typedef enum {
   WDS_PDP_HDR_COMPR_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PDP_HDR_COMPR_TYPE_OFF_V01 = 0x00,
-  WDS_PDP_HDR_COMPR_TYPE_MANUFACTURER_PREF_V01 = 0x01,
-  WDS_PDP_HDR_COMPR_TYPE_RFC_1144_V01 = 0x02,
-  WDS_PDP_HDR_COMPR_TYPE_RFC_2507_V01 = 0x03,
-  WDS_PDP_HDR_COMPR_TYPE_RFC_3095_V01 = 0x04,
+  WDS_PDP_HDR_COMPR_TYPE_OFF_V01 = 0x00, 
+  WDS_PDP_HDR_COMPR_TYPE_MANUFACTURER_PREF_V01 = 0x01, 
+  WDS_PDP_HDR_COMPR_TYPE_RFC_1144_V01 = 0x02, 
+  WDS_PDP_HDR_COMPR_TYPE_RFC_2507_V01 = 0x03, 
+  WDS_PDP_HDR_COMPR_TYPE_RFC_3095_V01 = 0x04, 
   WDS_PDP_HDR_COMPR_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_pdp_hdr_compr_type_enum_v01;
 /**
@@ -2765,10 +3168,10 @@ typedef enum {
   */
 typedef enum {
   WDS_PDP_DATA_COMPR_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PDP_DATA_COMPR_TYPE_OFF_V01 = 0x00,
-  WDS_PDP_DATA_COMPR_TYPE_MANUFACTURER_PREF_V01 = 0x01,
-  WDS_PDP_DATA_COMPR_TYPE_V42_V01 = 0x02,
-  WDS_PDP_DATA_COMPR_TYPE_V44_V01 = 0x03,
+  WDS_PDP_DATA_COMPR_TYPE_OFF_V01 = 0x00, 
+  WDS_PDP_DATA_COMPR_TYPE_MANUFACTURER_PREF_V01 = 0x01, 
+  WDS_PDP_DATA_COMPR_TYPE_V42_V01 = 0x02, 
+  WDS_PDP_DATA_COMPR_TYPE_V44_V01 = 0x03, 
   WDS_PDP_DATA_COMPR_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_pdp_data_compr_type_enum_v01;
 /**
@@ -2780,9 +3183,9 @@ typedef enum {
   */
 typedef enum {
   WDS_PDP_ACCESS_CONTROL_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PDP_ACCESS_CONTROL_NONE_V01 = 0x00,
-  WDS_PDP_ACCESS_CONTROL_REJECT_V01 = 0x01,
-  WDS_PDP_ACCESS_CONTROL_PERMISSION_V01 = 0x02,
+  WDS_PDP_ACCESS_CONTROL_NONE_V01 = 0x00, 
+  WDS_PDP_ACCESS_CONTROL_REJECT_V01 = 0x01, 
+  WDS_PDP_ACCESS_CONTROL_PERMISSION_V01 = 0x02, 
   WDS_PDP_ACCESS_CONTROL_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_pdp_access_control_enum_v01;
 /**
@@ -2794,8 +3197,8 @@ typedef enum {
   */
 typedef enum {
   WDS_ADDR_ALLOCATION_PREFERENCE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_ADDR_ALLOC_PREF_NAS_V01 = 0x00,
-  WDS_ADDR_ALLOC_PREF_DHCP_V01 = 0x01,
+  WDS_ADDR_ALLOC_PREF_NAS_V01 = 0x00, 
+  WDS_ADDR_ALLOC_PREF_DHCP_V01 = 0x01, 
   WDS_ADDR_ALLOCATION_PREFERENCE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_addr_allocation_preference_enum_v01;
 /**
@@ -2807,10 +3210,10 @@ typedef enum {
   */
 typedef enum {
   WDS_PROFILE_AUTH_PROTOCOL_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_AUTH_PROTOCOL_NONE_V01 = 0,
-  WDS_PROFILE_AUTH_PROTOCOL_PAP_V01 = 1,
-  WDS_PROFILE_AUTH_PROTOCOL_CHAP_V01 = 2,
-  WDS_PROFILE_AUTH_PROTOCOL_PAP_CHAP_V01 = 3,
+  WDS_PROFILE_AUTH_PROTOCOL_NONE_V01 = 0, 
+  WDS_PROFILE_AUTH_PROTOCOL_PAP_V01 = 1, 
+  WDS_PROFILE_AUTH_PROTOCOL_CHAP_V01 = 2, 
+  WDS_PROFILE_AUTH_PROTOCOL_PAP_CHAP_V01 = 3, 
   WDS_PROFILE_AUTH_PROTOCOL_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_auth_protocol_enum_v01;
 /**
@@ -2822,9 +3225,10 @@ typedef enum {
   */
 typedef enum {
   WDS_PROFILE_PDN_LVL_AUTH_PROTO_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_NONE_V01 = 0,
-  WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP_V01 = 1,
-  WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_CHAP_V01 = 2,
+  WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_NONE_V01 = 0, 
+  WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP_V01 = 1, 
+  WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_CHAP_V01 = 2, 
+  WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP_CHAP_V01 = 3, 
   WDS_PROFILE_PDN_LVL_AUTH_PROTO_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_pdn_lvl_auth_proto_enum_v01;
 /**
@@ -2836,9 +3240,9 @@ typedef enum {
   */
 typedef enum {
   WDS_PROFILE_DATA_RATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_DATA_RATE_LOW_V01 = 0,
-  WDS_PROFILE_DATA_RATE_MEDIUM_V01 = 1,
-  WDS_PROFILE_DATA_RATE_HIGH_V01 = 2,
+  WDS_PROFILE_DATA_RATE_LOW_V01 = 0, 
+  WDS_PROFILE_DATA_RATE_MEDIUM_V01 = 1, 
+  WDS_PROFILE_DATA_RATE_HIGH_V01 = 2, 
   WDS_PROFILE_DATA_RATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_data_rate_enum_v01;
 /**
@@ -2850,9 +3254,9 @@ typedef enum {
   */
 typedef enum {
   WDS_PROFILE_APP_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_APP_TYPE_DEFAULT_V01 = 0x00000001,
-  WDS_PROFILE_APP_TYPE_LBS_V01 = 0x00000020,
-  WDS_PROFILE_APP_TYPE_TETHERED_V01 = 0x00000040,
+  WDS_PROFILE_APP_TYPE_DEFAULT_V01 = 0x00000001, 
+  WDS_PROFILE_APP_TYPE_LBS_V01 = 0x00000020, 
+  WDS_PROFILE_APP_TYPE_TETHERED_V01 = 0x00000040, 
   WDS_PROFILE_APP_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_app_type_enum_v01;
 /**
@@ -2864,9 +3268,9 @@ typedef enum {
   */
 typedef enum {
   WDS_PROFILE_DATA_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_DATA_MODE_CDMA_HDR_V01 = 0,
-  WDS_PROFILE_DATA_MODE_CDMA_V01 = 1,
-  WDS_PROFILE_DATA_MODE_HDR_V01 = 2,
+  WDS_PROFILE_DATA_MODE_CDMA_HDR_V01 = 0, 
+  WDS_PROFILE_DATA_MODE_CDMA_V01 = 1, 
+  WDS_PROFILE_DATA_MODE_HDR_V01 = 2, 
   WDS_PROFILE_DATA_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_data_mode_enum_v01;
 /**
@@ -2878,10 +3282,10 @@ typedef enum {
   */
 typedef enum {
   WDS_PROFILE_PDN_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_PDN_TYPE_IPV4_V01 = 0,
-  WDS_PROFILE_PDN_TYPE_IPV6_V01 = 1,
-  WDS_PROFILE_PDN_TYPE_IPV4_IPV6_V01 = 2,
-  WDS_PROFILE_PDN_TYPE_UNSPECIFIED_V01 = 3,
+  WDS_PROFILE_PDN_TYPE_IPV4_V01 = 0, 
+  WDS_PROFILE_PDN_TYPE_IPV6_V01 = 1, 
+  WDS_PROFILE_PDN_TYPE_IPV4_IPV6_V01 = 2, 
+  WDS_PROFILE_PDN_TYPE_UNSPECIFIED_V01 = 3, 
   WDS_PROFILE_PDN_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_pdn_type_enum_v01;
 /**
@@ -2893,9 +3297,9 @@ typedef enum {
   */
 typedef enum {
   WDS_RAT_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_RAT_TYPE_HRPD_V01 = 1,
-  WDS_RAT_TYPE_EHRPD_V01 = 2,
-  WDS_RAT_TYPE_HRPD_EHRPD_V01 = 3,
+  WDS_RAT_TYPE_HRPD_V01 = 1, 
+  WDS_RAT_TYPE_EHRPD_V01 = 2, 
+  WDS_RAT_TYPE_HRPD_EHRPD_V01 = 3, 
   WDS_RAT_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_rat_type_enum_v01;
 /**
@@ -2903,17 +3307,17 @@ typedef enum {
   */
 
 typedef uint64_t wds_apn_bearer_mask_v01;
-#define WDS_MASK_APN_BEARER_G_V01 ((wds_apn_bearer_mask_v01)0x0000000000000001ull)
-#define WDS_MASK_APN_BEARER_W_V01 ((wds_apn_bearer_mask_v01)0x0000000000000002ull)
-#define WDS_MASK_APN_BEARER_L_V01 ((wds_apn_bearer_mask_v01)0x0000000000000004ull)
-#define WDS_MASK_APN_BEARER_ANY_V01 ((wds_apn_bearer_mask_v01)0x8000000000000000ull)
+#define WDS_MASK_APN_BEARER_G_V01 ((wds_apn_bearer_mask_v01)0x0000000000000001ull) 
+#define WDS_MASK_APN_BEARER_W_V01 ((wds_apn_bearer_mask_v01)0x0000000000000002ull) 
+#define WDS_MASK_APN_BEARER_L_V01 ((wds_apn_bearer_mask_v01)0x0000000000000004ull) 
+#define WDS_MASK_APN_BEARER_ANY_V01 ((wds_apn_bearer_mask_v01)0x8000000000000000ull) 
 /** @addtogroup wds_qmi_aggregates
     @{
   */
 typedef struct {
 
   uint16_t mnc;
-  /**<   A 16-bit integer representation of MNC.
+  /**<   A 16-bit integer representation of MNC. 
        Range: 0 to 999.
   */
 
@@ -2921,13 +3325,87 @@ typedef struct {
   uint8_t mnc_includes_pcs_digit;
   /**<   This field is used to interpret the length of the corresponding
        MNC reported in the TLVs. Values: \n
-
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
                   90 corresponds to an MNC value of 90
   */
 }wds_mnc_pcs_digit_include_status_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint16_t mcc;
+  /**<   A 16-bit integer representation of MCC. 
+       Range: 0 to 999.
+  */
+
+  uint16_t mnc;
+  /**<   A 16-bit integer representation of MNC. 
+       Range: 0 to 999.
+  */
+
+  /*  MNC PCS Digit Include Status */
+  uint8_t mnc_includes_pcs_digit;
+  /**<   This field is used to interpret the length of the corresponding 
+       MNC reported in the TLV. Values: \n
+
+       - TRUE  -- MNC is a three-digit value; e.g., a reported value of 
+                  90 corresponds to an MNC value of 090  \n
+       - FALSE -- MNC is a two-digit value; e.g., a reported value of 
+                  90 corresponds to an MNC value of 90
+  */
+
+  uint32_t app_specific_info_len;  /**< Must be set to # of elements in app_specific_info */
+  uint8_t app_specific_info[QMI_WDS_APP_SPECIFIC_INFO_V01];
+  /**<   Points to the application-specific information
+       from the network. The format for this field complies with 
+       3GPP TS 24.008 \hyperref[S5]{[S5]}. The field is populated in this 
+       format for both 3GPP and 3GPP2. 
+  */
+
+  uint16_t container_id;
+  /**<   Container ID of this PCO.
+  */
+}wds_op_reserved_pco_info_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t common_allow_linger;
+  /**<   Values: \n
+       - 1 -- TRUE -- Allow lingering \n
+       - 0 -- FALSE -- Do not allow lingering 
+  */
+
+  uint16_t common_linger_timeout;
+  /**<   Value of linger timeout in milliseconds.
+  */
+}wds_common_linger_param_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_COMMON_PDP_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_COMMON_PDP_TYPE_PDP_IPV4_V01 = 0x00, 
+  WDS_COMMON_PDP_TYPE_PDP_IPV6_V01 = 0x01, 
+  WDS_COMMON_PDP_TYPE_PDP_IPV4V6_V01 = 0x02, 
+  WDS_COMMON_PDP_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_common_pdp_type_enum_v01;
 /**
     @}
   */
@@ -2942,9 +3420,10 @@ typedef struct {
   /*  Profile Type */
   wds_profile_type_enum_v01 profile_type;
   /**<   Identifies the technology type of the profile. Values: \n
-       - 0x00 -- 3GPP \n
-       - 0x01 -- 3GPP2
-  */
+      - WDS_PROFILE_TYPE_3GPP (0x00) --  3GPP \n 
+      - WDS_PROFILE_TYPE_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_PROFILE_TYPE_EPC (0x02) --  EPC 
+ */
 
   /* Optional */
   /*  Profile Name ** */
@@ -2977,7 +3456,7 @@ typedef struct {
        - 1 -- Manufacturer preferred compression \n
        - 2 -- PDP header compression based on RFC 1144 \n
        - 3 -- PDP header compression based on RFC 2507 \n
-       - 4 -- PDP header compression based on RFC 3095
+       - 4 -- PDP header compression based on RFC 3095 
   */
 
   /* Optional */
@@ -2987,8 +3466,8 @@ typedef struct {
   /**<   Values: \n
        - 0 -- PDP data compression is off \n
        - 1 -- Manufacturer preferred compression \n
-       - 2 -- V.42BIS data compresion \n
-       - 3 -- V.44 data compresion
+       - 2 -- V.42BIS data compression \n
+       - 3 -- V.44 data compression
   */
 
   /* Optional */
@@ -2999,7 +3478,8 @@ typedef struct {
        used to select the GGSN and external packet data network.
 
        If the value is NULL or omitted, the subscription default
-       value is requested.
+       value is requested. This value is applicable to 3GPP and EPC Profile
+       types.
 
        QMI_ERR_ARG_TOO_LONG is returned if the APN name is too long.
   */
@@ -3008,8 +3488,8 @@ typedef struct {
   /*  Primary DNS IPv4 Address Preference ** */
   uint8_t primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if primary_DNS_IPv4_address_preference is being passed */
   uint32_t primary_DNS_IPv4_address_preference;
-  /**<   Value can be used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -3018,8 +3498,8 @@ typedef struct {
   /*  Secondary DNS IPv4 Address Preference ** */
   uint8_t secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if secondary_DNS_IPv4_address_preference is being passed */
   uint32_t secondary_DNS_IPv4_address_preference;
-  /**<   Value can be used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -3079,7 +3559,7 @@ typedef struct {
 
        If more than one bit is set, the device decides which
        authentication procedure is performed while setting up the data
-       session, e.g. the device can have a policy to select
+       session, e.g., the device can have a policy to select
        the most secure authentication mechanism.
   */
 
@@ -3087,7 +3567,7 @@ typedef struct {
   /*  IPv4 Address Preference ** */
   uint8_t ipv4_address_preference_valid;  /**< Must be set to true if ipv4_address_preference is being passed */
   uint32_t ipv4_address_preference;
-  /**<   Preferred IPv4 address assigned to the TE. The actual assigned
+  /**<   Preferred IPv4 address assigned to the TE. The actual assigned 
        address is negotiated with the network and can differ from this
        value. If not specified, the IPv4 address is obtained automatically
        from the network. The assigned value is provided to the host via DHCP.
@@ -3098,8 +3578,8 @@ typedef struct {
   uint8_t pcscf_addr_using_pco_valid;  /**< Must be set to true if pcscf_addr_using_pco is being passed */
   uint8_t pcscf_addr_using_pco;
   /**<   Values: \n
-       - 1 -- (TRUE) request PCSCF address using PCO \n
-       - 0 -- (FALSE) do not request \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
      By default the value is 0.
   */
 
@@ -3118,8 +3598,8 @@ typedef struct {
   uint8_t pcscf_addr_using_dhcp_valid;  /**< Must be set to true if pcscf_addr_using_dhcp is being passed */
   uint8_t pcscf_addr_using_dhcp;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request PCSCF address using DHCP \n
-       - 0 -- (FALSE) -- Do not request \n
+       - 1 -- TRUE -- Request PCSCF address using DHCP \n
+       - 0 -- FALSE -- Do not request \n
        By default the value is 0.
   */
 
@@ -3128,8 +3608,8 @@ typedef struct {
   uint8_t im_cn_flag_valid;  /**< Must be set to true if im_cn_flag is being passed */
   uint8_t im_cn_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request IM CN flag for this profile \n
-       - 0 -- (FALSE) -- Do not request IM CN flag for this profile
+       - 1 -- TRUE -- Request IM CN flag for this profile \n
+       - 0 -- FALSE -- Do not request IM CN flag for this profile
   */
 
   /* Optional */
@@ -3153,8 +3633,8 @@ typedef struct {
   uint8_t secondary_flag_valid;  /**< Must be set to true if secondary_flag is being passed */
   uint8_t secondary_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- This is secondary profile \n
-       - 0 -- (FALSE) -- This is not secondary profile
+       - 1 -- TRUE -- This is secondary profile \n
+       - 0 -- FALSE -- This is not secondary profile
   */
 
   /* Optional */
@@ -3169,7 +3649,7 @@ typedef struct {
   uint8_t ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
   /**<   Preferred IPv6 address assigned to the TE. The actual assigned
        address is negotiated with the network and can differ from this value;
-       if not specified, the IPv6 address is obtainend automatically from the
+       if not specified, the IPv6 address is obtained automatically from the
        network.
   */
 
@@ -3189,8 +3669,8 @@ typedef struct {
   uint8_t primary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
   /**<   The value can be used as a preference during negotiation with the
        network; if not specified, the wireless device attempts to obtain
-       the DNS address automatically from the network; the negotiated value
-       is provided to the host via DHCP
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP
   */
 
   /* Optional */
@@ -3200,7 +3680,7 @@ typedef struct {
   /**<   The value can be used as a preference during negotiation with the
        network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
-       is provided to the host via DHCP
+       is provided to the host via the DHCP
   */
 
   /* Optional */
@@ -3222,22 +3702,22 @@ typedef struct {
   /*  APN Disabled Flag ** */
   uint8_t apn_disabled_flag_valid;  /**< Must be set to true if apn_disabled_flag is being passed */
   uint8_t apn_disabled_flag;
-  /**<   Setting this flag disables the use of this profile for
-       making data calls. Any data call with this profile
+  /**<   Disables the use of this profile for 
+       making data calls. Any data call with this profile 
        fails locally. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE 
    */
 
   /* Optional */
   /*  PDN Inactivity Timeout ** */
   uint8_t pdn_inactivity_timeout_valid;  /**< Must be set to true if pdn_inactivity_timeout is being passed */
   uint32_t pdn_inactivity_timeout;
-  /**<   Duration of the inactivity timer in seconds. If a PDP
-       context/PDN connection is inactive (i.e., no data
+  /**<   Duration of the inactivity timer in seconds. If a PDP 
+       context/PDN connection is inactive (i.e., no data 
        Rx/Tx) for this duration of time, the PDP context/PDN
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -3245,10 +3725,9 @@ typedef struct {
   /*  APN Class ** */
   uint8_t apn_class_valid;  /**< Must be set to true if apn_class is being passed */
   uint8_t apn_class;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. The APN class can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. The APN class can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -3267,10 +3746,10 @@ typedef struct {
   /*  Support Emergency Calls ** */
   uint8_t support_emergency_calls_valid;  /**< Must be set to true if support_emergency_calls is being passed */
   uint8_t support_emergency_calls;
-  /**<    When this flag is set, the user can make emergency calls
+  /**<    When this flag is set, the user can make emergency calls 
         using this profile. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE       
   */
 
   /* Optional */
@@ -3297,14 +3776,253 @@ typedef struct {
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit;
 
   /* Optional */
+  /*  Max PDN Connections Per Time Block   ** */
+  uint8_t max_pdn_conn_per_block_valid;  /**< Must be set to true if max_pdn_conn_per_block is being passed */
+  uint16_t max_pdn_conn_per_block;
+  /**<   Specifies the maximum number of PDN connections that the UE
+    is allowed to perform with the network in a specified time block. 
+    The time block size is defined by a configuration item.
+    The default value is 1023. \n
+    Range: 0 to 1023.
+  */
+
+  /* Optional */
+  /*  Max PDN Connections Timer   ** */
+  uint8_t max_pdn_conn_timer_valid;  /**< Must be set to true if max_pdn_conn_timer is being passed */
+  uint16_t max_pdn_conn_timer;
+  /**<   Specifies the time duration (in seconds) during which the UE 
+   counts the PDN connections already made. 
+   The default value is 300. \n
+   Range: 0 to 3600 sec.
+  */
+
+  /* Optional */
+  /*  PDN Request Wait Timer  ** */
+  uint8_t pdn_req_wait_interval_valid;  /**< Must be set to true if pdn_req_wait_interval is being passed */
+  uint16_t pdn_req_wait_interval;
+  /**<   Specifies the minimum time interval (in seconds) between the new PDN 
+   connection request and the last successful UE initiated PDN 
+   disconnection.
+   The default value is 0. \n
+   Range: 0 to 1023 sec.
+  */
+
+  /* Optional */
+  /*  3GPP Application User Data  ** */
+  uint8_t app_user_data_3gpp_valid;  /**< Must be set to true if app_user_data_3gpp is being passed */
+  uint32_t app_user_data_3gpp;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Roaming Disallow Flag ** */
+  uint8_t roaming_disallowed_valid;  /**< Must be set to true if roaming_disallowed is being passed */
+  uint8_t roaming_disallowed;
+  /**<   Specifies whether the UE is allowed to connect 
+       to the APN specified by the profile while roaming.
+  */
+
+  /* Optional */
+  /*  PDN Disconnect Wait Timer ** */
+  uint8_t pdn_discon_wait_timer_valid;  /**< Must be set to true if pdn_discon_wait_timer is being passed */
+  uint8_t pdn_discon_wait_timer;
+  /**<    Indicates the delay that the control point expects 
+        to be available for successful deregistration with the network 
+        before the modem disconnects the PDN(s). When the default value of 
+        zero is specified, the modem disconnects the PDN immediately 
+        upon moving to the roaming network, without waiting for the 
+        control point.
+        Range: 0-255 minutes.  
+    */
+
+  /* Optional */
+  /*  DNS Address Using DHCP ** */
+  uint8_t dns_addr_using_dhcp_valid;  /**< Must be set to true if dns_addr_using_dhcp is being passed */
+  uint8_t dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using DHCP ** * */
+  uint8_t common_pcscf_addr_using_dhcp_valid;  /**< Must be set to true if common_pcscf_addr_using_dhcp is being passed */
+  uint8_t common_pcscf_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)    
+  */
+
+  /* Optional */
+  /*  Common DNS Address Using DHCP ** * */
+  uint8_t common_dns_addr_using_dhcp_valid;  /**< Must be set to true if common_dns_addr_using_dhcp is being passed */
+  uint8_t common_dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common PDP Type ** * */
+  uint8_t common_pdp_type_valid;  /**< Must be set to true if common_pdp_type is being passed */
+  wds_common_pdp_type_enum_v01 common_pdp_type;
+  /**<   Specifies the type of data payload
+       exchanged over the airlink when the packet data session is
+       established with this profile. Values: \n
+       - 0 -- PDP-IP (IPv4) \n
+       - 1 -- PDP-IPv6 \n
+       - 2 -- PDP-IPv4v6
+   */
+
+  /* Optional */
+  /*  Common Application User Data  ** */
+  uint8_t common_app_user_data_valid;  /**< Must be set to true if common_app_user_data is being passed */
+  uint32_t common_app_user_data;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common Mobile Network Code *** */
+  uint8_t common_pco_mnc_includes_pcs_digit_valid;  /**< Must be set to true if common_pco_mnc_includes_pcs_digit is being passed */
+  wds_mnc_pcs_digit_include_status_type_v01 common_pco_mnc_includes_pcs_digit;
+
+  /* Optional */
+  /*  Common Mobile Country Code *** */
+  uint8_t common_pco_mcc_valid;  /**< Must be set to true if common_pco_mcc is being passed */
+  uint16_t common_pco_mcc;
+  /**<   A 16-bit integer representation of MCC.
+       Range: 0 to 999.
+  */
+
+  /* Optional */
+  /*  Common Operator Reserved PCO ID ** */
+  uint8_t common_op_pco_id_valid;  /**< Must be set to true if common_op_pco_id is being passed */
+  uint16_t common_op_pco_id;
+  /**<   Container ID of this PCO.
+        If op_pco_id is configured, the UE sends the operator PCO
+        with the container ID that is configured. Once configured,
+        the profile cannot be unconfigured.
+  */
+
+  /* Optional */
+  /*  Common Authentication Password *** */
+  uint8_t common_auth_password_valid;  /**< Must be set to true if common_auth_password is being passed */
+  char common_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
+  /**<   Password used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+  */
+
+  /* Optional */
+  /*  Common User ID *** */
+  uint8_t common_user_id_valid;  /**< Must be set to true if common_user_id is being passed */
+  char common_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
+  /**<   User ID used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+    */
+
+  /* Optional */
+  /*  Common Authentication Protocol *** */
+  uint8_t common_auth_protocol_valid;  /**< Must be set to true if common_auth_protocol is being passed */
+  wds_profile_auth_protocol_enum_v01 common_auth_protocol;
+  /**<   Values: \n
+       - 0 -- None \n
+       - 1 -- PAP \n
+       - 2 -- CHAP \n
+       - 3 -- PAP or CHAP
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using PCO Flag *** */
+  uint8_t common_is_pcscf_address_needed_valid;  /**< Must be set to true if common_is_pcscf_address_needed is being passed */
+  uint8_t common_is_pcscf_address_needed;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
+     By default the value is 0.
+  */
+
+  /* Optional */
+  /*  Common Allow/Disallow Lingering of Interface *** */
+  uint8_t linger_params_valid;  /**< Must be set to true if linger_params is being passed */
+  wds_common_linger_param_type_v01 linger_params;
+
+  /* Optional */
+  /*  Common Secondary DNS IPv6 Address Preference *** */
+  uint8_t common_secodnary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_secodnary_dns_ipv6_address_preference is being passed */
+  uint8_t common_secodnary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS IPv6 Address Preference *** */
+  uint8_t common_primary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_primary_dns_ipv6_address_preference is being passed */
+  uint8_t common_primary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Secondary DNS IPv4 Address Preference *** */
+  uint8_t common_secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_secondary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_secondary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS Address Preference *** */
+  uint8_t common_primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_primary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_primary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the network.
+       If not specified, the wireless device attempts to obtain the DNS
+       address automatically from the network. The negotiated value is provided
+       to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common APN Class *** */
+  uint8_t common_apn_class_valid;  /**< Must be set to true if common_apn_class is being passed */
+  uint8_t common_apn_class;
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. The APN class can be transparently set 
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common APN Disabled Flag *** */
+  uint8_t common_apn_disabled_flag_valid;  /**< Must be set to true if common_apn_disabled_flag is being passed */
+  uint8_t common_apn_disabled_flag;
+  /**<   Setting this flag disables the use of this profile for 
+       making data calls. Any data call with this profile 
+       fails locally. Values: \n
+       - 0 -- FALSE (default) \n
+       - 1 -- TRUE 
+   */
+
+  /* Optional */
   /*  Profile Persistence Flag * ** */
   uint8_t persistent_valid;  /**< Must be set to true if persistent is being passed */
   uint8_t persistent;
-  /**<   Boolean value used to control whether the
-       profile to be created is persistent or not.
+  /**<   Boolean value used to control whether the 
+       profile to be created is persistent or not. 
        The default is persistent. Values: \n
-       - 1 -- (TRUE) -- Profile is persistent \n
-       - 0 -- (FALSE) -- Profile is not persistent
+       - 1 -- TRUE -- Profile is persistent \n
+       - 0 -- FALSE -- Profile is not persistent        
   */
 
   /* Optional */
@@ -3312,8 +4030,8 @@ typedef struct {
   uint8_t negotiate_dns_server_preference_valid;  /**< Must be set to true if negotiate_dns_server_preference is being passed */
   uint8_t negotiate_dns_server_preference;
   /**<   The default value is TRUE. Values: \n
-       - 1 -- (TRUE) -- Request DNS address from the PDSN \n
-       - 0 -- (FALSE) -- Do not request DNS address from the PDSN
+       - 1 -- TRUE -- Request DNS address from the PDSN \n
+       - 0 -- FALSE -- Do not request DNS address from the PDSN 
    */
 
   /* Optional */
@@ -3338,8 +4056,8 @@ typedef struct {
   uint8_t allow_linger_valid;  /**< Must be set to true if allow_linger is being passed */
   uint8_t allow_linger;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Allow lingering \n
-       - 0 -- (FALSE) -- Do not allow lingering
+       - 1 -- TRUE -- Allow lingering \n
+       - 0 -- FALSE -- Do not allow lingering 
   */
 
   /* Optional */
@@ -3399,9 +4117,9 @@ typedef struct {
   /*  User ID * */
   uint8_t user_id_valid;  /**< Must be set to true if user_id is being passed */
   char user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
-  /**<   User ID used during data network authentication;
+  /**<   User ID used during data network authentication; 
        maximum length allowed is 127 bytes.
-       QMI_ERR_ARG_TOO_LONG is returned if the storage on the
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
        wireless device is insufficient in size to hold the value.
     */
 
@@ -3409,9 +4127,9 @@ typedef struct {
   /*  Authentication Password * */
   uint8_t auth_password_valid;  /**< Must be set to true if auth_password is being passed */
   char auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
-  /**<   Password used during data network authentication;
+  /**<   Password used during data network authentication; 
        maximum length allowed is 127 bytes.
-       QMI_ERR_ARG_TOO_LONG is returned if the storage on the
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
        wireless device is insufficient in size to hold the value.
   */
 
@@ -3434,8 +4152,8 @@ typedef struct {
        - 0x00000001 -- Default application type \n
        - 0x00000020 -- LBS application type \n
        - 0x00000040 -- Tethered application type \n
-       Note: Application type value in a profile cannot be modified.
-       It can only be used to search for the profile ID numbers that have
+       Note: Application type value in a profile cannot be modified. 
+       It can only be used to search for the profile ID numbers that have 
        the specified application type. \n
        Note: An error message is returned if this TLV is included in the request.
    */
@@ -3488,10 +4206,10 @@ typedef struct {
   /*  Is PCSCF Address Needed * */
   uint8_t is_pcscf_address_needed_valid;  /**< Must be set to true if is_pcscf_address_needed is being passed */
   uint8_t is_pcscf_address_needed;
-  /**<   This boolean value is used to control whether the PCSCF
+  /**<   Used to control whether the PCSCF
        address is requested from PDSN. Values: \n
-       - 1 -- (TRUE) -- Request the PCSCF value from the PDSN \n
-       - 0 -- (FALSE) -- Do not request the PCSCF value from the PDSN
+       - 1 -- TRUE -- Request the PCSCF value from the PDSN \n
+       - 0 -- FALSE -- Do not request the PCSCF value from the PDSN 
   */
 
   /* Optional */
@@ -3540,23 +4258,23 @@ typedef struct {
   /*  APN Enabled * */
   uint8_t apn_enabled_3gpp2_valid;  /**< Must be set to true if apn_enabled_3gpp2 is being passed */
   uint8_t apn_enabled_3gpp2;
-  /**<    APN enabled is a flag to specify whether the APN in
-       that profile is enabled or disabled. If the APN is
-       disabled, the data call cannot be established
+  /**<    APN enabled is a flag to specify whether the APN in 
+       that profile is enabled or disabled. If the APN is 
+       disabled, the data call cannot be established 
        using that APN. Values: \n
        - 1 -- Enabled (default value) \n
-       - 0 -- Disabled
+       - 0 -- Disabled 
   */
 
   /* Optional */
   /*  PDN Inactivity Timeout * */
   uint8_t pdn_inactivity_timeout_3gpp2_valid;  /**< Must be set to true if pdn_inactivity_timeout_3gpp2 is being passed */
   uint32_t pdn_inactivity_timeout_3gpp2;
-  /**<   The duration of the inactivity timer in minutes. If a PDP
-       context/PDN connection is inactive (i.e., no data
-       Rx/Tx) for this duration of time, the PDP context/PDN
+  /**<   The duration of the inactivity timer in minutes. If a PDP 
+       context/PDN connection is inactive (i.e., no data 
+       Rx/Tx) for this duration of time, the PDP context/PDN 
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -3564,10 +4282,9 @@ typedef struct {
   /*  APN Class * */
   uint8_t apn_class_3gpp2_valid;  /**< Must be set to true if apn_class_3gpp2 is being passed */
   uint8_t apn_class_3gpp2;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. This can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. This can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -3575,17 +4292,18 @@ typedef struct {
   uint8_t pdn_level_auth_protocol_valid;  /**< Must be set to true if pdn_level_auth_protocol is being passed */
   wds_profile_pdn_lvl_auth_proto_enum_v01 pdn_level_auth_protocol;
   /**<   Authentication protocol used during PDN level authentication.
-       Values: \n
-       - 0 -- NONE \n
-       - 1 -- PAP \n
-       - 2 -- CHAP
-  */
+ Values: \n
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_NONE (0) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP (1) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_CHAP (2) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP_CHAP (3) -- 
+ */
 
   /* Optional */
   /*  PDN Level User ID * */
   uint8_t pdn_level_user_id_valid;  /**< Must be set to true if pdn_level_user_id is being passed */
   char pdn_level_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
-  /**<   User ID used during PDN level authentication.
+  /**<   User ID used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -3593,7 +4311,7 @@ typedef struct {
   /*  PDN Level Auth Password * */
   uint8_t pdn_level_auth_password_valid;  /**< Must be set to true if pdn_level_auth_password is being passed */
   char pdn_level_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
-  /**<   Password used during PDN level authentication.
+  /**<   Password used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -3601,10 +4319,10 @@ typedef struct {
   /*  PDN Label * */
   uint8_t pdn_label_valid;  /**< Must be set to true if pdn_label is being passed */
   char pdn_label[QMI_WDS_APN_NAME_MAX_V01 + 1];
-  /**<   Logical name used to map the APN name for selecting the
+  /**<   Logical name used to map the APN name for selecting the 
        packet data network. Maximum length allowed is 100 bytes. \n
        The following are the three steps of a request using the PDN label: \n
-       1. Find the corresponding profile that has the indicated PDN label. \n
+       1. Find the corresponding profile that has the indicated PDN label. \n 
        2. Get the profile's APN name. \n
        3. Use the APN name for the PDN connection.
   */
@@ -3631,6 +4349,66 @@ typedef struct {
   /*  Mobile Network Code * */
   uint8_t pco_mnc_includes_pcs_digit_3gpp2_valid;  /**< Must be set to true if pco_mnc_includes_pcs_digit_3gpp2 is being passed */
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit_3gpp2;
+
+  /* Optional */
+  /*  PDN Throttling Timer 1-6 * */
+  uint8_t failure_timer_valid;  /**< Must be set to true if failure_timer is being passed */
+  uint32_t failure_timer[QMI_WDS_MAX_FAILURE_TIMER_V01];
+  /**<   The back-off time (in seconds) to be used after a PDN connection or 
+  IP address assignment failure. For example, immediately following a third 
+  consecutive PDN connection request failure, the UE waits failure_timer[2] 
+  seconds before sending the fourth request. Following failures of six or greater,
+  failure_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  PDN Disallow Timer 1-6 * */
+  uint8_t disallow_timer_valid;  /**< Must be set to true if disallow_timer is being passed */
+  uint32_t disallow_timer[QMI_WDS_MAX_DISALLOW_TIMER_V01];
+  /**<   The back-off time (in seconds) to be used after the network refuses 
+  to grant the requested IP address type, such as when an IPv6 address is requested 
+  from a network that only grants the IPv4 address. For example, immediately 
+  after a third consecutive PDN connection request is denied, the UE waits 
+  disallow_timer[2] seconds before sending the fourth request. 
+  Following failures of six or greater, disallow_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  3GPP2 Application User Data  * */
+  uint8_t app_user_data_3gpp2_valid;  /**< Must be set to true if app_user_data_3gpp2 is being passed */
+  uint32_t app_user_data_3gpp2;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  PCSCF Address Using DHCP 3GPP2 * */
+  uint8_t pcscf_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if pcscf_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t pcscf_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  DNS Address Using DHCP * */
+  uint8_t dns_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if dns_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t dns_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  IPv6 Prefix Delegation Flag * ** */
+  uint8_t ipv6_prefix_delegation_valid;  /**< Must be set to true if ipv6_prefix_delegation is being passed */
+  uint8_t ipv6_prefix_delegation;
+  /**<   Enables IPv6 prefix delegation.
+     Values: \n
+     - 0 -- FALSE (default) \n
+     - 1 -- TRUE
+  */
 }wds_create_profile_req_msg_v01;  /* Message */
 /**
     @}
@@ -3643,9 +4421,10 @@ typedef struct {
 
   wds_profile_type_enum_v01 profile_type;
   /**<   Identifies the type of the profile. Values: \n
-       - 0 -- 3GPP \n
-       - 1 -- 3GPP2
-   */
+      - WDS_PROFILE_TYPE_3GPP (0x00) --  3GPP \n 
+      - WDS_PROFILE_TYPE_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_PROFILE_TYPE_EPC (0x02) --  EPC 
+ */
 
   uint8_t profile_index;
   /**<   Index identifying the profile.*/
@@ -3659,18 +4438,18 @@ typedef struct {
   */
 typedef enum {
   WDS_DS_EXTENDED_ERROR_CODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EEC_DS_PROFILE_REG_RESULT_FAIL_V01 = 0x01,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_HNDL_V01 = 0x02,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_OP_V01 = 0x03,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_PROFILE_TYPE_V01 = 0x04,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_PROFILE_NUM_V01 = 0x05,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_IDENT_V01 = 0x06,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_V01 = 0x07,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_LIB_NOT_INITED_V01 = 0x08,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_LEN_INVALID_V01 = 0x09,
-  WDS_EEC_DS_PROFILE_REG_RESULT_LIST_END_V01 = 0x0A,
-  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_SUBS_ID_V01 = 0x0B,
-  WDS_EEC_DS_PROFILE_REG_INVAL_PROFILE_FAMILY_V01 = 0x0C,
+  WDS_EEC_DS_PROFILE_REG_RESULT_FAIL_V01 = 0x01, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_HNDL_V01 = 0x02, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_OP_V01 = 0x03, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_PROFILE_TYPE_V01 = 0x04, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_PROFILE_NUM_V01 = 0x05, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_IDENT_V01 = 0x06, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_V01 = 0x07, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_LIB_NOT_INITED_V01 = 0x08, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_LEN_INVALID_V01 = 0x09, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_LIST_END_V01 = 0x0A, 
+  WDS_EEC_DS_PROFILE_REG_RESULT_ERR_INVAL_SUBS_ID_V01 = 0x0B, 
+  WDS_EEC_DS_PROFILE_REG_INVAL_PROFILE_FAMILY_V01 = 0x0C, 
   WDS_EEC_DS_PROFILE_REG_3GPP_INVAL_PROFILE_FAMILY_V01 = 0x3E9, /**<  Deprecated rev 1.25  */
   WDS_EEC_DS_PROFILE_REG_3GPP_ACCESS_ERR_V01 = 0x3EA, /**<  Deprecated rev 1.25  */
   WDS_EEC_DS_PROFILE_REG_3GPP_CONTEXT_NOT_DEFINED_V01 = 0x3EB, /**<  Deprecated rev 1.25  */
@@ -3678,14 +4457,14 @@ typedef enum {
   WDS_EEC_DS_PROFILE_REG_3GPP_READ_ONLY_FLAG_SET_V01 = 0x3ED, /**<  Deprecated rev 1.25  */
   WDS_EEC_DS_PROFILE_REG_3GPP_ERR_OUT_OF_PROFILES_V01 = 0x3EE, /**<  Deprecated rev 1.25  */
   WDS_EEC_DS_PROFILE_REG_3GPP2_ERR_INVALID_IDENT_FOR_PROFILE_V01 = 0x44D, /**<  Deprecated rev 1.25  */
-  WDS_EEC_DS_PROFILE_3GPP_INVAL_PROFILE_FAMILY_V01 = 0x1001,
-  WDS_EEC_DS_PROFILE_3GPP_ACCESS_ERR_V01 = 0x1002,
-  WDS_EEC_DS_PROFILE_3GPP_CONTEXT_NOT_DEFINED_V01 = 0x1003,
-  WDS_EEC_DS_PROFILE_3GPP_VALID_FLAG_NOT_SET_V01 = 0x1004,
-  WDS_EEC_DS_PROFILE_3GPP_READ_ONLY_FLAG_SET_V01 = 0x1005,
-  WDS_EEC_DS_PROFILE_3GPP_ERR_OUT_OF_PROFILES_V01 = 0x1006,
-  WDS_EEC_DS_PROFILE_3GPP2_ERR_INVALID_IDENT_FOR_PROFILE_V01 = 0x1101,
-  WDS_EEC_DS_PROFILE_3GPP2_ERR_OUT_OF_PROFILE_V01 = 0x1102,
+  WDS_EEC_DS_PROFILE_3GPP_INVAL_PROFILE_FAMILY_V01 = 0x1001, 
+  WDS_EEC_DS_PROFILE_3GPP_ACCESS_ERR_V01 = 0x1002, 
+  WDS_EEC_DS_PROFILE_3GPP_CONTEXT_NOT_DEFINED_V01 = 0x1003, 
+  WDS_EEC_DS_PROFILE_3GPP_VALID_FLAG_NOT_SET_V01 = 0x1004, 
+  WDS_EEC_DS_PROFILE_3GPP_READ_ONLY_FLAG_SET_V01 = 0x1005, 
+  WDS_EEC_DS_PROFILE_3GPP_ERR_OUT_OF_PROFILES_V01 = 0x1006, 
+  WDS_EEC_DS_PROFILE_3GPP2_ERR_INVALID_IDENT_FOR_PROFILE_V01 = 0x1101, 
+  WDS_EEC_DS_PROFILE_3GPP2_ERR_OUT_OF_PROFILE_V01 = 0x1102, 
   WDS_DS_EXTENDED_ERROR_CODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ds_extended_error_code_enum_v01;
 /**
@@ -3699,19 +4478,19 @@ typedef enum {
 typedef struct {
 
   /* Mandatory */
-  /*  Profile Identifier */
-  wds_profile_identifier_type_v01 profile;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Profile Identifier */
+  wds_profile_identifier_type_v01 profile;
 
   /* Optional */
   /*  Extended Error Code */
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   The extended error code received from the DS Profile subsystem.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_create_profile_resp_msg_v01;  /* Message */
@@ -3792,7 +4571,7 @@ typedef struct {
   uint8_t primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if primary_DNS_IPv4_address_preference is being passed */
   uint32_t primary_DNS_IPv4_address_preference;
   /**<   This value can be used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -3802,7 +4581,7 @@ typedef struct {
   uint8_t secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if secondary_DNS_IPv4_address_preference is being passed */
   uint32_t secondary_DNS_IPv4_address_preference;
   /**<   This value can be used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -3870,7 +4649,7 @@ typedef struct {
   /*  IPv4 Address Preference ** */
   uint8_t ipv4_address_preference_valid;  /**< Must be set to true if ipv4_address_preference is being passed */
   uint32_t ipv4_address_preference;
-  /**<   The preferred IPv4 address assigned to the TE.
+  /**<   The preferred IPv4 address assigned to the TE.  
        The actual assigned address is negotiated with the network and
        may differ from this value. If not specified, the IPv4 Address
        is obtained automatically from the network. The assigned value
@@ -3882,8 +4661,8 @@ typedef struct {
   uint8_t pcscf_addr_using_pco_valid;  /**< Must be set to true if pcscf_addr_using_pco is being passed */
   uint8_t pcscf_addr_using_pco;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request PCSCF address using PCO \n
-       - 0 -- (FALSE) -- Do not request \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
      By default this value is 0.
   */
 
@@ -3902,8 +4681,8 @@ typedef struct {
   uint8_t pcscf_addr_using_dhcp_valid;  /**< Must be set to true if pcscf_addr_using_dhcp is being passed */
   uint8_t pcscf_addr_using_dhcp;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request PCSCF address using the DHCP \n
-       - 0 -- (FALSE) -- Do not request \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request \n
        By default, the value is 0.
   */
 
@@ -3912,8 +4691,8 @@ typedef struct {
   uint8_t im_cn_flag_valid;  /**< Must be set to true if im_cn_flag is being passed */
   uint8_t im_cn_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request the IM CN flag for this profile \n
-       - 0 -- (FALSE) -- Do not request the IM CN flag for this profile
+       - 1 -- TRUE -- Request the IM CN flag for this profile \n
+       - 0 -- FALSE -- Do not request the IM CN flag for this profile
   */
 
   /* Optional */
@@ -3937,8 +4716,8 @@ typedef struct {
   uint8_t secondary_flag_valid;  /**< Must be set to true if secondary_flag is being passed */
   uint8_t secondary_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- This is the secondary profile \n
-       - 0 -- (FALSE) -- This is not the secondary profile
+       - 1 -- TRUE -- This is the secondary profile \n
+       - 0 -- FALSE -- This is not the secondary profile
   */
 
   /* Optional */
@@ -4006,11 +4785,11 @@ typedef struct {
   /*  APN Disabled Flag ** */
   uint8_t apn_disabled_flag_valid;  /**< Must be set to true if apn_disabled_flag is being passed */
   uint8_t apn_disabled_flag;
-  /**<   When this flag is set, the use of this profile for
-       making a data call is disabled. Any data call with
+  /**<   When this flag is set, the use of this profile for 
+       making a data call is disabled. Any data call with 
        this profile fails locally. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE        
   */
 
   /* Optional */
@@ -4018,10 +4797,10 @@ typedef struct {
   uint8_t pdn_inactivity_timeout_valid;  /**< Must be set to true if pdn_inactivity_timeout is being passed */
   uint32_t pdn_inactivity_timeout;
   /**<   The duration of the inactivity timer in seconds. When
-       a PDP context/PDN connection is inactive (i.e., no data
+       a PDP context/PDN connection is inactive (i.e., no data 
        Rx/Tx) for this duration of time, the PDP context/PDN
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -4029,10 +4808,9 @@ typedef struct {
   /*  APN Class ** */
   uint8_t apn_class_valid;  /**< Must be set to true if apn_class is being passed */
   uint8_t apn_class;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. This can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. This can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -4051,10 +4829,10 @@ typedef struct {
   /*  Support Emergency Calls ** */
   uint8_t support_emergency_calls_valid;  /**< Must be set to true if support_emergency_calls is being passed */
   uint8_t support_emergency_calls;
-  /**<    When this flag is set, the user can make emergency calls
+  /**<    When this flag is set, the user can make emergency calls 
         using this profile. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE       
   */
 
   /* Optional */
@@ -4081,12 +4859,251 @@ typedef struct {
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit;
 
   /* Optional */
+  /*  Max PDN Connections Per Time Block   ** */
+  uint8_t max_pdn_conn_per_block_valid;  /**< Must be set to true if max_pdn_conn_per_block is being passed */
+  uint16_t max_pdn_conn_per_block;
+  /**<   Specifies the maximum number of PDN connections that the UE
+    is allowed to perform with the network in a specified time block. 
+    The time block size is defined by a configuration item.
+    The default value is 1023. \n
+    Range: 0 to 1023.
+  */
+
+  /* Optional */
+  /*  Max PDN Connections Timer   ** */
+  uint8_t max_pdn_conn_timer_valid;  /**< Must be set to true if max_pdn_conn_timer is being passed */
+  uint16_t max_pdn_conn_timer;
+  /**<   Specifies the time duration in seconds during which the UE 
+   counts the PDN connections already made. 
+   The default value is 300. \n
+   Range: 0 to 3600 seconds.
+  */
+
+  /* Optional */
+  /*  PDN Request Wait Timer  ** */
+  uint8_t pdn_req_wait_interval_valid;  /**< Must be set to true if pdn_req_wait_interval is being passed */
+  uint16_t pdn_req_wait_interval;
+  /**<   Specifies the minimum time interval between the new PDN 
+   connection request and the last successful UE initiated PDN 
+   disconnection.
+   The default value is 0. \n
+   Range: 0 to 1023 sec.
+  */
+
+  /* Optional */
+  /*  3GPP Application User Data  ** */
+  uint8_t app_user_data_3gpp_valid;  /**< Must be set to true if app_user_data_3gpp is being passed */
+  uint32_t app_user_data_3gpp;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Roaming Disallow Flag ** */
+  uint8_t roaming_disallowed_valid;  /**< Must be set to true if roaming_disallowed is being passed */
+  uint8_t roaming_disallowed;
+  /**<   Specifies whether the UE is allowed to connect 
+       to the APN specified by the profile while roaming.
+  */
+
+  /* Optional */
+  /*  PDN Disconnect Wait Timer ** */
+  uint8_t pdn_discon_wait_timer_valid;  /**< Must be set to true if pdn_discon_wait_timer is being passed */
+  uint8_t pdn_discon_wait_timer;
+  /**<    Indicates the delay that the control point expects 
+        to be available for successful deregistration with the network 
+        before the modem disconnects the PDN(s). When the default value of 
+        zero is specified, the modem disconnects the PDN immediately 
+        upon moving to the roaming network, without waiting for the 
+        control point.
+        Range: 0-255 minutes.  
+  */
+
+  /* Optional */
+  /*  DNS Address Using DHCP ** */
+  uint8_t dns_addr_using_dhcp_valid;  /**< Must be set to true if dns_addr_using_dhcp is being passed */
+  uint8_t dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using DHCP ** * */
+  uint8_t common_pcscf_addr_using_dhcp_valid;  /**< Must be set to true if common_pcscf_addr_using_dhcp is being passed */
+  uint8_t common_pcscf_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common DNS Address Using DHCP ** * */
+  uint8_t common_dns_addr_using_dhcp_valid;  /**< Must be set to true if common_dns_addr_using_dhcp is being passed */
+  uint8_t common_dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)      
+  */
+
+  /* Optional */
+  /*  Common PDP Type ** * */
+  uint8_t common_pdp_type_valid;  /**< Must be set to true if common_pdp_type is being passed */
+  wds_common_pdp_type_enum_v01 common_pdp_type;
+  /**<   Specifies the type of data payload
+       exchanged over the airlink when the packet data session is
+       established with this profile. Values: \n
+       - 0 -- PDP-IP (IPv4) \n
+       - 1 -- PDP-IPv6 \n
+       - 2 -- PDP-IPv4v6
+   */
+
+  /* Optional */
+  /*  Common Application User Data  ** */
+  uint8_t common_app_user_data_valid;  /**< Must be set to true if common_app_user_data is being passed */
+  uint32_t common_app_user_data;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common Mobile Network Code *** */
+  uint8_t common_pco_mnc_includes_pcs_digit_valid;  /**< Must be set to true if common_pco_mnc_includes_pcs_digit is being passed */
+  wds_mnc_pcs_digit_include_status_type_v01 common_pco_mnc_includes_pcs_digit;
+
+  /* Optional */
+  /*  Common Mobile Country Code *** */
+  uint8_t common_pco_mcc_valid;  /**< Must be set to true if common_pco_mcc is being passed */
+  uint16_t common_pco_mcc;
+  /**<   A 16-bit integer representation of MCC.
+       Range: 0 to 999.
+  */
+
+  /* Optional */
+  /*  Common Operator Reserved PCO ID ** */
+  uint8_t common_op_pco_id_valid;  /**< Must be set to true if common_op_pco_id is being passed */
+  uint16_t common_op_pco_id;
+  /**<   Container ID of this PCO.
+        If op_pco_id is configured, the UE sends the operator PCO
+        with the container ID that is configured. Once configured,
+        the profile cannot be unconfigured.
+  */
+
+  /* Optional */
+  /*  Common Authentication Password *** */
+  uint8_t common_auth_password_valid;  /**< Must be set to true if common_auth_password is being passed */
+  char common_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
+  /**<   Password used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+  */
+
+  /* Optional */
+  /*  Common User ID *** */
+  uint8_t common_user_id_valid;  /**< Must be set to true if common_user_id is being passed */
+  char common_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
+  /**<   User ID used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+    */
+
+  /* Optional */
+  /*  Common Authentication Protocol *** */
+  uint8_t common_auth_protocol_valid;  /**< Must be set to true if common_auth_protocol is being passed */
+  wds_profile_auth_protocol_enum_v01 common_auth_protocol;
+  /**<   Values: \n
+       - 0 -- None \n
+       - 1 -- PAP \n
+       - 2 -- CHAP \n
+       - 3 -- PAP or CHAP
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using PCO Flag *** */
+  uint8_t common_is_pcscf_address_needed_valid;  /**< Must be set to true if common_is_pcscf_address_needed is being passed */
+  uint8_t common_is_pcscf_address_needed;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
+     By default the value is 0.
+  */
+
+  /* Optional */
+  /*  Common Allow/Disallow Lingering of Interface *** */
+  uint8_t linger_params_valid;  /**< Must be set to true if linger_params is being passed */
+  wds_common_linger_param_type_v01 linger_params;
+
+  /* Optional */
+  /*  Common Secondary DNS IPv6 Address Preference *** */
+  uint8_t common_secodnary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_secodnary_dns_ipv6_address_preference is being passed */
+  uint8_t common_secodnary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS IPv6 Address Preference *** */
+  uint8_t common_primary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_primary_dns_ipv6_address_preference is being passed */
+  uint8_t common_primary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Secondary DNS IPv4 Address Preference *** */
+  uint8_t common_secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_secondary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_secondary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS Address Preference *** */
+  uint8_t common_primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_primary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_primary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the network;
+       if not specified, the wireless device attempts to obtain the DNS
+       address automatically from the network. The negotiated value is provided
+       to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common APN Class *** */
+  uint8_t common_apn_class_valid;  /**< Must be set to true if common_apn_class is being passed */
+  uint8_t common_apn_class;
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. The APN class can be transparently set 
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common APN Disabled Flag *** */
+  uint8_t common_apn_disabled_flag_valid;  /**< Must be set to true if common_apn_disabled_flag is being passed */
+  uint8_t common_apn_disabled_flag;
+  /**<   Setting this flag disables the use of this profile for 
+       making data calls. Any data call with this profile 
+       fails locally. Values: \n
+       - 0 -- FALSE (default) \n
+       - 1 -- TRUE 
+   */
+
+  /* Optional */
   /*  Negotiate DNS Server Preference * */
   uint8_t negotiate_dns_server_preference_valid;  /**< Must be set to true if negotiate_dns_server_preference is being passed */
   uint8_t negotiate_dns_server_preference;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request DNS address from the PDSN \n
-       - 0 -- (FALSE) -- Do not request DNS addresses from the PDSN \n
+       - 1 -- TRUE -- Request DNS address from the PDSN \n
+       - 0 -- FALSE -- Do not request DNS addresses from the PDSN \n
        Note: Default value is 1 (TRUE).
   */
 
@@ -4094,7 +5111,7 @@ typedef struct {
   /*  PPP Session Close Timer for DO * */
   uint8_t ppp_session_close_timer_DO_valid;  /**< Must be set to true if ppp_session_close_timer_DO is being passed */
   uint32_t ppp_session_close_timer_DO;
-  /**<   Timer value (in seconds) on the DO indicating how long
+  /**<   Timer value (in seconds) on the DO indicating how long 
        the PPP session lingers before closing down.
   */
 
@@ -4112,8 +5129,8 @@ typedef struct {
   uint8_t allow_linger_valid;  /**< Must be set to true if allow_linger is being passed */
   uint8_t allow_linger;
   /**<   Values: \n
-       - 1 -- (TRUE) --- Allow lingering \n
-       - 0 -- (FALSE) -- Do not allow lingering
+       - 1 -- TRUE -- Allow lingering \n
+       - 0 -- FALSE -- Do not allow lingering 
   */
 
   /* Optional */
@@ -4166,7 +5183,7 @@ typedef struct {
        - 0 -- NONE \n
        - 1 -- PAP \n
        - 2 -- CHAP \n
-       - 3 -- PAP or CHAP
+       - 3 -- PAP or CHAP 
   */
 
   /* Optional */
@@ -4267,17 +5284,17 @@ typedef struct {
   /*  Is PCSCF Address Needed * */
   uint8_t is_pcscf_address_needed_valid;  /**< Must be set to true if is_pcscf_address_needed is being passed */
   uint8_t is_pcscf_address_needed;
-  /**<   The boolean value is used to control whether the PCSCF
+  /**<   Used to control whether the PCSCF
        address is requested from PDSN. Values: \n
-       - 1 -- (TRUE) -- Request for PCSCF value from the PDSN \n
-       - 0 -- (FALSE) -- Do not request for PCSCF value from the PDSN
+       - 1 -- TRUE -- Request for PCSCF value from the PDSN \n
+       - 0 -- FALSE -- Do not request for PCSCF value from the PDSN
   */
 
   /* Optional */
   /*  IPv4 Primary DNS Address * */
   uint8_t primary_v4_dns_address_valid;  /**< Must be set to true if primary_v4_dns_address is being passed */
   uint32_t primary_v4_dns_address;
-  /**<   The primary IPv4 DNS address
+  /**<   The primary IPv4 DNS address 
        statically assigned to the UE.
   */
 
@@ -4285,7 +5302,7 @@ typedef struct {
   /*  IPv4 Secondary DNS Address * */
   uint8_t secondary_v4_dns_address_valid;  /**< Must be set to true if secondary_v4_dns_address is being passed */
   uint32_t secondary_v4_dns_address;
-  /**<   The secondary IPv4 DNS address
+  /**<   The secondary IPv4 DNS address 
        statically assigned to the UE.
   */
 
@@ -4293,7 +5310,7 @@ typedef struct {
   /*  Primary IPv6 DNS Address * */
   uint8_t primary_v6_dns_address_valid;  /**< Must be set to true if primary_v6_dns_address is being passed */
   uint8_t primary_v6_dns_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   The primary IPv6 DNS address
+  /**<   The primary IPv6 DNS address 
        statically assigned to the UE.
   */
 
@@ -4319,23 +5336,23 @@ typedef struct {
   /*  APN Enabled * */
   uint8_t apn_enabled_3gpp2_valid;  /**< Must be set to true if apn_enabled_3gpp2 is being passed */
   uint8_t apn_enabled_3gpp2;
-  /**<   APN enabled is a flag to specify whether the APN in
-       that profile is enabled or disabled. If the APN is
-       disabled, the data call cannot be established
+  /**<   APN enabled is a flag to specify whether the APN in 
+       that profile is enabled or disabled. If the APN is 
+       disabled, the data call cannot be established 
        using that APN. Values: \n
        - 1 -- Enabled (default value) \n
-       - 0 -- Disabled
+       - 0 -- Disabled        
   */
 
   /* Optional */
   /*  PDN Inactivity Timeout * */
   uint8_t pdn_inactivity_timeout_3gpp2_valid;  /**< Must be set to true if pdn_inactivity_timeout_3gpp2 is being passed */
   uint32_t pdn_inactivity_timeout_3gpp2;
-  /**<   Duration of inactivity timer in minutes. If a PDP
-       context/PDN connection is inactive (i.e., no data
-       Rx/Tx) for this duration of time, the PDP context/PDN
+  /**<   Duration of inactivity timer in minutes. If a PDP 
+       context/PDN connection is inactive (i.e., no data 
+       Rx/Tx) for this duration of time, the PDP context/PDN 
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -4343,10 +5360,9 @@ typedef struct {
   /*  APN Class 3GPP2 * */
   uint8_t apn_class_3gpp2_valid;  /**< Must be set to true if apn_class_3gpp2 is being passed */
   uint8_t apn_class_3gpp2;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. This can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. This can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -4354,17 +5370,18 @@ typedef struct {
   uint8_t pdn_level_auth_protocol_valid;  /**< Must be set to true if pdn_level_auth_protocol is being passed */
   wds_profile_pdn_lvl_auth_proto_enum_v01 pdn_level_auth_protocol;
   /**<   Authentication protocol used during PDN level authentication.
-       Values: \n
-       - 0 -- NONE \n
-       - 1 -- PAP \n
-       - 2 -- CHAP
-  */
+ Values: \n
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_NONE (0) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP (1) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_CHAP (2) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP_CHAP (3) -- 
+ */
 
   /* Optional */
   /*  PDN Level User ID * */
   uint8_t pdn_level_user_id_valid;  /**< Must be set to true if pdn_level_user_id is being passed */
   char pdn_level_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
-  /**<   User ID used during PDN level authentication.
+  /**<   User ID used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -4372,7 +5389,7 @@ typedef struct {
   /*  PDN Level Auth Password * */
   uint8_t pdn_level_auth_password_valid;  /**< Must be set to true if pdn_level_auth_password is being passed */
   char pdn_level_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
-  /**<   Password used during PDN level authentication.
+  /**<   Password used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -4380,7 +5397,7 @@ typedef struct {
   /*  PDN Label * */
   uint8_t pdn_label_valid;  /**< Must be set to true if pdn_label is being passed */
   char pdn_label[QMI_WDS_APN_NAME_MAX_V01 + 1];
-  /**<   Logical name used to map the APN name for selecting the
+  /**<   Logical name used to map the APN name for selecting the 
        packet data network. Maximum length allowed is 100 bytes.
   */
 
@@ -4406,6 +5423,66 @@ typedef struct {
   /*  Mobile Network Code * */
   uint8_t pco_mnc_includes_pcs_digit_3gpp2_valid;  /**< Must be set to true if pco_mnc_includes_pcs_digit_3gpp2 is being passed */
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit_3gpp2;
+
+  /* Optional */
+  /*  PDN Throttling Timer 1-6 * */
+  uint8_t failure_timer_valid;  /**< Must be set to true if failure_timer is being passed */
+  uint32_t failure_timer[QMI_WDS_MAX_FAILURE_TIMER_V01];
+  /**<   The back-off time (in seconds) to be used after a PDN connection or 
+  IP address assignment failure. For example, immediately following a third 
+  consecutive PDN connection request failure, the UE waits failure_timer[2] 
+  seconds before sending the fourth request. Following failures of six or greater,
+  failure_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  PDN Disallow Timer 1-6 * */
+  uint8_t disallow_timer_valid;  /**< Must be set to true if disallow_timer is being passed */
+  uint32_t disallow_timer[QMI_WDS_MAX_DISALLOW_TIMER_V01];
+  /**<   The back-off time (in seconds) to be used after the network refuses 
+  to grant the requested IP address type, such as when an IPv6 address is requested 
+  from a network that only grants the IPv4 address. For example, immediately 
+  after a third consecutive PDN connection request is denied, the UE waits 
+  disallow_timer[2] seconds before sending the fourth request. Following failures 
+  of six or greater, disallow_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  3GPP2 Application User Data  * */
+  uint8_t app_user_data_3gpp2_valid;  /**< Must be set to true if app_user_data_3gpp2 is being passed */
+  uint32_t app_user_data_3gpp2;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  PCSCF Address Using DHCP 3GPP2 * */
+  uint8_t pcscf_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if pcscf_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t pcscf_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)      
+  */
+
+  /* Optional */
+  /*  DNS Address Using DHCP * */
+  uint8_t dns_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if dns_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t dns_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)      
+  */
+
+  /* Optional */
+  /*  IPv6 Prefix Delegation Flag * ** */
+  uint8_t ipv6_prefix_delegation_valid;  /**< Must be set to true if ipv6_prefix_delegation is being passed */
+  uint8_t ipv6_prefix_delegation;
+  /**<   Enables IPv6 prefix delegation.
+     Values: \n
+     - 0 -- FALSE (default) \n
+     - 1 -- TRUE
+  */
 }wds_modify_profile_settings_req_msg_v01;  /* Message */
 /**
     @}
@@ -4426,7 +5503,7 @@ typedef struct {
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   Error code from the DS profile.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_modify_profile_settings_resp_msg_v01;  /* Message */
@@ -4463,7 +5540,7 @@ typedef struct {
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   Error code from the DS profile.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_delete_profile_resp_msg_v01;  /* Message */
@@ -4483,9 +5560,10 @@ typedef struct {
   uint8_t profile_type_valid;  /**< Must be set to true if profile_type is being passed */
   wds_profile_type_enum_v01 profile_type;
   /**<   Identifies the technology type of the profile. Values: \n
-       - 0 -- 3GPP \n
-       - 1 -- 3GPP2
-  */
+      - WDS_PROFILE_TYPE_3GPP (0x00) --  3GPP \n 
+      - WDS_PROFILE_TYPE_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_PROFILE_TYPE_EPC (0x02) --  EPC 
+ */
 }wds_get_profile_list_req_msg_v01;  /* Message */
 /**
     @}
@@ -4498,9 +5576,10 @@ typedef struct {
 
   wds_profile_type_enum_v01 profile_type;
   /**<   Identifies the technology type of the profile. Values: \n
-       - 0 -- 3GPP \n
-       - 1 -- 3GPP2
-   */
+      - WDS_PROFILE_TYPE_3GPP (0x00) --  3GPP \n 
+      - WDS_PROFILE_TYPE_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_PROFILE_TYPE_EPC (0x02) --  EPC 
+ */
 
   uint8_t profile_index;
   /**<   Profile number identifying the profile.*/
@@ -4522,20 +5601,20 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Profile list  */
   uint32_t profile_list_len;  /**< Must be set to # of elements in profile_list */
   wds_profile_info_type_v01 profile_list[QMI_WDS_PROFILE_LIST_MAX_V01];
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 
   /* Optional */
   /*  Extended Error Code */
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   Error code from the DS profile.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_get_profile_list_resp_msg_v01;  /* Message */
@@ -4630,8 +5709,8 @@ typedef struct {
   /*  Primary DNS Address Preference ** */
   uint8_t primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if primary_DNS_IPv4_address_preference is being passed */
   uint32_t primary_DNS_IPv4_address_preference;
-  /**<   Value used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -4640,8 +5719,8 @@ typedef struct {
   /*  Secondary DNS Address Preference ** */
   uint8_t secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if secondary_DNS_IPv4_address_preference is being passed */
   uint32_t secondary_DNS_IPv4_address_preference;
-  /**<   Value used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -4709,7 +5788,7 @@ typedef struct {
   /*  IPv4 Address Preference ** */
   uint8_t ipv4_address_preference_valid;  /**< Must be set to true if ipv4_address_preference is being passed */
   uint32_t ipv4_address_preference;
-  /**<   Preferred IPv4 address assigned to the TE.
+  /**<   Preferred IPv4 address assigned to the TE. 
        Actual assigned address is negotiated with the network and
        may differ from this value. If not specified, the IPv4 Address
        is obtained automatically from the network. The assigned value
@@ -4721,8 +5800,8 @@ typedef struct {
   uint8_t pcscf_addr_using_pco_valid;  /**< Must be set to true if pcscf_addr_using_pco is being passed */
   uint8_t pcscf_addr_using_pco;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request PCSCF address using PCO \n
-       - 0 -- (FALSE) -- Do not request \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
      By default this value is 0.
   */
 
@@ -4741,8 +5820,8 @@ typedef struct {
   uint8_t pcscf_addr_using_dhcp_valid;  /**< Must be set to true if pcscf_addr_using_dhcp is being passed */
   uint8_t pcscf_addr_using_dhcp;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request PCSCF address using DHCP \n
-       - 0 -- (FALSE) -- Do not request \n
+       - 1 -- TRUE -- Request PCSCF address using DHCP \n
+       - 0 -- FALSE -- Do not request \n
        By default, value is 0.
   */
 
@@ -4751,8 +5830,8 @@ typedef struct {
   uint8_t im_cn_flag_valid;  /**< Must be set to true if im_cn_flag is being passed */
   uint8_t im_cn_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request IM CN flag for this profile \n
-       - 0 -- (FALSE) -- Do not request IM CN flag for this profile
+       - 1 -- TRUE -- Request IM CN flag for this profile \n
+       - 0 -- FALSE -- Do not request IM CN flag for this profile
   */
 
   /* Optional */
@@ -4776,8 +5855,8 @@ typedef struct {
   uint8_t secondary_flag_valid;  /**< Must be set to true if secondary_flag is being passed */
   uint8_t secondary_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- This is secondary profile \n
-       - 0 -- (FALSE) -- This is not secondary profile
+       - 1 -- TRUE -- This is secondary profile \n
+       - 0 -- FALSE -- This is not secondary profile
   */
 
   /* Optional */
@@ -4810,27 +5889,27 @@ typedef struct {
   /*  Primary DNS IPv6 Address Preference ** */
   uint8_t primary_dns_ipv6_address_preference_valid;  /**< Must be set to true if primary_dns_ipv6_address_preference is being passed */
   uint8_t primary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   The value is used as a preference during negotiation with the
+  /**<   Used as a preference during negotiation with the
        network; if not specified, the wireless device attempts to obtain
-       the DNS address automatically from the network; the negotiated value
-       is provided to the host via DHCP
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
   */
 
   /* Optional */
   /*  Secondary DNS IPv6 Address Preference ** */
   uint8_t secodnary_dns_ipv6_address_preference_valid;  /**< Must be set to true if secodnary_dns_ipv6_address_preference is being passed */
   uint8_t secodnary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   The value is used as a preference during negotiation with the
+  /**<   Used as a preference during negotiation with the
        network; if not specified, the wireless device attempts to obtain
-       the DNS address automatically from the network; the negotiated value
-       is provided to the host via DHCP
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
   */
 
   /* Optional */
   /*  DHCP/NAS Preference ** */
   uint8_t addr_allocation_preference_valid;  /**< Must be set to true if addr_allocation_preference is being passed */
   wds_addr_allocation_preference_enum_v01 addr_allocation_preference;
-  /**<   This enumerated value is used to indicate the address allocation
+  /**<   Used to indicate the address allocation
        preference. Values: \n
          - 0 -- NAS signaling is used for address allocation \n
          - 1 -- DHCP is used for address allocation
@@ -4845,22 +5924,22 @@ typedef struct {
   /*  APN Disabled Flag ** */
   uint8_t apn_disabled_flag_valid;  /**< Must be set to true if apn_disabled_flag is being passed */
   uint8_t apn_disabled_flag;
-  /**<   If this flag is set, the use of this profile for
-       making data calls is disabled. Any data call with
+  /**<   If this flag is set, the use of this profile for 
+       making data calls is disabled. Any data call with 
        this profile fails locally. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE        
   */
 
   /* Optional */
   /*  PDN Inactivity Timeout ** */
   uint8_t pdn_inactivity_timeout_valid;  /**< Must be set to true if pdn_inactivity_timeout is being passed */
   uint32_t pdn_inactivity_timeout;
-  /**<   Duration of inactivity timer in seconds. If a PDP
-       context/PDN connection is inactive (i.e., no data
+  /**<   Duration of inactivity timer in seconds. If a PDP 
+       context/PDN connection is inactive (i.e., no data 
        Rx/Tx) for this duration of time, PDP context/PDN
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -4868,10 +5947,9 @@ typedef struct {
   /*  APN Class ** */
   uint8_t apn_class_valid;  /**< Must be set to true if apn_class is being passed */
   uint8_t apn_class;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. The APN class can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. The APN class can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -4890,10 +5968,10 @@ typedef struct {
   /*  Support Emergency Calls ** */
   uint8_t support_emergency_calls_valid;  /**< Must be set to true if support_emergency_calls is being passed */
   uint8_t support_emergency_calls;
-  /**<    When this flag is set, the user can make emergency calls
+  /**<    When this flag is set, the user can make emergency calls 
         using this profile. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE       
   */
 
   /* Optional */
@@ -4920,12 +5998,251 @@ typedef struct {
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit;
 
   /* Optional */
+  /*  Max PDN Connections Per Time Block   ** */
+  uint8_t max_pdn_conn_per_block_valid;  /**< Must be set to true if max_pdn_conn_per_block is being passed */
+  uint16_t max_pdn_conn_per_block;
+  /**<   Specifies the maximum number of PDN connections that the UE
+    is allowed to perform with the network in a specified time block. 
+    The time block size is defined by a configuration item.
+    The default value is 1023. \n
+    Range: 0 to 1023.
+  */
+
+  /* Optional */
+  /*  Max PDN Connections Timer   ** */
+  uint8_t max_pdn_conn_timer_valid;  /**< Must be set to true if max_pdn_conn_timer is being passed */
+  uint16_t max_pdn_conn_timer;
+  /**<   Specifies the time duration in seconds during which the UE 
+   counts the PDN connections already made. 
+   The default value is 300. \n
+   Range: 0 to 3600 seconds.
+  */
+
+  /* Optional */
+  /*  PDN Request Wait Timer  ** */
+  uint8_t pdn_req_wait_interval_valid;  /**< Must be set to true if pdn_req_wait_interval is being passed */
+  uint16_t pdn_req_wait_interval;
+  /**<   Specifies the minimum time interval between the new PDN 
+   connection request and the last successful UE initiated PDN 
+   disconnection.
+   The default value is 0. \n
+   Range: 0 to 1023 sec.
+  */
+
+  /* Optional */
+  /*  3GPP Application User Data  ** */
+  uint8_t app_user_data_3gpp_valid;  /**< Must be set to true if app_user_data_3gpp is being passed */
+  uint32_t app_user_data_3gpp;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Roaming Disallow Flag ** */
+  uint8_t roaming_disallowed_valid;  /**< Must be set to true if roaming_disallowed is being passed */
+  uint8_t roaming_disallowed;
+  /**<   Specifies whether the UE is allowed to connect 
+       to the APN specified by the profile while roaming.
+  */
+
+  /* Optional */
+  /*  PDN Disconnect Wait Timer ** */
+  uint8_t pdn_discon_wait_timer_valid;  /**< Must be set to true if pdn_discon_wait_timer is being passed */
+  uint8_t pdn_discon_wait_timer;
+  /**<    Indicates the delay that the control point expects 
+        to be available for successful deregistration with the network 
+        before the modem disconnects the PDN(s). When the default value of 
+        zero is specified, the modem disconnects the PDN immediately 
+        upon moving to the roaming network, without waiting for the 
+        control point.
+        Range: 0-255 minutes.  
+  */
+
+  /* Optional */
+  /*  DNS Address Using DHCP ** */
+  uint8_t dns_addr_using_dhcp_valid;  /**< Must be set to true if dns_addr_using_dhcp is being passed */
+  uint8_t dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using DHCP ** * */
+  uint8_t common_pcscf_addr_using_dhcp_valid;  /**< Must be set to true if common_pcscf_addr_using_dhcp is being passed */
+  uint8_t common_pcscf_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common DNS Address Using DHCP ** * */
+  uint8_t common_dns_addr_using_dhcp_valid;  /**< Must be set to true if common_dns_addr_using_dhcp is being passed */
+  uint8_t common_dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)      
+  */
+
+  /* Optional */
+  /*  Common PDP Type ** * */
+  uint8_t common_pdp_type_valid;  /**< Must be set to true if common_pdp_type is being passed */
+  wds_common_pdp_type_enum_v01 common_pdp_type;
+  /**<   Specifies the type of data payload
+       exchanged over the airlink when the packet data session is
+       established with this profile. Values: \n
+       - 0 -- PDP-IP (IPv4) \n
+       - 1 -- PDP-IPv6 \n
+       - 2 -- PDP-IPv4v6
+   */
+
+  /* Optional */
+  /*  Common Application User Data  ** */
+  uint8_t common_app_user_data_valid;  /**< Must be set to true if common_app_user_data is being passed */
+  uint32_t common_app_user_data;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common Mobile Network Code *** */
+  uint8_t common_pco_mnc_includes_pcs_digit_valid;  /**< Must be set to true if common_pco_mnc_includes_pcs_digit is being passed */
+  wds_mnc_pcs_digit_include_status_type_v01 common_pco_mnc_includes_pcs_digit;
+
+  /* Optional */
+  /*  Common Mobile Country Code *** */
+  uint8_t common_pco_mcc_valid;  /**< Must be set to true if common_pco_mcc is being passed */
+  uint16_t common_pco_mcc;
+  /**<   A 16-bit integer representation of MCC.
+       Range: 0 to 999.
+  */
+
+  /* Optional */
+  /*  Common Operator Reserved PCO ID ** */
+  uint8_t common_op_pco_id_valid;  /**< Must be set to true if common_op_pco_id is being passed */
+  uint16_t common_op_pco_id;
+  /**<   Container ID of this PCO.
+        If op_pco_id is configured, the UE sends the operator PCO
+        with the container ID that is configured. Once configured,
+        the profile cannot be unconfigured.
+  */
+
+  /* Optional */
+  /*  Common Authentication Password *** */
+  uint8_t common_auth_password_valid;  /**< Must be set to true if common_auth_password is being passed */
+  char common_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
+  /**<   Password used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+  */
+
+  /* Optional */
+  /*  Common User ID *** */
+  uint8_t common_user_id_valid;  /**< Must be set to true if common_user_id is being passed */
+  char common_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
+  /**<   User ID used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+    */
+
+  /* Optional */
+  /*  Common Authentication Protocol *** */
+  uint8_t common_auth_protocol_valid;  /**< Must be set to true if common_auth_protocol is being passed */
+  wds_profile_auth_protocol_enum_v01 common_auth_protocol;
+  /**<   Values: \n
+       - 0 -- None \n
+       - 1 -- PAP \n
+       - 2 -- CHAP \n
+       - 3 -- PAP or CHAP
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using PCO Flag *** */
+  uint8_t common_is_pcscf_address_needed_valid;  /**< Must be set to true if common_is_pcscf_address_needed is being passed */
+  uint8_t common_is_pcscf_address_needed;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
+     By default the value is 0.
+  */
+
+  /* Optional */
+  /*  Common Allow/Disallow Lingering of Interface *** */
+  uint8_t linger_params_valid;  /**< Must be set to true if linger_params is being passed */
+  wds_common_linger_param_type_v01 linger_params;
+
+  /* Optional */
+  /*  Common Secondary DNS IPv6 Address Preference *** */
+  uint8_t common_secodnary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_secodnary_dns_ipv6_address_preference is being passed */
+  uint8_t common_secodnary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS IPv6 Address Preference *** */
+  uint8_t common_primary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_primary_dns_ipv6_address_preference is being passed */
+  uint8_t common_primary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Secondary DNS IPv4 Address Preference *** */
+  uint8_t common_secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_secondary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_secondary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS Address Preference *** */
+  uint8_t common_primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_primary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_primary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the network;
+       if not specified, the wireless device attempts to obtain the DNS
+       address automatically from the network. The negotiated value is provided
+       to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common APN Class *** */
+  uint8_t common_apn_class_valid;  /**< Must be set to true if common_apn_class is being passed */
+  uint8_t common_apn_class;
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. The APN class can be transparently set 
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common APN Disabled Flag *** */
+  uint8_t common_apn_disabled_flag_valid;  /**< Must be set to true if common_apn_disabled_flag is being passed */
+  uint8_t common_apn_disabled_flag;
+  /**<   Setting this flag disables the use of this profile for 
+       making data calls. Any data call with this profile 
+       fails locally. Values: \n
+       - 0 -- FALSE (default) \n
+       - 1 -- TRUE 
+   */
+
+  /* Optional */
   /*  Negotiate DNS Server Preference * */
   uint8_t negotiate_dns_server_preference_valid;  /**< Must be set to true if negotiate_dns_server_preference is being passed */
   uint8_t negotiate_dns_server_preference;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request DNS address from the PDSN \n
-       - 0 -- (FALSE) -- Do not request DNS address from the PDSN \n
+       - 1 -- TRUE -- Request DNS address from the PDSN \n
+       - 0 -- FALSE -- Do not request DNS address from the PDSN \n
        Note: Default value is 1 (TRUE).
   */
 
@@ -4951,8 +6268,8 @@ typedef struct {
   uint8_t allow_linger_valid;  /**< Must be set to true if allow_linger is being passed */
   uint8_t allow_linger;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Allow lingering \n
-       - 0 -- (FALSE) -- Do not allow lingering
+       - 1 -- TRUE -- Allow lingering \n
+       - 0 -- FALSE -- Do not allow lingering
   */
 
   /* Optional */
@@ -5052,7 +6369,7 @@ typedef struct {
        Note: The application type value in a profile cannot
        be modified. It can only be used to search for the
        profile ID numbers that have the specified
-       application type.
+       application type. 
    */
 
   /* Optional */
@@ -5075,7 +6392,7 @@ typedef struct {
        Note: Application priority value in a profile
        cannot be modified. It is listed for future
        extensibility of profile ID search based on
-       application priority.
+       application priority. 
   */
 
   /* Optional */
@@ -5103,10 +6420,10 @@ typedef struct {
   /*  Is PCSCF Address Needed * */
   uint8_t is_pcscf_address_needed_valid;  /**< Must be set to true if is_pcscf_address_needed is being passed */
   uint8_t is_pcscf_address_needed;
-  /**<   This boolean value is used to control whether the PCSCF
+  /**<   Used to control whether the PCSCF
        address is requested from PDSN. Values: \n
-       - 1 -- (TRUE) -- Request PCSCF value from the PDSN \n
-       - 0 -- (FALSE) -- Do not request PCSCF value from the PDSN
+       - 1 -- TRUE -- Request PCSCF value from the PDSN \n
+       - 0 -- FALSE -- Do not request PCSCF value from the PDSN
   */
 
   /* Optional */
@@ -5155,23 +6472,23 @@ typedef struct {
   /*  APN Enabled * */
   uint8_t apn_enabled_3gpp2_valid;  /**< Must be set to true if apn_enabled_3gpp2 is being passed */
   uint8_t apn_enabled_3gpp2;
-  /**<    APN enabled is a flag to specify whether the APN in
-       that profile is enabled or disabled. If the APN is
-       disabled, the data call cannot be established
+  /**<    APN enabled is a flag to specify whether the APN in 
+       that profile is enabled or disabled. If the APN is 
+       disabled, the data call cannot be established 
        using that APN. Values: \n
        - 1 -- Enabled (default value) \n
-       - 0 -- Disabled
+       - 0 -- Disabled       
   */
 
   /* Optional */
   /*  PDN Inactivity Timeout * */
   uint8_t pdn_inactivity_timeout_3gpp2_valid;  /**< Must be set to true if pdn_inactivity_timeout_3gpp2 is being passed */
   uint32_t pdn_inactivity_timeout_3gpp2;
-  /**<   Duration of inactivity timer in minutes. If a PDP
-       context/PDN connection is inactive (i.e., no data
-       Rx/Tx) for this duration of time, the PDP context/PDN
+  /**<   Duration of inactivity timer in minutes. If a PDP 
+       context/PDN connection is inactive (i.e., no data 
+       Rx/Tx) for this duration of time, the PDP context/PDN 
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -5179,10 +6496,9 @@ typedef struct {
   /*  APN Class * */
   uint8_t apn_class_3gpp2_valid;  /**< Must be set to true if apn_class_3gpp2 is being passed */
   uint8_t apn_class_3gpp2;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. This can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. This can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -5190,17 +6506,18 @@ typedef struct {
   uint8_t pdn_level_auth_protocol_valid;  /**< Must be set to true if pdn_level_auth_protocol is being passed */
   wds_profile_pdn_lvl_auth_proto_enum_v01 pdn_level_auth_protocol;
   /**<   Authentication protocol used during PDN level authentication.
-       Values: \n
-       - 0 -- NONE \n
-       - 1 -- PAP \n
-       - 2 -- CHAP
-  */
+ Values: \n
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_NONE (0) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP (1) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_CHAP (2) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP_CHAP (3) -- 
+ */
 
   /* Optional */
   /*  PDN Level User ID * */
   uint8_t pdn_level_user_id_valid;  /**< Must be set to true if pdn_level_user_id is being passed */
   char pdn_level_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
-  /**<   User ID used during PDN level authentication.
+  /**<   User ID used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -5208,7 +6525,7 @@ typedef struct {
   /*  PDN Level Auth Password * */
   uint8_t pdn_level_auth_password_valid;  /**< Must be set to true if pdn_level_auth_password is being passed */
   char pdn_level_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
-  /**<   Password used during PDN level authentication.
+  /**<   Password used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -5216,7 +6533,7 @@ typedef struct {
   /*  PDN Label * */
   uint8_t pdn_label_valid;  /**< Must be set to true if pdn_label is being passed */
   char pdn_label[QMI_WDS_APN_NAME_MAX_V01 + 1];
-  /**<   Logical name used to map the APN name for selecting the
+  /**<   Logical name used to map the APN name for selecting the 
        packet data network. Maximum length allowed is 100 bytes.
   */
 
@@ -5244,11 +6561,71 @@ typedef struct {
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit_3gpp2;
 
   /* Optional */
+  /*  PDN Throttling Timer 1-6 * */
+  uint8_t failure_timer_valid;  /**< Must be set to true if failure_timer is being passed */
+  uint32_t failure_timer[QMI_WDS_MAX_FAILURE_TIMER_V01];
+  /**<   The back-off time (in seconds) to be used after a PDN connection or 
+  IP address assignment failure. For example, immediately following a third 
+  consecutive PDN connection request failure, the UE waits failure_timer[2] 
+  seconds before sending the fourth request. Following failures of six or greater,
+  failure_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  PDN Disallow Timer 1-6 * */
+  uint8_t disallow_timer_valid;  /**< Must be set to true if disallow_timer is being passed */
+  uint32_t disallow_timer[QMI_WDS_MAX_DISALLOW_TIMER_V01];
+  /**<   The back-off time, in seconds, to be used after the network refuses 
+  to grant the requested IP address type, such as when an IPv6 address is requested 
+  from a network that only grants the IPv4 address. For example, immediately 
+  after a third consecutive PDN connection request is denied, the UE waits 
+  disallow_timer[2] seconds before sending the fourth request. 
+  Following failures of six or greater, disallow_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  3GPP2 Application User Data  * */
+  uint8_t app_user_data_3gpp2_valid;  /**< Must be set to true if app_user_data_3gpp2 is being passed */
+  uint32_t app_user_data_3gpp2;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  PCSCF Address Using DHCP 3GPP2 * */
+  uint8_t pcscf_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if pcscf_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t pcscf_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  DNS Address Using DHCP * */
+  uint8_t dns_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if dns_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t dns_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  IPv6 Prefix Delegation Flag * ** */
+  uint8_t ipv6_prefix_delegation_valid;  /**< Must be set to true if ipv6_prefix_delegation is being passed */
+  uint8_t ipv6_prefix_delegation;
+  /**<   Enables IPv6 prefix delegation.
+     Values: \n
+     - 0 -- FALSE (default) \n
+     - 1 -- TRUE
+  */
+
+  /* Optional */
   /*  Profile Extended Error Code * */
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   The extended error code received from the DS profile subsystem.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_get_profile_settings_resp_msg_v01;  /* Message */
@@ -5266,9 +6643,10 @@ typedef struct {
   /*  Profile Type */
   wds_profile_type_enum_v01 profile_type;
   /**<   Identifies the technology type of the profile. Values: \n
-       - 0 -- 3GPP \n
-       - 1 -- 2GPP2
-   */
+      - WDS_PROFILE_TYPE_3GPP (0x00) --  3GPP \n 
+      - WDS_PROFILE_TYPE_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_PROFILE_TYPE_EPC (0x02) --  EPC 
+ */
 }wds_get_default_settings_req_msg_v01;  /* Message */
 /**
     @}
@@ -5346,8 +6724,8 @@ typedef struct {
   /*  Primary DNS Address Preference */
   uint8_t primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if primary_DNS_IPv4_address_preference is being passed */
   uint32_t primary_DNS_IPv4_address_preference;
-  /**<   Value is used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -5356,8 +6734,8 @@ typedef struct {
   /*  Secondary DNS Address Preference */
   uint8_t secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if secondary_DNS_IPv4_address_preference is being passed */
   uint32_t secondary_DNS_IPv4_address_preference;
-  /**<   Value is used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -5424,7 +6802,7 @@ typedef struct {
   /*  IPv4 Address Preference */
   uint8_t ipv4_address_preference_valid;  /**< Must be set to true if ipv4_address_preference is being passed */
   uint32_t ipv4_address_preference;
-  /**<   Preferred IPv4 address assigned to the TE --
+  /**<   Preferred IPv4 address assigned to the TE -- 
        The actual assigned address is negotiated with the network and
        may differ from this value. If not specified, the IPv4 Address
        is obtained automatically from the network. The assigned value
@@ -5436,8 +6814,8 @@ typedef struct {
   uint8_t pcscf_addr_using_pco_valid;  /**< Must be set to true if pcscf_addr_using_pco is being passed */
   uint8_t pcscf_addr_using_pco;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request PCSCF address using PCO \n
-       - 0 -- (FALSE) -- Do not request \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
      By default this value is 0.
   */
 
@@ -5456,8 +6834,8 @@ typedef struct {
   uint8_t pcscf_addr_using_dhcp_valid;  /**< Must be set to true if pcscf_addr_using_dhcp is being passed */
   uint8_t pcscf_addr_using_dhcp;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request PCSCF address using DHCP \n
-       - 0 -- (FALSE) -- Do not request \n
+       - 1 -- TRUE -- Request PCSCF address using DHCP \n
+       - 0 -- FALSE -- Do not request \n
        By default, value is 0.
   */
 
@@ -5466,8 +6844,8 @@ typedef struct {
   uint8_t im_cn_flag_valid;  /**< Must be set to true if im_cn_flag is being passed */
   uint8_t im_cn_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request IM CN flag for this profile \n
-       - 0 -- (FALSE) -- Do not request IM CN flag for this profile
+       - 1 -- TRUE -- Request IM CN flag for this profile \n
+       - 0 -- FALSE -- Do not request IM CN flag for this profile
   */
 
   /* Optional */
@@ -5491,8 +6869,8 @@ typedef struct {
   uint8_t secondary_flag_valid;  /**< Must be set to true if secondary_flag is being passed */
   uint8_t secondary_flag;
   /**<   Values: \n
-       - 1 -- (TRUE) -- This is the secondary profile \n
-       - 0 -- (FALSE) -- This is not the secondary profile
+       - 1 -- TRUE -- This is the secondary profile \n
+       - 0 -- FALSE -- This is not the secondary profile
   */
 
   /* Optional */
@@ -5507,7 +6885,7 @@ typedef struct {
   uint8_t ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
   /**<   The preferred IPv6 address to be assigned to the TE; the actual assigned
        address is negotiated with the network and may differ from this value.
-       If not specified, the IPv6 address is obtaiend automatically from the
+       If not specified, the IPv6 address is obtained automatically from the
        network.
   */
 
@@ -5525,7 +6903,7 @@ typedef struct {
   /*  Primary DNS IPv6 Address Preference */
   uint8_t primary_dns_ipv6_address_preference_valid;  /**< Must be set to true if primary_dns_ipv6_address_preference is being passed */
   uint8_t primary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   The value is used as a preference during negotiation with the
+  /**<   Used as a preference during negotiation with the
        network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
@@ -5535,7 +6913,7 @@ typedef struct {
   /*  Secondary DNS IPv6 Address Preference */
   uint8_t secodnary_dns_ipv6_address_preference_valid;  /**< Must be set to true if secodnary_dns_ipv6_address_preference is being passed */
   uint8_t secodnary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   The value is used as a preference during negotiation with the
+  /**<   Used as a preference during negotiation with the
        network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
@@ -5545,7 +6923,7 @@ typedef struct {
   /*  DHCP/NAS Preference */
   uint8_t addr_allocation_preference_valid;  /**< Must be set to true if addr_allocation_preference is being passed */
   wds_addr_allocation_preference_enum_v01 addr_allocation_preference;
-  /**<   This enumerated value is used to indicate the address allocation
+  /**<   Used to indicate the address allocation
        preference. Values: \n
          - 0 -- NAS signaling is used for address allocation \n
          - 1 -- DHCP is used for address allocation
@@ -5560,22 +6938,22 @@ typedef struct {
   /*  APN Disabled Flag */
   uint8_t apn_disabled_flag_valid;  /**< Must be set to true if apn_disabled_flag is being passed */
   uint8_t apn_disabled_flag;
-  /**<    When this flag is set, the use of this profile for
-       making data calls is disabled. Any data call with
+  /**<    When this flag is set, the use of this profile for 
+       making data calls is disabled. Any data call with 
        this profile fails locally. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE       
   */
 
   /* Optional */
   /*  PDN Inactivity Timeout */
   uint8_t pdn_inactivity_timeout_valid;  /**< Must be set to true if pdn_inactivity_timeout is being passed */
   uint32_t pdn_inactivity_timeout;
-  /**<   Duration of the inactivity timer in seconds. When a PDP
-       context/PDN connection is inactive (i.e., no data
+  /**<   Duration of the inactivity timer in seconds. When a PDP 
+       context/PDN connection is inactive (i.e., no data 
        Rx/Tx) for this duration of time, PDP context/PDN
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -5583,10 +6961,9 @@ typedef struct {
   /*  APN Class */
   uint8_t apn_class_valid;  /**< Must be set to true if apn_class is being passed */
   uint8_t apn_class;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. This can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. This can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -5605,10 +6982,10 @@ typedef struct {
   /*  Support Emergency Calls ** */
   uint8_t support_emergency_calls_valid;  /**< Must be set to true if support_emergency_calls is being passed */
   uint8_t support_emergency_calls;
-  /**<    When this flag is set, the user can make emergency calls
+  /**<    When this flag is set, the user can make emergency calls 
         using this profile. Values: \n
        - 0 -- FALSE (default) \n
-       - 1 -- TRUE
+       - 1 -- TRUE       
   */
 
   /* Optional */
@@ -5635,12 +7012,251 @@ typedef struct {
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit;
 
   /* Optional */
+  /*  Max PDN Connections Per Time Block   ** */
+  uint8_t max_pdn_conn_per_block_valid;  /**< Must be set to true if max_pdn_conn_per_block is being passed */
+  uint16_t max_pdn_conn_per_block;
+  /**<   Specifies the maximum number of PDN connections that the UE
+    is allowed to perform with the network in a specified time block. 
+    The time block size is defined by a configuration item.
+    The default value is 1023. \n
+    Range: 0 to 1023.
+  */
+
+  /* Optional */
+  /*  Max PDN Connections Timer   ** */
+  uint8_t max_pdn_conn_timer_valid;  /**< Must be set to true if max_pdn_conn_timer is being passed */
+  uint16_t max_pdn_conn_timer;
+  /**<   Specifies the time duration (in seconds) during which the UE 
+   counts the PDN connections already made. 
+   The default value is 300. \n
+   Range: 0 to 3600 sec.
+  */
+
+  /* Optional */
+  /*  PDN Request Wait Timer  ** */
+  uint8_t pdn_req_wait_interval_valid;  /**< Must be set to true if pdn_req_wait_interval is being passed */
+  uint16_t pdn_req_wait_interval;
+  /**<   Specifies the minimum time interval (in seconds) between the new PDN 
+   connection request and the last successful UE initiated PDN 
+   disconnection.
+   The default value is 0. \n
+   Range: 0 to 1023 sec.
+  */
+
+  /* Optional */
+  /*  3GPP Application User Data  ** */
+  uint8_t app_user_data_3gpp_valid;  /**< Must be set to true if app_user_data_3gpp is being passed */
+  uint32_t app_user_data_3gpp;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Roaming Disallow Flag ** */
+  uint8_t roaming_disallowed_valid;  /**< Must be set to true if roaming_disallowed is being passed */
+  uint8_t roaming_disallowed;
+  /**<   Specifies whether the UE is allowed to connect 
+       to the APN specified by the profile while roaming.
+  */
+
+  /* Optional */
+  /*  PDN Disconnect Wait Timer ** */
+  uint8_t pdn_discon_wait_timer_valid;  /**< Must be set to true if pdn_discon_wait_timer is being passed */
+  uint8_t pdn_discon_wait_timer;
+  /**<    Indicates the delay that the control point expects 
+        to be available for successful deregistration with the network 
+        before the modem disconnects the PDN(s). When the default value of 
+        zero is specified, the modem disconnects the PDN immediately 
+        upon moving to the roaming network, without waiting for the 
+        control point.
+        Range: 0-255 minutes.  
+  */
+
+  /* Optional */
+  /*  DNS Address Using DHCP ** */
+  uint8_t dns_addr_using_dhcp_valid;  /**< Must be set to true if dns_addr_using_dhcp is being passed */
+  uint8_t dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)      
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using DHCP ** * */
+  uint8_t common_pcscf_addr_using_dhcp_valid;  /**< Must be set to true if common_pcscf_addr_using_dhcp is being passed */
+  uint8_t common_pcscf_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common DNS Address Using DHCP ** * */
+  uint8_t common_dns_addr_using_dhcp_valid;  /**< Must be set to true if common_dns_addr_using_dhcp is being passed */
+  uint8_t common_dns_addr_using_dhcp;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  Common PDP Type ** * */
+  uint8_t common_pdp_type_valid;  /**< Must be set to true if common_pdp_type is being passed */
+  wds_common_pdp_type_enum_v01 common_pdp_type;
+  /**<   Specifies the type of data payload
+       exchanged over the airlink when the packet data session is
+       established with this profile. Values: \n
+       - 0 -- PDP-IP (IPv4) \n
+       - 1 -- PDP-IPv6 \n
+       - 2 -- PDP-IPv4v6
+   */
+
+  /* Optional */
+  /*  Common Application User Data  ** */
+  uint8_t common_app_user_data_valid;  /**< Must be set to true if common_app_user_data is being passed */
+  uint32_t common_app_user_data;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common Mobile Network Code *** */
+  uint8_t common_pco_mnc_includes_pcs_digit_valid;  /**< Must be set to true if common_pco_mnc_includes_pcs_digit is being passed */
+  wds_mnc_pcs_digit_include_status_type_v01 common_pco_mnc_includes_pcs_digit;
+
+  /* Optional */
+  /*  Common Mobile Country Code *** */
+  uint8_t common_pco_mcc_valid;  /**< Must be set to true if common_pco_mcc is being passed */
+  uint16_t common_pco_mcc;
+  /**<   A 16-bit integer representation of MCC.
+       Range: 0 to 999.
+  */
+
+  /* Optional */
+  /*  Common Operator Reserved PCO ID ** */
+  uint8_t common_op_pco_id_valid;  /**< Must be set to true if common_op_pco_id is being passed */
+  uint16_t common_op_pco_id;
+  /**<   Container ID of this PCO.
+        If op_pco_id is configured, the UE sends the operator PCO
+        with the container ID that is configured. Once configured,
+        the profile cannot be unconfigured.
+  */
+
+  /* Optional */
+  /*  Common Authentication Password *** */
+  uint8_t common_auth_password_valid;  /**< Must be set to true if common_auth_password is being passed */
+  char common_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
+  /**<   Password used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+  */
+
+  /* Optional */
+  /*  Common User ID *** */
+  uint8_t common_user_id_valid;  /**< Must be set to true if common_user_id is being passed */
+  char common_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
+  /**<   User ID used during data network authentication; 
+       maximum length allowed is 127 bytes.
+       QMI_ERR_ARG_TOO_LONG is returned if the storage on the 
+       wireless device is insufficient in size to hold the value.
+    */
+
+  /* Optional */
+  /*  Common Authentication Protocol *** */
+  uint8_t common_auth_protocol_valid;  /**< Must be set to true if common_auth_protocol is being passed */
+  wds_profile_auth_protocol_enum_v01 common_auth_protocol;
+  /**<   Values: \n
+       - 0 -- None \n
+       - 1 -- PAP \n
+       - 2 -- CHAP \n
+       - 3 -- PAP or CHAP
+  */
+
+  /* Optional */
+  /*  Common PCSCF Address Using PCO Flag *** */
+  uint8_t common_is_pcscf_address_needed_valid;  /**< Must be set to true if common_is_pcscf_address_needed is being passed */
+  uint8_t common_is_pcscf_address_needed;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using PCO \n
+       - 0 -- FALSE -- Do not request \n
+     By default the value is 0.
+  */
+
+  /* Optional */
+  /*  Common Allow/Disallow Lingering of Interface *** */
+  uint8_t linger_params_valid;  /**< Must be set to true if linger_params is being passed */
+  wds_common_linger_param_type_v01 linger_params;
+
+  /* Optional */
+  /*  Common Secondary DNS IPv6 Address Preference *** */
+  uint8_t common_secodnary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_secodnary_dns_ipv6_address_preference is being passed */
+  uint8_t common_secodnary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS IPv6 Address Preference *** */
+  uint8_t common_primary_dns_ipv6_address_preference_valid;  /**< Must be set to true if common_primary_dns_ipv6_address_preference is being passed */
+  uint8_t common_primary_dns_ipv6_address_preference[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Secondary DNS IPv4 Address Preference *** */
+  uint8_t common_secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_secondary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_secondary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the
+       network; if not specified, the wireless device attempts to obtain
+       the DNS address automatically from the network. The negotiated value
+       is provided to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common Primary DNS Address Preference *** */
+  uint8_t common_primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if common_primary_DNS_IPv4_address_preference is being passed */
+  uint32_t common_primary_DNS_IPv4_address_preference;
+  /**<   Used as a preference during negotiation with the network;
+       if not specified, the wireless device attempts to obtain the DNS
+       address automatically from the network. The negotiated value is provided
+       to the host via the DHCP.
+  */
+
+  /* Optional */
+  /*  Common APN Class *** */
+  uint8_t common_apn_class_valid;  /**< Must be set to true if common_apn_class is being passed */
+  uint8_t common_apn_class;
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. The APN class can be transparently set 
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  Common APN Disabled Flag *** */
+  uint8_t common_apn_disabled_flag_valid;  /**< Must be set to true if common_apn_disabled_flag is being passed */
+  uint8_t common_apn_disabled_flag;
+  /**<   Setting this flag disables the use of this profile for 
+       making data calls. Any data call with this profile 
+       fails locally. Values: \n
+       - 0 -- FALSE (default) \n
+       - 1 -- TRUE 
+   */
+
+  /* Optional */
   /*  Negotiate DNS Server Preference */
   uint8_t negotiate_dns_server_preference_valid;  /**< Must be set to true if negotiate_dns_server_preference is being passed */
   uint8_t negotiate_dns_server_preference;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Request DNS address from the PDSN \n
-       - 0 -- (FALSE) -- Do not request DNS addresses from the PDSN \n
+       - 1 -- TRUE -- Request DNS address from the PDSN \n
+       - 0 -- FALSE -- Do not request DNS addresses from the PDSN \n
        Note: Default value is 1 (TRUE).
   */
 
@@ -5666,8 +7282,8 @@ typedef struct {
   uint8_t allow_linger_valid;  /**< Must be set to true if allow_linger is being passed */
   uint8_t allow_linger;
   /**<   Values: \n
-       - 1 -- (TRUE) -- Allow lingering \n
-       - 0 -- (FALSE) -- Do not allow lingering
+       - 1 -- TRUE -- Allow lingering \n
+       - 0 -- FALSE -- Do not allow lingering
   */
 
   /* Optional */
@@ -5818,10 +7434,10 @@ typedef struct {
   /*  Is PCSCF Address Needed */
   uint8_t is_pcscf_address_needed_valid;  /**< Must be set to true if is_pcscf_address_needed is being passed */
   uint8_t is_pcscf_address_needed;
-  /**<   This boolean value is used to control whether the PCSCF
+  /**<   Used to control whether the PCSCF
        address is requested from PDSN. Values: \n
-       - 1 -- (TRUE) -- Request for PCSCF value from the PDSN \n
-       - 0 -- (FALSE) -- Do not request for PCSCF value from the PDSN
+       - 1 -- TRUE -- Request for PCSCF value from the PDSN \n
+       - 0 -- FALSE -- Do not request for PCSCF value from the PDSN
   */
 
   /* Optional */
@@ -5870,23 +7486,23 @@ typedef struct {
   /*  APN Enabled */
   uint8_t apn_enabled_3gpp2_valid;  /**< Must be set to true if apn_enabled_3gpp2 is being passed */
   uint8_t apn_enabled_3gpp2;
-  /**<   APN enabled is a flag to specify whether the APN in
-       that profile is enabled or disabled. If the APN is
-       disabled, the data call cannot be established
+  /**<   APN enabled is a flag to specify whether the APN in 
+       that profile is enabled or disabled. If the APN is 
+       disabled, the data call cannot be established 
        using that APN. Values: \n
        - 1 -- Enabled (default value) \n
-       - 0 -- Disabled
+       - 0 -- Disabled         
   */
 
   /* Optional */
   /*  PDN Inactivity Timeout */
   uint8_t pdn_inactivity_timeout_3gpp2_valid;  /**< Must be set to true if pdn_inactivity_timeout_3gpp2 is being passed */
   uint32_t pdn_inactivity_timeout_3gpp2;
-  /**<   The duration of inactivity timer in minutes. When a PDP
-       context/PDN connection is inactive (i.e., no data
-       Rx/Tx) for this duration of time, the PDP context/PDN
+  /**<   The duration of inactivity timer in minutes. When a PDP 
+       context/PDN connection is inactive (i.e., no data 
+       Rx/Tx) for this duration of time, the PDP context/PDN 
        connection is disconnected.
-       The default setting of zero is treated as an infinite
+       The default setting of zero is treated as an infinite 
        value.
   */
 
@@ -5894,10 +7510,9 @@ typedef struct {
   /*  APN Class */
   uint8_t apn_class_3gpp2_valid;  /**< Must be set to true if apn_class_3gpp2 is being passed */
   uint8_t apn_class_3gpp2;
-  /**<   An opaque, numeric identifier representing the
-       APN in the profile. This can be transparently set
-       for any profile and queried later, but is not used
-       by the modem.
+  /**<   An opaque, numeric identifier representing the 
+       APN in the profile. This can be transparently set 
+       for any profile and queried later.
   */
 
   /* Optional */
@@ -5905,17 +7520,18 @@ typedef struct {
   uint8_t pdn_level_auth_protocol_valid;  /**< Must be set to true if pdn_level_auth_protocol is being passed */
   wds_profile_pdn_lvl_auth_proto_enum_v01 pdn_level_auth_protocol;
   /**<   Authentication protocol used during PDN level authentication.
-       Values: \n
-       - 0 -- NONE \n
-       - 1 -- PAP \n
-       - 2 -- CHAP
-  */
+ Values: \n
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_NONE (0) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP (1) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_CHAP (2) -- 
+      - WDS_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PAP_CHAP (3) -- 
+ */
 
   /* Optional */
   /*  PDN Level User ID * */
   uint8_t pdn_level_user_id_valid;  /**< Must be set to true if pdn_level_user_id is being passed */
   char pdn_level_user_id[QMI_WDS_USER_NAME_MAX_V01 + 1];
-  /**<   User ID used during PDN level authentication.
+  /**<   User ID used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -5923,7 +7539,7 @@ typedef struct {
   /*  PDN Level Auth Password * */
   uint8_t pdn_level_auth_password_valid;  /**< Must be set to true if pdn_level_auth_password is being passed */
   char pdn_level_auth_password[QMI_WDS_PASSWORD_MAX_V01 + 1];
-  /**<   Password used during PDN level authentication.
+  /**<   Password used during PDN level authentication. 
        Maximum length allowed is 127 bytes.
   */
 
@@ -5931,7 +7547,7 @@ typedef struct {
   /*  PDN Label * */
   uint8_t pdn_label_valid;  /**< Must be set to true if pdn_label is being passed */
   char pdn_label[QMI_WDS_APN_NAME_MAX_V01 + 1];
-  /**<   Logical name used to map the APN name for selecting the
+  /**<   Logical name used to map the APN name for selecting the 
        packet data network. Maximum length allowed is 100 bytes.
   */
 
@@ -5959,11 +7575,71 @@ typedef struct {
   wds_mnc_pcs_digit_include_status_type_v01 pco_mnc_includes_pcs_digit_3gpp2;
 
   /* Optional */
+  /*  PDN Throttling Timer 1-6 * */
+  uint8_t failure_timer_valid;  /**< Must be set to true if failure_timer is being passed */
+  uint32_t failure_timer[QMI_WDS_MAX_FAILURE_TIMER_V01];
+  /**<   The back-off time (in seconds) to be used after a PDN connection or 
+  IP address assignment failure. For example, immediately following a third 
+  consecutive PDN connection request failure, the UE waits failure_timer[2] 
+  seconds before sending the fourth request. Following failures of six or 
+  greater, failure_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  PDN Disallow Timer 1-6 * */
+  uint8_t disallow_timer_valid;  /**< Must be set to true if disallow_timer is being passed */
+  uint32_t disallow_timer[QMI_WDS_MAX_DISALLOW_TIMER_V01];
+  /**<   The back-off time (in seconds) to be used after the network refuses 
+  to grant the requested IP address type, such as when an IPv6 address is requested 
+  from a network that only grants IPv4 address. For example, immediately 
+  after a third consecutive PDN connection request is denied, the UE waits 
+  disallow_timer[2] seconds before sending the fourth request. Following failures of 
+  six or greater, disallow_timer[5] is used.
+  */
+
+  /* Optional */
+  /*  3GPP2 Application User Data  * */
+  uint8_t app_user_data_3gpp2_valid;  /**< Must be set to true if app_user_data_3gpp2 is being passed */
+  uint32_t app_user_data_3gpp2;
+  /**<   An opaque, numeric identifier representing the
+       user data in the profile. This can be transparently set
+       for any profile and queried later.
+  */
+
+  /* Optional */
+  /*  PCSCF Address Using DHCP 3GPP2 * */
+  uint8_t pcscf_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if pcscf_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t pcscf_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request PCSCF address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)      
+  */
+
+  /* Optional */
+  /*  DNS Address Using DHCP * */
+  uint8_t dns_addr_using_dhcp_3gpp2_valid;  /**< Must be set to true if dns_addr_using_dhcp_3gpp2 is being passed */
+  uint8_t dns_addr_using_dhcp_3gpp2;
+  /**<   Values: \n
+       - 1 -- TRUE -- Request DNS address using the DHCP \n
+       - 0 -- FALSE -- Do not request (default)       
+  */
+
+  /* Optional */
+  /*  IPv6 Prefix Delegation Flag * ** */
+  uint8_t ipv6_prefix_delegation_valid;  /**< Must be set to true if ipv6_prefix_delegation is being passed */
+  uint8_t ipv6_prefix_delegation;
+  /**<   Enables IPv6 prefix delegation.
+     Values: \n
+     - 0 -- FALSE (default) \n
+     - 1 -- TRUE
+  */
+
+  /* Optional */
   /*  Profile Extended Error Code */
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
-  /**<   The extended error code received from the DS profile subsystem.
-       These error codes are explained in Appendix
+  /**<   Extended error code received from the DS profile subsystem.
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_get_default_settings_resp_msg_v01;  /* Message */
@@ -5982,15 +7658,15 @@ typedef struct {
   /*  Requested Settings */
   uint8_t requested_settings_valid;  /**< Must be set to true if requested_settings is being passed */
   wds_req_settings_mask_v01 requested_settings;
-  /**<   Set bits to 1, corresponding to requested information.
+  /**<   Set bits to 1, corresponding to requested information. 
       All other bits must be set to 0.
 
-      If the values are not available, the corresponding TLVs are
+      If the values are not available, the corresponding TLVs are 
       not returned in the response.
 
-      Absence of this mask TLV results in the device returning all of
-      the available information corresponding to bits 0 through 12.
-      In cases where the information from bit 13 or greater is required,
+      Absence of this mask TLV results in the device returning all of 
+      the available information corresponding to bits 0 through 12. 
+      In cases where the information from bit 13 or greater is required, 
       this TLV with all the necessary bits set must be present in the request. Values: \n
       - Bit 0  -- Profile identifier \n
       - Bit 1  -- Profile name \n
@@ -6001,7 +7677,7 @@ typedef struct {
       - Bit 6  -- Username \n
       - Bit 7  -- Authentication Protocol \n
       - Bit 8  -- IP address \n
-      - Bit 9  -- Gateway info (address and subnet mask) \n
+      - Bit 9  -- Gateway information (address and subnet mask) \n
       - Bit 10 -- PCSCF address using PCO flag \n
       - Bit 11 -- PCSCF server address list \n
       - Bit 12 -- PCSCF domain name list \n
@@ -6011,7 +7687,7 @@ typedef struct {
       - Bit 16 -- IM_CM flag \n
       - Bit 17 -- Technology name \n
       - Bit 18 -- Operator reserved PCO
-
+   
    */
 }wds_get_runtime_settings_req_msg_v01;  /* Message */
 /**
@@ -6146,58 +7822,15 @@ typedef struct {
 typedef struct {
 
   uint8_t ipv6_addr[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   IPv6 address (in network byte order); this is
-       an 8-element array of 16-bit numbers, each
+  /**<   IPv6 address (in network byte order). The
+       address is an 16-element array of 8-bit numbers, each
        of which is in big-endian format.
   */
 
   uint8_t ipv6_prefix_length;
-  /**<   IPv6 prefix length in number of bits; it can
-       take a value between 0 and 128.
+  /**<   IPv6 prefix length in number of bits. Range: 0-128.
   */
 }wds_runtime_ipv6_addr_type_v01;  /* Type */
-/**
-    @}
-  */
-
-/** @addtogroup wds_qmi_aggregates
-    @{
-  */
-typedef struct {
-
-  uint16_t mcc;
-  /**<   A 16-bit integer representation of MCC.
-       Range: 0 to 999.
-  */
-
-  uint16_t mnc;
-  /**<   A 16-bit integer representation of MNC.
-       Range: 0 to 999.
-  */
-
-  /*  MNC PCS Digit Include Status */
-  uint8_t mnc_includes_pcs_digit;
-  /**<   This field is used to interpret the length of the corresponding
-       MNC reported in the TLV. Values: \n
-
-       - TRUE  -- MNC is a three-digit value; e.g., a reported value of
-                  90 corresponds to an MNC value of 090  \n
-       - FALSE -- MNC is a two-digit value; e.g., a reported value of
-                  90 corresponds to an MNC value of 90
-  */
-
-  uint32_t app_specific_info_len;  /**< Must be set to # of elements in app_specific_info */
-  uint8_t app_specific_info[QMI_WDS_APP_SPECIFIC_INFO_V01];
-  /**<   Points to the application-specific information
-       from the network. The format for this field complies with
-       3GPP TS 24.008 \hyperref[S5]{[S5]}. The field is populated in this
-       format for both 3GPP and 3GPP2.
-  */
-
-  uint16_t container_id;
-  /**<   Container ID of this PCO.
-  */
-}wds_op_reserved_pco_info_type_v01;  /* Type */
 /**
     @}
   */
@@ -6232,7 +7865,7 @@ typedef struct {
      - 0 -- PDP-IP (IPv4) \n
      - 1 -- PDP-PPP \n
      - 2 -- PDP-IPv6 \n
-     - 3 -- PDP-IPv4v6
+     - 3 -- PDP-IPv4v6 
    */
 
   /* Optional */
@@ -6253,7 +7886,7 @@ typedef struct {
   uint8_t primary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if primary_DNS_IPv4_address_preference is being passed */
   uint32_t primary_DNS_IPv4_address_preference;
   /**<   Value used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -6263,7 +7896,7 @@ typedef struct {
   uint8_t secondary_DNS_IPv4_address_preference_valid;  /**< Must be set to true if secondary_DNS_IPv4_address_preference is being passed */
   uint32_t secondary_DNS_IPv4_address_preference;
   /**<   Value used as a preference during negotiation with the
-       network. If not specified, the wireless device attempts to obtain
+       network; if not specified, the wireless device attempts to obtain
        the DNS address automatically from the network. The negotiated value
        is provided to the host via DHCP.
   */
@@ -6292,7 +7925,7 @@ typedef struct {
   /*  Authentication Preference ** */
   uint8_t authentication_preference_valid;  /**< Must be set to true if authentication_preference is being passed */
   wds_auth_pref_mask_v01 authentication_preference;
-  /**<   A bit map that indicates the authentication algorithm preference.
+  /**<   A bit map that indicates the authentication algorithm preference. 
        Values: \n
        Bit 0 -- PAP preference: \n
        - 0 -- PAP is never performed \n
@@ -6341,8 +7974,8 @@ typedef struct {
   uint8_t pcscf_addr_using_pco_valid;  /**< Must be set to true if pcscf_addr_using_pco is being passed */
   uint8_t pcscf_addr_using_pco;
   /**<   Values: \n
-     - 1 -- (TRUE) -- PCSCF address is requested using PCO \n
-     - 0 -- (FALSE) -- It is not requested
+     - 1 -- TRUE -- PCSCF address is requested using PCO \n
+     - 0 -- FALSE -- It is not requested
   */
 
   /* Optional */
@@ -6370,8 +8003,8 @@ typedef struct {
   /*  Primary IPv6 DNS Address * ** */
   uint8_t primary_dns_IPv6_address_valid;  /**< Must be set to true if primary_dns_IPv6_address is being passed */
   uint8_t primary_dns_IPv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   Primary IPv6 DNS address (in network byte
-       order); this is an 8-element array of 16-bit
+  /**<   Primary IPv6 DNS address in network byte
+       order; an 8-element array of 16-bit
        numbers, each of which is in big-endian
        format.
   */
@@ -6380,8 +8013,8 @@ typedef struct {
   /*  Secondary IPv6 DNS Address * ** */
   uint8_t secondary_dns_IPv6_address_valid;  /**< Must be set to true if secondary_dns_IPv6_address is being passed */
   uint8_t secondary_dns_IPv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   Secondary IPv6 DNS address (in network
-       byte order); this is an 8-element array of
+  /**<   Secondary IPv6 DNS address in network
+       byte order; an 8-element array of
        16-bit numbers, each of which is in
        big-endian format.
   */
@@ -6424,7 +8057,7 @@ typedef struct {
        - -32764 -- UMTS \n
        - -30592 -- EPC \n
        - -30584 -- Modem Link Local \n
-      EPC is a logical interface to support LTE/eHRPD handoff.
+      EPC is a logical interface to support LTE/eHRPD handoff. 
       It is returned if the device supports IP session continuity.
 
       Modem Link Local is an interface for transferring data
@@ -6435,7 +8068,7 @@ typedef struct {
   /*  PCSCF IPv6 Address List * ** */
   uint8_t pcscf_ipv6_server_addr_list_valid;  /**< Must be set to true if pcscf_ipv6_server_addr_list is being passed */
   wds_pcscf_ipv6_addr_list_type_v01 pcscf_ipv6_server_addr_list;
-  /**<   PCSCF IPv6 server address (in network byte order);
+  /**<   PCSCF IPv6 server address (in network byte order); 
        An 8-element array of 16-bit numbers, each
        of which is in big endian format.
   */
@@ -6446,7 +8079,7 @@ typedef struct {
   wds_op_reserved_pco_info_type_v01 operator_reserved_pco;
   /**<   \n
        Operator reserved PCO information that the device
-       obtains from the network. If there is no information available,
+       retrieved from the network. If there is no information available,
        a value of 0 is returned.
   */
 }wds_get_runtime_settings_resp_msg_v01;  /* Message */
@@ -6459,9 +8092,9 @@ typedef struct {
   */
 typedef enum {
   WDS_MIP_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_MOBILE_IP_OFF_V01 = 0x00,
-  WDS_MOBILE_IP_PREFERRED_V01 = 0x01,
-  WDS_MOBILE_IP_ONLY_V01 = 0x02,
+  WDS_MOBILE_IP_OFF_V01 = 0x00, 
+  WDS_MOBILE_IP_PREFERRED_V01 = 0x01, 
+  WDS_MOBILE_IP_ONLY_V01 = 0x02, 
   WDS_MIP_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_mip_mode_enum_v01;
 /**
@@ -6501,11 +8134,21 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_mip_mode_req_msg is empty
- * typedef struct {
- * }wds_get_mip_mode_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the provisioned Mobile IP mode setting from
+           the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_mip_mode_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -6515,6 +8158,10 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Mobile IP Mode * */
   wds_mip_mode_enum_v01 mip_mode;
   /**<   Values: \n
@@ -6522,20 +8169,25 @@ typedef struct {
      - 1 -- MIP preferred \n
      - 2 -- MIP only
    */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_mip_mode_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_dormancy_status_req_msg is empty
- * typedef struct {
- * }wds_get_dormancy_status_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current traffic channel status. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_dormancy_status_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -6544,35 +8196,44 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Dormancy status   */
   wds_dormancy_status_enum_v01 dormancy_status;
   /**<   Values: \n
        - 1 -- Traffic channel dormant \n
        - 2 -- Traffic channel active
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_dormancy_status_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_autoconnect_setting_req_msg is empty
- * typedef struct {
- * }wds_get_autoconnect_setting_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries autoconnect settings. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_autoconnect_setting_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_enums
     @{
   */
 typedef enum {
   WDS_AUTOCONNECT_SETTING_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_AUTOCONNECT_DISABLED_V01 = 0x00,
-  WDS_AUTOCONNECT_ENABLED_V01 = 0x01,
-  WDS_AUTOCONNECT_PAUSED_V01 = 0x02,
+  WDS_AUTOCONNECT_DISABLED_V01 = 0x00, 
+  WDS_AUTOCONNECT_ENABLED_V01 = 0x01, 
+  WDS_AUTOCONNECT_PAUSED_V01 = 0x02, 
   WDS_AUTOCONNECT_SETTING_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_autoconnect_setting_enum_v01;
 /**
@@ -6584,8 +8245,8 @@ typedef enum {
   */
 typedef enum {
   WDS_AUTOCONNECT_ROAM_SETTING_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_AUTOCONNECT_ROAM_ALWAYS_V01 = 0x00,
-  WDS_AUTOCONNECT_ROAM_HOME_ONLY_V01 = 0x01,
+  WDS_AUTOCONNECT_ROAM_ALWAYS_V01 = 0x00, 
+  WDS_AUTOCONNECT_ROAM_HOME_ONLY_V01 = 0x01, 
   WDS_AUTOCONNECT_ROAM_SETTING_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_autoconnect_roam_setting_enum_v01;
 /**
@@ -6599,6 +8260,10 @@ typedef enum {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Autoconnect Setting   */
   wds_autoconnect_setting_enum_v01 autoconnect_setting;
   /**<   Values: \n
@@ -6606,10 +8271,6 @@ typedef struct {
        - 0x01 -- Autoconnect enabled \n
        - 0x02 -- Autoconnect paused (resume on power cycle)
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 
   /* Optional */
   /*  Autoconnect Roam Setting */
@@ -6628,11 +8289,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_call_duration_req_msg is empty
- * typedef struct {
- * }wds_get_call_duration_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the duration of the current call. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_call_duration_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -6641,13 +8311,13 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Call Duration  */
   uint64_t call_duration;
   /**<   Call duration in milliseconds*/
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 
   /* Optional */
   /*  Last Call Duration */
@@ -6661,7 +8331,7 @@ typedef struct {
   /*  Call Active Duration */
   uint8_t call_active_duration_valid;  /**< Must be set to true if call_active_duration is being passed */
   uint64_t call_active_duration;
-  /**<   Duration that the current call was active, in milliseconds; returned
+  /**<   Duration that the current call was active, in milliseconds; returned 
        only if in a call.
   */
 
@@ -6678,33 +8348,46 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_data_bearer_technology_req_msg is empty
- * typedef struct {
- * }wds_get_data_bearer_technology_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current data bearer technology. (Deprecated) */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_data_bearer_technology_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Queries the current data bearer technology. */
+/** Response Message; Queries the current data bearer technology. (Deprecated) */
 typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
 
   /* Mandatory */
   /*  Data Bearer Technology   */
   wds_data_bearer_tech_enum_v01 data_bearer_tech;
   /**<   Values: \n
-       - 0x01 -- cdma2000 1X \n
-       - 0x02 -- cdma2000 HRPD (1xEV-DO) \n
+       - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X \n
+       - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x03 -- GSM \n
        - 0x04 -- UMTS \n
-       - 0x05 -- cdma200 HRPD (1xEV-DO RevA) \n
+       - 0x05 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO RevA) \n
        - 0x06 -- EDGE \n
        - 0x07 -- HSDPA and WCDMA \n
        - 0x08 -- WCDMA and HSUPA \n
        - 0x09 -- HSDPA and HSUPA \n
        - 0x0A -- LTE \n
-       - 0x0B -- cdma2000 EHRPD \n
+       - 0x0B -- cdma2000\textsuperscript{\textregistered} EHRPD \n
        - 0x0C -- HSDPA+ and WCDMA \n
        - 0x0D -- HSDPA+ and HSUPA \n
        - 0x0E -- DC_HSDPA+ and WCDMA \n
@@ -6716,10 +8399,6 @@ typedef struct {
        - 0x14 -- TDSCDMA and HSUPA       \n
        - -1   -- Unknown
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 
   /* Optional */
   /*  Last Call Data Bearer Technology */
@@ -6729,17 +8408,17 @@ typedef struct {
        call was made using RmNet (for any devices that
        support QMI_WDS_GET_DUN_CALL_INFO). \n
        Values:  \n
-       - 0x01 -- cdma2000 1X \n
-       - 0x02 -- cdma2000 HRPD (1xEV-DO) \n
+       - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X \n
+       - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x03 -- GSM \n
        - 0x04 -- UMTS \n
-       - 0x05 -- cdma200 HRPD (1xEV-DO RevA) \n
+       - 0x05 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO RevA) \n
        - 0x06 -- EDGE \n
        - 0x07 -- HSDPA and WCDMA \n
        - 0x08 -- WCDMA and HSUPA \n
        - 0x09 -- HSDPA and HSUPA \n
        - 0x0A -- LTE \n
-       - 0x0B -- cdma2000 EHRPD \n
+       - 0x0B -- cdma2000\textsuperscript{\textregistered} EHRPD \n
        - 0x0C -- HSDPA+ and WCDMA \n
        - 0x0D -- HSDPA+ and HSUPA \n
        - 0x0E -- DC_HSDPA+ and WCDMA \n
@@ -6749,8 +8428,8 @@ typedef struct {
        - 0x12 -- TDSCDMA                 \n
        - 0x13 -- TDSCDMA and HSDPA       \n
        - 0x14 -- TDSCDMA and HSUPA       \n
-       - -1   -- Unknown
-
+       - -1   -- Unknown 
+       
   */
 }wds_get_data_bearer_technology_resp_msg_v01;  /* Message */
 /**
@@ -6758,13 +8437,13 @@ typedef struct {
   */
 
 typedef uint32_t wds_dun_req_mask_v01;
-#define QMI_WDS_MASK_DUN_CONNECTION_STATUS_V01 ((wds_dun_req_mask_v01)0x01)
-#define QMI_WDS_MASK_DUN_LAST_CALL_END_REASON_V01 ((wds_dun_req_mask_v01)0x02)
-#define QMI_WDS_MASK_DUN_TX_RX_BYTES_OK_V01 ((wds_dun_req_mask_v01)0x04)
-#define QMI_WDS_MASK_DUN_DORMANCY_STATUS_V01 ((wds_dun_req_mask_v01)0x08)
-#define QMI_WDS_MASK_DUN_DATA_BEARER_V01 ((wds_dun_req_mask_v01)0x10)
-#define QMI_WDS_MASK_DUN_CHANNEL_RATE_V01 ((wds_dun_req_mask_v01)0x20)
-#define QMI_WDS_MASK_DUN_CAL_ACTIVE_DURATION_V01 ((wds_dun_req_mask_v01)0x40)
+#define QMI_WDS_MASK_DUN_CONNECTION_STATUS_V01 ((wds_dun_req_mask_v01)0x01) 
+#define QMI_WDS_MASK_DUN_LAST_CALL_END_REASON_V01 ((wds_dun_req_mask_v01)0x02) 
+#define QMI_WDS_MASK_DUN_TX_RX_BYTES_OK_V01 ((wds_dun_req_mask_v01)0x04) 
+#define QMI_WDS_MASK_DUN_DORMANCY_STATUS_V01 ((wds_dun_req_mask_v01)0x08) 
+#define QMI_WDS_MASK_DUN_DATA_BEARER_V01 ((wds_dun_req_mask_v01)0x10) 
+#define QMI_WDS_MASK_DUN_CHANNEL_RATE_V01 ((wds_dun_req_mask_v01)0x20) 
+#define QMI_WDS_MASK_DUN_CAL_ACTIVE_DURATION_V01 ((wds_dun_req_mask_v01)0x40) 
 /** @addtogroup wds_qmi_aggregates
     @{
   */
@@ -6773,16 +8452,16 @@ typedef struct {
   uint8_t stats_peroid;
   /**<   Period between transfer statistic reports. Values: \n
        - 0 -- Do not report \n
-       - Other -- Period between reports (seconds)
+       - Other -- Period between reports (in seconds)
   */
 
   wds_stats_mask_v01 stats_mask;
-  /**<   Requested statistic bit mask. Each bit set causes
+  /**<   Requested statistic bitmask. Each bit set causes 
        the corresponding optional TLV to be sent in the IND.
        All unlisted bits are reserviced for future use and must
        be set to zero. Values: \n
        - 0x00000040 -- Tx bytes OK \n
-       - 0x00000080 -- Rx bytes OK
+       - 0x00000080 -- Rx bytes OK 
   */
 }wds_dun_stats_indicator_type_v01;  /* Type */
 /**
@@ -6808,7 +8487,7 @@ typedef struct {
        - Bit 3 -- Dormancy status \n
        - Bit 4 -- Data bearer \n
        - Bit 5 -- Channel rate \n
-       - Bit 6 -- Call active duration
+       - Bit 6 -- Call active duration        
   */
 
   /* Optional */
@@ -6900,7 +8579,7 @@ typedef struct {
   /*  Last Modem Call End Reason */
   uint8_t call_end_reason_valid;  /**< Must be set to true if call_end_reason is being passed */
   wds_call_end_reason_enum_v01 call_end_reason;
-  /**<   Reason the call ended; see Appendix \ref{app:callEndReasons}
+  /**<   Reason the call ended; see Appendix \ref{app:callEndReasons} 
        for the definition of these values.
        Only valid if the last call made was DUN, else zero is
        returned.
@@ -6926,29 +8605,29 @@ typedef struct {
   /*  Dormancy Status */
   uint8_t dormancy_status_valid;  /**< Must be set to true if dormancy_status is being passed */
   wds_dormancy_status_enum_v01 dormancy_status;
-  /**<   Current traffic channel status. Returned only
+  /**<   Current traffic channel status. Returned only 
   if a data call is up. Values: \n
        - 0x01 -- Traffic channel dormant \n
-       - 0x02 -- Traffic channel active
+       - 0x02 -- Traffic channel active        
   */
 
   /* Optional */
   /*  Data Bearer Technology */
   uint8_t data_bearer_tech_valid;  /**< Must be set to true if data_bearer_tech is being passed */
   wds_data_bearer_tech_enum_v01 data_bearer_tech;
-  /**<   Current data bearer technology. Returned only if
+  /**<   Current data bearer technology. Returned only if 
        a data call is up. Values: \n
-       - 0x01 -- cdma2000 1X \n
-       - 0x02 -- cdma2000 HRPD (1xEV-DO) \n
+       - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X \n
+       - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x03 -- GSM \n
        - 0x04 -- UMTS \n
-       - 0x05 -- cdma200 HRPD (1xEV-DO RevA) \n
+       - 0x05 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO RevA) \n
        - 0x06 -- EDGE \n
        - 0x07 -- HSDPA and WCDMA \n
        - 0x08 -- WCDMA and HSUPA \n
        - 0x09 -- HSDPA and HSUPA \n
        - 0x0A -- LTE \n
-       - 0x0B -- cdma2000 EHRPD \n
+       - 0x0B -- cdma2000\textsuperscript{\textregistered} EHRPD \n
        - 0x0C -- HSDPA+ and WCDMA \n
        - 0x0D -- HSDPA+ and HSUPA \n
        - 0x0E -- DC_HSDPA+ and WCDMA \n
@@ -6958,7 +8637,7 @@ typedef struct {
        - 0x12 -- TDSCDMA                 \n
        - 0x13 -- TDSCDMA and HSDPA       \n
        - 0x14 -- TDSCDMA and HSUPA       \n
-       - -1   -- Unknown
+       - -1   -- Unknown        
   */
 
   /* Optional */
@@ -7003,20 +8682,20 @@ typedef struct {
   /*  Last Call Data Bearer Technology */
   uint8_t last_call_data_bearer_tech_valid;  /**< Must be set to true if last_call_data_bearer_tech is being passed */
   wds_data_bearer_tech_enum_v01 last_call_data_bearer_tech;
-  /**<   Returned only if not in a call and when the previous call was
+  /**<   Returned only if not in a call and when the previous call was 
        made using DUN. \n
        Values: \n
-       - 0x01 -- cdma2000 1X \n
-       - 0x02 -- cdma2000 HRPD (1xEV-DO) \n
+       - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X \n
+       - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x03 -- GSM \n
        - 0x04 -- UMTS \n
-       - 0x05 -- cdma200 HRPD (1xEV-DO RevA) \n
+       - 0x05 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO RevA) \n
        - 0x06 -- EDGE \n
        - 0x07 -- HSDPA and WCDMA \n
        - 0x08 -- WCDMA and HSUPA \n
        - 0x09 -- HSDPA and HSUPA \n
        - 0x0A -- LTE \n
-       - 0x0B -- cdma2000 EHRPD \n
+       - 0x0B -- cdma2000\textsuperscript{\textregistered} EHRPD \n
        - 0x0C -- HSDPA+ and WCDMA \n
        - 0x0D -- HSDPA+ and HSUPA \n
        - 0x0E -- DC_HSDPA+ and WCDMA \n
@@ -7026,7 +8705,7 @@ typedef struct {
        - 0x12 -- TDSCDMA                 \n
        - 0x13 -- TDSCDMA and HSDPA       \n
        - 0x14 -- TDSCDMA and HSUPA       \n
-       - -1   -- Unknown
+       - -1   -- Unknown        
   */
 }wds_get_dun_call_info_resp_msg_v01;  /* Message */
 /**
@@ -7082,17 +8761,17 @@ typedef struct {
   uint8_t data_beare_technology_valid;  /**< Must be set to true if data_beare_technology is being passed */
   wds_data_bearer_tech_enum_v01 data_beare_technology;
   /**<   Values: \n
-       - 0x01 -- cdma2000 1X \n
-       - 0x02 -- cdma2000 HRPD (1xEV-DO) \n
+       - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X \n
+       - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x03 -- GSM \n
        - 0x04 -- UMTS \n
-       - 0x05 -- cdma200 HRPD (1xEV-DO RevA) \n
+       - 0x05 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO RevA) \n
        - 0x06 -- EDGE \n
        - 0x07 -- HSDPA and WCDMA \n
        - 0x08 -- WCDMA and HSUPA \n
        - 0x09 -- HSDPA and HSUPA \n
        - 0x0A -- LTE \n
-       - 0x0B -- cdma2000 EHRPD \n
+       - 0x0B -- cdma2000\textsuperscript{\textregistered} EHRPD \n
        - 0x0C -- HSDPA+ and WCDMA \n
        - 0x0D -- HSDPA+ and HSUPA \n
        - 0x0E -- DC_HSDPA+ and WCDMA \n
@@ -7114,11 +8793,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_active_mip_profile_req_msg is empty
- * typedef struct {
- * }wds_get_active_mip_profile_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current Mobile IP mode profile index from the devices. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_active_mip_profile_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -7127,13 +8815,13 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Mobile IP Profile Identifier *  */
   uint8_t profile_index;
   /**<   Index of the active profile.*/
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_active_mip_profile_resp_msg_v01;  /* Message */
 /**
     @}
@@ -7202,9 +8890,9 @@ typedef struct {
   */
 typedef enum {
   WDS_MIP_KEY_STATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_MIP_KEY_UNSET_V01 = 0x00,
-  WDS_MIP_KEY_DEFAULT_V01 = 0x01,
-  WDS_MIP_KEY_NOTDEFAULT_V01 = 0x02,
+  WDS_MIP_KEY_UNSET_V01 = 0x00, 
+  WDS_MIP_KEY_DEFAULT_V01 = 0x01, 
+  WDS_MIP_KEY_NOTDEFAULT_V01 = 0x02, 
   WDS_MIP_KEY_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_mip_key_state_enum_v01;
 /**
@@ -7317,7 +9005,7 @@ typedef struct {
   uint8_t profile_state;
   /**<   Values: \n
        - 0x00 -- Disabled \n
-       - 0x01 -- Enabled
+       - 0x01 -- Enabled 
   */
 
   /* Optional */
@@ -7400,11 +9088,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_mip_settings_req_msg is empty
- * typedef struct {
- * }wds_get_mip_settings_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the mobile IP settings from the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_mip_settings_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -7453,10 +9150,10 @@ typedef struct {
   /*  Mobile IP Re-Reg if Traffic */
   uint8_t mip_re_reg_if_traf_valid;  /**< Must be set to true if mip_re_reg_if_traf is being passed */
   uint8_t mip_re_reg_if_traf;
-  /**<   Mobile IP reregistration occursonly if there is traffic since
+  /**<   Mobile IP reregistration occursonly if there is traffic since 
        the last attempt. Values: \n
        - 0x00 -- Disabled \n
-       - 0x01 -- Enabled
+       - 0x01 -- Enabled 
   */
 
   /* Optional */
@@ -7531,7 +9228,7 @@ typedef struct {
   /*  Mobile IP Re-Reg if Traffic * */
   uint8_t mip_re_reg_if_traf_valid;  /**< Must be set to true if mip_re_reg_if_traf is being passed */
   uint8_t mip_re_reg_if_traf;
-  /**<   Mobile IP reregistration only if traffic since the
+  /**<   Mobile IP reregistration only if traffic since the 
        last attempt. Values: \n
        - 0x00 -- Disabled \n
        - 0x01 -- Enabled
@@ -7574,11 +9271,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_last_mip_status_req_msg is empty
- * typedef struct {
- * }wds_get_last_mip_status_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the last mobile IP status from the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_last_mip_status_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -7587,26 +9293,35 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Last MIP Status * */
   uint8_t mip_error;
   /**<   Status of the last MIP call (or attempt). Values: \n
        - 0x00 -- Success \n
        - > 0  -- Error code (as defined in \hyperref[S4]{[S4]})
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_last_mip_status_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_current_data_bearer_technology_req_msg is empty
- * typedef struct {
- * }wds_get_current_data_bearer_technology_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current data bearer technology. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_current_data_bearer_technology_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -7615,12 +9330,12 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Current Data Bearer Technology  */
-  wds_current_bearer_tech_type_v01 current_bearer_tech;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Current Data Bearer Technology  */
+  wds_current_bearer_tech_type_v01 current_bearer_tech;
 
   /* Optional */
   /*  Last Call Bearer Technology */
@@ -7631,19 +9346,29 @@ typedef struct {
     @}
   */
 
-/*
- * wds_call_history_list_req_msg is empty
- * typedef struct {
- * }wds_call_history_list_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries a list of call history records from
+           the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_call_history_list_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_enums
     @{
   */
 typedef enum {
   WDS_DATA_CALL_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DATA_CALL_TYPE_RMNET_V01 = 0x00,
-  WDS_DATA_CALL_TYPE_DUN_V01 = 0x01,
+  WDS_DATA_CALL_TYPE_RMNET_V01 = 0x00, 
+  WDS_DATA_CALL_TYPE_DUN_V01 = 0x01, 
   WDS_DATA_CALL_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_data_call_type_enum_v01;
 /**
@@ -7658,23 +9383,23 @@ typedef struct {
   wds_data_call_type_enum_v01 call_type;
   /**<   Call type. Values: \n
        - 0x00 -- RmNet \n
-       - 0x01 -- Dial Up Network (DUN)
+       - 0x01 -- Dial Up Network (DUN) 
   */
 
   wds_data_bearer_tech_enum_v01 call_data_bearer;
   /**<   Data bearer technology.
  Values: \n
-       - 0x01 -- cdma2000 1X \n
-       - 0x02 -- cdma2000 HRPD (1xEV-DO) \n
+       - 0x01 -- cdma2000\textsuperscript{\textregistered} 1X \n
+       - 0x02 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO) \n
        - 0x03 -- GSM \n
        - 0x04 -- UMTS \n
-       - 0x05 -- cdma200 HRPD (1xEV-DO RevA) \n
+       - 0x05 -- cdma2000\textsuperscript{\textregistered} HRPD (1xEV-DO RevA) \n
        - 0x06 -- EDGE \n
        - 0x07 -- HSDPA and WCDMA \n
        - 0x08 -- WCDMA and HSUPA \n
        - 0x09 -- HSDPA and HSUPA \n
        - 0x0A -- LTE \n
-       - 0x0B -- cdma2000 EHRPD \n
+       - 0x0B -- cdma2000\textsuperscript{\textregistered} EHRPD \n
        - 0x0C -- HSDPA+ and WCDMA \n
        - 0x0D -- HSDPA+ and HSUPA \n
        - 0x0E -- DC_HSDPA+ and WCDMA \n
@@ -7685,7 +9410,7 @@ typedef struct {
        - 0x13 -- TDSCDMA and HSDPA       \n
        - 0x14 -- TDSCDMA and HSUPA       \n
        - 0x15 -- IWLAN S2B               \n
-       - -1   -- Unknown
+       - -1   -- Unknown 
    */
 
   uint64_t call_timestamp;
@@ -7815,22 +9540,31 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Call History Record   */
-  wds_call_record_type_v01 call_history_record;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Call History Record   */
+  wds_call_record_type_v01 call_history_record;
 }wds_call_history_read_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_call_history_delete_req_msg is empty
- * typedef struct {
- * }wds_call_history_delete_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Clears the call history records from the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_call_history_delete_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -7846,27 +9580,37 @@ typedef struct {
     @}
   */
 
-/*
- * wds_call_history_max_size_req_msg is empty
- * typedef struct {
- * }wds_call_history_max_size_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Requests the maximum number of call history records that 
+           can be stored in the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_call_history_max_size_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Requests the maximum number of call history records that
+/** Response Message; Requests the maximum number of call history records that 
            can be stored in the device. */
 typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
 
   /* Mandatory */
   /*  Call History Size   */
   uint16_t max_size;
   /**<   Maximum number of call history records that can be stored.*/
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_call_history_max_size_resp_msg_v01;  /* Message */
 /**
     @}
@@ -7877,9 +9621,9 @@ typedef struct {
   */
 typedef enum {
   WDS_PROFILE_FAMILY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_FAMILY_EMBEDDED_V01 = 0x00,
-  WDS_PROFILE_FAMILY_TETHERED_V01 = 0x01,
-  WDS_PROFILE_FAMILY_SOCKET_V01 = 0x01,
+  WDS_PROFILE_FAMILY_EMBEDDED_V01 = 0x00, 
+  WDS_PROFILE_FAMILY_TETHERED_V01 = 0x01, 
+  WDS_PROFILE_FAMILY_SOCKET_V01 = 0x01, 
   WDS_PROFILE_FAMILY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_family_enum_v01;
 /**
@@ -7893,8 +9637,8 @@ typedef struct {
 
   wds_profile_type_enum_v01 profile_type;
   /**<   Identifies the technology type of the profile. Values: \n
-       - 0 -- 3GPP \n
-       - 1 -- 3GPP2
+       - 0x0 -- 3GPP \n
+       - 0x1 -- 3GPP2
    */
 
   wds_profile_family_enum_v01 profile_family;
@@ -7931,20 +9675,20 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Default Profile Number   */
   uint8_t profile_index;
   /**<   Profile number identifying the default profile.*/
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 
   /* Optional */
   /*  Extended error code. */
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   Error code from the DS profile.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_get_default_profile_num_resp_msg_v01;  /* Message */
@@ -7960,7 +9704,7 @@ typedef struct {
   wds_profile_type_enum_v01 profile_type;
   /**<   Identifies the technology type of the profile. Values: \n
        - 0 -- 3GPP \n
-       - 1 -- 3GPP2
+       - 1 -- 3GPP2 
    */
 
   wds_profile_family_enum_v01 profile_family;
@@ -8008,7 +9752,7 @@ typedef struct {
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   Error code from the DS profile.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_set_default_profile_num_resp_msg_v01;  /* Message */
@@ -8047,7 +9791,7 @@ typedef struct {
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   Error code from the DS profile.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_reset_profile_to_default_resp_msg_v01;  /* Message */
@@ -8060,12 +9804,12 @@ typedef struct {
   */
 typedef enum {
   WDS_PROFILE_PARAM_ID_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_PROFILE_PARAM_ID_UMTS_REQ_QOS_V01 = 0x17,
-  WDS_PROFILE_PARAM_ID_UMTS_MIN_QOS_V01 = 0x18,
-  WDS_PROFILE_PARAM_ID_GPRS_REQ_QOS_V01 = 0x19,
-  WDS_PROFILE_PARAM_ID_GPRS_MIN_QOS_V01 = 0x1A,
-  WDS_PROFILE_PARAM_ID_TFT_FILTER_1_V01 = 0x23,
-  WDS_PROFILE_PARAM_ID_TFT_FILTER_2_V01 = 0x24,
+  WDS_PROFILE_PARAM_ID_UMTS_REQ_QOS_V01 = 0x17, 
+  WDS_PROFILE_PARAM_ID_UMTS_MIN_QOS_V01 = 0x18, 
+  WDS_PROFILE_PARAM_ID_GPRS_REQ_QOS_V01 = 0x19, 
+  WDS_PROFILE_PARAM_ID_GPRS_MIN_QOS_V01 = 0x1A, 
+  WDS_PROFILE_PARAM_ID_TFT_FILTER_1_V01 = 0x23, 
+  WDS_PROFILE_PARAM_ID_TFT_FILTER_2_V01 = 0x24, 
   WDS_PROFILE_PARAM_ID_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_profile_param_id_enum_v01;
 /**
@@ -8132,7 +9876,7 @@ typedef struct {
   uint8_t extended_error_code_valid;  /**< Must be set to true if extended_error_code is being passed */
   wds_ds_extended_error_code_enum_v01 extended_error_code;
   /**<   Error code from the DS profile.
-       These error codes are explained in Appendix
+       These error codes are explained in Appendix  
   \ref{app:DSProfileExtendedErrorCodes}.
   */
 }wds_reset_profile_param_to_invalid_resp_msg_v01;  /* Message */
@@ -8237,11 +9981,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_fmc_clear_tunnel_params_req_msg is empty
- * typedef struct {
- * }wds_fmc_clear_tunnel_params_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Clears the tunnel parameters for FMC. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_fmc_clear_tunnel_params_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -8257,11 +10010,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_fmc_get_tunnel_params_req_msg is empty
- * typedef struct {
- * }wds_fmc_get_tunnel_params_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the FMC tunnel parameters from the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_fmc_get_tunnel_params_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -8310,7 +10072,7 @@ typedef struct {
   /**<   Values: \n
        - 0x00 -- Disabled \n
        - 0x01 -- Enabled \n
-       - 0x02 -- Paused (resume on power cycle)
+       - 0x02 -- Paused (resume on power cycle) 
   */
 
   /* Optional */
@@ -8342,11 +10104,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_dns_settings_req_msg is empty
- * typedef struct {
- * }wds_get_dns_settings_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current DNS settings for the device. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_dns_settings_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -8380,8 +10151,8 @@ typedef struct {
   /*  Primary IPv6 DNS Address */
   uint8_t primary_dns_ipv6_address_valid;  /**< Must be set to true if primary_dns_ipv6_address is being passed */
   uint8_t primary_dns_ipv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   Primary IPv6 DNS address (in network byte order);
-       this is an 8-element array of 16-bit numbers, each of
+  /**<   Primary IPv6 DNS address in network byte order;
+       an 8-element array of 16-bit numbers, each of
        which is in big-endian format.
        Note: A value of 0 indicates that the network values are reported.
   */
@@ -8390,8 +10161,8 @@ typedef struct {
   /*  Secondary IPv6 DNS Address */
   uint8_t secondary_dns_ipv6_address_valid;  /**< Must be set to true if secondary_dns_ipv6_address is being passed */
   uint8_t secondary_dns_ipv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   Secondary IPv6 DNS address (in network byte order);
-       this is an 8-element array of 16-bit numbers, each of
+  /**<   Secondary IPv6 DNS address in network byte order;
+       an 8-element array of 16-bit numbers, each of
        which is in big-endian format.
        Note: A value of 0 indicates that the network values are reported.
   */
@@ -8426,8 +10197,8 @@ typedef struct {
   /*  Primary IPv6 DNS Address */
   uint8_t primary_dns_ipv6_address_valid;  /**< Must be set to true if primary_dns_ipv6_address is being passed */
   uint8_t primary_dns_ipv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   Primary IPv6 DNS address (in network byte order);
-       this is an 8-element array of 16-bit numbers, each of
+  /**<   Primary IPv6 DNS address in network byte order;
+       an 8-element array of 16-bit numbers, each of
        which is in big-endian format.
        Note: A value of 0 indicates that the network values are reported.
   */
@@ -8436,8 +10207,8 @@ typedef struct {
   /*  Secondary IPv6 DNS Address */
   uint8_t secondary_dns_ipv6_address_valid;  /**< Must be set to true if secondary_dns_ipv6_address is being passed */
   uint8_t secondary_dns_ipv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   Secondary IPv6 DNS address (in network byte order);
-       this is an 8-element array of 16-bit numbers, each of
+  /**<   Secondary IPv6 DNS address in network byte order;
+       an 8-element array of 16-bit numbers, each of
        which is in big-endian format.
        Note: A value of 0 indicates that the network values are reported.
   */
@@ -8460,25 +10231,35 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_pre_dormancy_cdma_settings_req_msg is empty
- * typedef struct {
- * }wds_get_pre_dormancy_cdma_settings_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the packet data session information before
+           dormancy. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_pre_dormancy_cdma_settings_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_enums
     @{
   */
 typedef enum {
   WDS_SERVICE_OPTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_SO_IS_657_V01 = 0x0007,
-  WDS_SO_IS_657_RATE_SET_2_V01 = 0x000F,
-  WDS_SO_IS_707A_RATE_SET_1_FWD_REV_V01 = 0x0016,
-  WDS_SO_IS_707A_RATE_SET_2_FWD_REV_V01 = 0x0019,
-  WDS_SO_CDMA2000_PKT_V01 = 0x0021,
-  WDS_SO_IS_707_V01 = 0x1007,
-  WDS_SO_QC_RATE_SET_2_V01 = 0x8020,
-  WDS_SO_NULL_V01 = -1,
+  WDS_SO_IS_657_V01 = 0x0007, 
+  WDS_SO_IS_657_RATE_SET_2_V01 = 0x000F, 
+  WDS_SO_IS_707A_RATE_SET_1_FWD_REV_V01 = 0x0016, 
+  WDS_SO_IS_707A_RATE_SET_2_FWD_REV_V01 = 0x0019, 
+  WDS_SO_CDMA2000_PKT_V01 = 0x0021, 
+  WDS_SO_IS_707_V01 = 0x1007, 
+  WDS_SO_QC_RATE_SET_2_V01 = 0x8020, 
+  WDS_SO_NULL_V01 = -1, 
   WDS_SERVICE_OPTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_service_option_enum_v01;
 /**
@@ -8490,9 +10271,9 @@ typedef enum {
   */
 typedef enum {
   WDS_DATA_SESS_NW_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DATA_SESSION_NW_NO_SERVICE_V01 = 0x00,
-  WDS_DATA_SESSION_NW_CDMA_V01 = 0x02,
-  WDS_DATA_SESSION_NW_HDR_V01 = 0x04,
+  WDS_DATA_SESSION_NW_NO_SERVICE_V01 = 0x00, 
+  WDS_DATA_SESSION_NW_CDMA_V01 = 0x02, 
+  WDS_DATA_SESSION_NW_HDR_V01 = 0x04, 
   WDS_DATA_SESS_NW_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_data_sess_nw_enum_v01;
 /**
@@ -8511,11 +10292,11 @@ typedef struct {
        - 0x000F -- IS-657 over rate set 2 \n
        - 0x0016 -- IS-707A with rate set 1 forward and reverse \n
        - 0x0019 -- IS-707A with rate set 2 forward and reverse \n
-       - 0x0021 -- CDMA2000 packet service option \n
+       - 0x0021 -- cdma2000\textsuperscript{\textregistered} packet service option \n
        - 0x1007 -- IS-707 \n
        - 0x8020 -- QC Proprietary, rate set 2 \n
        - -1     -- NULL service option (returned when not currently in
-                  CDMA-1x data session)
+                  CDMA-1X data session)
   */
 
   wds_data_sess_nw_enum_v01 data_sess_nw;
@@ -8537,12 +10318,12 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Predormancy Settings   */
-  wds_predormancy_cdma_settings_type_v01 pre_dormancy_settings;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Predormancy Settings   */
+  wds_predormancy_cdma_settings_type_v01 pre_dormancy_settings;
 }wds_get_pre_dormancy_cdma_settings_resp_msg_v01;  /* Message */
 /**
     @}
@@ -8577,11 +10358,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_cam_timer_req_msg is empty
- * typedef struct {
- * }wds_get_cam_timer_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the Chatty App Manager timer value. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_cam_timer_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -8590,15 +10380,15 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  CAM Timer   */
-  uint32_t cam_timer;
-  /**<   Retrieves the current value of the CAM timer, in
-       seconds.
-   */
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  CAM Timer   */
+  uint32_t cam_timer;
+  /**<   Retrieves the current value of the CAM timer, in 
+       seconds.
+   */
 }wds_get_cam_timer_resp_msg_v01;  /* Message */
 /**
     @}
@@ -8636,11 +10426,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_scrm_req_msg is empty
- * typedef struct {
- * }wds_get_scrm_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves whether SCRM support is enabled or disabled. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_scrm_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -8649,16 +10448,16 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  SCRM */
   uint8_t scrm;
   /**<   Values: \n
        - 0x00 -- SCRM disabled \n
        - 0x01 -- SCRM enabled
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_scrm_resp_msg_v01;  /* Message */
 /**
     @}
@@ -8696,11 +10495,21 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_rdud_req_msg is empty
- * typedef struct {
- * }wds_get_rdud_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves whether reduced dormancy followed by unsolicited
+           data is enabled or disabled. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_rdud_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -8710,35 +10519,44 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  RDUD */
   uint8_t rdud;
   /**<   Values: \n
        - 0x00 -- Disabled \n
        - 0x01 -- Enabled
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_rdud_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_sip_mip_call_type_req_msg is empty
- * typedef struct {
- * }wds_get_sip_mip_call_type_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the SIP/MIP call type. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_sip_mip_call_type_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_enums
     @{
   */
 typedef enum {
   WDS_SIP_MIP_CALL_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_CALL_TYPE_SIP_MIP_NOT_UP_V01 = 0x00,
-  WDS_CALL_TYPE_SIP_UP_V01 = 0x01,
-  WDS_CALL_TYPE_MIP_UP_V01 = 0x02,
+  WDS_CALL_TYPE_SIP_MIP_NOT_UP_V01 = 0x00, 
+  WDS_CALL_TYPE_SIP_UP_V01 = 0x01, 
+  WDS_CALL_TYPE_MIP_UP_V01 = 0x02, 
   WDS_SIP_MIP_CALL_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_sip_mip_call_type_enum_v01;
 /**
@@ -8752,6 +10570,10 @@ typedef enum {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Call Type  */
   wds_sip_mip_call_type_enum_v01 call_type;
   /**<   Values: \n
@@ -8759,10 +10581,6 @@ typedef struct {
        - 0x01 -- SIP up \n
        - 0x02 -- MIP up
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_sip_mip_call_type_resp_msg_v01;  /* Message */
 /**
     @}
@@ -8805,11 +10623,11 @@ typedef struct {
   */
 typedef enum {
   WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_SUCCESS_V01 = 0x00,
-  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_REQUEST_REJECTED_V01 = 0x01,
-  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_REQUEST_FAILED_TX_V01 = 0x02,
-  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_NOT_SUPPORTED_V01 = 0x03,
-  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_REQUEST_NO_NET_V01 = 0x04,
+  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_SUCCESS_V01 = 0x00, 
+  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_REQUEST_REJECTED_V01 = 0x01, 
+  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_REQUEST_FAILED_TX_V01 = 0x02, 
+  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_NOT_SUPPORTED_V01 = 0x03, 
+  WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_FAIL_REQUEST_NO_NET_V01 = 0x04, 
   WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_evdo_page_monitor_period_result_enum_v01;
 /**
@@ -8819,7 +10637,7 @@ typedef enum {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Indication Message; Indicates the result of the attempt to change the EV-DO
+/** Indication Message; Indicates the result of the attempt to change the EV-DO 
            slot cycle. */
 typedef struct {
 
@@ -8870,11 +10688,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_evdo_page_monitor_period_req_msg is empty
- * typedef struct {
- * }wds_get_evdo_page_monitor_period_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves details about the EV-DO page monitoring period. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_evdo_page_monitor_period_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -8883,22 +10710,32 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  EV-DO Page Monitor Period Details */
-  wds_evdo_page_monitor_period_type_v01 evdo_page_monitor_period;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  EV-DO Page Monitor Period Details */
+  wds_evdo_page_monitor_period_type_v01 evdo_page_monitor_period;
 }wds_get_evdo_page_monitor_period_resp_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_call_throttle_info_req_msg is empty
- * typedef struct {
- * }wds_get_call_throttle_info_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries whether the system is call throttled and returns
+           the remaining throttled delay. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_call_throttle_info_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_aggregates
     @{
@@ -8906,14 +10743,14 @@ typedef struct {
 typedef struct {
 
   uint32_t hdr_call_throttled_delay;
-  /**<   HDR throttled delay; specifies the remaining call
+  /**<   HDR throttled delay; specifies the remaining call 
        throttled delay in seconds. Set to 0 if the system is not call
        throttled.
   */
 
   uint32_t cdma_call_throttled_delay;
-  /**<   CDMA-1X throttled delay; specifies the remaining
-       call throttled delay in seconds. Set to 0 if the system is not
+  /**<   CDMA-1X throttled delay; specifies the remaining 
+       call throttled delay in seconds. Set to 0 if the system is not 
        call throttled.
   */
 }wds_call_throttle_info_type_v01;  /* Type */
@@ -8929,12 +10766,12 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  Call Throttled  */
-  wds_call_throttle_info_type_v01 call_throttled;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
+
+  /* Mandatory */
+  /*  Call Throttled  */
+  wds_call_throttle_info_type_v01 call_throttled;
 }wds_get_call_throttle_info_resp_msg_v01;  /* Message */
 /**
     @}
@@ -8964,14 +10801,14 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  NSAPI   */
   uint32_t nsapi_len;  /**< Must be set to # of elements in nsapi */
   uint8_t nsapi[QMI_WDS_MAX_BEARER_CONTEXT_V01];
   /**<   NSAPI.*/
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_get_nsapi_resp_msg_v01;  /* Message */
 /**
     @}
@@ -8982,8 +10819,8 @@ typedef struct {
   */
 typedef enum {
   WDS_DUN_CTRL_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DUN_CTRL_PREF_DISABLE_V01 = 0x00,
-  WDS_DUN_CTRL_PREF_ENABLE_V01 = 0x01,
+  WDS_DUN_CTRL_PREF_DISABLE_V01 = 0x00, 
+  WDS_DUN_CTRL_PREF_ENABLE_V01 = 0x01, 
   WDS_DUN_CTRL_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_dun_ctrl_pref_enum_v01;
 /**
@@ -8995,8 +10832,8 @@ typedef enum {
   */
 typedef enum {
   WDS_DUN_ALLOW_PREF_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DUN_CTRL_ACTION_DENY_V01 = 0x00,
-  WDS_DUN_CTRL_ACTION_ALLOW_V01 = 0x01,
+  WDS_DUN_CTRL_ACTION_DENY_V01 = 0x00, 
+  WDS_DUN_CTRL_ACTION_ALLOW_V01 = 0x01, 
   WDS_DUN_ALLOW_PREF_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_dun_allow_pref_enum_v01;
 /**
@@ -9046,19 +10883,28 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_dun_ctrl_info_req_msg is empty
- * typedef struct {
- * }wds_get_dun_ctrl_info_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the status of the DUN call control on the modem. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_dun_ctrl_info_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_enums
     @{
   */
 typedef enum {
   WDS_DUN_CTRL_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DUN_CTRL_STATUS_NOT_SET_V01 = 0x00,
-  WDS_DUN_CTRL_STATUS_SET_V01 = 0x01,
+  WDS_DUN_CTRL_STATUS_NOT_SET_V01 = 0x00, 
+  WDS_DUN_CTRL_STATUS_SET_V01 = 0x01, 
   WDS_DUN_CTRL_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_dun_ctrl_status_enum_v01;
 /**
@@ -9070,8 +10916,8 @@ typedef enum {
   */
 typedef enum {
   WDS_DUN_CTRL_CONTROL_POINT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DUN_CTRL_CONTROL_POINT_ANOTHER_V01 = 0x00,
-  WDS_DUN_CTRL_CONTROL_POINT_CURRENT_V01 = 0x01,
+  WDS_DUN_CTRL_CONTROL_POINT_ANOTHER_V01 = 0x00, 
+  WDS_DUN_CTRL_CONTROL_POINT_CURRENT_V01 = 0x01, 
   WDS_DUN_CTRL_CONTROL_POINT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_dun_ctrl_control_point_enum_v01;
 /**
@@ -9085,16 +10931,16 @@ typedef enum {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  DUN Control Status   */
   wds_dun_ctrl_status_enum_v01 dun_control_status;
   /**<   Values: \n
        - 0x00 -- DUN control is not enabled by any control point \n
        - 0x01 -- DUN control is enabled
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 
   /* Optional */
   /*  Allow DUN Calls */
@@ -9173,6 +11019,10 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Mandatory */
   /*  Accepted Event Report Mask */
   wds_dun_ctrl_event_report_mask_v01 accepted_event_report_mask;
   /**<   Values: \n
@@ -9180,10 +11030,6 @@ typedef struct {
        - 0x02 -- Send DUN entitlement notifications \n
        - 0x04 -- Send DUN silent redial notifications
   */
-
-  /* Mandatory */
-  /*  Result Code */
-  qmi_response_type_v01 resp;
 }wds_set_dun_ctrl_event_report_resp_msg_v01;  /* Message */
 /**
     @}
@@ -9194,9 +11040,9 @@ typedef struct {
   */
 typedef enum {
   WDS_DUN_CTRL_EVENT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_DUN_CTRL_EVENT_CALL_NOTIFICATION_V01 = 0x01,
-  WDS_DUN_CTRL_EVENT_CALL_ENTITLEMENT_V01 = 0x02,
-  WDS_DUN_CTRL_EVENT_CALL_SILENT_REDIAL_V01 = 0x03,
+  WDS_DUN_CTRL_EVENT_CALL_NOTIFICATION_V01 = 0x01, 
+  WDS_DUN_CTRL_EVENT_CALL_ENTITLEMENT_V01 = 0x02, 
+  WDS_DUN_CTRL_EVENT_CALL_SILENT_REDIAL_V01 = 0x03, 
   WDS_DUN_CTRL_EVENT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_dun_ctrl_event_enum_v01;
 /**
@@ -9322,12 +11168,12 @@ typedef struct {
   */
 typedef enum {
   WDS_EMBMS_PRIORITY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EMBMS_PRIORITY_0_V01 = 0,
-  WDS_EMBMS_PRIORITY_1_V01 = 1,
-  WDS_EMBMS_PRIORITY_2_V01 = 2,
-  WDS_EMBMS_PRIORITY_3_V01 = 3,
-  WDS_EMBMS_PRIORITY_4_V01 = 4,
-  WDS_EMBMS_PRIORITY_5_V01 = 5,
+  WDS_EMBMS_PRIORITY_0_V01 = 0, 
+  WDS_EMBMS_PRIORITY_1_V01 = 1, 
+  WDS_EMBMS_PRIORITY_2_V01 = 2, 
+  WDS_EMBMS_PRIORITY_3_V01 = 3, 
+  WDS_EMBMS_PRIORITY_4_V01 = 4, 
+  WDS_EMBMS_PRIORITY_5_V01 = 5, 
   WDS_EMBMS_PRIORITY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_embms_priority_enum_v01;
 /**
@@ -9339,10 +11185,10 @@ typedef enum {
   */
 typedef enum {
   WDS_EMBMS_EXTENDED_ERROR_CODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EMBMS_EEC_TMGI_NOT_SUPPORTED_V01 = 108,
-  WDS_EMBMS_ECC_TMGI_ACTIVATION_IN_PROGRESS_V01 = 111,
-  WDS_EMBMS_EEC_TMGI_INVALID_V01 = 124,
-  WDS_EMBMS_EEC_TMGI_DEACTIVATION_IN_PROGRESS_V01 = 203,
+  WDS_EMBMS_EEC_TMGI_NOT_SUPPORTED_V01 = 108, 
+  WDS_EMBMS_ECC_TMGI_ACTIVATION_IN_PROGRESS_V01 = 111, 
+  WDS_EMBMS_EEC_TMGI_INVALID_V01 = 124, 
+  WDS_EMBMS_EEC_TMGI_DEACTIVATION_IN_PROGRESS_V01 = 203, 
   WDS_EMBMS_EXTENDED_ERROR_CODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_embms_extended_error_code_enum_v01;
 /**
@@ -9385,6 +11231,48 @@ typedef struct {
   uint32_t earfcn_list_len;  /**< Must be set to # of elements in earfcn_list */
   wds_embms_earfcn_type_v01 earfcn_list[QMI_WDS_EMBMS_MAX_EARFCN_V01];
   /**<   \n Default is an empty list. */
+
+  /* Optional */
+  /*  SAI List */
+  uint8_t sai_list_valid;  /**< Must be set to true if sai_list is being passed */
+  uint32_t sai_list_len;  /**< Must be set to # of elements in sai_list */
+  uint32_t sai_list[QMI_WDS_EMBMS_SAI_LIST_MAX_V01];
+  /**<   Service area identity list. */
+
+  /* Optional */
+  /*  Extended Frequencies List */
+  uint8_t earfcn_list_ex_valid;  /**< Must be set to true if earfcn_list_ex is being passed */
+  uint32_t earfcn_list_ex_len;  /**< Must be set to # of elements in earfcn_list_ex */
+  uint32_t earfcn_list_ex[QMI_WDS_EMBMS_MAX_EARFCN_V01];
+  /**<   Default is an empty list. */
+
+  /* Optional */
+  /*  Multicast Address IP Family Type */
+  uint8_t multicast_ip_type_valid;  /**< Must be set to true if multicast_ip_type is being passed */
+  wds_ip_family_enum_v01 multicast_ip_type;
+  /**<   IP address family type of the multicast IP 
+ corresponding to the requested TMGI. Values: \n
+      - WDS_IP_FAMILY_IPV4 (0x04) --  IPv4 \n 
+      - WDS_IP_FAMILY_IPV6 (0x06) --  IPv6  
+ */
+
+  /* Optional */
+  /*  Multicast IPv4 Address */
+  uint8_t multicast_ipv4_addr_valid;  /**< Must be set to true if multicast_ipv4_addr is being passed */
+  uint32_t multicast_ipv4_addr;
+  /**<   Multicast IPv4 address corresponding to the requested TMGI. */
+
+  /* Optional */
+  /*  Multicast IPv6 Address */
+  uint8_t multicast_ipv6_addr_valid;  /**< Must be set to true if multicast_ipv6_addr is being passed */
+  uint8_t multicast_ipv6_addr[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Multicast IPv6 address corresponding to the requested TMGI. */
+
+  /* Optional */
+  /*  Multicast Port */
+  uint8_t multicast_port_valid;  /**< Must be set to true if multicast_port is being passed */
+  uint16_t multicast_port;
+  /**<   Multicast port corresponding to the requested TMGI. */
 }wds_embms_tmgi_activate_req_msg_v01;  /* Message */
 /**
     @}
@@ -9418,25 +11306,19 @@ typedef struct {
   */
 typedef enum {
   WDS_EMBMS_TMGI_ACTIVATE_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_TMGI_ACTIVATE_SUCCESS_V01 = 0x00000000,
-  WDS_TMGI_ACTIVATE_SUCCESS_DUPLICATE_V01 = 0x00000001,
-  WDS_TMGI_ACTIVATE_SUCCESS_IDLE_RADIO_TUNE_V01 = 0x00000002,
-  WDS_TMGI_ACTIVATE_SUCCESS_CONN_RADIO_TUNE_V01 = 0x00000003,
-  /* Begin - deprecated from rev 1.49 onwards */
-  WDS_TMGI_ACTIVATE_FAILURE_RADIO_CONFIG_V01 = 0x00010000,
-  WDS_TMGI_ACTIVATE_FAILURE_CHANNEL_UNAVAILABLE_V01 = 0x00010001,
-  WDS_TMGI_ACTIVATE_FAILURE_EMBMS_NOT_ENABLED_V01 = 0x00010002,
-  WDS_TMGI_ACTIVATE_FAILURE_OUT_OF_COVERAGE_V01 = 0x00010003,
-  /* End - deprecated from rev 1.49 onwards */ 
-  WDS_TMGI_ACTIVATE_FAILURE_UNKNOWN_V01 = 0x00010004,
-  WDS_TMGI_ACTIVATE_FAILURE_NOT_ALLOWED_V01 = 0x00010005,
-  WDS_TMGI_ACTIVATE_FAILURE_MISSING_CONTROL_INFO_V01 = 0x00010006,
-  WDS_TMGI_ACTIVATE_FAILURE_MISSING_TMGI_V01 = 0x00010007,
-  WDS_TMGI_ACTIVATE_FAILURE_MCAST_OOS_V01 = 0x00010008,
-  WDS_TMGI_ACTIVATE_FAILURE_UCAST_OOS_V01 = 0x00010009,
-  WDS_TMGI_ACTIVATE_FAILURE_CAMPED_ON_OTHER_FREQ_V01 = 0x0001000A,
-  WDS_TMGI_ACTIVATE_FAILURE_SAI_MISMATCH_V01 = 0x00010107,
-  WDS_TMGI_ACTIVATION_FAILURE_MAX_TMGI_ALREADY_ACTIVE_V01 = 0x00010108,
+  WDS_TMGI_ACTIVATE_SUCCESS_V01 = 0x00000000, 
+  WDS_TMGI_ACTIVATE_SUCCESS_DUPLICATE_V01 = 0x00000001, 
+  WDS_TMGI_ACTIVATE_SUCCESS_IDLE_RADIO_TUNE_V01 = 0x00000002, 
+  WDS_TMGI_ACTIVATE_SUCCESS_CONN_RADIO_TUNE_V01 = 0x00000003, 
+  WDS_TMGI_ACTIVATE_FAILURE_UNKNOWN_V01 = 0x00010004, 
+  WDS_TMGI_ACTIVATE_FAILURE_NOT_ALLOWED_V01 = 0x00010005, 
+  WDS_TMGI_ACTIVATE_FAILURE_MISSING_CONTROL_INFO_V01 = 0x00010006, 
+  WDS_TMGI_ACTIVATE_FAILURE_MISSING_TMGI_V01 = 0x00010007, 
+  WDS_TMGI_ACTIVATE_FAILURE_MCAST_OOS_V01 = 0x00010008, 
+  WDS_TMGI_ACTIVATE_FAILURE_UCAST_OOS_V01 = 0x00010009, 
+  WDS_TMGI_ACTIVATE_FAILURE_CAMPED_ON_OTHER_FREQ_V01 = 0x0001000A, 
+  WDS_TMGI_ACTIVATE_FAILURE_SAI_MISMATCH_V01 = 0x00010107, 
+  WDS_TMGI_ACTIVATION_FAILURE_MAX_TMGI_ALREADY_ACTIVE_V01 = 0x00010108, 
   WDS_EMBMS_TMGI_ACTIVATE_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_embms_tmgi_activate_status_enum_v01;
 /**
@@ -9454,18 +11336,18 @@ typedef struct {
   wds_embms_tmgi_activate_status_enum_v01 activate_status;
   /**<   Values: \n
        - 0x00000000 -- Success \n
-       - 0x00000001 -- Success -- duplicate activate \n
-       - 0x00010000 -- Failure -- radio configuration \n
-       - 0x00010001 -- Failure -- channel is unavailable \n
+       - 0x00000001 -- Success -- Duplicate activate \n
+       - 0x00010000 -- Failure -- Radio configuration \n
+       - 0x00010001 -- Failure -- Channel is unavailable \n
        - 0x00010002 -- Failure -- eMBMS is not enabled \n
-       - 0x00010003 -- Failure -- out of coverage \n
-       - 0x00010004 -- Failure -- unknown \n
-       - 0x00010005 -- Failure -- not allowed \n
-       - 0x00010006 -- Failure -- missing control info \n
-       - 0x00010007 -- Failure -- missing TMGI \n
-       - 0x00010008 -- Failure -- mcast OOS \n
-       - 0x00010009 -- Failure -- unicast OOS \n
-       - 0x0001000A -- Failure -- camped on other frequency
+       - 0x00010003 -- Failure -- Out of coverage \n
+       - 0x00010004 -- Failure -- Unknown \n
+       - 0x00010005 -- Failure -- Not allowed \n
+       - 0x00010006 -- Failure -- Missing control information \n
+       - 0x00010007 -- Failure -- Missing TMGI \n
+       - 0x00010008 -- Failure -- Multicast OOS \n
+       - 0x00010009 -- Failure -- Unicast OOS \n
+       - 0x0001000A -- Failure -- Camped on another frequency
   */
 
   /* Mandatory */
@@ -9533,7 +11415,7 @@ typedef struct {
   */
 typedef enum {
   WDS_EMBMS_TMGI_DEACTIVATE_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_TMGI_DEACTIVATE_SUCCESS_V01 = 0x00000000,
+  WDS_TMGI_DEACTIVATE_SUCCESS_V01 = 0x00000000, 
   WDS_EMBMS_TMGI_DEACTIVATE_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_embms_tmgi_deactivate_status_enum_v01;
 /**
@@ -9573,9 +11455,9 @@ typedef struct {
   */
 typedef enum {
   WDS_EMBMS_TMGI_LIST_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EMBMS_TMGI_LIST_ACTIVE_V01 = 0x00,
-  WDS_EMBMS_TMGI_LIST_AVAILABLE_V01 = 0x01,
-  WDS_EMBMS_TMGI_LIST_OOS_WARNING_V01 = 0x02,
+  WDS_EMBMS_TMGI_LIST_ACTIVE_V01 = 0x00, 
+  WDS_EMBMS_TMGI_LIST_AVAILABLE_V01 = 0x01, 
+  WDS_EMBMS_TMGI_LIST_OOS_WARNING_V01 = 0x02, 
   WDS_EMBMS_TMGI_LIST_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_embms_tmgi_list_type_enum_v01;
 /**
@@ -9587,9 +11469,9 @@ typedef enum {
   */
 typedef enum {
   WDS_EMBMS_OOS_WARNING_REASON_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_EMBMS_WARN_REASON_UCAST_OOS_V01 = 0,
-  WDS_EMBMS_WARN_REASON_MCAST_OOS_V01 = 1,
-  WDS_EMBMS_WARN_REASON_OOS_CLEARED_V01 = 2,
+  WDS_EMBMS_WARN_REASON_UCAST_OOS_V01 = 0, 
+  WDS_EMBMS_WARN_REASON_MCAST_OOS_V01 = 1, 
+  WDS_EMBMS_WARN_REASON_OOS_CLEARED_V01 = 2, 
   WDS_EMBMS_OOS_WARNING_REASON_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_embms_oos_warning_reason_enum_v01;
 /**
@@ -9599,7 +11481,7 @@ typedef enum {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Queries for the TMGI list. */
+/** Request Message; Queries the TMGI list. */
 typedef struct {
 
   /* Mandatory */
@@ -9644,7 +11526,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Queries for the TMGI list. */
+/** Response Message; Queries the TMGI list. */
 typedef struct {
 
   /* Mandatory */
@@ -9662,7 +11544,7 @@ typedef struct {
   wds_embms_oos_warning_reason_enum_v01 warn_reason;
   /**<   Values: \n
        - 0x00 -- Warning for unicast OOS \n
-       - 0x01 -- Warning for mcast OOS \n
+       - 0x01 -- Warning for multicast OOS \n
        - 0x02 -- Warning cleared
   */
 }wds_embms_tmgi_list_query_resp_msg_v01;  /* Message */
@@ -9687,7 +11569,7 @@ typedef struct {
   wds_embms_oos_warning_reason_enum_v01 warn_reason;
   /**<   Values: \n
        - 0x00 -- Warning for unicast OOS \n
-       - 0x01 -- Warning for mcast OOS \n
+       - 0x01 -- Warning for multicast OOS \n
        - 0x02 -- Warning cleared
   */
 
@@ -9702,11 +11584,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_preferred_data_system_req_msg is empty
- * typedef struct {
- * }wds_get_preferred_data_system_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the preferred data system. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_preferred_data_system_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -9736,11 +11627,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_last_data_call_status_req_msg is empty
- * typedef struct {
- * }wds_get_last_data_call_status_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the last reported data call status. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_last_data_call_status_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_aggregates
     @{
@@ -9805,11 +11705,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_current_data_system_status_req_msg is empty
- * typedef struct {
- * }wds_get_current_data_system_status_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current data system status. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_current_data_system_status_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -9835,8 +11744,8 @@ typedef struct {
   */
 typedef enum {
   WDS_TECH_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_TECH_TYPE_3GPP_V01 = 0x00,
-  WDS_TECH_TYEP_3GPP2_V01 = 0x01,
+  WDS_TECH_TYPE_3GPP_V01 = 0x00, 
+  WDS_TECH_TYEP_3GPP2_V01 = 0x01, 
   WDS_TECH_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_tech_type_enum_v01;
 /**
@@ -9915,25 +11824,144 @@ typedef struct {
     @}
   */
 
-/** @addtogroup wds_qmi_enums
+/** @addtogroup wds_qmi_messages
     @{
   */
-typedef enum {
-  WDS_IP_SUPPORT_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_IP_SUPPORT_TYPE_IPV4_V01 = 0x00,
-  WDS_IP_SUPPORT_TYPE_IPV6_V01 = 0x01,
-  WDS_IP_SUPPORT_TYPE_IPV4V6_V01 = 0x02,
-  WDS_IP_SUPPORT_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
-}wds_ip_support_type_enum_v01;
+/** Request Message; Queries the maximum number of attached PDNs supported. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_lte_max_attach_pdn_num_req_msg_v01;
+
+  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_lte_attach_params_req_msg is empty
- * typedef struct {
- * }wds_get_lte_attach_params_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries the maximum number of attached PDNs supported. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  Maximum Number of Attach PDNs Supported */
+  uint8_t max_attach_pdn_num_valid;  /**< Must be set to true if max_attach_pdn_num is being passed */
+  uint8_t max_attach_pdn_num;
+  /**<   Maximum number of attached PDNs supported by the device. */
+}wds_get_lte_max_attach_pdn_num_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Sets the LTE attach PDN list. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Attach PDN List */
+  uint32_t attach_pdn_list_len;  /**< Must be set to # of elements in attach_pdn_list */
+  uint16_t attach_pdn_list[QMI_WDS_ATTACH_PDN_MAX_V01];
+  /**<   PDN profile IDs to attach to, listed in order
+       of decreasing priority. 
+  */
+}wds_set_lte_attach_pdn_list_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Sets the LTE attach PDN list. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_set_lte_attach_pdn_list_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the attach PDN list. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_lte_attach_pdn_list_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries the attach PDN list. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  LTE Attach PDN List */
+  uint8_t attach_pdn_list_valid;  /**< Must be set to true if attach_pdn_list is being passed */
+  uint32_t attach_pdn_list_len;  /**< Must be set to # of elements in attach_pdn_list */
+  uint16_t attach_pdn_list[QMI_WDS_ATTACH_PDN_MAX_V01];
+  /**<   PDN profile IDs to attach to, listed in order
+       of decreasing priority. 
+    */
+}wds_get_lte_attach_pdn_list_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates a change in the list of LTE attach PDNs. */
+typedef struct {
+
+  /* Optional */
+  /*  Changed LTE Attach PDN List */
+  uint8_t attach_pdn_list_valid;  /**< Must be set to true if attach_pdn_list is being passed */
+  uint32_t attach_pdn_list_len;  /**< Must be set to # of elements in attach_pdn_list */
+  uint16_t attach_pdn_list[QMI_WDS_ATTACH_PDN_MAX_V01];
+  /**<   PDN profile IDs to attach to, listed in order
+       of decreasing priority.
+    */
+}wds_lte_attach_pdn_list_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries LTE attach PDN parameters. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_lte_attach_params_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -9976,11 +12004,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_reset_pkt_statistics_req_msg is empty
- * typedef struct {
- * }wds_reset_pkt_statistics_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Resets the packet data transfer statistics. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_reset_pkt_statistics_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -9996,11 +12033,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_flow_control_status_req_msg is empty
- * typedef struct {
- * }wds_get_flow_control_status_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current data call flow control status */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_flow_control_status_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -10066,6 +12112,49 @@ typedef struct {
   wds_embms_earfcn_type_v01 earfcn_list[QMI_WDS_EMBMS_MAX_EARFCN_V01];
   /**<   \n Default is an empty list.
   */
+
+  /* Optional */
+  /*  SAI List */
+  uint8_t sai_list_valid;  /**< Must be set to true if sai_list is being passed */
+  uint32_t sai_list_len;  /**< Must be set to # of elements in sai_list */
+  uint32_t sai_list[QMI_WDS_EMBMS_SAI_LIST_MAX_V01];
+  /**<   Default is an empty list. */
+
+  /* Optional */
+  /*  Extended Frequencies List */
+  uint8_t earfcn_list_ex_valid;  /**< Must be set to true if earfcn_list_ex is being passed */
+  uint32_t earfcn_list_ex_len;  /**< Must be set to # of elements in earfcn_list_ex */
+  uint32_t earfcn_list_ex[QMI_WDS_EMBMS_MAX_EARFCN_V01];
+  /**<   Default is an empty list.
+  */
+
+  /* Optional */
+  /*  Multicast Address IP Family Type */
+  uint8_t multicast_ip_type_valid;  /**< Must be set to true if multicast_ip_type is being passed */
+  wds_ip_family_enum_v01 multicast_ip_type;
+  /**<   IP address family type of the multicast IP 
+ corresponding to the requested TMGI. Values: \n
+      - WDS_IP_FAMILY_IPV4 (0x04) --  IPv4 \n 
+      - WDS_IP_FAMILY_IPV6 (0x06) --  IPv6  
+ */
+
+  /* Optional */
+  /*  Multicast IPv4 Address */
+  uint8_t multicast_ipv4_addr_valid;  /**< Must be set to true if multicast_ipv4_addr is being passed */
+  uint32_t multicast_ipv4_addr;
+  /**<   Multicast IPv4 address corresponding to the requested TMGI. */
+
+  /* Optional */
+  /*  Multicast IPv6 Address */
+  uint8_t multicast_ipv6_addr_valid;  /**< Must be set to true if multicast_ipv6_addr is being passed */
+  uint8_t multicast_ipv6_addr[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Multicast IPv6 address corresponding to the requested TMGI. */
+
+  /* Optional */
+  /*  Multicast Port */
+  uint8_t multicast_port_valid;  /**< Must be set to true if multicast_port is being passed */
+  uint16_t multicast_port;
+  /**<   Multicast port corresponding to the requested TMGI. */
 }wds_embms_tmgi_act_deact_req_msg_v01;  /* Message */
 /**
     @}
@@ -10108,18 +12197,18 @@ typedef struct {
   wds_embms_tmgi_activate_status_enum_v01 act_status;
   /**<   Values: \n
        - 0x00000000 -- Success \n
-       - 0x00000001 -- Success -- duplicate activate \n
-       - 0x00010000 -- Failure -- radio configuration \n
-       - 0x00010001 -- Failure -- channel is unavailable \n
+       - 0x00000001 -- Success -- Duplicate activate \n
+       - 0x00010000 -- Failure -- Radio configuration \n
+       - 0x00010001 -- Failure -- Channel is unavailable \n
        - 0x00010002 -- Failure -- eMBMS is not enabled \n
-       - 0x00010003 -- Failure -- out of coverage \n
-       - 0x00010004 -- Failure -- unknown \n
-       - 0x00010005 -- Failure -- not allowed \n
-       - 0x00010006 -- Failure -- missing control info \n
-       - 0x00010007 -- Failure -- missing TMGI \n
-       - 0x00010008 -- Failure -- mcast OOS \n
-       - 0x00010009 -- Failure -- unicast OOS \n
-       - 0x0001000A -- Failure -- camped on other frequency
+       - 0x00010003 -- Failure -- Out of coverage \n
+       - 0x00010004 -- Failure -- Unknown \n
+       - 0x00010005 -- Failure -- Not allowed \n
+       - 0x00010006 -- Failure -- Missing control information \n
+       - 0x00010007 -- Failure -- Missing TMGI \n
+       - 0x00010008 -- Failure -- Multicast OOS \n
+       - 0x00010009 -- Failure -- Unicast OOS \n
+       - 0x0001000A -- Failure -- Camped on another frequency
   */
 
   /* Mandatory */
@@ -10157,7 +12246,7 @@ typedef struct {
   /* Mandatory */
   /*  Binding Data Port */
   uint16_t data_port;
-  /**<   The SIO data port to which the client binds.
+  /**<   SIO data port to which the client binds.
   */
 }wds_bind_data_port_req_msg_v01;  /* Message */
 /**
@@ -10187,10 +12276,10 @@ typedef struct {
   /**<   Bitmap indicating the technology preference. A single connection
        is attempted using the following specified technology preferences: \n
        - Bit 0 -- 3GPP \n
-       - Bit 1 -- 3GPP2
-
+       - Bit 1 -- 3GPP2 
+       
        All other bits are reserved and ignored even if they are set
-       in the request. If a single value of the technology preference
+       in the request. If a single value of the technology preference 
        bitmask is set, the device attempts to use that technology. If two
        or more bits in the technology preference bitmask are set, the
        device determines the technology to be used from those specified.
@@ -10229,7 +12318,7 @@ typedef struct {
   /**<   TCP, UDP, and TCP_UDP source port. */
 
   uint16_t port_range;
-  /**<   Port range.
+  /**<   Port range. 
   */
 }wds_tcp_udp_port_range_v01;  /* Type */
 /**
@@ -10239,7 +12328,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Sets the filter to allow multiple PDNs to be shared on the same
+/** Request Message; Sets the filter to allow multiple PDNs to be shared on the same 
            data port. */
 typedef struct {
 
@@ -10255,8 +12344,8 @@ typedef struct {
   /*  Network Policy */
   wds_reqd_net_policy_info_v01 net_policy_info;
   /**<   \n
-       Information that is required to identify the NAT interface, which is
-       required to support the sharing of PDNs on a single RmNet port.
+       Information that is required to identify the NAT interface, which is 
+       required to support the sharing of PDNs on a single RmNet port.  
   */
 
   /* Optional */
@@ -10264,9 +12353,9 @@ typedef struct {
   uint8_t next_hdr_prot_valid;  /**< Must be set to true if next_hdr_prot is being passed */
   wds_protocol_enum_v01 next_hdr_prot;
   /**<   IPv4/IPv6 next header protocol after the IP header. Values: \n
-      - WDS_PROTO_TCP (0x01) --  Transmission Control Protocol
-      - WDS_PROTO_UDP (0x02) --  User Datagram Protocol
-      - WDS_PROTO_TCP_UDP (0x03) --  Transmission Control Protocol/User Datagram Protocol
+      - WDS_PROTO_TCP (0x01) --  Transmission Control Protocol 
+      - WDS_PROTO_UDP (0x02) --  User Datagram Protocol 
+      - WDS_PROTO_TCP_UDP (0x03) --  Transmission Control Protocol/User Datagram Protocol  
  */
 
   /* Optional */
@@ -10274,7 +12363,7 @@ typedef struct {
   uint8_t tcp_udp_src_valid;  /**< Must be set to true if tcp_udp_src is being passed */
   wds_tcp_udp_port_range_v01 tcp_udp_src;
   /**<   \n
-       Contains the starting port number and a range value, which
+       Contains the starting port number and a range value, which 
        indicates the ending port number. */
 }wds_set_additional_pdn_filter_req_msg_v01;  /* Message */
 /**
@@ -10284,7 +12373,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Sets the filter to allow multiple PDNs to be shared on the same
+/** Response Message; Sets the filter to allow multiple PDNs to be shared on the same 
            data port. */
 typedef struct {
 
@@ -10296,7 +12385,7 @@ typedef struct {
   /*  Filter Handle  */
   uint8_t filter_handle_valid;  /**< Must be set to true if filter_handle is being passed */
   uint32_t filter_handle;
-  /**<   Filter handle.
+  /**<   Filter handle. 
   */
 }wds_set_additional_pdn_filter_resp_msg_v01;  /* Message */
 /**
@@ -10306,14 +12395,14 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Removes the filter that was set to allow additional PDNs to be
+/** Request Message; Removes the filter that was set to allow additional PDNs to be 
            shared on a single port. */
 typedef struct {
 
   /* Mandatory */
   /*  Filter Handle */
   uint32_t filter_handle;
-  /**<   Filter handle.
+  /**<   Filter handle. 
   */
 }wds_remove_additional_pdn_filter_req_msg_v01;  /* Message */
 /**
@@ -10323,7 +12412,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Removes the filter that was set to allow additional PDNs to be
+/** Response Message; Removes the filter that was set to allow additional PDNs to be 
            shared on a single port. */
 typedef struct {
 
@@ -10338,7 +12427,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Indication Message; Indicates a change in the IP configuration of the data session. */
+/** Indication Message; Indicates a change in any of the IP configuration of the data session. */
 typedef struct {
 
   /* Optional */
@@ -10346,8 +12435,14 @@ typedef struct {
   uint8_t changed_ip_config_valid;  /**< Must be set to true if changed_ip_config is being passed */
   wds_req_settings_mask_v01 changed_ip_config;
   /**<   Set bits to 1, corresponding to configuration changed. Values: \n
+      - Bit 4  -- DNS address \n
+      - Bit 9  -- Gateway information (address and subnet mask) \n
       - Bit 10 -- PCSCF address using PCO flag \n
-
+      - Bit 11 -- PCSCF server address list \n
+      - Bit 12 -- PCSCF domain name list \n
+      - Bit 13 -- MTU \n
+      - Bit 14 -- Domain name list \n
+      - Bit 18 -- Operator reserved PCO 
    */
 }wds_extended_ip_config_ind_msg_v01;  /* Message */
 /**
@@ -10357,16 +12452,16 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Registration mechanism for indication relevant to reverse IP
-           transport connection. */
+/** Request Message; Registration mechanism for indications relevant to reverse IP  
+           transport connections. */
 typedef struct {
 
   /* Mandatory */
-  /*  Register For Indication */
+  /*  Register for Indication */
   uint8_t register_for_ind;
   /**<   Values: \n
-       - 0 -- Deregister for indication \n
-       - 1 -- Register for indication
+       - 0 -- Deregister for the indication \n
+       - 1 -- Register for the indication
   */
 }wds_reverse_ip_transport_connection_ind_registration_req_msg_v01;  /* Message */
 /**
@@ -10376,8 +12471,8 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Registration mechanism for indication relevant to reverse IP
-           transport connection. */
+/** Response Message; Registration mechanism for indications relevant to reverse IP  
+           transport connections. */
 typedef struct {
 
   /* Mandatory */
@@ -10393,8 +12488,8 @@ typedef struct {
   */
 typedef enum {
   WDS_REVERSE_IP_TRANSPORT_CONNECTION_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  WDS_REVERSE_IP_TRANSPORT_DISCONNECTED_V01 = 0x00, /**<  DISCONNECTED  */
-  WDS_REVERSE_IP_TRANSPORT_CONNECTED_V01 = 0x01, /**<  CONNECTED  */
+  WDS_REVERSE_IP_TRANSPORT_DISCONNECTED_V01 = 0x00, /**<  Disconnected  */
+  WDS_REVERSE_IP_TRANSPORT_CONNECTED_V01 = 0x01, /**<  Connected  */
   WDS_REVERSE_IP_TRANSPORT_CONNECTION_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_reverse_ip_transport_connection_status_enum_v01;
 /**
@@ -10404,7 +12499,7 @@ typedef enum {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Indication Message; Indicates a change in the current reverse IP transport connection
+/** Indication Message; Indicates a change in the current reverse IP transport connection 
            status. */
 typedef struct {
 
@@ -10412,13 +12507,14 @@ typedef struct {
   /*  Reverse IP Transport Connection Status */
   wds_reverse_ip_transport_connection_status_enum_v01 rev_ip_transport_conn_status;
   /**<   Values: \n
-        @ENUM
-   */
+      - WDS_REVERSE_IP_TRANSPORT_DISCONNECTED (0x00) --  Disconnected 
+      - WDS_REVERSE_IP_TRANSPORT_CONNECTED (0x01) --  Connected 
+ */
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t transaction_id;
-  /**<   Transaction Id for this particular indication
+  /**<   Transaction ID for this specific indication.
    */
 
   /* Optional */
@@ -10428,52 +12524,67 @@ typedef struct {
   /**<   Technology name of the reverse IP transport data connection. Values: \n
        - -32736 -- WLAN_LOCAL_BRKOUT \n
        - -32735 -- IWLAN_S2B \n
-
       WLAN_LOCAL_BRKOUT is an interface for transferring data between entities
-      on the AP and modem. It can be used either for local breakout
-      calls, or for IPSEC signalling for ePDG calls.
+      on the AP and modem. It can be used either for local breakout 
+      calls, or for IPSec signaling for ePDG calls.
 
       IWLAN_S2B is an interface for transferring data between entities
-      on the AP and modem for ePDG calls.
+      on the AP and modem for ePDG calls. 
   */
 
   /* Optional */
   /*  Is Shared */
   uint8_t is_shared_valid;  /**< Must be set to true if is_shared is being passed */
   uint8_t is_shared;
-  /**<   Indicates if the Static SAs are shared between IPV4 and IPV6. Values: \n
-       - 0 -- Not Shared \n
+  /**<   Indicates whether the static SAs are shared between IPv4 and IPv6. Values: \n
+       - 0 -- Not shared \n
        - 1 -- Shared
   */
 
   /* Optional */
-  /*  IPV4 Address */
+  /*  IPv4 Address */
   uint8_t ipv4_addr_valid;  /**< Must be set to true if ipv4_addr is being passed */
   uint32_t ipv4_addr;
-  /**<   Provides the IPV4 address for the WLAN Local Breakout or ePDG connection.
+  /**<   Provides the IPv4 address for the WLAN local breakout or ePDG connection. 
    */
 
   /* Optional */
-  /*  IPV4 Subnet Mask */
+  /*  IPv4 Subnet Mask */
   uint8_t ipv4_subnet_mask_valid;  /**< Must be set to true if ipv4_subnet_mask is being passed */
   uint32_t ipv4_subnet_mask;
+  /**<   IPv4 subnet mask. */
 
   /* Optional */
-  /*  IPV6 Address */
+  /*  IPv6 Address */
   uint8_t ipv6_addr_valid;  /**< Must be set to true if ipv6_addr is being passed */
   wds_runtime_ipv6_addr_type_v01 ipv6_addr;
-  /**<   Provides the IPV6 address for the WLAN local breakout or ePDG connection. \n
+  /**<   \n Provides the IPv6 address for the WLAN local breakout or ePDG connection. 
   */
+
+  /* Optional */
+  /*  MTU  */
+  uint8_t mtu_valid;  /**< Must be set to true if mtu is being passed */
+  uint32_t mtu;
+  /**<   MTU size. */
 }wds_reverse_ip_transport_connection_ind_msg_v01;  /* Message */
 /**
     @}
   */
 
-/*
- * wds_get_ipsec_static_sa_config_req_msg is empty
- * typedef struct {
- * }wds_get_ipsec_static_sa_config_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves IPSec static Security Associations (SA) for the ePDG call. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_ipsec_static_sa_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_enums
     @{
@@ -10482,8 +12593,8 @@ typedef enum {
   WDS_IPSEC_SA_PROTOCOL_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
   WDS_IPSEC_SA_PROTOCOL_UNDEFINED_V01 = 0x00, /**<  Undefined \n  */
   WDS_IPSEC_SA_PROTOCOL_ISAKMP_V01 = 0x01, /**<  Internet Security Association and Key Management Protocol \n  */
-  WDS_IPSEC_SA_PROTOCOL_IPSEC_AH_V01 = 0x02, /**<  Authentication Header \n  */
-  WDS_IPSEC_SA_PROTOCOL_IPSEC_ESP_V01 = 0x03, /**<  Encapsulating Security Payload  */
+  WDS_IPSEC_SA_PROTOCOL_IPSEC_AH_V01 = 0x02, /**<  Authentication header \n  */
+  WDS_IPSEC_SA_PROTOCOL_IPSEC_ESP_V01 = 0x03, /**<  Encapsulating security payload  */
   WDS_IPSEC_SA_PROTOCOL_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ipsec_sa_protocol_enum_v01;
 /**
@@ -10496,8 +12607,8 @@ typedef enum {
 typedef enum {
   WDS_IPSEC_SA_ENCAPSULATE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
   WDS_IPSEC_SA_ENCAPSULATE_UNDEFINED_V01 = 0x00, /**<  Undefined \n  */
-  WDS_IPSEC_SA_ENCAPSULATE_TUNNEL_V01 = 0x01, /**<  Encapsulation Mode Tunnel \n  */
-  WDS_IPSEC_SA_ENCAPSULATE_TRANSPORT_V01 = 0x02, /**<  Encapsulation Mode Transport \n  */
+  WDS_IPSEC_SA_ENCAPSULATE_TUNNEL_V01 = 0x01, /**<  Encapsulation mode tunnel \n  */
+  WDS_IPSEC_SA_ENCAPSULATE_TRANSPORT_V01 = 0x02, /**<  Encapsulation mode transport   */
   WDS_IPSEC_SA_ENCAPSULATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ipsec_sa_encapsulate_enum_v01;
 /**
@@ -10511,14 +12622,14 @@ typedef struct {
 
   wds_data_call_addr_family_enum_v01 addr_family;
   /**<   Values: \n
-       - 4 -- IPV4 \n
-       - 6 -- IPV6
+       - 4 -- IPv4 \n
+       - 6 -- IPv6 
    */
 
   uint32_t ip_addr_len;  /**< Must be set to # of elements in ip_addr */
   uint8_t ip_addr[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   Contains either the IPV4 or IPV6 Address depending on what is within
-       addr_family
+  /**<   Contains either the IPv4 or IPv6 address based on the value of 
+       addr_family.
    */
 }wds_ip_addr_type_v01;  /* Type */
 /**
@@ -10533,10 +12644,10 @@ typedef enum {
   WDS_IPSEC_CRYPTO_ALGO_NULL_KEY_X_V01 = 0x00, /**<  No key exchange protocol used \n  */
   WDS_IPSEC_CRYPTO_ALGO_MODEXP_V01 = 0x01, /**<  Generic modulo exponentiation \n  */
   WDS_IPSEC_CRYPTO_ALGO_DIFFIE_HELLMAN_V01 = 0x02, /**<  Diffie-Hellman key exchange protocol \n  */
-  WDS_IPSEC_CRYPTO_ALGO_RSA_V01 = 0x03, /**<  RSA Encrypt/Key exchange protocol \n  */
+  WDS_IPSEC_CRYPTO_ALGO_RSA_V01 = 0x03, /**<  RSA encryption/key exchange protocol \n  */
   WDS_IPSEC_CRYPTO_ALGO_NULL_HASH_V01 = 0x04, /**<  No simultaneous hash with encryption-decryption \n  */
   WDS_IPSEC_CRYPTO_ALGO_SHA_V01 = 0x05, /**<  SHA-1 hash function \n  */
-  WDS_IPSEC_CRYPTO_ALGO_SHA256_V01 = 0x06, /**<  SHA256 hash function \n  */
+  WDS_IPSEC_CRYPTO_ALGO_SHA256_V01 = 0x06, /**<  SHA-256 hash function \n  */
   WDS_IPSEC_CRYPTO_ALGO_MD5_V01 = 0x07, /**<  MD5 hash function \n  */
   WDS_IPSEC_CRYPTO_ALGO_NULL_CIPHER_V01 = 0x08, /**<  No encryption selected \n  */
   WDS_IPSEC_CRYPTO_ALGO_DES_V01 = 0x09, /**<  DES encryption/decryption function \n  */
@@ -10545,12 +12656,27 @@ typedef enum {
   WDS_IPSEC_CRYPTO_ALGO_AES128_V01 = 0x0C, /**<  AES cipher; 128-bit key \n  */
   WDS_IPSEC_CRYPTO_ALGO_C2_V01 = 0x0D, /**<  C2 cipher \n  */
   WDS_IPSEC_CRYPTO_ALGO_AES128_CMAC_V01 = 0x0E, /**<  128-bit AES in CMAC mode \n  */
-  WDS_IPSEC_CRYPTO_ALGO_SNOW3G_UEA2_V01 = 0x0F, /**<  UEA2 SNOW 3G Encryption Algorithm \n  */
-  WDS_IPSEC_CRYPTO_ALGO_SNOW3G_UIA2_V01 = 0x10, /**<  UIA2 SNOW 3G Integrity Algorithm \n  */
-  WDS_IPSEC_CRYPTO_ALGO_ZUC_CIPHER_V01 = 0x11, /**<  UEA3 ZUC Encryption Algorithm \n  */
-  WDS_IPSEC_CRYPTO_ALGO_ZUC_INTEGRITY_V01 = 0x12, /**<  UIA3 ZUC Integrity Algorithm \n  */
+  WDS_IPSEC_CRYPTO_ALGO_SNOW3G_UEA2_V01 = 0x0F, /**<  UEA2 SNOW 3G encryption algorithm \n  */
+  WDS_IPSEC_CRYPTO_ALGO_SNOW3G_UIA2_V01 = 0x10, /**<  UIA2 SNOW 3G integrity algorithm \n  */
+  WDS_IPSEC_CRYPTO_ALGO_ZUC_CIPHER_V01 = 0x11, /**<  UEA3 ZUC encryption algorithm \n  */
+  WDS_IPSEC_CRYPTO_ALGO_ZUC_INTEGRITY_V01 = 0x12, /**<  UIA3 ZUC integrity algorithm \n  */
+  WDS_IPSEC_CRYPTO_ALGO_AES256_V01 = 0x13, /**<  AES cipher; 256-bit key \n  */
   WDS_IPSEC_CRYPTO_ALGO_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }wds_ipsec_crypto_algo_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_IPSEC_AES_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_IPSEC_AES_MODE_MIN_V01 = 0, /**<  No AES Mode \n  */
+  WDS_IPSEC_AES_MODE_CBC_V01 = 1, /**<  AES Mode CBC \n  */
+  WDS_IPSEC_AES_MODE_CTR_V01 = 2, /**<  AES Mode CTR \n  */
+  WDS_IPSEC_AES_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_ipsec_aes_mode_enum_v01;
 /**
     @}
   */
@@ -10561,8 +12687,10 @@ typedef enum {
 typedef struct {
 
   uint32_t ipv4_subnet_address;
+  /**<   IPv4 subnet address. */
 
   uint32_t subnet_mask;
+  /**<   Subnet mask. */
 }wds_cfg_attr_ipv4_subnet_type_v01;  /* Type */
 /**
     @}
@@ -10574,7 +12702,7 @@ typedef struct {
 typedef struct {
 
   uint8_t ipv6_address[QMI_WDS_IPV6_ADDR_LEN_V01];
-  /**<   IPV6 address */
+  /**<   IPv6 address. */
 }wds_cfg_attr_ipv6_type_v01;  /* Type */
 /**
     @}
@@ -10586,14 +12714,19 @@ typedef struct {
 typedef struct {
 
   uint8_t protocol;
+  /**<   Protocol.*/
 
   uint16_t start_port;
+  /**<   Start port.*/
 
   uint16_t end_port;
+  /**<   End port.*/
 
   wds_ip_addr_type_v01 start_address;
+  /**<   Start address. */
 
   wds_ip_addr_type_v01 end_address;
+  /**<   End address. */
 }wds_traffic_selector_type_v01;  /* Type */
 /**
     @}
@@ -10602,7 +12735,7 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Used to retrieve IPSEC Static Security Associations for the ePDG call. */
+/** Response Message; Retrieves IPSec static Security Associations (SA) for the ePDG call. */
 typedef struct {
 
   /* Mandatory */
@@ -10613,27 +12746,36 @@ typedef struct {
   /*  Security Parameter Index Rx */
   uint8_t spi_rx_valid;  /**< Must be set to true if spi_rx is being passed */
   uint32_t spi_rx;
+  /**<   Security parameter index Rx.
+    */
 
   /* Optional */
   /*  Security Parameter Index Tx */
   uint8_t spi_tx_valid;  /**< Must be set to true if spi_tx is being passed */
   uint32_t spi_tx;
+  /**<   Security parameter index Tx.
+    */
 
   /* Optional */
   /*  IPSec SA Protocol */
   uint8_t ipsec_sa_protocol_valid;  /**< Must be set to true if ipsec_sa_protocol is being passed */
   wds_ipsec_sa_protocol_enum_v01 ipsec_sa_protocol;
-  /**<   Values: \n
-       @ENUM
-   */
+  /**<   Values: 
+      - WDS_IPSEC_SA_PROTOCOL_UNDEFINED (0x00) --  Undefined \n 
+      - WDS_IPSEC_SA_PROTOCOL_ISAKMP (0x01) --  Internet Security Association and Key Management Protocol \n 
+      - WDS_IPSEC_SA_PROTOCOL_IPSEC_AH (0x02) --  Authentication header \n 
+      - WDS_IPSEC_SA_PROTOCOL_IPSEC_ESP (0x03) --  Encapsulating security payload 
+ */
 
   /* Optional */
   /*  Encapsulation Mode */
   uint8_t encapsulation_mode_valid;  /**< Must be set to true if encapsulation_mode is being passed */
   wds_ipsec_sa_encapsulate_enum_v01 encapsulation_mode;
-  /**<   Values: \n
-       @ENUM
-   */
+  /**<   Values: 
+      - WDS_IPSEC_SA_ENCAPSULATE_UNDEFINED (0x00) --  Undefined \n 
+      - WDS_IPSEC_SA_ENCAPSULATE_TUNNEL (0x01) --  Encapsulation mode tunnel \n 
+      - WDS_IPSEC_SA_ENCAPSULATE_TRANSPORT (0x02) --  Encapsulation mode transport  
+ */
 
   /* Optional */
   /*  Destination Address */
@@ -10649,8 +12791,8 @@ typedef struct {
   /*  Hash Algorithm */
   uint8_t hash_algo_valid;  /**< Must be set to true if hash_algo is being passed */
   wds_ipsec_crypto_algo_enum_v01 hash_algo;
-  /**<   Values: \n
-       @ENUM
+  /**<   See Appendix \ref{app:CryptoAlgo} for the definition
+       of these values.
    */
 
   /* Optional */
@@ -10658,46 +12800,51 @@ typedef struct {
   uint8_t hash_key_rx_valid;  /**< Must be set to true if hash_key_rx is being passed */
   uint32_t hash_key_rx_len;  /**< Must be set to # of elements in hash_key_rx */
   uint8_t hash_key_rx[QMI_WDS_IPSEC_SA_HASH_MAX_SIZE_V01];
+  /**<   Hash key Rx.*/
 
   /* Optional */
   /*  Hash Key Tx */
   uint8_t hash_key_tx_valid;  /**< Must be set to true if hash_key_tx is being passed */
   uint32_t hash_key_tx_len;  /**< Must be set to # of elements in hash_key_tx */
   uint8_t hash_key_tx[QMI_WDS_IPSEC_SA_HASH_MAX_SIZE_V01];
+  /**<   Hash key Tx.*/
 
   /* Optional */
-  /*  Crypto Algorithm */
+  /*  Cryptography Algorithm */
   uint8_t crypto_algo_valid;  /**< Must be set to true if crypto_algo is being passed */
   wds_ipsec_crypto_algo_enum_v01 crypto_algo;
-  /**<   Values: \n
-       @ENUM
+  /**<   See Appendix \ref{app:CryptoAlgo} for the definition
+       of these values.
    */
 
   /* Optional */
-  /*  Crypto Key Rx */
+  /*  Cryptography Key Rx */
   uint8_t crypto_key_rx_valid;  /**< Must be set to true if crypto_key_rx is being passed */
   uint32_t crypto_key_rx_len;  /**< Must be set to # of elements in crypto_key_rx */
   uint8_t crypto_key_rx[QMI_WDS_IPSEC_SA_CRYPTO_ALGO_KEY_MAX_SIZE_V01];
+  /**<   Cryptography key Rx. */
 
   /* Optional */
-  /*  Crypto Key Tx */
+  /*  Cryptography Key Tx */
   uint8_t crypto_key_tx_valid;  /**< Must be set to true if crypto_key_tx is being passed */
   uint32_t crypto_key_tx_len;  /**< Must be set to # of elements in crypto_key_tx */
   uint8_t crypto_key_tx[QMI_WDS_IPSEC_SA_CRYPTO_ALGO_KEY_MAX_SIZE_V01];
+  /**<   Cryptography key Tx. */
 
   /* Optional */
   /*  Initialization Vector */
   uint8_t iv_valid;  /**< Must be set to true if iv is being passed */
   uint32_t iv_len;  /**< Must be set to # of elements in iv */
   uint8_t iv[QMI_WDS_IPSEC_SA_AES_BLOCK_BYTE_LEN_V01];
+  /**<   Initialization vector. */
 
   /* Optional */
-  /*  Is UDP Encapsulated */
+  /*  UDP Encapsulated */
   uint8_t is_udp_encaps_valid;  /**< Must be set to true if is_udp_encaps is being passed */
   uint8_t is_udp_encaps;
   /**<   Values: \n
        - 0 -- FALSE \n
-       - 1 -- TRUE
+       - 1 -- TRUE 
    */
 
   /* Optional */
@@ -10711,119 +12858,130 @@ typedef struct {
   wds_ip_addr_type_v01 nat_remote_ip_addr;
 
   /* Optional */
-  /*  Config Attribute Internal IPV4 Address */
+  /*  Configuration Attribute Internal IPv4 Address */
   uint8_t cfg_attr_internal_ipv4_address_valid;  /**< Must be set to true if cfg_attr_internal_ipv4_address is being passed */
   uint32_t cfg_attr_internal_ipv4_address_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv4_address */
   uint32_t cfg_attr_internal_ipv4_address[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
+  /**<   Configuration attribute internal IPv4 address. */
 
   /* Optional */
-  /*  Config Attribute Internal IPV4 Netmask */
+  /*  Configuration Attribute Internal IPv4 Netmask */
   uint8_t cfg_attr_internal_ipv4_netmask_valid;  /**< Must be set to true if cfg_attr_internal_ipv4_netmask is being passed */
   uint32_t cfg_attr_internal_ipv4_netmask;
+  /**<   Configuration attribute internal IPv4 netmask.*/
 
   /* Optional */
-  /*  Config Attribute Internal IPV4 DNS */
+  /*  Configuration Attribute Internal IPv4 DNS */
   uint8_t cfg_attr_internal_ipv4_dns_valid;  /**< Must be set to true if cfg_attr_internal_ipv4_dns is being passed */
   uint32_t cfg_attr_internal_ipv4_dns_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv4_dns */
   uint32_t cfg_attr_internal_ipv4_dns[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
+  /**<   Configuration attribute internal IPv4 DNS. */
 
   /* Optional */
-  /*  Config Attribute Internal IPV4 NBNS */
+  /*  Configuration Attribute Internal IPv4 NBNS */
   uint8_t cfg_attr_internal_ipv4_nbns_valid;  /**< Must be set to true if cfg_attr_internal_ipv4_nbns is being passed */
   uint32_t cfg_attr_internal_ipv4_nbns_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv4_nbns */
   uint32_t cfg_attr_internal_ipv4_nbns[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
+  /**<   Configuration attribute internal IPv4 NBNS. */
 
   /* Optional */
-  /*  Config Attribute Internal Address Expiry */
+  /*  Configuration Attribute Internal Address Expiry */
   uint8_t cfg_attr_internal_address_expiry_valid;  /**< Must be set to true if cfg_attr_internal_address_expiry is being passed */
   uint32_t cfg_attr_internal_address_expiry;
+  /**<   Configuration attribute internal address expiry. */
 
   /* Optional */
-  /*  Config Attribute Internal IPV4 DHCP */
+  /*  Configuration Attribute Internal IPv4 DHCP */
   uint8_t cfg_attr_internal_ipv4_dhcp_valid;  /**< Must be set to true if cfg_attr_internal_ipv4_dhcp is being passed */
   uint32_t cfg_attr_internal_ipv4_dhcp_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv4_dhcp */
   uint32_t cfg_attr_internal_ipv4_dhcp[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
+  /**<   Configuration attribute internal IPv4 DHCP. */
 
   /* Optional */
-  /*  Config Attribute Application Version */
+  /*  Configuration Attribute Application Version */
   uint8_t cfg_attr_application_version_valid;  /**< Must be set to true if cfg_attr_application_version is being passed */
   uint32_t cfg_attr_application_version_len;  /**< Must be set to # of elements in cfg_attr_application_version */
   char cfg_attr_application_version[QMI_WDS_IPSEC_SA_CFG_DATA_SIZE_MAX_V01];
+  /**<   Configuration attribute application version. */
 
   /* Optional */
-  /*  Config Attribute Internal IPV6 Address */
+  /*  Configuration Attribute Internal IPv6 Address */
   uint8_t cfg_attr_internal_ipv6_address_valid;  /**< Must be set to true if cfg_attr_internal_ipv6_address is being passed */
   uint32_t cfg_attr_internal_ipv6_address_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv6_address */
   wds_runtime_ipv6_addr_type_v01 cfg_attr_internal_ipv6_address[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute Internal IPV6 DNS */
+  /*  Configuration Attribute Internal IPv6 DNS */
   uint8_t cfg_attr_internal_ipv6_dns_valid;  /**< Must be set to true if cfg_attr_internal_ipv6_dns is being passed */
   uint32_t cfg_attr_internal_ipv6_dns_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv6_dns */
   wds_cfg_attr_ipv6_type_v01 cfg_attr_internal_ipv6_dns[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute Internal IPV6 NBNS */
+  /*  Configuration Attribute Internal IPv6 NBNS */
   uint8_t cfg_attr_internal_ipv6_nbns_valid;  /**< Must be set to true if cfg_attr_internal_ipv6_nbns is being passed */
   uint32_t cfg_attr_internal_ipv6_nbns_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv6_nbns */
   wds_cfg_attr_ipv6_type_v01 cfg_attr_internal_ipv6_nbns[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute Internal IPV6 DHCP */
+  /*  Configuration Attribute Internal IPv6 DHCP */
   uint8_t cfg_attr_internal_ipv6_dhcp_valid;  /**< Must be set to true if cfg_attr_internal_ipv6_dhcp is being passed */
   uint32_t cfg_attr_internal_ipv6_dhcp_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv6_dhcp */
   wds_cfg_attr_ipv6_type_v01 cfg_attr_internal_ipv6_dhcp[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute Internal IPV4 Subnet */
+  /*  Configuration Attribute Internal IPv4 Subnet */
   uint8_t cfg_attr_internal_ipv4_subnet_valid;  /**< Must be set to true if cfg_attr_internal_ipv4_subnet is being passed */
   uint32_t cfg_attr_internal_ipv4_subnet_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv4_subnet */
   wds_cfg_attr_ipv4_subnet_type_v01 cfg_attr_internal_ipv4_subnet[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute Supported Attributes */
+  /*  Configuration Attribute Supported Attributes */
   uint8_t cfg_attr_supported_attributes_valid;  /**< Must be set to true if cfg_attr_supported_attributes is being passed */
   uint32_t cfg_attr_supported_attributes_len;  /**< Must be set to # of elements in cfg_attr_supported_attributes */
   char cfg_attr_supported_attributes[QMI_WDS_IPSEC_SA_CFG_DATA_SIZE_MAX_V01];
+  /**<   Configuration attribute supported attributes. */
 
   /* Optional */
-  /*  Config Attribute Internal IPV6 Subnet */
+  /*  Configuration Attribute Internal IPv6 Subnet */
   uint8_t cfg_attr_internal_ipv6_subnet_valid;  /**< Must be set to true if cfg_attr_internal_ipv6_subnet is being passed */
   uint32_t cfg_attr_internal_ipv6_subnet_len;  /**< Must be set to # of elements in cfg_attr_internal_ipv6_subnet */
   wds_runtime_ipv6_addr_type_v01 cfg_attr_internal_ipv6_subnet[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute Internal PCSCF IPV4 Address */
+  /*  Configuration Attribute Internal PCSCF IPv4 Address */
   uint8_t cfg_attr_internal_pcscf_ipv4_address_valid;  /**< Must be set to true if cfg_attr_internal_pcscf_ipv4_address is being passed */
   uint32_t cfg_attr_internal_pcscf_ipv4_address_len;  /**< Must be set to # of elements in cfg_attr_internal_pcscf_ipv4_address */
   uint32_t cfg_attr_internal_pcscf_ipv4_address[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
+  /**<   Configuration attribute internal PCSCF IPv4 address.*/
 
   /* Optional */
-  /*  Config Attribute Internal PCSCF IPV6 Address */
+  /*  Configuration Attribute Internal PCSCF IPv6 Address */
   uint8_t cfg_attr_internal_pcscf_ipv6_address_valid;  /**< Must be set to true if cfg_attr_internal_pcscf_ipv6_address is being passed */
   uint32_t cfg_attr_internal_pcscf_ipv6_address_len;  /**< Must be set to # of elements in cfg_attr_internal_pcscf_ipv6_address */
   wds_runtime_ipv6_addr_type_v01 cfg_attr_internal_pcscf_ipv6_address[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute 3GPP2 MIP4 HA */
+  /*  Configuration Attribute 3GPP2 MIP4 HA */
   uint8_t cfg_attr_3gpp2_mip4_ha_valid;  /**< Must be set to true if cfg_attr_3gpp2_mip4_ha is being passed */
   uint32_t cfg_attr_3gpp2_mip4_ha_len;  /**< Must be set to # of elements in cfg_attr_3gpp2_mip4_ha */
   uint32_t cfg_attr_3gpp2_mip4_ha[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
+  /**<   Configuration attribute 3GPP2 MIP4 HA. */
 
   /* Optional */
-  /*  Config Attribute 3GPP2 MIP4 HOA */
+  /*  Configuration Attribute 3GPP2 MIP4 HOA */
   uint8_t cfg_attr_3gpp2_mip4_hoa_valid;  /**< Must be set to true if cfg_attr_3gpp2_mip4_hoa is being passed */
   uint32_t cfg_attr_3gpp2_mip4_hoa_len;  /**< Must be set to # of elements in cfg_attr_3gpp2_mip4_hoa */
   uint32_t cfg_attr_3gpp2_mip4_hoa[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
+  /**<   Configuration attribute 3GPP2 MIP4 HOA. */
 
   /* Optional */
-  /*  Config Attribute 3GPP2 MIP6 HA */
+  /*  Configuration Attribute 3GPP2 MIP6 HA */
   uint8_t cfg_attr_3gpp2_mip6_ha_valid;  /**< Must be set to true if cfg_attr_3gpp2_mip6_ha is being passed */
   uint32_t cfg_attr_3gpp2_mip6_ha_len;  /**< Must be set to # of elements in cfg_attr_3gpp2_mip6_ha */
   wds_runtime_ipv6_addr_type_v01 cfg_attr_3gpp2_mip6_ha[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
 
   /* Optional */
-  /*  Config Attribute 3GPP2 MIP6 HOA */
+  /*  Configuration Attribute 3GPP2 MIP6 HOA */
   uint8_t cfg_attr_3gpp2_mip6_hoa_valid;  /**< Must be set to true if cfg_attr_3gpp2_mip6_hoa is being passed */
   uint32_t cfg_attr_3gpp2_mip6_hoa_len;  /**< Must be set to # of elements in cfg_attr_3gpp2_mip6_hoa */
   wds_runtime_ipv6_addr_type_v01 cfg_attr_3gpp2_mip6_hoa[QMI_WDS_IPSEC_SA_CFG_ATTR_MAX_V01];
@@ -10833,6 +12991,28 @@ typedef struct {
   uint8_t traffic_selector_list_valid;  /**< Must be set to true if traffic_selector_list is being passed */
   uint32_t traffic_selector_list_len;  /**< Must be set to # of elements in traffic_selector_list */
   wds_traffic_selector_type_v01 traffic_selector_list[QMI_WDS_IPSEC_SA_MAX_TS_COUNT_V01];
+
+  /* Optional */
+  /*  Traffic Selector Responder List */
+  uint8_t traffic_selector_responder_list_valid;  /**< Must be set to true if traffic_selector_responder_list is being passed */
+  uint32_t traffic_selector_responder_list_len;  /**< Must be set to # of elements in traffic_selector_responder_list */
+  wds_traffic_selector_type_v01 traffic_selector_responder_list[QMI_WDS_IPSEC_SA_MAX_TS_COUNT_V01];
+
+  /* Optional */
+  /*  Access Point Name */
+  uint8_t apn_valid;  /**< Must be set to true if apn is being passed */
+  char apn[QMI_WDS_APN_NAME_MAX_V01 + 1];
+  /**<   APN. */
+
+  /* Optional */
+  /*  Advanced Encryption Standard Mode */
+  uint8_t aes_mode_valid;  /**< Must be set to true if aes_mode is being passed */
+  wds_ipsec_aes_mode_enum_v01 aes_mode;
+  /**<   Advanced Encryption Standard Mode. Values: \n
+      - WDS_IPSEC_AES_MODE_MIN (0) --  No AES Mode \n 
+      - WDS_IPSEC_AES_MODE_CBC (1) --  AES Mode CBC \n 
+      - WDS_IPSEC_AES_MODE_CTR (2) --  AES Mode CTR \n 
+ */
 }wds_get_ipsec_static_sa_config_resp_msg_v01;  /* Message */
 /**
     @}
@@ -10841,21 +13021,22 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Request Message; Conveys that reverse IP transport configuration is complete on the AP side. */
+/** Request Message; Sends notification that reverse IP transport configuration is complete on the Application
+    Processor (AP) side. */
 typedef struct {
 
   /* Mandatory */
-  /*  Config Result */
+  /*  Configuration Result */
   uint8_t config_result;
   /**<   Values: \n
-       - 0 -- Configuration Failed \n
-       - 1 -- Configuration Succeeded
+       - 0 -- Failure \n
+       - 1 -- Success 
   */
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t transaction_id;
-  /**<   Transaction Id of the indication for which the processing is complete
+  /**<   Transaction ID of the indication for which the processing is complete.
    */
 }wds_reverse_ip_transport_config_complete_req_msg_v01;  /* Message */
 /**
@@ -10865,7 +13046,8 @@ typedef struct {
 /** @addtogroup wds_qmi_messages
     @{
   */
-/** Response Message; Conveys that reverse IP transport configuration is complete on the AP side. */
+/** Response Message; Sends notification that reverse IP transport configuration is complete on the Application
+    Processor (AP) side. */
 typedef struct {
 
   /* Mandatory */
@@ -10876,11 +13058,20 @@ typedef struct {
     @}
   */
 
-/*
- * wds_get_data_bearer_technology_ex_req_msg is empty
- * typedef struct {
- * }wds_get_data_bearer_technology_ex_req_msg_v01;
- */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the data bearer technology. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_data_bearer_technology_ex_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup wds_qmi_messages
     @{
@@ -10905,6 +13096,2420 @@ typedef struct {
 /**
     @}
   */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Enables or disables retrying an LTE data attach. */
+typedef struct {
+
+  /* Mandatory */
+  /*  LTE Data Retry Setting */
+  uint8_t lte_data_retry;
+  /**<   Whether to retry an LTE data attach on a different PDN. Values: \n
+      - 0 -- Do not retry in case of failure \n
+      - 1 -- Retry in case of failure
+  */
+}wds_set_lte_data_retry_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Enables or disables retrying an LTE data attach. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_set_lte_data_retry_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the current LTE data retry setting. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_lte_data_retry_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves the current LTE data retry setting. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  LTE Data Retry Setting */
+  uint8_t lte_data_retry_valid;  /**< Must be set to true if lte_data_retry is being passed */
+  uint8_t lte_data_retry;
+  /**<   Whether to retry an LTE data attach on a different PDN. Values: \n
+       - 0 -- Do not retry in case of failure \n
+       - 1 -- Retry in case of failure
+  */
+}wds_get_lte_data_retry_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_LTE_ATTACH_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_LTE_ATTACH_TYPE_INITIAL_V01 = 0, /**<  LTE initial attach is to be performed \n  */
+  WDS_LTE_ATTACH_TYPE_HANDOFF_V01 = 1, /**<  LTE handoff attach is to be performed  */
+  WDS_LTE_ATTACH_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_lte_attach_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Sets whether the attach to be performed is initial or handoff. */
+typedef struct {
+
+  /* Mandatory */
+  /*  LTE Attach Type */
+  wds_lte_attach_type_enum_v01 lte_attach_type;
+  /**<   Whether the attach is initial or handoff. Values: \n
+      - WDS_LTE_ATTACH_TYPE_INITIAL (0) --  LTE initial attach is to be performed \n 
+      - WDS_LTE_ATTACH_TYPE_HANDOFF (1) --  LTE handoff attach is to be performed 
+ */
+}wds_set_lte_attach_type_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Sets whether the attach to be performed is initial or handoff. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_set_lte_attach_type_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the current LTE attach type. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_lte_attach_type_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves the current LTE attach type. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  LTE Attach Type */
+  uint8_t lte_attach_type_valid;  /**< Must be set to true if lte_attach_type is being passed */
+  wds_lte_attach_type_enum_v01 lte_attach_type;
+  /**<   Whether the attach is initial or handoff. Values: \n
+      - WDS_LTE_ATTACH_TYPE_INITIAL (0) --  LTE initial attach is to be performed \n 
+      - WDS_LTE_ATTACH_TYPE_HANDOFF (1) --  LTE handoff attach is to be performed 
+ */
+}wds_get_lte_attach_type_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_REVERSE_IP_TRANSPORT_FILTER_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_REVERSE_IP_TRANSPORT_ESP_SPI_FILTER_V01 = 0, /**<  ESP SPI filter  */
+  WDS_REVERSE_IP_TRANSPORT_FILTER_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_reverse_ip_transport_filter_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates that a reverse IP transport filter must be set up. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Filter Type */
+  wds_reverse_ip_transport_filter_type_enum_v01 filter_type;
+  /**<   Type of filter to set up. Values: \n
+      - WDS_REVERSE_IP_TRANSPORT_ESP_SPI_FILTER (0) --  ESP SPI filter 
+ */
+
+  /* Optional */
+  /*  Security Parameter Index */
+  uint8_t spi_valid;  /**< Must be set to true if spi is being passed */
+  uint32_t spi;
+  /**<   Security parameter index. */
+}wds_reverse_ip_transport_filter_setup_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_HANDOFF_INFORMATION_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_HANDOFF_INIT_V01 = 0, /**<  Handoff has started \n  */
+  WDS_HANDOFF_SUCCESS_V01 = 1, /**<  Handoff is successful \n  */
+  WDS_HANDOFF_FAILURE_V01 = 2, /**<  Handoff failed  */
+  WDS_HANDOFF_INFORMATION_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_handoff_information_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates that a handoff is in progress or has been completed. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Handoff Information */
+  wds_handoff_information_type_enum_v01 handoff_information;
+  /**<   Handoff information. Values: \n
+      - WDS_HANDOFF_INIT (0) --  Handoff has started \n 
+      - WDS_HANDOFF_SUCCESS (1) --  Handoff is successful \n 
+      - WDS_HANDOFF_FAILURE (2) --  Handoff failed 
+ */
+}wds_handoff_information_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_DATA_PATH_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_DATA_PATH_HW_V01 = 0, /**<  Hardware data path   */
+  WDS_DATA_PATH_SW_V01 = 1, /**<  Software data path   */
+  WDS_DATA_PATH_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_data_path_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Sets the client data path. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Sets Data Path */
+  wds_data_path_type_enum_v01 data_path;
+  /**<   Values: \n
+      - WDS_DATA_PATH_HW (0) --  Hardware data path  
+      - WDS_DATA_PATH_SW (1) --  Software data path  
+ */
+}wds_set_data_path_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Sets the client data path. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_set_data_path_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the current modem data path. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_data_path_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries the current modem data path. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  Current Data Path */
+  uint8_t data_path_valid;  /**< Must be set to true if data_path is being passed */
+  wds_data_path_type_enum_v01 data_path;
+  /**<   Values: \n
+      - WDS_DATA_PATH_HW (0) --  Hardware data path  
+      - WDS_DATA_PATH_SW (1) --  Software data path  
+ */
+}wds_get_data_path_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Triggers the modem to update the profile parameters.  */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_update_lte_attach_pdn_list_profiles_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Triggers the modem to update the profile parameters.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_update_lte_attach_pdn_list_profiles_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint16_t frequency;
+  /**<   Frequency associated with sai_list.
+   */
+
+  uint8_t is_serving_frequency;
+  /**<   Indicates whether this is a serving frequency.
+   */
+
+  uint32_t sai_list_len;  /**< Must be set to # of elements in sai_list */
+  uint32_t sai_list[QMI_WDS_EMBMS_SAI_LIST_MAX_V01];
+  /**<   Service area identity for this frequency.
+   */
+}wds_embms_sai_list_per_freq_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint32_t frequency;
+  /**<    Frequency associated with sai_list.
+   */
+
+  uint8_t is_serving_frequency;
+  /**<   Indicates whether this is a serving frequency.
+   */
+
+  uint32_t sai_list_len;  /**< Must be set to # of elements in sai_list */
+  uint32_t sai_list[QMI_WDS_EMBMS_SAI_LIST_MAX_V01];
+  /**<   Service area identity for this frequency.
+   */
+}wds_embms_sai_list_per_freq_ex_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the Service Area Identity (SAI) list. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_embms_sai_list_query_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries the Service Area Identity (SAI) list. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  SAI List */
+  uint8_t freq_sai_list_valid;  /**< Must be set to true if freq_sai_list is being passed */
+  uint32_t freq_sai_list_len;  /**< Must be set to # of elements in freq_sai_list */
+  wds_embms_sai_list_per_freq_type_v01 freq_sai_list[QMI_WDS_EMBMS_FREQ_SAI_MAX_V01];
+
+  /* Optional */
+  /*  Extended SAI List */
+  uint8_t freq_sai_list_ex_valid;  /**< Must be set to true if freq_sai_list_ex is being passed */
+  uint32_t freq_sai_list_ex_len;  /**< Must be set to # of elements in freq_sai_list_ex */
+  wds_embms_sai_list_per_freq_ex_type_v01 freq_sai_list_ex[QMI_WDS_EMBMS_FREQ_SAI_MAX_V01];
+}wds_embms_sai_list_query_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates the currently available SAI list. */
+typedef struct {
+
+  /* Optional */
+  /*  SAI List */
+  uint8_t freq_sai_list_valid;  /**< Must be set to true if freq_sai_list is being passed */
+  uint32_t freq_sai_list_len;  /**< Must be set to # of elements in freq_sai_list */
+  wds_embms_sai_list_per_freq_type_v01 freq_sai_list[QMI_WDS_EMBMS_FREQ_SAI_MAX_V01];
+
+  /* Optional */
+  /*  Transaction ID */
+  uint8_t tranx_id_valid;  /**< Must be set to true if tranx_id is being passed */
+  int16_t tranx_id;
+  /**<   SAI transaction ID for the indication.
+  */
+
+  /* Optional */
+  /*  Extended SAI List */
+  uint8_t freq_sai_list_ex_valid;  /**< Must be set to true if freq_sai_list_ex is being passed */
+  uint32_t freq_sai_list_ex_len;  /**< Must be set to # of elements in freq_sai_list_ex */
+  wds_embms_sai_list_per_freq_ex_type_v01 freq_sai_list_ex[QMI_WDS_EMBMS_FREQ_SAI_MAX_V01];
+}wds_embms_sai_list_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_CLIENT_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_CLIENT_TYPE_RESERVED_V01 = 0, /**<  Reserved \n  */
+  WDS_CLIENT_TYPE_TETHERED_V01 = 1, /**<  Tethered \n  */
+  WDS_CLIENT_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_client_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Binds a control point to a muxed data port. */
+typedef struct {
+
+  /* Optional */
+  /*  Peripheral End Point ID */
+  uint8_t ep_id_valid;  /**< Must be set to true if ep_id is being passed */
+  data_ep_id_type_v01 ep_id;
+  /**<   \n Peripheral end point (physical data channel) to which
+       the client binds.
+  */
+
+  /* Optional */
+  /*  Mux ID */
+  uint8_t mux_id_valid;  /**< Must be set to true if mux_id is being passed */
+  uint8_t mux_id;
+  /**<   Mux ID of the logical data channel to which
+       the client binds. The default value is 0. 
+  */
+
+  /* Optional */
+  /*  Reversed RmNet Flag */
+  uint8_t reversed_valid;  /**< Must be set to true if reversed is being passed */
+  uint8_t reversed;
+  /**<   Binds to a reversed RmNet data port. Values: \n
+       - 0x00 -- FALSE (default) \n
+       - 0x01 -- TRUE 
+  */
+
+  /* Optional */
+  /*  Client Type */
+  uint8_t client_type_valid;  /**< Must be set to true if client_type is being passed */
+  wds_client_type_enum_v01 client_type;
+  /**<   Type of the client that requests the binding. Values: \n
+      - WDS_CLIENT_TYPE_RESERVED (0) --  Reserved \n 
+      - WDS_CLIENT_TYPE_TETHERED (1) --  Tethered \n 
+
+ All other values are reserved and are ignored by service.
+ */
+}wds_bind_mux_data_port_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Binds a control point to a muxed data port. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_bind_mux_data_port_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Initiates an ESP rekey. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_initiate_esp_rekey_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Initiates an ESP rekey. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_initiate_esp_rekey_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef uint32_t wds_evt_reg_mask_v01;
+#define QMI_WDS_MASK_EVT_OUTAGE_NOTIFICATION_V01 ((wds_evt_reg_mask_v01)0x01) /**<  Outage notification \n  */
+#define QMI_WDS_MASK_EVT_EXT_IPCONFIG_V01 ((wds_evt_reg_mask_v01)0x02) /**<  Extended IP configuration (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n  */
+#define QMI_WDS_MASK_EVT_HDR_RATE_INERTIA_SUCCESS_V01 ((wds_evt_reg_mask_v01)0x04) /**<  HDR Rev0 rate inertia success \n  */
+#define QMI_WDS_MASK_EVT_HDR_RATE_INERTIA_FAILURE_V01 ((wds_evt_reg_mask_v01)0x08) /**<  HDR Rev0 rate inertia failure \n  */
+#define QMI_WDS_MASK_EVT_HDR_SM_SUCCESS_V01 ((wds_evt_reg_mask_v01)0x10) /**<  HDR set EIDLE Slotted Mode success (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n  */
+#define QMI_WDS_MASK_EVT_HDR_SM_FAILURE_V01 ((wds_evt_reg_mask_v01)0x20) /**<  HDR set EIDLE Slotted Mode failure (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n  */
+#define QMI_WDS_MASK_EVT_HDR_SM_SESS_CHANGE_V01 ((wds_evt_reg_mask_v01)0x40) /**<  HDR set EIDLE Slotted Mode session change (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n  */
+#define QMI_WDS_MASK_EVT_RF_CONDITIONS_V01 ((wds_evt_reg_mask_v01)0x80) /**<  RF conditions change \n  */
+#define QMI_WDS_MASK_EVT_DOS_ACK_V01 ((wds_evt_reg_mask_v01)0x100) /**<  DOS ACK event \n  */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Registers for IFACE events.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Event Registration Mask */
+  wds_evt_reg_mask_v01 event_registration_mask;
+  /**<   Requested event bitmask. Values: \n
+      - QMI_WDS_MASK_EVT_OUTAGE_NOTIFICATION (0x01) --  Outage notification \n 
+      - QMI_WDS_MASK_EVT_EXT_IPCONFIG (0x02) --  Extended IP configuration (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n 
+      - QMI_WDS_MASK_EVT_HDR_RATE_INERTIA_SUCCESS (0x04) --  HDR Rev0 rate inertia success \n 
+      - QMI_WDS_MASK_EVT_HDR_RATE_INERTIA_FAILURE (0x08) --  HDR Rev0 rate inertia failure \n 
+      - QMI_WDS_MASK_EVT_HDR_SM_SUCCESS (0x10) --  HDR set EIDLE Slotted Mode success (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n 
+      - QMI_WDS_MASK_EVT_HDR_SM_FAILURE (0x20) --  HDR set EIDLE Slotted Mode failure (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n 
+      - QMI_WDS_MASK_EVT_HDR_SM_SESS_CHANGE (0x40) --  HDR set EIDLE Slotted Mode session change (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}) \n 
+      - QMI_WDS_MASK_EVT_RF_CONDITIONS (0x80) --  RF conditions change \n 
+      - QMI_WDS_MASK_EVT_DOS_ACK (0x100) --  DOS ACK event \n 
+
+ Each bit set causes the corresponding optional TLV to be sent in 
+ the QMI_WDS_INTERNAL_IFACE_EV_IND indication. All unlisted bits are reserved for 
+ future use and must be set to zero.
+ */
+}wds_internal_iface_ev_register_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Registers for IFACE events.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_internal_iface_ev_register_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_IFACE_EVENT_NAME_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_IFACE_EVENT_OUTAGE_NOTIFICATION_V01 = 0x0001, /**<  Outage notification \n  */
+  WDS_IFACE_EVENT_EXT_IPCONFIG_V01 = 0x0002, /**<  Extended IP configuration (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister})\n  */
+  WDS_IFACE_EVENT_HDR_RATE_INERTIA_SUCCESS_V01 = 0x0003, /**<  HDR Rev0 rate inertia success \n  */
+  WDS_IFACE_EVENT_HDR_RATE_INERTIA_FAILURE_V01 = 0x0004, /**<  HDR Rev0 rate inertia failure \n  */
+  WDS_IFACE_EVENT_HDR_SM_SUCCESS_V01 = 0x0005, /**<  HDR Set EIDLE Slotted Mode success (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister})\n  */
+  WDS_IFACE_EVENT_HDR_SM_FAILURE_V01 = 0x0006, /**<  HDR Set EIDLE Slotted Mode failure (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister})\n  */
+  WDS_IFACE_EVENT_HDR_SM_SESS_CHANGE_V01 = 0x0007, /**<  HDR Set EIDLE Slotted Mode session change (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}\n  */
+  WDS_IFACE_EVENT_RF_CONDITIONS_V01 = 0x0008, /**<  RF conditions change \n  */
+  WDS_IFACE_EVENT_DOS_ACK_V01 = 0x0009, /**<  DOS ACK event   */
+  WDS_IFACE_EVENT_NAME_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_iface_event_name_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_HDR_REV0_RATE_INERTIA_FAILURE_CODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_HDR_REV0_RATE_INERTIA_REQUEST_REJECTED_V01 = 0, /**<  Request rejected \n  */
+  WDS_HDR_REV0_RATE_INERTIA_REQUEST_FAILED_TX_V01 = 1, /**<  Request failed Tx \n  */
+  WDS_HDR_REV0_RATE_INERTIA_NOT_SUPPORTED_V01 = 2, /**<  Not supported \n  */
+  WDS_HDR_REV0_RATE_INERTIA_NO_NET_V01 = 3, /**<  No net   */
+  WDS_HDR_REV0_RATE_INERTIA_FAILURE_CODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_hdr_rev0_rate_inertia_failure_code_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_HDR_SLOTTED_MODE_FAILURE_CODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_HDR_SLOTTED_MODE_REQUEST_REJECTED_V01 = 0, /**<  Request rejected \n  */
+  WDS_HDR_SLOTTED_MODE_REQUEST_FAILED_TX_V01 = 1, /**<  Request failed Tx \n  */
+  WDS_HDR_SLOTTED_MODE_NOT_SUPPORTED_V01 = 2, /**<  Not supported \n  */
+  WDS_HDR_SLOTTED_MODE_NO_NET_V01 = 3, /**<  No net  */
+  WDS_HDR_SLOTTED_MODE_FAILURE_CODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_hdr_slotted_mode_failure_code_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_RF_CONDITIONS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_RF_CONDITIONS_INVALID_V01 = 0, /**<  Invalid \n  */
+  WDS_RF_CONDITIONS_BAD_V01 = 1, /**<  Bad \n  */
+  WDS_RF_CONDITIONS_GOOD_V01 = 2, /**<  Good\n  */
+  WDS_RF_CONDITIONS_DONT_CARE_V01 = 3, /**<  Do not care  */
+  WDS_RF_CONDITIONS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_rf_conditions_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_DOS_ACK_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_DOS_ACK_NONE_V01 = -1, /**<  None \n  */
+  WDS_DOS_ACK_OK_V01 = 0x00000000, /**<  Completed successfully \n  */
+  WDS_DOS_ACK_HOLD_ORIG_RETRY_TIMEOUT_V01 = 0x00000001, /**<  Hold original retry timeout \n  */
+  WDS_DOS_ACK_HOLD_ORIG_V01 = 0x00000002, /**<  Cannot proceed because hold original is TRUE \n  */
+  WDS_DOS_ACK_NO_SRV_V01 = 0x00000003, /**<  No service \n  */
+  WDS_DOS_ACK_ABORT_V01 = 0x00000004, /**<  Abort \n  */
+  WDS_DOS_ACK_NOT_ALLOWED_IN_AMPS_V01 = 0x00000005, /**<  Cannot send in Analog mode \n  */
+  WDS_DOS_ACK_NOT_ALLOWED_IN_HDR_V01 = 0x00000006, /**<  Cannot send in an HDR call \n  */
+  WDS_DOS_ACK_L2_ACK_FAILURE_V01 = 0x00000007, /**<  Failure receiving the L2 ACK \n  */
+  WDS_DOS_ACK_OUT_OF_RESOURCES_V01 = 0x00000008, /**<  Out of resources, e.g., memory buffer is full \n  */
+  WDS_DOS_ACK_ACCESS_TOO_LARGE_V01 = 0x00000009, /**<  Message is too large to be sent over ACC \n  */
+  WDS_DOS_ACK_DTC_TOO_LARGE_V01 = 0x0000000A, /**<  Message is too large to be sent over DTC \n  */
+  WDS_DOS_ACK_OTHER_V01 = 0x0000000B, /**<  Any status response other than above \n  */
+  WDS_DOS_ACK_ACCT_BLOCK_V01 = 0x0000000C, /**<  Access is blocked based on the service option \n  */
+  WDS_DOS_ACK_L3_ACK_FAILURE_V01 = 0x0000000D, /**<  Failure receiving the L3 ACK  */
+  WDS_DOS_ACK_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_dos_ack_status_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint32_t time_to_outage;
+  /**<   Milliseconds in which the HDR outage starts
+  */
+
+  uint32_t duration;
+  /**<   Milliseconds for which the HDR outage lasts
+  */
+}wds_outage_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  wds_current_nw_enum_v01 db_current_nw;
+  /**<   Current network type of data bearer. Values: \n
+      - WDS_CURRENT_NETWORK_UNKNOWN (0x00) --  Unknown\n 
+      - WDS_CURRENT_NETWORK_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_CURRENT_NETWORK_3GPP (0x02) --  3GPP 
+ */
+
+  uint32_t db_rat_mask;
+  /**<   RAT mask to indicate the type of technology.
+       A RAT mask value of zero indicates that this field is ignored. Values: \n
+       - 0x00 -- DONT_CARE \n
+       - 0x8000 -- NULL_BEARER \n
+
+       CDMA RAT mask: \n
+       - 0x01 -- CDMA_1X \n
+       - 0x02 -- EVDO_REV0 \n
+       - 0x04 -- EVDO_REVA \n
+       - 0x08 -- EVDO_REVB \n
+       - 0x10 -- EHRPD \n
+       - 0x20 -- FMC \n
+
+       UMTS RAT mask: \n
+       - 0x01 -- WCDMA \n
+       - 0x02 -- GPRS \n
+       - 0x04 -- HSDPA \n
+       - 0x08 -- HSUPA \n
+       - 0x10 -- EDGE \n
+       - 0x20 -- LTE \n
+       - 0x40 -- HSDPA+ \n
+       - 0x80 -- DC_HSDPA+ \n
+       - 0x100 -- 64_QAM \n
+       - 0x200 -- TDSCDMA
+  */
+
+  uint32_t db_so_mask;
+  /**<   SO mask to indicate the service option or type of
+       application.
+
+       An SO mask value of zero indicates that this field is ignored. Values: \n
+       - 0x00 -- DONT_CARE \n
+
+       CDMA 1X SO mask: \n
+       - 0x01 -- CDMA_1X_IS95 \n
+       - 0x02 -- CDMA_1X_IS2000 \n
+       - 0x04 -- CDMA_1X_IS2000_REL_A \n
+
+       CDMA EV-DO Rev 0 SO mask: \n
+       - 0x01 -- DPA \n
+
+       CDMA EV-DO Rev A SO mask: \n
+       - 0x01 -- DPA \n
+       - 0x02 -- MFPA \n
+       - 0x04 -- EMPA \n
+       - 0x08 -- EMPA_EHRPD \n
+
+       CDMA EV-DO Rev B SO mask: \n
+       - 0x01 -- DPA \n
+       - 0x02 -- MFPA \n
+       - 0x04 -- EMPA \n
+       - 0x08 -- EMPA_EHRPD \n
+       - 0x10 -- MMPA \n
+       - 0x20 -- MMPA_EHRPD
+  */
+
+  wds_rf_conditions_enum_v01 rf_cond;
+  /**<   Values: \n
+      - WDS_RF_CONDITIONS_INVALID (0) --  Invalid \n 
+      - WDS_RF_CONDITIONS_BAD (1) --  Bad \n 
+      - WDS_RF_CONDITIONS_GOOD (2) --  Good\n 
+      - WDS_RF_CONDITIONS_DONT_CARE (3) --  Do not care 
+ */
+}wds_rf_conditions_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint16_t handle;
+  /**<   DOS ACK handle
+  */
+
+  uint32_t overflow;
+  /**<   Set to a nonzero value when the number of outstanding SDB/DOS packets 
+       (the packets for which the mobile is still waiting for an ACK) is more than 
+       that the mobile can handle.
+  */
+
+  wds_dos_ack_status_enum_v01 dos_ack_status;
+  /**<   DOS ACK status. Values: \n
+      - WDS_DOS_ACK_NONE (-1) --  None \n 
+      - WDS_DOS_ACK_OK (0x00000000) --  Completed successfully \n 
+      - WDS_DOS_ACK_HOLD_ORIG_RETRY_TIMEOUT (0x00000001) --  Hold original retry timeout \n 
+      - WDS_DOS_ACK_HOLD_ORIG (0x00000002) --  Cannot proceed because hold original is TRUE \n 
+      - WDS_DOS_ACK_NO_SRV (0x00000003) --  No service \n 
+      - WDS_DOS_ACK_ABORT (0x00000004) --  Abort \n 
+      - WDS_DOS_ACK_NOT_ALLOWED_IN_AMPS (0x00000005) --  Cannot send in Analog mode \n 
+      - WDS_DOS_ACK_NOT_ALLOWED_IN_HDR (0x00000006) --  Cannot send in an HDR call \n 
+      - WDS_DOS_ACK_L2_ACK_FAILURE (0x00000007) --  Failure receiving the L2 ACK \n 
+      - WDS_DOS_ACK_OUT_OF_RESOURCES (0x00000008) --  Out of resources, e.g., memory buffer is full \n 
+      - WDS_DOS_ACK_ACCESS_TOO_LARGE (0x00000009) --  Message is too large to be sent over ACC \n 
+      - WDS_DOS_ACK_DTC_TOO_LARGE (0x0000000A) --  Message is too large to be sent over DTC \n 
+      - WDS_DOS_ACK_OTHER (0x0000000B) --  Any status response other than above \n 
+      - WDS_DOS_ACK_ACCT_BLOCK (0x0000000C) --  Access is blocked based on the service option \n 
+      - WDS_DOS_ACK_L3_ACK_FAILURE (0x0000000D) --  Failure receiving the L3 ACK 
+ */
+}wds_dos_ack_info_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates the occurrence of IFACE events.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  IFACE Event */
+  wds_iface_event_name_enum_v01 iface_event_name;
+  /**<   Values: \n
+      - WDS_IFACE_EVENT_OUTAGE_NOTIFICATION (0x0001) --  Outage notification \n 
+      - WDS_IFACE_EVENT_EXT_IPCONFIG (0x0002) --  Extended IP configuration (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister})\n 
+      - WDS_IFACE_EVENT_HDR_RATE_INERTIA_SUCCESS (0x0003) --  HDR Rev0 rate inertia success \n 
+      - WDS_IFACE_EVENT_HDR_RATE_INERTIA_FAILURE (0x0004) --  HDR Rev0 rate inertia failure \n 
+      - WDS_IFACE_EVENT_HDR_SM_SUCCESS (0x0005) --  HDR Set EIDLE Slotted Mode success (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister})\n 
+      - WDS_IFACE_EVENT_HDR_SM_FAILURE (0x0006) --  HDR Set EIDLE Slotted Mode failure (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister})\n 
+      - WDS_IFACE_EVENT_HDR_SM_SESS_CHANGE (0x0007) --  HDR Set EIDLE Slotted Mode session change (deprecated as described in 
+Section \ref{hdr:InternalIFaceEvRegister}\n 
+      - WDS_IFACE_EVENT_RF_CONDITIONS (0x0008) --  RF conditions change \n 
+      - WDS_IFACE_EVENT_DOS_ACK (0x0009) --  DOS ACK event  
+ */
+
+  /* Optional */
+  /*  Outage */
+  uint8_t outage_valid;  /**< Must be set to true if outage is being passed */
+  wds_outage_type_v01 outage;
+
+  /* Optional */
+  /*  Extended IP Configuration Status */
+  uint8_t extended_ip_config_status_valid;  /**< Must be set to true if extended_ip_config_status is being passed */
+  uint8_t extended_ip_config_status;
+  /**<   Values: \n
+       - 0x00 -- FAIL \n
+       - 0x01 -- SUCCESS
+  */
+
+  /* Optional */
+  /*  HDR Rev0 Rate Inertia Failure Code */
+  uint8_t hdr_rate_intertia_fail_valid;  /**< Must be set to true if hdr_rate_intertia_fail is being passed */
+  wds_hdr_rev0_rate_inertia_failure_code_enum_v01 hdr_rate_intertia_fail;
+  /**<   Values: \n
+      - WDS_HDR_REV0_RATE_INERTIA_REQUEST_REJECTED (0) --  Request rejected \n 
+      - WDS_HDR_REV0_RATE_INERTIA_REQUEST_FAILED_TX (1) --  Request failed Tx \n 
+      - WDS_HDR_REV0_RATE_INERTIA_NOT_SUPPORTED (2) --  Not supported \n 
+      - WDS_HDR_REV0_RATE_INERTIA_NO_NET (3) --  No net  
+ */
+
+  /* Optional */
+  /*  HDR Set EIDLE Slotted Mode Failure Code */
+  uint8_t hdr_sm_fail_valid;  /**< Must be set to true if hdr_sm_fail is being passed */
+  wds_hdr_slotted_mode_failure_code_enum_v01 hdr_sm_fail;
+  /**<   Values: \n
+      - WDS_HDR_SLOTTED_MODE_REQUEST_REJECTED (0) --  Request rejected \n 
+      - WDS_HDR_SLOTTED_MODE_REQUEST_FAILED_TX (1) --  Request failed Tx \n 
+      - WDS_HDR_SLOTTED_MODE_NOT_SUPPORTED (2) --  Not supported \n 
+      - WDS_HDR_SLOTTED_MODE_NO_NET (3) --  No net 
+ */
+
+  /* Optional */
+  /*  HDR Set EIDLE Slotted Mode Session Changed */
+  uint8_t slot_cycle_changed_valid;  /**< Must be set to true if slot_cycle_changed is being passed */
+  wds_evdo_slot_cycle_enum_v01 slot_cycle_changed;
+  /**<   Slot cycle changed by the network.
+  */
+
+  /* Optional */
+  /*  RF Conditions */
+  uint8_t rf_conditions_valid;  /**< Must be set to true if rf_conditions is being passed */
+  wds_rf_conditions_type_v01 rf_conditions;
+
+  /* Optional */
+  /*  DOS ACK Information */
+  uint8_t dos_ack_info_valid;  /**< Must be set to true if dos_ack_info is being passed */
+  wds_dos_ack_info_type_v01 dos_ack_info;
+}wds_internal_iface_ev_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef uint32_t wds_req_oper_mask_v01;
+#define QMI_WDS_MASK_REQ_OPER_RF_CONDITIONS_V01 ((wds_req_oper_mask_v01)0x01) /**<  RF conditions \n  */
+#define QMI_WDS_MASK_REQ_OPER_1X_DORM_TIMER_V01 ((wds_req_oper_mask_v01)0x02) /**<  1X dorm timer \n  */
+#define QMI_WDS_MASK_REQ_OPER_1X_SESSION_TIMER_V01 ((wds_req_oper_mask_v01)0x04) /**<  1X session timer \n  */
+#define QMI_WDS_MASK_REQ_OPER_HDR_1X_HANDDOWN_OPT_V01 ((wds_req_oper_mask_v01)0x08) /**<  HDR-1X hand down option \n  */
+#define QMI_WDS_MASK_REQ_OPER_HYSTERISIS_ACTIVATION_TIMER_V01 ((wds_req_oper_mask_v01)0x10) /**<  Hysteresis activation timer \n  */
+#define QMI_WDS_MASK_REQ_OPER_HDR_EIDLE_SM_OPT_V01 ((wds_req_oper_mask_v01)0x20) /**<  HDR EIDLE Slotted Mode option \n  */
+#define QMI_WDS_MASK_REQ_OPER_SDB_SUPPORT_V01 ((wds_req_oper_mask_v01)0x40) /**<  SDB support  */
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_SESSION_TIMER_SELECT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_SESSION_TIMER_DO_V01 = 0x01, /**<  Session timer DO \n  */
+  WDS_SESSION_TIMER_1X_V01 = 0x02, /**<  Session timer 1X \n  */
+  WDS_SESSION_TIMER_1X_AND_DO_V01 = 0x03, /**<  Session timer 1X and DO   */
+  WDS_SESSION_TIMER_SELECT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_session_timer_select_enum_v01;
+/**
+    @}
+  */
+
+typedef uint32_t wds_sdb_flags_mask_v01;
+#define QMI_WDS_MASK_SDB_FLAGS_MSG_EXPEDITE_V01 ((wds_sdb_flags_mask_v01)0x01) /**<  Expedite the message \n  */
+#define QMI_WDS_MASK_SDB_FLAGS_MSG_FAST_EXPEDITE_V01 ((wds_sdb_flags_mask_v01)0x02) /**<  Fast expedite the message   */
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves internal packet data session settings currently in use.  */
+typedef struct {
+
+  /* Optional */
+  /*  Requested Internal Settings */
+  uint8_t requested_internal_settings_valid;  /**< Must be set to true if requested_internal_settings is being passed */
+  wds_req_oper_mask_v01 requested_internal_settings;
+  /**<   Requested internal settings bitmask. Values: \n
+      - QMI_WDS_MASK_REQ_OPER_RF_CONDITIONS (0x01) --  RF conditions \n 
+      - QMI_WDS_MASK_REQ_OPER_1X_DORM_TIMER (0x02) --  1X dorm timer \n 
+      - QMI_WDS_MASK_REQ_OPER_1X_SESSION_TIMER (0x04) --  1X session timer \n 
+      - QMI_WDS_MASK_REQ_OPER_HDR_1X_HANDDOWN_OPT (0x08) --  HDR-1X hand down option \n 
+      - QMI_WDS_MASK_REQ_OPER_HYSTERISIS_ACTIVATION_TIMER (0x10) --  Hysteresis activation timer \n 
+      - QMI_WDS_MASK_REQ_OPER_HDR_EIDLE_SM_OPT (0x20) --  HDR EIDLE Slotted Mode option \n 
+      - QMI_WDS_MASK_REQ_OPER_SDB_SUPPORT (0x40) --  SDB support  \n
+
+ Each bit set causes the corresponding optional TLV to be sent in 
+ the QMI_WDS_GET_INTERNAL_RUNTIME_SETTINGS_RESP response. All unlisted bits are 
+ reserved for future use and must be set to zero.
+ */
+
+  /* Optional */
+  /*  Session Timer Select */
+  uint8_t timer_select_valid;  /**< Must be set to true if timer_select is being passed */
+  wds_session_timer_select_enum_v01 timer_select;
+  /**<   Values: \n
+      - WDS_SESSION_TIMER_DO (0x01) --  Session timer DO \n 
+      - WDS_SESSION_TIMER_1X (0x02) --  Session timer 1X \n 
+      - WDS_SESSION_TIMER_1X_AND_DO (0x03) --  Session timer 1X and DO  
+ */
+
+  /* Optional */
+  /*  Requested SDB Flags */
+  uint8_t flags_valid;  /**< Must be set to true if flags is being passed */
+  wds_sdb_flags_mask_v01 flags;
+  /**<   Requested SDB flags bitmask. Values: \n
+      - QMI_WDS_MASK_SDB_FLAGS_MSG_EXPEDITE (0x01) --  Expedite the message \n 
+      - QMI_WDS_MASK_SDB_FLAGS_MSG_FAST_EXPEDITE (0x02) --  Fast expedite the message  
+ */
+}wds_get_internal_runtime_settings_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t bit_number;
+  /**<   Bit in the requested_internal_settings mask for which the operation failed.
+  */
+
+  int16_t error_value;
+  /**<   Error obtained from the operation; a data services error value returned by 
+       the lower layers. Refer to the DS Error numbers published in \hyperref[Q4]{[Q4]} 
+       for the possible values returned in this field.
+  */
+}wds_get_runtime_settings_error_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves internal packet data session settings currently in use.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  RF Conditions */
+  uint8_t rf_conditions_valid;  /**< Must be set to true if rf_conditions is being passed */
+  wds_rf_conditions_type_v01 rf_conditions;
+
+  /* Optional */
+  /*  1X Dorm Timer */
+  uint8_t dorm_timer_valid;  /**< Must be set to true if dorm_timer is being passed */
+  uint32_t dorm_timer;
+  /**<   1X dorm timer. */
+
+  /* Optional */
+  /*  1X Session Timer */
+  uint8_t session_timer_value_valid;  /**< Must be set to true if session_timer_value is being passed */
+  int16_t session_timer_value;
+  /**<   1X session timer. */
+
+  /* Optional */
+  /*  HDR-1X Hand Down Option */
+  uint8_t hdr_1x_handdown_option_valid;  /**< Must be set to true if hdr_1x_handdown_option is being passed */
+  uint8_t hdr_1x_handdown_option;
+  /**<   Values: \n
+       - 0x00 -- FALSE \n
+       - 0x01 -- TRUE 
+  */
+
+  /* Optional */
+  /*  Hysteresis Activation Timer */
+  uint8_t hysterisis_act_timer_valid;  /**< Must be set to true if hysterisis_act_timer is being passed */
+  int32_t hysterisis_act_timer;
+  /**<   Hysteresis activation timer. */
+
+  /* Optional */
+  /*  HDR EIDLE Slotted Mode Option */
+  uint8_t slotted_mode_option_valid;  /**< Must be set to true if slotted_mode_option is being passed */
+  wds_evdo_slot_cycle_enum_v01 slotted_mode_option;
+  /**<   This TLV is deprecated. Control points should use QMI_WDS_GET_EVDO_PAGE_ MONITOR_PERIOD_RESP
+       instead.
+  */
+
+  /* Optional */
+  /*  SDB Support */
+  uint8_t sdb_support_valid;  /**< Must be set to true if sdb_support is being passed */
+  uint8_t sdb_support;
+  /**<   Values: \n
+       - 0x00 -- FALSE \n
+       - 0x01 -- TRUE 
+  */
+
+  /* Optional */
+  /*  Operation Failure */
+  uint8_t operation_failure_valid;  /**< Must be set to true if operation_failure is being passed */
+  uint32_t operation_failure_len;  /**< Must be set to # of elements in operation_failure */
+  wds_get_runtime_settings_error_v01 operation_failure[QMI_WDS_MAX_RUNTIME_SETTINGS_FAILURES_V01];
+}wds_get_internal_runtime_settings_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  wds_session_timer_select_enum_v01 timer_select;
+  /**<   Values: \n
+      - WDS_SESSION_TIMER_DO (0x01) --  Session timer DO \n 
+      - WDS_SESSION_TIMER_1X (0x02) --  Session timer 1X \n 
+      - WDS_SESSION_TIMER_1X_AND_DO (0x03) --  Session timer 1X and DO   
+ */
+
+  int16_t timer_val;
+  /**<   Timer value
+  */
+}wds_session_timer_1x_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Sets/modifies internal packet data session settings.  */
+typedef struct {
+
+  /* Optional */
+  /*  Enable Hold Down */
+  uint8_t enable_1x_holddown_valid;  /**< Must be set to true if enable_1x_holddown is being passed */
+  uint8_t enable_1x_holddown;
+  /**<   Enable hold down. Values: \n
+       - 0x00 -- Disable \n
+       - 0x01 -- Enable 
+  */
+
+  /* Optional */
+  /*  1X Dorm Timer */
+  uint8_t dorm_timer_valid;  /**< Must be set to true if dorm_timer is being passed */
+  uint32_t dorm_timer;
+  /**<   1X dorm timer value.
+  */
+
+  /* Optional */
+  /*  1X Session Timer */
+  uint8_t session_timer_valid;  /**< Must be set to true if session_timer is being passed */
+  wds_session_timer_1x_v01 session_timer;
+  /**<   \n 1X session timer value.
+  */
+
+  /* Optional */
+  /*  HDR-1X Hand Down Option */
+  uint8_t hdr_1x_handdown_option_valid;  /**< Must be set to true if hdr_1x_handdown_option is being passed */
+  uint8_t hdr_1x_handdown_option;
+  /**<   HDR-1X hand down option. Values: \n
+       - 0x00 -- Disable \n
+       - 0x01 -- Enable 
+  */
+
+  /* Optional */
+  /*  Hysteresis Activation Timer */
+  uint8_t hysterisis_act_timer_valid;  /**< Must be set to true if hysterisis_act_timer is being passed */
+  int32_t hysterisis_act_timer;
+  /**<   Hysteresis activation timer.
+  */
+
+  /* Optional */
+  /*  HDR Slotted Mode */
+  uint8_t slotted_mode_option_valid;  /**< Must be set to true if slotted_mode_option is being passed */
+  wds_evdo_slot_cycle_enum_v01 slotted_mode_option;
+  /**<   Slot cycle value. This TLV is deprecated. Control points should use 
+       QMI_WDS_SET_EVDO_ PAGE_MONITOR_PERIOD_REQ instead.
+  */
+
+  /* Optional */
+  /*  Enable HDR HPT Mode */
+  uint8_t enable_hdr_hpt_valid;  /**< Must be set to true if enable_hdr_hpt is being passed */
+  uint8_t enable_hdr_hpt;
+  /**<   Values: \n
+       - 0x00 -- Disable (FALSE) \n
+       - 0x01 -- Enable (TRUE)
+  */
+
+  /* Optional */
+  /*  Enable HDR Rev0 Rate Inertia */
+  uint8_t enable_hdr_rev0_rate_inertia_valid;  /**< Must be set to true if enable_hdr_rev0_rate_inertia is being passed */
+  uint8_t enable_hdr_rev0_rate_inertia;
+  /**<   Values: \n
+       - 0x00 -- Disable (FALSE) \n
+       - 0x01 -- Enable (TRUE)
+  */
+}wds_set_internal_runtime_settings_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t tlv_type;
+  /**<   TLV type in the request that elicited the error.
+  */
+
+  int16_t error_value;
+  /**<   Error obtained from the operation; a data services error value returned by 
+       the lower layers. Refer to the DS Error numbers published in \hyperref[Q4]{[Q4]} 
+       for the possible values returned in this field.
+  */
+}wds_set_runtime_settings_error_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Sets/modifies internal packet data session settings.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  Operation Failure */
+  uint8_t operation_failure_valid;  /**< Must be set to true if operation_failure is being passed */
+  uint32_t operation_failure_len;  /**< Must be set to # of elements in operation_failure */
+  wds_set_runtime_settings_error_v01 operation_failure[QMI_WDS_MAX_RUNTIME_SETTINGS_FAILURES_V01];
+}wds_set_internal_runtime_settings_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Refreshes the DHCP configuration information.  */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_refresh_dhcp_config_info_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Refreshes the DHCP configuration information.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_refresh_dhcp_config_info_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Sets the timer for generating a throughput information indication. */
+typedef struct {
+
+  /* Optional */
+  /*  Report Interval */
+  uint8_t report_interval_valid;  /**< Must be set to true if report_interval is being passed */
+  uint32_t report_interval;
+  /**<   Period at which throughput information 
+       is generated, in milliseconds.
+  */
+}wds_set_throughput_info_ind_freq_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Sets the timer for generating a throughput information indication. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_set_throughput_info_ind_freq_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_IP_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_IP_TYPE_IPV4_V01 = 0, /**<  IPv4  */
+  WDS_IP_TYPE_IPV6_V01 = 1, /**<  IPv6  */
+  WDS_IP_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_ip_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_PORT_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_SIO_PORT_ID_V01 = 0, /**<  Data_port field is used \n  */
+  WDS_END_POINT_ID_V01 = 1, /**<  Ep_type, iface_id, and mux_id fields are used  */
+  WDS_PORT_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_port_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_HIGHER_THROUGHPUT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_HIGHER_THROUGHPUT_UNKNOWN_V01 = 0, /**<  Throughput quality is unknown \n  */
+  WDS_HIGHER_THROUGHPUT_NOT_POSSIBLE_V01 = 1, /**<  Best throughput possible \n  */
+  WDS_HIGHER_THROUGHPUT_POSSIBLE_V01 = 2, /**<  Better throughput than current throughput is possible  */
+  WDS_HIGHER_THROUGHPUT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_higher_throughput_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_TECHNOLOGY_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_TECHNOLOGY_TYPE_3GPP_V01 = 0, /**<  3GPP  */
+  WDS_TECHNOLOGY_TYPE_3GPP2_V01 = 1, /**<  3GPP2   */
+  WDS_TECHNOLOGY_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_technology_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint32_t bearer_rlp_mac_id;
+  /**<   Bearer ID representing the bearer,
+       or RLP_MAC ID for which the throughput is being 
+       reported. */
+
+  uint32_t uplink_actual_rate;
+  /**<    Uplink actual rate in kbits per second
+        corresponding to the bearer or RLP_MAC ID. */
+
+  uint32_t uplink_queue_size;
+  /**<   Number of bytes pending in the uplink queue
+       corresponding to the bearer or RLP_MAC ID. */
+
+  uint8_t is_primary;
+  /**<   Boolean value to determine if the bearer or RLP_MAC ID
+       is the default. */
+}wds_bearer_rlp_mac_id_throughput_info_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  char apn_string[QMI_WDS_APN_NAME_MAX_V01 + 1];
+  /**<   String representing the APN.
+       Maximum length is 100 bytes.
+  */
+
+  wds_ip_type_enum_v01 ip_type;
+  /**<   IP type. Values: \n
+      - WDS_IP_TYPE_IPV4 (0) --  IPv4 
+      - WDS_IP_TYPE_IPV6 (1) --  IPv6 
+ */
+
+  wds_technology_type_enum_v01 tech_type;
+  /**<   Technology type.
+ Values: \n
+      - WDS_TECHNOLOGY_TYPE_3GPP (0) --  3GPP 
+      - WDS_TECHNOLOGY_TYPE_3GPP2 (1) --  3GPP2  
+ */
+
+  wds_bind_subscription_enum_v01 subscription;
+  /**<   Subscription to which the APN is bound.
+ Values: \n
+      - WDS_DEFAULT_SUBS (0x0000) --  Default data subscription \n 
+      - WDS_PRIMARY_SUBS (0x0001) --  Primary \n 
+      - WDS_SECONDARY_SUBS (0x0002) --  Secondary \n 
+      - WDS_TERTIARY_SUBS (0x0003) --  Tertiary \n 
+      - WDS_DONT_CARE_SUBS (0x00FF) --  Default value used in the absence of
+       explicit binding
+ */
+
+  uint32_t uplink_actual_rate;
+  /**<   Uplink actual rate in kbits per second.
+  */
+
+  uint32_t uplink_allowed_rate;
+  /**<   Uplink allowed rate per UE in kbits per second.
+  */
+
+  uint32_t uplink_queue_size;
+  /**<   Number of bytes pending in the uplink queue.
+  */
+
+  wds_higher_throughput_enum_v01 throughput_signal;
+  /**<   Indicates whether the UE can have a better throughput 
+ rate than the throughput reported currently.
+      - WDS_HIGHER_THROUGHPUT_UNKNOWN (0) --  Throughput quality is unknown \n 
+      - WDS_HIGHER_THROUGHPUT_NOT_POSSIBLE (1) --  Best throughput possible \n 
+      - WDS_HIGHER_THROUGHPUT_POSSIBLE (2) --  Better throughput than current throughput is possible 
+ */
+
+  wds_port_type_enum_v01 valid_port;
+  /**<   Indicates which of the following IDs are valid: \n
+      - WDS_SIO_PORT_ID (0) --  Data_port field is used \n 
+      - WDS_END_POINT_ID (1) --  Ep_type, iface_id, and mux_id fields are used 
+ */
+
+  uint16_t data_port;
+  /**<   SIO data port to which the client binds.
+  */
+
+  data_ep_id_type_v01 ep_id;
+  /**<   The peripheral end point of the RmNet instance 
+       where the data call is already present.
+  */
+
+  uint8_t mux_id;
+  /**<   Mux ID of the RmNet instance where the data call is already present.
+  */
+
+  uint32_t bearer_rlp_mac_id_throughput_info_len;  /**< Must be set to # of elements in bearer_rlp_mac_id_throughput_info */
+  wds_bearer_rlp_mac_id_throughput_info_type_v01 bearer_rlp_mac_id_throughput_info[QMI_WDS_MAX_BEARER_RLP_MAC_ID_CONTEXT_V01];
+  /**<   Throughput info per bearer or RLP_MAC ID.
+  */
+}wds_throughput_info_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries for the last reported throughput information. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_last_throughput_info_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries for the last reported throughput information. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  Throughput Information */
+  uint8_t throughput_info_valid;  /**< Must be set to true if throughput_info is being passed */
+  uint32_t throughput_info_len;  /**< Must be set to # of elements in throughput_info */
+  wds_throughput_info_type_v01 throughput_info[QMI_WDS_MAX_THROUGHPUT_INFO_V01];
+}wds_get_last_throughput_info_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates throughput information. */
+typedef struct {
+
+  /* Optional */
+  /*  Throughput Information */
+  uint8_t throughput_info_valid;  /**< Must be set to true if throughput_info is being passed */
+  uint32_t throughput_info_len;  /**< Must be set to # of elements in throughput_info */
+  wds_throughput_info_type_v01 throughput_info[QMI_WDS_MAX_THROUGHPUT_INFO_V01];
+}wds_throughput_info_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  wds_profile_type_enum_v01 profile_type;
+  /**<   Identifies the technology type of the profile. Values: \n
+    - 0x00 -- 3GPP \n
+    - 0x01 -- 3GPP2 \n
+    - 0x02 -- EPC \n
+    - 0xFF -- All technologies \n
+              Value 0xFF is reserved; this value is used to register for 
+              profile change events for all technologies 
+              i.e., 3GPP, 3GPP2, and EPC.
+  */
+
+  uint8_t profile_index;
+  /**<   The index of the configured profile on which data call parameters
+       are based (other TLVs present override the profile settings).
+
+       Value 0xFF is reserved; this value is used to register for profile 
+       change events for all profiles tied to the technology type provided 
+       in the profile_type field. If profile_type is specified as 0xFF, 
+       the profile_index field is ignored.
+  */
+}wds_profile_event_register_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Registers for profile change events. */
+typedef struct {
+
+  /* Optional */
+  /*  Profile Event Registration */
+  uint8_t profile_event_register_valid;  /**< Must be set to true if profile_event_register is being passed */
+  uint32_t profile_event_register_len;  /**< Must be set to # of elements in profile_event_register */
+  wds_profile_event_register_type_v01 profile_event_register[QMI_WDS_PROFILE_LIST_MAX_V01];
+}wds_config_profile_list_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Registers for profile change events. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_config_profile_list_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  wds_profile_type_enum_v01 profile_type;
+  /**<   Identifies the technology type of the profile. Values: \n
+      - WDS_PROFILE_TYPE_3GPP (0x00) --  3GPP \n 
+      - WDS_PROFILE_TYPE_3GPP2 (0x01) --  3GPP2 \n 
+      - WDS_PROFILE_TYPE_EPC (0x02) --  EPC 
+ */
+
+  uint8_t profile_index;
+  /**<   Index of the configured profile on which data call parameters
+       are based.
+  */
+
+  wds_profile_changed_event_enum_v01 profile_change_evt;
+  /**<   Identifies the profile event that caused a change in the profile. Values:\n
+      - WDS_PROFILE_CREATE_PROFILE_EVENT (0x01) --  Create profile event \n 
+      - WDS_PROFILE_DELETE_PROFILE_EVENT (0x02) --  Delete profile event \n 
+      - WDS_PROFILE_MODIFY_PROFILE_EVENT (0x03) --  Modify profile event \n 
+      - WDS_PROFILE_SUBSCRIPTION_CHANGE_EVENT (0x04) --  Subscription changed event 
+ */
+}wds_profile_changed_ind_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates a change in the profile configured for reporting of change
+           events. */
+typedef struct {
+
+  /* Optional */
+  /*  Profile Event Registration Indication */
+  uint8_t profile_changed_ind_valid;  /**< Must be set to true if profile_changed_ind is being passed */
+  wds_profile_changed_ind_type_v01 profile_changed_ind;
+}wds_profile_changed_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the modem capabilites. */
+typedef struct {
+
+  /* Optional */
+  /*  eMBMS Extended EARFCN List */
+  uint8_t extended_embms_frequency_valid;  /**< Must be set to true if extended_embms_frequency is being passed */
+  uint8_t extended_embms_frequency;
+  /**<   Supported frequency values. Values: \n
+       - 0 -- 16-bit frequency \n
+       - 1 -- Extended frequencies (32-bit values)
+    */
+}wds_get_capabilities_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries the modem capabilites. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  eMBMS Extended EARFCN List */
+  uint8_t extended_embms_frequency_valid;  /**< Must be set to true if extended_embms_frequency is being passed */
+  uint8_t extended_embms_frequency;
+  /**<   Supported frequency values. Values: \n
+       - 0 -- 16-bit frequency \n
+       - 1 -- Extended frequencies (32-bit values)
+    */
+}wds_get_capabilities_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  char apn_name[QMI_WDS_APN_NAME_MAX_V01 + 1];
+  /**<   String parameter that is a logical name used to
+         select the GGSN and external packet data network.
+    */
+}wds_apn_name_list_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves APN names during roaming. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_roaming_info_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves APN names during roaming. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  APN Name List */
+  uint8_t roaming_apn_name_list_valid;  /**< Must be set to true if roaming_apn_name_list is being passed */
+  uint32_t roaming_apn_name_list_len;  /**< Must be set to # of elements in roaming_apn_name_list */
+  wds_apn_name_list_type_v01 roaming_apn_name_list[QMI_WDS_APN_NAME_LIST_MAX_V01];
+}wds_get_roaming_info_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates APN names during roaming. */
+typedef struct {
+
+  /* Optional */
+  /*  APN Name List */
+  uint8_t roaming_apn_name_list_valid;  /**< Must be set to true if roaming_apn_name_list is being passed */
+  uint32_t roaming_apn_name_list_len;  /**< Must be set to # of elements in roaming_apn_name_list */
+  wds_apn_name_list_type_v01 roaming_apn_name_list[QMI_WDS_APN_NAME_LIST_MAX_V01];
+}wds_roaming_info_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries the delegated IPv6 prefix. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Source IPv6 Address */
+  uint8_t src_ipv6_addr[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Link local address of the client
+       IPv6 address (in network byte order). The address is a 
+       16-element array of 8-bit numbers, each of which is in
+       big-endian format.
+  */
+}wds_get_delegated_ipv6_prefix_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries the delegated IPv6 prefix. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  IPv6 Prefix and Prefix Length */
+  uint8_t ipv6_prefix_valid;  /**< Must be set to true if ipv6_prefix is being passed */
+  wds_runtime_ipv6_addr_type_v01 ipv6_prefix;
+}wds_get_delegated_ipv6_prefix_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Removes the delegated IPv6 prefix. */
+typedef struct {
+
+  /* Optional */
+  /*  IPv6 Prefix and Prefix Length */
+  uint8_t ipv6_prefix_valid;  /**< Must be set to true if ipv6_prefix is being passed */
+  wds_runtime_ipv6_addr_type_v01 ipv6_prefix;
+
+  /* Optional */
+  /*  Host Link Local IPv6 Address */
+  uint8_t host_ll_addr_valid;  /**< Must be set to true if host_ll_addr is being passed */
+  uint8_t host_ll_addr[QMI_WDS_IPV6_ADDR_LEN_V01];
+  /**<   Link local address of the IPv6 client for 
+       which the matching delegated prefix is to 
+       be removed (in network byte order). The address is a
+       16-element array of 8-bit numbers, each of which 
+       is in big-endian format.
+  */
+}wds_remove_delegated_ipv6_prefix_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Removes the delegated IPv6 prefix. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_remove_delegated_ipv6_prefix_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Aborts the previously issued QMI_WDS_GO_DORMANT command. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_abort_go_dormant_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Aborts the previously issued QMI_WDS_GO_DORMANT command. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_abort_go_dormant_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Binds the control point to the specified subscription. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Subscription Identifier */
+  wds_bind_subscription_enum_v01 subscription;
+  /**<   Subscription to which the client is bound.
+ Values: \n
+      - WDS_DEFAULT_SUBS (0x0000) --  Default data subscription \n 
+      - WDS_PRIMARY_SUBS (0x0001) --  Primary \n 
+      - WDS_SECONDARY_SUBS (0x0002) --  Secondary \n 
+      - WDS_TERTIARY_SUBS (0x0003) --  Tertiary \n 
+      - WDS_DONT_CARE_SUBS (0x00FF) --  Default value used in the absence of
+       explicit binding
+ */
+}wds_bind_subscription_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Binds the control point to the specified subscription. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_bind_subscription_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries for the current subscription of the control point. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_bind_subscription_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries for the current subscription of the control point. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  Subscription */
+  uint8_t subscription_valid;  /**< Must be set to true if subscription is being passed */
+  wds_bind_subscription_enum_v01 subscription;
+  /**<   Subscription to which the client is bound.
+ Values: \n
+      - WDS_DEFAULT_SUBS (0x0000) --  Default data subscription \n 
+      - WDS_PRIMARY_SUBS (0x0001) --  Primary \n 
+      - WDS_SECONDARY_SUBS (0x0002) --  Secondary \n 
+      - WDS_TERTIARY_SUBS (0x0003) --  Tertiary \n 
+      - WDS_DONT_CARE_SUBS (0x00FF) --  Default value used in the absence of
+       explicit binding
+ */
+}wds_get_bind_subscription_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_LTE_DATA_CALL_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_LTE_CALL_TYPE_DEFAULT_V01 = 0, /**<  Default LTE data call type \n  */
+  WDS_LTE_CALL_TYPE_VOLTE_V01 = 1, /**<  Voice over LTE data call type  */
+  WDS_LTE_DATA_CALL_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_lte_data_call_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Sets the data call type for an active LTE call. */
+typedef struct {
+
+  /* Mandatory */
+  /*  LTE Data Call Type Identifier */
+  wds_lte_data_call_type_enum_v01 call_type;
+  /**<   Type of LTE Data call that must be set.
+ Values: \n
+      - WDS_LTE_CALL_TYPE_DEFAULT (0) --  Default LTE data call type \n 
+      - WDS_LTE_CALL_TYPE_VOLTE (1) --  Voice over LTE data call type 
+ */
+}wds_set_lte_data_call_type_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Sets the data call type for an active LTE call. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_set_lte_data_call_type_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Sets the timer for generating downlink throughput information
+           indication. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Downlink Throughput Report Interval */
+  uint32_t downlink_report_interval;
+  /**<   Integer multiple of the minimun reporting period at which downlink
+       throughput information is generated.
+  */
+}wds_set_downlink_throughput_info_ind_freq_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Sets the timer for generating downlink throughput information
+           indication. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_set_downlink_throughput_info_ind_freq_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates downlink throughput information. */
+typedef struct {
+
+  /* Optional */
+  /*  Downlink allowed rate */
+  uint8_t downlink_allowed_rate_valid;  /**< Must be set to true if downlink_allowed_rate is being passed */
+  uint32_t downlink_allowed_rate;
+  /**<   The allowed downlink rate per UE in Kbps.
+  */
+
+  /* Optional */
+  /*  Confidence level */
+  uint8_t confidence_level_valid;  /**< Must be set to true if confidence_level is being passed */
+  uint8_t confidence_level;
+  /**<   Level of accuracy at which the throughput information
+       is generated.(On a scale of 0-7, 0 being the least 
+       accurate and 7 indicates high accuracy of reporting)
+  */
+}wds_downlink_throughput_info_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; Queries for the downlink throughout info params */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}wds_get_downlink_throughput_info_params_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; Queries for the downlink throughout info params */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+
+  /* Optional */
+  /*  Downlink minimum timer interval */
+  uint8_t min_dl_interval_valid;  /**< Must be set to true if min_dl_interval is being passed */
+  uint32_t min_dl_interval;
+  /**<   Min downlink interval in milliseconds
+  */
+}wds_get_downlink_throughput_info_params_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_EMBMS_SERVICE_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_EMBMS_SERVICE_DASH_V01 = 0, /**<  DASH streaming \n  */
+  WDS_EMBMS_SERVICE_FILE_DELIVERY_V01 = 1, /**<  File delivery \n  */
+  WDS_EMBMS_SERVICE_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_embms_service_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Request Message; eMBMS content description parameters update */
+typedef struct {
+
+  /* Mandatory */
+  /*  Temporary Mobile Group Identity */
+  wds_embms_tmgi_type_v01 tmgi;
+
+  /* Mandatory */
+  /*  Transaction ID */
+  int16_t tranx_id;
+  /**<   eMBMS transaction ID for the request.
+  */
+
+  /* Optional */
+  /*  Object Delivery Duration */
+  uint8_t obj_delivery_duration_valid;  /**< Must be set to true if obj_delivery_duration is being passed */
+  uint32_t obj_delivery_duration;
+  /**<   Segment duration for streaming. Time in milliseconds.
+  */
+
+  /* Optional */
+  /*  Session FEC Redundancy Level */
+  uint8_t session_fec_redundancy_lvl_valid;  /**< Must be set to true if session_fec_redundancy_lvl is being passed */
+  uint32_t session_fec_redundancy_lvl;
+  /**<   Ratio of repair to source symbols.
+       Percentage in hundreds of a percent.
+  */
+
+  /* Optional */
+  /*  Service Type */
+  uint8_t service_type_valid;  /**< Must be set to true if service_type is being passed */
+  wds_embms_service_type_enum_v01 service_type;
+  /**<   Service Type. Values: \n
+      - WDS_EMBMS_SERVICE_DASH (0) --  DASH streaming \n 
+      - WDS_EMBMS_SERVICE_FILE_DELIVERY (1) --  File delivery \n 
+ */
+
+  /* Optional */
+  /*  Priority */
+  uint8_t priority_valid;  /**< Must be set to true if priority is being passed */
+  uint32_t priority;
+  /**<   Priority level vs. Tune-away. 0 means no priority.
+  */
+
+  /* Optional */
+  /*  Media Data Rate 1 */
+  uint8_t media_data_rate_1_valid;  /**< Must be set to true if media_data_rate_1 is being passed */
+  uint32_t media_data_rate_1;
+  /**<   Data rate (in kbps) for a representation.
+  */
+
+  /* Optional */
+  /*  Media Data Rate 2 */
+  uint8_t media_data_rate_2_valid;  /**< Must be set to true if media_data_rate_2 is being passed */
+  uint32_t media_data_rate_2;
+  /**<   Data rate (in kbps) for a representation.
+  */
+
+  /* Optional */
+  /*  Media Data Rate 3 */
+  uint8_t media_data_rate_3_valid;  /**< Must be set to true if media_data_rate_3 is being passed */
+  uint32_t media_data_rate_3;
+  /**<   Data rate (in kbps) for a representation.
+  */
+
+  /* Optional */
+  /*  Media Data Rate 4 */
+  uint8_t media_data_rate_4_valid;  /**< Must be set to true if media_data_rate_4 is being passed */
+  uint32_t media_data_rate_4;
+  /**<   Data rate (in kbps) for a representation.
+  */
+
+  /* Optional */
+  /*  Transport Session Identifier */
+  uint8_t tsi_valid;  /**< Must be set to true if tsi is being passed */
+  uint32_t tsi;
+  /**<   TSI of object.
+  */
+
+  /* Optional */
+  /*  Transport Object Identifier */
+  uint8_t toi_valid;  /**< Must be set to true if toi is being passed */
+  uint32_t toi;
+  /**<   TOI of object.
+  */
+
+  /* Optional */
+  /*  Object Size */
+  uint8_t obj_size_valid;  /**< Must be set to true if obj_size is being passed */
+  uint32_t obj_size;
+  /**<   Object size in bytes.
+  */
+
+  /* Optional */
+  /*  Symbol Size */
+  uint8_t symbol_size_valid;  /**< Must be set to true if symbol_size is being passed */
+  uint32_t symbol_size;
+  /**<   Object symbol size in bytes.
+  */
+
+  /* Optional */
+  /*  Object FEC Redundancy Level */
+  uint8_t obj_fec_redundancy_lvl_valid;  /**< Must be set to true if obj_fec_redundancy_lvl is being passed */
+  uint32_t obj_fec_redundancy_lvl;
+  /**<   Ration of repair to source symbols for object.
+       Overrides Session FEC Redundancy Level if present.
+       Percentage in hundreds of a percent.
+  */
+
+  /* Optional */
+  /*  Status Transport Session Identifier */
+  uint8_t status_tsi_valid;  /**< Must be set to true if status_tsi is being passed */
+  uint32_t status_tsi;
+  /**<   TSI of object for which status is provided. If this parameter
+       is present, it is always followed by Status Transport Object
+       Identifier TLV and Status TLV.
+  */
+
+  /* Optional */
+  /*  Status Transport Object Identifier */
+  uint8_t status_toi_valid;  /**< Must be set to true if status_toi is being passed */
+  uint32_t status_toi;
+  /**<   TOI of object for which status is provided.
+  */
+
+  /* Optional */
+  /*  Status */
+  uint8_t status_valid;  /**< Must be set to true if status is being passed */
+  uint32_t status;
+  /**<   Success and Failure indication. Values: \n
+       - 0   -- Success \n
+       - >=1 -- Failure 
+  */
+
+  /* Optional */
+  /*  Status Last Decoding ESI */
+  uint8_t status_last_decoding_esi_valid;  /**< Must be set to true if status_last_decoding_esi is being passed */
+  uint32_t status_last_decoding_esi;
+  /**<   ESI of last symbol used for decoding the current object.
+       Sent only for successfully decoded objects.
+  */
+}wds_embms_content_desc_update_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Response Message; eMBMS content description parameters update */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}wds_embms_content_desc_update_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_EMBMS_CONTENT_CONTROL_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_EMBMS_CC_DISABLE_V01 = 0, /**<  Disable \n  */
+  WDS_EMBMS_CC_ENABLE_START_OBJ_V01 = 1, /**<  Enable at start of objects \n  */
+  WDS_EMBMS_CC_ENABLE_START_VIDEO_OBJ_V01 = 2, /**<  Enable at start of video objects \n  */
+  WDS_EMBMS_CONTENT_CONTROL_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_embms_content_control_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_enums
+    @{
+  */
+typedef enum {
+  WDS_EMBMS_STATUS_CONTROL_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  WDS_EMBMS_SU_DISABLE_V01 = 0, /**<  Disable \n  */
+  WDS_EMBMS_SU_ENABLE_OBJ_V01 = 1, /**<  Enable for objects \n  */
+  WDS_EMBMS_SU_ENABLE_VIDEO_OBJ_V01 = 2, /**<  Enable for video objects \n  */
+  WDS_EMBMS_STATUS_CONTROL_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}wds_embms_status_control_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup wds_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates eMBMS content description settings */
+typedef struct {
+
+  /* Mandatory */
+  /*  Temporary Mobile Group Identity */
+  wds_embms_tmgi_type_v01 tmgi;
+
+  /* Optional */
+  /*  Transaction ID */
+  uint8_t tranx_id_valid;  /**< Must be set to true if tranx_id is being passed */
+  int16_t tranx_id;
+  /**<   eMBMS transaction ID for the request (default is -1).
+  */
+
+  /* Optional */
+  /*  Per Object Content Control */
+  uint8_t content_control_valid;  /**< Must be set to true if content_control is being passed */
+  wds_embms_content_control_enum_v01 content_control;
+  /**<   Per object content control. Values: \n
+      - WDS_EMBMS_CC_DISABLE (0) --  Disable \n 
+      - WDS_EMBMS_CC_ENABLE_START_OBJ (1) --  Enable at start of objects \n 
+      - WDS_EMBMS_CC_ENABLE_START_VIDEO_OBJ (2) --  Enable at start of video objects \n 
+ */
+
+  /* Optional */
+  /*  Per Object Status Control */
+  uint8_t status_control_valid;  /**< Must be set to true if status_control is being passed */
+  wds_embms_status_control_enum_v01 status_control;
+  /**<   Per object status control. Values: \n
+      - WDS_EMBMS_SU_DISABLE (0) --  Disable \n 
+      - WDS_EMBMS_SU_ENABLE_OBJ (1) --  Enable for objects \n 
+      - WDS_EMBMS_SU_ENABLE_VIDEO_OBJ (2) --  Enable for video objects \n 
+ */
+}wds_embms_content_desc_control_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_WDS_ABORT_V01 
+//#define REMOVE_QMI_WDS_ABORT_GO_DORMANT_V01 
+//#define REMOVE_QMI_WDS_BIND_DATA_PORT_V01 
+//#define REMOVE_QMI_WDS_BIND_MUX_DATA_PORT_V01 
+//#define REMOVE_QMI_WDS_BIND_SUBSCRIPTION_V01 
+//#define REMOVE_QMI_WDS_CALL_HISTORY_DELETE_V01 
+//#define REMOVE_QMI_WDS_CALL_HISTORY_LIST_V01 
+//#define REMOVE_QMI_WDS_CALL_HISTORY_MAX_SIZE_V01 
+//#define REMOVE_QMI_WDS_CALL_HISTORY_READ_V01 
+//#define REMOVE_QMI_WDS_CONFIGURE_PROFILE_EVENT_LIST_V01 
+//#define REMOVE_QMI_WDS_CONTROL_PENDING_DUN_CALL_V01 
+//#define REMOVE_QMI_WDS_CREATE_PROFILE_V01 
+//#define REMOVE_QMI_WDS_DELETE_PROFILE_V01 
+//#define REMOVE_QMI_WDS_DOWNLINK_THROUGHPUT_INFO_IND_V01 
+//#define REMOVE_QMI_WDS_DUN_CALL_INFO_IND_V01 
+//#define REMOVE_QMI_WDS_DUN_CTRL_EVENT_REPORT_IND_V01 
+//#define REMOVE_QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_V01 
+//#define REMOVE_QMI_WDS_EMBMS_CONTENT_DESC_UPDATE_V01 
+//#define REMOVE_QMI_WDS_EMBMS_SAI_LIST_IND_V01 
+//#define REMOVE_QMI_WDS_EMBMS_SAI_LIST_QUERY_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_ACTIVATE_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_ACTIVATE_IND_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_ACT_DEACT_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_ACT_DEACT_IND_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_DEACTIVATE_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_DEACTIVATE_IND_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_LIST_IND_V01 
+//#define REMOVE_QMI_WDS_EMBMS_TMGI_LIST_QUERY_V01 
+//#define REMOVE_QMI_WDS_EVDO_PAGE_MONITOR_PERIOD_RESULT_IND_V01 
+//#define REMOVE_QMI_WDS_EXTENDED_IP_CONFIG_IND_V01 
+//#define REMOVE_QMI_WDS_FMC_CLEAR_TUNNEL_PARAMS_V01 
+//#define REMOVE_QMI_WDS_FMC_GET_TUNNEL_PARAMS_V01 
+//#define REMOVE_QMI_WDS_FMC_SET_TUNNEL_PARAMS_V01 
+//#define REMOVE_QMI_WDS_GET_ACTIVE_MIP_PROFILE_V01 
+//#define REMOVE_QMI_WDS_GET_AUTOCONNECT_SETTING_V01 
+//#define REMOVE_QMI_WDS_GET_BIND_SUBSCRIPTION_V01 
+//#define REMOVE_QMI_WDS_GET_CALL_DURATION_V01 
+//#define REMOVE_QMI_WDS_GET_CALL_THROTTLE_INFO_V01 
+//#define REMOVE_QMI_WDS_GET_CAM_TIMER_V01 
+//#define REMOVE_QMI_WDS_GET_CAPABILITIES_V01 
+//#define REMOVE_QMI_WDS_GET_CURRENT_CHANNEL_RATE_V01 
+//#define REMOVE_QMI_WDS_GET_CURRENT_DATA_BEARER_TECHNOLOGY_V01 
+//#define REMOVE_QMI_WDS_GET_CURRENT_DATA_SYSTEM_STATUS_V01 
+//#define REMOVE_QMI_WDS_GET_DATA_BEARER_TECHNOLOGY_V01 
+//#define REMOVE_QMI_WDS_GET_DATA_BEARER_TECHNOLOGY_EX_V01 
+//#define REMOVE_QMI_WDS_GET_DATA_PATH_V01 
+//#define REMOVE_QMI_WDS_GET_DEFAULT_PROFILE_NUM_V01 
+//#define REMOVE_QMI_WDS_GET_DEFAULT_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_GET_DELEGATED_IPV6_PREFIX_V01 
+//#define REMOVE_QMI_WDS_GET_DNS_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_GET_DORMANCY_STATUS_V01 
+//#define REMOVE_QMI_WDS_GET_DOWNLINK_THROUGHPUT_INFO_PARAMS_V01 
+//#define REMOVE_QMI_WDS_GET_DUN_CALL_INFO_V01 
+//#define REMOVE_QMI_WDS_GET_DUN_CTRL_INFO_V01 
+//#define REMOVE_QMI_WDS_GET_EVDO_PAGE_MONITOR_PERIOD_V01 
+//#define REMOVE_QMI_WDS_GET_FLOW_CONTROL_STATUS_V01 
+//#define REMOVE_QMI_WDS_GET_INTERNAL_RUNTIME_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_GET_IPSEC_STATIC_SA_CONFIG_V01 
+//#define REMOVE_QMI_WDS_GET_LAST_DATA_CALL_STATUS_V01 
+//#define REMOVE_QMI_WDS_GET_LAST_MIP_STATUS_V01 
+//#define REMOVE_QMI_WDS_GET_LAST_THROUGHPUT_INFO_V01 
+//#define REMOVE_QMI_WDS_GET_LTE_ATTACH_PARAMS_V01 
+//#define REMOVE_QMI_WDS_GET_LTE_ATTACH_PDN_LIST_V01 
+//#define REMOVE_QMI_WDS_GET_LTE_ATTACH_TYPE_V01 
+//#define REMOVE_QMI_WDS_GET_LTE_DATA_RETRY_V01 
+//#define REMOVE_QMI_WDS_GET_LTE_MAX_ATTACH_PDN_NUM_V01 
+//#define REMOVE_QMI_WDS_GET_MIP_MODE_V01 
+//#define REMOVE_QMI_WDS_GET_MIP_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_GET_NSAPI_V01 
+//#define REMOVE_QMI_WDS_GET_PDN_THROTTLE_INFO_V01 
+//#define REMOVE_QMI_WDS_GET_PKT_SRVC_STATUS_V01 
+//#define REMOVE_QMI_WDS_GET_PKT_SRVC_STATUS_IND_V01 
+//#define REMOVE_QMI_WDS_GET_PKT_STATISTICS_V01 
+//#define REMOVE_QMI_WDS_GET_PREFERRED_DATA_SYSTEM_V01 
+//#define REMOVE_QMI_WDS_GET_PRE_DORMANCY_CDMA_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_GET_PROFILE_LIST_V01 
+//#define REMOVE_QMI_WDS_GET_PROFILE_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_GET_RDUD_V01 
+//#define REMOVE_QMI_WDS_GET_ROAMING_INFO_V01 
+//#define REMOVE_QMI_WDS_GET_RUNTIME_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_GET_SCRM_V01 
+//#define REMOVE_QMI_WDS_GET_SIP_MIP_CALL_TYPE_V01 
+//#define REMOVE_QMI_WDS_GET_SUPPORTED_FIELDS_V01 
+//#define REMOVE_QMI_WDS_GET_SUPPORTED_MSGS_V01 
+//#define REMOVE_QMI_WDS_GO_ACTIVE_V01 
+//#define REMOVE_QMI_WDS_GO_DORMANT_V01 
+//#define REMOVE_QMI_WDS_HANDOFF_INFORMATION_IND_V01 
+//#define REMOVE_QMI_WDS_INDICATION_REGISTER_V01 
+//#define REMOVE_QMI_WDS_INITIATE_ESP_REKEY_V01 
+//#define REMOVE_QMI_WDS_INTERNAL_IFACE_EV_IND_V01 
+//#define REMOVE_QMI_WDS_INTERNAL_IFACE_EV_REGISTER_V01 
+//#define REMOVE_QMI_WDS_LTE_ATTACH_PDN_LIST_IND_V01 
+//#define REMOVE_QMI_WDS_MODIFY_MIP_PROFILE_V01 
+//#define REMOVE_QMI_WDS_MODIFY_PROFILE_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_PROFILE_CHANGED_IND_V01 
+//#define REMOVE_QMI_WDS_READ_MIP_PROFILE_V01 
+//#define REMOVE_QMI_WDS_REFRESH_DHCP_CONFIG_INFO_V01 
+//#define REMOVE_QMI_WDS_REMOVE_ADDITIONAL_PDN_FILTER_V01 
+//#define REMOVE_QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_V01 
+//#define REMOVE_QMI_WDS_RESET_V01 
+//#define REMOVE_QMI_WDS_RESET_PKT_STATISTICS_V01 
+//#define REMOVE_QMI_WDS_RESET_PROFILE_PARAM_TO_INVALID_V01 
+//#define REMOVE_QMI_WDS_RESET_PROFILE_TO_DEFAULT_V01 
+//#define REMOVE_QMI_WDS_REVERSE_IP_TRANSPORT_CONFIG_COMPLETE_V01 
+//#define REMOVE_QMI_WDS_REVERSE_IP_TRANSPORT_CONNECTION_IND_V01 
+//#define REMOVE_QMI_WDS_REVERSE_IP_TRANSPORT_CONNECTION_IND_REGISTRATION_V01 
+//#define REMOVE_QMI_WDS_REVERSE_IP_TRANSPORT_FILTER_SETUP_IND_V01 
+//#define REMOVE_QMI_WDS_ROAMING_INFO_IND_V01 
+//#define REMOVE_QMI_WDS_SET_ACTIVE_MIP_PROFILE_V01 
+//#define REMOVE_QMI_WDS_SET_ADDITIONAL_PDN_FILTER_V01 
+//#define REMOVE_QMI_WDS_SET_AUTOCONNECT_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_SET_CAM_TIMER_V01 
+//#define REMOVE_QMI_WDS_SET_CLIENT_IP_FAMILY_PREF_V01 
+//#define REMOVE_QMI_WDS_SET_DATA_PATH_V01 
+//#define REMOVE_QMI_WDS_SET_DEFAULT_PROFILE_NUM_V01 
+//#define REMOVE_QMI_WDS_SET_DNS_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_SET_DOWNLINK_THROUGHPUT_INFO_IND_FREQ_V01 
+//#define REMOVE_QMI_WDS_SET_DUN_CTRL_EVENT_REPORT_V01 
+//#define REMOVE_QMI_WDS_SET_DUN_CTRL_PREF_V01 
+//#define REMOVE_QMI_WDS_SET_EVDO_FORCE_LONG_SLEEP_V01 
+//#define REMOVE_QMI_WDS_SET_EVDO_PAGE_MONITOR_PERIOD_V01 
+//#define REMOVE_QMI_WDS_SET_EVENT_REPORT_V01 
+//#define REMOVE_QMI_WDS_SET_EVENT_REPORT_IND_V01 
+//#define REMOVE_QMI_WDS_SET_INTERNAL_RUNTIME_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_SET_LTE_ATTACH_PDN_LIST_V01 
+//#define REMOVE_QMI_WDS_SET_LTE_ATTACH_TYPE_V01 
+//#define REMOVE_QMI_WDS_SET_LTE_DATA_CALL_TYPE_V01 
+//#define REMOVE_QMI_WDS_SET_LTE_DATA_RETRY_V01 
+//#define REMOVE_QMI_WDS_SET_MIP_MODE_V01 
+//#define REMOVE_QMI_WDS_SET_MIP_SETTINGS_V01 
+//#define REMOVE_QMI_WDS_SET_RDUD_V01 
+//#define REMOVE_QMI_WDS_SET_SCRM_V01 
+//#define REMOVE_QMI_WDS_SET_THROUGHPUT_INFO_IND_FREQ_V01 
+//#define REMOVE_QMI_WDS_START_NETWORK_INTERFACE_V01 
+//#define REMOVE_QMI_WDS_STOP_NETWORK_INTERFACE_V01 
+//#define REMOVE_QMI_WDS_THROUGHPUT_INFO_IND_V01 
+//#define REMOVE_QMI_WDS_UPDATE_LTE_ATTACH_PDN_LIST_PROFILES_V01 
 
 /*Service Message Definition*/
 /** @addtogroup wds_qmi_msg_ids
@@ -11091,26 +15696,98 @@ typedef struct {
 #define QMI_WDS_REVERSE_IP_TRANSPORT_CONFIG_COMPLETE_RESP_V01 0x0090
 #define QMI_WDS_GET_DATA_BEARER_TECHNOLOGY_EX_REQ_V01 0x0091
 #define QMI_WDS_GET_DATA_BEARER_TECHNOLOGY_EX_RESP_V01 0x0091
+#define QMI_WDS_GET_LTE_MAX_ATTACH_PDN_NUM_REQ_V01 0x0092
+#define QMI_WDS_GET_LTE_MAX_ATTACH_PDN_NUM_RESP_V01 0x0092
+#define QMI_WDS_SET_LTE_ATTACH_PDN_LIST_REQ_V01 0x0093
+#define QMI_WDS_SET_LTE_ATTACH_PDN_LIST_RESP_V01 0x0093
+#define QMI_WDS_GET_LTE_ATTACH_PDN_LIST_REQ_V01 0x0094
+#define QMI_WDS_GET_LTE_ATTACH_PDN_LIST_RESP_V01 0x0094
+#define QMI_WDS_LTE_ATTACH_PDN_LIST_IND_V01 0x0095
+#define QMI_WDS_SET_LTE_DATA_RETRY_REQ_V01 0x0096
+#define QMI_WDS_SET_LTE_DATA_RETRY_RESP_V01 0x0096
+#define QMI_WDS_GET_LTE_DATA_RETRY_REQ_V01 0x0097
+#define QMI_WDS_GET_LTE_DATA_RETRY_RESP_V01 0x0097
+#define QMI_WDS_SET_LTE_ATTACH_TYPE_REQ_V01 0x0098
+#define QMI_WDS_SET_LTE_ATTACH_TYPE_RESP_V01 0x0098
+#define QMI_WDS_GET_LTE_ATTACH_TYPE_REQ_V01 0x0099
+#define QMI_WDS_GET_LTE_ATTACH_TYPE_RESP_V01 0x0099
+#define QMI_WDS_REVERSE_IP_TRANSPORT_FILTER_SETUP_IND_V01 0x009A
+#define QMI_WDS_HANDOFF_INFORMATION_IND_V01 0x009B
+#define QMI_WDS_SET_DATA_PATH_REQ_V01 0x009C
+#define QMI_WDS_SET_DATA_PATH_RESP_V01 0x009C
+#define QMI_WDS_GET_DATA_PATH_REQ_V01 0x009D
+#define QMI_WDS_GET_DATA_PATH_RESP_V01 0x009D
+#define QMI_WDS_UPDATE_LTE_ATTACH_PDN_LIST_PROFILES_REQ_V01 0x009F
+#define QMI_WDS_UPDATE_LTE_ATTACH_PDN_LIST_PROFILES_RESP_V01 0x009F
+#define QMI_WDS_EMBMS_SAI_LIST_QUERY_REQ_V01 0x00A0
+#define QMI_WDS_EMBMS_SAI_LIST_QUERY_RESP_V01 0x00A0
+#define QMI_WDS_EMBMS_SAI_LIST_IND_V01 0x00A1
+#define QMI_WDS_BIND_MUX_DATA_PORT_REQ_V01 0x00A2
+#define QMI_WDS_BIND_MUX_DATA_PORT_RESP_V01 0x00A2
+#define QMI_WDS_SET_THROUGHPUT_INFO_IND_FREQ_REQ_V01 0x00A3
+#define QMI_WDS_SET_THROUGHPUT_INFO_IND_FREQ_RESP_V01 0x00A3
+#define QMI_WDS_GET_LAST_THROUGHPUT_INFO_REQ_V01 0x00A4
+#define QMI_WDS_GET_LAST_THROUGHPUT_INFO_RESP_V01 0x00A4
+#define QMI_WDS_THROUGHPUT_INFO_IND_V01 0x00A5
+#define QMI_WDS_INITIATE_ESP_REKEY_REQ_V01 0x00A6
+#define QMI_WDS_INITIATE_ESP_REKEY_RESP_V01 0x00A6
+#define QMI_WDS_CONFIGURE_PROFILE_EVENT_LIST_REQ_V01 0x00A7
+#define QMI_WDS_CONFIGURE_PROFILE_EVENT_LIST_RESP_V01 0x00A7
+#define QMI_WDS_PROFILE_EVENT_REGISTER_IND_V01 0x00A8
+#define QMI_WDS_GET_CAPABILITIES_REQ_V01 0x00A9
+#define QMI_WDS_GET_CAPABILITIES_RESP_V01 0x00A9
+#define QMI_WDS_GET_ROAMING_INFO_REQ_V01 0x00AA
+#define QMI_WDS_GET_ROAMING_INFO_RESP_V01 0x00AA
+#define QMI_WDS_ROAMING_INFO_IND_V01 0x00AB
+#define QMI_WDS_GET_DELEGATED_IPV6_PREFIX_REQ_V01 0x00AC
+#define QMI_WDS_GET_DELEGATED_IPV6_PREFIX_RESP_V01 0x00AC
+#define QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_REQ_V01 0x00AD
+#define QMI_WDS_REMOVE_DELEGATED_IPV6_PREFIX_RESP_V01 0x00AD
+#define QMI_WDS_ABORT_GO_DORMANT_REQ_V01 0x00AE
+#define QMI_WDS_ABORT_GO_DORMANT_RESP_V01 0x00AE
+#define QMI_WDS_BIND_SUBSCRIPTION_REQ_V01 0x00AF
+#define QMI_WDS_BIND_SUBSCRIPTION_RESP_V01 0x00AF
+#define QMI_WDS_GET_BIND_SUBSCRIPTION_REQ_V01 0x00B0
+#define QMI_WDS_GET_BIND_SUBSCRIPTION_RESP_V01 0x00B0
+#define QMI_WDS_SET_LTE_DATA_CALL_TYPE_REQ_V01 0x00B1
+#define QMI_WDS_SET_LTE_DATA_CALL_TYPE_RESP_V01 0x00B1
+#define QMI_WDS_SET_DOWNLINK_THROUGHPUT_INFO_IND_FREQ_REQ_V01 0x00B2
+#define QMI_WDS_SET_DOWNLINK_THROUGHPUT_INFO_IND_FREQ_RESP_V01 0x00B2
+#define QMI_WDS_DOWNLINK_THROUGHPUT_INFO_IND_V01 0x00B3
+#define QMI_WDS_GET_DOWNLINK_THROUGHPUT_INFO_PARAMS_REQ_V01 0x00B4
+#define QMI_WDS_GET_DOWNLINK_THROUGHPUT_INFO_PARAMS_RESP_V01 0x00B4
+#define QMI_WDS_EMBMS_CONTENT_DESC_UPDATE_REQ_V01 0x00B5
+#define QMI_WDS_EMBMS_CONTENT_DESC_UPDATE_RESP_V01 0x00B5
+#define QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_V01 0x00B6
+#define QMI_WDS_REFRESH_DHCP_CONFIG_INFO_REQ_V01 0xFFFB
+#define QMI_WDS_REFRESH_DHCP_CONFIG_INFO_RESP_V01 0xFFFB
+#define QMI_WDS_SET_INTERNAL_RUNTIME_SETTINGS_REQ_V01 0xFFFC
+#define QMI_WDS_SET_INTERNAL_RUNTIME_SETTINGS_RESP_V01 0xFFFC
+#define QMI_WDS_GET_INTERNAL_RUNTIME_SETTINGS_REQ_V01 0xFFFD
+#define QMI_WDS_GET_INTERNAL_RUNTIME_SETTINGS_RESP_V01 0xFFFD
+#define QMI_WDS_INTERNAL_IFACE_EV_REGISTER_REQ_V01 0xFFFE
+#define QMI_WDS_INTERNAL_IFACE_EV_REGISTER_RESP_V01 0xFFFE
+#define QMI_WDS_INTERNAL_IFACE_EV_IND_V01 0xFFFE
 /**
     @}
   */
 
 /* Service Object Accessor */
-/** @addtogroup wms_qmi_accessor
+/** @addtogroup wms_qmi_accessor 
     @{
   */
 /** This function is used internally by the autogenerated code.  Clients should use the
    macro wds_get_service_object_v01( ) that takes in no arguments. */
 qmi_idl_service_object_type wds_get_service_object_internal_v01
  ( int32_t idl_maj_version, int32_t idl_min_version, int32_t library_version );
-
-/** This macro should be used to get the service object */
+ 
+/** This macro should be used to get the service object */ 
 #define wds_get_service_object_v01( ) \
           wds_get_service_object_internal_v01( \
             WDS_V01_IDL_MAJOR_VERS, WDS_V01_IDL_MINOR_VERS, \
             WDS_V01_IDL_TOOL_VERS )
-/**
-    @}
+/** 
+    @} 
   */
 
 

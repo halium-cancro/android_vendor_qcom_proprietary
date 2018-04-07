@@ -67,13 +67,102 @@ dsi_netmgr_link_map_type dsi_netmgr_link_map_tbl[DSI_MAX_IFACES] =
   { NETMGR_LINK_RMNET_15, 15 }
 };
 
+
+/*===========================================================================
+  FUNCTION:  dsi_netmgr_process_user_cmd_ev
+===========================================================================*/
+/*!
+    @brief
+    process the netmgr user_cmd response received from netmgr and then signal
+    the appropriate thread that is waiting for this synchronous response.
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+static int
+dsi_netmgr_process_user_cmd_ev
+(
+  netmgr_nl_event_info_t* evt_info
+)
+{
+  dsi_store_t * st = NULL;
+  netmgr_user_cmd_data_t *cmd_data = NULL;
+  unsigned int txn_id;
+  int i = 0;
+  int status;
+  int ret = DSI_SUCCESS;
+
+  if(evt_info->event != NETMGR_USER_CMD)
+  {
+    DSI_LOG_ERROR("%s","dsi_netmgr_process_user_cmd_ev: Invalid command");
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  cmd_data = &evt_info->cmd_data;
+
+  for(i = 0; i < DSI_MAX_DATA_CALLS; ++i)
+  {
+    st = (dsi_store_t *)dsi_store_table[i].dsi_store_ptr;
+    if(NULL != st &&
+       st->priv.user_cmd_data.txn.pid == evt_info->cmd_data.txn.pid &&
+       st->priv.user_cmd_data.txn.txn_id == evt_info->cmd_data.txn.txn_id
+       )
+    {
+      /* found the dsi store handle that send the cmd to netmgr */
+      break;
+    }
+  }
+
+  if( i == DSI_MAX_DATA_CALLS )
+  {
+    DSI_LOG_ERROR("No st_hndl for pid [%d] waiting for txnid[%d]. Ignoring cmd_resp[%d]",
+                  cmd_data->txn.pid, cmd_data->txn.txn_id, cmd_data->cmd_id);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  status = (cmd_data->txn.txn_status == NETMGR_USER_CMD_STATUS_SUCCESS)
+                                           ? DSI_SUCCESS : DSI_ERROR;
+  st->priv.user_cmd_data.txn.txn_status = status;
+
+  if(status != DSI_SUCCESS )
+  {
+     DSI_LOG_ERROR("Command NETMGR_USER_CMD [%d] failed",  cmd_data->cmd_id);
+     ret = DSI_ERROR;
+  }
+  else
+  {
+    switch(evt_info->cmd_data.cmd_id)
+    {
+      case NETMGR_USER_CMD_ENABLE_PORT_FORWARDING:
+      case NETMGR_USER_CMD_DISABLE_PORT_FORWARDING:
+        break;
+      case NETMGR_USER_CMD_QUERY_PORT_FORWARDING:
+      {
+        st->priv.user_cmd_data.data.port_forwarding_data.ip_family = cmd_data->data.port_forwarding_data.ip_family;
+        break;
+      }
+      default:
+        DSI_LOG_ERROR("%s", "Invalid cmd_id received");
+    }
+  }
+
+  DSI_SEND_SIGNAL(&st->priv.signal_data);
+
+bail:
+  return ret;
+}
+
 /*===========================================================================
   FUNCTION:  dsi_netmgr_get_ip_family
 ===========================================================================*/
 /*!
     @brief
-    stores relevant parts of event data into the internal structure
-    associated with the given dsi_iface_id
+    retreive the ip_addr from the event info in the netmgr nl message, provided
+    the ip addr information is encoded in the message.
 
     @return
     DSI_ERROR
@@ -234,7 +323,7 @@ static dsi_net_evt_t dsi_netmgr_store_event_data
 
     reti = DSI_SUCCESS;
     evt_ret = dsi_event;
-
+    ipf = DSI_NUM_IP_FAMILIES;
 
     switch(dsi_event)
     {
@@ -292,7 +381,9 @@ static dsi_net_evt_t dsi_netmgr_store_event_data
         }
 
         /* If we already don't have a valid address for the IP family, store it*/
-        if (!DSI_IS_ADDR_VALID(dsi_iface_id, ipf, iface_addr))
+        if (!DSI_IS_ADDR_VALID(dsi_iface_id, ipf, iface_addr) ||
+            ((info->param_mask & NETMGR_EVT_PARAM_MTU) &&
+              DSI_GET_MTU(dsi_iface_id) != info->mtu))
         {
           DSI_LOG_DEBUG("storing new address for ip family=%d", ipf);
           dsi_fill_addr_info( dsi_iface_id, ipf, info );
@@ -405,6 +496,19 @@ static dsi_net_evt_t dsi_netmgr_store_event_data
         dsi_fill_qos_info( dsi_iface_id, info );
         DSI_LOG_DEBUG( "qos flow [0x%08x] activated on iface [%d]",
                        info->flow_info.flow_id, dsi_iface_id );
+        break;
+
+      case DSI_EVT_NET_NEWMTU:
+        if ((info->param_mask & NETMGR_EVT_PARAM_MTU) &&
+            DSI_GET_MTU(dsi_iface_id) != info->mtu)
+        {
+          DSI_SET_MTU(dsi_iface_id, info->mtu);
+        }
+        else
+        {
+          /* No need to send the event if there's no change in MTU */
+          evt_ret = DSI_EVT_INVALID;
+        }
         break;
 
       default:
@@ -655,6 +759,15 @@ void dsi_process_netmgr_ev
           netmgr_ready_queried = DSI_FALSE;
         }
         break;
+      case NETMGR_USER_CMD:
+        DSI_LOG_DEBUG("%s","NETMGR_USER_CMD received");
+        dsi_netmgr_process_user_cmd_ev(info);
+        break;
+      case NET_PLATFORM_MTU_UPDATE_EV:
+        DSI_LOG_DEBUG("%s", "NET_PLATFORM_MTU_UPDATE_EV received");
+        dsi_event = DSI_EVT_NET_NEWMTU;
+        break;
+
       default:
         DSI_LOG_VERBOSE("we don't handle event %d at present",
                         event);
@@ -675,7 +788,7 @@ void dsi_process_netmgr_ev
       break;
     }
 
-    if(NETMGR_READY_RESP != event)
+    if(NETMGR_READY_RESP != event && NETMGR_USER_CMD != event)
     {
       /* no need to process further for NETMGR_READY_RESP. For the rest of other events,
          need to notify clients accordingly */

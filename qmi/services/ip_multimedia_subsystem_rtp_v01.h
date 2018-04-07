@@ -2,50 +2,49 @@
 #define IMSRTP_SERVICE_01_H
 /**
   @file ip_multimedia_subsystem_rtp_v01.h
-  
+
   @brief This is the public header file which defines the imsrtp service Data structures.
 
-  This header file defines the types and structures that were defined in 
+  This header file defines the types and structures that were defined in
   imsrtp. It contains the constant values defined, enums, structures,
-  messages, and service message IDs (in that order) Structures that were 
-  defined in the IDL as messages contain mandatory elements, optional 
-  elements, a combination of mandatory and optional elements (mandatory 
+  messages, and service message IDs (in that order) Structures that were
+  defined in the IDL as messages contain mandatory elements, optional
+  elements, a combination of mandatory and optional elements (mandatory
   always come before optionals in the structure), or nothing (null message)
-   
+
   An optional element in a message is preceded by a uint8_t value that must be
   set to true if the element is going to be included. When decoding a received
   message, the uint8_t values will be set to true or false by the decode
   routine, and should be checked before accessing the values that they
-  correspond to. 
-   
+  correspond to.
+
   Variable sized arrays are defined as static sized arrays with an unsigned
   integer (32 bit) preceding it that must be set to the number of elements
   in the array that are valid. For Example:
-   
+
   uint32_t test_opaque_len;
   uint8_t test_opaque[16];
-   
+
   If only 4 elements are added to test_opaque[] then test_opaque_len must be
-  set to 4 before sending the message.  When decoding, the _len value is set 
-  by the decode routine and should be checked so that the correct number of 
-  elements in the array will be accessed. 
+  set to 4 before sending the message.  When decoding, the _len value is set
+  by the decode routine and should be checked so that the correct number of
+  elements in the array will be accessed.
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2012-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2012-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/imsrtp/main/latest/api/ip_multimedia_subsystem_rtp_v01.h#26 $
+  $Header: //components/rel/qmimsgs.mpss/3.5/imsrtp/api/ip_multimedia_subsystem_rtp_v01.h#5 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
-/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
- *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+ *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2 
-   It requires encode/decode library version 5 or later
-   It was generated on: Tue Jun  4 2013 (Spin 0)
+/* This file was generated with Tool version 6.7
+   It was generated on: Fri May  2 2014 (Spin 0)
    From IDL File: ip_multimedia_subsystem_rtp_v01.idl */
 
 /** @defgroup imsrtp_qmi_consts Constant values defined in the IDL */
@@ -65,24 +64,24 @@
 extern "C" {
 #endif
 
-/** @addtogroup imsrtp_qmi_version 
-    @{ 
-  */ 
+/** @addtogroup imsrtp_qmi_version
+    @{
+  */
 /** Major Version Number of the IDL used to generate this file */
 #define IMSRTP_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define IMSRTP_V01_IDL_MINOR_VERS 0x10
+#define IMSRTP_V01_IDL_MINOR_VERS 0x15
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define IMSRTP_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define IMSRTP_V01_MAX_MESSAGE_ID 0x0042;
-/** 
-    @} 
+#define IMSRTP_V01_MAX_MESSAGE_ID 0x0044
+/**
+    @}
   */
 
 
-/** @addtogroup imsrtp_qmi_consts 
-    @{ 
+/** @addtogroup imsrtp_qmi_consts
+    @{
   */
 
 /**  Maximum length of the IP address.  */
@@ -100,8 +99,23 @@ extern "C" {
 /**  Maximum length of an APN name.  */
 #define IMSRTP_APN_NAME_LEN_V01 100
 
-/**  Maximum length of Secured RTP Master Key.  */
+/**  Maximum length of the secured RTP master key.  */
 #define IMSRTP_MASTERKEY_STR_LEN_V01 255
+/**
+    @}
+  */
+
+/** @addtogroup imsrtp_qmi_enums
+    @{
+  */
+typedef enum {
+  IMSRTP_HANDOFF_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_RTP_HO_NONE_V01 = 0x00, /**<  Handoff None.  */
+  IMS_RTP_HO_INIT_V01 = 0x01, /**<  Handoff Inited.  */
+  IMS_RTP_HO_COMPLETE_V01 = 0x02, /**<  Handoff Completed.  */
+  IMS_RTP_HO_FAIL_V01 = 0x03, /**<  Handoff Fail.  */
+  IMSRTP_HANDOFF_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}imsrtp_handoff_status_enum_v01;
 /**
     @}
   */
@@ -120,17 +134,36 @@ typedef enum {
     @}
   */
 
-/**  Enumeration for error in Video Codec(Encoder/Decoder) during 
-    encoding/decoding operation. 
- Resolution bitmask type. Represents the resolutions for video. 
+/**  Enumeration for handoff status
+ Enumeration for error in Video Codec(Encoder/Decoder) during
+    encoding/decoding operation.
+ Resolution bitmask type. Represents the resolutions for video.
  */
 typedef uint64_t imsrtp_video_resolution_mask_type_v01;
-#define IMSRTP_VIDEO_RESOLUTION_SQCIF_V01 ((imsrtp_video_resolution_mask_type_v01)0x01ull) 
-#define IMSRTP_VIDEO_RESOLUTION_QQVGA_V01 ((imsrtp_video_resolution_mask_type_v01)0x02ull) 
-#define IMSRTP_VIDEO_RESOLUTION_QCIF_V01 ((imsrtp_video_resolution_mask_type_v01)0x04ull) 
-#define IMSRTP_VIDEO_RESOLUTION_QVGA_V01 ((imsrtp_video_resolution_mask_type_v01)0x08ull) 
-#define IMSRTP_VIDEO_RESOLUTION_CIF_V01 ((imsrtp_video_resolution_mask_type_v01)0x10ull) 
-#define IMSRTP_VIDEO_RESOLUTION_VGA_V01 ((imsrtp_video_resolution_mask_type_v01)0x20ull) 
+#define IMSRTP_VIDEO_RESOLUTION_SQCIF_V01 ((imsrtp_video_resolution_mask_type_v01)0x01ull)
+#define IMSRTP_VIDEO_RESOLUTION_QQVGA_V01 ((imsrtp_video_resolution_mask_type_v01)0x02ull)
+#define IMSRTP_VIDEO_RESOLUTION_QCIF_V01 ((imsrtp_video_resolution_mask_type_v01)0x04ull)
+#define IMSRTP_VIDEO_RESOLUTION_QVGA_V01 ((imsrtp_video_resolution_mask_type_v01)0x08ull)
+#define IMSRTP_VIDEO_RESOLUTION_CIF_V01 ((imsrtp_video_resolution_mask_type_v01)0x10ull)
+#define IMSRTP_VIDEO_RESOLUTION_VGA_V01 ((imsrtp_video_resolution_mask_type_v01)0x20ull)
+/**  RTCP report bit mask type. Indicates the type of RTCP report.
+ */
+typedef uint64_t imsrtp_rtcp_report_mask_type_v01;
+#define IMSRTP_RTCP_REMOTE_TYPE_V01 ((imsrtp_rtcp_report_mask_type_v01)0x01ull)
+#define IMSRTP_RTCP_LOCAL_TYPE_V01 ((imsrtp_rtcp_report_mask_type_v01)0x02ull)
+/** @addtogroup imsrtp_qmi_enums
+    @{
+  */
+typedef enum {
+  IMSRTP_RTCP_REPORT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMSRTP_RTCP_REPORT_RX_REMOTE_TYPE_V01 = 0x00, /**<  Report received from network.  */
+  IMSRTP_RTCP_REPORT_TX_LOCAL_TYPE_V01 = 0x01, /**<  Report sent to applications.  */
+  IMSRTP_RTCP_REPORT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}imsrtp_rtcp_report_enum_v01;
+/**
+    @}
+  */
+
 /** @addtogroup imsrtp_qmi_enums
     @{
   */
@@ -230,6 +263,15 @@ typedef enum {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  RTCP report type.
+
+ Enumeration for Codec type.
+ Enumeration for H.264 profile.
+ Enumeration for H.264 profile level.
+ Enumeration for H.263 profile type.
+ Enumeration for H.263 profile level.
+ Structure to define common Video Codec configuration parameters.
+ */
 typedef struct {
 
   imsrtp_video_codec_enum_v01 codec;
@@ -238,7 +280,7 @@ typedef struct {
        \item 1 -- ISO MPEG-4 codec
        \item 2 -- H.263 codec
        \item 3 -- H.264 codec
-       \item 4 to 255 -- Reserved for future extension to add more video 
+       \item 4 to 255 -- Reserved for future extension to add more video
                          codec types
        \vspace{-12pt}
        \end{itemize1}
@@ -281,6 +323,8 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Structure to define common Video Codec Capability parameters.
+ */
 typedef struct {
 
   imsrtp_video_codec_enum_v01 codec;
@@ -289,7 +333,7 @@ typedef struct {
        \item 1 -- ISO MPEG-4 codec
        \item 2 -- H.263 codec
        \item 3 -- H.264 codec
-       \item 4 to 255 -- Reserved for future extension to add more video 
+       \item 4 to 255 -- Reserved for future extension to add more video
                          codec types
        \vspace{-12pt}
        \end{itemize1}
@@ -320,6 +364,8 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Structure to define H.264 Codec parameters.
+ */
 typedef struct {
 
   imsrtp_video_h264_profile_enum_v01 profile_type;
@@ -365,6 +411,8 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  < Structure to define MP4 Codec parameters.
+ */
 typedef struct {
 
   uint32_t profile_level_id;
@@ -381,6 +429,8 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Structure to define H.263 Codec parameters.
+ */
 typedef struct {
 
   imsrtp_video_h263_profile_enum_v01 profile_type;
@@ -419,6 +469,8 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Structure to define Time Information parameters.
+ */
 typedef struct {
 
   uint32_t n_imsntp_time;
@@ -440,7 +492,7 @@ typedef struct {
 typedef enum {
   IMSRTP_IP_VER_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
   IMSRTP_IPV4_V01 = 0x00, /**<  32-bit IPv4 address.  */
-  IMSRTP_IPV6_V01 = 0x01, /**<  128-bit IPv6 address. Interface-specific IP address generated by the 
+  IMSRTP_IPV6_V01 = 0x01, /**<  128-bit IPv6 address. Interface-specific IP address generated by the
          application and given to the RTP.  */
   IMSRTP_IP_VER_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }imsrtp_ip_ver_enum_v01;
@@ -462,9 +514,9 @@ typedef enum {
   IMSRTP_QDJ_ENQ_ERR_V01 = 0x06, /**<  Error; enqueueing failed in jitter buffer.  */
   IMSRTP_MEDIA_TX_ONLY_ACTIVE_V01 = 0x07, /**<  Media flow Tx only active.  */
   IMSRTP_MEDIA_RX_ONLY_ACTIVE_V01 = 0x08, /**<  Media flow Rx only active.  */
-  IMSRTP_EXT_IPV6_ADDR_DELETED_V01 = 0x09, /**<  External IPV6 address is deleted. 
+  IMSRTP_EXT_IPV6_ADDR_DELETED_V01 = 0x09, /**<  External IPV6 address is deleted.
 
-         Note: For values greater than Max enum, the client is to treat this as 
+         Note: For values greater than Max enum, the client is to treat this as
          IMSRTP_ERR_FATAL.
    */
   IMS_RTP_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
@@ -476,13 +528,17 @@ typedef enum {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  IP address types.
+ RTP status codes for indications sent from the RTP.
+ IP address type.
+ */
 typedef struct {
 
   imsrtp_ip_ver_enum_v01 ipaddr_type;
   /**<   IP address version type. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_IPV4 -- 32-bit IPv4 address 
-       \item 0x01 -- IMSRTP_IPV6 -- 128-bit IPv6 address; interface-specific IP 
-                                    address generated by the application and  
+       \item 0x00 -- IMSRTP_IPV4 -- 32-bit IPv4 address
+       \item 0x01 -- IMSRTP_IPV6 -- 128-bit IPv6 address; interface-specific IP
+                                    address generated by the application and
                                     given to the RTP
        \vspace{-12pt}
        \end{itemize1}
@@ -498,10 +554,12 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  RTCP parameters.
+ */
 typedef struct {
 
   char cname[IMSRTP_RTCP_SDES_ITEM_LEN_V01 + 1];
-  /**<   Provides canonical end-point identifiers (CNAME) to all session 
+  /**<   Provides canonical end-point identifiers (CNAME) to all session
        participants. */
 
   uint16_t rtcp_ib_port;
@@ -537,16 +595,16 @@ typedef enum {
   */
 typedef enum {
   IMSRTP_CODEC_MODE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  IMSRTP_CODEC_MODE_0_V01 = 0x00, 
-  IMSRTP_CODEC_MODE_1_V01 = 0x01, 
-  IMSRTP_CODEC_MODE_2_V01 = 0x02, 
-  IMSRTP_CODEC_MODE_3_V01 = 0x03, 
-  IMSRTP_CODEC_MODE_4_V01 = 0x04, 
-  IMSRTP_CODEC_MODE_5_V01 = 0x05, 
-  IMSRTP_CODEC_MODE_6_V01 = 0x06, 
-  IMSRTP_CODEC_MODE_7_V01 = 0x07, 
-  IMSRTP_CODEC_MODE_8_V01 = 0x08, 
-  IMSRTP_CODEC_MODE_9_V01 = 0x09, 
+  IMSRTP_CODEC_MODE_0_V01 = 0x00,
+  IMSRTP_CODEC_MODE_1_V01 = 0x01,
+  IMSRTP_CODEC_MODE_2_V01 = 0x02,
+  IMSRTP_CODEC_MODE_3_V01 = 0x03,
+  IMSRTP_CODEC_MODE_4_V01 = 0x04,
+  IMSRTP_CODEC_MODE_5_V01 = 0x05,
+  IMSRTP_CODEC_MODE_6_V01 = 0x06,
+  IMSRTP_CODEC_MODE_7_V01 = 0x07,
+  IMSRTP_CODEC_MODE_8_V01 = 0x08,
+  IMSRTP_CODEC_MODE_9_V01 = 0x09,
   IMSRTP_CODEC_MODE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }imsrtp_codec_mode_enum_v01;
 /**
@@ -556,13 +614,17 @@ typedef enum {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Enumeration for supported codec modes.
+ Enumeration for audio codec modes supported by AMR and WB codec.
+ Codec parameters to configure the media codec.
+ */
 typedef struct {
 
   imsrtp_codec_enum_v01 codec;
   /**<   Codec to be used. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_AMR_NB_CODEC  
-       \item 0x01 -- IMSRTP_AMR_WB_CODEC  
-       \item 0x02 -- IMSRTP_H264_CODEC  
+       \item 0x00 -- IMSRTP_AMR_NB_CODEC
+       \item 0x01 -- IMSRTP_AMR_WB_CODEC
+       \item 0x02 -- IMSRTP_H264_CODEC
        \item 0x03 -- IMSRTP_TEXT_CODEC
        \item Other values are for future use
        \vspace{-12pt}
@@ -571,16 +633,16 @@ typedef struct {
 
   imsrtp_codec_mode_enum_v01 codec_mode;
   /**<   Media audio codec mode. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_CODEC_MODE_0 -- 4.75 kbps for AMR, 6.6 kbps for AMR-WB   
-       \item 0x01 -- IMSRTP_CODEC_MODE_1 -- 5.15 kbps for AMR, 8.855 kbps for AMR-WB 
-       \item 0x02 -- IMSRTP_CODEC_MODE_2 -- 5.9 kbps for AMR, 12.65 kbps for AMR-WB 
-       \item 0x03 -- IMSRTP_CODEC_MODE_3 -- 6.7 kbps for AMR, 14.25 kbps for AMR-WB 
-       \item 0x04 -- IMSRTP_CODEC_MODE_4 -- 7.4 kbps for AMR, 15.85 kbps for AMR-WB 
-       \item 0x05 -- IMSRTP_CODEC_MODE_5 -- 7.95 kbps for AMR, 18.25 kbps for AMR-WB 
-       \item 0x06 -- IMSRTP_CODEC_MODE_6 -- 10.2 kbps for AMR, 19.85 kbps for AMR-WB 
-       \item 0x07 -- IMSRTP_CODEC_MODE_7 -- 12.2 kbps for AMR, 23.05 kbps for AMR-WB 
-       \item 0x08 -- IMSRTP_CODEC_MODE_8 -- Silence frame for AMR, 23.85 kbps for AMR-WB 
-       \item 0x09 -- IMSRTP_CODEC_MODE_9 -- Silence frame for AMR-WB 
+       \item 0x00 -- IMSRTP_CODEC_MODE_0 -- 4.75 kbps for AMR, 6.6 kbps for AMR-WB
+       \item 0x01 -- IMSRTP_CODEC_MODE_1 -- 5.15 kbps for AMR, 8.855 kbps for AMR-WB
+       \item 0x02 -- IMSRTP_CODEC_MODE_2 -- 5.9 kbps for AMR, 12.65 kbps for AMR-WB
+       \item 0x03 -- IMSRTP_CODEC_MODE_3 -- 6.7 kbps for AMR, 14.25 kbps for AMR-WB
+       \item 0x04 -- IMSRTP_CODEC_MODE_4 -- 7.4 kbps for AMR, 15.85 kbps for AMR-WB
+       \item 0x05 -- IMSRTP_CODEC_MODE_5 -- 7.95 kbps for AMR, 18.25 kbps for AMR-WB
+       \item 0x06 -- IMSRTP_CODEC_MODE_6 -- 10.2 kbps for AMR, 19.85 kbps for AMR-WB
+       \item 0x07 -- IMSRTP_CODEC_MODE_7 -- 12.2 kbps for AMR, 23.05 kbps for AMR-WB
+       \item 0x08 -- IMSRTP_CODEC_MODE_8 -- Silence frame for AMR, 23.85 kbps for AMR-WB
+       \item 0x09 -- IMSRTP_CODEC_MODE_9 -- Silence frame for AMR-WB
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -589,54 +651,56 @@ typedef struct {
     @}
   */
 
-/**  Mode map bitmask type. Represents the codec modes for AMR and AMR-WB codec. 
+/**  Mode map bitmask type. Represents the codec modes for AMR and AMR-WB codec.
     Values: \begin{itemize1}
-       \item 0 to 7 for AMR-NB 
-       \item 0 to 8 for AMR-WB 
+       \item 0 to 7 for AMR-NB
+       \item 0 to 8 for AMR-WB
        \vspace{-12pt}
-       \end{itemize1} 
+       \end{itemize1}
  */
 typedef uint64_t imsrtp_modemap_mask_type_v01;
-#define IMSRTP_CODEC_MODEMAP_0_V01 ((imsrtp_modemap_mask_type_v01)0x01ull) 
-#define IMSRTP_CODEC_MODEMAP_1_V01 ((imsrtp_modemap_mask_type_v01)0x02ull) 
-#define IMSRTP_CODEC_MODEMAP_2_V01 ((imsrtp_modemap_mask_type_v01)0x04ull) 
-#define IMSRTP_CODEC_MODEMAP_3_V01 ((imsrtp_modemap_mask_type_v01)0x08ull) 
-#define IMSRTP_CODEC_MODEMAP_4_V01 ((imsrtp_modemap_mask_type_v01)0x10ull) 
-#define IMSRTP_CODEC_MODEMAP_5_V01 ((imsrtp_modemap_mask_type_v01)0x20ull) 
-#define IMSRTP_CODEC_MODEMAP_6_V01 ((imsrtp_modemap_mask_type_v01)0x40ull) 
-#define IMSRTP_CODEC_MODEMAP_7_V01 ((imsrtp_modemap_mask_type_v01)0x80ull) 
-#define IMSRTP_CODEC_MODEMAP_8_V01 ((imsrtp_modemap_mask_type_v01)0x100ull) 
+#define IMSRTP_CODEC_MODEMAP_0_V01 ((imsrtp_modemap_mask_type_v01)0x01ull)
+#define IMSRTP_CODEC_MODEMAP_1_V01 ((imsrtp_modemap_mask_type_v01)0x02ull)
+#define IMSRTP_CODEC_MODEMAP_2_V01 ((imsrtp_modemap_mask_type_v01)0x04ull)
+#define IMSRTP_CODEC_MODEMAP_3_V01 ((imsrtp_modemap_mask_type_v01)0x08ull)
+#define IMSRTP_CODEC_MODEMAP_4_V01 ((imsrtp_modemap_mask_type_v01)0x10ull)
+#define IMSRTP_CODEC_MODEMAP_5_V01 ((imsrtp_modemap_mask_type_v01)0x20ull)
+#define IMSRTP_CODEC_MODEMAP_6_V01 ((imsrtp_modemap_mask_type_v01)0x40ull)
+#define IMSRTP_CODEC_MODEMAP_7_V01 ((imsrtp_modemap_mask_type_v01)0x80ull)
+#define IMSRTP_CODEC_MODEMAP_8_V01 ((imsrtp_modemap_mask_type_v01)0x100ull)
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  AMR audio codec configurable parameters.
+ */
 typedef struct {
 
   uint8_t octet_tx_align;
-  /**<   Indicates whether the Tx format is octet aligned. A zero value means the 
-       format is not octet aligned, and a bandwidth-efficient format will be 
+  /**<   Indicates whether the Tx format is octet aligned. A zero value means the
+       format is not octet aligned, and a bandwidth-efficient format will be
        selected.
    */
 
   uint8_t octet_rx_align;
-  /**<   Indicates whether the Rx format is octet aligned. A zero value means the 
-       format is not octet aligned, and a bandwidth-efficient format will be 
+  /**<   Indicates whether the Rx format is octet aligned. A zero value means the
+       format is not octet aligned, and a bandwidth-efficient format will be
        selected. */
 
   uint8_t mode_map_valid;
   /**<   Indicates whether the mode map is valid. */
 
   imsrtp_modemap_mask_type_v01 mode_map;
-  /**<   Codec modes negotiated in the SDP for this session. This is a bitmask 
-       variable that indicates modes negotiated for this session. 
+  /**<   Codec modes negotiated in the SDP for this session. This is a bitmask
+       variable that indicates modes negotiated for this session.
        Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_CODEC_ MODEMAP_0 -- AMR-NB and AMR-WB   
-       \item 0x02 -- IMSRTP_CODEC_ MODEMAP_1 -- AMR-NB and AMR-WB 
-       \item 0x04 -- IMSRTP_CODEC_ MODEMAP_2 -- AMR-NB and AMR-WB 
-       \item 0x08 -- IMSRTP_CODEC_ MODEMAP_3 -- AMR-NB and AMR-WB 
-       \item 0x10 -- IMSRTP_CODEC_ MODEMAP_4 -- AMR-NB and AMR-WB 
-       \item 0x20 -- IMSRTP_CODEC_ MODEMAP_5 -- AMR-NB and AMR-WB 
-       \item 0x40 -- IMSRTP_CODEC_ MODEMAP_6 -- AMR-NB and AMR-WB 
-       \item 0x80 -- IMSRTP_CODEC_ MODEMAP_7 -- AMR-NB and AMR-WB 
+       \item 0x01 -- IMSRTP_CODEC_ MODEMAP_0 -- AMR-NB and AMR-WB
+       \item 0x02 -- IMSRTP_CODEC_ MODEMAP_1 -- AMR-NB and AMR-WB
+       \item 0x04 -- IMSRTP_CODEC_ MODEMAP_2 -- AMR-NB and AMR-WB
+       \item 0x08 -- IMSRTP_CODEC_ MODEMAP_3 -- AMR-NB and AMR-WB
+       \item 0x10 -- IMSRTP_CODEC_ MODEMAP_4 -- AMR-NB and AMR-WB
+       \item 0x20 -- IMSRTP_CODEC_ MODEMAP_5 -- AMR-NB and AMR-WB
+       \item 0x40 -- IMSRTP_CODEC_ MODEMAP_6 -- AMR-NB and AMR-WB
+       \item 0x80 -- IMSRTP_CODEC_ MODEMAP_7 -- AMR-NB and AMR-WB
        \item 0x100 -- IMSRTP_CODEC_ MODEMAP_8 -- AMR-WB only
        \vspace{-12pt}
        \end{itemize1}
@@ -644,25 +708,25 @@ typedef struct {
 
   uint16_t max_tx_red;
   /**<   Maximum redundancy that a packet can carry for this session. This is the
-       maximum duration in milliseconds that can elapse between the primary 
-       (first) transmission of a frame and any redundant transmission that the 
+       maximum duration in milliseconds that can elapse between the primary
+       (first) transmission of a frame and any redundant transmission that the
        sender will use. Values: 0 (no redundancy will be used) to 65535 ms.
   */
 
   uint16_t max_rx_red;
-  /**<   Maximum redundancy that a packet can carry for this session. This 
-       parameter allows a receiver to have a bounded delay when redundancy is 
+  /**<   Maximum redundancy that a packet can carry for this session. This
+       parameter allows a receiver to have a bounded delay when redundancy is
        used. Values: 0 (no redundancy will be used) to 65535 ms. */
 
   uint8_t tx_cmr;
-  /**<   Indicates a codec mode request sent to the speech encoder at the site of 
-       the receiver of this payload. The value of the CMR field is set to the 
-       frame type index of the corresponding speech mode being requested. 
+  /**<   Indicates a codec mode request sent to the speech encoder at the site of
+       the receiver of this payload. The value of the CMR field is set to the
+       frame type index of the corresponding speech mode being requested.
        Values: \begin{itemize1}
-       \item 0 to 7 -- AMR (refer to RFC 3267 \hyperref[S1]{[S1]}) 
-       \item 0 to 8 -- AMR-WB (refer to RFC 3267 \hyperref[S1]{[S1]}) 
-       \item 15 -- No mode request is present 
-       \item Other values are for future use 
+       \item 0 to 7 -- AMR (refer to RFC 3267 \hyperref[S1]{[S1]})
+       \item 0 to 8 -- AMR-WB (refer to RFC 3267 \hyperref[S1]{[S1]})
+       \item 15 -- No mode request is present
+       \item Other values are for future use
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -674,6 +738,8 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  H.264 video codec configurable parameters.
+ */
 typedef struct {
 
   uint8_t packetization_mode_valid;
@@ -681,8 +747,8 @@ typedef struct {
 
   uint8_t packetization_mode;
   /**<   H.264 video packetization mode. Values: 0 to 2.\begin{itemize1}
-       \item 0 -- Single NAL mode 
-       \item 1 -- Noninterleaved mode 
+       \item 0 -- Single NAL mode
+       \item 1 -- Noninterleaved mode
        \item 2 -- Interleaved mode
        \vspace{-12pt}
        \end{itemize1}
@@ -695,34 +761,38 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Session parameters to configure the RTP session.
+ */
 typedef struct {
 
   uint8_t rx_pt_type;
-  /**<   Indicates the static or dynamic payload type negotiated for the Rx path 
-       for the RTP session while a call was set up through the SDP. This value 
-       is compared to the PT value in the incoming RTP packet and honored only 
+  /**<   Indicates the static or dynamic payload type negotiated for the Rx path
+       for the RTP session while a call was set up through the SDP. This value
+       is compared to the PT value in the incoming RTP packet and honored only
        when it matches.
 
        Values: 0 to 127.
   */
 
   uint8_t tx_pt_type;
-  /**<   Indicates the static or dynamic payload type negotiated for the Tx path 
-       for the RTP session while a call was set up through the SDP. This value 
+  /**<   Indicates the static or dynamic payload type negotiated for the Tx path
+       for the RTP session while a call was set up through the SDP. This value
        is embedded in the RTP packet before it is sent out.
 
        Values: 0 to 127.
   */
 
   uint16_t ptime;
-  /**<   Time in milliseconds in each packet. If ptime is set to zero, an 
+  /**<   Time in milliseconds in each packet. If ptime is set to zero, an
        appropriate default value determined by the service will be used.
+       Valid values: 20 to 240 milliseconds.
   */
 
   uint16_t maxptime;
-  /**<   Maximum time in milliseconds for each packet. If maxptime is set to 
-       zero, an appropriate default value determined by the service will be 
+  /**<   Maximum time in milliseconds for each packet. If maxptime is set to
+       zero, an appropriate default value determined by the service will be
        used.
+       Valid values: 20 to 240 milliseconds.
   */
 
   uint16_t dtmf_clock_rate;
@@ -742,20 +812,24 @@ typedef struct {
 
   uint8_t cps;
   /**<   Maximum number of characters that can be transmitted per
-       second. Recommended maximum value: 30.   
+       second. Recommended maximum value: 30.
   */
 
   uint8_t num_red_pkts;
-  /**<   Number of redundancy packets.
+  /**<   Number of redundancy packets. If the value is set to 0, redundancy is
+       not supported and the red_payload value has no effect. The redundancy
+       level cannot be changed in the middle of the session when set to 0
+       initially.
   */
 
   uint8_t red_payload;
-  /**<   Payload number of the redundancy packet 
-       (refer to RFC 4103 \hyperref[S5]{[S5]}).
+  /**<   Payload number of the redundancy packet
+       (refer to RFC 4103 \hyperref[S5]{[S5]}). If the number of redundancy is
+       set to 0, this value has no effect.
   */
 
   uint8_t t140_payload;
-  /**<   Payload number of the t140 packet 
+  /**<   Payload number of the t140 packet
        (refer to RFC 4103 \hyperref[S5]{[S5]}).
   */
 }imsrtp_text_config_params_v01;  /* Type */
@@ -781,8 +855,8 @@ typedef enum {
   */
 typedef enum {
   IMSRTP_SRTP_SEC_ALGO_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  IMSRTP_AES_CM_128_V01 = 0, /**<  Advanced Encryption Standard counter mode with 128-bit encryption used.  */
-  IMSRTP_AES_F8_128_V01 = 1, /**<  Advanced Encryption Standard F8 mode with 128-bit encryption used.  */
+  IMSRTP_AES_CM_128_V01 = 0, /**<  Advanced Encryption Standard Counter mode using 128-bit encryption.  */
+  IMSRTP_AES_F8_128_V01 = 1, /**<  Advanced Encryption Standard F8 mode using 128-bit encryption.  */
   IMSRTP_SRTP_SEC_ALGO_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }imsrtp_srtp_sec_algo_v01;
 /**
@@ -794,10 +868,10 @@ typedef enum {
   */
 typedef enum {
   IMSRTP_SRTP_HASH_ALGO_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  IMSRTP_HMAC_SHA1_80_V01 = 0, /**<  Keyed-Hash Message Authentication Code Secured Hash Algorithm with 
-       80-bits authentication.  */
-  IMSRTP_HMAC_SHA1_32_V01 = 1, /**<  Keyed-Hash Message Authentication Code Secured Hash Algorithm with 
-       32-bits authentication.  */
+  IMSRTP_HMAC_SHA1_80_V01 = 0, /**<  Keyed-Hash Message Authentication Code Secured Hash Algorithm with
+       80-bit authentication.  */
+  IMSRTP_HMAC_SHA1_32_V01 = 1, /**<  Keyed-Hash Message Authentication Code Secured Hash Algorithm with
+       32-bit authentication.  */
   IMSRTP_SRTP_HASH_ALGO_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }imsrtp_srtp_hash_algo_v01;
 /**
@@ -807,19 +881,24 @@ typedef enum {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  UI Orientation
+ Security Algorithm
+ Hashing Algorithm
+ Secured RTP information
+ */
 typedef struct {
 
   char master_key[IMSRTP_MASTERKEY_STR_LEN_V01 + 1];
-  /**<   Buffer containing the Secured RTP master key in ASCII Format. */
+  /**<   Buffer containing the secured RTP master key in ASCII format. */
 
   imsrtp_srtp_sec_algo_v01 sec_algo;
-  /**<   Enum representing security algorithms. */
+  /**<   Security algorithm. */
 
   imsrtp_srtp_hash_algo_v01 hash_algo;
-  /**<   Enum representing hashing algorithms. */
+  /**<   Hashing algorithm. */
 
   uint8_t is_authentication_enabled;
-  /**<   Authentication Enabled/disabled. */
+  /**<   Indicates whether authentication is enabled. */
 }imsrtp_srtp_info_v01;  /* Type */
 /**
     @}
@@ -828,19 +907,26 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Indicates that feedback messages are negotiated at the session description
+    protocol. If enabled, the feedback messages are supported and the required
+    action must be taken when the feedback messages are received.
+
+ */
 typedef struct {
 
   uint8_t rtcp_nack_fb_enabled;
-  /**<   Negative acknowledgements picture loss indication. */
+  /**<   Indicates whether the negative acknowledgements picture loss is
+       enabled. */
 
   uint8_t rtcp_pli_fb_enabled;
-  /**<   Packet loss indication */
+  /**<   Indicates whether the packet loss is enabled. */
 
   uint8_t rtcp_fir_fb_enabled;
-  /**<   Full Intra request */
+  /**<   Indicates whether the full intra request is enabled. */
 
   uint8_t rtcp_tmmbr_fb_enabled;
-  /**<   The Temporary Maximum Media Bit-rate Request/Notification */
+  /**<   Indicates whether the temporary maximum media bitrate
+       request/notification is enabled. */
 }qvp_rtcp_fb_messages_v01;  /* Type */
 /**
     @}
@@ -904,6 +990,21 @@ typedef enum {
     @}
   */
 
+/** @addtogroup imsrtp_qmi_enums
+    @{
+  */
+typedef enum {
+  IMSRTP_FIRST_PKT_RCVD_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_RTP_VIDEO_RTP_FIRST_PKT_RCVD_V01 = 0x00, /**<  First RTP Packet Received for Video.  */
+  IMS_RTP_VIDEO_RTCP_FIRST_PKT_RCVD_V01 = 0x01, /**<  First RTCP Packet Received for Video.  */
+  IMS_RTP_AUDIO_RTP_FIRST_PKT_RCVD_V01 = 0x02, /**<  First RTP Packet Received for Audio.  */
+  IMS_RTP_AUDIO_RTCP_FIRST_PKT_RCVD_V01 = 0x03, /**<  First RTCP Packet Received for Audio.  */
+  IMSRTP_FIRST_PKT_RCVD_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}imsrtp_first_pkt_rcvd_enum_v01;
+/**
+    @}
+  */
+
 /** @addtogroup imsrtp_qmi_messages
     @{
   */
@@ -945,23 +1046,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values:\begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Optional */
@@ -1014,23 +1115,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -1066,7 +1167,7 @@ typedef struct {
   /*  RTP Outbound Port */
   uint8_t rtp_ob_local_port_valid;  /**< Must be set to true if rtp_ob_local_port is being passed */
   uint16_t rtp_ob_local_port;
-  /**<   RTP outbound port through which RTP packets are sent. If this port is 
+  /**<   RTP outbound port through which RTP packets are sent. If this port is
        absent or is set to zero, an ephemeral port is used. */
 
   /* Optional */
@@ -1109,10 +1210,10 @@ typedef struct {
   /*  Cookie */
   uint8_t cookie_valid;  /**< Must be set to true if cookie is being passed */
   uint32_t cookie;
-  /**<   Value provided by the application to distinguish the session 
-       initialization requests. This value is returned in the corresponding 
-       session initialization indication so the application can correlate 
-       the indication with the request. 
+  /**<   Value provided by the application to distinguish the session
+       initialization requests. This value is returned in the corresponding
+       session initialization indication so the application can correlate
+       the indication with the request.
   */
 
   /* Optional */
@@ -1140,11 +1241,11 @@ typedef struct {
   uint8_t enable_dtx_valid;  /**< Must be set to true if enable_dtx is being passed */
   uint8_t enable_dtx;
   /**<   Enables DTX. Values: \n
-       - TRUE -- Enabled \n 
+       - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the TLV is not included in the request, the default value 
-       on the phone is used. 
+       If the TLV is not included in the request, the default value
+       on the phone is used.
   */
 
   /* Optional */
@@ -1153,21 +1254,21 @@ typedef struct {
   imsrtp_dcm_rat_type_v01 dcm_rat;
   /**<   Radio access technology associated with this profile. \begin{itemize1}
        \item 0 -- IMSRTP_DCM_RAT_NONE -- None
-       \item IMSRTP_DCM_RAT_GPRS -- GPRS  
-       \item IMSRTP_DCM_RAT_EDGE -- EDGE  
-       \item IMSRTP_DCM_RAT_WCDMA -- WCDMA  
-       \item IMSRTP_DCM_RAT_WLAN -- WLAN 
+       \item IMSRTP_DCM_RAT_GPRS -- GPRS
+       \item IMSRTP_DCM_RAT_EDGE -- EDGE
+       \item IMSRTP_DCM_RAT_WCDMA -- WCDMA
+       \item IMSRTP_DCM_RAT_WLAN -- WLAN
        \item IMSRTP_DCM_RAT_CDMA -- CDMA 1.x
-       \item IMSRTP_DCM_RAT_IWLAN -- IWLAN  
-       \item IMSRTP_DCM_RAT_DOR0 -- CDMA DO Rev0  
-       \item IMSRTP_DCM_RAT_DORA -- CDMA DO RevA  
-       \item IMSRTP_DCM_RAT_EHRPD -- CDMA eHRPD  
-       \item IMSRTP_DCM_RAT_LTE -- LTE  
-       \item IMSRTP_DCM_RAT_DORB -- CDMA DO RevB  
-       \item IMSRTP_DCM_RAT_EPC -- EPC 
-       \end{itemize1} 
-        
-       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified, 
+       \item IMSRTP_DCM_RAT_IWLAN -- IWLAN
+       \item IMSRTP_DCM_RAT_DOR0 -- CDMA DO Rev0
+       \item IMSRTP_DCM_RAT_DORA -- CDMA DO RevA
+       \item IMSRTP_DCM_RAT_EHRPD -- CDMA eHRPD
+       \item IMSRTP_DCM_RAT_LTE -- LTE
+       \item IMSRTP_DCM_RAT_DORB -- CDMA DO RevB
+       \item IMSRTP_DCM_RAT_EPC -- EPC
+       \end{itemize1}
+
+       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified,
        all must be specified.
   */
 
@@ -1175,9 +1276,9 @@ typedef struct {
   /*  APN Name */
   uint8_t apn_name_valid;  /**< Must be set to true if apn_name is being passed */
   char apn_name[IMSRTP_APN_NAME_LEN_V01 + 1];
-  /**<   APN name associated with this profile in presentation format. 
-   
-       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified, 
+  /**<   APN name associated with this profile in presentation format.
+
+       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified,
        all must be specified.
   */
 
@@ -1187,13 +1288,13 @@ typedef struct {
   imsrtp_dcm_apn_type_v01 apn_type;
   /**<   APN type. \begin{itemize1}
        \item 1 -- IMSRTP_DCM_APN_IMS -- IMS
-       \item IMSRTP_DCM_APN_INTERNET -- Internet  
-       \item IMSRTP_DCM_APN_EMERGENCY -- Emergency  
-       \item IMSRTP_DCM_APN_RCS -- RCS  
-       \item IMSRTP_DCM_APN_UT -- UT 
-       \end{itemize1} 
+       \item IMSRTP_DCM_APN_INTERNET -- Internet
+       \item IMSRTP_DCM_APN_EMERGENCY -- Emergency
+       \item IMSRTP_DCM_APN_RCS -- RCS
+       \item IMSRTP_DCM_APN_UT -- UT
+       \end{itemize1}
 
-       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified, 
+       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified,
        all must be specified.
   */
 
@@ -1202,12 +1303,12 @@ typedef struct {
   uint8_t apn_addr_type_valid;  /**< Must be set to true if apn_addr_type is being passed */
   imsrtp_dcm_profile_ipaddr_type_v01 apn_addr_type;
   /**<   Address type used during PDN bringup.\begin{itemize1}
-       \item 0 -- IMSRTP_DCM_UNKNOWN_ IP_TYPE -- UNKNOWN  
+       \item 0 -- IMSRTP_DCM_UNKNOWN_ IP_TYPE -- UNKNOWN
        \item IMSRTP_DCM_IPV4 -- IPV4 Address
        \item IMSRTP_DCM_IPV6 -- IPV6 Address
        \end{itemize1}
 
-       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified, 
+       If any of dcm_rat, apn_name, apn_type, or apn_addr_type are specified,
        all must be specified.
   */
 
@@ -1219,8 +1320,8 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the Enable RTCP XR TLV is not included in the request, RTCP XR is 
-       disabled. 
+       If the Enable RTCP XR TLV is not included in the request, RTCP XR is
+       disabled.
   */
 
   /* Optional */
@@ -1234,8 +1335,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -1248,8 +1349,8 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the Reliable Transmission TLV is not included in the request, 
-       reliable transmission is disabled. 
+       If the Reliable Transmission TLV is not included in the request,
+       reliable transmission is disabled.
   */
 
   /* Optional */
@@ -1261,34 +1362,32 @@ typedef struct {
        - FALSE -- Disabled
 
        If the File Streaming TLV is not included in the request, file streaming
-       is disabled. 
+       is disabled.
   */
 
   /* Optional */
   /*  Stream Source ID */
   uint8_t stream_source_id_valid;  /**< Must be set to true if stream_source_id is being passed */
   uint16_t stream_source_id;
-  /**<   Stream source ID. When this TLV is not present, a default stream source 
+  /**<   Stream source ID. When this TLV is not present, a default stream source
        ID is used. */
 
   /* Optional */
   /*  RTP MTU Size */
   uint8_t rtp_mtu_size_valid;  /**< Must be set to true if rtp_mtu_size is being passed */
   uint16_t rtp_mtu_size;
-  /**<   RTP maximum transfer unit in bytes. When this TLV is not present, 
+  /**<   RTP maximum transfer unit in bytes. When this TLV is not present,
        a default size provisioned for the phone is used. */
 
   /* Optional */
   /*  RTP Text Params */
   uint8_t rtp_txt_params_valid;  /**< Must be set to true if rtp_txt_params is being passed */
   imsrtp_text_config_params_v01 rtp_txt_params;
-  /**<   RTP text-related parameters. */
 
   /* Optional */
   /*  RTP Text Params of Remote UE */
   uint8_t rtp_remote_txt_params_valid;  /**< Must be set to true if rtp_remote_txt_params is being passed */
   imsrtp_text_config_params_v01 rtp_remote_txt_params;
-  /**<   RTP text-related parameters of the remote UE. */
 
   /* Optional */
   /*  Coordinated Video Orientation  */
@@ -1298,52 +1397,51 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the coordinated video orientation TLV is not included in the request,
-       coordinated video orientation is disabled. 
+       If the Coordinated Video Orientation TLV is not included in the request,
+       coordinated video orientation is disabled.
   */
 
   /* Optional */
   /*  Secured RTP  */
   uint8_t enable_srtp_valid;  /**< Must be set to true if enable_srtp is being passed */
   uint8_t enable_srtp;
-  /**<   Enables Secured RTP. Values: \n
+  /**<   Enables secured RTP. Values: \n
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the Secured RTP TLV is not included in the request, Secured RTP 
-       is disabled. 
+       If the Secured RTP TLV is not included in the request, secured RTP
+       is disabled.
   */
 
   /* Optional */
   /*  Transmit Secured RTP Information */
   uint8_t tx_srtp_info_valid;  /**< Must be set to true if tx_srtp_info is being passed */
   imsrtp_srtp_info_v01 tx_srtp_info;
-  /**<   Transmit Secured RTP related parameters. */
 
   /* Optional */
   /*  Receive Secured RTP Information */
   uint8_t rx_srtp_info_valid;  /**< Must be set to true if rx_srtp_info is being passed */
   imsrtp_srtp_info_v01 rx_srtp_info;
-  /**<   Receive Secured RTP related parameters. */
 
   /* Optional */
   /*  Enable Transmission of RTCP Feedback Packets for AVPF Profile */
   uint8_t rtcp_tx_fb_enable_valid;  /**< Must be set to true if rtcp_tx_fb_enable is being passed */
   uint8_t rtcp_tx_fb_enable;
-  /**<   Enables transmission of RTCP feedback packets. Values: \n
+  /**<   Enables the transmission of RTCP feedback packets. Values: \n
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If Enable Transmission of RTCP feedback packets TLV is not included
-       in the request, transmission of RTCP feedback packets is disabled. 
+       If the Enable Transmission of RTCP Feedback Packets TLV is not included
+       in the request, the transmission of RTCP feedback packets is disabled.
   */
 
   /* Optional */
   /*  RTCP Feedback Messages Supported */
   uint8_t fb_messages_valid;  /**< Must be set to true if fb_messages is being passed */
   qvp_rtcp_fb_messages_v01 fb_messages;
-  /**<   RTCP feedback messages supported.
-       This TLV will be ignored if rtcp_tx_fb_enable TLV is disabled.
+  /**<   This TLV is ignored if the Enable Transmission of RTCP Feedback Packets
+       for AVPF Profile TLV is disabled.
+
   */
 }imsrtp_session_initialize_req_msg_v01;  /* Message */
 /**
@@ -1375,23 +1473,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -1409,9 +1507,9 @@ typedef struct {
   /*  Cookie */
   uint8_t cookie_valid;  /**< Must be set to true if cookie is being passed */
   uint32_t cookie;
-  /**<   Value provided by the application in the session initialization 
-       request to distinguish between multiple session initialization 
-       requests. 
+  /**<   Value provided by the application in the session initialization
+       request to distinguish between multiple session initialization
+       requests.
   */
 
   /* Optional */
@@ -1419,8 +1517,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -1469,23 +1567,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -1509,15 +1607,15 @@ typedef struct {
   /**<   Unique identifier of the RTP session. */
 
   /* Optional */
-  /*  RTP Outbound Port - Deprecated (Use QMI_IMSRTP_SESSION_ INITIALIZE_REQ to  
+  /*  RTP Outbound Port - Deprecated (Use QMI_IMSRTP_SESSION_ INITIALIZE_REQ to
       set the RTP outbound port.)  */
   uint8_t rtp_ob_local_port_valid;  /**< Must be set to true if rtp_ob_local_port is being passed */
   uint16_t rtp_ob_local_port;
-  /**<   RTP outbound port through which the RTP packets are sent. 
+  /**<   RTP outbound port through which the RTP packets are sent.
   */
 
   /* Optional */
-  /*  RTP Inbound Port - Deprecated (Use QMI_IMSRTP_SESSION_ INITIALIZE_REQ to  
+  /*  RTP Inbound Port - Deprecated (Use QMI_IMSRTP_SESSION_ INITIALIZE_REQ to
       set the RTP inbound port.)  */
   uint8_t rtp_ib_port_valid;  /**< Must be set to true if rtp_ib_port is being passed */
   uint16_t rtp_ib_port;
@@ -1555,7 +1653,7 @@ typedef struct {
   imsrtp_h264_config_type_v01 h264_config_type;
 
   /* Optional */
-  /*  RTCP Parameters - Deprecated (Use QMI_IMSRTP_SESSION_ INITIALIZE_REQ to 
+  /*  RTCP Parameters - Deprecated (Use QMI_IMSRTP_SESSION_ INITIALIZE_REQ to
       set the RTCP parameters.)  */
   uint8_t rtcp_param_valid;  /**< Must be set to true if rtcp_param is being passed */
   imsrtp_rtcp_params_type_v01 rtcp_param;
@@ -1600,8 +1698,8 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the Enable DTX TLV is not included in the request, the default value 
-       on the phone is used.  
+       If the Enable DTX TLV is not included in the request, the default value
+       on the phone is used.
   */
 
   /* Optional */
@@ -1612,7 +1710,7 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the Enable RTCP XR TLV is not included in the request, RTCP XR is disabled. 
+       If the Enable RTCP XR TLV is not included in the request, RTCP XR is disabled.
   */
 
   /* Optional */
@@ -1626,8 +1724,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -1636,10 +1734,10 @@ typedef struct {
   /*  Cookie */
   uint8_t cookie_valid;  /**< Must be set to true if cookie is being passed */
   uint32_t cookie;
-  /**<   Value provided by the application to distinguish the session  
-       configuration requests. This value is returned in the corresponding  
-       session configuration indication so the application can correlate the  
-       indication with the request. 
+  /**<   Value provided by the application to distinguish the session
+       configuration requests. This value is returned in the corresponding
+       session configuration indication so the application can correlate the
+       indication with the request.
   */
 
   /* Optional */
@@ -1650,8 +1748,8 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the Reliable Transmission TLV is not included in the request, 
-       reliable transmission is disabled. 
+       If the Reliable Transmission TLV is not included in the request,
+       reliable transmission is disabled.
   */
 
   /* Optional */
@@ -1662,41 +1760,44 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the File Streaming TLV is not included in the request, file streaming 
-       is disabled. 
+       If the File Streaming TLV is not included in the request, file streaming
+       is disabled.
   */
 
   /* Optional */
   /*  Stream Source ID */
   uint8_t stream_source_id_valid;  /**< Must be set to true if stream_source_id is being passed */
   uint16_t stream_source_id;
-  /**<   Stream source ID. When this TLV is not present, a default stream source 
+  /**<   Stream source ID. When this TLV is not present, a default stream source
        ID is used. */
 
   /* Optional */
   /*  RTP MTU Size */
   uint8_t rtp_mtu_size_valid;  /**< Must be set to true if rtp_mtu_size is being passed */
   uint16_t rtp_mtu_size;
-  /**<   RTP maximum transfer unit in bytes. When this TLV is not present, 
+  /**<   RTP maximum transfer unit in bytes. When this TLV is not present,
        a default size provisioned for the phone is used. */
 
   /* Optional */
   /*  RTP Text Params */
   uint8_t rtp_txt_params_valid;  /**< Must be set to true if rtp_txt_params is being passed */
   imsrtp_text_config_params_v01 rtp_txt_params;
-  /**<   RTP text-related parameters. */
 
   /* Optional */
   /*  RTP Text Params of Remote UE */
   uint8_t rtp_remote_txt_params_valid;  /**< Must be set to true if rtp_remote_txt_params is being passed */
   imsrtp_text_config_params_v01 rtp_remote_txt_params;
-  /**<   RTP text-related parameters of the remote UE. */
 
   /* Optional */
   /*  UI Orientation */
   uint8_t ui_orientation_valid;  /**< Must be set to true if ui_orientation is being passed */
   imsrtp_ui_orientation_v01 ui_orientation;
-  /**<   UI orientation. */
+  /**<   UI orientation. Values: \begin{itemize1}
+       \item 0 -- IMSRTP_LANDSCAPE -- Landscape mode
+       \item 1 -- IMSRTP_PORTRAIT -- Portrait mode
+       \vspace{-12pt}
+       \end{itemize1}
+       */
 
   /* Optional */
   /*  Transmit Guaranteed Bitrate */
@@ -1730,60 +1831,59 @@ typedef struct {
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the coordinated video orientation TLV is not included in the request,
-       coordinated video orientation is disabled. 
+       If the Coordinated Video Orientation TLV is not included in the request,
+       coordinated video orientation is disabled.
   */
 
   /* Optional */
   /*  Secured RTP  */
   uint8_t enable_srtp_valid;  /**< Must be set to true if enable_srtp is being passed */
   uint8_t enable_srtp;
-  /**<   Enables Secured RTP . Values: \n
+  /**<   Enables secured RTP. Values: \n
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the Secured RTP TLV is not included in the request, Secured RTP 
-       is disabled. 
+       If the Secured RTP TLV is not included in the request, secured RTP
+       is disabled.
   */
 
   /* Optional */
   /*  Transmit Secured RTP Information */
   uint8_t tx_srtp_info_valid;  /**< Must be set to true if tx_srtp_info is being passed */
   imsrtp_srtp_info_v01 tx_srtp_info;
-  /**<   Transmit Secured RTP related parameters */
 
   /* Optional */
   /*  Receive Secured RTP Information */
   uint8_t rx_srtp_info_valid;  /**< Must be set to true if rx_srtp_info is being passed */
   imsrtp_srtp_info_v01 rx_srtp_info;
-  /**<   Receive Secured RTP related parameters */
 
   /* Optional */
   /*  Enable Transmission of RTCP Feedback Packets for AVPF Profile */
   uint8_t rtcp_tx_fb_enable_valid;  /**< Must be set to true if rtcp_tx_fb_enable is being passed */
   uint8_t rtcp_tx_fb_enable;
-  /**<   Enables transmission of RTCP feedback packets. Values: \n
+  /**<   Enables the transmission of RTCP feedback packets. Values: \n
        - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If Enable Transmission of RTCP feedback packets TLV is not included
-       in the request, transmission of RTCP feedback packets is disabled. 
+       If the Enable Transmission of RTCP feedback packets TLV is not included
+       in the request, transmission of RTCP feedback packets is disabled.
   */
 
   /* Optional */
   /*  RTCP Feedback Messages Supported */
   uint8_t fb_messages_valid;  /**< Must be set to true if fb_messages is being passed */
   qvp_rtcp_fb_messages_v01 fb_messages;
-  /**<   RTCP feedback messages supported.
-       This TLV will be ignored if rtcp_tx_fb_enable TLV is disabled.
+  /**<   This TLV is ignored if the Enable
+       Transmission of RTCP Feedback Packets for AVPF Profile TLV is disabled.
   */
+
   /* Optional */
   /*  Coordinated Video Orientation Tag ID */
   uint8_t cvo_tag_id_valid;  /**< Must be set to true if cvo_tag_id is being passed */
   uint16_t cvo_tag_id;
-  /**<   Coordinated video orientation Tag ID used in RTP extension header.
-       If cvo_tag_id is not included in the request, 
-       an appropriate default value determined by the service will be 
+  /**<   Coordinated video orientation tag ID used in the RTP extension header.
+       If cvo_tag_id is not included in the request,
+       an appropriate default value determined by the service is
        used.
   */
 
@@ -1791,11 +1891,11 @@ typedef struct {
   /*  Enable Early Media Blocking */
   uint8_t enable_early_media_blocking_valid;  /**< Must be set to true if enable_early_media_blocking is being passed */
   uint8_t enable_early_media_blocking;
-  /**<   Enables Early Media blocking. Values: \n
-       - TRUE -- Enabled \n 
+  /**<   Enables early media blocking. Values: \n
+       - TRUE -- Enabled \n
        - FALSE -- Disabled
 
-       If the TLV is not included in the request, early media blocking is disabled. 
+       If the TLV is not included in the request, early media blocking is disabled.
   */
 }imsrtp_session_configure_req_msg_v01;  /* Message */
 /**
@@ -1827,23 +1927,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -1856,8 +1956,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -1866,8 +1966,8 @@ typedef struct {
   /*  Cookie */
   uint8_t cookie_valid;  /**< Must be set to true if cookie is being passed */
   uint32_t cookie;
-  /**<   Value provided by the application in the session configuration request 
-       to distinguish between multiple session configuration requests.  
+  /**<   Value provided by the application in the session configuration request
+       to distinguish between multiple session configuration requests.
   */
 }imsrtp_session_configure_ind_v01;  /* Message */
 /**
@@ -1890,8 +1990,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -1925,23 +2025,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -1954,8 +2054,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -1980,7 +2080,7 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
        \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
@@ -2015,23 +2115,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -2044,8 +2144,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction 
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -2070,8 +2170,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction  
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -2112,8 +2212,8 @@ typedef struct {
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Session direction to be resumed. Values: \begin{itemize1}
        \vspace{-12pt}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction  
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -2158,6 +2258,21 @@ typedef struct {
   uint8_t report_interval_valid;  /**< Must be set to true if report_interval is being passed */
   uint16_t report_interval;
   /**<   RTCP reports interval in seconds. */
+
+  /* Optional */
+  /*  Enable RTCP Reports for Various Different Types */
+  uint8_t rtcp_type_valid;  /**< Must be set to true if rtcp_type is being passed */
+  imsrtp_rtcp_report_mask_type_v01 rtcp_type;
+  /**<   Indicates the types of RTCP report to be enabled.
+  Values: \begin{itemize1}
+       \item 0x01 -- IMSRTP_RTCP_REMOTE_TYPE: Enable to send the RTCP
+                     report to the network
+       \item 0x02 -- IMSRTP_RTCP_LOCAL_TYPE: Enable to send the RTCP
+                     report to applications.
+       \end{itemize1}
+ If the TLV is not included, by default, the report is sent to the network,
+ i.e., IMSRTP_RTCP_REMOTE_TYPE.
+   */
 }imsrtp_configure_rtcp_reports_req_msg_v01;  /* Message */
 /**
     @}
@@ -2188,23 +2303,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -2267,23 +2382,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -2346,23 +2461,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -2571,8 +2686,8 @@ typedef struct {
   uint8_t direction_valid;  /**< Must be set to true if direction is being passed */
   imsrtp_session_direction_mask_type_v01 direction;
   /**<   Bitmask for the session direction paused. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_TX -- Transmit only direction  
-       \item 0x02 -- IMSRTP_RX -- Receive only direction  
+       \item 0x01 -- IMSRTP_TX -- Transmit only direction
+       \item 0x02 -- IMSRTP_RX -- Receive only direction
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -2583,10 +2698,10 @@ typedef struct {
 
 /**  RTP services for which clients can register.  */
 typedef uint64_t imsrtp_services_mask_type_v01;
-#define IMSRTP_ERROR_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x01ull) 
-#define IMSRTP_RTCP_REPORTS_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x02ull) 
-#define IMSRTP_VIDEO_IDR_GENERATE_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x04ull) 
-#define IMSRTP_VIDEO_BITRATE_ADAPT_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x08ull) 
+#define IMSRTP_ERROR_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x01ull)
+#define IMSRTP_RTCP_REPORTS_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x02ull)
+#define IMSRTP_VIDEO_IDR_GENERATE_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x04ull)
+#define IMSRTP_VIDEO_BITRATE_ADAPT_SERVICE_V01 ((imsrtp_services_mask_type_v01)0x08ull)
 /** @addtogroup imsrtp_qmi_messages
     @{
   */
@@ -2602,15 +2717,15 @@ typedef struct {
   /*  RTP Services Bitmask */
   imsrtp_services_mask_type_v01 rtp_service;
   /**<   Bitmask element for RTP services. Values: \begin{itemize1}
-       \item 0x01 -- IMSRTP_ERROR_SERVICE -- Indicates the client wants to 
+       \item 0x01 -- IMSRTP_ERROR_SERVICE -- Indicates the client wants to
                      register to receive unsolicited error indications
-       \item 0x02 -- IMSRTP_RTCP_REPORTS_ SERVICE -- Indicates the client wants 
+       \item 0x02 -- IMSRTP_RTCP_REPORTS_ SERVICE -- Indicates the client wants
                      to register to receive RTCP reports
-       \item 0x03 -- IMSRTP_VIDEO_IDR_GENERATE_SERVICE -- Indicates the client 
-                     wants to register to receive Video IDR generation 
+       \item 0x03 -- IMSRTP_VIDEO_IDR_GENERATE_SERVICE -- Indicates the client
+                     wants to register to receive Video IDR generation
                      indications
-       \item 0x04 -- IMSRTP_VIDEO_BITRATE_ADAPT_SERVICE  -- Indicates the 
-                     client wants to register to receive Video bitrate 
+       \item 0x04 -- IMSRTP_VIDEO_BITRATE_ADAPT_SERVICE  -- Indicates the
+                     client wants to register to receive Video bitrate
                      adapt indications
        \vspace{-12pt}
        \end{itemize1}
@@ -2645,25 +2760,25 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
-       \item 0x09 -- IMSRTP_EXT_IPV6_ADDR_ DELETED -- External IPv6 address is 
+       \item 0x09 -- IMSRTP_EXT_IPV6_ADDR_ DELETED -- External IPv6 address is
                      deleted
        \end{itemize1}
-       
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -2678,6 +2793,9 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Sender Report (SR) structure that denotes the fields in an SR. This can be
+    passed to the application.
+ */
 typedef struct {
 
   uint32_t ssrc;
@@ -2705,6 +2823,9 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Receiver Report(RR) structure that denotes the fields in an RR. This can be
+    passed to the application.
+ */
 typedef struct {
 
   uint32_t ssrc;
@@ -2714,14 +2835,14 @@ typedef struct {
   /**<   SSRC ID of the source. */
 
   uint8_t frac_lost;
-  /**<   Fraction of RTP data packets since the previous SR or RR packet was 
-        sent, expressed as a fixed point number with the binary point at the 
-        left edge of the field. If the loss is negative due to duplication, 
+  /**<   Fraction of RTP data packets since the previous SR or RR packet was
+        sent, expressed as a fixed point number with the binary point at the
+        left edge of the field. If the loss is negative due to duplication,
         the fraction lost is set to zero by the client.
    */
 
   uint32_t tot_lost;
-  /**<   Total number of RTP data packets from the source SSRC that have been 
+  /**<   Total number of RTP data packets from the source SSRC that have been
         lost since the beginning of reception. */
 
   uint32_t ext_seq;
@@ -2731,20 +2852,20 @@ typedef struct {
   /**<   Estimated jitter.  */
 
   uint32_t lsr;
-  /**<   Last Sender Report timestamp. If no SR has been received yet, the field 
+  /**<   Last Sender Report timestamp. If no SR has been received yet, the field
         is set to zero.
     */
 
   uint32_t dslr;
-  /**<   Delay since last the Sender Report. If no SR has been received yet,  
-        the field is set to zero. The delay is expressed in units of 
-        1/65536 seconds. The first 16 bits are represented as an integer part, 
+  /**<   Delay since last the Sender Report. If no SR has been received yet,
+        the field is set to zero. The delay is expressed in units of
+        1/65536 seconds. The first 16 bits are represented as an integer part,
         and the last 16 bits are represented as a fraction part.
    */
 
   uint32_t rtt;
-  /**<   Round trip time calculated. The round trip delay is expressed in seconds. 
-        The first 16 bits are represented as an integer part, and the last 
+  /**<   Round trip time calculated. The round trip delay is expressed in seconds.
+        The first 16 bits are represented as an integer part, and the last
         16 bits are represented as a fraction part.
    */
 }imsrtp_rtcp_rr_type_v01;  /* Type */
@@ -2757,15 +2878,15 @@ typedef struct {
   */
 typedef enum {
   IMSRTP_RTCP_SDES_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  IMSRTP_RTCP_END_V01 = 0x00, 
-  IMSRTP_RTCP_CNAME_V01 = 0x01, 
-  IMSRTP_RTCP_NAME_V01 = 0x02, 
-  IMSRTP_RTCP_EMAIL_V01 = 0x03, 
-  IMSRTP_RTCP_PHONE_V01 = 0x04, 
-  IMSRTP_RTCP_LOC_V01 = 0x05, 
-  IMSRTP_RTCP_TOOL_V01 = 0x06, 
-  IMSRTP_RTCP_NOTE_V01 = 0x07, 
-  IMSRTP_RTCP_PRIV_V01 = 0x08, 
+  IMSRTP_RTCP_END_V01 = 0x00,
+  IMSRTP_RTCP_CNAME_V01 = 0x01,
+  IMSRTP_RTCP_NAME_V01 = 0x02,
+  IMSRTP_RTCP_EMAIL_V01 = 0x03,
+  IMSRTP_RTCP_PHONE_V01 = 0x04,
+  IMSRTP_RTCP_LOC_V01 = 0x05,
+  IMSRTP_RTCP_TOOL_V01 = 0x06,
+  IMSRTP_RTCP_NOTE_V01 = 0x07,
+  IMSRTP_RTCP_PRIV_V01 = 0x08,
   IMSRTP_RTCP_SDES_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }imsrtp_rtcp_sdes_enum_v01;
 /**
@@ -2775,23 +2896,27 @@ typedef enum {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Source Description SDES RTCP packet structure contains the SDES structure,
+    supports a subtype and the relevant data associated with the subtype.
+
+ */
 typedef struct {
 
   uint32_t ssrc;
-  /**<   Synchronization source identifier uniquely identifies the source of a 
+  /**<   Synchronization source identifier uniquely identifies the source of a
        session. */
 
   imsrtp_rtcp_sdes_enum_v01 subtype;
   /**<   SDES item type. Values: \begin{itemize1}
-       \item 0x0 -- IMSRTP_RTCP_END 
-       \item 0x1 -- IMSRTP_RTCP_CNAME 
-       \item 0x2 -- IMSRTP_RTCP_NAME    
-       \item 0x3 -- IMSRTP_RTCP_EMAIL  
-       \item 0x4 -- IMSRTP_RTCP_PHONE  
-       \item 0x5 -- IMSRTP_RTCP_LOC     
-       \item 0x6 -- IMSRTP_RTCP_TOOL   
-       \item 0x7 -- IMSRTP_RTCP_NOTE   
-       \item 0x8 -- IMSRTP_RTCP_PRIV 
+       \item 0x0 -- IMSRTP_RTCP_END
+       \item 0x1 -- IMSRTP_RTCP_CNAME
+       \item 0x2 -- IMSRTP_RTCP_NAME
+       \item 0x3 -- IMSRTP_RTCP_EMAIL
+       \item 0x4 -- IMSRTP_RTCP_PHONE
+       \item 0x5 -- IMSRTP_RTCP_LOC
+       \item 0x6 -- IMSRTP_RTCP_TOOL
+       \item 0x7 -- IMSRTP_RTCP_NOTE
+       \item 0x8 -- IMSRTP_RTCP_PRIV
        \vspace{-12pt}
        \end{itemize1}
   */
@@ -2810,10 +2935,10 @@ typedef enum {
   IMS_RTP_RX_CONFIG_PACKET_LOSS_CONCEALMENT_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
   IMSRTP_PLC_UNSPECIFIED_V01 = 0x00, /**<  No information is available concerning the use of PLC.  */
   IMSRTP_PLC_DISABLED_V01 = 0x01, /**<  Silence is inserted in place of the lost packets.  */
-  IMSRTP_PLC_ENHANCED_V01 = 0x02, /**<  Enhanced interpolation algorithm is used. Algorithms of this 
+  IMSRTP_PLC_ENHANCED_V01 = 0x02, /**<  Enhanced interpolation algorithm is used. Algorithms of this
          type can effectively conceal high packet loss rates.  */
-  IMSRTP_PLC_STANDARD_V01 = 0x03, /**<  Simple replay or an interpolation algorithm is used to fill in the  
-         missing packet. This approach can typically conceal isolated lost 
+  IMSRTP_PLC_STANDARD_V01 = 0x03, /**<  Simple replay or an interpolation algorithm is used to fill in the
+         missing packet. This approach can typically conceal isolated lost
          packets at low packet loss rates.  */
   IMS_RTP_RX_CONFIG_PACKET_LOSS_CONCEALMENT_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }ims_rtp_rx_config_packet_loss_concealment_enum_v01;
@@ -2828,7 +2953,7 @@ typedef enum {
   IMS_RTP_RX_CONFIG_JITTER_BUFFER_ADAPTIVE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
   IMSRTP_JBA_UNKNOWN_V01 = 0x00, /**<  No information is available concerning the jitter buffer size.  */
   IMSRTP_JBA_NON_ADAPTIVE_V01 = 0x01, /**<  Jitter buffer size is maintained at a fixed level.  */
-  IMSRTP_JBA_ADAPTIVE_V01 = 0x02, /**<  Jitter buffer size is dynamically adjusted to accommodate varying 
+  IMSRTP_JBA_ADAPTIVE_V01 = 0x02, /**<  Jitter buffer size is dynamically adjusted to accommodate varying
          levels of jitter.  */
   IMS_RTP_RX_CONFIG_JITTER_BUFFER_ADAPTIVE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }ims_rtp_rx_config_jitter_buffer_adaptive_enum_v01;
@@ -2839,6 +2964,13 @@ typedef enum {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Packet loss concealment.
+ Jitter buffer adaptive.
+ Extended report VoIP Metrics Report Block provides metrics for monitoring
+    voice-over-IP (VoIP) calls. The VoIP Metrics Report Block structure denotes
+    the fields in an XR VoIP Metrics Report Block.
+
+ */
 typedef struct {
 
   uint32_t ssrc;
@@ -2846,86 +2978,86 @@ typedef struct {
 
   uint8_t loss_rate;
   /**<    Fraction of RTP data packets from the source lost since the beginning
-         of reception. This value is expressed as a fixed-point number with the 
-         binary point at the left edge of the field. \n 
-         To calculate this value: \n 
+         of reception. This value is expressed as a fixed-point number with the
+         binary point at the left edge of the field. \n
+         To calculate this value: \n
          1. Divide the total number of packets lost (after
          the effects of applying any error protection such as FEC) by
-         the total number of packets expected. \n 
-         2. Multiply the division result by 256, limiting the maximum value 
-         to 255 to avoid overflow. \n 
+         the total number of packets expected. \n
+         2. Multiply the division result by 256, limiting the maximum value
+         to 255 to avoid overflow. \n
          3. Take the integer part as the value.
    */
 
   uint8_t discard_rate;
-  /**<    Fraction of RTP data packets from the source that have been discarded 
-         since the beginning of reception, due to late or early arrival, or 
-         underrun or overflow at the receiving jitter buffer. This value is 
+  /**<    Fraction of RTP data packets from the source that have been discarded
+         since the beginning of reception, due to late or early arrival, or
+         underrun or overflow at the receiving jitter buffer. This value is
          expressed as a fixed-point number with the binary point at the left
-         edge of the field. \n 
-         To calculate this value:  \n 
-         1. Divide the total number of packets discarded (excluding duplicate 
+         edge of the field. \n
+         To calculate this value:  \n
+         1. Divide the total number of packets discarded (excluding duplicate
          packet discards) by the total number of packets expected. \n
-         2. Multiply the division result by 256, limiting the maximum value to 
-         255 to avoid overflow. \n 
+         2. Multiply the division result by 256, limiting the maximum value to
+         255 to avoid overflow. \n
          3. Take the integer part as the value.
    */
 
   uint8_t burst_density;
-  /**<    Fraction of RTP data packets within burst periods since the beginning 
-         of reception that were either lost or discarded. This value is 
-         expressed as a fixed-point number with the binary point at the left 
-         edge of the field. \n 
-         To calculate this value:  \n  
-         1. Divide the total number of packets lost or discarded (excluding 
+  /**<    Fraction of RTP data packets within burst periods since the beginning
+         of reception that were either lost or discarded. This value is
+         expressed as a fixed-point number with the binary point at the left
+         edge of the field. \n
+         To calculate this value:  \n
+         1. Divide the total number of packets lost or discarded (excluding
          duplicate packet discards) within burst periods by	the total number of
-         packets expected within the burst periods. \n 
-         2. Multiply the division result by 256, limiting the maximum value to 
-         255 to avoid overflow. \n 
-         3. Take the integer part as the value. This field is set to zero if  
+         packets expected within the burst periods. \n
+         2. Multiply the division result by 256, limiting the maximum value to
+         255 to avoid overflow. \n
+         3. Take the integer part as the value. This field is set to zero if
          no packets have been received.
    */
 
   uint8_t gap_density;
-  /**<    Fraction of RTP data packets within inter-burst gaps since	the  
+  /**<    Fraction of RTP data packets within inter-burst gaps since	the
          beginning of reception that were either lost or discarded. The value
          is expressed as a fixed-point number with the binary point at the left
-         edge of the field.  \n 
-         To calculate this value:  \n 
-         1. Divide the total number of packets lost or discarded (excluding 
-         duplicate packet discards) within gap periods by the total number of 
-         packets expected within the gap periods. \n 
-         2. Multiply the division result by 256, limiting the maximum value to 
-         255 to avoid overflow. \n 
-         3. Take the integer part as the value. This field is set to zero if 
+         edge of the field.  \n
+         To calculate this value:  \n
+         1. Divide the total number of packets lost or discarded (excluding
+         duplicate packet discards) within gap periods by the total number of
+         packets expected within the gap periods. \n
+         2. Multiply the division result by 256, limiting the maximum value to
+         255 to avoid overflow. \n
+         3. Take the integer part as the value. This field is set to zero if
          no packets have been received.
    */
 
   uint16_t burst_duration;
-  /**<    Mean duration, expressed in milliseconds, of the burst periods that 
+  /**<    Mean duration, expressed in milliseconds, of the burst periods that
          have occurred since the beginning of reception. The duration of each
-         period is calculated based upon the packets that mark the beginning  
-         and end of that period. The duration is equal to the timestamp of the  
-         end packet, plus the duration of the end packet, minus the timestamp 
+         period is calculated based upon the packets that mark the beginning
+         and end of that period. The duration is equal to the timestamp of the
+         end packet, plus the duration of the end packet, minus the timestamp
          of the beginning packet. \n
          \vspace{-3pt}
-         If the actual values are not available, estimated values are used. If 
+         If the actual values are not available, estimated values are used. If
          there have been no burst periods, the burst duration value is zero.
    */
 
   uint16_t gap_duration;
-  /**<    Mean duration, expressed in milliseconds, of the gap periods that have 
-         occurred since the beginning of reception. The duration of each period 
-         is calculated based upon the packet that marks the end of the prior 
-         burst and the packet that marks the beginning of the subsequent burst. 
-         The duration is equal to the timestamp of the subsequent burst packet, 
-         minus the timestamp of the prior burst packet, plus the duration of 
+  /**<    Mean duration, expressed in milliseconds, of the gap periods that have
+         occurred since the beginning of reception. The duration of each period
+         is calculated based upon the packet that marks the end of the prior
+         burst and the packet that marks the beginning of the subsequent burst.
+         The duration is equal to the timestamp of the subsequent burst packet,
+         minus the timestamp of the prior burst packet, plus the duration of
          the prior burst packet. \n
          \vspace{-3pt}
          If the actual values are not available, estimated values are used. \n
          \vspace{-3pt}
-         When a gap occurs at the beginning of reception, the sum of the 
-         timestamp of the prior burst packet and the duration of the prior 
+         When a gap occurs at the beginning of reception, the sum of the
+         timestamp of the prior burst packet and the duration of the prior
          burst packet are replaced by the reception start time. \n
          \vspace{-3pt}
          When a gap occurs at the end of reception, the timestamp of the
@@ -2935,25 +3067,25 @@ typedef struct {
    */
 
   uint16_t round_trip_delay;
-  /**<    Most recently calculated round-trip time between the RTP interfaces, 
+  /**<    Most recently calculated round-trip time between the RTP interfaces,
          expressed in milliseconds.
    */
 
   uint16_t end_system_delay;
   /**<    Most recently estimated end system delay, expressed in milliseconds.
-         The end system delay is defined as the sum of the total sample 
+         The end system delay is defined as the sum of the total sample
          accumulation and encoding delay associated with the sending direction
-         and the jitter buffer, decoding, and playout buffer delay associated 
+         and the jitter buffer, decoding, and playout buffer delay associated
          with the receiving direction. This delay may be estimated or measured.
 
-         If the service is unable to provide the data, the value is set to 
+         If the service is unable to provide the data, the value is set to
          zero.
    */
 
   uint8_t signal_level;
-  /**<    Voice signal relative level defined as the ratio of the signal level 
-         to a 0 dBm0 reference, expressed in decibels as a signed integer in 
-         two's complement format. This is measured for packets containing 
+  /**<    Voice signal relative level defined as the ratio of the signal level
+         to a 0 dBm0 reference, expressed in decibels as a signed integer in
+         two's complement format. This is measured for packets containing
          speech energy only.
 
          A value of 127 indicates that this parameter is unavailable.
@@ -2968,22 +3100,22 @@ typedef struct {
    */
 
   uint8_t residual_echo_return_loss;
-  /**<    Residual echo return loss value measured directly by the VoIP-end 
-         system's echo canceller or may be estimated by adding the Echo Return 
-         Loss (ERL) and Echo Return Loss Enhancement (ERLE) values reported by 
+  /**<    Residual echo return loss value measured directly by the VoIP-end
+         system's echo canceller or may be estimated by adding the Echo Return
+         Loss (ERL) and Echo Return Loss Enhancement (ERLE) values reported by
          the echo canceller.
    */
 
   uint8_t gap_threshhold;
-  /**<    Gap threshold. This field contains the value used for this report 
+  /**<    Gap threshold. This field contains the value used for this report
          block to determine if a gap exists.
 
-         This value corresponds to the Gmin value in the RTCP XR VoIP metrics 
+         This value corresponds to the Gmin value in the RTCP XR VoIP metrics
          report.
    */
 
   uint8_t r_factor;
-  /**<    Voice quality metric that describes the segment of the call carried 
+  /**<    Voice quality metric that describes the segment of the call carried
          over this RTP session. Values: an integer. Range: 0 to 100. \n
          - 94 -- Toll quality \n
          - >=50 -- Unusable
@@ -2992,25 +3124,25 @@ typedef struct {
    */
 
   uint8_t ext_r_factor;
-  /**<    Voice quality metric that describes the segment of the call that is 
+  /**<    Voice quality metric that describes the segment of the call that is
          carried over a network segment external to the RTP segment.
 
          A value of 127 indicates that this parameter is unavailable.
    */
 
   uint8_t mos_lq;
-  /**<    Estimated mean opinion score for listening quality. This voice quality  
-         metric is on a scale from 1 to 5, in which 5 represents excellent 
-         quality and 1 represents unacceptable quality. Values: an integer. 
-         Range: 10 to 50, corresponding to MOS x 10 (e.g., a value of 35  
+  /**<    Estimated mean opinion score for listening quality. This voice quality
+         metric is on a scale from 1 to 5, in which 5 represents excellent
+         quality and 1 represents unacceptable quality. Values: an integer.
+         Range: 10 to 50, corresponding to MOS x 10 (e.g., a value of 35
          corresponds to an estimated MOS score of 3.5).
 
          A value of 127 indicates that this parameter is unavailable.
    */
 
   uint8_t mos_cq;
-  /**<    Estimated mean opinion score for conversational quality. This metric 
-         includes the effects of delay and other factors that affect 
+  /**<    Estimated mean opinion score for conversational quality. This metric
+         includes the effects of delay and other factors that affect
          conversational quality. Values: an integer. Range: 10 to 50.
 
          A value of 127 indicates that this parameter is unavailable.
@@ -3018,63 +3150,63 @@ typedef struct {
 
   ims_rtp_rx_config_packet_loss_concealment_enum_v01 packet_loss_concealment;
   /**<   Packet loss concealment. \begin{itemize1}
-        \item 0x00 -- IMSRTP_PLC_UNSPECIFIED -- No information available 
-                      concerning the use of PLC 
-        \item IMSRTP_PLC_DISABLED -- Silence is being inserted in place of lost 
+        \item 0x00 -- IMSRTP_PLC_UNSPECIFIED -- No information available
+                      concerning the use of PLC
+        \item IMSRTP_PLC_DISABLED -- Silence is being inserted in place of lost
                       packets
-        \item IMSRTP_PLC_ENHANCED -- Enhanced interpolation algorithm is being 
-                      used; algorithms of this type are able to conceal high 
+        \item IMSRTP_PLC_ENHANCED -- Enhanced interpolation algorithm is being
+                      used; algorithms of this type are able to conceal high
                       packet loss rates effectively
-        \item IMSRTP_PLC_STANDARD -- Simple replay or interpolation algorithm 
+        \item IMSRTP_PLC_STANDARD -- Simple replay or interpolation algorithm
                       is being used to fill-in the missing packet; this
-                      approach is typically able to conceal isolated lost 
+                      approach is typically able to conceal isolated lost
                       packets at low packet loss rates
         \vspace{-12pt}
-        \end{itemize1} 
+        \end{itemize1}
     */
 
   ims_rtp_rx_config_jitter_buffer_adaptive_enum_v01 jitter_buffer_adaptive;
   /**<   Jitter buffer adaptiveness. \begin{itemize1}
-        \item 0x00 -- IMSRTP_JBA_UNKNOWN -- No information available concerning 
+        \item 0x00 -- IMSRTP_JBA_UNKNOWN -- No information available concerning
                       the jitter buffer size
-        \item IMSRTP_JBA_NON_ADAPTIVE -- Jitter buffer size is maintained at a 
+        \item IMSRTP_JBA_NON_ADAPTIVE -- Jitter buffer size is maintained at a
                       fixed level
-        \item IMSRTP_JBA_ADAPTIVE -- Jitter buffer size is being dynamically 
+        \item IMSRTP_JBA_ADAPTIVE -- Jitter buffer size is being dynamically
                       adjusted to deal with varying levels of jitter.
         \vspace{-12pt}
         \end{itemize1}*/
 
   uint8_t jitter_buffer_rate;
-  /**<    Implementation-specific adjustment rate of a jitter buffer in adaptive 
-         mode (if J = adjustment rate 0 to 15). This parameter is defined in 
-         terms of the approximate time taken to fully adjust to a step change  
-         in peak-to-peak jitter	from 30 ms to 100 ms such that: 
+  /**<    Implementation-specific adjustment rate of a jitter buffer in adaptive
+         mode (if J = adjustment rate 0 to 15). This parameter is defined in
+         terms of the approximate time taken to fully adjust to a step change
+         in peak-to-peak jitter	from 30 ms to 100 ms such that:
          \n
          \n
          adjustment time = 2 * J * frame size (ms)
          \n
          \n
-         A value of 0 indicates that the adjustment time is unknown for this 
+         A value of 0 indicates that the adjustment time is unknown for this
          implementation.
    */
 
   uint16_t jitter_buffer_nominal;
-  /**<    Current nominal jitter buffer delay in milliseconds that corresponds 
-         to the nominal jitter buffer delay for packets that arrive exactly on 
+  /**<    Current nominal jitter buffer delay in milliseconds that corresponds
+         to the nominal jitter buffer delay for packets that arrive exactly on
          time.
    */
 
   uint16_t jitter_buffer_maximum;
-  /**<    Current maximum jitter buffer delay in milliseconds that corresponds 
+  /**<    Current maximum jitter buffer delay in milliseconds that corresponds
          to the earliest arriving packet that is not to be discarded.
    */
 
   uint16_t jitter_buffer_abs_max;
-  /**<    Absolute maximum delay in milliseconds that the adaptive jitter buffer 
+  /**<    Absolute maximum delay in milliseconds that the adaptive jitter buffer
          can reach under worst case conditions.
 
          If this value exceeds 65535 ms, the field is set to 65535.
-         
+
    */
 }imsrtp_rtcp_xr_voip_metrics_report_block_type_v01;  /* Type */
 /**
@@ -3084,31 +3216,35 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  DLRR Report Block structure that denotes the fields in an XR DLRR Report
+  Block.
+
+ */
 typedef struct {
 
   uint32_t ssrc;
   /**<   SSRC ID from the receiver. */
 
   uint32_t last_rr_timestamp;
-  /**<    Middle 32 bits out of 64 in the NTP timestamp received as part of a 
-         Receiver Reference Time Report Block from participant SSRC_n.  
+  /**<    Middle 32 bits out of 64 in the NTP timestamp received as part of a
+         Receiver Reference Time Report Block from participant SSRC_n.
 
-         If a block of this type has not been received, the field is set to 
-         zero. 
+         If a block of this type has not been received, the field is set to
+         zero.
    */
 
   uint32_t delay_since_last_rr;
-  /**<    Delay, expressed in units of 1/65536 sec, between receiving the 
-         last Receiver Reference Time Report Block from	participant SSRC_n 
-         and sending this DLRR Report Block. 
- 
+  /**<    Delay, expressed in units of 1/65536 sec, between receiving the
+         last Receiver Reference Time Report Block from	participant SSRC_n
+         and sending this DLRR Report Block.
+
          If a Receiver Reference Time Report Block has not been received
-         from SSRC_n, the DLRR field is set to zero. 
+         from SSRC_n, the DLRR field is set to zero.
    */
 
   float rtt;
-  /**<   Round-trip time. The round trip delay is expressed in seconds. 
-        The first 16 bits are represented as an integer part, and the last 
+  /**<   Round-trip time. The round trip delay is expressed in seconds.
+        The first 16 bits are represented as an integer part, and the last
         16 bits are represented as a fraction part.
    */
 }imsrtp_rtcp_xr_dllr_report_block_type_v01;  /* Type */
@@ -3119,6 +3255,11 @@ typedef struct {
 /** @addtogroup imsrtp_qmi_aggregates
     @{
   */
+/**  Statistics Summary Report Block structure that denotes the fields in an XR
+    Statistics Summary Report Block. This block reports statistics beyond the
+    information carried in the standard RTCP packet format.
+
+ */
 typedef struct {
 
   uint32_t ssrc;
@@ -3131,50 +3272,50 @@ typedef struct {
   /**<    Last sequence number that this block reports on plus one. */
 
   uint32_t lost_packets;
-  /**<    Number of lost packets in the sequence number interval defined by 
+  /**<    Number of lost packets in the sequence number interval defined by
          begin_seq and end_seq. */
 
   uint32_t dup_packets;
-  /**<   Number of duplicate packets in the sequence number interval defined by 
+  /**<   Number of duplicate packets in the sequence number interval defined by
         begin_seq and end_seq.  */
 
   uint32_t min_jitter;
-  /**<   Minimum relative transit time between two packets in the sequence 
-        number interval defined by begin_seq and end_seq. All jitter values 
-        are measured as the difference between a packet's RTP timestamp and 
+  /**<   Minimum relative transit time between two packets in the sequence
+        number interval defined by begin_seq and end_seq. All jitter values
+        are measured as the difference between a packet's RTP timestamp and
         the reporter's clock at the time of arrival, measured in milliseconds.
    */
 
   uint32_t max_jitter;
-  /**<   Maximum relative transit time between two packets in the sequence 
-        number interval defined by begin_seq and end_seq, measured in 
+  /**<   Maximum relative transit time between two packets in the sequence
+        number interval defined by begin_seq and end_seq, measured in
         milliseconds.
    */
 
   uint32_t mean_jitter;
-  /**<   Mean relative transit time between each two packet series in the 
-        sequence number interval defined by begin_seq and end_seq, rounded to 
+  /**<   Mean relative transit time between each two packet series in the
+        sequence number interval defined by begin_seq and end_seq, rounded to
         the nearest value expressible as an RTP timestamp.
    */
 
   uint32_t dev_jitter;
   /**<    Standard deviation of the relative transit time between
-         each two packet series in the sequence number interval defined by 
+         each two packet series in the sequence number interval defined by
          begin_seq and end_seq.
    */
 
   imsrtp_ip_ver_enum_v01 ipaddr_type;
   /**<   IP address type used. Values: \begin{itemize1}
-        \item 0x00 -- IMSRTP_IPV4 -- 32-bit IPv4 address 
-        \item 0x01 -- IMSRTP_IPV6 -- 128-bit IPv6 address; interface-specific  
-                                     IP address generated by the application   
+        \item 0x00 -- IMSRTP_IPV4 -- 32-bit IPv4 address
+        \item 0x01 -- IMSRTP_IPV6 -- 128-bit IPv6 address; interface-specific
+                                     IP address generated by the application
                                      and given to the RTP
-        \vspace{-12pt}                              
+        \vspace{-12pt}
         \end{itemize1}
    */
 
   uint8_t min_ttl_or_hl;
-  /**<    Minimum TTL or hop limit value of data packets in the sequence 
+  /**<    Minimum TTL or hop limit value of data packets in the sequence
          number range.
 
          For an IPv4 address type, this parameter is measured in seconds.
@@ -3183,25 +3324,25 @@ typedef struct {
    */
 
   uint8_t max_ttl_or_hl;
-  /**<    Maximum TTL or hop limit value of data packets in the sequence number 
+  /**<    Maximum TTL or hop limit value of data packets in the sequence number
          range.
 
-         For an IPv4 address type, this parameter is measured in seconds. 
+         For an IPv4 address type, this parameter is measured in seconds.
 
          For IPv6, it is measured in an integer number of hops.
    */
 
   uint8_t mean_ttl_or_hl;
-  /**<   Mean TTL or hop limit value of data packets in the sequence number 
+  /**<   Mean TTL or hop limit value of data packets in the sequence number
         range, rounded to the nearest integer.
 
-        For an IPV4 address type, this parameter is measured in seconds. 
+        For an IPV4 address type, this parameter is measured in seconds.
 
         For IPv6, it is measured in an integer number of hops.
    */
 
   uint8_t dev_ttl_or_hl;
-  /**<   Standard deviation of TTL or hop limit value of data packets in the 
+  /**<   Standard deviation of TTL or hop limit value of data packets in the
         sequence number range.
 
         For an IPV4 address type, this parameter is measured in seconds.
@@ -3223,23 +3364,23 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values: \begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only active
        \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 
   /* Mandatory */
@@ -3282,6 +3423,12 @@ typedef struct {
   /*  XR VoIP Metrics Report Information */
   uint8_t xr_voip_metrics_report_valid;  /**< Must be set to true if xr_voip_metrics_report is being passed */
   imsrtp_rtcp_xr_voip_metrics_report_block_type_v01 xr_voip_metrics_report;
+
+  /* Optional */
+  /*  RTCP Report Type Information  */
+  uint8_t rtcp_type_valid;  /**< Must be set to true if rtcp_type is being passed */
+  imsrtp_rtcp_report_enum_v01 rtcp_type;
+  /**<   Indicates whether the packet type is remote or local.*/
 }imsrtp_rtcp_reports_ind_v01;  /* Message */
 /**
     @}
@@ -3515,11 +3662,11 @@ typedef struct {
     @}
   */
 
-/*
- * imsrtp_h264_idr_generate_req_msg is empty
- * typedef struct {
- * }imsrtp_h264_idr_generate_req_msg_v01;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}imsrtp_h264_idr_generate_req_msg_v01;
 
 /** @addtogroup imsrtp_qmi_messages
     @{
@@ -3642,25 +3789,25 @@ typedef struct {
   /*  Indication Status */
   ims_rtp_status_enum_v01 status;
   /**<   Standard RTP status. Values:\begin{itemize1}
-       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful 
-       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources 
-       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one 
-                     parameter was unacceptable 
-       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error 
-       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific 
+       \item 0x00 -- IMSRTP_SUCCESS -- Operation requested was successful
+       \item 0x01 -- IMSRTP_NORESOURCES -- Operation failed; no resources
+       \item 0x02 -- IMSRTP_WRONG_PARAM -- Operation failed; at least one
+                     parameter was unacceptable
+       \item 0x03 -- IMSRTP_ERR_FATAL -- Unknown but fatal error
+       \item 0x04 -- IMSRTP_PORT_ NOTAVAILABLE -- Unable to bind to a specific
                      I/B port
-       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not 
-                     supported at this time 
-       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter 
-                     buffer 
-       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only is 
-                     active 
-       \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only is 
+       \item 0x05 -- IMSRTP_NOT_SUPPORTED -- Feature or primitive is not
+                     supported at this time
+       \item 0x06 -- IMSRTP_QDJ_ENQ_ERR -- Error; enqueueing failed in jitter
+                     buffer
+       \item 0x07 -- IMSRTP_MEDIA_TX_ ONLY_ACTIVE -- Media flow Tx only is
+                     active
+       \item 0x08 -- IMSRTP_MEDIA_RX_ ONLY_ACTIVE -- Media flow Rx only is
                      active
        \end{itemize1}
 
-       Note: For values greater than Max enum, the client is to treat this as 
-       IMSRTP_ERR_FATAL. 
+       Note: For values greater than Max enum, the client is to treat this as
+       IMSRTP_ERR_FATAL.
   */
 }imsrtp_uninitialize_all_rtp_session_ind_v01;  /* Message */
 /**
@@ -3721,32 +3868,32 @@ typedef struct {
   /*  Preferred Bitrate */
   uint8_t preferred_bit_rate_valid;  /**< Must be set to true if preferred_bit_rate is being passed */
   uint16_t preferred_bit_rate;
-  /**<   Preferred bitrate in kbps. If not set, the value defaults to the bit_rate 
-      value in the optional Common Video Codec Configuration TLV for the 
+  /**<   Preferred bitrate in kbps. If not set, the value defaults to the bit_rate
+      value in the optional Common Video Codec Configuration TLV for the
       QMI_IMSRTP_SESSION_ CONFIGURE_REQ message. */
 
   /* Optional */
   /*  Preferred Frame Rate */
   uint8_t preferred_frame_rate_valid;  /**< Must be set to true if preferred_frame_rate is being passed */
   uint8_t preferred_frame_rate;
-  /**<   Preferred frame rate. If not set, the value defaults to the frame_rate 
-       value in the optional Common Video Codec Configuration TLV for the 
+  /**<   Preferred frame rate. If not set, the value defaults to the frame_rate
+       value in the optional Common Video Codec Configuration TLV for the
        QMI_IMSRTP_SESSION_ CONFIGURE_REQ message. */
 
   /* Optional */
   /*  Preferred Width */
   uint8_t preferred_width_valid;  /**< Must be set to true if preferred_width is being passed */
   uint32_t preferred_width;
-  /**<   Preferred width. If not set, the value defaults to the width value in  
-       the optional Common Video Codec Configuration TLV for the 
+  /**<   Preferred width. If not set, the value defaults to the width value in
+       the optional Common Video Codec Configuration TLV for the
        QMI_IMSRTP_SESSION_ CONFIGURE_REQ message. */
 
   /* Optional */
   /*  Preferred Height */
   uint8_t preferred_height_valid;  /**< Must be set to true if preferred_height is being passed */
   uint32_t preferred_height;
-  /**<   Preferred height. If not set, the value defaults to the height value in 
-       the optional Common Video Codec Configuration TLV for the 
+  /**<   Preferred height. If not set, the value defaults to the height value in
+       the optional Common Video Codec Configuration TLV for the
        QMI_IMSRTP_SESSION_ CONFIGURE_REQ message. */
 }imsrtp_session_video_capability_req_msg_v01;  /* Message */
 /**
@@ -3850,10 +3997,89 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imsrtp_qmi_messages
+    @{
+  */
+/** Indication Message; Reports First RTP/RTCP Packet received to clients. */
+typedef struct {
+
+  /* Mandatory */
+  /*  RTP Session Identifier  */
+  uint8_t session_id;
+  /**<   Unique identifier for the RTP session. */
+
+  /* Mandatory */
+  /*  First Packet Received Information  */
+  imsrtp_first_pkt_rcvd_enum_v01 first_pkt_rcvd;
+  /**<   First Packet Received Information. */
+}imsrtp_first_pkt_rcvd_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsrtp_qmi_messages
+    @{
+  */
+/** Request Message; Set Handoff status. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Application Identifier */
+  uint8_t app_id;
+  /**<   Unique identifier for the application using the RTP stack. */
+
+  /* Mandatory */
+  /*  RAT Type */
+  imsrtp_dcm_rat_type_v01 dcm_rat;
+  /**<   Radio access technology associated with this profile. \begin{itemize1}
+       \item 0 -- IMSRTP_DCM_RAT_NONE -- None
+       \item IMSRTP_DCM_RAT_GPRS -- GPRS
+       \item IMSRTP_DCM_RAT_EDGE -- EDGE
+       \item IMSRTP_DCM_RAT_WCDMA -- WCDMA
+       \item IMSRTP_DCM_RAT_WLAN -- WLAN
+       \item IMSRTP_DCM_RAT_CDMA -- CDMA 1.x
+       \item IMSRTP_DCM_RAT_IWLAN -- IWLAN
+       \item IMSRTP_DCM_RAT_DOR0 -- CDMA DO Rev0
+       \item IMSRTP_DCM_RAT_DORA -- CDMA DO RevA
+       \item IMSRTP_DCM_RAT_EHRPD -- CDMA eHRPD
+       \item IMSRTP_DCM_RAT_LTE -- LTE
+       \item IMSRTP_DCM_RAT_DORB -- CDMA DO RevB
+       \item IMSRTP_DCM_RAT_EPC -- EPC
+       \end{itemize1}
+  */
+
+  /* Mandatory */
+  /*  Handoff Status Type */
+  imsrtp_handoff_status_enum_v01 handoff_status;
+  /**<   Enumeration of handoff status. */
+}imsrtp_set_handoff_status_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imsrtp_qmi_messages
+    @{
+  */
+/** Response Message; Set Handoff status. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code   */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type*/
+}imsrtp_set_handoff_status_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
 /*Service Message Definition*/
 /** @addtogroup imsrtp_qmi_msg_ids
     @{
   */
+#define QMI_IMSRTP_GET_SUPPORTED_MSGS_REQ_V01 0x001E
+#define QMI_IMSRTP_GET_SUPPORTED_MSGS_RESP_V01 0x001E
+#define QMI_IMSRTP_GET_SUPPORTED_FIELDS_REQ_V01 0x001F
+#define QMI_IMSRTP_GET_SUPPORTED_FIELDS_RESP_V01 0x001F
 #define QMI_IMSRTP_INITIALIZE_REQ_V01 0x0020
 #define QMI_IMSRTP_INITIALIZE_RESP_V01 0x0020
 #define QMI_IMSRTP_INITIALIZE_IND_V01 0x0020
@@ -3931,26 +4157,29 @@ typedef struct {
 #define QMI_IMSRTP_CONFIGURE_NAT_OVER_RTP_RESP_V01 0x0041
 #define QMI_IMSRTP_CONFIGURE_NAT_OVER_RTCP_REQ_V01 0x0042
 #define QMI_IMSRTP_CONFIGURE_NAT_OVER_RTCP_RESP_V01 0x0042
+#define QMI_IMS_RTP_FIRST_PKT_RCVD_IND_V01 0x0043
+#define QMI_IMSRTP_SET_HANDOFF_STATUS_REQ_V01 0x0044
+#define QMI_IMSRTP_SET_HANDOFF_STATUS_RESP_V01 0x0044
 /**
     @}
   */
 
 /* Service Object Accessor */
-/** @addtogroup wms_qmi_accessor 
+/** @addtogroup wms_qmi_accessor
     @{
   */
 /** This function is used internally by the autogenerated code.  Clients should use the
    macro imsrtp_get_service_object_v01( ) that takes in no arguments. */
 qmi_idl_service_object_type imsrtp_get_service_object_internal_v01
  ( int32_t idl_maj_version, int32_t idl_min_version, int32_t library_version );
- 
-/** This macro should be used to get the service object */ 
+
+/** This macro should be used to get the service object */
 #define imsrtp_get_service_object_v01( ) \
           imsrtp_get_service_object_internal_v01( \
             IMSRTP_V01_IDL_MAJOR_VERS, IMSRTP_V01_IDL_MINOR_VERS, \
             IMSRTP_V01_IDL_TOOL_VERS )
-/** 
-    @} 
+/**
+    @}
   */
 
 
@@ -3958,4 +4187,3 @@ qmi_idl_service_object_type imsrtp_get_service_object_internal_v01
 }
 #endif
 #endif
-

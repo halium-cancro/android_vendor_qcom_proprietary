@@ -17,6 +17,7 @@
 
 static pthread_t core_handler_thread;
 util_list_info_type* core_queue;
+extern int qmi_shutdown_sync_thread;
 
 
 
@@ -176,10 +177,18 @@ int core_handler_start()
 
     if(core_queue)
     {
+        #ifdef QMI_RIL_UTF
+        err_code = utf_pthread_create_handler(&core_handler_thread,
+                                              NULL,
+                                              core_handler_thread_proc,
+                                              NULL);
+
+        #else
         err_code = pthread_create(&core_handler_thread,
                                   NULL,
                                   core_handler_thread_proc,
                                   NULL);
+        #endif
         if(err_code)
         {
             util_list_cleanup(core_queue,
@@ -535,3 +544,18 @@ int core_handler_remove_event(void *event_data_to_be_removed)
     return ret_code;
 }
 
+/***************************************************************************************************
+    @function
+    core_shutdown_for_reboot
+
+    @implementation detail
+    none
+***************************************************************************************************/
+int core_shutdown_for_reboot()
+{
+  // request shutdown of sync thread
+  qmi_shutdown_sync_thread = 1;
+  pthread_cond_signal(&core_queue->list_sync_data.sync_cond);
+
+  return 0;
+}

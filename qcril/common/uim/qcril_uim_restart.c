@@ -28,7 +28,12 @@ Notice that changes are listed in reverse chronological order.
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+06/10/14   tl      Removed array structures for slot specific parameters
+06/03/14   tl      Determine slot from instance during modem restart
+04/28/14   at      Release QMI CAT client handle upon SSR start
+04/08/14   yt      Fix determination of index for encrypted PIN data
 01/09/14   yt      Perform silent PIN verification on SAP disconnect
+12/11/13   at      Switch to new QCCI framework
 09/10/13   yt      Clear encrypted PIN data after card reset
 04/10/13   yt      Silent PIN verification support for multi SIM
 03/15/13   yt      Report SIM_STATUS only after finishing silent PIN verify
@@ -57,6 +62,7 @@ when       who     what, where, why
 #include "qcril_uim_queue.h"
 #include "qcril_uim_restart.h"
 #include "qcril_uim_qcci.h"
+#include "qcril_gstk_qmi.h"
 
 
 /*===========================================================================
@@ -104,7 +110,8 @@ static RIL_Errno qcril_uim_verify_pin_on_restart
   memset(&pin_params, 0, sizeof(qmi_uim_verify_pin_params_type));
   memset(pin1_data, 0, sizeof(pin1_data));
 
-  if(pin_index > 1 || qcril_uim.pin1_info[pin_index].slot != slot)
+  if(pin_index >= QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO ||
+     qcril_uim.pin1_info[pin_index].slot != slot)
   {
     QCRIL_LOG_ERROR("Invalid index for PIN1 cache: 0x%x",pin_index);
     return RIL_E_GENERIC_FAILURE;
@@ -298,6 +305,86 @@ static boolean qcril_uim_is_pin_verification_needed
 } /* qcril_uim_is_pin_verification_needed */
 
 
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_match_aid_in_encrypted_pin_cache
+
+===========================================================================*/
+/*!
+    @brief
+    Finds index of the encrypted PIN1 data in the cache that matches the
+    specified AID.
+
+    @return
+    Index of the encrypted pin data if found. Size of the cache otherwise.
+*/
+/*=========================================================================*/
+static uint8 qcril_uim_match_aid_in_encrypted_pin_cache
+(
+  uint8           aid_len,
+  const char    * aid_ptr
+)
+{
+  uint8 i = 0;
+
+  for(i = 0; i < QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO; i++)
+  {
+    if(aid_len == qcril_uim.pin1_info[i].aid_len)
+    {
+      if((qcril_uim.pin1_info[i].aid_len > 0) &&
+         (qcril_uim.pin1_info[i].aid_len <= QMI_UIM_MAX_AID_LEN))
+      {
+        if((aid_ptr != NULL) &&
+           (memcmp(aid_ptr,
+                   qcril_uim.pin1_info[i].aid_value,
+                   qcril_uim.pin1_info[i].aid_len) == 0))
+        {
+          return i;
+        }
+      }
+      else if(qcril_uim.pin1_info[i].aid_len == 0)
+      {
+        return i;
+      }
+    }
+  }
+
+  return QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO;
+} /* qcril_uim_match_aid_in_encrypted_pin_cache */
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_get_empty_encrypted_pin_index
+
+===========================================================================*/
+/*!
+    @brief
+    Returns first available index in the encrypted PIN cache.
+
+    @return
+    Index of the encrypted pin data if found.
+*/
+/*=========================================================================*/
+static uint8 qcril_uim_get_empty_encrypted_pin_index
+(
+  void
+)
+{
+  uint8 i = 0;
+
+  for(i = 0; i < QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO; i++)
+  {
+    if(qcril_uim.pin1_info[i].encrypted_pin1_len == 0)
+    {
+      return i;
+    }
+  }
+
+  return QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO;
+} /* qcril_uim_get_empty_encrypted_pin_index */
+
+
 /*=========================================================================
 
   FUNCTION:  qcril_uim_store_encrypted_pin
@@ -319,7 +406,7 @@ void qcril_uim_store_encrypted_pin
 {
   uint8                      slot         = QCRIL_UIM_INVALID_SLOT_INDEX_VALUE;
   uint8                      app_index    = QCRIL_UIM_INVALID_APP_INDEX_VALUE;
-  int8                       pin_index    = -1;
+  uint8                      pin_index    = QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO;
   int                        i            = 0;
   qmi_uim_data_type        * pin_data_ptr = NULL;
   RIL_Errno                  ril_err      = RIL_E_GENERIC_FAILURE;
@@ -377,56 +464,17 @@ void qcril_uim_store_encrypted_pin
   }
 
   /* Check if encrypted PIN1 was previously cached for this session type */
-  if(qcril_uim.card_status.card[slot].application[app_index].aid_len ==
-     qcril_uim.pin1_info[0].aid_len)
-  {
-    if((qcril_uim.pin1_info[0].aid_len > 0) &&
-       (qcril_uim.pin1_info[0].aid_len <= QMI_UIM_MAX_AID_LEN))
-    {
-      if((memcmp(qcril_uim.card_status.card[slot].application[app_index].aid_value,
-                 qcril_uim.pin1_info[0].aid_value,
-                 qcril_uim.pin1_info[0].aid_len) == 0))
-      {
-        pin_index = 0;
-      }
-    }
-    else if(qcril_uim.pin1_info[0].aid_len == 0)
-    {
-      pin_index = 0;
-    }
-  }
-  if(qcril_uim.card_status.card[slot].application[app_index].aid_len ==
-          qcril_uim.pin1_info[1].aid_len)
-  {
-    if((qcril_uim.pin1_info[1].aid_len > 0) &&
-       (qcril_uim.pin1_info[1].aid_len <= QMI_UIM_MAX_AID_LEN))
-    {
-      if((memcmp(qcril_uim.card_status.card[slot].application[app_index].aid_value,
-                 qcril_uim.pin1_info[1].aid_value,
-                 qcril_uim.pin1_info[1].aid_len) == 0))
-      {
-        pin_index = 1;
-      }
-    }
-    else if(qcril_uim.pin1_info[1].aid_len == 0)
-    {
-      pin_index = 1;
-    }
-  }
+  pin_index = qcril_uim_match_aid_in_encrypted_pin_cache(
+                qcril_uim.card_status.card[slot].application[app_index].aid_len,
+                qcril_uim.card_status.card[slot].application[app_index].aid_value);
 
   /* If this is the first time PIN1 is being stored for this session type, find
      an empty element in encrypted PIN1 cache */
-  if(pin_index < 0)
+  if(pin_index >= QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO)
   {
-    if(qcril_uim.pin1_info[0].encrypted_pin1_len == 0)
-    {
-      pin_index = 0;
-    }
-    else if(qcril_uim.pin1_info[1].encrypted_pin1_len == 0)
-    {
-      pin_index = 1;
-    }
-    else
+    pin_index = qcril_uim_get_empty_encrypted_pin_index();
+
+    if(pin_index >= QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO)
     {
       QCRIL_LOG_ERROR("%s", "Index not found in encrypted PIN1 cache");
       return;
@@ -594,7 +642,7 @@ RIL_Errno qcril_uim_try_pin1_verification
   if(!iccid_match)
   {
     QCRIL_LOG_ERROR( "%s: Stored ICCID did not match with card\n", __FUNCTION__);
-    qcril_uim.silent_pin_verify_reqd[slot] = FALSE;
+    qcril_uim.silent_pin_verify_reqd = FALSE;
     return RIL_E_GENERIC_FAILURE;
   }
 
@@ -605,47 +653,11 @@ RIL_Errno qcril_uim_try_pin1_verification
       continue;
     }
 
-    /* Compare AID for the current app with the one in PIN1 cache */
-    if(qcril_uim.card_status.card[slot].application[app_index].aid_len ==
-       qcril_uim.pin1_info[0].aid_len)
-    {
-      if((qcril_uim.pin1_info[0].aid_len > 0) &&
-         (qcril_uim.pin1_info[0].aid_len <= QMI_UIM_MAX_AID_LEN))
-      {
-        if(memcmp(qcril_uim.card_status.card[slot].application[app_index].aid_value,
-                  qcril_uim.pin1_info[0].aid_value,
-                  qcril_uim.pin1_info[0].aid_len) == 0)
-        {
-          pin_index = 0;
-        }
-      }
-      else if(qcril_uim.pin1_info[0].aid_len == 0 &&
-              qcril_uim.pin1_info[0].encrypted_pin1_len > 0)
-      {
-        pin_index = 0;
-      }
-    }
-    if(qcril_uim.card_status.card[slot].application[app_index].aid_len ==
-      qcril_uim.pin1_info[1].aid_len)
-    {
-      if((qcril_uim.pin1_info[1].aid_len > 0) &&
-         (qcril_uim.pin1_info[1].aid_len <= QMI_UIM_MAX_AID_LEN))
-      {
-        if(memcmp(qcril_uim.card_status.card[slot].application[app_index].aid_value,
-                  qcril_uim.pin1_info[1].aid_value,
-                  qcril_uim.pin1_info[1].aid_len) == 0)
-        {
-          pin_index = 1;
-        }
-      }
-      else if(qcril_uim.pin1_info[1].aid_len == 0 &&
-              qcril_uim.pin1_info[1].encrypted_pin1_len > 0)
-      {
-        pin_index = 1;
-      }
-    }
+     pin_index = qcril_uim_match_aid_in_encrypted_pin_cache(
+                   qcril_uim.card_status.card[slot].application[app_index].aid_len,
+                   qcril_uim.card_status.card[slot].application[app_index].aid_value);
 
-    if(pin_index > 1)
+    if(pin_index >= QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO)
     {
       continue;
     }
@@ -656,7 +668,7 @@ RIL_Errno qcril_uim_try_pin1_verification
     verify_status = qcril_uim_verify_pin_on_restart(slot, app_index, pin_index);
 
     /* Reset the flag for silent PIN1 verification to FALSE */
-    qcril_uim.silent_pin_verify_reqd[slot] = FALSE;
+    qcril_uim.silent_pin_verify_reqd = FALSE;
 
     return verify_status;
   }
@@ -665,7 +677,7 @@ RIL_Errno qcril_uim_try_pin1_verification
      verification is not required */
   if(!qcril_uim_is_pin_verification_needed(slot))
   {
-    qcril_uim.silent_pin_verify_reqd[slot] = FALSE;
+    qcril_uim.silent_pin_verify_reqd = FALSE;
     return RIL_E_GENERIC_FAILURE;
   }
 
@@ -739,48 +751,12 @@ void qcril_uim_clear_encrypted_pin
     return;
   }
 
-  if(qcril_uim.card_status.card[slot].application[app_index].aid_len ==
-     qcril_uim.pin1_info[0].aid_len)
-  {
-    if((qcril_uim.pin1_info[0].aid_len > 0) &&
-       (qcril_uim.pin1_info[0].aid_len <= QMI_UIM_MAX_AID_LEN))
-    {
-      if(memcmp(qcril_uim.card_status.card[slot].application[app_index].aid_value,
-                qcril_uim.pin1_info[0].aid_value,
-                qcril_uim.card_status.card[slot].application[app_index].aid_len) == 0)
-      {
-        pin_index = 0;
-      }
-    }
-    else if(qcril_uim.pin1_info[0].aid_len == 0)
-    {
-      pin_index = 0;
-    }
-  }
-  else if(qcril_uim.card_status.card[slot].application[app_index].aid_len ==
-          qcril_uim.pin1_info[1].aid_len)
-  {
-    if((qcril_uim.pin1_info[1].aid_len > 0) &&
-       (qcril_uim.pin1_info[1].aid_len <= QMI_UIM_MAX_AID_LEN))
-    {
-      if(memcmp(qcril_uim.card_status.card[slot].application[app_index].aid_value,
-                qcril_uim.pin1_info[1].aid_value,
-                qcril_uim.card_status.card[slot].application[app_index].aid_len) == 0)
-      {
-        pin_index = 1;
-      }
-    }
-    else if(qcril_uim.pin1_info[1].aid_len == 0)
-    {
-      pin_index = 1;
-    }
-  }
-  else
-  {
-    return;
-  }
+   pin_index = qcril_uim_match_aid_in_encrypted_pin_cache(
+                qcril_uim.card_status.card[slot].application[app_index].aid_len,
+                qcril_uim.card_status.card[slot].application[app_index].aid_value);
 
-  if(pin_index > 1 || qcril_uim.pin1_info[pin_index].slot != slot)
+  if(pin_index >= QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO ||
+     qcril_uim.pin1_info[pin_index].slot != slot)
   {
     QCRIL_LOG_DEBUG("%s\n","Correct index could not be found in PIN1 cache");
     return;
@@ -814,7 +790,7 @@ void qcril_uim_check_silent_pin_verify_in_progress
   uint8 pin_index = 0;
   uint8 app_index = 0;
 
-  for (pin_index = 0; pin_index < 2; pin_index++)
+  for (pin_index = 0; pin_index < QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO; pin_index++)
   {
     if(qcril_uim.pin1_info[pin_index].slot != slot ||
        qcril_uim.pin1_info[pin_index].silent_verify_in_progress == FALSE)
@@ -861,7 +837,7 @@ void qcril_uim_clear_encrypted_pin_after_card_reset
 {
   uint8 pin_index = 0;
 
-  for(pin_index = 0; pin_index < 2; pin_index++)
+  for(pin_index = 0; pin_index < QCRIL_UIM_MAX_ENCRYPTED_PIN_INFO; pin_index++)
   {
     if(slot != qcril_uim.pin1_info[pin_index].slot)
     {
@@ -904,6 +880,7 @@ void qcril_uim_process_modem_restart_start
   qcril_uim_pin1_info_type          pin1_info[2];
   qcril_unsol_resp_params_type      unsol_resp;
   int                               slot = 0;
+  int                               qmi_err_code = 0;
 
   QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
 
@@ -919,56 +896,60 @@ void qcril_uim_process_modem_restart_start
   {
     ret_ptr->pri_gw_sim_state_changed = TRUE;
     ret_ptr->next_pri_gw_sim_state = QCRIL_SIM_STATE_ABSENT;
-    slot = (qcril_uim.card_status.index_gw_pri_prov >> 8) & 0xFF;
   }
   if(qcril_uim.card_status.index_1x_pri_prov != QCRIL_UIM_INVALID_SLOT_APP_INDEX_VALUE)
   {
     ret_ptr->pri_cdma_sim_state_changed = TRUE;
     ret_ptr->next_pri_cdma_sim_state = QCRIL_SIM_STATE_ABSENT;
-    slot = (qcril_uim.card_status.index_1x_pri_prov >> 8) & 0xFF;
   }
   if(qcril_uim.card_status.index_gw_sec_prov != QCRIL_UIM_INVALID_SLOT_APP_INDEX_VALUE)
   {
     ret_ptr->sec_gw_sim_state_changed = TRUE;
     ret_ptr->next_sec_gw_sim_state = QCRIL_SIM_STATE_ABSENT;
-    slot = (qcril_uim.card_status.index_gw_sec_prov >> 8) & 0xFF;
   }
   if(qcril_uim.card_status.index_1x_sec_prov != QCRIL_UIM_INVALID_SLOT_APP_INDEX_VALUE)
   {
     ret_ptr->sec_cdma_sim_state_changed = TRUE;
     ret_ptr->next_sec_cdma_sim_state = QCRIL_SIM_STATE_ABSENT;
-    slot = (qcril_uim.card_status.index_1x_sec_prov >> 8) & 0xFF;
   }
   if(qcril_uim.card_status.index_gw_ter_prov != QCRIL_UIM_INVALID_SLOT_APP_INDEX_VALUE)
   {
     ret_ptr->ter_gw_sim_state_changed = TRUE;
     ret_ptr->next_ter_gw_sim_state = QCRIL_SIM_STATE_ABSENT;
-    slot = (qcril_uim.card_status.index_gw_ter_prov >> 8) & 0xFF;
   }
   if(qcril_uim.card_status.index_1x_ter_prov != QCRIL_UIM_INVALID_SLOT_APP_INDEX_VALUE)
   {
     ret_ptr->ter_cdma_sim_state_changed = TRUE;
     ret_ptr->next_ter_cdma_sim_state = QCRIL_SIM_STATE_ABSENT;
-    slot = (qcril_uim.card_status.index_1x_ter_prov >> 8) & 0xFF;
   }
   ret_ptr->next_modem_state = QCRIL_MODEM_STATE_UNAVAILABLE;
 
-  /* Send internal QCRIL events */
-  qcril_uim_update_pbm_card_event(params_ptr->instance_id,
-                                  params_ptr->modem_id,
-                                  slot,
-                                  QCRIL_EVT_PBM_CARD_ERROR);
+  slot = qcril_uim_instance_id_to_slot(params_ptr->instance_id);
 
-  qcril_uim_update_cm_card_status(params_ptr->instance_id,
-                                  params_ptr->modem_id,
-                                  slot,
-                                  QCRIL_CARD_STATUS_DOWN);
+  if(slot < QMI_UIM_MAX_CARD_COUNT &&
+     qcril_uim.card_status.card[slot].card_state == QMI_UIM_CARD_STATE_PRESENT)
+  {
+    /* Send internal QCRIL events */
+    qcril_uim_update_pbm_card_event(params_ptr->instance_id,
+                                    params_ptr->modem_id,
+                                    slot,
+                                    QCRIL_EVT_PBM_CARD_ERROR);
+
+    qcril_uim_update_cm_card_status(params_ptr->instance_id,
+                                    params_ptr->modem_id,
+                                    slot,
+                                    QCRIL_CARD_STATUS_DOWN);
+  }
 
   /* Send unsolicited response to Framework */
   qcril_default_unsol_resp_params(params_ptr->instance_id,
                                   RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED,
                                   &unsol_resp);
   qcril_send_unsol_response(&unsol_resp);
+
+  /* Also release QMI UIM/CAT client service handles */
+  qcril_qmi_uim_srvc_release_client(qcril_uim.qmi_handle, &qmi_err_code);
+  qcril_gstk_qmi_srvc_release_client();
 
   /* Reset global variables */
   qcril_uim_reset_state();
@@ -1012,10 +993,7 @@ void qcril_uim_process_modem_restart_complete
   /* Re-init QCRIL_GSTK as well */
   qcril_gstk_qmi_init();
 
-  for(i = 0; i < QMI_UIM_MAX_CARD_COUNT; i++)
-  {
-    qcril_uim.silent_pin_verify_reqd[i] = TRUE;
-  }
+  qcril_uim.silent_pin_verify_reqd = TRUE;
 }/* qcril_uim_process_modem_restart_complete*/
 
 #endif /* defined (FEATURE_QCRIL_UIM_QMI) */

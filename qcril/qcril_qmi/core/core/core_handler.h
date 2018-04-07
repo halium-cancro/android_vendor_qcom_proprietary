@@ -116,5 +116,6 @@ int core_handler_add_event(core_handler_event_category_type event_category,
 ***************************************************************************************************/
 int core_handler_remove_event(void *event_data_to_be_removed);
 
+int core_shutdown_for_reboot();
 
 #endif

@@ -80,6 +80,7 @@ STATE_MACHINE NETMGR_SM
     INPUTS
     {
       NETMGR_WDS_CONNECTED_EV      netmgr_sm_modem_connected;
+      NETMGR_WDS_DISCONNECTED_EV   netmgr_sm_modem_disconnected_in_inited;
       NETMGR_MODEM_OOS_EV          netmgr_sm_modem_oos_msg;
       NETMGR_QOS_DELETE_EV         netmgr_sm_qos_delete;
 

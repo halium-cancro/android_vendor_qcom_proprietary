@@ -941,3 +941,143 @@ int dsi_embms_tmgi_list_query
 
   return ret;
 }
+
+
+/*===========================================================================
+  FUNCTION:  dsi_embms_content_desc_update
+===========================================================================*/
+/*!
+    @brief
+    used to update embms content desc.
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+
+*/
+/*=========================================================================*/
+int dsi_embms_content_desc_update
+(
+  dsi_hndl_t                hndl,
+  char                     *content_desc_update_tmgi,
+  unsigned char             content_desc_valid,
+  unsigned int              content_desc_len,
+  embms_content_desc_type  *content_desc,
+  int                       dbg_trace_id
+)
+{
+  dsi_store_t    *st_hndl = NULL;
+  int             ret = DSI_ERROR;
+  int             i, j;
+
+  DSI_LOG_DEBUG( "%s", "dsi_embms_content_desc_update: ENTRY" );
+
+  /* validate input parameter */
+  if( NULL == content_desc_update_tmgi)
+  {
+    DSI_LOG_ERROR("%s", "invalid input parameter");
+    return ret;
+  }
+
+  DSI_GLOBAL_LOCK;
+
+  st_hndl = ( (dsi_store_t *) hndl );
+
+  /* this do..while loop decides the overall return value.
+     set ret to ERROR at the beginning. set ret to SUCCESS
+     at the end. If there was an error in the middle, we break out*/
+  do
+  {
+    ret = DSI_ERROR;
+
+    if (!dsi_inited)
+    {
+      DSI_LOG_ERROR("%s","dsi_embms_content_desc_update: dsi not inited");
+      break;
+    }
+
+    if (!(DSI_IS_HNDL_VALID(st_hndl)))
+    {
+      DSI_LOG_ERROR( "dsi_embms_content_desc_update invalid arg, st_hndl [%p]" ,
+                     (unsigned int*)st_hndl);
+      break;
+    }
+
+    DSI_LOCK_MUTEX(&(st_hndl->priv.mutex))
+    i = st_hndl->priv.dsi_iface_id;
+    DSI_UNLOCK_MUTEX(&(st_hndl->priv.mutex))
+
+    if(!DSI_IS_ID_VALID(i))
+    {
+      DSI_LOG_ERROR("dsi_embms_content_desc_update: st_hndl contains" \
+                    "invalid id [%d]", i);
+      break;
+    }
+
+    DSI_LOG_DEBUG( "dsi_embms_content_desc_update dbg_trace_id:[%d]", dbg_trace_id );
+
+    /* copy tmgi_list */
+    if(NULL == (st_hndl->priv.embms_content_desc_update_info.tmgi_list =
+                malloc(sizeof (qmi_wds_embms_tmgi_type))))
+    {
+      DSI_LOG_ERROR("%s", "dsi_embms_content_desc_update: allocate memory for tmgi failed\n");
+      break;
+    }
+
+    memcpy(st_hndl->priv.embms_content_desc_update_info.tmgi_list->tmgi,
+           (void*) content_desc_update_tmgi,
+            DSI_SIZE_OF_TMGI);
+
+    st_hndl->priv.embms_content_desc_update_info.tmgi_list->session_id_valid =
+      DSI_EMBMS_TMGI_SESSION_ID_NOT_VALID;
+
+    /* copy debug trace id */
+    st_hndl->priv.embms_content_desc_update_info.dbg_trace_id = dbg_trace_id;
+
+
+    /* copy content desc array if valid */
+    if(content_desc_valid != 0 && content_desc != NULL)
+    {
+      st_hndl->priv.embms_content_desc_update_info.content_desc.content_desc_len = (unsigned char)
+          ((content_desc_len > QMI_WDS_EMBMS_CONTENT_PARAM_NUM_SIZE)?
+          QMI_WDS_EMBMS_CONTENT_PARAM_NUM_SIZE : content_desc_len);
+      if(NULL == (st_hndl->priv.embms_content_desc_update_info.content_desc.content_desc_ptr =
+                malloc(sizeof (embms_content_desc_type)
+                       * st_hndl->priv.embms_content_desc_update_info.content_desc.content_desc_len)))
+      {
+        DSI_LOG_ERROR("%s", "dsi_embms_content_desc_update: allocate memory for tmgi failed\n");
+        break;
+      }
+      memcpy(st_hndl->priv.embms_content_desc_update_info.content_desc.content_desc_ptr,
+             (void *)content_desc,
+             content_desc_len * sizeof (embms_content_desc_type));
+    }
+    else
+    {
+      st_hndl->priv.embms_content_desc_update_info.content_desc.content_desc_len = 0;
+    }
+
+    ret = dsi_mni_vtbl.mni_embms_tmgi_content_desc_update_f(i, st_hndl);
+
+    if (DSI_SUCCESS != ret)
+    {
+      DSI_LOG_ERROR("dsi_mni_vtbl.mni_embms_tmgi_content_desc_update_f [%p] returned err",
+                    (unsigned int*)dsi_mni_vtbl.mni_embms_tmgi_content_desc_update_f);
+      break;
+    }
+    ret = DSI_SUCCESS;
+  } while(0);
+
+  if (DSI_SUCCESS == ret)
+  {
+    DSI_LOG_DEBUG( "%s", "dsi_embms_content_desc_update: EXIT with suc" );
+  }
+  else
+  {
+    DSI_LOG_DEBUG( "%s", "dsi_embms_content_desc_update: EXIT with err" );
+  }
+
+  DSI_GLOBAL_UNLOCK;
+
+  return ret;
+}

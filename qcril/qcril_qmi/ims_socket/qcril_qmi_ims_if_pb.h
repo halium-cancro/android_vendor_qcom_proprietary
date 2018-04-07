@@ -15,8 +15,6 @@
 #ifndef QCRIL_QMI_IMS_IF_PB_H
 #define QCRIL_QMI_IMS_IF_PB_H
 
-#include "imsIF.pb-c.h"
-
 #ifndef QCRIL_PROTOBUF_BUILD_ENABLED
 typedef struct _Ims__MsgTag Ims__MsgTag;
 typedef struct _Ims__CallFailCauseResponse Ims__CallFailCauseResponse;
@@ -50,12 +48,19 @@ typedef struct _Ims__CbNumListType Ims__CbNumListType;
 typedef struct _Ims__CallWaitingInfo Ims__CallWaitingInfo;
 typedef struct _Ims__CallForwardInfoList Ims__CallForwardInfoList;
 typedef struct _Ims__CallForwardInfoList__CallForwardInfo Ims__CallForwardInfoList__CallForwardInfo;
+typedef struct _Ims__CallFwdTimerInfo Ims__CallFwdTimerInfo;
 typedef struct _Ims__ConfInfo Ims__ConfInfo;
 typedef struct _Ims__SuppSvcNotification Ims__SuppSvcNotification;
 typedef struct _Ims__SuppSvcStatus Ims__SuppSvcStatus;
 typedef struct _Ims__SuppSvcRequest Ims__SuppSvcRequest;
 typedef struct _Ims__SuppSvcResponse Ims__SuppSvcResponse;
+typedef struct _Ims__Colr Ims__Colr;
 typedef struct _Ims__VideoCallQuality Ims__VideoCallQuality;
+typedef struct _Ims__MwiMessageSummary Ims__MwiMessageSummary;
+typedef struct _Ims__MwiMessageDetails Ims__MwiMessageDetails;
+typedef struct _Ims__Mwi Ims__Mwi;
+typedef struct _Ims__Hold Ims__Hold;
+typedef struct _Ims__Resume Ims__Resume;
 
 typedef struct _ProtobufCBinaryData ProtobufCBinaryData;
 
@@ -74,7 +79,8 @@ typedef int protobuf_c_boolean;
 
 typedef enum _Ims__Registration__RegState {
   IMS__REGISTRATION__REG_STATE__REGISTERED = 1,
-  IMS__REGISTRATION__REG_STATE__NOT_REGISTERED = 2
+  IMS__REGISTRATION__REG_STATE__NOT_REGISTERED = 2,
+  IMS__REGISTRATION__REG_STATE__REGISTERING = 3
 } Ims__Registration__RegState;
 typedef enum _Ims__RingBackTone__ToneFlag {
   IMS__RING_BACK_TONE__TONE_FLAG__STOP = 0,
@@ -123,8 +129,13 @@ typedef enum _Ims__MsgId {
   IMS__MSG_ID__REQUEST_SET_SERVICE_STATUS = 30,
   IMS__MSG_ID__REQUEST_SUPP_SVC_STATUS = 31,
   IMS__MSG_ID__REQUEST_DEFLECT_CALL = 32,
+  IMS__MSG_ID__REQUEST_GET_COLR = 33,
+  IMS__MSG_ID__REQUEST_SET_COLR = 34,
   IMS__MSG_ID__REQUEST_QUERY_VT_CALL_QUALITY = 35,
   IMS__MSG_ID__REQUEST_SET_VT_CALL_QUALITY = 36,
+  IMS__MSG_ID__REQUEST_HOLD = 37,
+  IMS__MSG_ID__REQUEST_RESUME = 38,
+  IMS__MSG_ID__REQUEST_SEND_UI_TTY_MODE = 39,
   IMS__MSG_ID__UNSOL_RSP_BASE = 200,
   IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED = 201,
   IMS__MSG_ID__UNSOL_CALL_RING = 202,
@@ -138,7 +149,8 @@ typedef enum _Ims__MsgId {
   IMS__MSG_ID__UNSOL_SRV_STATUS_UPDATE = 210,
   IMS__MSG_ID__UNSOL_SUPP_SVC_NOTIFICATION = 211,
   IMS__MSG_ID__UNSOL_TTY_NOTIFICATION = 212,
-  IMS__MSG_ID__UNSOL_RADIO_STATE_CHANGED = 213
+  IMS__MSG_ID__UNSOL_RADIO_STATE_CHANGED = 213,
+  IMS__MSG_ID__UNSOL_MWI = 214
 } Ims__MsgId;
 typedef enum _Ims__Error {
   IMS__ERROR__E_SUCCESS = 0,
@@ -157,7 +169,8 @@ typedef enum _Ims__CallState {
   IMS__CALL_STATE__CALL_DIALING = 2,
   IMS__CALL_STATE__CALL_ALERTING = 3,
   IMS__CALL_STATE__CALL_INCOMING = 4,
-  IMS__CALL_STATE__CALL_WAITING = 5
+  IMS__CALL_STATE__CALL_WAITING = 5,
+  IMS__CALL_STATE__CALL_END = 6
 } Ims__CallState;
 typedef enum _Ims__RadioState {
   IMS__RADIO_STATE__RADIO_STATE_OFF = 0,
@@ -175,8 +188,16 @@ typedef enum _Ims__CallType {
   IMS__CALL_TYPE__CALL_TYPE_PS_VS_TX = 7,
   IMS__CALL_TYPE__CALL_TYPE_PS_VS_RX = 8,
   IMS__CALL_TYPE__CALL_TYPE_UNKNOWN = 9,
-  IMS__CALL_TYPE__CALL_TYPE_SMS = 10
+  IMS__CALL_TYPE__CALL_TYPE_SMS = 10,
+  IMS__CALL_TYPE__CALL_TYPE_UT = 11
 } Ims__CallType;
+typedef enum _Ims__CallSubstate {
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_NONE = 0,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_AUDIO_CONNECTED_SUSPENDED = 1,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_VIDEO_CONNECTED_SUSPENDED = 2,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_AVP_RETRY = 4,
+  IMS__CALL_SUBSTATE__CALL_SUBSTATE_MEDIA_PAUSED = 8
+} Ims__CallSubstate;
 typedef enum _Ims__CallFailCause {
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_UNOBTAINABLE_NUMBER = 1,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_NORMAL = 16,
@@ -184,11 +205,36 @@ typedef enum _Ims__CallFailCause {
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_CONGESTION = 34,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_INCOMPATIBILITY_DESTINATION = 88,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_CALL_BARRED = 240,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_BUSY = 501,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_REJECT = 502,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_LOW_BATTERY = 503,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_BLACKLISTED_CALL_ID = 504,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_NETWORK_UNAVAILABLE = 1010,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_FEATURE_UNAVAILABLE = 1011,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_Error = 1012,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_MISC = 1013,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_ANSWERED_ELSEWHERE = 1014,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REDIRECTED = 2001,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_REQUEST = 2002,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_FORBIDDEN = 2003,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_FOUND = 2004,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_SUPPORTED = 2005,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_TIMEOUT = 2006,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_TEMPORARILY_UNAVAILABLE = 2007,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_ADDRESS = 2008,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BUSY = 2009,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_CANCELLED = 2010,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_ACCEPTABLE = 2011,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_REACHABLE = 2012,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_INTERNAL_ERROR = 2013,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVICE_UNAVAILABLE = 2014,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_TIMEOUT = 2015,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_USER_REJECTED = 2016,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_GLOBAL_ERROR = 2017,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_INIT_FAILED = 3001,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_NO_DATA = 3002,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_NOT_ACCEPTABLE = 3003,
+  IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_UNSPECIFIED_ERROR = 3004,
   IMS__CALL_FAIL_CAUSE__CALL_FAIL_ERROR_UNSPECIFIED = 65535
 } Ims__CallFailCause;
 typedef enum _Ims__CallDomain {
@@ -234,13 +280,15 @@ typedef enum _Ims__RadioTechType {
 } Ims__RadioTechType;
 typedef enum _Ims__IpPresentation {
   IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_ALLOWED = 0,
-  IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_RESTRICTED = 1
+  IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_RESTRICTED = 1,
+  IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_DEFAULT = 2
 } Ims__IpPresentation;
 typedef enum _Ims__HandoverMsgType {
   IMS__HANDOVER__MSG__TYPE__START = 0,
   IMS__HANDOVER__MSG__TYPE__COMPLETE_SUCCESS = 1,
   IMS__HANDOVER__MSG__TYPE__COMPLETE_FAIL = 2,
-  IMS__HANDOVER__MSG__TYPE__CANCEL = 3
+  IMS__HANDOVER__MSG__TYPE__CANCEL = 3,
+  IMS__HANDOVER__MSG__TYPE__NOT_TRIGGERED = 4
 } Ims__HandoverMsgType;
 typedef enum _Ims__ExtraType {
   IMS__EXTRA__TYPE__LTE_TO_IWLAN_HO_FAIL = 1
@@ -260,6 +308,11 @@ typedef enum _Ims__ServiceClassStatus {
   IMS__SERVICE_CLASS_STATUS__DISABLED = 0,
   IMS__SERVICE_CLASS_STATUS__ENABLED = 1
 } Ims__ServiceClassStatus;
+typedef enum _Ims__ConfCallState {
+  IMS__CONF_CALL_STATE__RINGING = 0,
+  IMS__CONF_CALL_STATE__FOREGROUND = 1,
+  IMS__CONF_CALL_STATE__BACKGROUND = 2
+} Ims__ConfCallState;
 typedef enum _Ims__NotificationType {
   IMS__NOTIFICATION_TYPE__MO = 0,
   IMS__NOTIFICATION_TYPE__MT = 1
@@ -286,6 +339,25 @@ typedef enum _Ims__SuppSvcFacilityType {
   IMS__SUPP_SVC_FACILITY_TYPE__FACILITY_BAICa = 12
 } Ims__SuppSvcFacilityType;
 
+typedef enum _Ims__Quality {
+  IMS__QUALITY__LOW = 0,
+  IMS__QUALITY__HIGH = 1
+} Ims__Quality;
+typedef enum _Ims__MwiMessageType {
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_NONE = -1,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_VOICE = 0,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_VIDEO = 1,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_FAX = 2,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_PAGER = 3,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_MULTIMEDIA = 4,
+  IMS__MWI_MESSAGE_TYPE__MWI_MSG_TEXT = 5
+} Ims__MwiMessageType;
+typedef enum _Ims__MwiPriority {
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_UNKNOWN = -1,
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_LOW = 0,
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_NORMAL = 1,
+  IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_URGENT = 2
+} Ims__MwiPriority;
 /* --- messages --- */
 
 
@@ -305,8 +377,9 @@ struct  _Ims__CallFailCauseResponse
   Ims__CallFailCause failcause;
   protobuf_c_boolean has_errorinfo;
   ProtobufCBinaryData errorinfo;
+  char *networkerrorstring;
 };
-#define IMS__CALL_FAIL_CAUSE_RESPONSE__INIT { NULL, 0,0, 0,{0,NULL} }
+#define IMS__CALL_FAIL_CAUSE_RESPONSE__INIT { NULL, 0,0, 0,{0,NULL}, NULL }
 
 struct  _Ims__StatusForAccessTech
 {
@@ -362,8 +435,12 @@ struct  _Ims__CallDetails
   char **extras;
   Ims__SrvStatusList *localability;
   Ims__SrvStatusList *peerability;
+  protobuf_c_boolean has_callsubstate;
+  Ims__CallSubstate callsubstate;
+  protobuf_c_boolean has_mediaid;
+  int32_t mediaid;
 };
-#define IMS__CALL_DETAILS__INIT { NULL, 0,0, 0,0, 0,0, 0,NULL, NULL, NULL }
+#define IMS__CALL_DETAILS__INIT { NULL, 0,0, 0,0, 0,0, 0,NULL, NULL, NULL, 0,0 }
 
 struct  _Ims__CallModify
 {
@@ -400,8 +477,11 @@ struct  _Ims__CallList__Call
   int has_namepresentation;
   uint32_t namepresentation;
   Ims__CallDetails *calldetails;
+  Ims__CallFailCauseResponse *failcause;
 };
-#define IMS__CALL_LIST__CALL__INIT {0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, NULL, 0,0, NULL, 0,0, NULL }
+#define IMS__CALL_LIST__CALL__INIT \
+ { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, NULL, 0,0, NULL, 0,0, NULL, NULL }
+
 
 struct  _Ims__CallList
 {
@@ -437,8 +517,7 @@ struct  _Ims__Hangup
   Ims__CallFailCauseResponse *failcauseresponse;
 };
 #define IMS__HANGUP__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&ims__hangup__descriptor) \
-    , 0,0, 0,0, NULL, 0,0, NULL }
+ { 0,0, 0,0, NULL, 0,0, NULL }
 
 
 struct  _Ims__DeflectCall
@@ -449,8 +528,7 @@ struct  _Ims__DeflectCall
   char *number;
 };
 #define IMS__DEFLECT_CALL__INIT \
- { PROTOBUF_C_MESSAGE_INIT (&ims__deflect_call__descriptor) \
-    , 0,0, NULL }
+ { 0,0, NULL }
 
 
 struct  _Ims__Clir
@@ -497,8 +575,12 @@ struct  _Ims__Registration
 {
   int has_state;
   Ims__Registration__RegState state;
+  int has_errorcode;
+  uint32_t errorcode;
+  char *errormessage;
+
 };
-#define IMS__REGISTRATION__INIT {0, 0}
+#define IMS__REGISTRATION__INIT {0, 0, 0,0, NULL }
 
 struct  _Ims__RingBackTone
 {
@@ -541,8 +623,10 @@ struct  _Ims__Handover
   protobuf_c_boolean has_targettech;
   Ims__RadioTechType targettech;
   Ims__Extra *hoextra;
+  char *errorcode;
+  char *errormessage;
 };
-#define IMS__HANDOVER__INIT {NULL, 0,0, 0,0, 0,0, NULL }
+#define IMS__HANDOVER__INIT {NULL, 0,0, 0,0, 0,0, NULL, NULL, NULL }
 
 struct  _Ims__TtyNotify
 {
@@ -616,8 +700,10 @@ struct  _Ims__CallForwardInfoList__CallForwardInfo
   char *number;
   int has_time_seconds;
   uint32_t time_seconds;
+  Ims__CallFwdTimerInfo *callfwdtimerstart;
+  Ims__CallFwdTimerInfo *callfwdtimerend;
 };
-#define IMS__CALL_FORWARD_INFO_LIST__CALL_FORWARD_INFO__INIT {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0}
+#define IMS__CALL_FORWARD_INFO_LIST__CALL_FORWARD_INFO__INIT {0, 0, 0, 0, 0, 0, 0, 0, NULL, 0, 0, NULL, NULL}
 
 struct  _Ims__CallForwardInfoList
 {
@@ -626,13 +712,34 @@ struct  _Ims__CallForwardInfoList
 };
 #define IMS__CALL_FORWARD_INFO_LIST__INIT {0, NULL}
 
+struct  _Ims__CallFwdTimerInfo
+{
+  protobuf_c_boolean has_year;
+  uint32_t year;
+  protobuf_c_boolean has_month;
+  uint32_t month;
+  protobuf_c_boolean has_day;
+  uint32_t day;
+  protobuf_c_boolean has_hour;
+  uint32_t hour;
+  protobuf_c_boolean has_minute;
+  uint32_t minute;
+  protobuf_c_boolean has_second;
+  uint32_t second;
+  protobuf_c_boolean has_timezone;
+  uint32_t timezone;
+};
+#define IMS__CALL_FWD_TIMER_INFO__INIT {0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0}
+
 struct  _Ims__ConfInfo
 {
   ProtobufCMessage base;
   protobuf_c_boolean has_conf_info_uri;
   ProtobufCBinaryData conf_info_uri;
+  protobuf_c_boolean has_confcallstate;
+  Ims__ConfCallState confcallstate;
 };
-#define IMS__CONF_INFO__INIT {NULL, 0,{0,NULL}}
+#define IMS__CONF_INFO__INIT {NULL, 0,{0,NULL}, 0,0}
 
 struct  _Ims__SuppSvcNotification
 {
@@ -648,8 +755,9 @@ struct  _Ims__SuppSvcNotification
   char *number;
   protobuf_c_boolean has_connid;
   uint32_t connid;
+  char *history_info;
 };
-#define IMS__SUPP_SVC_NOTIFICATION__INIT { NULL, 0,0, 0,0, 0,0, 0,0, NULL, 0,0 }
+#define IMS__SUPP_SVC_NOTIFICATION__INIT { NULL, 0,0, 0,0, 0,0, 0,0, NULL, 0,0, NULL }
 
 struct  _Ims__SuppSvcStatus
 {
@@ -683,13 +791,89 @@ struct  _Ims__SuppSvcResponse
 };
 #define IMS__SUPP_SVC_RESPONSE__INIT { NULL, 0,0, 0,0, NULL, 0,NULL }
 
+struct  _Ims__Colr
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_presentation;
+  Ims__IpPresentation presentation;
+};
+#define IMS__COLR__INIT { NULL, 0,0 }
+
 struct  _Ims__VideoCallQuality
 {
   ProtobufCMessage base;
   protobuf_c_boolean has_quality;
   Ims__Quality quality;
 };
-#define IMS__VIDEO_CALL_QUALITY__INIT { NULL, 0,0 }
+#define IMS__VIDEO_CALL_QUALITY__INIT \
+ { NULL, 0,0 }
+
+struct  _Ims__MwiMessageSummary
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_messagetype;
+  Ims__MwiMessageType messagetype;
+  protobuf_c_boolean has_newmessage;
+  uint32_t newmessage;
+  protobuf_c_boolean has_oldmessage;
+  uint32_t oldmessage;
+  protobuf_c_boolean has_newurgent;
+  uint32_t newurgent;
+  protobuf_c_boolean has_oldurgent;
+  uint32_t oldurgent;
+};
+#define IMS__MWI_MESSAGE_SUMMARY__INIT \
+ { NULL, 0,0, 0,0, 0,0, 0,0, 0,0 }
+
+
+struct  _Ims__MwiMessageDetails
+{
+  ProtobufCMessage base;
+  char *toaddress;
+  char *fromaddress;
+  char *subject;
+  char *date;
+  protobuf_c_boolean has_priority;
+  Ims__MwiPriority priority;
+  char *messageid;
+  protobuf_c_boolean has_messagetype;
+  Ims__MwiMessageType messagetype;
+};
+#define IMS__MWI_MESSAGE_DETAILS__INIT \
+ { NULL, NULL, NULL, NULL, NULL, 0,0, NULL, 0,0 }
+
+
+struct  _Ims__Mwi
+{
+  ProtobufCMessage base;
+  size_t n_mwimsgsummary;
+  Ims__MwiMessageSummary **mwimsgsummary;
+  char *ueaddress;
+  size_t n_mwimsgdetail;
+  Ims__MwiMessageDetails **mwimsgdetail;
+};
+#define IMS__MWI__INIT \
+ { NULL, 0,NULL, NULL, 0,NULL }
+
+
+struct  _Ims__Hold
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_callid;
+  uint32_t callid;
+};
+#define IMS__HOLD__INIT \
+ { 0,0 }
+
+
+struct  _Ims__Resume
+{
+  ProtobufCMessage base;
+  protobuf_c_boolean has_callid;
+  uint32_t callid;
+};
+#define IMS__RESUME__INIT \
+ { 0,0 }
 
 #endif
 
@@ -1076,6 +1260,25 @@ Ims__LastFailCause *
 void   qcril_qmi_ims__last_fail_cause__free_unpacked
                      (Ims__LastFailCause *message,
                       ProtobufCAllocator *allocator);
+/* Ims__Extra methods */
+void   qcril_qmi_ims__extra__init
+                     (Ims__Extra         *message);
+size_t qcril_qmi_ims__extra__get_packed_size
+                     (const Ims__Extra   *message);
+size_t qcril_qmi_ims__extra__pack
+                     (const Ims__Extra   *message,
+                      uint8_t             *out);
+size_t qcril_qmi_ims__extra__pack_to_buffer
+                     (const Ims__Extra   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Extra *
+       qcril_qmi_ims__extra__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__extra__free_unpacked
+                     (Ims__Extra *message,
+                      ProtobufCAllocator *allocator);
 /* Ims__Handover methods */
 void   qcril_qmi_ims__handover__init
                      (Ims__Handover         *message);
@@ -1234,6 +1437,25 @@ Ims__CallForwardInfoList *
 void   qcril_qmi_ims__call_forward_info_list__free_unpacked
                      (Ims__CallForwardInfoList *message,
                       ProtobufCAllocator *allocator);
+/* Ims__CallFwdTimerInfo methods */
+void   qcril_qmi_ims__call_fwd_timer_info__init
+                     (Ims__CallFwdTimerInfo         *message);
+size_t qcril_qmi_ims__call_fwd_timer_info__get_packed_size
+                     (const Ims__CallFwdTimerInfo   *message);
+size_t qcril_qmi_ims__call_fwd_timer_info__pack
+                     (const Ims__CallFwdTimerInfo   *message,
+                      uint8_t             *out);
+size_t qcril_qmi_ims__call_fwd_timer_info__pack_to_buffer
+                     (const Ims__CallFwdTimerInfo   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__CallFwdTimerInfo *
+       qcril_qmi_ims__call_fwd_timer_info__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__call_fwd_timer_info__free_unpacked
+                     (Ims__CallFwdTimerInfo *message,
+                      ProtobufCAllocator *allocator);
 /* Ims__ConfInfo methods */
 void   qcril_qmi_ims__conf_info__init
                      (Ims__ConfInfo         *message);
@@ -1354,6 +1576,26 @@ void   qcril_qmi_ims__clip_provision_status__free_unpacked
                      (Ims__ClipProvisionStatus *message,
                       ProtobufCAllocator *allocator);
 
+/* Ims__Colr methods */
+void   qcril_qmi_ims__colr__init
+                     (Ims__Colr         *message);
+size_t qcril_qmi_ims__colr__get_packed_size
+                     (const Ims__Colr *message);
+size_t qcril_qmi_ims__colr__pack
+                     (const Ims__Colr *message,
+                      uint8_t       *out);
+size_t qcril_qmi_ims__colr__pack_to_buffer
+                     (const Ims__Colr *message,
+                      ProtobufCBuffer *buffer);
+Ims__Colr *
+       qcril_qmi_ims__colr__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__colr__free_unpacked
+                     (Ims__Colr *message,
+                      ProtobufCAllocator *allocator);
+
 /* Ims__VideoCallQuality methods */
 void   qcril_qmi_ims__video_call_quality__init
                      (Ims__VideoCallQuality         *message);
@@ -1372,5 +1614,101 @@ Ims__VideoCallQuality *
                       const uint8_t       *data);
 void   qcril_qmi_ims__video_call_quality__free_unpacked
                      (Ims__VideoCallQuality *message,
+                      ProtobufCAllocator *allocator);
+
+/* Ims__MwiMessageSummary methods */
+void   qcril_qmi_ims__mwi_message_summary__init
+                     (Ims__MwiMessageSummary         *message);
+size_t qcril_qmi_ims__mwi_message_summary__get_packed_size
+                     (const Ims__MwiMessageSummary   *message);
+size_t qcril_qmi_ims__mwi_message_summary__pack
+                     (const Ims__MwiMessageSummary   *message,
+                      uint8_t             *out);
+size_t qcril_qmi_ims__mwi_message_summary__pack_to_buffer
+                     (const Ims__MwiMessageSummary   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__MwiMessageSummary *
+       qcril_qmi_ims__mwi_message_summary__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__mwi_message_summary__free_unpacked
+                     (Ims__MwiMessageSummary *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__MwiMessageDetails methods */
+void   qcril_qmi_ims__mwi_message_details__init
+                     (Ims__MwiMessageDetails         *message);
+size_t qcril_qmi_ims__mwi_message_details__get_packed_size
+                     (const Ims__MwiMessageDetails   *message);
+size_t qcril_qmi_ims__mwi_message_details__pack
+                     (const Ims__MwiMessageDetails   *message,
+                      uint8_t             *out);
+size_t qcril_qmi_ims__mwi_message_details__pack_to_buffer
+                     (const Ims__MwiMessageDetails   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__MwiMessageDetails *
+       qcril_qmi_ims__mwi_message_details__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__mwi_message_details__free_unpacked
+                     (Ims__MwiMessageDetails *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__Mwi methods */
+void   qcril_qmi_ims__mwi__init
+                     (Ims__Mwi         *message);
+size_t qcril_qmi_ims__mwi__get_packed_size
+                     (const Ims__Mwi   *message);
+size_t qcril_qmi_ims__mwi__pack
+                     (const Ims__Mwi   *message,
+                      uint8_t             *out);
+size_t qcril_qmi_ims__mwi__pack_to_buffer
+                     (const Ims__Mwi   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Mwi *
+       qcril_qmi_ims__mwi__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__mwi__free_unpacked
+                     (Ims__Mwi *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__Hold methods */
+void   qcril_qmi_ims__hold__init
+                     (Ims__Hold         *message);
+size_t qcril_qmi_ims__hold__get_packed_size
+                     (const Ims__Hold   *message);
+size_t qcril_qmi_ims__hold__pack
+                     (const Ims__Hold   *message,
+                      uint8_t             *out);
+size_t qcril_qmi_ims__hold__pack_to_buffer
+                     (const Ims__Hold   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Hold *
+       qcril_qmi_ims__hold__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__hold__free_unpacked
+                     (Ims__Hold *message,
+                      ProtobufCAllocator *allocator);
+/* Ims__Resume methods */
+void   qcril_qmi_ims__resume__init
+                     (Ims__Resume         *message);
+size_t qcril_qmi_ims__resume__get_packed_size
+                     (const Ims__Resume   *message);
+size_t qcril_qmi_ims__resume__pack
+                     (const Ims__Resume   *message,
+                      uint8_t             *out);
+size_t qcril_qmi_ims__resume__pack_to_buffer
+                     (const Ims__Resume   *message,
+                      ProtobufCBuffer     *buffer);
+Ims__Resume *
+       qcril_qmi_ims__resume__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   qcril_qmi_ims__resume__free_unpacked
+                     (Ims__Resume *message,
                       ProtobufCAllocator *allocator);
 #endif /* QCRIL_QMI_IMS_IF_PB_H */

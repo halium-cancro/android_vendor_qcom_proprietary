@@ -3,6 +3,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_CFLAGS += -DFEATURE_QMI_ANDROID
+LOCAL_CFLAGS += -DFEATURE_QMI_IWLAN
 
 # Logging Features. Turn any one ON at any time
 
@@ -35,7 +36,6 @@ LOCAL_SHARED_LIBRARIES += libdsutils
 LOCAL_SHARED_LIBRARIES += libqmiservices
 LOCAL_SHARED_LIBRARIES += libidl
 LOCAL_SHARED_LIBRARIES += liblog
-
 
 LOCAL_MODULE := libqmi_client_qmux
 

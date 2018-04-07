@@ -9,7 +9,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2008-2013 Qualcomm Technologies, Inc.  All Rights Reserved.
+  Copyright (c) 2008-2014 Qualcomm Technologies, Inc.  All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
   Export of this technology or software is regulated by the U.S. Government.
@@ -126,6 +126,7 @@ int dsi_mni_start
                                   st_hndl->priv.partial_retry,
                                   dsi_qmi_wds_cmd_cb,
                                   (void *)st_hndl,
+                                  st_hndl->priv.rl_qmi_inst,
                                   &call_end_reason,
                                   &qmi_err_code);
 
@@ -1091,6 +1092,7 @@ int dsi_mni_init_client(int conn_id)
                   "with name [%s]", DSI_GET_WDS_STR(conn_id));
     /* obtain qmi_wds service client for the given qmi port */
     qmi_ret = qdi_wds_srvc_init_client(DSI_GET_WDS_STR(conn_id),
+                                       DSI_GET_DEV_STR(conn_id),
                                        dsi_qmi_wds_ind_cb,
                                        (void *)conn_id,
                                        &qmi_err_code);
@@ -1454,6 +1456,10 @@ int dsi_mni_register_embms_ind(int i, dsi_store_t * st_hndl)
     ind_type.param_mask      |= QMI_WDS_EMBMS_SAI_INDICATION_REG_LIST_PARAM_MASK;
     ind_type.sai_list_pref = QMI_WDS_EMBMS_SAI_IND_REPORT;
 
+    /* register control desc control indication */
+    ind_type.param_mask      |= QMI_WDS_EMBMS_CONT_DESC_CTRL_INDICATION_REG_LIST_PARAM_MASK;
+    ind_type.cont_desc_ctrl_pref = QMI_WDS_EMBMS_CONT_DESC_CTRL_IND_REPORT;
+
     qmi_ret = qmi_wds_indication_register(DSI_GET_WDS_HNDL(i),
                                           ind_type,
                                           &qmi_err_code);
@@ -1763,3 +1769,65 @@ int dsi_mni_embms_tmgi_list_query(int i, dsi_store_t * st_hndl)
 
   return ret;
 }
+
+/*===========================================================================
+  FUNCTION:  dsi_mni_embms_tmgi_content_desc_update
+===========================================================================*/
+/*!
+    @brief
+    This function updates content desc on EMBMS data call.
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+int dsi_mni_embms_tmgi_content_desc_update(int i, dsi_store_t * st_hndl)
+{
+  int ret = DSI_ERROR;
+  int qmi_ret, qmi_err_code;
+
+  DSI_LOG_DEBUG( "%s", "dsi_mni_embms_tmgi_content_desc_update: ENTRY" );
+
+  /* this do..while loop decides the overall return value
+     set ret to ERROR at the beginning. set ret to SUCCESS
+     at the end. If there was an error in the middle, we break out*/
+  do
+  {
+    if (!DSI_IS_ID_VALID(i) ||
+        !DSI_IS_HNDL_VALID(st_hndl))
+    {
+      DSI_LOG_ERROR("%s", "**programming err* invalid params received");
+      break;
+    }
+
+    DSI_LOG_DEBUG("dsi_mni_embms_tmgi_content_desc_update dbg_trace_id:[%d]",
+                  st_hndl->priv.embms_content_desc_update_info.dbg_trace_id);
+
+    qmi_ret = qmi_wds_embms_content_desc_update(
+                DSI_GET_WDS_HNDL(i),
+                &(st_hndl->priv.embms_content_desc_update_info),
+                &qmi_err_code);
+
+    if(qmi_ret < 0)
+    {
+      DSI_LOG_ERROR("dsi_mni_embms_tmgi_content_desc_update failed: iface=[%d] err=[%d]",
+                    i, qmi_err_code);
+      break;
+    }
+
+    ret = DSI_SUCCESS;
+  } while (0);
+
+  if (ret == DSI_ERROR)
+  {
+    DSI_LOG_DEBUG( "%s", "dsi_mni_embms_tmgi_content_desc_update: EXIT with err");
+  }
+  else
+  {
+    DSI_LOG_DEBUG( "%s", "dsi_mni_embms_tmgi_content_desc_update: EXIT with suc");
+  }
+
+  return ret;
+}
+

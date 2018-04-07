@@ -11,7 +11,7 @@ Description:
 
 /*===========================================================================
 
-  Copyright (c) 2012-2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -104,6 +104,7 @@ stm_state_t netmgr_sm_qos_flow_control(stm_state_machine_t *sm, void *payload);
 stm_state_t netmgr_sm_modem_connected_while_going_down(stm_state_machine_t *sm, void *payload);
 stm_state_t netmgr_sm_kif_opened_while_going_down(stm_state_machine_t *sm, void *payload);
 stm_state_t netmgr_sm_kif_down_to_come_up(stm_state_machine_t *sm, void *payload);
+stm_state_t netmgr_sm_modem_disconnected_in_inited(stm_state_machine_t *sm, void *payload);
 
 
 /* State enumeration */

@@ -9,7 +9,7 @@
   N/A
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2007-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2007-2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -40,7 +40,16 @@ typedef int qmi_qmux_clnt_id_t;
 #include "qmi_platform_qmux_if.h"
 #endif
 
-#ifdef FEATURE_RILTEST
+#ifdef FEATURE_QMI_TEST
+  // off-target QMI test via regular files
+  #define SMD_DEVICE_NAME       "/tmp/data/smdcntl"
+  #define SMD_REV_DEVICE_NAME   "/tmp/data/smdcnt_rev"
+  #define SDIO_DEVICE_NAME      "/tmp/data/sdioctl"
+  #define HSIC_DEVICE_NAME      "/tmp/data/hsicctl"
+  #define SMUX_DEVICE_NAME      "/tmp/data/smuxctl"
+  #define USB_DEVICE_NAME       "/tmp/data/hsusbctl"
+  #define MHI_DEVICE_NAME       "/tmp/data/mhi_pipe_"
+#elif defined(FEATURE_RILTEST)
   // off-target RIL test via FUSE
   #define SMD_DEVICE_NAME       "/tmp/fuse/smdcntl"
   #define SMD_REV_DEVICE_NAME   "/tmp/fuse/smdcnt_rev"
@@ -48,6 +57,7 @@ typedef int qmi_qmux_clnt_id_t;
   #define HSIC_DEVICE_NAME      "/tmp/fuse/hsicctl"
   #define SMUX_DEVICE_NAME      "/tmp/fuse/smuxctl"
   #define USB_DEVICE_NAME       "/tmp/fuse/hsusbctl"
+  #define MHI_DEVICE_NAME       "/tmp/fuse/mhi_pipe_"
 #else
   // on-target
   #define SMD_DEVICE_NAME       "/dev/smdcntl"
@@ -56,6 +66,7 @@ typedef int qmi_qmux_clnt_id_t;
   #define HSIC_DEVICE_NAME      "/dev/hsicctl"
   #define SMUX_DEVICE_NAME      "/dev/smuxctl"
   #define USB_DEVICE_NAME       "/dev/hsusbctl"
+  #define MHI_DEVICE_NAME       "/dev/mhi_pipe_"
 #endif
 
 /* Typedef of internally used client ID type */
@@ -69,9 +80,15 @@ typedef unsigned char qmi_client_id_type;
 #define LOG_FUNC_ENTER() QMI_DEBUG_MSG_1  ("Entering function %s\n",__FUNCTION__)
 #define LOG_FUNC_EXIT() QMI_DEBUG_MSG_1  ("Exiting function %s\n",__FUNCTION__)
 
-#define QMI_UPDATE_THREAD_STATE(conn_id, state)                              \
-    QMI_DEBUG_MSG_2 ("Thread state: conn_id=%d, state=%s", conn_id, #state); \
+#ifdef FEATURE_DATA_LOG_QXDM
+  #define QMI_UPDATE_THREAD_STATE(conn_id, state)                                                \
+    QMI_LOG_MSG_DIAG(MSG_LEGACY_MED, "Thread state: conn_id=%d, state=%s\n", conn_id, #state); \
     linux_qmi_thread_state[conn_id] = #state
+#else
+  #define QMI_UPDATE_THREAD_STATE(conn_id, state)                              \
+    QMI_DEBUG_MSG_2 ("Thread state: conn_id=%d, state=%s\n", conn_id, #state); \
+    linux_qmi_thread_state[conn_id] = #state
+#endif
 
 extern const char *linux_qmi_thread_state[];
 
@@ -106,6 +123,7 @@ typedef enum
   QMI_QMUX_IF_MODEM_OUT_OF_SERVICE_MSG_ID,
   QMI_QMUX_IF_MODEM_IN_SERVICE_MSG_ID,
   QMI_QMUX_IF_NEW_SRVC_AVAIL_MSG_ID,
+  QMI_QMUX_IF_PORT_WRITE_FAIL_IND_MSG_ID,
   QMI_QMUX_IF_LAST_SYS_IND_MSG_ID = QMI_QMUX_IF_NEW_SRVC_AVAIL_MSG_ID,
 
   QMI_QMUX_IF_MAX_NUM_MSGS /* Must stay last in enum */
@@ -126,6 +144,12 @@ typedef struct
   unsigned char              control_flags;
 } qmi_qmux_if_msg_hdr_type;
 
+
+typedef enum
+{
+  QMI_QMUX_OPEN_MODE_NORMAL,
+  QMI_QMUX_OPEN_MODE_REINIT
+} qmi_qmux_open_mode_type;
 
 /* QMI message header sizes */
 #define QMI_QMUX_HDR_SIZE         (6)

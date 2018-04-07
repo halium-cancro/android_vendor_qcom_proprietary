@@ -35,22 +35,20 @@
 #include "qcril_arb.h"
 #include "qcril_log.h"
 #include "qcril_reqlist.h"
-#include "qcril_arb.h"
 #include "qcril_other.h"
 #include "qcrilhook_oem.h"
 #include "qcril_qmi_client.h"
 #include "qcril_db.h"
 
+#include "qcril_pbm.h"
 #include "qcril_qmi_nas.h"
 #include "qcril_qmi_nas2.h"
 #include "qcril_qmi_voice.h"
 #include "qcril_qmi_imsa.h"
 #include "qcril_qmi_pdc.h"
 
-#ifndef QMI_RIL_UTF
 #include "qcril_qmi_ims_socket.h"
 #include "qcril_qmi_ims_misc.h"
-#endif
 
 #include "qcril_qmi_oem_socket.h"
 
@@ -58,6 +56,16 @@
 
 #include "core_handler.h"
 #include "cri_core.h"
+#include "mdm_detect.h"
+#include "qcril_am.h"
+#include "qmi_ril_peripheral_mng.h"
+
+#ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+  #include "qcril_uim_remote_client_socket.h"
+#endif
+#ifdef FEATURE_QCRIL_UIM_REMOTE_SERVER
+  #include "qcril_uim_remote_server_socket.h"
+#endif
 
 /*===========================================================================
 
@@ -97,13 +105,15 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
    *      COMMAND CALLBACKS     *
    * ---------------------------*/
 
-#ifndef QMI_RIL_UTF
 
   /* QCRIL_EVT_UIM_QMI_COMMAND_CALLBACK */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_UIM_QMI_COMMAND_CALLBACK, qcril_uim_process_qmi_callback ) },
 
   /* QCRIL_EVT_UIM_QMI_INDICATION */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_UIM_QMI_INDICATION, qcril_uim_process_qmi_indication ) },
+
+  /* QCRIL_EVT_UIM_MCC_MNC_INFO */
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_UIM_MCC_MNC_INFO, qcril_uim_process_mcc_mnc_info ) },
 
   /* QCRIL_EVT_INTERNAL_UIM_VERIFY_PIN_COMMAND_CALLBACK */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_INTERNAL_UIM_VERIFY_PIN_COMMAND_CALLBACK, qcril_uim_process_internal_command ) },
@@ -140,6 +150,12 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
 
   /* QCRIL_EVT_INTERNAL_MMGSDI_MODEM_RESTART_COMPLETE */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_INTERNAL_MMGSDI_MODEM_RESTART_COMPLETE, qcril_uim_process_internal_command ) },
+
+  /* QCRIL_EVT_INTERNAL_UIM_SAP_RESP */
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_INTERNAL_UIM_SAP_RESP, qcril_uim_sap_process_response ) },
+
+  /* QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC */
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC, qcril_uim_process_internal_command ) },
 
   /* -------------------*
    *     RIL_REQUESTS   *
@@ -179,25 +195,48 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /* 105 - RIL_REQUEST_ISIM_AUTHENTICATION */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_ISIM_AUTHENTICATION, qcril_uim_request_isim_authenticate ) },
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#ifdef RIL_REQUEST_SIM_APDU
   /* 104 - RIL_REQUEST_SIM_APDU */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_APDU, qcril_uim_request_send_apdu ) },
+#endif /* RIL_REQUEST_SIM_APDU */
 
+#ifdef RIL_REQUEST_SIM_OPEN_CHANNEL
   /* 105 - RIL_REQUEST_SIM_OPEN_CHANNEL */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_OPEN_CHANNEL, qcril_uim_request_logical_channel ) },
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL */
 
+#ifdef RIL_REQUEST_SIM_CLOSE_CHANNEL
   /* 106 - RIL_REQUEST_SIM_CLOSE_CHANNEL */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_CLOSE_CHANNEL, qcril_uim_request_logical_channel ) },
+#endif /* RIL_REQUEST_SIM_CLOSE_CHANNEL */
 
+#ifdef RIL_REQUEST_SIM_TRANSMIT_CHANNEL
   /* 107 - RIL_REQUEST_SIM_TRANSMIT_CHANNEL */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_TRANSMIT_CHANNEL, qcril_uim_request_send_apdu ) },
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
+#endif /* RIL_REQUEST_SIM_TRANSMIT_CHANNEL */
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
+#ifdef RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC
+  /* 114 - RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC */
+  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC, qcril_uim_request_send_apdu ) },
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC */
+
+#ifdef RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL
+  /* 117 - RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL, qcril_uim_request_send_apdu ) },
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+
+#if defined RIL_REQUEST_SIM_GET_ATR
   /* 125 - RIL_REQUEST_SIM_GET_ATR */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_GET_ATR, qcril_uim_request_get_atr ) },
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+#endif /* RIL_REQUEST_SIM_GET_ATR */
 
+#ifdef RIL_REQUEST_SIM_AUTHENTICATION
+  /* TBD - RIL_REQUEST_SIM_AUTHENTICATION */
+  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SIM_AUTHENTICATION, qcril_uim_request_sim_authenticate ) },
+#endif /* RIL_REQUEST_SIM_AUTHENTICATION */
+
+  /* QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ, qcril_uim_request_voltage_status ) },
 
   /**********************************************
    *                  SIM (GSTK)                *
@@ -245,7 +284,6 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /* 107 - RIL_REQUEST_STK_SEND_ENVELOPE_WITH_STATUS */
   { QCRIL_REG_ALL_STATES( RIL_REQUEST_STK_SEND_ENVELOPE_WITH_STATUS, qcril_gstk_qmi_request_stk_send_envelope_with_status ) },
 
-#endif
   /**********************************************
    *                    SMS                     *
    **********************************************/
@@ -337,6 +375,9 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /*QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP, qcril_qmi_nas_event_subs_deactivate_followup ) },
 
+  /*QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE */
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE, qcril_qmi_nas_event_card_status_update ) },
+
   /* QCRIL_EVT_QMI_NAS_SIG_STRENGTH_UPDATE */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_NAS_SIG_STRENGTH_UPDATE, qcril_qmi_trigger_propagate_known_signal_strength_ind ) },
 
@@ -402,6 +443,11 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /* 109 - RIL_REQUEST_GET_DATA_CALL_PROFILE */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_GET_DATA_CALL_PROFILE, qcril_data_request_omh_profile_info ) },
 
+
+  /* 128 - RIL_REQUEST_SET_DATA_PROFILE */
+  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SET_DATA_PROFILE, qcril_data_request_set_data_profile ) },
+
+
   /* - RIL_REQUEST_DATA_GO_DORMANT*/
   { QCRIL_REG_ALL_ACTIVE_STATES(QCRIL_EVT_HOOK_DATA_GO_DORMANT, qcril_data_process_qcrilhook_go_dormant)},
 
@@ -450,7 +496,9 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_MODEM_RESTART_UIM_SUSPEND_REQ, qmi_ril_route_uim_suspend_handler ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_MODEM_RESTART_UIM_RESUME_REQ, qmi_ril_route_uim_resume_handler ) },
 
-
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_MODEM_RESTART_CHECK_IF_SERVICE_UP,
+                                                 qcril_qmi_check_if_service_is_up) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_SERVICE_DOWN, qcril_qmi_handle_event_service_down) },
   /* -------------------*
    *        EVENTS      *
    * -------------------*/
@@ -463,6 +511,8 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_CHECK_PRL_VER_CHANGE, qcril_qmi_nas_dms_handle_check_prl_ver_change ) },
 
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_REQUEST_NW_SCAN, qcril_qmi_nas_perform_network_scan_command_cb_helper ) },
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_REQUEST_NW_SELECT, qcril_qmi_nas_set_nw_selection_command_cb_helper ) },
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_REQUEST_EMBMS_SET_ENABLE, qcril_qmi_nas_embms_set_enable_cmd_cb_helper ) },
 
 
   /* ---------------------------*
@@ -479,16 +529,19 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_VOICE_EMERGENCY_CALL_PENDING, qcril_qmi_voice_emergency_call_pending_handler ) },
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_VOICE_HANDLE_INDICATIONS, qcril_qmi_voice_unsol_ind_cb_helper ) },
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_VOICE_HANDLE_COMM_CALLBACKS, qcril_qmi_voice_command_cb_helper ) },
-#ifndef QMI_RIL_UTF
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_IMSA_HANDLE_INDICATIONS, qcril_qmi_imsa_unsol_ind_cb_helper ) },
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_IMSA_HANDLE_COMM_CALLBACKS, qcril_qmi_imsa_command_cb_helper ) },
 
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_IMSS_HANDLE_COMM_CALLBACKS, qcril_qmi_imss_command_cb_helper ) },
-#endif
 
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_NAS_HANDLE_INDICATIONS, qcril_qmi_nas_unsolicited_indication_cb_helper ) },
-
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_NAS_HANDLE_ASYNC_CB, qcril_qmi_nas_async_cb_helper ) },
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_DMS_HANDLE_INDICATIONS, qcril_qmi_dms_unsolicited_indication_cb_helper ) },
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_PBM_HANDLE_INDICATIONS, qcril_qmi_pbm_unsolicited_indication_cb_helper ) },
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_SMS_HANDLE_INDICATIONS, qcril_qmi_sms_unsolicited_indication_cb_helper ) },
+#ifdef QMI_RIL_UTF
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_QMI_DSD_HANDLE_INDICATIONS, qcril_qmi_dsd_unsolicited_indication_cb_helper ) },
+#endif
 
   /* -------------------*
    *     RIL_REQUESTS   *
@@ -543,6 +596,7 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_ACTIVATE_DEACTIVATE_TMGI,  qcril_data_embms_activate_deactivate_tmgi) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_GET_AVAILABLE_TMGI, qcril_data_embms_get_available_tmgi) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_GET_ACTIVE_TMGI, qcril_data_embms_get_active_tmgi) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_CONTENT_DESC_UPDATE, qcril_data_embms_content_desc_update) },
 #endif
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_GET_COVERAGE_STATE,  qcril_qmi_nas_embms_request_get_coverage_state) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_GET_RSSI,  qcril_qmi_nas_embms_get_rssi ) },
@@ -552,6 +606,7 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_EMBMS_SEND_UNSOL_RADIO_STATE,  qcril_qmi_nas_embms_send_radio_state_helper ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_GET_ACTIVE_LOG_PACKET_IDS,  qcril_qmi_nas_embms_get_active_log_packet_ids ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_DELIVER_LOG_PACKET,  qcril_qmi_nas_embms_deliver_log_packet ) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_EMBMS_GET_E911_STATE,  qcril_qmi_nas_embms_get_e911_state ) },
 
   /**********************************************
    *                    QTuner (RFPE)           *
@@ -625,14 +680,8 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /* 109 - RIL_REQUEST_SET_UICC_SUBSCRIPTION */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SET_UICC_SUBSCRIPTION, qcril_qmi_nas_set_uicc_subscription ) },
 
-  /* 110 - RIL_REQUEST_SET_DATA_SUBSCRIPTION */
-  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SET_DATA_SUBSCRIPTION, qcril_qmi_nas_dsds_request_set_data_subscription ) },
-
   /* 111 - RIL_REQUEST_GET_UICC_SUBSCRIPTION */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_GET_UICC_SUBSCRIPTION, qcril_qmi_nas_dsds_request_get_uicc_subscription ) },
-
-  /* 112 - RIL_REQUEST_GET_DATA_SUBSCRIPTION */
-  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_GET_DATA_SUBSCRIPTION, qcril_qmi_nas_dsds_request_get_data_subscription ) },
 
   /* 113 - RIL_REQUEST_SET_SUBSCRIPTION_MODE */
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SET_SUBSCRIPTION_MODE, qcril_qmi_nas_dsds_request_set_subscription_mode ) },
@@ -640,9 +689,14 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /* QCRIL_EVT_HOOK_SET_TRANSMIT_POWER */
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_TRANSMIT_POWER, qcril_qmi_nas2_set_max_transmit_power ) },
 
-  /*123 - RIL_REQUEST_SET_INITIAL_ATTACH_APN*/
+  /* 111 - RIL_REQUEST_SET_INITIAL_ATTACH_APN*/
   { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SET_INITIAL_ATTACH_APN, qcril_qmi_nas_set_initial_attach_apn ) },
 
+  /* 123 - RIL_REQUEST_ALLOW_DATA */
+  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_ALLOW_DATA, qcril_qmi_nas_request_allow_data ) },
+
+  /* 129 - RIL_REQUEST_SHUTDOWN */
+  { QCRIL_REG_ALL_ACTIVE_STATES( RIL_REQUEST_SHUTDOWN, qcril_qmi_nas_request_shutdown) },
   /* -------------------*
    *        EVENTS      *
    * -------------------*/
@@ -652,6 +706,9 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
 
   /* QCRIL_EVT_CM_CARD_STATUS_UPDATED */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_CM_CARD_STATUS_UPDATED, qcril_qmi_nas_dms_event_card_status_updated ) },
+
+  /* QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED */
+  { QCRIL_REG_ALL_STATES( QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED, qcril_qmi_nas_event_app_status_update) },
 
   /* QCRIL_EVT_CM_ACTIVATE_PROVISION_STATUS */
   { QCRIL_REG_ALL_STATES( QCRIL_EVT_CM_ACTIVATE_PROVISION_STATUS, qcril_qmi_nas_event_activate_provision_status ) },
@@ -874,9 +931,6 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /* 0x80009 - QCRIL_EVT_HOOK_GET_NEIGHBORING_CELLS_INFO */
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_NEIGHBORING_CELLS_INFO, qcril_other_request_oem_hook_neighboring_cells_info ) },
 
-  /* 0x8000a - QCRIL_EVT_HOOK_INFORM_SHUTDOWN */
-  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_INFORM_SHUTDOWN, qcril_qmi_nas_dms_handle_oem_hook_shutdown_inform ) },
-
   /* 0x8000b - QCRIL_EVT_HOOK_SET_CDMA_SUB_SRC_WITH_SPC */
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_CDMA_SUB_SRC_WITH_SPC,
         qcril_qmi_nas_set_subscription_source_with_spc ) },
@@ -885,6 +939,12 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
 
   /* 0x8000d - QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD */
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD, qcril_qmi_voice_request_set_local_call_hold ) },
+
+  /* - QCRIL_EVT_HOOK_SET_DATA_SUBSCRIPTION */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_DATA_SUBSCRIPTION, qcril_qmi_nas_dsds_request_set_data_subscription ) },
+
+  /* QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY, qcril_qmi_nas_dsds_request_set_lte_tune_away ) },
 
   /* 0x80050 - QCRIL_EVT_HOOK_CSG_PERFORM_NW_SCAN */
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_CSG_PERFORM_NW_SCAN, qcril_qmi_nas_csg_handle_oem_hook_perform_network_scan ) },
@@ -979,14 +1039,71 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   /* QCRIL_EVT_HOOK_QUERY_MODEM_TEST_MODE */
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_QUERY_MODEM_TEST_MODE, qcril_qmi_pdc_query_modem_test_mode) },
 
-  /* QCRIL_EVT_HOOK_CLEANUP_LOADED_CONFIGS */
-  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_CLEANUP_LOADED_CONFIGS, qcril_qmi_pdc_cleanup_loaded_configs ) },
+  /* QCRIL_EVT_HOOK_GET_AVAILABLE_CONFIGS */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_AVAILABLE_CONFIGS, qcril_qmi_pdc_get_available_configs) },
 
  /* QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_ACQ_ORDER*/
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_ACQ_ORDER, qcril_qmi_nas_request_set_preferred_network_acq_order ) },
 
  /* QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_ACQ_ORDER*/
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_ACQ_ORDER, qcril_qmi_nas_request_get_preferred_network_acq_order ) },
+
+  /* QCRIL_EVT_HOOK_GET_CURRENT_SETUP_CALLS */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_CURRENT_SETUP_CALLS, qcril_qmi_voice_get_current_setup_calls ) },
+
+  /* QCRIL_EVT_HOOK_REQUEST_SETUP_ANSWER */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_REQUEST_SETUP_ANSWER, qcril_qmi_voice_request_setup_answer ) },
+
+  /* QCRIL_EVT_HOOK_CLEANUP_LOADED_CONFIGS */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_CLEANUP_LOADED_CONFIGS, qcril_qmi_pdc_cleanup_loaded_configs ) },
+
+  /* QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY, qcril_qmi_nas_get_modem_capability ) },
+
+  /* QCRIL_EVT_HOOK_UPDATE_SUB_BINDING */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_UPDATE_SUB_BINDING, qcril_qmi_nas_update_sub_binding ) },
+
+  /* QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_BAND_PREF*/
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_BAND_PREF, qcril_qmi_nas_request_set_preferred_network_band_pref) },
+
+  /* QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_BAND_PREF*/
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_BAND_PREF, qcril_qmi_nas_request_get_preferred_network_band_pref) },
+
+  /* QCRIL_EVT_HOOK_SEL_CONFIG */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SEL_CONFIG, qcril_qmi_pdc_select_configs ) },
+
+  /* QCRIL_EVT_HOOK_GET_META_INFO */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_META_INFO, qcril_qmi_pdc_get_meta_info_of_config ) },
+
+  /* QCRIL_EVT_HOOK_SET_IS_DATA_ENABLED */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_IS_DATA_ENABLED, qcril_qmi_nas_set_is_data_enabled ) },
+
+  /* QCRIL_EVT_HOOK_SET_IS_DATA_ROAMING_ENABLED */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_IS_DATA_ROAMING_ENABLED, qcril_qmi_nas_set_is_data_roaming_enabled ) },
+
+  /* QCRIL_EVT_HOOK_SET_APN_INFO */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_SET_APN_INFO , qcril_qmi_nas_set_apn_info ) },
+
+  /* QCRIL_EVT_HOOK_DEACTIVATE_CONFIGS */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_DEACTIVATE_CONFIGS, qcril_qmi_pdc_deactivate_configs ) },
+
+  /* QCRIL_EVT_HOOK_GET_QC_VERSION_OF_FILE */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_QC_VERSION_OF_FILE, qcril_qmi_pdc_get_qc_version_of_file ) },
+
+  /* QCRIL_EVT_HOOK_VALIDATE_CONFIG */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_VALIDATE_CONFIG, qcril_qmi_pdc_validate_config ) },
+
+  /* QCRIL_EVT_HOOK_GET_QC_VERSION_OF_CONFIGID */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_QC_VERSION_OF_CONFIGID, qcril_qmi_pdc_get_qc_version_of_configid ) },
+
+  /* QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_FILE */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_FILE, qcril_qmi_pdc_get_oem_version_of_file ) },
+
+  /* QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_CONFIGID */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_CONFIGID, qcril_qmi_pdc_get_oem_version_of_configid ) },
+
+  /* QCRIL_EVT_HOOK_ACTIVATE_CONFIGS */
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_HOOK_ACTIVATE_CONFIGS, qcril_qmi_pdc_activate_configs ) },
 
   /* -------------------*
    *      CALLBACKS     *
@@ -997,21 +1114,21 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
    * -------------------*/
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_PDC_LOAD_CONFIGURATION, qcril_qmi_pdc_load_configuration) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_PDC_SELECT_CONFIGURATION, qcril_qmi_pdc_select_configuration) },
-  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_PDC_ACTIVATE_CONFIGURATION, qcril_qmi_pdc_activate_configuration) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_PDC_DELETE_CONFIGURATION, qcril_qmi_pdc_delete_configuration) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_PDC_LIST_CONFIGURATION, qcril_qmi_pdc_list_configuration) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_PDC_DEACTIVATE_CONFIGURATION, qcril_qmi_pdc_deactivate_configuration) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_QMI_RIL_PDC_PARSE_DIFF_RESULT, qcril_qmi_pdc_parse_diff_result) },
+
   /* -------------------*
    *     UNSOLICITED    *
    * -------------------*/
 
-#ifndef QMI_RIL_UTF
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_IMS_REGISTRATION_STATE, qcril_qmi_imsa_request_ims_registration_state ) },
-#endif
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_DIAL, qcril_qmi_voice_request_dial ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_ANSWER, qcril_qmi_voice_request_answer ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_HANGUP, qcril_qmi_voice_request_hangup ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_LAST_CALL_FAIL_CAUSE, qcril_qmi_voice_request_last_call_fail_cause ) },
-  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS, qcril_qmi_voice_request_get_current_ims_calls ) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS, qcril_qmi_voice_send_current_ims_calls ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_HANGUP_WAITING_OR_BACKGROUND, qcril_qmi_voice_request_manage_calls_hangup_waiting_or_background ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_HANGUP_FOREGROUND_RESUME_BACKGROUND, qcril_qmi_voice_request_manage_calls_hangup_foreground_resume_background ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE, qcril_qmi_voice_request_manage_calls_switch_waiting_or_holding_and_active ) },
@@ -1029,10 +1146,8 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SET_CALL_FORWARD_STATUS, qcril_qmi_voice_request_set_call_forward ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_QUERY_CALL_WAITING, qcril_qmi_voice_request_query_call_waiting ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SET_CALL_WAITING, qcril_qmi_voice_request_set_call_waiting ) },
-#ifndef QMI_RIL_UTF
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_IMS_REG_STATE_CHANGE, qcril_qmi_imss_request_set_ims_registration ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SET_SUPP_SVC_NOTIFICATION, qcril_qmi_voice_request_set_supp_svc_notification ) },
-#endif
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_ADD_PARTICIPANT, qcril_qmi_voice_request_add_participant ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_QUERY_SERVICE_STATUS, qcril_qmi_imsa_request_query_ims_srv_status ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SET_SERVICE_STATUS, qcril_qmi_imss_request_set_ims_srv_status ) },
@@ -1041,6 +1156,19 @@ static qcril_dispatch_table_entry_type qcril_event_table[] =
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_CALL_DEFLECTION, qcril_qmi_voice_request_call_deflection ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_QUERY_VT_CALL_QUALITY, qcril_qmi_imss_request_query_vt_call_quality ) },
   { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SET_VT_CALL_QUALITY, qcril_qmi_imss_request_set_vt_call_quality ) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_GET_COLR, qcril_qmi_voice_request_get_colr ) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SET_COLR, qcril_qmi_voice_request_set_colr ) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_HOLD, qcril_qmi_voice_request_manage_calls_hold_resume ) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_RESUME, qcril_qmi_voice_request_manage_calls_hold_resume ) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_IMS_SOCKET_REQ_SET_TTY_MODE, qcril_qmi_voice_request_set_tty_mode ) },
+
+#ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_EVENT, qcril_uim_remote_client_request_event) },
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_APDU, qcril_uim_remote_client_request_apdu) },
+#endif
+#ifdef FEATURE_QCRIL_UIM_REMOTE_SERVER
+  { QCRIL_REG_ALL_ACTIVE_STATES( QCRIL_EVT_UIM_REMOTE_SERVER_SOCKET_REQ_DISPATCH, qcril_uim_remote_server_socket_dispatch_request ) },
+#endif
 };
 
 static int qmi_ril_fw_dedicated_thrd_exec_android_requests_set[] =
@@ -1065,9 +1193,7 @@ static int qmi_ril_fw_dedicated_thrd_exec_android_requests_set[] =
     RIL_REQUEST_CDMA_QUERY_ROAMING_PREFERENCE,
     RIL_REQUEST_EXIT_EMERGENCY_CALLBACK_MODE,
     RIL_REQUEST_SET_UICC_SUBSCRIPTION,
-    RIL_REQUEST_SET_DATA_SUBSCRIPTION,
     RIL_REQUEST_GET_UICC_SUBSCRIPTION,
-    RIL_REQUEST_GET_DATA_SUBSCRIPTION,
     RIL_REQUEST_SET_SUBSCRIPTION_MODE,
     RIL_REQUEST_CDMA_QUERY_PREFERRED_VOICE_PRIVACY_MODE,
     RIL_REQUEST_SET_TTY_MODE,
@@ -1122,6 +1248,14 @@ static const struct timeval HEAP_MEM_LIST_PRINT_TIMEVAL_DELAY = {60,0};
 #define QMI_RIL_SYS_PROP_NAME_IMS_RETRY_ON_3GPP2 "persist.radio.ims_retry_3gpp2"
 #define QMI_RIL_SYS_PROP_NAME_OEM_SOCKET         "persist.radio.oem_socket"
 #define QMI_RIL_SYS_PROP_NAME_OEM_IND_TO_BOTH    "persist.radio.oem_ind_to_both"
+#define QMI_RIL_SYS_PROP_NAME_SUPPRESS_REQ       "persist.radio.suppress_req"
+
+#define QCRIL_REQUEST_SUPPRESS_MAX_LEN 4
+static int qcril_request_suppress_list[QCRIL_REQUEST_SUPPRESS_MAX_LEN];
+
+/* QCRIL request supress list mutex. */
+pthread_mutex_t      qcril_request_supress_list_mutex;
+pthread_mutexattr_t  qcril_request_supress_list_mutex_attr;
 
 typedef enum
 {
@@ -1164,6 +1298,7 @@ typedef enum
   QMI_RIL_FTR_BASEBAND_SGLTE2,
   QMI_RIL_FTR_BASEBAND_DSDA,
   QMI_RIL_FTR_BASEBAND_DSDA2,
+  QMI_RIL_FTR_BASEBAND_MDM2,
 } qcril_qmi_ftr_baseband_info_type;
 
 typedef enum
@@ -1182,6 +1317,7 @@ typedef enum
 } qcril_qmi_ftr_rat_enable_option;
 
 static qcril_qmi_feature_type            qmi_ril_oem_ind_to_both;
+static qcril_qmi_feature_type            qmi_ril_ftr_suppress_req;
 static qcril_qmi_ftr_multi_sim_info_type qmi_ril_multi_sim_ftr_info;
 static qcril_qmi_ftr_rat_enable_option   qmi_ril_rat_enable_option;
 static qcril_qmi_kddi_hold_answer_info_type qmi_ril_kddi_hold_answer;
@@ -1321,7 +1457,25 @@ typedef struct
   qmi_ril_android_pending_unsol_resp_type* pending_unsol_resp_list;
 } qmi_ril_android_pending_unsol_resp_overview_type;
 
+typedef struct esoc_mdm_info {
+    boolean                             pm_feature_supported;
+    boolean                             esoc_feature_supported;
+    int                                 esoc_fd;
+    int                                 voting_state; // 0 - vote released; 1 - vote activated
+    char                                link_name[MAX_NAME_LEN];
+    char                                modem_name[MAX_NAME_LEN];
+    char                                esoc_node[MAX_NAME_LEN];
+    pthread_mutex_t                     mdm_mutex;
+    pthread_mutexattr_t                 mdm_attr;
+    MdmType                             type;
+} qcril_mdm_info;
+
 static qmi_ril_android_pending_unsol_resp_overview_type qmi_ril_android_pending_unsol_resp;
+extern char *qcril_qmi_get_esoc_link_name();
+extern char *qcril_qmi_get_esoc_modem_name();
+extern void qcril_qmi_load_esoc_info();
+
+static void qcril_request_suppress_list_init();
 
 #define QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_SINGLE_ONLY                      ( (uint32_t)1 << 31 )
 #define QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE                         ( (uint32_t)1 << 30 )
@@ -1333,6 +1487,7 @@ static qmi_ril_android_pending_unsol_resp_overview_type qmi_ril_android_pending_
 #define QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF                        ( (uint32_t)1 << 24 )
 #define QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_VOICE_CALL_SPECIFIC_DROP_OFF    ( (uint32_t)1 << 23 )
 #define QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_FAMILY_RING_DEFINED_PAIR               ( (uint32_t)1 << 22 )
+#define QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF                        ( (uint32_t)1 << 21 )
 
 #define QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_QUEUE_SZ_MASK        ( (uint32_t)0xFFFFFFFF & \
                                                                               ( ~( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_SINGLE_ONLY | \
@@ -1343,7 +1498,8 @@ static qmi_ril_android_pending_unsol_resp_overview_type qmi_ril_android_pending_
                                                                                    QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF | \
                                                                                    QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_VOICE_CALL_SPECIFIC_DROP_OFF | \
                                                                                    QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_MULTIPLE_AUTO_DROP_ON_DIFF_PARAMS | \
-                                                                                   QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_FAMILY_RING_DEFINED_PAIR \
+                                                                                   QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_FAMILY_RING_DEFINED_PAIR | \
+                                                                                   QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF \
                                                                                    ) ) )
 
 
@@ -1364,8 +1520,11 @@ static uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int androi
 static void qmi_ril_fw_android_request_flow_control_info_lock( void );
 static void qmi_ril_fw_android_request_flow_control_info_unlock( void );
 
-#define QMI_RIL_FW_ANDROID_REQUEST_HNDL_MAX_EVT_ID    (127)
+#define QMI_RIL_FW_ANDROID_REQUEST_HNDL_MAX_EVT_ID    (256)
 #define QMI_RIL_ANDROID_UNSOL_RESP_MAX_ID             (1043) // start from RIL_UNSOL_RESPONSE_BASE
+
+#define QCRIL_MDM_LOCK()      pthread_mutex_lock(&esoc_info.mdm_mutex);
+#define QCRIL_MDM_UNLOCK()    pthread_mutex_unlock(&esoc_info.mdm_mutex);
 
 static void qmi_ril_fw_android_request_flow_control_init( void );
 
@@ -1393,8 +1552,8 @@ static int qmi_ril_fw_android_request_flow_control_find_request_for_execution( q
                                                                         qmi_ril_fw_android_request_kind_execution_overview_type** exec_overview,
                                                                         qmi_ril_fw_android_request_holder_type ** exec_req_holder );
 static qmi_ril_fw_android_request_kind_execution_overview_type* qmi_ril_fw_android_request_flow_control_find_busy_kind( qmi_ril_fw_android_request_kind_execution_overview_type* origin );
-static void qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause );
-static void qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause );
+static void qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause, int is_unbind_cleanup );
+static void qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause, int is_unbind_cleanup );
 static void qmi_ril_fw_android_request_flow_control_release_holder_info_bookref( qmi_ril_fw_android_request_holder_type* request_holder_org, int android_request_id );
 static int qmi_ril_fw_android_request_flow_control_request_holders_have_same_param( qmi_ril_fw_android_request_holder_type* origin, qmi_ril_fw_android_request_holder_type* peer );
 static void qmi_ril_fw_android_request_flow_control_declare_family_ring( const int * android_request_ids );
@@ -1427,6 +1586,9 @@ static void qmi_ril_add_unsol_resp_to_pending_list(qcril_unsol_resp_params_type 
 static qmi_ril_android_pending_unsol_resp_type* qmi_ril_get_unsol_resp_from_pending_list(int resp_id);
 static void qmi_ril_free_pending_unsol_resp(qmi_ril_android_pending_unsol_resp_type* resp, int resp_id);
 static void qmi_ril_bootup_actition_on_rild_atel_link_connect(void * params);
+static boolean qcril_qmi_is_pm_voting_feature_supported();
+static boolean qcril_qmi_is_esoc_voting_feature_supported();
+
 /*===========================================================================
 
                     EXTERNAL FUNCTION PROTOTYPES
@@ -1435,6 +1597,11 @@ static void qmi_ril_bootup_actition_on_rild_atel_link_connect(void * params);
 ===========================================================================*/
 
 void RIL_removeTimedCallback(void *param);
+int qcril_qmi_modem_power_voting_state();
+
+boolean qcril_request_check_if_suppressed(int event_id);
+int qcril_request_suppress_request(int event_id);
+void qcril_request_clean_up_suppress_list();
 
 
 /*===========================================================================
@@ -1463,6 +1630,8 @@ pthread_t qmi_ril_fw_get_main_thread_id();
 
 static void qmi_ril_oem_hook_init();
 
+boolean qcril_qmi_modem_power_is_voting_feature_supported();
+
 RIL_Errno qmi_ril_oem_hook_get_request_id
 (
   uint16   service_id,
@@ -1477,6 +1646,9 @@ static const RIL_RadioFunctions qcril_request_api[] = {
 
 static pthread_t qmi_ril_main_thread_id;
 
+/* esoc info */
+qcril_mdm_info                          esoc_info;
+
 #ifdef RIL_SHLIB
 struct RIL_Env *qcril_response_api[ QCRIL_MAX_INSTANCE_ID ]; /*!< Functions for ril to call */
 #endif /* RIL_SHLIB */
@@ -1487,6 +1659,48 @@ struct RIL_Env *qcril_response_api[ QCRIL_MAX_INSTANCE_ID ]; /*!< Functions for 
                                 FUNCTIONS
 
 ===========================================================================*/
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_get_baseband_name
+
+===========================================================================*/
+/*!
+    @brief
+    retrieve baseband info
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_get_baseband_name(char *prop_str)
+{
+    char *link_name;
+    if (prop_str)
+    {
+        property_get( QMI_RIL_SYS_PROP_NAME_BASEBAND, prop_str, "" );
+
+        if (!strcmp("mdm", prop_str) || !strcmp("mdm2", prop_str))
+        {
+            link_name = qcril_qmi_get_esoc_link_name();
+            if (link_name)
+            {
+                QCRIL_LOG_INFO("link name %s ", link_name);
+                if (!strcmp("HSIC", link_name))
+                {
+                    strlcpy(prop_str, "mdm", PROPERTY_VALUE_MAX);
+                }
+                else
+                {
+                    strlcpy(prop_str, "mdm2", PROPERTY_VALUE_MAX);
+                }
+            }
+        }
+    }
+
+    return;
+}
 
 //===========================================================================
 // qmi_ril_clear_timed_callback_list
@@ -1548,10 +1762,13 @@ int qmi_ril_is_feature_supported(int feature)
     case QMI_RIL_FEATURE_SGLTE:
     case QMI_RIL_FEATURE_DSDA:
     case QMI_RIL_FEATURE_DSDA2:
+    case QMI_RIL_FEATURE_PCI:
       if ( QMI_RIL_FTR_BASEBAND_UNKNOWN ==  qmi_ril_baseband_ftr_info)
       {
         *prop_str = 0;
-        property_get( QMI_RIL_SYS_PROP_NAME_BASEBAND, prop_str, "" );
+
+        qcril_get_baseband_name(prop_str);
+
         if ( strcmp(prop_str, "apq") == 0)
         {
           qmi_ril_baseband_ftr_info = QMI_RIL_FTR_BASEBAND_APQ;
@@ -1559,6 +1776,10 @@ int qmi_ril_is_feature_supported(int feature)
         else if ( strcmp(prop_str, "mdm") == 0)
         {
           qmi_ril_baseband_ftr_info = QMI_RIL_FTR_BASEBAND_APQ;
+        }
+        else if ( strcmp(prop_str, "mdm2") == 0)
+        {
+          qmi_ril_baseband_ftr_info = QMI_RIL_FTR_BASEBAND_MDM2;
         }
         else if ( strcmp(prop_str, "msm") == 0)
         {
@@ -1588,6 +1809,10 @@ int qmi_ril_is_feature_supported(int feature)
         {
           qmi_ril_baseband_ftr_info = QMI_RIL_FTR_BASEBAND_DSDA2;
         }
+        else if ( strcmp(prop_str, "auto") == 0)
+        {
+          qmi_ril_baseband_ftr_info = QMI_RIL_FTR_BASEBAND_APQ;
+        }
         else
         {
           qmi_ril_baseband_ftr_info = QMI_RIL_FTR_BASEBAND_NONE;
@@ -1599,6 +1824,14 @@ int qmi_ril_is_feature_supported(int feature)
         res = TRUE;
       }
       else if ( QMI_RIL_FEATURE_APQ == feature && QMI_RIL_FTR_BASEBAND_APQ == qmi_ril_baseband_ftr_info)
+      {
+        res = TRUE;
+      }
+      else if ( QMI_RIL_FEATURE_APQ == feature && QMI_RIL_FTR_BASEBAND_MDM2 == qmi_ril_baseband_ftr_info)
+      {
+        res = TRUE;
+      }
+      else if ( QMI_RIL_FEATURE_PCI == feature && QMI_RIL_FTR_BASEBAND_MDM2 == qmi_ril_baseband_ftr_info)
       {
         res = TRUE;
       }
@@ -1629,7 +1862,7 @@ int qmi_ril_is_feature_supported(int feature)
       break;
 
     case QMI_RIL_FEATURE_SGLTE2:
-      if ( QMI_RIL_FTR_SGLTE_CSFB_UNKNOWN == qmi_ril_sglte_ftr_info)
+      if ( QMI_RIL_FTR_BASEBAND_UNKNOWN == qmi_ril_sglte_ftr_info)
       {
         *prop_str = 0;
         property_get( QMI_RIL_SYS_PROP_NAME_BASEBAND, prop_str, "" );
@@ -1821,6 +2054,46 @@ int qmi_ril_is_feature_supported(int feature)
 #endif
       break;
 
+    case QMI_RIL_FEATURE_8916:
+#ifdef FEATURE_QCRIL_8916
+      res = TRUE;
+#else
+      res = FALSE;
+#endif
+      break;
+
+    case QMI_RIL_FEATURE_8994:
+#ifdef FEATURE_QCRIL_8994
+      res = TRUE;
+#else
+      res = FALSE;
+#endif
+      break;
+
+    case QMI_RIL_FEATURE_8909:
+#ifdef FEATURE_QCRIL_8909
+      res = TRUE;
+#else
+      res = FALSE;
+#endif
+      break;
+
+    case QMI_RIL_FEATURE_8992:
+#ifdef FEATURE_QCRIL_8992
+      res = TRUE;
+#else
+      res = FALSE;
+#endif
+      break;
+
+    case QMI_RIL_FEATURE_8084:
+#ifdef FEATURE_QCRIL_8084
+      res = TRUE;
+#else
+      res = FALSE;
+#endif
+      break;
+
     case QMI_RIL_FEATURE_8226:
 #ifdef FEATURE_QCRIL_8226
       res = TRUE;
@@ -1829,6 +2102,13 @@ int qmi_ril_is_feature_supported(int feature)
 #endif
       break;
 
+    case QMI_RIL_FEATURE_SHM:
+#ifdef FEATURE_QCRIL_SHM
+      res = TRUE;
+#else
+      res = FALSE;
+#endif
+      break;
 
     case QMI_RIL_FEATURE_ICS:
 #ifdef QMI_RIL_IS_ICS
@@ -1958,6 +2238,47 @@ int qmi_ril_is_feature_supported(int feature)
       res = ( (strcmp(prop_str, "true") == 0) || (strcmp(prop_str, "1") == 0) );
       break;
 
+    case QMI_RIL_FEATURE_SRLTE:
+      res = qcril_qmi_is_srlte_supported();
+      break;
+
+    case QMI_RIL_FEATURE_ATEL_STKCC:
+#if RIL_UNSOL_ON_SS == 11038
+      res = FALSE;
+#else
+      res = TRUE;
+#endif
+      break;
+
+    case QMI_RIL_FEATURE_SUPPRESS_REQ:
+      /* feature is disabled by default, eg. if property set to anything
+         other than "true" or "1", including if its missing (unset). */
+      if (QMI_RIL_FEATURE_UNKNOWN == qmi_ril_ftr_suppress_req)
+      {
+        *prop_str = 0;
+        property_get(QMI_RIL_SYS_PROP_NAME_SUPPRESS_REQ, prop_str, "");
+        if ((strcmp(prop_str, "true") == 0) || (strcmp(prop_str, "1") == 0))
+        {
+          qmi_ril_ftr_suppress_req = QMI_RIL_FEATURE_ENABLED;
+        }
+        else
+        {
+          qmi_ril_ftr_suppress_req = QMI_RIL_FEATURE_DISABLED;
+        }
+      }
+
+      switch ( qmi_ril_ftr_suppress_req )
+      {
+        case QMI_RIL_FEATURE_ENABLED:
+          res = TRUE;
+          break;
+
+        default:
+          res = FALSE;
+          break;
+      }
+      break;
+
     default:
       res = FALSE;
       break;
@@ -1978,6 +2299,8 @@ int qmi_ril_is_qcom_ril_version_supported(int version)
   {
     res = TRUE;
   }
+  #else
+  QCRIL_NOTUSED(version);
   #endif
 
   return res;
@@ -2001,58 +2324,38 @@ void qcril_qmi_print_hex
   int            msg_len
 )
 {
-  #define QCRIL_QMI_IMS_MAX_BUFFER_BYTES_PER_LINE                16
-  #define QCRIL_QMI_IMS_MAX_OUTPUT_BUF_SIZE                      ( ( QCRIL_QMI_IMS_MAX_BUFFER_BYTES_PER_LINE * 5 ) + 2 )
-
-  char output_buf[ QCRIL_QMI_IMS_MAX_OUTPUT_BUF_SIZE ];
-  unsigned char val;
-  char *p;
-  int i;
-
-  /*-----------------------------------------------------------------------*/
-
-  while ( msg_len > 0 )
+  #define QCRIL_PRINT_MAX_BYTES_PER_LINE 16
+  const char hex_chart[] = {'0', '1', '2', '3',
+                            '4', '5', '6', '7',
+                            '8', '9', 'A', 'B',
+                            'C', 'D', 'E', 'F'}; // Do not change this array
+  unsigned char buf[QCRIL_PRINT_MAX_BYTES_PER_LINE * 3 + 1];
+  unsigned int buf_idx = 0;                 // 0 to QCRIL_PRINT_MAX_BYTES_PER_LINE * 3
+  unsigned int msg_idx = 0;                 // 0 to msg_len - 1
+  unsigned int bytes_per_line_idx = 0;      // 0 to QCRIL_PRINT_MAX_BYTES_PER_LINE - 1
+  do
   {
-    p = output_buf;
-
-    /* Collect QMI_PROXY_MAX_BUFFER_BYTES_PER_LINE bytes of buffer for display */
-    for ( i = 0; ( i < QCRIL_QMI_IMS_MAX_BUFFER_BYTES_PER_LINE ) && ( msg_len > 0 ); i++ )
+    if (NULL == msg || msg_len <= 0)
     {
-      /* First digit */
-      val = ( *msg >> 4 ) & 0x0F;
-      if ( val <= 9 )
-      {
-        *p++ = val + '0';
-      }
-      else
-      {
-        *p++ = ( val - 10 ) + 'A';
-      }
-
-      /* Second digit... ugly copied code */
-      val = *msg & 0x0F;
-      if ( val <= 9 )
-      {
-        *p++ = val + '0';
-      }
-      else
-      {
-        *p++ = ( val - 10 ) + 'A';
-      }
-
-      /* Add a space, and increment msg pointer */
-      *p++ = ' ';
-      msg++;
-      msg_len--;
+      break;
     }
-
-    /* Add \n and NULL terminator and print out */
-    *p++ = '\n';
-    *p = '\0';
-
-    QCRIL_LOG_DEBUG( output_buf );
-  }
-
+    while (msg_idx < msg_len)
+    {
+      for (bytes_per_line_idx = 0, buf_idx = 0;
+          (bytes_per_line_idx < QCRIL_PRINT_MAX_BYTES_PER_LINE) && (msg_idx < msg_len);
+           bytes_per_line_idx++, msg_idx++)
+      {
+        buf[buf_idx] = hex_chart[(msg[msg_idx] >> 4) & 0x0F];
+        buf_idx++;
+        buf[buf_idx] = hex_chart[msg[msg_idx] & 0x0F];
+        buf_idx++;
+        buf[buf_idx] = ' ';
+        buf_idx++;
+      }
+      buf[buf_idx] = '\0';
+      QCRIL_LOG_DEBUG("%s", buf);
+    }
+  } while (FALSE);
 } /* qcril_qmi_print_hex */
 
 //===========================================================================
@@ -2090,12 +2393,11 @@ int qmi_ril_is_multi_sim_oem_hook_request (int req_res_id)
   switch (req_res_id)
   {
       case QCRIL_EVT_HOOK_UNSOL_VOICE_SYSTEM_ID:      // fall through
-      case QCRIL_EVT_HOOK_SET_TUNE_AWAY:              // fall through
-      case QCRIL_EVT_HOOK_GET_TUNE_AWAY:              // fall through
-      case QCRIL_EVT_HOOK_SET_PAGING_PRIORITY:        // fall through
-      case QCRIL_EVT_HOOK_GET_PAGING_PRIORITY:        // fall through
+      case QCRIL_EVT_HOOK_UNSOL_MODEM_CAPABILITY:     // fall through
       case QCRIL_EVT_HOOK_SET_DEFAULT_VOICE_SUB:      // fall through
       case QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD:        // fall through
+      case QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY:
+      case QCRIL_EVT_HOOK_UPDATE_SUB_BINDING:
       res = TRUE;
       break;
 
@@ -2257,14 +2559,14 @@ void qcril_timed_callback_dispatch
   void *param
 )
 {
-  uint32            timer_id = (uint32) param;
+  uint32            timer_id = (uintptr_t) param;
   RIL_TimedCallback cb;
   qcril_timed_callback_info *info = qcril_find_and_remove_timed_callback(timer_id);
 
   if (info)
   {
     cb = info->callback;
-    cb((void *)timer_id);
+    cb((void *)(uintptr_t)timer_id);
     qcril_free(info);
   }
 } /* qcril_timed_callback_dispatch */
@@ -2319,7 +2621,7 @@ int qcril_setup_timed_callback
         qcril_add_timed_callback(tcbinfo);
 
         qcril_response_api[ instance_id ]->RequestTimedCallback( qcril_timed_callback_dispatch,
-                                                                 (void *)the_timer_id, relativeTime );
+                                                                 (void *)(uintptr_t)the_timer_id, relativeTime );
 
         QCRIL_LOG_DEBUG( "Set timer with ID %d", the_timer_id );
 
@@ -2342,7 +2644,7 @@ static void qcril_timed_callback_dispatch_expra_params
   void *param
 )
 {
-  uint32                                    timer_id = (uint32) param;
+  uint32                                    timer_id = (uint32)(uintptr_t) param;
   qcril_timed_callback_type                 cb;
   qcril_timed_callback_info *               info = qcril_find_and_remove_timed_callback(timer_id);
   qcril_timed_callback_handler_params_type  handler_params;
@@ -2422,7 +2724,7 @@ int qcril_setup_timed_callback_ex_params_adv
         qcril_add_timed_callback(tcbinfo);
 
         qcril_response_api[ instance_id ]->RequestTimedCallback( qcril_timed_callback_dispatch_expra_params,
-                                                                 (void *)the_timer_id,
+                                                                 (void *)(uintptr_t)the_timer_id,
                                                                  relativeTime );
 
         QCRIL_LOG_DEBUG( "Set timer with ID %d", the_timer_id );
@@ -2456,7 +2758,7 @@ int qcril_cancel_timed_callback
   void *param
 )
 {
-  uint32 timer_id = (uint32) param;
+  uint32 timer_id = (uint32)(uintptr_t) param;
   qcril_timed_callback_info *info = qcril_find_and_remove_timed_callback(timer_id);
   int ret = -1;
   /*-----------------------------------------------------------------------*/
@@ -2543,6 +2845,7 @@ void qcril_default_request_resp_params
         param_ptr->resp_pkt           = NULL;
         param_ptr->resp_len           = 0;
         param_ptr->logstr             = NULL;
+        param_ptr->rild_sock_oem_req  = 0;
     }
     else
     {
@@ -2619,9 +2922,7 @@ void qcril_send_empty_payload_request_response(qcril_instance_id_e_type instance
 
   if ( request_id > QCRIL_EVT_IMS_SOCKET_REQ_BASE && request_id < QCRIL_EVT_IMS_SOCKET_REQ_MAX )
   {
-#ifndef QMI_RIL_UTF
     qcril_qmi_ims_socket_send(t, IMS__MSG_TYPE__RESPONSE, qcril_qmi_ims_map_event_to_request(request_id), qcril_qmi_ims_map_ril_error_to_ims_error(ril_err_no), NULL, 0);
-#endif
   }
   else
   {
@@ -2666,6 +2967,8 @@ void qcril_send_request_response
                              "SS modified to USSD",
                              "SS modified to SS",
                              "Subscription not supported",
+                             "Missing resource",
+                             "No such element",
     };
 
     qmi_ril_oem_hook_response_context_type * oem_hook_response_ctx = NULL;
@@ -2703,11 +3006,11 @@ void qcril_send_request_response
             case QCRIL_EVT_HOOK_NV_WRITE:                   // fall through
             case QCRIL_EVT_HOOK_DATA_GO_DORMANT:            // fall through
             case QCRIL_EVT_HOOK_ME_DEPERSONALIZATION:       // fall through
-            case QCRIL_EVT_HOOK_INFORM_SHUTDOWN:            // fall through
             case QCRIL_EVT_HOOK_REQ_GENERIC:
             case QCRIL_EVT_HOOK_CSG_PERFORM_NW_SCAN:
             case QCRIL_EVT_HOOK_CSG_SET_SYS_SEL_PREF:
             case QCRIL_EVT_HOOK_CSG_GET_SYS_INFO:
+            case QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ:
             // DSDS/DSDA/TSTS requests
             case QCRIL_EVT_HOOK_SET_TUNE_AWAY:
             case QCRIL_EVT_HOOK_GET_TUNE_AWAY:
@@ -2715,6 +3018,9 @@ void qcril_send_request_response
             case QCRIL_EVT_HOOK_GET_PAGING_PRIORITY:
             case QCRIL_EVT_HOOK_SET_DEFAULT_VOICE_SUB:
             case QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD:
+            case QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY:
+            case QCRIL_EVT_HOOK_UPDATE_SUB_BINDING:
+            case QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY:
                 android_request_id_for_response = RIL_REQUEST_OEM_HOOK_RAW;
               break;
             default:
@@ -2974,19 +3280,36 @@ void qcril_send_request_response
 
           if (!qmi_ril_is_multi_sim_oem_hook_request(param_ptr->request_id) &&
               qmi_ril_is_feature_supported(QMI_RIL_FEATURE_OEM_SOCKET) &&
-              is_oem_response)
+              is_oem_response && !param_ptr->rild_sock_oem_req)
           {
-#ifndef QMI_RIL_UTF
             qcril_qmi_oem_socket_send(instance_id,
                                       param_ptr->t,
                                       param_ptr->request_id,
                                       param_ptr->ril_err_no,
                                       actual_resp_pkt,
                                       actual_resp_len);
-#endif
           }
           else
           {
+            uint16_t err_name_idx = param_ptr->ril_err_no;
+
+#if defined(RIL_REQUEST_SIM_OPEN_CHANNEL) || defined(RIL_REQUEST_SIM_CLOSE_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
+            switch ( param_ptr->ril_err_no )
+            {
+               case RIL_E_MISSING_RESOURCE:
+                 err_name_idx = RIL_E_SUBSCRIPTION_NOT_SUPPORTED + 1;
+                 break;
+               case RIL_E_NO_SUCH_ELEMENT:
+                 err_name_idx = RIL_E_SUBSCRIPTION_NOT_SUPPORTED + 2;
+                 break;
+               default:
+                 err_name_idx = param_ptr->ril_err_no;
+                 break;
+            }
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL || RIL_REQUEST_SIM_CLOSE_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+
             // Log the event packet for the response to RIL request
             if ( param_ptr->logstr != NULL )
             {
@@ -2994,7 +3317,7 @@ void qcril_send_request_response
                               qcril_log_lookup_event_name( param_ptr->request_id ),
                               param_ptr->logstr, param_ptr->instance_id,
                               qcril_log_get_token_id( param_ptr->t ),
-                              ril_errno_name[ param_ptr->ril_err_no ] );
+                              ril_errno_name[ err_name_idx ] );
             }
             else
             {
@@ -3002,7 +3325,7 @@ void qcril_send_request_response
                               qcril_log_lookup_event_name( param_ptr->request_id ),
                               param_ptr->instance_id,
                               qcril_log_get_token_id( param_ptr->t ),
-                              ril_errno_name[ param_ptr->ril_err_no ] );
+                              ril_errno_name[ err_name_idx ] );
             }
 
             QCRIL_LOG_CF_PKT_RIL_RES( instance_id, label );
@@ -3013,7 +3336,7 @@ void qcril_send_request_response
                            param_ptr->request_id,
                            param_ptr->instance_id,
                            qcril_log_get_token_id( param_ptr->t ),
-                           ril_errno_name[ param_ptr->ril_err_no ],
+                           ril_errno_name[ err_name_idx ],
                            actual_resp_len,
                            ( param_ptr->logstr == NULL )? "" : param_ptr->logstr );
 
@@ -3255,6 +3578,10 @@ void qmi_ril_fw_send_request_response_epilog( qcril_instance_id_e_type instance_
   QCRIL_LOG_DEBUG("resp token-id %d, req-id %d(%d)",
                    qcril_log_get_token_id( token ), final_android_request_id, android_request_id );
 
+  /* Print RIL Message */
+  qcril_log_print_ril_message(final_android_request_id, RIL__MSG_TYPE__RESPONSE, resp_data,
+                              resp_data_len, resp_cause);
+
   qcril_response_api[ instance_id ]->OnRequestComplete( token,
                                                         resp_cause,
                                                         resp_data,
@@ -3317,7 +3644,7 @@ void qmi_ril_fw_send_request_response_epilog( qcril_instance_id_e_type instance_
     qcril_setup_timed_callback_ex_params( QCRIL_DEFAULT_INSTANCE_ID,
                                           QCRIL_DEFAULT_MODEM_ID,
                                           qmi_ril_fw_android_request_flow_control_trigger_remains,
-                                          (void*)final_android_request_id,
+                                          (void *)(intptr_t)final_android_request_id,
                                           NULL,   // immediate
                                           NULL );
   }
@@ -3385,6 +3712,11 @@ static void qcril_send_unsol_response_epilog(qcril_unsol_resp_params_type *param
   QCRIL_LOG_DEBUG( "UI <--- %s (%d) --- RIL [RID %d, Len %d, %s]",
                    qcril_log_lookup_event_name( param_ptr->response_id ), param_ptr->response_id,
                    param_ptr->instance_id, param_ptr->resp_len, param_ptr->logstr );
+
+
+  /* Print RIL Message */
+  qcril_log_print_ril_message(param_ptr->response_id, RIL__MSG_TYPE__UNSOL_RESPONSE,
+                               param_ptr->resp_pkt, param_ptr->resp_len, RIL_E_SUCCESS);
 
   if ( param_ptr->instance_id < QCRIL_MAX_INSTANCE_ID )
   {
@@ -3565,6 +3897,18 @@ void qcril_hook_unsol_response
         message_id           = QMI_EMBMS_UNSOL_SIB16_COVERAGE_IND_V01;
         break;
 
+      case QCRIL_EVT_HOOK_EMBMS_UNSOL_E911_STATE_CHANGED:
+        is_qmi_idl_tunelling = TRUE;
+        service_id           = QMI_RIL_OEM_HOOK_QMI_TUNNELING_SERVICE_EMBMS;
+        message_id           = QMI_EMBMS_E911_STATE_IND_V01;
+        break;
+
+      case QCRIL_EVT_HOOK_EMBMS_UNSOL_CONTENT_DESC_CONTROL:
+        is_qmi_idl_tunelling = TRUE;
+        service_id           = QMI_RIL_OEM_HOOK_QMI_TUNNELING_SERVICE_EMBMS;
+        message_id           = QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND_V01;
+        break;
+
       //presence
       case QCRIL_EVT_HOOK_IMS_PUBLISH_TRIGGER_IND_V01:
         is_qmi_idl_tunelling = TRUE;
@@ -3657,10 +4001,8 @@ void qcril_hook_unsol_response
               if (!qmi_ril_is_multi_sim_oem_hook_request(unsol_event) &&
                    qmi_ril_is_feature_supported(QMI_RIL_FEATURE_OEM_SOCKET))
               {
-#ifndef QMI_RIL_UTF
                 qcril_qmi_oem_socket_send_unsol(unsol_resp.resp_pkt,
                                                 unsol_resp.resp_len);
-#endif
               }
               else
               {
@@ -3715,19 +4057,15 @@ void qcril_hook_unsol_response
 
         if (qmi_ril_is_feature_supported(QMI_RIL_FEATURE_OEM_IND_TO_BOTH))
         {
-#ifndef QMI_RIL_UTF
           qcril_qmi_oem_socket_send_unsol(unsol_resp.resp_pkt,
                                           unsol_resp.resp_len);
-#endif
           qcril_send_unsol_response( &unsol_resp );
         }
         else if (!qmi_ril_is_multi_sim_oem_hook_request(unsol_event) &&
              qmi_ril_is_feature_supported(QMI_RIL_FEATURE_OEM_SOCKET))
         {
-#ifndef QMI_RIL_UTF
           qcril_qmi_oem_socket_send_unsol(unsol_resp.resp_pkt,
                                           unsol_resp.resp_len);
-#endif
         }
         else
         {
@@ -4074,7 +4412,7 @@ IxErrnoType qcril_dispatch_event
   qcril_arb_state_info_struct_type *s_ptr;
   qcril_request_return_type ret;
 
-  IxErrnoType res;
+  IxErrnoType res = E_NOT_ALLOWED;
 
   if(params_ptr != NULL && (params_ptr->instance_id < QCRIL_MAX_INSTANCE_ID) )
   {
@@ -4091,6 +4429,7 @@ IxErrnoType qcril_dispatch_event
       case QMI_RIL_GEN_OPERATIONAL_STATUS_SUSPENDED:
       case QMI_RIL_GEN_OPERATIONAL_STATUS_RESUME_PENDING:
       case QMI_RIL_GEN_OPERATIONAL_STATUS_RESUME_RETRY:
+      case QMI_RIL_GEN_OPERATIONAL_STATUS_UNBIND:
         switch (params_ptr->event_id)
           {
           case QCRIL_EVT_QMI_RIL_MODEM_RESTART_RIL_CORE_PRE_SUSPEND_REQ:
@@ -4114,13 +4453,57 @@ IxErrnoType qcril_dispatch_event
           case QCRIL_EVT_DATA_EVENT_CALLBACK:
           case QCRIL_EVT_UIM_QMI_COMMAND_CALLBACK:
           case QCRIL_EVT_INTERNAL_UIM_VERIFY_PIN_COMMAND_CALLBACK:
+          case QCRIL_EVT_INTERNAL_UIM_SAP_RESP:
           case QCRIL_EVT_QMI_RIL_SEND_UNSOL_RADIO_STATE_CHANGED:
           case QCRIL_EVT_QMI_RIL_EMBMS_SEND_UNSOL_RADIO_STATE:
+          case QCRIL_EVT_QMI_RIL_MODEM_RESTART_CHECK_IF_SERVICE_UP:
+          case QCRIL_EVT_QMI_RIL_SERVICE_DOWN:
             res = E_SUCCESS;
             break;
 
+          // allow tunelling specifically for RIL_REQUEST_SCREEN_STATE
+          // and RIL_REQUEST_SHUTDOWN
           case RIL_REQUEST_SCREEN_STATE:
-            res = E_SUCCESS;            // allow tunelling specifically for RIL_REQUEST_SCREEN_STATE
+          case RIL_REQUEST_SHUTDOWN:
+            res = E_SUCCESS;
+            break;
+
+          case RIL_REQUEST_RADIO_POWER:
+            if ( (qcril_qmi_nas_modem_power_is_mdm_shdn_in_apm() &&
+                0 == qcril_qmi_modem_power_voting_state()) ||
+                (qmi_ril_get_operational_status() == QMI_RIL_GEN_OPERATIONAL_STATUS_UNBIND) )
+            {
+                res = E_SUCCESS;
+            }
+            break;
+
+          case QCRIL_EVT_HOOK_UPDATE_SUB_BINDING:
+          case QCRIL_EVT_QMI_REQUEST_POWER_RADIO:
+          case QCRIL_EVT_INTERNAL_MMGSDI_CARD_POWER_DOWN:
+          case QCRIL_EVT_INTERNAL_MMGSDI_CARD_POWER_UP:
+          case QCRIL_EVT_CM_CARD_STATUS_UPDATED:
+          case QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE:
+          case QCRIL_EVT_QMI_DMS_HANDLE_INDICATIONS:
+#ifdef QMI_RIL_UTF
+          case QCRIL_EVT_QMI_DSD_HANDLE_INDICATIONS:
+#endif
+          case QCRIL_EVT_QMI_VOICE_HANDLE_INDICATIONS:
+          case QCRIL_EVT_QMI_NAS_HANDLE_INDICATIONS:
+          case QCRIL_EVT_QMI_NAS_HANDLE_ASYNC_CB:
+          case QCRIL_EVT_QMI_VOICE_HANDLE_COMM_CALLBACKS:
+          case QCRIL_EVT_QMI_RIL_POST_VOICE_RTE_CHANGE_IND:
+          case RIL_REQUEST_DIAL:
+          case RIL_REQUEST_SIM_IO:
+          case RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING:
+            if ( qmi_ril_get_operational_status() == QMI_RIL_GEN_OPERATIONAL_STATUS_UNBIND )
+            {
+              QCRIL_LOG_DEBUG("Operational status %d, event id %d", qmi_ril_get_operational_status(), params_ptr->event_id);
+              res = E_SUCCESS;
+            }
+            else
+            {
+              res = E_NOT_ALLOWED;
+            }
             break;
 
           default:
@@ -4331,6 +4714,11 @@ RIL_Errno qmi_ril_oem_hook_get_request_id
             msg_returned = "QCRIL_EVT_HOOK_EMBMS_GET_ACTIVE_TMGI";
             break;
 
+        case  QMI_EMBMS_UPDATE_CONTENT_DESC_REQ_V01:
+            *request_id =  QCRIL_EVT_HOOK_EMBMS_CONTENT_DESC_UPDATE;
+            msg_returned = "QCRIL_EVT_HOOK_EMBMS_CONTENT_DESC_UPDATE";
+            break;
+
         case  QMI_EMBMS_ENABLE_RSSI_REQ_V01:
             *request_id =  QCRIL_EVT_HOOK_EMBMS_ENABLE_RSSI;
             msg_returned = "QCRIL_EVT_HOOK_EMBMS_ENABLE_RSSI";
@@ -4384,6 +4772,11 @@ RIL_Errno qmi_ril_oem_hook_get_request_id
         case  QMI_EMBMS_DELIVER_LOG_PACKET_REQ_V01:
             *request_id = QCRIL_EVT_HOOK_EMBMS_DELIVER_LOG_PACKET;
             msg_returned = "QCRIL_EVT_HOOK_EMBMS_DELIVER_LOG_PACKET";
+            break;
+
+        case  QMI_EMBMS_GET_E911_STATE_REQ_V01:
+            *request_id = QCRIL_EVT_HOOK_EMBMS_GET_E911_STATE;
+            msg_returned = "QCRIL_EVT_HOOK_EMBMS_GET_E911_STATE";
             break;
 
         default:
@@ -4451,7 +4844,7 @@ RIL_Errno qmi_ril_parse_oem_hook_header ( unsigned char *data, qmi_ril_oem_hook_
     }
 
     // decode the raw string to find out the oem name string data[0 - 7], 8 bytes
-    if( strncmp( data, QCRIL_HOOK_OEM_NAME, QCRIL_OTHER_OEM_NAME_LENGTH ) != 0 )
+    if( strncmp( (char *)data, QCRIL_HOOK_OEM_NAME, QCRIL_OTHER_OEM_NAME_LENGTH ) != 0 )
     {
        memcpy( oem_name, &data[index], QCRIL_OTHER_OEM_NAME_LENGTH );
        oem_name[QCRIL_OTHER_OEM_NAME_LENGTH] = '\0';
@@ -4480,11 +4873,11 @@ RIL_Errno qmi_ril_parse_oem_hook_header ( unsigned char *data, qmi_ril_oem_hook_
       case QCRIL_EVT_HOOK_NV_READ:                    // fall through
       case QCRIL_EVT_HOOK_NV_WRITE:                   // fall through
       case QCRIL_EVT_HOOK_DATA_GO_DORMANT:            // fall through
-      case QCRIL_EVT_HOOK_INFORM_SHUTDOWN:            // fall through
       case QCRIL_EVT_HOOK_ME_DEPERSONALIZATION:       // fall through
       case QCRIL_EVT_HOOK_CSG_PERFORM_NW_SCAN:
       case QCRIL_EVT_HOOK_CSG_SET_SYS_SEL_PREF:
       case QCRIL_EVT_HOOK_CSG_GET_SYS_INFO:
+      case QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ:
       // DSDS/DSDA requests
       case QCRIL_EVT_HOOK_SET_TUNE_AWAY:              // fall through
       case QCRIL_EVT_HOOK_GET_TUNE_AWAY:              // fall through
@@ -4492,7 +4885,10 @@ RIL_Errno qmi_ril_parse_oem_hook_header ( unsigned char *data, qmi_ril_oem_hook_
       case QCRIL_EVT_HOOK_GET_PAGING_PRIORITY:        // fall through
       case QCRIL_EVT_HOOK_SET_DEFAULT_VOICE_SUB:      // fall through
       case QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD:        // fall through
+      case QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY:
+      case QCRIL_EVT_HOOK_UPDATE_SUB_BINDING:
       case QCRIL_EVT_HOOK_REJECT_INCOMING_CALL_CAUSE_21:
+      case QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY:
         outcome_data.is_oem_hook    = TRUE;
         outcome_data.hook_req       = cmd_id;
         break;
@@ -4509,7 +4905,6 @@ RIL_Errno qmi_ril_parse_oem_hook_header ( unsigned char *data, qmi_ril_oem_hook_
 
     // decode the raw string to find the length of the payload, data[13 - 16],  4 bytes
     memcpy( &outcome_data.hook_req_len, &data[index], QCRIL_OTHER_OEM_REQUEST_DATA_LEN );
-
     // finally
     res = RIL_E_SUCCESS;
 
@@ -4651,6 +5046,18 @@ static void onRequest
           QCRIL_LOG_DEBUG( "UI --- %s (%d) ---> RIL [RID %d, token id %d, data len %d]",
                            qcril_log_lookup_event_name( param.event_id ), param.event_id, param.instance_id,
                            qcril_log_get_token_id( param.t ), param.datalen );
+          /* Print RIL Message */
+          qcril_log_print_ril_message(param.event_id, RIL__MSG_TYPE__REQUEST, param.data,
+                                       param.datalen, info_fetch_result);
+
+          /* check if request is suppressed */
+          if (qmi_ril_is_feature_supported(QMI_RIL_FEATURE_SUPPRESS_REQ) &&
+                  qcril_request_check_if_suppressed(param.event_id))
+          {
+              audit_result = RIL_E_GENERIC_FAILURE;
+              QCRIL_LOG_INFO("RIL Request event id: %d is suppressed", param.event_id);
+              break;
+          }
 
           if ( ( param.event_id == RIL_REQUEST_DIAL ) || ( param.event_id == RIL_REQUEST_SETUP_DATA_CALL ) )
           {
@@ -4698,7 +5105,6 @@ static void onRequest
 
           if ( param.event_id  == RIL_REQUEST_OEM_HOOK_RAW )
           {
-#ifndef QMI_RIL_UTF
             if (!qmi_ril_get_req_details_from_oem_req(&oem_hook_req_details,
                                                        &audit_result,
                                                         data,
@@ -4709,21 +5115,18 @@ static void onRequest
                                            oem_hook_req_details.hook_req);
               break;
             }
-#endif
             if (!qmi_ril_is_feature_supported(QMI_RIL_FEATURE_OEM_SOCKET) ||
                  qmi_ril_is_multi_sim_oem_hook_request(oem_hook_req_details.hook_req))
             {
               // oem hook qmi idl tunneling
               if ( oem_hook_req_details.is_qmi_tunneling )
               {
-#ifndef QMI_RIL_UTF
                 if (!qmi_ril_parse_oem_req_tunnelled_message(&oem_hook_req_details,
                                                              &audit_result,
                                                              &param))
                 {
                   break;
                 }
-#endif
               }
             }
             else
@@ -4857,7 +5260,7 @@ static void onRequest
             QCRIL_LOG_DEBUG( "clean family %d", clean_family );
             if ( clean_family )
             {
-              qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( android_request_kind_execution_overview, RIL_E_CANCELLED );
+              qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( android_request_kind_execution_overview, RIL_E_CANCELLED, FALSE );
               already_pending_request_kind = NULL;
             }
             // if nothing pending, anything already ready for exec
@@ -4914,7 +5317,7 @@ static void onRequest
             *android_request_param_holder = inbound_request_holder_local;
             qmi_ril_fw_android_request_flow_control_overview_request_review_holders( android_request_kind_execution_overview );
 
-            QCRIL_LOG_DEBUG( "pending req kind %x hex, awaitingexec req kind %x hex", (uint32_t)already_pending_request_kind, (uint32_t)already_awaiting_exec_request_kind );
+            QCRIL_LOG_DEBUG( "pending req kind 0x%x hex, awaitingexec req kind 0x%x hex", already_pending_request_kind, already_awaiting_exec_request_kind );
             if ( NULL != already_pending_request_kind || NULL != already_awaiting_exec_request_kind )
             { // may not commence execution now, need to wait for completion of already pending requests
               audit_result = RIL_E_SUCCESS;
@@ -4987,6 +5390,12 @@ static void onRequest
     if ( RIL_E_SUCCESS != audit_result )
     {
       qcril_default_request_resp_params( param.instance_id, param.t, param.event_id, audit_result, &resp );
+
+      if ( param.event_id == RIL_REQUEST_OEM_HOOK_RAW )
+      {
+        resp.rild_sock_oem_req = TRUE;
+      }
+
       qcril_send_request_response( &resp );
     } // otherwise it is taken that respective request handler has responded synchronously or will respond asynchronously
 
@@ -5018,7 +5427,7 @@ static void onRequest
       snprintf( log_addon, QCRIL_MAX_LOG_MSG_SIZE, ",int_adt %d", (int) audit_result );
       strlcat( log_essence, log_addon, sizeof( log_essence ) );
 
-      QCRIL_LOG_ESSENTIAL( log_essence );
+      QCRIL_LOG_DEBUG( log_essence );
     }
 } // onRequest
 
@@ -5102,6 +5511,12 @@ void * qmi_ril_fw_dedicated_request_exec_thread(void * param)
       if ( RIL_E_SUCCESS != audit_result )
       {
         qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, exec_params->token, exec_params->event_id, audit_result, &resp );
+
+        if ( exec_params->event_id == RIL_REQUEST_OEM_HOOK_RAW )
+        {
+            resp.rild_sock_oem_req = TRUE;
+        }
+
         qcril_send_request_response( &resp );
       } // otherwise it is taken that respective request handler has responded synchronously or will respond asynchronously
 
@@ -5188,7 +5603,7 @@ IxErrnoType qcril_process_event
   qcril_request_params_type params;
   qcril_dispatch_table_entry_type *entry_ptr; /*!< Dispatch table entry */
   char event_name[ 100 ] = "";
-  qcril_request_resp_params_type resp;
+  qcril_request_resp_params_type  resp;
 
   /*-----------------------------------------------------------------------*/
 
@@ -5211,15 +5626,7 @@ IxErrnoType qcril_process_event
     /* AMSS events or callbacks */
     QCRIL_LOG_CF_PKT_MODEM_EVT( modem_id, event_name );
 
-    /* Note: Below debug messages are used for profiling AMSS events/callbacks during screen on/off. Don't change them */
-    if ( qcril_qmi_ril_domestic_service_is_screen_off( ) )
-    {
-      QCRIL_LOG_DEBUG( "RIL <=== %s === AMSS", event_name, event_id, instance_id, modem_id );
-    }
-    else
-    {
-      QCRIL_LOG_DEBUG( "RIL <--- %s --- AMSS", event_name, event_id, instance_id, modem_id );
-    }
+    QCRIL_LOG_DEBUG( "RIL <--- %s --- AMSS", event_name, event_id, instance_id, modem_id );
   }
 
   if (event_id <= QCRIL_EVT_BASE)
@@ -5279,7 +5686,7 @@ qmi_ril_gen_operational_status_type qmi_ril_get_operational_status(void)
   res = qmi_ril_gen_operational_status;
   qmi_ril_leave_critical_section();
 
-  return qmi_ril_gen_operational_status;
+  return res;
 } //qmi_ril_get_operational_status
 //===========================================================================
 //qmi_ril_set_operational_status
@@ -5333,6 +5740,14 @@ static RIL_RadioState currentState
     default:
       radio_state = RADIO_STATE_UNAVAILABLE;
       break;
+  }
+
+  if (qcril_qmi_nas_modem_power_is_mdm_shdn_in_apm() &&
+      0 == qcril_qmi_modem_power_voting_state() &&
+      qcril_qmi_modem_power_is_voting_feature_supported())
+  {
+      radio_state = RADIO_STATE_OFF;
+      QCRIL_LOG_INFO("setting RADIO STATE OFF");
   }
 
   switch ( radio_state )
@@ -5656,7 +6071,7 @@ static void qcril_delay_timed_cb
   void *param
 )
 {
-  QCRIL_LOG_DEBUG( "Delay Timer expired with ID %d", (uint32) param );
+  QCRIL_LOG_DEBUG( "Delay Timer expired with ID %d", (uint32)(uintptr_t) param );
 
 }; /* qcril_delay_timed_cb */
 
@@ -5738,6 +6153,9 @@ static void qcril_init_state
   memset( &qmi_ril_common_critical_section, 0, sizeof( qmi_ril_common_critical_section ) );
   pthread_mutexattr_init( &qmi_ril_common_critical_section.lock_mtx_atr );
   pthread_mutex_init( &qmi_ril_common_critical_section.lock_mutex, &qmi_ril_common_critical_section.lock_mtx_atr );
+
+  pthread_mutexattr_init (&esoc_info.mdm_attr);
+  pthread_mutex_init (&esoc_info.mdm_mutex, &esoc_info.mdm_attr);
 
   /* Initialize internal data */
   for ( instance_id = 0; instance_id < QCRIL_MAX_INSTANCE_ID; instance_id++ )
@@ -5828,6 +6246,9 @@ void qcril_init
 
   QCRIL_MUTEX_UNLOCK( &qcril_state->mutex, "qcril_state_mutex" );
 
+  /* initialize supress list */
+  qcril_request_suppress_list_init();
+
   /* <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                                          QCRIL STATES INITIALIZATION END
      <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
@@ -5838,11 +6259,21 @@ void qcril_init
   // per technology pre-init
   qcril_qmi_nas_dms_commmon_pre_init();
   qcril_qmi_voice_pre_init();
-  qcril_am_pre_init();
 #ifndef QMI_RIL_UTF
-  qcril_qmi_imsa_pre_init();
+  qcril_am_pre_init();
+#else
+  qmi_ril_rat_enable_option = QMI_RIL_FTR_RAT_UNKNOWN;
+  qmi_ril_baseband_ftr_info = QMI_RIL_FTR_BASEBAND_UNKNOWN;
 #endif
+  qcril_qmi_imsa_pre_init();
   qcril_qmi_sms_pre_init();
+
+#ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+  qcril_uim_remote_client_socket_init();
+#endif
+#ifdef FEATURE_QCRIL_UIM_REMOTE_SERVER
+  qcril_uim_remote_server_socket_init();
+#endif
   QCRIL_LOG_FUNC_RETURN();
 
 } /* qcril_init() */
@@ -5921,11 +6352,11 @@ RIL_Errno qmi_ril_core_init(void)
 
     qcril_other_init();
 
-#ifndef QMI_RIL_UTF
     qcril_uim_init();
 
     qcril_gstk_qmi_init();
 
+#ifndef QMI_RIL_UTF
     qcril_data_init();
 #endif
 
@@ -5934,9 +6365,7 @@ RIL_Errno qmi_ril_core_init(void)
     if (qmi_ril_is_feature_supported(QMI_RIL_FEATURE_OEM_SOCKET))
     {
       QCRIL_LOG_INFO( "%s Init OEM socket thread", __FUNCTION__ );
-#ifndef QMI_RIL_UTF
       qcril_qmi_oem_socket_init();
-#endif
     }
 
   } while (FALSE);
@@ -5974,9 +6403,14 @@ RIL_Errno qmi_ril_initiate_core_init_retry(void)
   pthread_attr_t attr;
   int conf;
 
+#ifdef QMI_RIL_UTF
+  pthread_attr_init (&attr);
+  conf = utf_pthread_create_handler(&qmi_ril_init_retry_thread_pid, &attr, qmi_ril_core_init_kicker_thread_proc, NULL);
+#else
   pthread_attr_init (&attr);
   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   conf = pthread_create(&qmi_ril_init_retry_thread_pid, &attr, qmi_ril_core_init_kicker_thread_proc, NULL);
+#endif
   qmi_ril_set_thread_name(qmi_ril_init_retry_thread_pid, QMI_RIL_CORE_INIT_KICKER_THREAD_NAME);
 
   pthread_attr_destroy(&attr);
@@ -5995,6 +6429,7 @@ void qmi_ril_core_init_kicker_main_threaded_proc(void* empty_param)
   RIL_Errno core_init_res = RIL_E_GENERIC_FAILURE;
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED( empty_param );
   qmi_ril_set_operational_status( QMI_RIL_GEN_OPERATIONAL_STATUS_INIT_ONGOING );
   core_init_res = qmi_ril_core_init();
   QCRIL_LOG_INFO( "iteration - %d", (int) core_init_res );
@@ -6021,6 +6456,7 @@ void * qmi_ril_core_init_kicker_thread_proc(void* empty_param)
 
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED( empty_param );
   sleep( QMI_RIL_INI_RETRY_GAP_SEC );
   qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, qmi_ril_core_init_kicker_main_threaded_proc, NULL, NULL );
 
@@ -6052,15 +6488,19 @@ void qcril_release
 
   QCRIL_LOG_FUNC_ENTRY();
 
-#ifndef QMI_RIL_UTF
   qcril_uim_release();
-#endif
+
   /* For QMI_VOICE, NAS/DMS, WMS */
   qcril_qmi_client_release();
 
   if ( qmi_ril_is_multi_sim_feature_supported() )
   {
       qcril_ipc_release();
+  }
+  qcril_log_cleanup();
+  if (qcril_qmi_is_pm_voting_feature_supported())
+  {
+    qmi_ril_peripheral_mng_deinit();
   }
 } /* qcril_release()*/
 
@@ -6210,7 +6650,10 @@ void qcril_free_adv
   }
   else
   {
-    free( mem_ptr );
+    if (NULL != mem_ptr)
+    {
+      free( mem_ptr );
+    }
   }
 
   return;
@@ -6239,6 +6682,22 @@ uint32_t qmi_ril_get_sim_slot(void)
   return qmi_ril_sim_slot;
 }
 
+//=============================================================================
+// FUNCTION: qmi_ril_get_stack_id
+//
+// DESCRIPTION:
+// returns the modem stack id associated with current RIL instance
+//
+// RETURN: 0 | 1 | 2 - primary | secondary | tertiary stack id
+//=============================================================================
+qcril_modem_stack_id_e_type qmi_ril_get_stack_id
+(
+qcril_instance_id_e_type instance_id
+)
+{
+  return qcril_qmi_nas_get_modem_stack_id();
+}
+
 //===========================================================================
 //qmi_ril_enter_critical_section
 //===========================================================================
@@ -6253,6 +6712,531 @@ void qmi_ril_leave_critical_section(void)
 {
   pthread_mutex_unlock( &qmi_ril_common_critical_section.lock_mutex );
 } // qmi_ril_leave_critical_section
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_load_esoc_and_register_with_pm
+
+===========================================================================*/
+/*!
+    @brief
+    Loads esoc info
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_qmi_load_esoc_and_register_with_pm
+(
+    void
+)
+{
+    char* esoc_modem_name;
+    qcril_qmi_load_esoc_info();
+    esoc_modem_name = qcril_qmi_get_esoc_modem_name();
+    QCRIL_LOG_INFO("load_esoc_and_register_with_pm: modem_name = %s",
+                   ((NULL != esoc_modem_name)? esoc_modem_name: "NULL"));
+    if (NULL != esoc_modem_name && !qmi_ril_peripheral_mng_init(esoc_modem_name))
+    {
+        QCRIL_LOG_INFO("peripheral manager feature is enabled");
+        esoc_info.pm_feature_supported = TRUE;
+    }
+}
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_load_esoc_info
+
+===========================================================================*/
+/*!
+    @brief
+    Loads esoc info
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_qmi_load_esoc_info
+(
+    void
+)
+{
+    struct dev_info devinfo;
+
+    do {
+        if (get_system_info(&devinfo) != RET_SUCCESS)
+        {
+            QCRIL_LOG_ERROR("Could not retrieve esoc info");
+            break;
+        }
+
+        if (devinfo.num_modems != 1)
+        {
+            QCRIL_LOG_ERROR("Unexpected number of modems %d",
+                             devinfo.num_modems);
+            break;
+        }
+
+        /* Read esoc node, to be used if
+         * peripheral manager is not supported */
+        strlcpy(esoc_info.esoc_node,
+                devinfo.mdm_list[0].powerup_node,
+                sizeof(esoc_info.esoc_node));
+
+        /* Read modem name, to be used to register with
+         * peripheral manager */
+        strlcpy(esoc_info.modem_name,
+                devinfo.mdm_list[0].mdm_name,
+                sizeof(esoc_info.modem_name));
+
+        /* Read link name to find out the transport medium
+         * to decide on qmi port */
+        strlcpy(esoc_info.link_name,
+                devinfo.mdm_list[0].mdm_link,
+                sizeof(esoc_info.link_name));
+
+        QCRIL_LOG_INFO("Read esoc info: modem name: %s, "
+                       "link name: %s, esoc_node: %s",
+                       esoc_info.modem_name, esoc_info.link_name,
+                       esoc_info.esoc_node);
+
+        esoc_info.type = devinfo.mdm_list[0].type;
+        QCRIL_LOG_INFO("Mdm type (0-External, 1-Internal):%d",
+                        esoc_info.type);
+
+    } while (0);
+
+    return;
+}
+
+/*===========================================================================
+
+  function: qcril_qmi_get_esoc_link_name
+
+===========================================================================*/
+/*!
+    @brief
+    returns esoc mdm link name
+
+    @return
+    esoc device node link name
+*/
+/*=========================================================================*/
+char *qcril_qmi_get_esoc_link_name
+(
+    void
+)
+{
+    char *link_name = NULL;
+    if (strlen(esoc_info.link_name) > 0)
+    {
+        link_name = esoc_info.link_name;
+    }
+
+    return link_name;
+}
+/*===========================================================================
+
+  function: qcril_qmi_get_esoc_modem_name
+
+===========================================================================*/
+/*!
+    @brief
+    returns esoc modem name
+
+    @return
+    esoc modem name
+*/
+/*=========================================================================*/
+char *qcril_qmi_get_esoc_modem_name
+(
+    void
+)
+{
+    char *modem_name= NULL;
+    if (strlen(esoc_info.modem_name) > 0)
+    {
+        modem_name = esoc_info.modem_name;
+    }
+
+    return modem_name;
+}
+
+/*===========================================================================
+
+  function: qcril_qmi_get_esoc_node_name
+
+===========================================================================*/
+/*!
+    @brief
+    returns esoc node name
+
+    @return
+    esoc node name
+*/
+/*=========================================================================*/
+char *qcril_qmi_get_esoc_node_name
+(
+    void
+)
+{
+    char *modem_name= NULL;
+    if (strlen(esoc_info.esoc_node) > 0)
+    {
+        modem_name = esoc_info.esoc_node;
+    }
+
+    return modem_name;
+}
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_modem_power_process_regular_shutdown
+
+===========================================================================*/
+/*!
+    @brief
+        release vote on modem
+
+    @return
+        None
+*/
+/*=========================================================================*/
+void qcril_qmi_modem_power_process_regular_shutdown
+(
+    void
+)
+{
+    QCRIL_MDM_LOCK();
+    if (qcril_qmi_is_pm_voting_feature_supported())
+    {
+        qmi_ril_peripheral_mng_release_vote();
+    }
+    else if (qcril_qmi_is_esoc_voting_feature_supported())
+    {
+        close (esoc_info.esoc_fd);
+    }
+
+    QCRIL_MDM_UNLOCK();
+
+    if (qcril_qmi_is_pm_voting_feature_supported())
+    {
+        QCRIL_LOG_INFO("released vote for modem %s",
+                        qcril_qmi_get_esoc_modem_name()?
+                            qcril_qmi_get_esoc_modem_name() : "null");
+    }
+    else if (qcril_qmi_is_esoc_voting_feature_supported())
+    {
+        QCRIL_LOG_INFO("released vote for  node %s fd %d",
+                        qcril_qmi_get_esoc_node_name()?
+                            qcril_qmi_get_esoc_node_name() : "null",
+                        esoc_info.esoc_fd);
+    }
+
+} // qcril_qmi_modem_power_process_regular_shutdown
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_vote_for_modem_up_using_pm
+
+===========================================================================*/
+/*!
+    @brief
+        adds vote for modem through peripheral manager,
+        so that pil is loaded.
+
+    @return
+        None
+*/
+/*=========================================================================*/
+void qcril_qmi_vote_for_modem_up_using_pm
+(
+    void
+)
+{
+    char   *esoc_modem_name;
+    int     ret;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    esoc_modem_name = qcril_qmi_get_esoc_modem_name();
+    if (esoc_modem_name)
+    {
+        ret = qmi_ril_peripheral_mng_vote();
+        if (ret)
+        {
+            QCRIL_LOG_ERROR("Could not vote for modem %s", esoc_modem_name);
+        }
+        else
+        {
+            esoc_info.voting_state = 1;
+            QCRIL_LOG_INFO("vote activated for modem %s", esoc_modem_name);
+        }
+    }
+    else
+    {
+        QCRIL_LOG_ERROR("ESOC node is not available");
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_vote_for_modem_up_using_pm
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_vote_for_modem_up_using_esoc
+
+===========================================================================*/
+/*!
+    @brief
+        adds vote for modem using esoc , so that pil is loaded.
+
+    @return
+        None
+*/
+/*=========================================================================*/
+void qcril_qmi_vote_for_modem_up_using_esoc
+(
+    void
+)
+{
+    char *esoc_node_name;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    esoc_node_name = qcril_qmi_get_esoc_node_name();
+    if (esoc_node_name)
+    {
+        if (!access (esoc_node_name, F_OK))
+        {
+            QCRIL_LOG_INFO("esoc feature is enabled");
+            esoc_info.esoc_feature_supported = TRUE;
+            if(esoc_info.type == MDM_TYPE_EXTERNAL)
+            {
+                if(NULL != esoc_node_name)
+                {
+                    esoc_info.esoc_fd = open(esoc_node_name, O_RDONLY);
+                }
+
+                if (RIL_VALID_FILE_HANDLE > esoc_info.esoc_fd)
+                {
+                    esoc_info.esoc_feature_supported = FALSE;
+                    QCRIL_LOG_ERROR("Can not open file %s", esoc_node_name);
+                }
+                else
+                {
+                    esoc_info.voting_state = 1;
+                    QCRIL_LOG_INFO("vote activated for node %s, fd %d",
+                                    esoc_node_name, esoc_info.esoc_fd);
+                }
+            }
+            else
+            {
+                esoc_info.esoc_feature_supported = FALSE;
+                QCRIL_LOG_INFO("Internal modem - esoc file open not required");
+            }
+        }
+        else
+        {
+            QCRIL_LOG_ERROR("ESOC node %s not accessible", esoc_node_name);
+        }
+    }
+    else
+    {
+        QCRIL_LOG_ERROR("ESOC node is not available");
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_vote_for_modem_up_using_esoc
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_modem_power_process_bootup
+
+===========================================================================*/
+/*!
+    @brief
+        adds vote for modem, so that pil is loaded.
+
+    @return
+        None
+*/
+/*=========================================================================*/
+void qcril_qmi_modem_power_process_bootup
+(
+    void
+)
+{
+    char   *esoc_modem_name;
+    int     ret;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    qcril_qmi_nas_modem_power_load_apm_mdm_not_pwdn();
+    if (qcril_qmi_is_pm_voting_feature_supported())
+    {
+        qcril_qmi_vote_for_modem_up_using_pm();
+    }
+    else
+    {
+        qcril_qmi_vote_for_modem_up_using_esoc();
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_modem_power_process_bootup
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_is_esoc_voting_feature_supported
+
+===========================================================================*/
+/*!
+    @brief
+    Retrieve if esoc voting feature is supported
+
+    @return
+    TRUE or FALSE
+*/
+/*=========================================================================*/
+boolean qcril_qmi_is_esoc_voting_feature_supported
+(
+    void
+)
+{
+    boolean ret;
+    ret = esoc_info.esoc_feature_supported;
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(ret);
+    return ret;
+} // qcril_qmi_is_esoc_voting_feature_supported
+
+/*===========================================================================
+
+    FUNCTION: qcril_qmi_modem_power_is_voting_feature_supported
+
+===========================================================================*/
+/*!
+    @brief
+    Retrieve if voting feature is supported
+
+    @return
+    TRUE or FALSE
+*/
+/*=========================================================================*/
+boolean qcril_qmi_modem_power_is_voting_feature_supported
+(
+    void
+)
+{
+    boolean ret;
+    ret = (qcril_qmi_is_esoc_voting_feature_supported() ||
+            qcril_qmi_is_pm_voting_feature_supported());
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(ret);
+    return ret;
+} // qcril_qmi_modem_power_is_voting_feature_supported
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_is_pm_voting_feature_supported
+
+===========================================================================*/
+/*!
+    @brief
+    Retrieve if peripheral manager voting feature is supported
+
+    @return
+    TRUE or FALSE
+*/
+/*=========================================================================*/
+boolean qcril_qmi_is_pm_voting_feature_supported
+(
+    void
+)
+{
+    boolean ret;
+    ret = esoc_info.pm_feature_supported;
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(ret);
+    return ret;
+} // qcril_qmi_is_pm_voting_feature_supported
+
+int qcril_qmi_modem_power_voting_state()
+{
+    int ret;
+    QCRIL_MDM_LOCK();
+    ret = esoc_info.voting_state;
+    QCRIL_MDM_UNLOCK();
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(ret);
+    return ret;
+}
+
+void qcril_qmi_modem_power_set_voting_state(int state)
+{
+    QCRIL_MDM_LOCK();
+    esoc_info.voting_state = state;
+    QCRIL_MDM_UNLOCK();
+    QCRIL_LOG_INFO("voting state set to %d", state);
+}
+
+/*===========================================================================
+
+  FUNCTION: qcril_qmi_modem_power_process_apm_off
+
+===========================================================================*/
+/*!
+    @brief
+    vote to power up modem
+
+    @return
+    none
+*/
+/*=========================================================================*/
+void qcril_qmi_modem_power_process_apm_off
+(
+    void
+)
+{
+    QCRIL_LOG_FUNC_ENTRY();
+    char *esoc_modem_name = NULL;
+    char *esoc_node_name  = NULL;
+    int   ret = -1;
+
+    QCRIL_MDM_LOCK();
+    if (qcril_qmi_is_pm_voting_feature_supported())
+    {
+        esoc_modem_name = qcril_qmi_get_esoc_modem_name();
+        ret = qmi_ril_peripheral_mng_vote();
+        if (!ret)
+        {
+            esoc_info.voting_state = 1;
+        }
+    }
+    else if (qcril_qmi_is_esoc_voting_feature_supported())
+    {
+        esoc_node_name = qcril_qmi_get_esoc_node_name();
+        if (NULL != esoc_node_name)
+        {
+            esoc_info.esoc_fd = open(esoc_node_name, O_RDONLY);
+            if (esoc_info.esoc_fd >= RIL_VALID_FILE_HANDLE)
+            {
+                esoc_info.voting_state = 1;
+            }
+        }
+    }
+
+    QCRIL_MDM_UNLOCK();
+
+    if (esoc_info.voting_state)
+    {
+        QCRIL_LOG_INFO("vote activated for modem: %s, node: %s",
+                        esoc_modem_name ? esoc_modem_name : "null",
+                        esoc_node_name ? esoc_node_name : " null");
+    }
+    else
+    {
+        QCRIL_LOG_ERROR("Could not vote for modem: %s, node: %s",
+                        esoc_modem_name ? esoc_modem_name : "null",
+                        esoc_node_name ? esoc_node_name : " null");
+    }
+
+    QCRIL_LOG_FUNC_RETURN();
+}
 
 #ifdef RIL_SHLIB
 /*===========================================================================
@@ -6282,6 +7266,10 @@ const RIL_RadioFunctions *RIL_Init
   signal(SIGPIPE, SIG_IGN);
 
   qcril_log_init();
+
+  /* Load eSOC info and register with peripheral manager */
+  qcril_qmi_load_esoc_and_register_with_pm();
+
   int client_id = 0;
 #ifdef FEATURE_DSDA_RIL_INSTANCE
    #if (FEATURE_DSDA_RIL_INSTANCE == 2)
@@ -6309,7 +7297,7 @@ const RIL_RadioFunctions *RIL_Init
   qmi_ril_process_instance_id = QCRIL_DEFAULT_INSTANCE_ID;
   qmi_ril_sim_slot = 0; // use 1st slot as default
 
-  if ( client_id == 1 )
+  if ( client_id == 2 )
   { // 2nd RIL instance - 1, only for DSDS or DSDA
     qmi_ril_process_instance_id = QCRIL_SECOND_INSTANCE_ID;
     if ( qmi_ril_is_multi_sim_feature_supported() )
@@ -6326,7 +7314,7 @@ const RIL_RadioFunctions *RIL_Init
        QCRIL_LOG_ERROR("Usupported configuration, can't determine sim slot");
     }
   }
-  else if ( client_id == 2 )
+  else if ( client_id == 3 )
   { // 3rd RIL instance, only for TSTS
     qmi_ril_process_instance_id = QCRIL_THIRD_INSTANCE_ID;
     if ( qmi_ril_is_feature_supported(QMI_RIL_FEATURE_TSTS) )
@@ -6373,6 +7361,8 @@ const RIL_RadioFunctions *RIL_Init
   core_handler_start();
   cri_core_start();
   util_timer_start();
+
+  qcril_log_timer_init();
 
   // start bootup if applicable
   qmi_ril_initiate_bootup();
@@ -6469,12 +7459,15 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
     case RIL_REQUEST_BASEBAND_VERSION:
     case RIL_REQUEST_GET_IMEI:
     case RIL_REQUEST_GET_IMEISV:
-      res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE, QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
+      res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF,
+                                                               QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
       break;
 
     case RIL_REQUEST_GET_NEIGHBORING_CELL_IDS:
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF,
                                                                96
                                                                );
@@ -6495,6 +7488,7 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
     case RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE:
     case RIL_REQUEST_DATA_CALL_LIST:
     case RIL_REQUEST_GET_DATA_CALL_PROFILE:
+    case RIL_REQUEST_SET_DATA_PROFILE:
 #if (RIL_QCOM_VERSION >= 2)
     case RIL_REQUEST_SETUP_QOS:
     case RIL_REQUEST_RELEASE_QOS:
@@ -6513,16 +7507,31 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
     case RIL_REQUEST_STK_HANDLE_CALL_SETUP_REQUESTED_FROM_SIM:
     case RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING:
     case RIL_REQUEST_STK_SEND_ENVELOPE_WITH_STATUS:
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
-    case RIL_REQUEST_SIM_TRANSMIT_CHANNEL:
-    case RIL_REQUEST_SIM_CLOSE_CHANNEL:
-    case RIL_REQUEST_SIM_OPEN_CHANNEL:
+#ifdef RIL_REQUEST_SIM_TRANSMIT_CHANNEL
+     case RIL_REQUEST_SIM_TRANSMIT_CHANNEL:
+#endif /* RIL_REQUEST_SIM_TRANSMIT_CHANNEL */
+#ifdef RIL_REQUEST_SIM_CLOSE_CHANNEL
+     case RIL_REQUEST_SIM_CLOSE_CHANNEL:
+#endif /* RIL_REQUEST_SIM_CLOSE_CHANNEL */
+#ifdef RIL_REQUEST_SIM_OPEN_CHANNEL
+     case RIL_REQUEST_SIM_OPEN_CHANNEL:
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL */
+#ifdef RIL_REQUEST_SIM_APDU
     case RIL_REQUEST_SIM_APDU:
-#endif // FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
+#endif /* RIL_REQUEST_SIM_APDU */
+#ifdef RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC
+     case RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC:
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC */
+#ifdef RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL
+     case RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL:
+#endif /* RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+#if defined RIL_REQUEST_SIM_GET_ATR
     case RIL_REQUEST_SIM_GET_ATR:
-#endif // FEATURE_QCRIL_UIM_QMI_GET_ATR
+#endif /* RIL_REQUEST_SIM_GET_ATR */
     case RIL_REQUEST_ISIM_AUTHENTICATION:
+#ifdef RIL_REQUEST_SIM_AUTHENTICATION
+    case RIL_REQUEST_SIM_AUTHENTICATION:
+#endif /* RIL_REQUEST_SIM_AUTHENTICATION */
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_FLOW_CONTROL_EXEMPT, QMI_RIL_ZERO );
       break;
 
@@ -6531,6 +7540,7 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_MULTIPLE_AUTO_DROP_ON_DIFF_PARAMS,
                                                                QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
       break;
@@ -6538,13 +7548,20 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
     case RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE:
     case RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE:
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING,
                                                                QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
       break;
 
     case RIL_REQUEST_RADIO_POWER:
-    case RIL_REQUEST_SET_UICC_SUBSCRIPTION:
+    case RIL_REQUEST_SHUTDOWN:
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE, QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
+      break;
+
+    case RIL_REQUEST_SET_UICC_SUBSCRIPTION:
+      res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF,
+                                                               QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
       break;
 
 
@@ -6553,6 +7570,7 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_VOICE_CALL_SPECIFIC_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_FAMILY_RING_DEFINED_PAIR
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING,
@@ -6564,6 +7582,7 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_VOICE_CALL_SPECIFIC_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING,
                                                                96 );
@@ -6581,14 +7600,26 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_VOICE_CALL_SPECIFIC_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING,
                                                                QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
       break;
 
+    case RIL_REQUEST_SET_INITIAL_ATTACH_APN:
+    case RIL_REQUEST_ALLOW_DATA:
+      res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF,
+                                                               96 );
+      break;
+
     case RIL_REQUEST_SEND_SMS:
     case RIL_REQUEST_SEND_SMS_EXPECT_MORE:
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE,
                                                                96 );
@@ -6599,8 +7630,8 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
     case RIL_REQUEST_WRITE_SMS_TO_SIM:
     case RIL_REQUEST_SMS_ACKNOWLEDGE:
     case RIL_REQUEST_CDMA_SMS_ACKNOWLEDGE:
-    case RIL_REQUEST_SET_INITIAL_ATTACH_APN:
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF,
                                                                96 );
@@ -6618,6 +7649,7 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
     case RIL_REQUEST_CHANGE_BARRING_PASSWORD:
     case RIL_REQUEST_QUERY_CLIP:
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_IN_FAMILY_RING
                                                                | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_NO_AUTO_RESPONSE,
@@ -6625,8 +7657,17 @@ uint32_t qmi_ril_fw_android_request_get_handling_capabilities( int android_reque
       break;
 
     case RIL_REQUEST_GET_CELL_INFO_LIST:
-      res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE, QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
+      res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF,
+                                                               QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_MULTIPLE_DEF );
       break;
+
+    case RIL_REQUEST_QUERY_AVAILABLE_NETWORKS:
+      res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_LEGACY_DROP_OFF
+                                                               | QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_SINGLE_ONLY,
+                                                               QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_SINGLE );
+      break;
+
     default:
       res = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_COMPOSE_CAPS( QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_SINGLE_ONLY, QMI_RIL_FW_ANDROID_REQUEST_HNDL_QUEUE_SZ_SINGLE );
       break;
@@ -6755,16 +7796,25 @@ RIL_Errno qmi_ril_fw_android_request_render_execution( RIL_Token token,
 
         dedicated_thrd_exec_params->original_data_len = android_request_data_len;
 
+#ifdef QMI_RIL_UTF
+        pthread_attr_init( &dedicated_thrd_attr );
+        dedicated_thrd_conf = utf_pthread_create_handler(&dedicated_thrd_thread_pid, &dedicated_thrd_attr,
+                              qmi_ril_fw_dedicated_request_exec_thread, (void*)dedicated_thrd_exec_params );
+
+        pthread_attr_destroy( &dedicated_thrd_attr );
+#else
         pthread_attr_init( &dedicated_thrd_attr );
         pthread_attr_setdetachstate( &dedicated_thrd_attr, PTHREAD_CREATE_DETACHED );
         dedicated_thrd_conf = pthread_create( &dedicated_thrd_thread_pid, &dedicated_thrd_attr, qmi_ril_fw_dedicated_request_exec_thread, (void*)dedicated_thrd_exec_params );
         pthread_attr_destroy( &dedicated_thrd_attr );
+#endif
+
         if ( QMI_RIL_ZERO != dedicated_thrd_conf )
         { // failure, rollback
           QCRIL_LOG_ERROR( "dedicated thread launch failure %d", (int)dedicated_thrd_conf );
           qmi_ril_fw_destroy_android_live_params_copy( dedicated_thrd_exec_params->param_copy_arrron,
                                                        android_request_id,
-                                                       (void*)dedicated_thrd_exec_params->copied_params.four_bytes,
+                                                       (void*)(uintptr_t)dedicated_thrd_exec_params->copied_params.four_bytes,
                                                        dedicated_thrd_exec_params->copied_params.dynamic_copy );
 
           qcril_free( dedicated_thrd_exec_params );
@@ -6862,7 +7912,7 @@ void qmi_ril_fw_android_request_flow_control_trigger_remains(qcril_timed_callbac
 
   if ( NULL != handler_params)
   {
-    android_request_id = (int)handler_params->custom_param;
+    android_request_id = (intptr_t)handler_params->custom_param;
     must_render        = FALSE;
 
     QCRIL_LOG_INFO( ".. android request id %d", (int)android_request_id );
@@ -6948,7 +7998,7 @@ void qmi_ril_fw_android_request_flow_control_trigger_remains(qcril_timed_callbac
 
   if ( log_is_commenced )
   {
-    QCRIL_LOG_ESSENTIAL( "cmd %d exec t_id %d,thrd: %s,adt: %d",
+    QCRIL_LOG_DEBUG( "cmd %d exec t_id %d,thrd: %s,adt: %d",
                          log_android_req_id,
                          log_projected_token_id,
                          log_id_dedicated_thread ? "ddctd" : "main",
@@ -7048,6 +8098,13 @@ void qmi_ril_fw_android_request_flow_control_init( void )
     QMI_RIL_ZERO                                              // must be last one
   };
 
+  static const int family_ring_ps_attach_detach[] =
+  {
+    RIL_REQUEST_SET_INITIAL_ATTACH_APN,
+    RIL_REQUEST_ALLOW_DATA,
+    QMI_RIL_ZERO                                              // must be last one
+  };
+
   QCRIL_LOG_FUNC_ENTRY();
 
   qmi_ril_get_property_value_from_integer(QCRIL_RESTORE_MODE_PREF_SUPPORT,
@@ -7114,6 +8171,7 @@ void qmi_ril_fw_android_request_flow_control_init( void )
     qmi_ril_fw_android_request_flow_control_declare_family_ring( family_ring_incall_ss );
     qmi_ril_fw_android_request_flow_control_declare_family_ring( family_ring_common_ss );
     qmi_ril_fw_android_request_flow_control_declare_family_ring( family_ring_send_sms_and_more );
+    qmi_ril_fw_android_request_flow_control_declare_family_ring( family_ring_ps_attach_detach );
 
     qmi_ril_fw_android_request_flow_control_overview.android_request_kind_info[ RIL_REQUEST_DTMF_START ].family_pair_android_request_id = RIL_REQUEST_DTMF_STOP;
     qmi_ril_fw_android_request_flow_control_overview.android_request_kind_info[ RIL_REQUEST_DTMF_STOP ].family_pair_android_request_id = RIL_REQUEST_DTMF_START;
@@ -7148,7 +8206,7 @@ qmi_ril_fw_android_request_kind_execution_overview_type* qmi_ril_fw_android_requ
       iter = origin;
       do
       {
-        QCRIL_LOG_INFO(".. token ptr %x", (uint32_t) iter->token_under_execution );
+        QCRIL_LOG_INFO(".. token ptr 0x%x", iter->token_under_execution );
         if ( QMI_RIL_ZERO != iter->token_under_execution )
         {
           res = iter;
@@ -7169,7 +8227,7 @@ qmi_ril_fw_android_request_kind_execution_overview_type* qmi_ril_fw_android_requ
     }
   }
 
-  QCRIL_LOG_FUNC_RETURN_WITH_RET((int)res);
+  QCRIL_LOG_FUNC_RETURN_WITH_RET((intptr_t)res);
 
   return res;
 } // qmi_ril_fw_android_request_flow_control_find_busy_kind
@@ -7210,7 +8268,7 @@ qmi_ril_fw_android_request_holder_type * qmi_ril_fw_android_request_flow_control
     }
   }
 
-  QCRIL_LOG_FUNC_RETURN_WITH_RET((int)res);
+  QCRIL_LOG_FUNC_RETURN_WITH_RET((intptr_t)res);
 
   return res;
 }
@@ -7375,15 +8433,25 @@ void qmi_ril_fw_android_request_flow_control_release_holder_info_bookref( qmi_ri
 //===========================================================================
 // qmi_ril_fw_android_request_flow_control_abandon_requests_local_only
 //===========================================================================
-void qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause )
+void qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause, int is_unbind_cleanup )
 {
   uint32_t                                          nof_cap;
   uint32_t                                          idx;
   qmi_ril_fw_android_request_holder_type*           iter;
   RIL_Token                                         cur_token;
   int                                               android_request_id;
+  uint32_t cap_mask;
 
   QCRIL_LOG_FUNC_ENTRY();
+
+  if (is_unbind_cleanup ==  TRUE)
+  {
+    cap_mask = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF;
+  }
+  else
+  {
+    cap_mask = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE;
+  }
 
   if ( origin )
   {
@@ -7408,7 +8476,7 @@ void qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( qmi_ri
                                                               QMI_RIL_ZERO );
       }
     }
-    else if ( origin->nof_extra_holders_and_caps_and_dynamics & QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE )
+    else if ( origin->nof_extra_holders_and_caps_and_dynamics & cap_mask )
     {
       nof_cap = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_DECOMPOSE_QUEUE_SZ ( origin->nof_extra_holders_and_caps_and_dynamics );
       iter = origin->holders.extra_holders;
@@ -7449,7 +8517,7 @@ void qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( qmi_ri
 //===========================================================================
 // qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned
 //===========================================================================
-void qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause )
+void qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( qmi_ril_fw_android_request_kind_execution_overview_type* origin, RIL_Errno cause, int is_unbind_cleanup )
 {
   qmi_ril_fw_android_request_kind_execution_overview_type* iter;
   QCRIL_LOG_FUNC_ENTRY();
@@ -7462,7 +8530,7 @@ void qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zon
 
       do
       {
-        qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( iter, cause );
+        qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( iter, cause, is_unbind_cleanup );
 
         iter->nof_extra_holders_and_caps_and_dynamics |= QMI_RIL_FW_ANDROID_REQUEST_KIND_EXEC_OVERVIEW_DYNAMICS_RING_LOOP_MARK;
         iter = iter->family_ring;
@@ -7479,7 +8547,7 @@ void qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zon
     }
     else
     {
-      qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( origin, cause );
+      qmi_ril_fw_android_request_flow_control_abandon_requests_local_only( origin, cause, is_unbind_cleanup );
     }
   }
 
@@ -7506,7 +8574,7 @@ void qmi_ril_fw_android_request_flow_control_abandon_requests_family_main_thrd( 
     if ( overview->nof_extra_holders_and_caps_and_dynamics & QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_FLOW_CONTROL_EXEMPT )
       break;
 
-    qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( overview, cause );
+    qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( overview, cause, FALSE );
 
   } while (FALSE);
 
@@ -7514,10 +8582,36 @@ void qmi_ril_fw_android_request_flow_control_abandon_requests_family_main_thrd( 
 
   QCRIL_LOG_FUNC_RETURN();
 } // qmi_ril_fw_android_request_flow_control_abandon_requests_family_main_thrd
+
+//===========================================================================
+// qmi_ril_abandon_all_ims_requests
+//===========================================================================
+void qmi_ril_abandon_all_ims_requests( RIL_Errno cause )
+{
+  qcril_reqlist_public_type request_info;
+  IxErrnoType               err_code;
+  int                       ims_req_id;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  for ( ims_req_id = QCRIL_EVT_IMS_SOCKET_REQ_BASE+1;
+          ims_req_id < QCRIL_EVT_IMS_SOCKET_REQ_MAX; ims_req_id++ )
+  {
+    while ( E_SUCCESS == qcril_reqlist_query_by_request( QCRIL_DEFAULT_INSTANCE_ID,
+                ims_req_id, &request_info ) )
+    {
+      qcril_qmi_ims_socket_send( request_info.t, IMS__MSG_TYPE__RESPONSE,
+              qcril_qmi_ims_map_event_to_request(ims_req_id),
+              qcril_qmi_ims_map_ril_error_to_ims_error(cause), NULL, 0 );
+    }
+  }
+  QCRIL_LOG_FUNC_RETURN();
+}
+
 //===========================================================================
 // qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd
 //===========================================================================
-void qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd( RIL_Errno cause )
+void qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd( RIL_Errno cause, int is_unbind_cleanup )
 {
   int android_request_id;
   qmi_ril_fw_android_request_kind_execution_overview_type* overview;
@@ -7531,10 +8625,12 @@ void qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd( RIL
 
     if ( !(overview->nof_extra_holders_and_caps_and_dynamics & QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_FLOW_CONTROL_EXEMPT) )
     {
-      qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( overview, cause );
+      qmi_ril_fw_android_request_flow_control_abandon_requests_local_and_ring_zoned( overview, cause, is_unbind_cleanup );
     }
   }
   qmi_ril_fw_android_request_flow_control_info_unlock();
+
+  qmi_ril_abandon_all_ims_requests( cause );
 
   QCRIL_LOG_FUNC_RETURN();
 } // qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd
@@ -7710,7 +8806,7 @@ int qmi_ril_fw_android_request_flow_control_moniker_compare( uint32_t moniker1, 
 //===========================================================================
 // qmi_ril_fw_android_request_flow_control_drop_legacy_book_records
 //===========================================================================
-void qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( int voice_calls_related_only )
+void qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( int voice_calls_related_only, int is_unbind_cleanup )
 {
   int                       android_request_id;
   uint32_t                  android_request_caps;
@@ -7724,7 +8820,14 @@ void qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( int voice
   }
   else
   {
-    cmp_mask = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE;
+    if (is_unbind_cleanup == TRUE)
+    {
+      cmp_mask = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_UNBIND_DROP_OFF;
+    }
+    else
+    {
+      cmp_mask = QMI_RIL_FW_ANDROID_REQUEST_HNDL_CAPS_ALLOW_MULTIPLE;
+    }
   }
 
   for ( android_request_id = QMI_RIL_ZERO; android_request_id <= QMI_RIL_FW_ANDROID_REQUEST_HNDL_MAX_EVT_ID; android_request_id++ )
@@ -7813,7 +8916,7 @@ qmi_ril_fw_android_param_copy_approach_type qmi_ril_fw_create_android_live_param
   char *copied_ch_bar_pwd_new_pwd;
 
   QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_LOG_DEBUG("a-r-id %d, a-data %d, a-data-len %d", android_request_id, (int)android_request_data, (int)android_request_data_len );
+  QCRIL_LOG_DEBUG("a-r-id %d, a-data 0x%x, a-data-len %d", android_request_id, android_request_data, (int)android_request_data_len );
 
 
   res               = QMI_RIL_ANDROID_PARAM_CPY_APPRON_INVALID;
@@ -8087,7 +9190,7 @@ qmi_ril_fw_android_param_copy_approach_type qmi_ril_fw_create_android_live_param
 
           need_common_clone = FALSE; // we already did it
 
-          QCRIL_LOG_DEBUG("sms allo %d, %d, %d", (int)copied_android_gw_sms_ims_params, (int)copied_android_gw_smsc_address, (int)copied_android_gw_pdu);
+          QCRIL_LOG_DEBUG("sms allo 0x%x, 0x%x, 0x%x", copied_android_gw_sms_ims_params, copied_android_gw_smsc_address, copied_android_gw_pdu);
 
           res_inclanation = QMI_RIL_ANDROID_PARAM_CPY_APPRON_DYNAMIC_COPY;
         }
@@ -8274,7 +9377,7 @@ qmi_ril_fw_android_param_copy_approach_type qmi_ril_fw_create_android_live_param
 
             need_common_clone = FALSE; // we already did it
 
-            QCRIL_LOG_DEBUG("manual sel allo %d, %d, %d", (int)copied_android_manual_selection_params, (int)copied_android_manual_selection_mcc_mnc, (int)copied_android_manual_selection_rat);
+            QCRIL_LOG_DEBUG("manual sel allo 0x%x, 0x%x, 0x%x", copied_android_manual_selection_params, copied_android_manual_selection_mcc_mnc, copied_android_manual_selection_rat);
 
             res_inclanation = QMI_RIL_ANDROID_PARAM_CPY_APPRON_DYNAMIC_COPY;
           }
@@ -8594,7 +9697,7 @@ qmi_ril_fw_android_param_copy_approach_type qmi_ril_fw_create_android_live_param
 
           need_common_clone = FALSE; // we already did it
 
-          QCRIL_LOG_DEBUG("change bar pwd alloc 0x%x", (int)copied_change_barring_pwd_params );
+          QCRIL_LOG_DEBUG("change bar pwd alloc 0x%x", copied_change_barring_pwd_params );
 
           res_inclanation = QMI_RIL_ANDROID_PARAM_CPY_APPRON_DYNAMIC_COPY;
         }
@@ -8653,7 +9756,7 @@ qmi_ril_fw_android_param_copy_approach_type qmi_ril_fw_create_android_live_param
     case RIL_REQUEST_SMS_ACKNOWLEDGE:
       if ( NULL != android_request_data && android_request_data_len > QMI_RIL_ZERO )
       {
-        len_to_go  = 2 * sizeof( int* );
+        len_to_go  = 2 * sizeof( int );
 
         res_inclanation = QMI_RIL_ANDROID_PARAM_CPY_APPRON_DYNAMIC_COPY;
 
@@ -8755,8 +9858,8 @@ qmi_ril_fw_android_param_copy_approach_type qmi_ril_fw_create_android_live_param
       break;
 
     case QMI_RIL_ANDROID_PARAM_CPY_APPRON_DYNAMIC_COPY:
-      QCRIL_LOG_INFO(".. params for Android request id %d are of complex structure and cloned to 0x%d length %d",
-                        android_request_id, (int) locally_created_custom_storage, (int) locally_created_custom_storage_len );
+      QCRIL_LOG_INFO(".. params for Android request id %d are of complex structure and cloned to 0x%x length %d",
+                        android_request_id, locally_created_custom_storage, (int) locally_created_custom_storage_len );
       break;
 
     case QMI_RIL_ANDROID_PARAM_CPY_APPRON_EMPTY_NO_ACTION:
@@ -8875,7 +9978,7 @@ void qmi_ril_fw_destroy_android_live_params_copy(qmi_ril_fw_android_param_copy_a
         copied_android_gw_smsc_address   = copied_android_gw_sms_ims_params[0];
         copied_android_gw_pdu            = copied_android_gw_sms_ims_params[1];
 
-        QCRIL_LOG_DEBUG("sms allo %d, %d, %d", (int)copied_android_gw_sms_ims_params, (int)copied_android_gw_smsc_address, (int)copied_android_gw_pdu);
+        QCRIL_LOG_DEBUG("sms allo 0x%x, 0x%x, 0x%x", copied_android_gw_sms_ims_params, copied_android_gw_smsc_address, copied_android_gw_pdu);
 
         if( NULL != copied_android_gw_pdu )
         {
@@ -8904,7 +10007,7 @@ void qmi_ril_fw_destroy_android_live_params_copy(qmi_ril_fw_android_param_copy_a
           copied_android_manual_selection_mcc_mnc   = copied_android_manual_selection_params[0];
           copied_android_manual_selection_rat       = copied_android_manual_selection_params[1];
 
-          QCRIL_LOG_DEBUG("manual sel allo %d, %d, %d", (int)copied_android_manual_selection_params, (int)copied_android_manual_selection_mcc_mnc, (int)copied_android_manual_selection_rat);
+          QCRIL_LOG_DEBUG("manual sel allo 0x%x, 0x%x, 0x%x", copied_android_manual_selection_params, copied_android_manual_selection_mcc_mnc, copied_android_manual_selection_rat);
 
           if( NULL != copied_android_manual_selection_mcc_mnc )
           {
@@ -9459,8 +10562,209 @@ int qmi_ril_retrieve_number_of_rilds()
 void qmi_ril_bootup_actition_on_rild_atel_link_connect(void * params)
 {
   QCRIL_LOG_FUNC_ENTRY();
-
+  QCRIL_NOTUSED( params );
   qcril_sms_post_ready_status_update();
 
   QCRIL_LOG_FUNC_RETURN();
 } // qmi_ril_bootup_actition_on_rild_atel_link_connect
+
+/*===========================================================================
+
+  FUNCTION  qcril_request_suppress_list_init
+
+===========================================================================*/
+/*!
+    @brief
+    Initialize suppress list and mutex.
+
+    @return
+    E_SUCCESS if success
+*/
+/*=========================================================================*/
+void qcril_request_suppress_list_init
+(
+    void
+)
+{
+    pthread_mutexattr_init(&qcril_request_supress_list_mutex_attr);
+    pthread_mutex_init(&qcril_request_supress_list_mutex_attr,
+                       &qcril_request_supress_list_mutex_attr);
+}
+
+/*===========================================================================
+
+  FUNCTION  qcril_request_check_if_suppressed
+
+===========================================================================*/
+/*!
+    @brief
+    Check if a request id is in suppressed list.
+
+    @return
+    TRUE is request is suppressed.
+*/
+/*=========================================================================*/
+boolean qcril_request_check_if_suppressed
+(
+    int event_id
+)
+{
+    boolean ret = FALSE;
+    int     i;
+
+    QCRIL_MUTEX_LOCK(&qcril_request_supress_list_mutex, "supress list mutex");
+
+    do
+    {
+        for (i = 0; ((i < QCRIL_REQUEST_SUPPRESS_MAX_LEN) &&
+                    (qcril_request_suppress_list[i] != 0)); i++)
+        {
+            if (event_id == qcril_request_suppress_list[i])
+            {
+                ret = TRUE;
+                break;
+            }
+        }
+    } while (FALSE);
+
+    QCRIL_MUTEX_UNLOCK(&qcril_request_supress_list_mutex, "supress list mutex");
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(ret);
+    return ret;
+}
+
+/*===========================================================================
+
+  FUNCTION  qcril_request_suppress_request
+
+===========================================================================*/
+/*!
+    @brief
+    Add request id to suppressed list.
+
+    @return
+    E_SUCCESS if success.
+    E_FAILURE if failure.
+*/
+/*=========================================================================*/
+int qcril_request_suppress_request
+(
+    int event_id
+)
+{
+    boolean ret = E_FAILURE;
+    int i;
+
+    QCRIL_MUTEX_LOCK(&qcril_request_supress_list_mutex, "supress list mutex");
+
+    do
+    {
+        for (i = 0; i < QCRIL_REQUEST_SUPPRESS_MAX_LEN; i++)
+        {
+            if (0 == qcril_request_suppress_list[i])
+            {
+                QCRIL_LOG_DEBUG("Supress %d", event_id);
+                qcril_request_suppress_list[i] = event_id;
+                ret = E_SUCCESS;
+                break;
+            }
+        }
+
+    } while (FALSE);
+
+    QCRIL_MUTEX_UNLOCK(&qcril_request_supress_list_mutex, "supress list mutex");
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(ret);
+    return ret;
+}
+
+/*===========================================================================
+
+  FUNCTION qcril_request_clean_up_suppress_list
+
+===========================================================================*/
+/*!
+    @brief
+    Clean up suppress list.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_request_clean_up_suppress_list
+(
+    void
+)
+{
+    int i;
+    QCRIL_LOG_FUNC_ENTRY();
+
+    QCRIL_MUTEX_LOCK(&qcril_request_supress_list_mutex, "supress list mutex");
+    for (i = 0; i < QCRIL_REQUEST_SUPPRESS_MAX_LEN; i++)
+    {
+        qcril_request_suppress_list[i] = 0;
+    }
+
+    QCRIL_MUTEX_UNLOCK(&qcril_request_supress_list_mutex, "supress list mutex");
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+#ifdef QMI_RIL_UTF
+//============================================================================
+// FUNCTION: qmi_ril_thread_shutdown
+//
+// DESCRIPTION:
+// clears all global variables and releases all shared resources for reboot
+//
+// RETURN:
+//============================================================================
+int qmi_ril_threads_shutdown()
+{
+  if (core_shutdown_for_reboot() != 0)
+  {
+    QCRIL_LOG_ERROR("Could not successfully shutdown thread in core_handler.c");
+  }
+
+  return 0;
+
+}
+
+//============================================================================
+// FUNCTION: qmi_ril_reboot_cleanup
+//
+// DESCRIPTION:
+// clears all global variables and releases all shared resources for reboot
+//
+// RETURN:
+//============================================================================
+int qmi_ril_reboot_cleanup()
+{
+  // Begin shutdown process
+  qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( FALSE, FALSE );
+  qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd( RIL_E_CANCELLED, FALSE );
+  qmi_ril_clear_timed_callback_list();
+  // clean up core clients
+  qcril_qmi_client_release();
+
+  qmi_ril_reset_multi_sim_ftr_info();
+
+  if (qcril_db_reset_cleanup() != 0)
+  {
+    QCRIL_LOG_ERROR("Could not successfully reset resources in qcril_db.c");
+  }
+  if (qcril_qmi_voice_reboot_cleanup() != 0)
+  {
+    QCRIL_LOG_ERROR("Could not successfully reset resources in qcril_qmi_voice.c");
+  }
+  // local file cleanup
+  qcril_free(qmi_ril_fw_android_request_flow_control_overview.android_request_kind_info);
+
+  memset(&qcril_hash_table, 0, sizeof(qcril_hash_table));
+  unsigned int i;
+  for (i = 0; i < QCRIL_ARR_SIZE( qcril_event_table ); ++i)
+  {
+    qcril_event_table[i].next_ptr = NULL;
+  }
+
+  return 0;
+}
+
+#endif

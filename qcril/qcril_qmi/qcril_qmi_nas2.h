@@ -99,13 +99,28 @@ void qcril_qmi_nas_set_initial_attach_apn
 
 mode_pref_mask_type_v01 qcril_qmi_nas2_convert_rat_to_mode_pref(int rat);
 
+nas_radio_if_enum_v01
+    qcril_qmi_nas2_convert_qcril_rat_to_qmi_rat(RIL_RadioTechnology qcril_rat);
+
 RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_change );
 
 char* qcril_qmi_nas2_retrieve_mcc_from_iccid(char *iccid);
-uint8 qcril_qmi_nas_check_is_indication_received();
-RIL_Errno qcril_qmi_nas2_create_reqlist_setup_timer_helper( const qcril_request_params_type *const params_ptr );
+
+unsigned int qcril_qmi_nas_get_radio_tech(uint16_t mode_pref);
+
+void qcril_qmi_nas_request_set_preferred_network_band_pref
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
 
 void qcril_qmi_nas_request_set_preferred_network_acq_order
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_nas_request_get_preferred_network_band_pref
 (
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr
@@ -126,6 +141,8 @@ uint8_t qmi_ril_nas_get_deferred_acq_order_map( qcril_qmi_acq_order_e_type *acq_
 uint8_t qcril_qmi_nas_get_gw_acq_order_pref (uint16_t *gw_acq_order_pref);
 uint8_t qcril_qmi_nas_get_acq_order(uint32_t *acq_order_len, nas_radio_if_enum_v01 *acq_order);
 uint8_t qmi_ril_nas_get_deferred_acq_order( uint32_t *acq_order_len, nas_radio_if_enum_v01 *acq_order );
+uint8 qcril_qmi_nas_check_is_indication_received();
+RIL_Errno qcril_qmi_nas2_create_reqlist_setup_timer_helper( const qcril_request_params_type *const params_ptr );
 
 #endif /* QCRIL_QMI_NAS2_H */
 

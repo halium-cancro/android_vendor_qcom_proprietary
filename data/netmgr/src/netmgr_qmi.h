@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2015 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -52,6 +52,22 @@ when       who        what, where, why
                               INCLUDE FILES
 ===========================================================================*/
 #include "comdef.h"
+#ifdef FEATURE_DATA_IWLAN
+
+#ifndef QMI_CLIENT_H
+  #undef QMI_INTERNAL_ERR
+  #undef QMI_SERVICE_ERR
+  #undef QMI_TIMEOUT_ERR
+  #undef QMI_EXTENDED_ERR
+  #undef QMI_PORT_NOT_OPEN_ERR
+  #undef QMI_MEMCOPY_ERROR
+  #undef QMI_INVALID_TXN
+  #undef QMI_CLIENT_ALLOC_FAILURE
+#endif
+
+  #include "qmi_client.h"
+  #include "data_filter_service_v01.h"
+#endif /* FEATURE_DATA_IWLAN */
 #include "qmi.h"
 #include "qmi_wds_srvc.h"
 #include "qmi_qos_srvc.h"
@@ -69,6 +85,7 @@ when       who        what, where, why
 #define NETMGR_QMI_PRIMARY_FLOW_ID        (0)
 #define NETMGR_IS_DEFAULT_FLOW(id)                           \
         ((NETMGR_QMI_PRIMARY_FLOW_ID == id)? TRUE : FALSE)
+#define NETMGR_QMI_TIMEOUT (10000)
 
 typedef enum {
   NETMGR_QMI_CLIENT_IPV4,
@@ -84,6 +101,7 @@ typedef enum {
   NETMGR_QMI_SYS_IND_CMD,
   NETMGR_QMI_WDS_IND_CMD,
   NETMGR_QMI_QOS_EVENT_REPORT_IND_CMD,
+  NETMGR_QMI_DFS_IND_CMD,
   NETMGR_QMI_CMD_MAX
 } netmgr_qmi_cmd_type_t;
 
@@ -130,6 +148,18 @@ typedef struct {
   qmi_qos_indication_data_type   info;        /* Indication information */
 } netmgr_qmi_qos_ind_t;
 
+#ifdef FEATURE_DATA_IWLAN
+typedef union {
+  dfs_reverse_ip_transport_filters_updated_ind_msg_v01  filter_ind;
+} netmgr_qmi_dfs_ind_data_type;
+
+typedef struct {
+  int                            link;        /* Link id */
+  unsigned int                   ind_id;      /* Indication ID */
+  netmgr_qmi_dfs_ind_data_type   info;
+} netmgr_qmi_dfs_ind_t;
+#endif /* FEATURE_DATA_IWLAN */
+
 /*---------------------------------------------------------------------------
   Type of QMI internal commands
 ---------------------------------------------------------------------------*/
@@ -139,6 +169,9 @@ typedef struct {
     netmgr_qmi_sys_ind_t               sys_ind;
     netmgr_qmi_wds_ind_t               wds_ind;
     netmgr_qmi_qos_ind_t               qos_ind;
+#ifdef FEATURE_DATA_IWLAN
+    netmgr_qmi_dfs_ind_t               dfs_ind;
+#endif /* FEATURE_DATA_IWLAN */
   } data;
 } netmgr_qmi_cmd_t;
 
@@ -160,9 +193,9 @@ typedef struct {
   netmgr_util_circ_list_type  rev_ip_txns[NETMGR_QMI_CLIENT_MAX];
   struct
   {
-    boolean  is_valid;
-    int      ip_family;
-    int      status;
+    boolean         is_valid;
+    int             ip_family;
+    int             status;
   } rev_ip_config_status;
   netmgr_qmi_bearer_tech_t    bearer_tech_ex;
 #endif /* FEATURE_DATA_IWLAN */
@@ -176,6 +209,12 @@ typedef struct {
   netmgr_qmi_qos_flow_info_t   *qos_flows[QMI_QOS_MAX_FLOW_FILTER];
 } netmgr_qos_qmi_drv_info_t;
 
+#ifdef FEATURE_DATA_IWLAN
+typedef struct {
+  qmi_client_type  clnt_hdl[NETMGR_QMI_CLIENT_MAX];        /* QMI QOS client handles */
+} netmgr_dfs_qmi_drv_info_t;
+#endif /* FEATURE_DATA_IWLAN */
+
 /*---------------------------------------------------------------------------
   Type representing collection of a link's state information
 ---------------------------------------------------------------------------*/
@@ -184,6 +223,7 @@ typedef struct {
   netmgr_qos_qmi_drv_info_t  qos_info;  /* QOS service info */
 
 #ifdef FEATURE_DATA_IWLAN
+  netmgr_dfs_qmi_drv_info_t  dfs_info;  /* DFS service info */
   int                        assoc_link; /* Associated fwd or rev link if in
                                             an iWLAN/ePDG call */
 #endif /* FEATURE_DATA_IWLAN */
@@ -584,6 +624,35 @@ netmgr_qmi_initiate_esp_rekey
 (
   int link,
   netmgr_qmi_client_type_t qmi_client
+);
+
+/*===========================================================================
+  FUNCTION  netmgr_qmi_get_ipsec_tunnel_endpoints
+===========================================================================*/
+/*!
+@brief
+  Retrives the tunnel endpoint info for a given link and ip family
+
+@return
+  netmgr_address_info_t * - IP address info struct pointer,
+                            NULL if undefined
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+int netmgr_qmi_get_ipsec_tunnel_endpoints
+(
+  int link,
+  int ip_family,
+  const char **local,
+  const char **dest,
+  int *tunnel_family
 );
 
 #endif /* FEATURE_DATA_IWLAN */

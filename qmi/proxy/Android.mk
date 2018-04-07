@@ -42,4 +42,4 @@ LOCAL_MODULE_TAGS := optional
 
 LOCAL_PRELINK_MODULE := false
 
-include $(BUILD_EXECUTABLE)
+#include $(BUILD_EXECUTABLE)

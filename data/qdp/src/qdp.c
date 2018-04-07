@@ -9,7 +9,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
   Export of this technology or software is regulated by the U.S. Government.
@@ -113,9 +113,9 @@ qdp_param_tech_map_t param_tech_map_tbl[QDP_RIL_PARAM_MAX] =
     QMI_WDS_MAX_APN_STR_SIZE
   },
 
-  /* NAI is 3GPP2 concept, no need to lookup 3GPP profile */
+  /* NAI is 3GPP2 concept, NAI is username in 3GPP */
   { QDP_RIL_NAI,
-    (QDP_NOTECH | QDP_3GPP2),
+    (QDP_NOTECH | QDP_3GPP2 | QDP_3GPP),
     QMI_WDS_UMTS_PROFILE_USERNAME_PARAM_MASK,
     QMI_WDS_MAX_USERNAME_PASS_STR_SIZE,
     QMI_WDS_CDMA_PROFILE_USERNAME_PARAM_MASK,
@@ -124,7 +124,7 @@ qdp_param_tech_map_t param_tech_map_tbl[QDP_RIL_PARAM_MAX] =
 
   /* password is not used for profile look up */
   { QDP_RIL_PASSWORD,
-    QDP_NOTECH,
+    (QDP_NOTECH | QDP_3GPP2 | QDP_3GPP),
     QMI_WDS_UMTS_PROFILE_PASSWORD_PARAM_MASK,
     QMI_WDS_MAX_USERNAME_PASS_STR_SIZE,
     QMI_WDS_CDMA_PROFILE_PASSWORD_PARAM_MASK,
@@ -133,7 +133,7 @@ qdp_param_tech_map_t param_tech_map_tbl[QDP_RIL_PARAM_MAX] =
 
   /* auth is not used for profile look up */
   { QDP_RIL_AUTH,
-    QDP_NOTECH,
+    (QDP_NOTECH | QDP_3GPP2 | QDP_3GPP),
     QMI_WDS_UMTS_PROFILE_AUTH_PREF_PARAM_MASK,
     sizeof(qmi_wds_auth_pref_type),
     QMI_WDS_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK,
@@ -215,6 +215,7 @@ typedef struct qdp_param_s
 } qdp_param_t;
 
 #define QDP_NUM_UMTS_PROFILES_EXPECTED 16
+#define QDP_PERSISTENT_PROFILES QDP_NUM_UMTS_PROFILES_EXPECTED
 #define QDP_NUM_DEFAULT_CDMA_PROFILES 1
 #define QDP_NUM_KDDI_CDMA_PROFILES 22
 #define QDP_NUM_EHRPD_CDMA_PROFILES 7
@@ -827,7 +828,7 @@ static int qdp_match_3gpp_profile_params
         {
         case QDP_RIL_APN:
           if ((!(prof_params->umts_profile_params.param_mask &
-                 QMI_WDS_UMTS_PROFILE_APN_NAME_PARAM_MASK)) //||
+                 QMI_WDS_UMTS_PROFILE_APN_NAME_PARAM_MASK))// ||
               //NULL == prof_params->umts_profile_params.apn_name
 		)
           {
@@ -1135,8 +1136,8 @@ static int qdp_match_3gpp2_profile_params
         {
         case QDP_RIL_APN:
           if ((!(prof_params->cdma_profile_params.param_mask &
-                 QMI_WDS_CDMA_PROFILE_APN_STRING_PARAM_MASK)) //||
-             // NULL == prof_params->cdma_profile_params.apn_name
+                 QMI_WDS_CDMA_PROFILE_APN_STRING_PARAM_MASK))// ||
+              //NULL == prof_params->cdma_profile_params.apn_name
 		)
           {
             QDP_LOG_DEBUG("modem profile parameter APN is NULL. param_mask = [%p]",
@@ -1173,7 +1174,7 @@ static int qdp_match_3gpp2_profile_params
           break;
         case QDP_RIL_NAI:
           if ((!(prof_params->cdma_profile_params.param_mask &
-                 QMI_WDS_CDMA_PROFILE_USERNAME_PARAM_MASK)) //||
+                 QMI_WDS_CDMA_PROFILE_USERNAME_PARAM_MASK))// ||
               //NULL == prof_params->cdma_profile_params.username
 		)
           {
@@ -1606,6 +1607,171 @@ int qdp_3gpp_multi_param_search
   return ret;
 }
 
+int qdp_3gpp_alt_multi_param_search
+(
+  int            param_to_match,
+  int            param_value,
+  unsigned int * profile_num, /* out placeholder, *profile_num
+                               * must be set to 0 by caller */
+  qdp_profile_pdn_type *profile_pdn_type,  /* Profile PDN type */
+  qmi_wds_profile_params_type * p_params,  /* out placeholder */
+  qdp_error_t * lookup_error  /* out placeholder */
+)
+{
+  int i=0;
+  int ret = QDP_FAILURE;
+  int reti = QDP_SUCCESS;
+  int rc, qmi_err_code;
+  qmi_wds_profile_tech_type profile_tech;
+  int num_elements_expected_3gpp = QDP_PERSISTENT_PROFILES;
+  qmi_wds_profile_list_type * result_list_3gpp = NULL;
+  qmi_wds_profile_id_type prof_id;
+  qmi_wds_profile_params_type prof_params;
+  boolean match_found = FALSE;
+
+  QDP_INIT_BARRIER;
+
+  do
+  {
+    QDP_LOG_DEBUG("%s","qdp_3gpp_alt_multi_param_search ENTRY");
+
+    QDP_LOG_DEBUG("%s","qdp_3gpp_alt_multi_param_search [%d] param_to_match and [%d] param_value"
+                     ,param_to_match,param_value);
+
+    if (NULL == profile_num      ||
+        NULL == profile_pdn_type ||
+        NULL == lookup_error )
+    {
+      QDP_LOG_ERROR("%s","invalid params");
+      break;
+    }
+
+    if (QDP_INVALID_PROFILE != *profile_num)
+    {
+      QDP_LOG_ERROR("output placeholder [%d] is not [%d]",
+                    *profile_num, QDP_INVALID_PROFILE);
+      break;
+    }
+
+    if (QDP_PROFILE_PDN_TYPE_INVALID != *profile_pdn_type)
+    {
+      QDP_LOG_ERROR("output placeholder [%d] is not [%d]",
+                    *profile_pdn_type, QDP_PROFILE_PDN_TYPE_INVALID);
+      break;
+    }
+
+    QDP_MALLOC(result_list_3gpp,
+               sizeof(qmi_wds_profile_list_type)*QDP_PERSISTENT_PROFILES);
+    if (NULL == result_list_3gpp)
+    {
+      QDP_LOG_ERROR("%s","memory error");
+      break;
+    }
+
+    profile_tech = QMI_WDS_PROFILE_TECH_3GPP;
+
+    rc = qmi_wds_utils_get_profile_list(
+      global_qmi_wds_hndl,
+      &profile_tech,
+      NULL,
+      result_list_3gpp,
+      &num_elements_expected_3gpp,
+      &qmi_err_code);
+
+    if (QMI_NO_ERR != rc)
+    {
+      QDP_LOG_ERROR("get_profile_list failed with error [%d] " \
+                    "qmi_err_code [%d]", rc, qmi_err_code);
+      break;
+    }
+
+    QDP_LOG_DEBUG("get_profile_list for profile_tech [%d] "   \
+                  "returned [%d] profile ids",
+                  profile_tech, num_elements_expected_3gpp);
+
+    memset(&prof_params, 0, sizeof(prof_params));
+
+
+    for(i=0; i<num_elements_expected_3gpp; i++)
+    {
+      prof_id.technology = QMI_WDS_PROFILE_TECH_3GPP;
+      prof_id.profile_index = result_list_3gpp[i].profile_index;
+
+      rc = qmi_wds_query_profile(
+        global_qmi_wds_hndl,
+        &prof_id,
+        &prof_params,
+        &qmi_err_code
+        );
+
+      if (QMI_NO_ERR != rc)
+      {
+        QDP_LOG_ERROR("query_profile failed with error [%d] " \
+                      "qmi_err_code [%d]", rc, qmi_err_code);
+        reti = QDP_FAILURE;
+        break;
+      }
+      else
+      {
+        QDP_LOG_DEBUG("successfully queried 3GPP profile [%d]",
+                      prof_id.profile_index);
+
+        QDP_LOG_DEBUG("Profile CLASS of [%d] profile is [%d]",
+                      prof_id.profile_index,prof_params.umts_profile_params.apn_class);
+      }
+
+      if(param_to_match == QDP_RIL_CLASS)
+      {
+        if(prof_params.umts_profile_params.apn_class == param_value)
+        {
+          match_found = TRUE;
+          QDP_LOG_DEBUG("APN CLASS Matched with %d Profile",prof_id.profile_index);
+        }
+      }
+
+      if(match_found)
+      {
+        *profile_num = (unsigned int)prof_id.profile_index;
+        *profile_pdn_type = qdp_get_3gpp_profile_pdn_type(&prof_params);
+
+        if (NULL != p_params)
+        {
+          /* Copy the profile information into the out placeholder for profile params */
+          memcpy( p_params, &prof_params, sizeof(qmi_wds_profile_params_type));
+        }
+
+        /* reset lookup error if it was set while matching
+           any profiles queried before this point */
+        QDP_LOG_DEBUG("%s", "resetting lookup_error - if any");
+        *lookup_error = QDP_ERROR_NONE;
+        break;
+      }
+
+    } /* for */
+    if (QDP_SUCCESS != reti)
+    {
+      break;
+    }
+
+    ret = QDP_SUCCESS;
+  } while (0);
+
+  if (NULL != result_list_3gpp)
+  {
+    QDP_FREE(result_list_3gpp);
+  }
+
+  if (QDP_SUCCESS != ret)
+  {
+    QDP_LOG_ERROR("%s","qdp_3gpp_alt_multi_param_search EXIT failed");
+  }
+  else
+  {
+    QDP_LOG_DEBUG("%s","qdp_3gpp_alt_multi_param_search EXIT success");
+  }
+
+  return ret;
+}
 /*===========================================================================
   FUNCTION:  qdp_3gpp2_multi_param_search
 ===========================================================================*/
@@ -1988,6 +2154,37 @@ static int qdp_3gpp_profile_update
   return ret;
 } /* qdp_3gpp_profile_update */
 
+int qdp_3gpp_profile_update_ex
+(
+  qmi_wds_profile_params_type * p_params,
+  unsigned int                  profile_id,
+  int                         * error_code
+)
+{
+  qmi_wds_profile_id_type     prof_id;
+
+  prof_id.technology = QMI_WDS_PROFILE_TECH_3GPP;
+  prof_id.profile_index = profile_id;
+
+   qmi_wds_modify_profile( global_qmi_wds_hndl,
+                                 &prof_id,
+                                 p_params,
+                                 error_code);
+    return QDP_SUCCESS;
+
+}
+
+int qdp_epc_profile_update_ex
+(
+  qmi_wds_profile_params_type * p_params,
+  unsigned int                  profile_id,
+  int                         * error_code
+)
+{
+    QDP_LOG_DEBUG("%s","API not supported");
+    return QDP_FAILURE;
+}
+
 /*===========================================================================
   FUNCTION:  qdp_3gpp_profile_create
 ===========================================================================*/
@@ -2361,6 +2558,13 @@ int qdp_3gpp2_profile_create
           strlcpy(profile_params.cdma_profile_params.username,
                   params[i].buf,
                   QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+          /* Adding PDN level user name and password */
+          profile_params.cdma_profile_params.param_mask |=
+            QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK;
+          strlcpy(profile_params.cdma_profile_params.pdn_level_user_id,
+                  params[i].buf,
+                  QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+          QDP_LOG_DEBUG("%s","qdp_3gpp2_profile_create copied PDN level user");
         }
         break;
       case QDP_RIL_PASSWORD:
@@ -2378,6 +2582,13 @@ int qdp_3gpp2_profile_create
           strlcpy(profile_params.cdma_profile_params.password,
                   params[i].buf,
                   QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+          /* Adding PDN level user name and password */
+          profile_params.cdma_profile_params.param_mask |=
+            QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK ;
+          strlcpy(profile_params.cdma_profile_params.pdn_level_auth_pwd,
+                  params[i].buf,
+                  QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+          QDP_LOG_DEBUG("%s","qdp_3gpp2_profile_create copied PDN password user");
         }
         break;
       case QDP_RIL_AUTH:
@@ -2389,6 +2600,12 @@ int qdp_3gpp2_profile_create
               QMI_WDS_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK;
             profile_params.cdma_profile_params.auth_protocol =
               QMI_WDS_AUTH_PREF_PAP_CHAP_NOT_ALLOWED;
+            /* Adding PDN level AUTH */
+            profile_params.cdma_profile_params.param_mask |=
+              QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK;
+            profile_params.cdma_profile_params.pdn_level_auth_protocol =
+              QMI_WDS_AUTH_PREF_PAP_CHAP_NOT_ALLOWED;
+          QDP_LOG_DEBUG("%s","qdp_3gpp2_profile_create copied PDN level !PAN&CHAP");
           }
           else if (strcmp(params[i].buf, QDP_RIL_PAP_ONLY_ALLOWED) == 0)
           {
@@ -2396,6 +2613,12 @@ int qdp_3gpp2_profile_create
               QMI_WDS_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK;
             profile_params.cdma_profile_params.auth_protocol =
               QMI_WDS_AUTH_PREF_PAP_ONLY_ALLOWED;
+            /* Adding PDN level AUTH */
+            profile_params.cdma_profile_params.param_mask |=
+              QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK;
+            profile_params.cdma_profile_params.pdn_level_auth_protocol =
+              QMI_WDS_AUTH_PREF_PAP_ONLY_ALLOWED;
+          QDP_LOG_DEBUG("%s","qdp_3gpp2_profile_create copied PDN level PAP");
           }
           else if (strcmp(params[i].buf, QDP_RIL_CHAP_ONLY_ALLOWED) == 0)
           {
@@ -2403,6 +2626,12 @@ int qdp_3gpp2_profile_create
               QMI_WDS_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK;
             profile_params.cdma_profile_params.auth_protocol =
               QMI_WDS_AUTH_PREF_CHAP_ONLY_ALLOWED;
+            /* Adding PDN level AUTH */
+            profile_params.cdma_profile_params.param_mask |=
+              QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK;
+            profile_params.cdma_profile_params.pdn_level_auth_protocol =
+              QMI_WDS_AUTH_PREF_CHAP_ONLY_ALLOWED;
+          QDP_LOG_DEBUG("%s","qdp_3gpp2_profile_create copied PDN level CHAP");
           }
           else if (strcmp(params[i].buf, QDP_RIL_PAP_CHAP_BOTH_ALLOWED) == 0)
           {
@@ -2410,6 +2639,12 @@ int qdp_3gpp2_profile_create
               QMI_WDS_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK;
             profile_params.cdma_profile_params.auth_protocol =
               QMI_WDS_AUTH_PREF_PAP_CHAP_BOTH_ALLOWED;
+            /* Adding PDN level AUTH */
+            profile_params.cdma_profile_params.param_mask |=
+              QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK;
+            profile_params.cdma_profile_params.pdn_level_auth_protocol =
+              QMI_WDS_AUTH_PREF_PAP_CHAP_BOTH_ALLOWED;
+          QDP_LOG_DEBUG("%s","qdp_3gpp2_profile_create copied PDN level PAP+CHAP");
           }
           else
           {
@@ -2876,6 +3111,219 @@ int qdp_lte_attach_profile_lookup
   return ret;
 
 } /* qdp_lte_attach_profile_lookup */
+
+int qdp_profile_read_ril_params
+(
+  const char  ** param_strings,
+  unsigned int * profile_id_3gpp,
+  qdp_param_t *params_3gpp,
+  boolean *lookup_3gpp_profile,
+  unsigned int * profile_id_3gpp2,
+  qdp_param_t *params_3gpp2,
+  boolean *lookup_3gpp2_profile,
+  boolean *lookup_epc_profile
+)
+{
+  /* based on the input RIL parameters,
+   * figure out which technologies are
+   * applicable and perform profile look
+   * ups for it */
+  int ret = QDP_FAILURE;
+  int i=0, temp_len = 0;
+  int tech_mask = 0;
+  int temp_profile_id = 0;
+
+  *lookup_3gpp_profile = FALSE;
+  *lookup_3gpp2_profile = FALSE;
+  *lookup_epc_profile = FALSE;
+
+  do
+  {
+    /* did RIL provide a technology preference? */
+    if (NULL != param_strings[QDP_RIL_TECH])
+    {
+      if (0 == strncmp(QDP_RIL_3GPP,
+                       param_strings[QDP_RIL_TECH],
+                       QDP_RIL_TECH_LEN))
+      {
+        QDP_LOG_DEBUG("%s", "RIL prefers 3GPP");
+        *lookup_3gpp_profile = TRUE;
+        ret = QDP_SUCCESS;
+      }
+      else if(0 == strncmp(QDP_RIL_3GPP2,
+                           param_strings[QDP_RIL_TECH],
+                           QDP_RIL_TECH_LEN))
+      {
+        QDP_LOG_DEBUG("%s", "RIL prefers 3GPP2");
+        *lookup_3gpp2_profile = TRUE;
+        ret = QDP_SUCCESS;
+      }
+      else if(0 == strncmp(QDP_RIL_AUTO,
+                           param_strings[QDP_RIL_TECH],
+                           QDP_RIL_TECH_LEN))
+      {
+        QDP_LOG_DEBUG("%s", "RIL prefers Automatic tech");
+        /* we will use the RIL parameters in order to
+         * determine as for which technology profile need
+         * to be looked up */
+        ret = QDP_SUCCESS;
+      }
+      else
+      {
+        QDP_LOG_ERROR("RIL provied invalid tech [%s]",
+                        param_strings[QDP_RIL_TECH]);
+        break;
+      }
+    }
+
+    /* did RIL already provide a profile id? */
+    if (NULL != param_strings[QDP_RIL_PROFILE_ID])
+    {
+      temp_profile_id = atoi(param_strings[QDP_RIL_PROFILE_ID]);
+      if (temp_profile_id < QDP_RIL_DATA_PROFILE_OEM_BASE)
+      {
+        QDP_LOG_DEBUG("RIL did not provide a valid OEM profile [%d]",
+                        temp_profile_id);
+        /* we will defer to profile_look_up that happens later
+         * in this function */
+      }
+      else
+      {
+        temp_profile_id = (temp_profile_id -
+                           QDP_RIL_DATA_PROFILE_OEM_BASE);
+        if (TRUE == *lookup_3gpp_profile)
+        {
+          QDP_LOG_DEBUG("RIL provided 3GPP profile id [%d]",
+                          temp_profile_id);
+          *profile_id_3gpp = temp_profile_id;
+          ret = QDP_SUCCESS;
+          break;
+        }
+        else if (TRUE == *lookup_3gpp2_profile)
+        {
+          QDP_LOG_DEBUG("RIL provided 3GPP2 profile id [%d]",
+                          temp_profile_id);
+          *profile_id_3gpp2 = temp_profile_id;
+          ret = QDP_SUCCESS;
+          break;
+        }
+        else
+        {
+          QDP_LOG_DEBUG("RIL provided 3GPP2, and 3GPP profile id [%d]",
+                          temp_profile_id);
+          *profile_id_3gpp = temp_profile_id;
+          *profile_id_3gpp2 = temp_profile_id;
+          ret = QDP_SUCCESS;
+          break;
+        }
+      }
+    }
+
+    /* go through each of the RIL parameter received in order to
+     * determine which technology we need to look up profile for
+     * prepare profile_look_up parameters */
+    for(i=0; i<QDP_RIL_PARAM_MAX; i++)
+    {
+
+      if (param_strings[QDP_GET_RIL_PARAM_IDX(i)] != NULL &&
+          std_strlen(param_strings[QDP_GET_RIL_PARAM_IDX(i)]) != 0)
+      {
+        /* keep track of technology for all parameters together */
+        tech_mask |= QDP_GET_TECH_MASK(i);
+
+        if (QDP_GET_TECH_MASK(i) & QDP_3GPP)
+        {
+          /* +1 for NULL end character */
+          temp_len = std_strlen(param_strings[QDP_GET_RIL_PARAM_IDX(i)])+1;
+          if(temp_len > QDP_GET_3GPP_MAX_LEN(i))
+          {
+            QDP_LOG_ERROR("RIL param length too long [%d]",
+                          temp_len);
+          }
+          else
+          {
+            QDP_MALLOC(params_3gpp[i].buf, temp_len);
+          }
+
+          if(NULL != params_3gpp[i].buf)
+          {
+            params_3gpp[i].len = temp_len-1;
+            std_strlcpy(params_3gpp[i].buf,
+                    param_strings[QDP_GET_RIL_PARAM_IDX(i)],
+                    temp_len);
+            QDP_LOG_DEBUG("copied [%s], len[%d] to [%p] loc",
+                          param_strings[QDP_GET_RIL_PARAM_IDX(i)],
+                          params_3gpp[i].len,
+                          params_3gpp[i].buf);
+          }
+          else
+          {
+            QDP_LOG_ERROR("memory error while trying to allocate 3gpp "
+                          "param for [%s]", param_strings[QDP_GET_RIL_PARAM_IDX(i)]);
+          }
+        } /* if 3GPP */
+
+        if (QDP_GET_TECH_MASK(i) & QDP_3GPP2)
+        {
+          /* +1 for NULL end character */
+          temp_len = std_strlen(param_strings[QDP_GET_RIL_PARAM_IDX(i)])+1;
+          if(temp_len > QDP_GET_3GPP2_MAX_LEN(i))
+          {
+            QDP_LOG_ERROR("RIL param length too long [%d]",
+                          temp_len);
+          }
+          else
+          {
+            QDP_MALLOC(params_3gpp2[i].buf, temp_len);
+          }
+
+          if(NULL != params_3gpp2[i].buf)
+          {
+            params_3gpp2[i].len = temp_len - 1;
+            QDP_LOG_DEBUG("copying [%s] len [%d] to [%p] loc",
+                          param_strings[QDP_GET_RIL_PARAM_IDX(i)],
+                          params_3gpp2[i].len,
+                          params_3gpp2[i].buf);
+            std_strlcpy(params_3gpp2[i].buf,
+                    param_strings[QDP_GET_RIL_PARAM_IDX(i)],
+                    temp_len);
+          }
+          else
+          {
+            QDP_LOG_ERROR("memory error while trying to allocate 3gpp2 "
+                          "param for [%s]", param_strings[QDP_GET_RIL_PARAM_IDX(i)]);
+          }
+        } /* if 3GPP2 */
+
+      } /* for each valid RIL parameter */
+
+    } /* for each RIL parameter */
+
+    /* if RIL did not prefer a technology, infer what
+     * profile lookup will be required based on the
+     * parameter set */
+    if (FALSE == *lookup_3gpp_profile &&
+        FALSE == *lookup_3gpp2_profile)
+    {
+        if (tech_mask & QDP_3GPP)
+        {
+          *lookup_3gpp_profile = TRUE;
+          ret = QDP_SUCCESS;
+        }
+        if (tech_mask & QDP_3GPP2)
+        {
+          *lookup_3gpp2_profile = TRUE;
+          ret = QDP_SUCCESS;
+        }
+    }
+  }while(0);
+
+  return ret;
+}
+
+
+
+
 /*===========================================================================
   FUNCTION:  qdp_profile_look_up
 ===========================================================================*/
@@ -3309,6 +3757,181 @@ int qdp_profile_look_up
   return ret;
 }
 
+/*=========================================================================*/
+int qdp_profile_look_up_by_param
+(
+  const char  ** param_strings,    /* the order of params must match with the
+                                      order specified in qdp_ril_param_idx_t */
+  int            param_to_match,
+  int            param_value,
+  unsigned int * profile_id_3gpp,  /* value (not pointer it-self) must
+                                      be set to zero by caller */
+  qdp_profile_pdn_type *profile_pdn_type_3gpp,  /* 3gpp profile PDN type */
+  unsigned int * profile_id_3gpp2, /* value must be set to zero by caller */
+  qdp_profile_pdn_type *profile_pdn_type_3gpp2, /* 3gpp2 profile PDN type */
+  qmi_wds_profile_params_type * p_params,  /* out placeholder */
+  qdp_tech_t                  *tech_type,
+  qdp_error_info_t * error_info
+)
+{
+  /* based on the input RIL parameters,
+   * figure out which technologies are
+   * applicable and perform profile look
+   * ups for it */
+  int ret = QDP_FAILURE, rc;
+  int i=0, temp_len = 0;
+  boolean lookup_3gpp_profile = FALSE;
+  boolean lookup_3gpp2_profile = FALSE;
+  boolean lookup_epc_profile = FALSE;
+
+  int temp_profile_id = 0;
+  unsigned int profile_id_epc;
+  qdp_profile_pdn_type profile_pdn_type_epc;
+  /* profile lookup params */
+  qdp_param_t params_3gpp[QDP_RIL_PARAM_MAX];
+  qdp_param_t params_3gpp2[QDP_RIL_PARAM_MAX];
+  qdp_param_t params_epc[QDP_RIL_PARAM_MAX];
+  qdp_error_t lookup_error_3gpp =  QDP_ERROR_NONE;
+  qdp_error_t lookup_error_3gpp2 =  QDP_ERROR_NONE;
+  qdp_error_t lookup_error_epc =  QDP_ERROR_NONE;
+
+  int error_code;
+
+  QDP_LOG_DEBUG("%s","qdp_profile_look_up_by_param ENTRY");
+
+
+  profile_id_epc = QDP_INVALID_PROFILE;
+  profile_pdn_type_epc = QDP_PROFILE_PDN_TYPE_INVALID;
+
+  do
+  {
+    if( NULL == param_strings          ||
+        NULL == profile_id_3gpp        ||
+        NULL == profile_pdn_type_3gpp  ||
+        NULL == profile_id_3gpp2       ||
+        NULL == profile_pdn_type_3gpp2 ||
+        NULL == tech_type ||
+        NULL == error_info )
+    {
+      QDP_LOG_ERROR("%s","NULL params rcvd");
+      break;
+    }
+
+    /* don't want to step on real profile ids */
+    if (*profile_id_3gpp || *profile_id_3gpp2)
+    {
+      QDP_LOG_ERROR("%s","non-zero values rcvd");
+      break;
+    }
+
+    *profile_id_3gpp = QDP_INVALID_PROFILE;
+    *profile_id_3gpp2 = QDP_INVALID_PROFILE;
+
+    *profile_pdn_type_3gpp  = QDP_PROFILE_PDN_TYPE_INVALID;
+    *profile_pdn_type_3gpp2 = QDP_PROFILE_PDN_TYPE_INVALID;
+
+    error_info->error = QDP_ERROR_NONE;
+    error_info->tech = QDP_NOTECH;
+
+    *tech_type = QDP_NOTECH;
+
+    memset(&params_3gpp, 0, (sizeof(qdp_param_t) * QDP_RIL_PARAM_MAX));
+    memset(&params_3gpp2, 0, (sizeof(qdp_param_t) * QDP_RIL_PARAM_MAX));
+    memset(&params_epc, 0, (sizeof(qdp_param_t) * QDP_RIL_PARAM_MAX));
+
+    if (qdp_profile_read_ril_params(param_strings,
+                                    profile_id_3gpp,
+                                    params_3gpp,
+                                    &lookup_3gpp_profile,
+                                    profile_id_3gpp2,
+                                    params_3gpp2,
+                                    &lookup_3gpp2_profile,
+                                    &lookup_epc_profile) != QDP_SUCCESS)
+    {
+      ret = QDP_FAILURE;
+      QDP_LOG_ERROR("%s","qdp_profile_read_ril_params failed");
+      break;
+    }
+    /* now we know which technology profile db needs tobe
+     * looked up
+     */
+
+    if (TRUE == lookup_3gpp_profile )
+    {
+      rc = qdp_3gpp_alt_multi_param_search(
+                                        param_to_match,
+                                        param_value,
+                                        profile_id_3gpp,
+                                        profile_pdn_type_3gpp,
+                                        p_params,
+                                       &lookup_error_3gpp);
+      if (QDP_SUCCESS != rc)
+      {
+        QDP_LOG_ERROR("qdp_3gpp_multi_param_search returned err [%d]", rc);
+      }
+
+      if(QDP_INVALID_PROFILE == *profile_id_3gpp)
+      {
+        QDP_LOG_DEBUG("qdp_3gpp_multi_param_search unsuccessful,"
+                      " found [%d] profile id", *profile_id_3gpp);
+
+        if( QDP_ERROR_NONE == lookup_error_3gpp )
+        {
+          /* create a profile */
+          rc = qdp_3gpp_profile_create(params_3gpp,
+                                       profile_id_3gpp,
+                                       profile_pdn_type_3gpp,
+                                       p_params,
+                                       TRUE);
+          if (QDP_SUCCESS != rc)
+          {
+            QDP_LOG_ERROR("qdp_3gpp_profile_create failed [%d]",
+                          rc);
+          }
+          else
+          {
+            *tech_type = QDP_3GPP;
+          }
+        }
+        else
+        {
+          QDP_LOG_DEBUG("Profile lookup error[%d], no profile created",
+                        lookup_error_3gpp );
+          error_info->error = lookup_error_3gpp;
+          error_info->tech = QDP_3GPP;
+          break;
+        }
+      }
+      else /* one or more profiles found */
+      {
+        QDP_LOG_DEBUG("found [%d] 3gpp profile id",
+                        *profile_id_3gpp);
+
+	qdp_3gpp_profile_update(params_3gpp,*profile_id_3gpp,&error_code);
+
+	*tech_type = QDP_3GPP;
+      }
+    }
+
+    ret = QDP_SUCCESS;
+  } while (0);
+
+  /* clean up memory */
+  qdp_free_qdp_params(params_3gpp, QDP_RIL_PARAM_MAX);
+  qdp_free_qdp_params(params_3gpp2, QDP_RIL_PARAM_MAX);
+  qdp_free_qdp_params(params_epc, QDP_RIL_PARAM_MAX);
+
+  if (QDP_SUCCESS != ret)
+  {
+    QDP_LOG_ERROR("%s","qdp_profile_look_up EXIT failed");
+  }
+  else
+  {
+    QDP_LOG_DEBUG("%s","qdp_profile_look_up EXIT success");
+  }
+  return ret;
+}
+
 /*===========================================================================
   FUNCTION:  qdp_init_profile_cleanup
 ===========================================================================*/
@@ -3553,6 +4176,34 @@ int qdp_init
   return ret;
 
 }
+
+/*===========================================================================
+  FUNCTION:  qdp_set_subscription
+===========================================================================*/
+/*!
+    @brief
+    Sets the appropriate subscription as a result the WDS client get binded to this subscription
+
+    @params
+    subs_id:  Subscription ID
+
+    @return
+    QDP_SUCCESS
+    QDP_FAILURE
+
+    @notes
+       Dependencies
+    - qdp_init() must be called for the associated port first.
+*/
+/*=========================================================================*/
+extern int qdp_set_subscription
+(
+  int subs_id
+)
+{
+  return QDP_SUCCESS;
+}
+
 
 /*===========================================================================
   FUNCTION:  qdp_deinit

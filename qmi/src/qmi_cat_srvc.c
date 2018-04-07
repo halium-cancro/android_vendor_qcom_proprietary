@@ -12,7 +12,7 @@
   QoS service messages
 
   ---------------------------------------------------------------------------
-  Copyright (c) Qualcomm Technologies, Inc.  All Rights Reserved.
+  Copyright (c) 2008,2014 Qualcomm Technologies, Inc.  All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -1295,6 +1295,8 @@ static void qmi_cat_srvc_async_cb
   unsigned long                     length     = 0;
   unsigned char                   * value_ptr  = NULL;
 
+  (void) srvc_async_cb_data;
+
   QMI_DEBUG_MSG_1("qmi_cat_srvc_async_cb: msg_id = 0x%x", msg_id);
 
   memset((void*)&rsp_data, 0x0, sizeof(rsp_data));
@@ -2376,8 +2378,8 @@ int qmi_cat_scws_data_available
   unsigned char    * tmp_msg_ptr         = NULL;
   unsigned char    * allocated_param_ptr = NULL;
   unsigned char    * tmp_param_ptr       = NULL;
-  int                max_msg_size        = 0;
-  int                size                = 0;
+  unsigned int       max_msg_size        = 0;
+  unsigned long      size                = 0;
   int                rc                  = 0;
 
   if (!params)
@@ -2387,7 +2389,7 @@ int qmi_cat_scws_data_available
 
   /* Calculate max buffer size - (params data + headers) */
   max_msg_size = (params->data_len <= 0) ? QMI_CAT_STD_MSG_SIZE :
-                 (params->data_len + QMI_CAT_STD_MSG_SIZE);
+                 ((unsigned int)params->data_len + QMI_CAT_STD_MSG_SIZE);
 
   /* Allocate buffer for the message dynamically */
   allocated_param_ptr = (unsigned char *) malloc (max_msg_size);
@@ -2415,7 +2417,7 @@ int qmi_cat_scws_data_available
     size += params->data_len;
   }
 
-  if (size > msg_size)
+  if (size > (unsigned long)msg_size)
   {
     QMI_ERR_MSG_0 ("Error in buffer size: max_msg_size is more than QMI_MAX_MSG_SIZE\n");
     free(allocated_param_ptr);

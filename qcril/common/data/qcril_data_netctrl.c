@@ -92,12 +92,14 @@ when       who     what, where, why
 #include "dsi_netctrl.h"
 #include "qmi_wds_srvc.h"
 #include "qmi_wds_utils.h"
+#include "qmi_platform.h"
 #include "qdp.h"
 #include "qcril_arb.h" /* QCRIL_ARB_* defines*/
 #include "qcril_data.h"
 #include "qcril_data_defs.h"
 #include "qcril_data_utils.h"
 #include "qcril_data_client.h"
+#include "qmi_ril_platform_dep.h"
 
 #define HACK_MODEM_QUERY_SEARCH_UNAVAIL
 #include <string.h>
@@ -109,6 +111,8 @@ when       who     what, where, why
 #endif
 #include "ds_string.h"
 #include "data_system_determination_v01.h"
+#include "qmi_client_instance_defs.h"
+#include "ds_util.h"
 
 /*===========================================================================
 
@@ -144,6 +148,7 @@ when       who     what, where, why
 #define QCRIL_DATA_CALL_OBJ_MATCH_NOT_FOUND  (FAILURE)
 
 #define QCRIL_DATA_QMI_DSD_SYNC_MSG_TIMEOUT  (10000)
+#define QCRIL_QMI_DSD_TIMEOUT                (30000)
 
 typedef enum
 {
@@ -267,7 +272,7 @@ typedef struct
 #define QCRIL_DATA_IS_RIL_RADIO_TECH_EHRPD(t) (t == QCRIL_DATA_RIL_RADIO_TECH_EHRPD)
 
 #define QCRIL_DATA_IS_RIL_RADIO_TECH_CDMA(t)  (QCRIL_DATA_IS_RIL_RADIO_TECH_CDMA_1X_EVDO(t) ||        \
-                                               (t == QCRIL_DATA_RIL_RADIO_TECH_EHRPD))
+                                                       (t == QCRIL_DATA_RIL_RADIO_TECH_EHRPD))
 
 #define QCRIL_DATA_IS_RIL_RADIO_TECH_3GPP_EHRPD(t)    ((t == QCRIL_DATA_RIL_RADIO_TECH_GPRS)    || \
                                                        (t == QCRIL_DATA_RIL_RADIO_TECH_HSDPA)   || \
@@ -351,6 +356,10 @@ typedef struct qcril_data_modem_qmi_port_map_s
   char qmi_port[QCRIL_QMI_PORT_NAME_SIZE+1];
 } qcril_data_modem_port_map;
 
+void qcril_data_util_update_mtu
+(
+  qcril_data_call_info_tbl_type  *info_tbl_ptr
+);
 
 
 /*===========================================================================
@@ -385,8 +394,9 @@ qcril_data_dsi_cb_tbl_type dsi_cb_tbl[ MAX_CONCURRENT_UMTS_DATA_CALLS ];
 static int last_call_end_reason = PDP_FAIL_ERROR_UNSPECIFIED;
 static int global_qmi_wds_hndl = QCRIL_DATA_HNDL_INVALID;
 static int global_instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+static int global_subs_id = QCRIL_DEFAULT_MODEM_STACK_ID;
 static int global_modem_id = QCRIL_DEFAULT_MODEM_ID;
-static boolean ignore_ril_tech = FALSE;
+static boolean ignore_ril_tech = TRUE;
 static qmi_client_type  global_qmi_dsd_hndl = NULL;
 static unsigned int qcril_data_mtu;
 
@@ -417,18 +427,7 @@ static qcril_data_dsd_info_t  global_dsd_info;
 
 #define QCRIL_NETWORK_INFO_LEN 10
 
-#define QCRIL_DATA_PROP_BASEBAND "ro.baseband"
 #define QCRIL_DATA_PROP_SIZE     PROPERTY_VALUE_MAX
-#define QCRIL_DATA_BASEBAND_UNDEFINED "undefined"
-#define QCRIL_DATA_BASEBAND_MSM     "msm"
-#define QCRIL_DATA_BASEBAND_APQ     "apq" /* unused right now */
-#define QCRIL_DATA_BASEBAND_SVLTE1  "svlte1"
-#define QCRIL_DATA_BASEBAND_SVLTE2A "svlte2a"
-#define QCRIL_DATA_BASEBAND_CSFB    "csfb"
-#define QCRIL_DATA_BASEBAND_MDMUSB  "mdm"
-#define QCRIL_DATA_BASEBAND_DSDA    "dsda"
-#define QCRIL_DATA_BASEBAND_DSDA2   "dsda2"
-
 #define QCRIL_DATA_PROP_DONT_USE_DSD "persist.radio.dont_use_dsd"
 
 static qcril_data_modem_port_map qcril_data_modem_port_map_tbl[] =
@@ -438,6 +437,8 @@ static qcril_data_modem_port_map qcril_data_modem_port_map_tbl[] =
 };
 
 static char * default_qmi_port = QMI_PORT_RMNET_0;
+
+static qmi_client_qmux_instance_type default_qmi_instance = QMI_CLIENT_QMUX_BASE_INSTANCE;
 
 typedef enum RIL_tethered_mode_states_e
 {
@@ -460,7 +461,10 @@ typedef char qcril_data_go_dormant_params_type[QCRIL_MAX_DEV_NAME_SIZE+1];
 
 extern int dsi_set_ril_instance(int instance);
 
+extern int dsi_set_modem_subs_id(int subs_id);
+
 extern int ds_atoi(const char * str);
+extern void ds_get_epid (char *net_dev, ds_ep_type_t *ep_type, int *epid);
 
 #ifdef RIL_REQUEST_SET_INITIAL_ATTACH_APN
 
@@ -606,6 +610,10 @@ static void qcril_data_abort_incompatible_pending_calls
   qmi_wds_data_sys_status_network_info_type  *nw_info
 );
 
+
+
+
+
 /*===========================================================================
 
                                 FUNCTIONS
@@ -659,8 +667,8 @@ void qcril_data_post_qmi_events(
     {
       if ((!VALIDATE_LOCAL_DATA_OBJ(info_tbl_ptr)))
       {
-        QCRIL_LOG_ERROR( "invalid info_tbl_ptr [%#x] ",
-                         (unsigned int)info_tbl_ptr);
+        QCRIL_LOG_ERROR( "invalid info_tbl_ptr [%p] ",
+                         (unsigned int *)info_tbl_ptr);
         break;
       }
 
@@ -823,6 +831,258 @@ int qcril_data_process_pref_tech_change_ind
 
   return ret;
 }
+/*===========================================================================
+
+  FUNCTION:  qcril_data_set_is_data_enabled
+
+===========================================================================*/
+/*!
+    @brief
+    sends data enabled to modem if qcril passes the parameter either true
+    or false.
+
+    @return
+    RIL_E_SUCCESS         :- If QMI DSD returns rc = 0
+    RIL_E_GENERIC_FAILURE :- If QMI DSD returns rc = negative
+*/
+/*=========================================================================*/
+RIL_Errno qcril_data_set_is_data_enabled(boolean is_data_enabled )
+{
+  qmi_client_error_type rc;
+  dsd_notify_data_settings_req_msg_v01  data_settings_req_msg;
+  dsd_notify_data_settings_resp_msg_v01 data_settings_resp_msg;
+
+  if(global_qmi_dsd_hndl == NULL)
+  {
+    QCRIL_LOG_ERROR("%s","DSD Client unavailable");
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  memset(&data_settings_req_msg, 0, sizeof(data_settings_req_msg));
+  memset(&data_settings_resp_msg, 0, sizeof(data_settings_resp_msg));
+
+  data_settings_req_msg.data_service_switch_valid = TRUE;
+  data_settings_req_msg.data_service_switch = is_data_enabled;
+
+  QCRIL_LOG_DEBUG("Setting data_enabled =%d subs_id = %d",
+                    data_settings_req_msg.data_service_switch,
+                    global_subs_id);
+
+  rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+                                  QMI_DSD_NOTIFY_DATA_SETTING_REQ_V01,
+                                  &data_settings_req_msg,
+                                  sizeof(data_settings_req_msg),
+                                  &data_settings_resp_msg,
+                                  sizeof(data_settings_resp_msg),
+                                  QCRIL_DATA_QMI_DSD_SYNC_MSG_TIMEOUT);
+  if (QMI_NO_ERR != rc) {
+      QCRIL_LOG_ERROR("failed to send QMI message, err=%d",
+                      rc);
+      return RIL_E_GENERIC_FAILURE;
+  }
+  else if (QMI_NO_ERR != data_settings_resp_msg.resp.result) {
+      QCRIL_LOG_ERROR("failed to set data settings, response_err=%d",
+                        data_settings_resp_msg.resp.error);
+      return RIL_E_GENERIC_FAILURE;
+  }
+  return RIL_E_SUCCESS;
+}
+
+/*===========================================================================
+
+  FUNCTION:   qcril_data_set_is_data_roaming_enabled
+
+===========================================================================*/
+/*!
+    @brief
+    sends roaming status to modem if user sets it manually via UI
+
+    @return
+    RIL_E_SUCCESS         :- If QMI DSD returns rc = 0
+    RIL_E_GENERIC_FAILURE :- If QMI DSD returns rc = negative
+*/
+/*=========================================================================*/
+
+RIL_Errno qcril_data_set_is_data_roaming_enabled(boolean is_data_roaming_enabled)
+{
+  qmi_client_error_type rc;
+  dsd_notify_data_settings_req_msg_v01  data_settings_req_msg;
+  dsd_notify_data_settings_resp_msg_v01 data_settings_resp_msg;
+
+  if(global_qmi_dsd_hndl == NULL)
+  {
+    QCRIL_LOG_ERROR("%s","DSD Client unavailable");
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  memset(&data_settings_req_msg, 0, sizeof(data_settings_req_msg));
+  memset(&data_settings_resp_msg, 0, sizeof(data_settings_resp_msg));
+
+  data_settings_req_msg.data_service_roaming_switch_valid = TRUE;
+  data_settings_req_msg.data_service_roaming_switch = is_data_roaming_enabled;
+
+  QCRIL_LOG_DEBUG("Setting data_roaming_enabled =%d,subs_id = %d",
+                    data_settings_req_msg.data_service_roaming_switch,
+                    global_subs_id );
+
+  rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+                                  QMI_DSD_NOTIFY_DATA_SETTING_REQ_V01,
+                                  &data_settings_req_msg,
+                                  sizeof(data_settings_req_msg),
+                                  &data_settings_resp_msg,
+                                  sizeof(data_settings_resp_msg),
+                                  QCRIL_DATA_QMI_DSD_SYNC_MSG_TIMEOUT);
+    if (QMI_NO_ERR != rc) {
+      QCRIL_LOG_ERROR("failed to send QMI message, err=%d",
+                      rc);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (QMI_NO_ERR != data_settings_resp_msg.resp.result) {
+      QCRIL_LOG_ERROR("failed to set data settings,resp_err=%d",
+                        data_settings_resp_msg.resp.error);
+      return RIL_E_GENERIC_FAILURE;
+    }
+ return RIL_E_SUCCESS;
+}
+
+/*===========================================================================
+
+  FUNCTION:   qcril_data_set_apn_info
+
+===========================================================================*/
+/*!
+    @brief
+    sets the apn info table
+
+    @return
+    RIL_E_SUCCESS         :- If QMI DSD returns rc = 0
+    RIL_E_GENERIC_FAILURE :- If QMI DSD returns rc = negative
+*/
+/*=========================================================================*/
+
+RIL_Errno qcril_data_set_apn_info(char *type, char *name )
+{
+  qmi_client_error_type        rc;
+  dsd_set_apn_info_req_msg_v01 data_setting_set_apn_param;
+  dsd_set_apn_info_resp_msg_v01 data_setting_set_apn_param_resp;
+  int size = 0;
+
+  if ((strlen(name) == 0) || (NULL == type) || (strlen(type) == 0))
+  {
+    QCRIL_LOG_ERROR("%s","invalid parameters received");
+    return RIL_E_GENERIC_FAILURE;
+  }
+  if (strlen(name) > QMI_DSD_MAX_APN_LEN_V01)
+  {
+    QCRIL_LOG_ERROR("APN string [%s] is too long [%d]." \
+                    " max allowed string size is [%d]",
+                    name, strlen(name),
+                    QMI_DSD_MAX_APN_LEN_V01);
+    return RIL_E_GENERIC_FAILURE;
+  }
+
+  memcpy( &data_setting_set_apn_param.apn_info.apn_name[0], name, QMI_DSD_MAX_APN_LEN_V01);
+  QCRIL_LOG_DEBUG("Using APN name [%s] and APN type as [%s] subs_id [%d]",name,type,global_subs_id);
+  size = strlen(type);
+  do
+  {
+    if(strncmp(type,"default",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_DEFAULT_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      break;
+    }
+    else if (strncmp(type,"internet",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_DEFAULT_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      break;
+    }
+    else if (strncmp(type,"ims",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_IMS_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      break;
+    }
+    else if (strncmp(type,"fota",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (strncmp(type,"mms",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (strncmp(type,"supl",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (strncmp(type,"emergency",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (strncmp(type,"ia",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (strncmp(type,"cbs",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (strncmp(type,"dun",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (strncmp(type,"hipri",size)== 0)
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else
+    {
+      data_setting_set_apn_param.apn_info.apn_type = DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01;
+      QCRIL_LOG_DEBUG("APN type is [%s]",type);
+      return RIL_E_GENERIC_FAILURE;
+    }
+  }while(0);
+    QCRIL_LOG_DEBUG("Setting apn info = [%s] and apn type = [%d]",
+                   data_setting_set_apn_param.apn_info.apn_name,
+                   data_setting_set_apn_param.apn_info.apn_type);
+
+    rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+                                  QMI_DSD_SET_APN_INFO_REQ_V01,
+                                  &data_setting_set_apn_param,
+                                  sizeof(data_setting_set_apn_param),
+                                  &data_setting_set_apn_param_resp,
+                                  sizeof(data_setting_set_apn_param_resp),
+                                  QCRIL_DATA_QMI_DSD_SYNC_MSG_TIMEOUT);
+    if (QMI_NO_ERR != rc) {
+      QCRIL_LOG_ERROR("failed to send QMI message, err=%d",
+                      rc);
+      return RIL_E_GENERIC_FAILURE;
+    }
+    else if (QMI_NO_ERR != data_setting_set_apn_param_resp.resp.result) {
+      QCRIL_LOG_ERROR("failed to set data settings, resp_err=%d",
+                        data_setting_set_apn_param_resp.resp.error);
+      return RIL_E_GENERIC_FAILURE;
+    }
+ return RIL_E_SUCCESS;
+}
+
 
 /*===========================================================================
 
@@ -1161,8 +1421,8 @@ void qcril_data_process_wds_ind
 
     /* handle individual wds indications */
     reti = SUCCESS;
-
-    QCRIL_LOG_DEBUG("%s %d ind","qcril_data_process_wds_ind",ind_id);
+    QCRIL_LOG_DEBUG("qcril_data_process_wds_ind: Handling ind [%x] with QMI service ID type [%x]",
+                    ind_id, (unsigned int) sid);
 
 
     switch (ind_id)
@@ -1267,7 +1527,7 @@ void qcril_data_process_wds_ind
     case QMI_WDS_SRVC_EXT_IP_CONFIG_IND_MSG:
       /* Process extended IP config indication */
       qcril_data_process_ext_ip_config_ind((info_tbl_ptr) ? info_tbl_ptr->instance_id :
-                                                            global_instance_id,
+                                                            (unsigned int) global_instance_id,
                                            wds_hndl,
                                            ind_data->ext_ip_ind);
       break;
@@ -1319,7 +1579,9 @@ void qcril_data_qmi_wds_ind_cb
   qcril_data_wds_event_data_t* event_data = NULL;
   int lock_result = 0;
 
-  QCRIL_LOG_DEBUG( "%s: ENTRY (%d)", "qcril_data_qmi_wds_ind_cb", ind_id );
+  QCRIL_LOG_DEBUG( "%s", "qcril_data_qmi_wds_ind_cb: ENTRY" );
+
+  QCRIL_LOG_DEBUG( "%s %d ind", "qcril_data_qmi_wds_ind_cb",ind_id );
 
   if ((event_data = malloc(sizeof(qcril_data_wds_event_data_t))) != NULL)
   {
@@ -1399,7 +1661,7 @@ qcril_data_get_qmi_dsd_subscription_id(void)
 {
   dsd_bind_subscription_enum_v01  sub_num;
 
-  switch (global_instance_id)
+  switch (global_subs_id)
   {
 #if 0
     case QCRIL_THIRD_INSTANCE_ID:
@@ -1407,7 +1669,7 @@ qcril_data_get_qmi_dsd_subscription_id(void)
       break;
 #endif
 
-    case QCRIL_SECOND_INSTANCE_ID:
+    case QMI_WDS_SECONDARY_SUBS:
       sub_num = DSD_SECONDARY_SUBS_V01;
       break;
 
@@ -1516,7 +1778,14 @@ static void qcril_data_process_qmi_dsd_ind
       QCRIL_LOG_DEBUG( "data sys status has not changed, skipping partial retry" );
     }
 
-    memcpy(&global_dsd_info.qmi_dsd, ind_data, sizeof(dsd_system_status_ind_msg_v01));
+    if (DSD_SYS_RAT_EX_NULL_BEARER_V01 != info_new->rat_value)
+    {
+      memcpy(&global_dsd_info.qmi_dsd, ind_data, sizeof(dsd_system_status_ind_msg_v01));
+    }
+    else
+    {
+      QCRIL_LOG_DEBUG( "NULL bearer reported, skipping cache update" );
+    }
   }
 
   /* Update RIL with the DSD info */
@@ -1649,13 +1918,13 @@ void qcril_data_net_cb(
        ( QCRIL_DATA_INVALID_INSTANCE_ID == dsi_cb_tbl_ptr->instance_id ) ||
        ( QCRIL_DATA_INVALID_MODEM_ID == dsi_cb_tbl_ptr->modem_id) )
   {
-    QCRIL_LOG_ERROR( "invalid arg, user_data [%#x], info_tbl_ptr [%#x], "
-                     "dsi_hndl [%#x], dsi_cb_tbl_ptr->dsi_hndl [%#x], "
+    QCRIL_LOG_ERROR( "invalid arg, user_data [%p], info_tbl_ptr [%p], "
+                     "dsi_hndl [%p], dsi_cb_tbl_ptr->dsi_hndl [%p], "
                      "instance_id [%#x], modem_id [%#x], payload [%p]",
-                     (unsigned int)user_data,
-                     (unsigned int)dsi_cb_tbl_ptr->info_tbl_ptr,
-                     (unsigned int)dsi_hndl,
-                     (unsigned int)dsi_cb_tbl_ptr->dsi_hndl,
+                     (unsigned int *)user_data,
+                     (unsigned int *)dsi_cb_tbl_ptr->info_tbl_ptr,
+                     (unsigned int *)dsi_hndl,
+                     (unsigned int *)dsi_cb_tbl_ptr->dsi_hndl,
                      (unsigned int)dsi_cb_tbl_ptr->instance_id,
                      (unsigned int)dsi_cb_tbl_ptr->modem_id,
                      payload );
@@ -1782,7 +2051,7 @@ qcril_data_handle_embms_events
     case DSI_NET_SAI_LIST_CHANGED:
     {
       embms_unsol_sai_ind_msg_v01  sai_indication;
-      int list_index;
+      unsigned int list_index;
 
       QCRIL_LOG_INFO(">>>DSI_NET_SAI_LIST_CHANGED: START>>> cid [%d],"
                      "index [%d]",
@@ -1844,7 +2113,7 @@ qcril_data_handle_embms_events
                       sai_indication.num_of_sai_per_group_len,
                       sai_indication.dbg_trace_id);
 
-      int i;
+      unsigned int i;
       for (i = 0; i < sai_indication.available_sai_list_len; i++)
       {
          QCRIL_LOG_INFO("available_sai_list:%d", sai_indication.available_sai_list[i]);
@@ -2273,6 +2542,73 @@ qcril_data_handle_embms_events
     }
     break;
 
+    case DSI_NET_CONTENT_DESC_CONTROL:
+    {
+      embms_unsol_content_desc_update_per_obj_ind_msg_v01 content_desc_ctrl_ind;
+      unsigned int list_index;
+
+      QCRIL_LOG_INFO(">>>DSI_NET_CONTENT_DESC_CONTROL: START>>> cid [%d],"
+                     "index [%d]",
+                     info_tbl_ptr->cid,
+                     info_tbl_ptr->index);
+
+      memset(&content_desc_ctrl_ind, 0, sizeof(content_desc_ctrl_ind));
+
+      /* validate tmgi_info_len */
+      if ( evt_info_ptr->payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_len > NUMBER_MAX_V01)
+      {
+        QCRIL_LOG_ERROR(" Oversize tmgi_len, Drop CONTENT_DESC_CONTROL indication:%d",
+                        evt_info_ptr->payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_len);
+        goto err_ret;
+      }
+
+      memcpy(&(content_desc_ctrl_ind.tmgi_info.tmgi),
+             &(evt_info_ptr->payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr->tmgi),
+             TMGI_LENGTH_MAX_V01);
+
+      content_desc_ctrl_ind.tmgi_info.tmgi_len = TMGI_LENGTH_MAX_V01;
+      content_desc_ctrl_ind.dbg_trace_id = evt_info_ptr->payload.embms_content_desc_info.dbg_trace_id;
+
+      if (evt_info_ptr->payload.embms_content_desc_info.param_mask &
+            QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_CONTENT_CTRL_PARAM_MASK)
+      {
+        content_desc_ctrl_ind.per_object_content_ctrl_valid = TRUE;
+        content_desc_ctrl_ind.per_object_content_ctrl =
+            evt_info_ptr->payload.embms_content_desc_info.content_control;
+      }
+      if (evt_info_ptr->payload.embms_content_desc_info.param_mask &
+            QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_STATUS_CTRL_PARAM_MASK)
+      {
+        content_desc_ctrl_ind.per_object_status_ctrl_valid = TRUE;
+        content_desc_ctrl_ind.per_object_status_ctrl =
+            evt_info_ptr->payload.embms_content_desc_info.status_control;
+      }
+
+      QCRIL_LOG_INFO( "EMBMS content desc control indication, "
+                      "status_control: [%d], valid: [%d]"
+                      "content_control: [%d], valid: [%d]"
+                      "dbg_trace_id: [%d]"
+                      "tmgi_list: %d:[%X,%X,%X,%X,%X,%X]",
+                      content_desc_ctrl_ind.per_object_status_ctrl,
+                        content_desc_ctrl_ind.per_object_status_ctrl_valid,
+                      content_desc_ctrl_ind.per_object_content_ctrl,
+                        content_desc_ctrl_ind.per_object_content_ctrl_valid,
+                      content_desc_ctrl_ind.dbg_trace_id,
+                      content_desc_ctrl_ind.tmgi_info.tmgi_len,
+                      content_desc_ctrl_ind.tmgi_info.tmgi[0],
+                      content_desc_ctrl_ind.tmgi_info.tmgi[1],
+                      content_desc_ctrl_ind.tmgi_info.tmgi[2],
+                      content_desc_ctrl_ind.tmgi_info.tmgi[3],
+                      content_desc_ctrl_ind.tmgi_info.tmgi[4],
+                      content_desc_ctrl_ind.tmgi_info.tmgi[5]);
+
+      qcril_hook_unsol_response(instance_id,
+                                QCRIL_EVT_HOOK_EMBMS_UNSOL_CONTENT_DESC_CONTROL,
+                                (char*)&content_desc_ctrl_ind,
+                                sizeof(content_desc_ctrl_ind));
+    }
+    break;
+
     default:
       QCRIL_LOG_ERROR("Unknown embms event received [%d]", evt_info_ptr->evt);
       break;
@@ -2307,6 +2643,12 @@ ret:
       {
          QCRIL_LOG_DEBUG( "%s", "<<<RIL UNSOL RSP SENT<<<" );
          QCRIL_LOG_INFO( "%s", "<<<DSI_NET_TMGI_LIST_CHANGED: DONE<<<" );
+      }
+      break;
+    case DSI_NET_CONTENT_DESC_CONTROL:
+      {
+         QCRIL_LOG_DEBUG( "%s", "<<<RIL UNSOL RSP SENT<<<" );
+         QCRIL_LOG_INFO( "%s", "<<<DSI_NET_CONTENT_DESC_CONTROL: DONE<<<" );
       }
       break;
     default:
@@ -2377,6 +2719,13 @@ err_ret:
     QCRIL_LOG_DEBUG("free memory for num_sai_per_group");
     free(evt_info_ptr->payload.embms_sai_info.num_sai_per_group);
     evt_info_ptr->payload.embms_sai_info.num_sai_per_group = NULL;
+  }
+
+  if (NULL != evt_info_ptr->payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr)
+  {
+    QCRIL_LOG_DEBUG("free memory for content_desc_ctr_tmgi");
+    free(evt_info_ptr->payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr);
+    evt_info_ptr->payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr = NULL;
   }
 
   return;
@@ -2634,7 +2983,7 @@ static int qcril_data_reg_sys_ind
      sys_reg_req_msg.limit_so_mask_change_ind = TRUE;
   }
 
-  rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+  rc = qmi_client_send_msg_sync_with_shm(global_qmi_dsd_hndl,
                                 QMI_DSD_SYSTEM_STATUS_CHANGE_REQ_V01,
                                 &sys_reg_req_msg,
                                 sizeof(sys_reg_req_msg),
@@ -2661,7 +3010,7 @@ static int qcril_data_reg_sys_ind
   {
     memset(&sys_resp_msg, 0, sizeof(sys_resp_msg));
 
-    rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+    rc = qmi_client_send_msg_sync_with_shm(global_qmi_dsd_hndl,
                                   QMI_DSD_GET_SYSTEM_STATUS_REQ_V01,
                                   NULL,
                                   0,
@@ -2796,6 +3145,8 @@ void qcril_data_event_hdlr(
   size_t                         response_len = 0;
   dsi_ip_family_t                ipf;
   int                            call_status;
+  qmi_wds_bind_mux_data_port_params_type bind_params;
+  char                           dev_name[DSI_CALL_INFO_DEVICE_NAME_MAX_LEN+1];
 
 #ifdef FEATURE_DATA_EMBMS
   qcril_request_resp_params_type               resp;
@@ -2870,7 +3221,8 @@ void qcril_data_event_hdlr(
         evt_info_ptr->evt == DSI_NET_TMGI_DEACTIVATED ||
       evt_info_ptr->evt == DSI_NET_TMGI_ACTIVATED_DEACTIVATED ||
         evt_info_ptr->evt == DSI_NET_TMGI_LIST_CHANGED ||
-      evt_info_ptr->evt == DSI_NET_SAI_LIST_CHANGED)
+      evt_info_ptr->evt == DSI_NET_CONTENT_DESC_CONTROL ||
+        evt_info_ptr->evt == DSI_NET_SAI_LIST_CHANGED)
   {
     qcril_data_handle_embms_events(instance_id, info_tbl_ptr, evt_info_ptr);
     goto ret;
@@ -2979,13 +3331,13 @@ void qcril_data_event_hdlr(
         goto ret;
       }
 
-      if (DSI_SUCCESS != dsi_get_device_name(info_tbl_ptr->dsi_hndl,
-                                             buf,
-                                             DSI_CALL_INFO_DEVICE_NAME_MAX_LEN+1))
+      if (DSI_SUCCESS != dsi_get_qmi_port_name(info_tbl_ptr->dsi_hndl,
+                                               buf,
+                                               DSI_CALL_INFO_DEVICE_NAME_MAX_LEN+1))
       {
         QCRIL_LOG_ERROR("couldn't get device name for info_tbl [%d]",
                         info_tbl_ptr->index);
-        QCRIL_DS_ASSERT( 0, "programming error: dsi_get_device_name" );
+        QCRIL_DS_ASSERT( 0, "programming error: dsi_get_qmi_port_name" );
         qcril_data_cleanup_call_state( info_tbl_ptr );
         goto err_label;
       }
@@ -3031,8 +3383,68 @@ void qcril_data_event_hdlr(
       }
       else
       {
+        int rval;
+        int qmi_err;
+
         QCRIL_LOG_DEBUG("obtained wds srvc clnt id [0x%x] for info tbl indx [%d]",
                         info_tbl_ptr->qmi_wds_hndl, info_tbl_ptr->index);
+
+        memset(dev_name, 0, DSI_CALL_INFO_DEVICE_NAME_MAX_LEN+1);
+        memset(&bind_params, 0, sizeof(qmi_wds_bind_mux_data_port_params_type));
+
+        if (DSI_SUCCESS != dsi_get_device_name(info_tbl_ptr->dsi_hndl,
+                                               dev_name,
+                                               DSI_CALL_INFO_DEVICE_NAME_MAX_LEN+1))
+        {
+          QCRIL_LOG_ERROR("couldn't get device name for info_tbl [%d]",
+                          info_tbl_ptr->index);
+        }
+        bind_params.params_mask |= QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_EP_ID;
+        bind_params.params_mask |= QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_MUX_ID;
+        QCRIL_LOG_DEBUG("DSI_EVT_NET_IS_CONN: devname [%s]", dev_name);
+        QMI_PLATFORM_DEV_NAME_TO_CONN_ID_EX(dev_name,
+                                            &bind_params.ep_id.ep_type,
+                                            &bind_params.ep_id.iface_id,
+                                            &bind_params.mux_id);
+
+        if (QMI_NO_ERR != qmi_wds_bind_mux_data_port(info_tbl_ptr->qmi_wds_hndl,
+                                                     &bind_params,
+                                                     &qmi_err_code))
+        {
+          QCRIL_LOG_ERROR("qdi_wds_srvc_init_clients: qmi_wds_bind_mux_data_port failed "
+                         "for qmi_cid_v4 %d with error %d,\n",
+                          info_tbl_ptr->qmi_wds_hndl, qmi_err_code);
+        }
+
+        if(DSI_IP_VERSION_6 == info_tbl_ptr->dsi_ip_version)
+        {
+          /* bind wds handle to IPV6 family */
+          rval = qmi_wds_set_client_ip_pref(info_tbl_ptr->qmi_wds_hndl,
+                                            QMI_WDS_IP_FAMILY_PREF_IPV6,
+                                            &qmi_err);
+
+          if (QMI_NO_ERR == rval)
+          {
+            QCRIL_LOG_INFO("%s", "Successfully bound IPv6 QMI WDS client to IPv6 family");
+          }
+          else if (QMI_SERVICE_ERR == rval && QMI_SERVICE_ERR_NO_EFFECT == qmi_err)
+          {
+            QCRIL_LOG_INFO("%s", "IPv6 QMI WDS client already bound to IPv6 family");
+          }
+          else
+          {
+            QCRIL_LOG_ERROR(" binding v6 handle to IPV6 family failed rval=%d, qmi_err=%d",
+                            rval,
+                            qmi_err);
+          }
+        }/*(DSI_IP_VERSION_6 == ip_family)*/
+      }
+
+      if (QMI_NO_ERR != qmi_wds_bind_subscription ( info_tbl_ptr->qmi_wds_hndl,
+                                               global_subs_id,
+                                              &qmi_err_code))
+      {
+        QCRIL_LOG_ERROR("qmi_wds_bind_subscription: subs_id binding failed");
       }
 
       if (qcril_data_mtu > 0)
@@ -3483,6 +3895,15 @@ void qcril_data_event_hdlr(
 
     goto unsol_rsp;
 
+  case DSI_EVT_NET_NEWMTU:
+    QCRIL_LOG_INFO( ">>>DSI_EVT_NET_NETMTU: START>>> cid [%d], index [%d]",
+                    info_tbl_ptr->cid, info_tbl_ptr->index );
+
+    qcril_data_util_update_mtu(info_tbl_ptr);
+
+    QCRIL_LOG_INFO( "%s", "<<<DSI_EVT_NET_NEWMTU: DONE<<<" );
+    goto unsol_rsp;
+
   case DSI_EVT_QOS_STATUS_IND:
 
     QCRIL_LOG_INFO( ">>>DSI_EVT_QOS_STATUS_IND: START>>> cid [%d], index [%d]",
@@ -3712,29 +4133,6 @@ static int qcril_data_iface_go_dormant
       QCRIL_LOG_ERROR("%s","invalid qmi_wds_hndl received");
       break;
     }
-
-    if(DSI_IP_VERSION_6 == ip_family)
-    {
-      /* bind wds handle to IPV6 family */
-      rval = qmi_wds_set_client_ip_pref(qmi_wds_hndl,
-                                        QMI_WDS_IP_FAMILY_PREF_IPV6,
-                                        &qmi_err);
-
-      if (QMI_NO_ERR == rval)
-      {
-        QCRIL_LOG_INFO("%s", "Successfully bound IPv6 QMI WDS client to IPv6 family");
-      }
-      else if (QMI_SERVICE_ERR == rval && QMI_SERVICE_ERR_NO_EFFECT == qmi_err)
-      {
-        QCRIL_LOG_INFO("%s", "IPv6 QMI WDS client already bound to IPv6 family");
-      }
-      else
-      {
-        QCRIL_LOG_ERROR(" binding v6 handle to IPV6 family failed rc=%d, qmi_err=%d",
-                      rval,
-                      qmi_err);
-      }
-    }/*(DSI_IP_VERSION_6 == ip_family)*/
 
     rval = qmi_wds_go_dormant_req(qmi_wds_hndl,&qmi_err);
 
@@ -3995,55 +4393,48 @@ static int qcril_data_set_nai
 
   do
   {
-    /* sanity checking */
-    if ((ril_auth_pref == NULL || strlen(ril_auth_pref)==0) ||
-        ((strcmp(ril_auth_pref, "0") != 0) &&
-         ((ril_user == NULL || strlen(ril_user)==0) ||(ril_pass == NULL || strlen(ril_pass)==0))
-        )
-       )
-    {
-      QCRIL_LOG_WARN("Invalid NAI. Ignoring NAI for SETUP_DATA_CALL");
-      return SUCCESS;
-    }
 
     memset( &username_info, 0, sizeof( dsi_call_param_value_t ) );
     memset( &password_info, 0, sizeof( dsi_call_param_value_t ) );
     memset( &authpref_info, 0, sizeof( dsi_call_param_value_t ) );
 
-    /* set auth_pref */
-    authpref_info.buf_val = NULL;
-    authpref_info.num_val = atoi(ril_auth_pref);
-    reti = SUCCESS;
-    switch(authpref_info.num_val)
+    if(ril_auth_pref != NULL && strlen(ril_auth_pref) !=0)
     {
-    case 0:
-      authpref_info.num_val = DSI_AUTH_PREF_PAP_CHAP_NOT_ALLOWED;
-      break;
-    case 1:
-      authpref_info.num_val = DSI_AUTH_PREF_PAP_ONLY_ALLOWED;
-      break;
-    case 2:
-      authpref_info.num_val = DSI_AUTH_PREF_CHAP_ONLY_ALLOWED;
-      break;
-    case 3:
-      authpref_info.num_val = DSI_AUTH_PREF_PAP_CHAP_BOTH_ALLOWED;
-      break;
-    default:
-      QCRIL_LOG_ERROR("invalid auth pref received [%d]", authpref_info.num_val);
-      reti = FAILURE;
-      break;
-    }
-    if (SUCCESS != reti)
-    {
-      break;
-    }
-    if((dsi_set_data_call_param(info_tbl[info_tbl_index].dsi_hndl,
-                                DSI_CALL_INFO_AUTH_PREF,
-                                &authpref_info) ) != DSI_SUCCESS)
-    {
-      QCRIL_LOG_ERROR("unable to set AUTH PREF [%d], info_tbl index [%d]",
-                      authpref_info.num_val,info_tbl_index);
-      break;
+      /* set auth_pref */
+      authpref_info.buf_val = NULL;
+      authpref_info.num_val = atoi(ril_auth_pref);
+      reti = SUCCESS;
+      switch(authpref_info.num_val)
+      {
+      case 0:
+        authpref_info.num_val = DSI_AUTH_PREF_PAP_CHAP_NOT_ALLOWED;
+        break;
+      case 1:
+        authpref_info.num_val = DSI_AUTH_PREF_PAP_ONLY_ALLOWED;
+        break;
+      case 2:
+        authpref_info.num_val = DSI_AUTH_PREF_CHAP_ONLY_ALLOWED;
+        break;
+      case 3:
+        authpref_info.num_val = DSI_AUTH_PREF_PAP_CHAP_BOTH_ALLOWED;
+        break;
+      default:
+        QCRIL_LOG_ERROR("invalid auth pref received [%d]", authpref_info.num_val);
+        reti = FAILURE;
+        break;
+      }
+      if (SUCCESS != reti)
+      {
+        break;
+      }
+      if((dsi_set_data_call_param(info_tbl[info_tbl_index].dsi_hndl,
+                                  DSI_CALL_INFO_AUTH_PREF,
+                                  &authpref_info) ) != DSI_SUCCESS)
+      {
+        QCRIL_LOG_ERROR("unable to set AUTH PREF [%d], info_tbl index [%d]",
+                        authpref_info.num_val,info_tbl_index);
+        break;
+      }
     }
 
     /* set username */
@@ -4261,6 +4652,9 @@ static int qcril_data_apn_based_profile_look_up_using_qdp
   const char * ril_ipfamily,
   const char * ril_tech,
   const char * ril_profile,
+  const char * ril_user,
+  const char * ril_pass,
+  const char * ril_auth_pref,
   int * umts_profile_id,
   qdp_profile_pdn_type *umts_profile_pdn_type,
   int * cdma_profile_id,
@@ -4291,7 +4685,7 @@ static int qcril_data_apn_based_profile_look_up_using_qdp
     }
 
     /* only APN is mandatory RIL param. Rest are optional RIL params */
-    if (NULL == ril_apn || 0 == strlen(ril_apn))
+    if (NULL == ril_apn)
     {
       QCRIL_LOG_ERROR("%s","ril_apn (provided NULL) is mandatory param for "
                       "this function.");
@@ -4386,6 +4780,50 @@ static int qcril_data_apn_based_profile_look_up_using_qdp
       QCRIL_LOG_DEBUG("qdp param IP_FAMILY = [%s]", qdp_params[QDP_RIL_IP_FAMILY]);
     }
 
+    /* Prepare username */
+    if (ril_user != NULL && strlen(ril_user) > 0)
+    {
+      if (strlen(ril_user) > QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1)
+      {
+        QCRIL_LOG_ERROR("RIL provided username exceeds max allowed [%d]",
+                        QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+      }
+      else
+      {
+        qdp_params[QDP_RIL_NAI] = ril_user;
+        QCRIL_LOG_DEBUG("qdp param USERNAME = [%s]", qdp_params[QDP_RIL_NAI]);
+      }
+    }
+
+    /* prepare password */
+    if (ril_pass != NULL && strlen(ril_pass) > 0)
+    {
+      if (strlen(ril_pass) > QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1)
+      {
+        QCRIL_LOG_ERROR("RIL provided password exceeds max allowed [%d]",
+                        QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+      }
+      else
+      {
+        qdp_params[QDP_RIL_PASSWORD] = ril_pass;
+        QCRIL_LOG_DEBUG("qdp param PASSWORD = [%s]", qdp_params[QDP_RIL_PASSWORD]);
+      }
+    }
+
+    /* prepare authtype */
+    if (ril_auth_pref != NULL && strlen(ril_auth_pref) > 0)
+    {
+      if (strlen(ril_auth_pref) > QCRIL_DATA_AUTH_PREF_MAX_LEN-1)
+      {
+        QCRIL_LOG_ERROR("RIL provided auth exceeds max allowed [%d]",
+                        QCRIL_DATA_AUTH_PREF_MAX_LEN);
+      }
+      else
+      {
+        qdp_params[QDP_RIL_AUTH] = ril_auth_pref;
+        QCRIL_LOG_DEBUG("qdp param AUTH type = [%s]", qdp_params[QDP_RIL_AUTH]);
+      }
+    }
     *umts_profile_id = *cdma_profile_id = 0;
     memset( &error_info, 0x0, sizeof(error_info) );
     *abort_call = FALSE;
@@ -4529,6 +4967,12 @@ static int qcril_data_apn_based_profile_look_up
       break;
     }
 
+    if (QMI_NO_ERR != qmi_wds_bind_subscription ( qmi_wds_hndl,
+                                              global_subs_id,
+                                              &qmi_err_code))
+    {
+      QCRIL_LOG_ERROR("qmi_wds_bind_subscription: subs_id binding failed");
+    }
     /* this is a void function */
     /* init the key-value pair list */
     list_init(&umts_list);
@@ -4874,7 +5318,19 @@ static void qcril_data_response_setup_data_call_failure_generic_err
 )
 {
 #if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
+
+#if (RIL_VERSION >= 10)
+
+  /* Response to setup data call request */
+  RIL_Data_Call_Response_v9  setup_rsp;
+
+#else
+
+  /* Response to setup data call request */
   RIL_Data_Call_Response_v6  setup_rsp;
+
+#endif /* (RIL_VERSION >= 10)  */
+
   qcril_request_resp_params_type resp;
 
   memset( &setup_rsp, 0x0, sizeof(setup_rsp) );
@@ -4961,9 +5417,22 @@ static void qcril_data_unsol_call_list_changed
 )
 {
   qcril_unsol_resp_params_type unsol_resp;
-
 #if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
+
+#ifdef FEATURE_MTU_CAF
+
+  RIL_Data_Call_Response_v9_CAF *active_call_table = NULL;
+
+#elif (RIL_VERSION >= 10)
+
+  RIL_Data_Call_Response_v9 *active_call_table = NULL;
+
+#else
+
   RIL_Data_Call_Response_v6 *active_call_table = NULL;
+
+#endif /* (RIL_VERSION >= 10)  */
+
 #else
   RIL_Data_Call_Response    *active_call_table = NULL;
 #endif /* (RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6) */
@@ -5064,7 +5533,7 @@ static void qcril_data_util_buffer_dump(
     }
     else
     {
-      QCRIL_LOG_DEBUG( "buffer[%d] = %#x", i, ((unsigned int *)tmp->buf_val)[ i ] );
+      QCRIL_LOG_DEBUG( "buffer[%d] = %p", i, ((unsigned int *)tmp->buf_val)[ i ] );
     }
   }
 
@@ -5670,6 +6139,51 @@ bail:
 }
 #endif /* ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6)) */
 
+/*===========================================================================*/
+/*!
+    @brief
+    Update the MTU in the call_info table
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_data_util_update_mtu
+(
+  qcril_data_call_info_tbl_type  *info_tbl_ptr
+)
+{
+#ifdef FEATURE_MTU_CAF
+  unsigned int mtu;
+
+  if (NULL == info_tbl_ptr)
+  {
+    QCRIL_DS_ASSERT(0, "programming error: NULL info_tbl_ptr passed");
+    return;
+  }
+
+  /* Update iface MTU */
+  if (qcril_data_mtu > 0)
+  {
+    info_tbl_ptr->call_info.mtu = qcril_data_mtu;
+  }
+  else if (DSI_SUCCESS != dsi_get_link_mtu(info_tbl_ptr->dsi_hndl, &mtu))
+  {
+    QCRIL_LOG_ERROR( "%s", "failed to get link MTU" );
+  }
+  else
+  {
+    info_tbl_ptr->call_info.mtu = mtu;
+  }
+
+  QCRIL_LOG_INFO( "MTU set to %d", info_tbl_ptr->call_info.mtu );
+#else
+  (void) info_tbl_ptr;
+#endif
+
+  return;
+}
+
 /*=========================================================================
   FUNCTION:  qcril_data_util_fill_call_params
 
@@ -5791,6 +6305,14 @@ static void qcril_data_util_fill_call_params
     QCRIL_LOG_DEBUG("DNS Addresses    : %s", info_tbl_ptr->call_info.dns.fmtstr);
     QCRIL_LOG_DEBUG("Call Type        : %s", info_tbl_ptr->call_info.type);
 
+#if (RIL_VERSION >= 10)
+
+    memset(info_tbl_ptr->call_info.pcscf.fmtstr, 0x0,
+           sizeof(info_tbl_ptr->call_info.pcscf.fmtstr));
+
+#endif
+
+    qcril_data_util_update_mtu(info_tbl_ptr);
 #else
     /* prepare the network ordered ip addr for presentation */
     reti = SUCCESS;
@@ -5943,6 +6465,16 @@ static void qcril_data_util_create_setup_rsp
   rsp_ptr->setup_rsp.dnses = info_tbl_ptr->call_info.dns.fmtstr;
   rsp_ptr->setup_rsp.gateways = info_tbl_ptr->call_info.gateway.fmtstr;
 
+#if (RIL_VERSION >= 10)
+
+  rsp_ptr->setup_rsp.pcscf = info_tbl_ptr->call_info.pcscf.fmtstr;
+
+#endif
+
+#ifdef FEATURE_MTU_CAF
+  rsp_ptr->setup_rsp.mtu = info_tbl_ptr->call_info.mtu;
+#endif
+
   rsp_ptr->size               = sizeof(rsp_ptr->setup_rsp);
 
 }/* qcril_data_util_create_setup_rsp() */
@@ -6015,7 +6547,6 @@ static inline int qcril_data_get_modem_port
       qmi_port = qcril_data_modem_port_map_tbl[i].qmi_port;
     return SUCCESS;
   }
-
   return FAILURE;
 }
 
@@ -6135,6 +6666,17 @@ static void qcril_data_post_dsi_netctrl_event
                payload_ptr->embms_sai_info.num_sai_per_group_len * sizeof(unsigned short));
       }
     }
+
+    if(net_evt == DSI_NET_CONTENT_DESC_CONTROL)
+    {
+      if (NULL != payload_ptr->embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr)
+      {
+        qcril_data_utils_embms_copy_tmgi_list(
+            &(evt->payload.embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr),
+            payload_ptr->embms_content_desc_info.content_desc_tmgi.tmgi_list_ptr,
+            payload_ptr->embms_content_desc_info.content_desc_tmgi.tmgi_list_len);
+      }
+    }
 #endif
   }
 
@@ -6234,10 +6776,97 @@ void qcril_data_command_hdlr(
   QCRIL_DS_ASSERT( ( params_ptr != NULL ), "validate input params_ptr" );
   QCRIL_DS_ASSERT( ( ret_ptr    != NULL ), "validate input ret_ptr" );
   /*-----------------------------------------------------------------------*/
-  QCRIL_DS_ASSERT( 0, "trap call to data cmd hdlr" );
-  QCRIL_LOG_DEBUG( "%s", "qcril_data_command_hdlr: EXIT" );
 
-}/* qcril_data_command_callback() */
+  if ( ( params_ptr == NULL ) || ( ret_ptr == NULL ) )
+  {
+    goto bail;
+  }
+
+  qcril_data_cmd_data_t *cmd_data;
+  int qmi_err_code, rc;
+  dsd_bind_subscription_req_msg_v01  bind_req_msg;
+  dsd_bind_subscription_resp_msg_v01  bind_resp_msg;
+
+  cmd_data = ( qcril_data_cmd_data_t * )params_ptr->data;
+
+  QCRIL_DS_LOG_DBG_MEM( "event obj", cmd_data );
+  if ( !VALIDATE_LOCAL_DATA_OBJ( cmd_data ) )
+  {
+    QCRIL_LOG_ERROR( "%s", "bad event obj, cannot free mem, ret with err" );
+    goto bail;
+  }
+
+  if(cmd_data->cmd_id == QCRIL_DATA_STACK_SWITCH_CMD)
+  {
+    switch(cmd_data->new_stack_id)
+    {
+      case QCRIL_MODEM_PRIMARY_STACK_ID:
+       global_subs_id = QMI_WDS_PRIMARY_SUBS;
+       break;
+
+      case QCRIL_MODEM_SECONDARY_STACK_ID:
+       global_subs_id = QMI_WDS_SECONDARY_SUBS;
+       break;
+
+      case QCRIL_MODEM_TERTIARY_STACK_ID:
+       global_subs_id = QMI_WDS_TERTIARY_SUBS;
+       break;
+
+      default:
+       global_subs_id = QMI_WDS_DEFAULT_SUBS;
+    }
+
+    QCRIL_LOG_DEBUG( "qcril_data_command_hdlr: stack_id: %d, subs_id: %d",
+                        cmd_data->new_stack_id,global_subs_id);
+
+    dsi_set_modem_subs_id(global_subs_id);
+
+    qdp_set_subscription(global_subs_id);
+
+    if (QMI_NO_ERR != qmi_wds_bind_subscription ( global_qmi_wds_hndl,
+                                              global_subs_id,
+                                               &qmi_err_code))
+    {
+      QCRIL_LOG_ERROR("qmi_wds_bind_subscription: subs_id binding failed %d error",
+              qmi_err_code);
+    }
+
+    if(global_qmi_dsd_hndl != NULL)
+    {
+      /* Bind the subscription */
+      memset(&bind_req_msg, 0, sizeof(bind_req_msg));
+      memset(&bind_resp_msg, 0, sizeof(bind_resp_msg));
+
+      bind_req_msg.bind_subs = qcril_data_get_qmi_dsd_subscription_id();
+
+      QCRIL_LOG_DEBUG("binding subscription to subs=%d",
+                      bind_req_msg.bind_subs);
+
+      rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+                                    QMI_DSD_BIND_SUBSCRIPTION_REQ_V01,
+                                    &bind_req_msg,
+                                    sizeof(bind_req_msg),
+                                    &bind_resp_msg,
+                                    sizeof(bind_resp_msg),
+                                    QCRIL_DATA_QMI_DSD_SYNC_MSG_TIMEOUT);
+      if (QMI_NO_ERR != rc) {
+        QCRIL_LOG_ERROR("failed to bind subscription, err=%d",
+                        rc);
+      }
+      else if (QMI_NO_ERR != bind_resp_msg.resp.result) {
+        QCRIL_LOG_ERROR("failed to bind subscription, err=%d",
+                          bind_resp_msg.resp.error);
+      }
+
+    }
+
+  }
+  free(cmd_data);
+
+bail:
+   QCRIL_LOG_DEBUG( "%s", "qcril_data_command_hdlr: EXIT" );
+
+ }/* qcril_data_command_callback() */
 
 
 
@@ -6293,8 +6922,8 @@ void qcril_data_process_qcrilhook_go_dormant
 
   if ( ( params_ptr == NULL ) || ( ret_ptr == NULL ) )
   {
-    QCRIL_LOG_ERROR( "BAD input, params_ptr [%#x], ret_ptr [%#x]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr );
+    QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p]",
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr );
     goto err_label;
   }
 
@@ -6448,15 +7077,18 @@ qcril_data_process_screen_state_change
 {
   static char  args[PROPERTY_VALUE_MAX];
   int          ret;
+  static int   prev_screen_state = -1;
 
   memset(args, 0, sizeof(args));
   property_get(QCRIL_DATA_PROPERTY_TCP_RST_DROP, args, "");
 
-  if (0 == strcmp(args, "true") || 0 == strcmp(args, "TRUE"))
+  if (((0 == strcmp(args, "true")) || (0 == strcmp(args, "TRUE"))) &&
+      (prev_screen_state != (int)screen_state))
   {
     QCRIL_LOG_INFO("qcril_data: Screen state changed to: %s",
       screen_state ? "ON" : "OFF");
     dsi_process_screen_state_change(screen_state);
+    prev_screen_state = (int)screen_state;
   }
 
   return QCRIL_DS_SUCCESS;
@@ -6679,8 +7311,8 @@ static void qcril_data_setup_data_call_timeout_hdlr
 
   if (!VALIDATE_LOCAL_DATA_OBJ(info_tbl_ptr))
   {
-    QCRIL_LOG_ERROR( "invalid info_tbl_ptr [%#x] ",
-                     (unsigned int)info_tbl_ptr);
+    QCRIL_LOG_ERROR( "invalid info_tbl_ptr [%p] ",
+                     (unsigned int *)info_tbl_ptr);
     goto err_label;
   }
 
@@ -6760,8 +7392,8 @@ static void qcril_data_start_response_timer
 
   if (!VALIDATE_LOCAL_DATA_OBJ(info_tbl_ptr))
   {
-    QCRIL_LOG_ERROR( "invalid info_tbl_ptr:[%#x] ",
-                     (unsigned int)info_tbl_ptr);
+    QCRIL_LOG_ERROR( "invalid info_tbl_ptr:[%p] ",
+                     (unsigned int *)info_tbl_ptr);
     return;
   }
 
@@ -6773,8 +7405,8 @@ static void qcril_data_start_response_timer
   /* The timer_id should be invalid, if not log an error and delete it */
   if (QCRIL_DATA_INVALID_TIMERID != info_tbl_ptr->timer_id)
   {
-    QCRIL_LOG_ERROR( "deleting stale timer_id:[%#x] ",
-                     (unsigned int)info_tbl_ptr->timer_id);
+    QCRIL_LOG_ERROR( "deleting stale timer_id:[%#"PRIxPTR"] ",
+                     (uintptr_t)info_tbl_ptr->timer_id);
 
     qcril_data_util_stop_timer(&info_tbl_ptr->timer_id);
   }
@@ -6782,8 +7414,8 @@ static void qcril_data_start_response_timer
   /* Create the timer */
   if (-1 == timer_create(CLOCK_REALTIME, &sigev, &info_tbl_ptr->timer_id))
   {
-    QCRIL_LOG_ERROR( "failed to create timer for info_tbl_ptr:[%#x] ",
-                     (unsigned int)info_tbl_ptr);
+    QCRIL_LOG_ERROR( "failed to create timer for info_tbl_ptr:[%p] ",
+                     (unsigned int *)info_tbl_ptr);
     return;
   }
 
@@ -6833,8 +7465,8 @@ static void qcril_data_start_response_timer
   /* Start the timer */
   if (-1 == timer_settime(info_tbl_ptr->timer_id, 0, &itimers, NULL))
   {
-    QCRIL_LOG_ERROR( "failed to start timer for timer_id [%#x], deleting... ",
-                     (unsigned int)info_tbl_ptr->timer_id);
+    QCRIL_LOG_ERROR( "failed to start timer for timer_id [%#"PRIxPTR"], deleting... ",
+                     (uintptr_t)info_tbl_ptr->timer_id);
 
     qcril_data_util_stop_timer(&info_tbl_ptr->timer_id);
   }
@@ -6868,16 +7500,16 @@ static void qcril_data_create_retry_timer
 
   if (!VALIDATE_LOCAL_DATA_OBJ(info_tbl_ptr))
   {
-    QCRIL_LOG_ERROR( "invalid info_tbl_ptr:[%#x] ",
-                     (unsigned int)info_tbl_ptr);
+    QCRIL_LOG_ERROR( "invalid info_tbl_ptr:[%p] ",
+                     (unsigned int *)info_tbl_ptr);
     goto bail;
   }
 
   /* The timer_id should be invalid, if not log an error and delete it */
   if (QCRIL_DATA_INVALID_TIMERID != info_tbl_ptr->retry_timer_id)
   {
-    QCRIL_LOG_ERROR( "deleting stale retry_timer_id:[%#x] ",
-                     (unsigned int)info_tbl_ptr->retry_timer_id);
+    QCRIL_LOG_ERROR( "deleting stale retry_timer_id:[%#"PRIxPTR"] ",
+                     (uintptr_t)info_tbl_ptr->retry_timer_id);
 
     qcril_data_util_stop_timer(&info_tbl_ptr->retry_timer_id);
   }
@@ -6890,8 +7522,8 @@ static void qcril_data_create_retry_timer
   /* Create the timer */
   if (-1 == timer_create(CLOCK_REALTIME, &sigev, &info_tbl_ptr->retry_timer_id))
   {
-    QCRIL_LOG_ERROR( "failed to create timer for info_tbl_ptr:[%#x] ",
-                     (unsigned int)info_tbl_ptr);
+    QCRIL_LOG_ERROR( "failed to create timer for info_tbl_ptr:[%p] ",
+                     (unsigned int *)info_tbl_ptr);
     goto bail;
   }
 
@@ -6932,8 +7564,8 @@ static void qcril_data_partial_retry_hdlr
 
   if (!VALIDATE_LOCAL_DATA_OBJ(info_tbl_ptr))
   {
-    QCRIL_LOG_ERROR( "invalid info_tbl_ptr [%#x] ",
-                     (unsigned int)info_tbl_ptr);
+    QCRIL_LOG_ERROR( "invalid info_tbl_ptr [%p] ",
+                     (unsigned int *)info_tbl_ptr);
     goto err_label;
   }
   else if (FALSE == qcril_data_util_is_partial_retry_allowed(info_tbl_ptr))
@@ -7153,7 +7785,11 @@ LOCAL boolean qcril_data_is_attach_required
 (
   unsigned int  profile_id,
   const char    * ril_apn,
-  const char    * ril_ipfamily
+  const char    * ril_ipfamily,
+  const char    * ril_user,
+  const char    * ril_pass,
+  const int     ril_user_len,
+  const int     ril_pass_len
 )
 {
   int                               i, rc, error_code;
@@ -7252,6 +7888,71 @@ LOCAL boolean qcril_data_is_attach_required
   default:
     break;
   }
+   /* user name checking */
+  if ((!(prof_params.umts_profile_params.param_mask &
+               QMI_WDS_UMTS_PROFILE_USERNAME_PARAM_MASK))// ||
+           // NULL == prof_params.umts_profile_params.username
+		)
+  {
+    /* Modem not provided user but ril provided */
+    if (ril_user_len > 0)
+    {
+       QCRIL_LOG_DEBUG("%s", "Modem user name:NULL but ril has user so do LTE attach");
+       return TRUE;
+    }
+
+  }
+  else
+  {
+    /* modem provided username and ril also provided so compare*/
+    if (ril_user_len > 0)
+    {
+      if (strncasecmp( ril_user,
+                       prof_params.umts_profile_params.username,
+                       (strlen(ril_user)+1) ) != 0)
+      {
+        QCRIL_LOG_DEBUG("Modem user [%s] Attach user [%s]",
+                        prof_params.umts_profile_params.username,
+                        ril_user);
+        return TRUE;
+      }
+    }
+  }
+
+  /* Modem and RIL didn't provide username do nothing */
+
+  /* password checking */
+  if ((!(prof_params.umts_profile_params.param_mask &
+               QMI_WDS_UMTS_PROFILE_PASSWORD_PARAM_MASK))// ||
+          //  NULL == prof_params.umts_profile_params.password
+		)
+  {
+    /* Modem not provided password but ril provided */
+    if (ril_pass_len > 0)
+    {
+       QCRIL_LOG_DEBUG("%s", "Modem pwd name:NULL but ril has password so do LTE attach");
+       return TRUE;
+    }
+
+  }
+  else
+  {
+    /* modem provided pass and ril also provided so compare */
+    if (ril_pass_len > 0)
+    {
+      if (strncasecmp( ril_pass,
+                       prof_params.umts_profile_params.password,
+                       (strlen(ril_pass)+1) ) != 0)
+      {
+        QCRIL_LOG_DEBUG("Modem pwd [%s] Attach pwd [%s]",
+                        prof_params.umts_profile_params.password,
+                        ril_pass);
+        return TRUE;
+      }
+    }
+  }
+
+  /* Modem and RIL didnt provide password do nothing */
 
   /* We compared all the parameters and found that
    * the profile information sent by telephony is
@@ -7304,7 +8005,8 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
   int                               reti = QCRIL_LTE_ATTACH_SUCCESS;
   int                               qmi_err_code, temp_len = 0;
   char                              args[PROP_VALUE_MAX];
-
+  int                               ril_user_len =0;
+  int                               ril_pass_len =0;
   QCRIL_LOG_VERBOSE( "%s", "qcril_data_request_set_lte_attach_profile: ENTRY" );
 
   if ( attachInfo == NULL )
@@ -7322,7 +8024,7 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
 
   do
   {
-    if (NULL == ril_apn || 0 == strlen(ril_apn))
+    if (NULL == ril_apn)
     {
       /* TODO: Case when provided APN is NULL */
       QCRIL_LOG_ERROR("%s","ril_apn (provided NULL) is mandatory param for "
@@ -7406,6 +8108,7 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
       else
       {
         qdp_params[QDP_RIL_NAI] = ril_user;
+        ril_user_len = strlen(ril_user)+1;
         QCRIL_LOG_DEBUG("qdp param USERNAME = [%s]", qdp_params[QDP_RIL_NAI]);
       }
     }
@@ -7421,6 +8124,7 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
       else
       {
         qdp_params[QDP_RIL_PASSWORD] = ril_pass;
+        ril_pass_len = strlen(ril_pass)+1;
         QCRIL_LOG_DEBUG("qdp param PASSWORD = [%s]", qdp_params[QDP_RIL_PASSWORD]);
       }
     }
@@ -7453,7 +8157,11 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
         {
           if ( FALSE == qcril_data_is_attach_required(prev_pdn_list.list[i],
                                                     ril_apn,
-                                                    ril_ipfamily) )
+                                                    ril_ipfamily,
+                                                    ril_user,
+                                                    ril_pass,
+                                                    ril_user_len,
+                                                    ril_pass_len) )
         {
             /* The profile already exists on modem and there are no changes to it,
              * skip reattach */
@@ -7570,12 +8278,16 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
       }
 
       /* Set the default profile to the property value */
-      input_profile_id = rc;
+      lte_profile_id = rc;
 
       /* Check if LTE attach is required */
-      if ( FALSE == qcril_data_is_attach_required( input_profile_id,
+      if ( FALSE == qcril_data_is_attach_required( lte_profile_id,
                                                    ril_apn,
-                                                   ril_ipfamily) )
+                                                   ril_ipfamily,
+                                                   ril_user,
+                                                   ril_pass,
+                                                   ril_user_len,
+                                                   ril_pass_len) )
       {
         /* Attach is not required since no paramaeters changed */
         QCRIL_LOG_DEBUG("%s", "Reattach not required!");
@@ -7593,7 +8305,7 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
       {
         QCRIL_LOG_ERROR("Not able to look 3gpp profile id [%d], "
                         "returned by QDP, lookup error[%d] tech[%d]",
-                        input_profile_id, error_info.error, error_info.tech);
+                        lte_profile_id, error_info.error, error_info.tech);
         reti = QCRIL_LTE_ATTACH_FAILURE;
         break;
       }
@@ -7665,6 +8377,7 @@ void qcril_data_request_setup_data_call
   dsi_ce_reason_t           dsi_ce_reason;
   qcril_data_call_response_type  response;
   boolean abort_call = FALSE;
+  qcril_data_ril_radio_tech_t  numeric_ril_tech = QCRIL_DATA_RIL_RADIO_TECH_UNKNOWN;
 
   QCRIL_LOG_VERBOSE( "%s", "qcril_data_request_setup_data_call: ENTRY" );
 
@@ -7676,8 +8389,8 @@ void qcril_data_request_setup_data_call
 
   if ( ( params_ptr == NULL ) || ( ret_ptr == NULL ) || ( ( params_ptr->datalen % 4 ) != 0) )
   {
-    QCRIL_LOG_ERROR( "BAD input, params_ptr [%#x], ret_ptr [%#x], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
+    QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
+                     (unsigned int *)params_ptr, (unsigned int *)ret_ptr,
                      params_ptr ? params_ptr->datalen : 0 );
     goto err_bad_input;
   }
@@ -7728,7 +8441,6 @@ void qcril_data_request_setup_data_call
 
   if (ril_tech != NULL)
   {
-    qcril_data_ril_radio_tech_t  numeric_ril_tech;
     QCRIL_LOG_DEBUG ("RIL provided tech pref [%s]", ril_tech);
 
 #if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
@@ -7864,7 +8576,7 @@ void qcril_data_request_setup_data_call
     QCRIL_DS_LOG_DBG_MEM( "dsi_hndl", info_tbl[i].dsi_hndl );
 
     /* check if APN is provided  */
-    if (ril_apn != NULL && strlen(ril_apn)>0)
+    if (ril_apn != NULL)
     {
       RIL_DataCallFailCause cause = PDP_FAIL_NONE;
       umts_profile_id = cdma_profile_id = 0;
@@ -7875,6 +8587,9 @@ void qcril_data_request_setup_data_call
                                                           ril_ipfamily,
                                                           ril_common_tech,
                                                           ril_profile,
+                                                          ril_user,
+                                                          ril_pass,
+                                                          ril_auth_pref,
                                                           &umts_profile_id,
                                                           &info_tbl[i].qdp_3gpp_profile_pdn_type,
                                                           &cdma_profile_id,
@@ -7958,7 +8673,7 @@ void qcril_data_request_setup_data_call
 
     /* use the RIL profile id only if
      * APN was not provided */
-    if (ril_apn == NULL || strlen(ril_apn)==0)
+    if (ril_apn == NULL)
     {
       /* set profile id in the dsi store */
       if (ril_profile == NULL)
@@ -7979,11 +8694,13 @@ void qcril_data_request_setup_data_call
       }
     }
 
-    /* Special case: for null APN and CDMA tech, explicitly set DSI tech
-     * pref to allow Modem to perform route-lookup correctly when no APN
-     * available. */
-    if ((ril_apn == NULL || strlen(ril_apn)==0) &&
-        (ril_common_tech != NULL && !strcmp(ril_common_tech, QCRIL_CDMA_STRING)))
+    /* Update dsi tech pref to cdma so that route lookup returns cdma iface */
+
+#if ((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))
+    if (QCRIL_DATA_IS_RIL_RADIO_TECH_CDMA_1X_EVDO(numeric_ril_tech))
+#else
+    if ((ril_common_tech != NULL) && (!strcmp(ril_common_tech, QCRIL_CDMA_STRING)))
+#endif
     {
       techpref_info.buf_val = NULL;
       techpref_info.num_val = DSI_RADIO_TECH_CDMA;
@@ -8138,6 +8855,7 @@ void qcril_data_request_setup_data_call
 
   QCRIL_DATA_MUTEX_UNLOCK(&info_tbl_mutex);
   QCRIL_LOG_DEBUG("%s", "qcril_data_request_setup_data_call: EXIT with suc");
+
   return;
 
 err_label:
@@ -8580,6 +9298,12 @@ void qcril_data_request_omh_profile_info
     goto bail;
   }
 
+  if (QMI_NO_ERR != qmi_wds_bind_subscription ( qmi_wds_omh_hndl,
+                                              global_subs_id,
+                                              &qmi_err_code))
+  {
+    QCRIL_LOG_ERROR("qmi_wds_bind_subscription: subs_id binding failed");
+  }
 
   QCRIL_LOG_DEBUG("qmi_wds_omh_hndl [%d] initialized. "
                   "qmi_err_code is set to [%d]", qmi_wds_omh_hndl,
@@ -8710,6 +9434,381 @@ bail:
 
 /*===========================================================================
 
+    FUNCTION:  qcril_data_request_set_data_profile
+
+    ===========================================================================*/
+/*!
+    @brief
+    Handles RIL_REQUEST_SET_DATA_PROFILE
+
+    @pre Before calling, info_tbl_mutex must not be locked by the calling thread
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+
+void qcril_data_request_set_data_profile
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr /*!< Output parameter */
+)
+{
+
+#define IMS_CLASS 1
+#define ADMN_CLASS 2
+#define INET_CLASS 3
+#define APP_CLASS 4
+
+  const char               *ril_apn;
+  const char               *ril_user;
+  const char               *ril_pass;
+  int                       auth_type;
+  const char               *ril_tech = NULL;
+  const char               *ril_common_tech = NULL;
+  const char               *ril_profile = NULL;
+  const char               *ril_ipfamily = NULL;
+  const char               *ril_auth_type = NULL;
+  int                       ril_maxConnstime;
+  int                       ril_waitTime;
+  int                       ril_maxConns;
+  int                       ril_enabled;
+  int                       i=0,max_profiles =0, rc;
+  int                      umts_profile_id;
+  int                      cdma_profile_id;
+  int                      ril_user_len =0;
+  int                      ril_pass_len =0;
+
+  qcril_request_resp_params_type    resp;
+
+  /* stores QDP profile PDN types */
+  qdp_profile_pdn_type     umts_profile_pdn_type;
+  qdp_profile_pdn_type     cdma_profile_pdn_type;
+  qdp_error_info_t         error_info;
+  int                      qmi_err_code;
+  uint8 apn_class;
+
+  qcril_instance_id_e_type  instance_id;
+  qcril_modem_id_e_type     modem_id;
+
+  const char * qdp_params[QDP_RIL_PARAM_MAX];
+
+  qmi_wds_profile_params_type *p_params = NULL;
+  qmi_wds_profile_params_type *new_p_params = NULL;
+  qdp_tech_t                  tech_type;
+
+  QCRIL_LOG_DEBUG( "%s", "qcril_data_request_set_data_profile: ENTRY" );
+
+  QCRIL_DS_ASSERT( params_ptr != NULL, "validate params_ptr" );
+  QCRIL_DS_ASSERT( ret_ptr != NULL, "validate ret_ptr" );
+
+
+  if ( ( params_ptr == NULL ) || ( ret_ptr == NULL ) )
+  {
+    QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
+            (unsigned int *)params_ptr, (unsigned int *)ret_ptr,
+            params_ptr ? params_ptr->datalen : 0 );
+    goto err_bad_input;
+  }
+
+  instance_id = params_ptr->instance_id;
+  QCRIL_ASSERT( instance_id < QCRIL_MAX_INSTANCE_ID );
+  if (instance_id >= QCRIL_MAX_INSTANCE_ID)
+  {
+    goto err_bad_input;
+  }
+
+  modem_id = params_ptr->modem_id;
+  QCRIL_ASSERT( modem_id < QCRIL_MAX_MODEM_ID );
+  if (modem_id >= QCRIL_MAX_MODEM_ID)
+  {
+    goto err_bad_input;
+  }
+
+  p_params = malloc(sizeof(qmi_wds_profile_params_type));
+
+  if(p_params == NULL)
+  {
+    QCRIL_LOG_ERROR( "Not Enuf Memory");
+    goto err_bad_input;
+  }
+
+/*
+typedef struct {
+    int profileId;
+    char* apn;
+    char* protocol;
+    int authType;
+    char* user;
+    char* password;
+    int type;
+    int maxConnsTime;
+    int maxConns;
+    int waitTime;
+    int enabled;
+} RIL_DataProfileInfo;
+*/
+
+  QCRIL_DATA_MUTEX_LOCK(&info_tbl_mutex);
+
+  RIL_DataProfileInfo **data_profile_arr = (RIL_DataProfileInfo **)params_ptr->data;
+
+
+  QCRIL_LOG_DEBUG("params_ptr->datalen [%d] ",params_ptr->datalen);
+
+  do
+  {
+
+    RIL_DataProfileInfo *data_profile_info = data_profile_arr[i];
+
+    if (NULL == data_profile_info)
+    {
+      QCRIL_LOG_ERROR("%s","Invalid Input");
+      goto err_bad_input;
+    }
+
+    /* Convert Profile ID to APN class as we expect the same from Telephony */
+    switch(data_profile_info->profileId)
+    {
+      case 0:
+       apn_class = INET_CLASS;
+       break;
+      case 2:
+       apn_class = IMS_CLASS;
+       break;
+      case 3:
+       apn_class = ADMN_CLASS;
+       break;
+      case 4:
+       apn_class = APP_CLASS;
+       break;
+      default:
+        QCRIL_LOG_ERROR("%s","Invalid Input");
+        goto err_bad_input;
+    }
+
+    ril_apn       = data_profile_info->apn;
+    ril_ipfamily  = data_profile_info->protocol;
+    auth_type     = data_profile_info->authType;
+    ril_user      = data_profile_info->user;
+    ril_pass      = data_profile_info->password;
+
+    ril_maxConns  = data_profile_info->maxConns;
+    ril_maxConnstime = data_profile_info->maxConnsTime;
+    ril_waitTime = data_profile_info->waitTime;
+    ril_enabled = data_profile_info->enabled;
+
+    if (NULL == ril_apn)
+    {
+      QCRIL_LOG_ERROR("%s","ril_apn (provided NULL) is mandatory param for "
+                      "looking up profile.");
+      goto err_bad_input;
+    }
+
+    memset(qdp_params, 0, sizeof(qdp_params));
+
+    /* prepare APN */
+    if (strlen(ril_apn) > (QMI_WDS_MAX_APN_STR_SIZE-1))
+    {
+      QCRIL_LOG_ERROR("RIL provided invalid APN [%s] "
+                      "APN length [%d] exceeds max allowed [%d]",
+                      ril_apn, strlen(ril_apn), QMI_WDS_MAX_APN_STR_SIZE-1);
+      goto err_bad_input;
+    }
+    qdp_params[QDP_RIL_APN] = ril_apn;
+
+    QCRIL_LOG_DEBUG("qdp_param APN = [%s]", qdp_params[QDP_RIL_APN]);
+
+    /* prepare tech */
+    qdp_params[QDP_RIL_TECH] = QDP_RIL_3GPP;
+
+    /* prepare ip family */
+    if (ril_ipfamily != NULL && strlen(ril_ipfamily) > 0)
+    {
+      if (strlen(ril_ipfamily) > QCRIL_IP_FAMILY_STR_MAX)
+      {
+        QCRIL_LOG_ERROR("RIL provided invalid ip family [%s] "
+                        "ip family length [%d] exceeds max allowed [%d]",
+                        ril_ipfamily, strlen(ril_ipfamily), QCRIL_IP_FAMILY_STR_MAX);
+        goto err_bad_input;;
+      }
+      qdp_params[QDP_RIL_IP_FAMILY] = ril_ipfamily;
+
+      QCRIL_LOG_DEBUG("qdp param IP_FAMILY = [%s]", qdp_params[QDP_RIL_IP_FAMILY]);
+    }
+
+    /* prepare auth */
+    switch (auth_type)
+    {
+    case QMI_WDS_AUTH_PREF_PAP_CHAP_NOT_ALLOWED:
+        ril_auth_type = QDP_RIL_PAP_CHAP_NOT_ALLOWED;
+        break;
+    case QMI_WDS_AUTH_PREF_PAP_ONLY_ALLOWED:
+        ril_auth_type = QDP_RIL_PAP_ONLY_ALLOWED;
+        break;
+    case QMI_WDS_AUTH_PREF_CHAP_ONLY_ALLOWED:
+        ril_auth_type = QDP_RIL_CHAP_ONLY_ALLOWED;
+        break;
+    case QMI_WDS_AUTH_PREF_PAP_CHAP_BOTH_ALLOWED:
+        ril_auth_type = QDP_RIL_PAP_CHAP_BOTH_ALLOWED;
+        break;
+    default:
+        QCRIL_LOG_DEBUG("Unknown auth_type [%d]",
+                        auth_type);
+        break;
+    }
+
+    qdp_params[QDP_RIL_AUTH] = ril_auth_type;
+    QCRIL_LOG_DEBUG("qdp param RIL_AUTH = [%s]", qdp_params[QDP_RIL_AUTH]);
+
+    /* Prepare username */
+    if (ril_user != NULL && strlen(ril_user) > 0)
+    {
+      if (strlen(ril_user) > QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1)
+      {
+        QCRIL_LOG_ERROR("RIL provided username exceeds max allowed [%d]",
+                        QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+      }
+      else
+      {
+        qdp_params[QDP_RIL_NAI] = ril_user;
+        ril_user_len = strlen(ril_user)+1;
+        QCRIL_LOG_DEBUG("qdp param USERNAME = [%s]", qdp_params[QDP_RIL_NAI]);
+      }
+    }
+
+    /* prepare password */
+    if (ril_pass != NULL && strlen(ril_pass) > 0)
+    {
+      if (strlen(ril_pass) > QMI_WDS_MAX_USERNAME_PASS_STR_SIZE-1)
+      {
+        QCRIL_LOG_ERROR("RIL provided password exceeds max allowed [%d]",
+                        QMI_WDS_MAX_USERNAME_PASS_STR_SIZE);
+      }
+      else
+      {
+        qdp_params[QDP_RIL_PASSWORD] = ril_pass;
+        ril_pass_len = strlen(ril_pass)+1;
+        QCRIL_LOG_DEBUG("qdp param PASSWORD = [%s]", qdp_params[QDP_RIL_PASSWORD]);
+      }
+    }
+
+    umts_profile_id = cdma_profile_id = 0;
+
+    memset(p_params ,0x0, sizeof(qmi_wds_profile_params_type));
+
+    /* Look up for a profile that matches APN class */
+    rc = qdp_profile_look_up_by_param( qdp_params,
+                                       QDP_RIL_CLASS,
+                                       apn_class,
+                                       (unsigned int *)&umts_profile_id,
+                                       &umts_profile_pdn_type,
+                                       (unsigned int *)&cdma_profile_id,
+                                       &cdma_profile_pdn_type,
+                                       p_params,
+                                       &tech_type,
+                                       &error_info );
+
+     /* Currently support for 3GPP tech */
+     if(umts_profile_id != QDP_INVALID_PROFILE)
+     {
+        new_p_params =  malloc(sizeof(qmi_wds_profile_params_type));
+
+        if(new_p_params == NULL)
+        {
+          QCRIL_LOG_ERROR( "Not Enuf Memory");
+          goto err_bad_input;
+        }
+
+        memset(new_p_params ,0x0, sizeof(qmi_wds_profile_params_type));
+
+        if(tech_type == QDP_3GPP)
+        {
+          new_p_params->umts_profile_params.param_mask = QMI_WDS_UMTS_PROFILE_APN_CLASS_PARAM_MASK|
+                                                  QMI_WDS_UMTS_PDN_REQ_WAIT_INTERVAL|
+                                                  QMI_WDS_UMTS_MAX_PDN_CONN_TIMER|
+                                                  QMI_WDS_UMTS_MAX_PDN_CONN_PER_BLOCK|
+                                                  QMI_WDS_UMTS_PROFILE_APN_DISABLED_FLAG_PARAM_MASK;
+
+          new_p_params->umts_profile_params.apn_class = apn_class;
+          new_p_params->umts_profile_params.max_pdn_conn_timer = ril_maxConnstime;
+          new_p_params->umts_profile_params.max_pdn_conn_per_block = ril_maxConns;
+          new_p_params->umts_profile_params.pdn_req_wait_interval = ril_waitTime;
+          new_p_params->umts_profile_params.apn_disabled_flag = (ril_enabled == 0)? 1:0;
+
+          qdp_3gpp_profile_update_ex( new_p_params,
+                                       umts_profile_id,
+                                       &qmi_err_code);
+        }
+        else if (tech_type == QDP_EPC)
+        {
+          new_p_params->epc_profile_params.param_mask = QMI_WDS_EPC_COMMON_APN_CLASS_PARAM_MASK|
+                                                       QMI_WDS_EPC_UMTS_PDN_REQ_WAIT_INTERVAL|
+                                                       QMI_WDS_EPC_UMTS_MAX_PDN_CONN_TIMER|
+                                                       QMI_WDS_EPC_UMTS_MAX_PDN_CONN_PER_BLOCK|
+                                                       QMI_WDS_EPC_COMMON_APN_DISABLED_PARAM_MASK;
+
+          new_p_params->epc_profile_params.common_apn_class = apn_class;
+          new_p_params->epc_profile_params.max_pdn_conn_timer = ril_maxConnstime;
+          new_p_params->epc_profile_params.max_pdn_conn_per_block = ril_maxConns;
+          new_p_params->epc_profile_params.pdn_req_wait_interval = ril_waitTime;
+          new_p_params->epc_profile_params.common_apn_disabled_flag = (ril_enabled == 0)? 1:0;
+
+          qdp_epc_profile_update_ex( new_p_params,
+                                       umts_profile_id,
+                                       &qmi_err_code);
+
+        }
+        free(new_p_params);
+
+     }
+
+    i++;
+
+  }while(i < (params_ptr->datalen/sizeof(RIL_DataProfileInfo *)));
+
+  if(p_params != NULL)
+  {
+    free(p_params);
+  }
+
+  QCRIL_DATA_MUTEX_UNLOCK(&info_tbl_mutex);
+
+  QCRIL_LOG_DEBUG("%s", "qcril_data_request_setup_data_call: EXIT with SUCCESS");
+
+  qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                           params_ptr->t,
+                                           params_ptr->event_id,
+                                           RIL_E_SUCCESS,
+                                           &resp );
+
+  return qcril_send_request_response( &resp );
+
+
+err_bad_input:
+
+  if(p_params != NULL)
+  {
+    free(p_params);
+  }
+
+  QCRIL_DATA_MUTEX_UNLOCK(&info_tbl_mutex);
+
+  QCRIL_LOG_ERROR("%s", "qcril_data_request_setup_data_call: EXIT with FAILURE");
+
+    qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                           params_ptr->t,
+                                           params_ptr->event_id,
+                                           RIL_E_GENERIC_FAILURE,
+                                           &resp );
+
+    return qcril_send_request_response( &resp );
+
+}
+
+
+/*===========================================================================
+
   FUNCTION:  qcril_data_qmi_wds_init
 
 ===========================================================================*/
@@ -8729,6 +9828,8 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
   qmi_wds_pref_data_sys_type       cur_pref_sys;
   qcril_arb_pref_data_tech_e_type  qcril_arb_tech;
   int ret = DSI_ERROR;
+  qmi_idl_service_object_type dsd_svc_obj;
+  qmi_client_os_params dsd_os_params;
 
   QCRIL_LOG_DEBUG("%s","qcril_data_qmi_wds_init: entry");
 
@@ -8757,14 +9858,11 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
       break;
     }
 
-    /* open qmi connection first */
-    rc = qmi_connection_init(default_qmi_port,
-                             &qmi_err_code);
-    if (QMI_NO_ERR != rc)
+    /*Initialize QCCI dsd client to send recieve mesages */
+    dsd_svc_obj = dsd_get_service_object_v01();
+    if (dsd_svc_obj == NULL)
     {
-      QCRIL_LOG_ERROR("qmi_connection_init for [%s] failed "
-                      "with error [%d]", default_qmi_port,
-                      rc);
+      QCRIL_LOG_ERROR("dsd_get_service_object failed ");
       break;
     }
 
@@ -8782,24 +9880,16 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
       break;
     }
 
+    if (QMI_NO_ERR != qmi_wds_bind_subscription ( global_qmi_wds_hndl,
+                                              global_subs_id,
+                                              &qmi_err_code))
+    {
+      QCRIL_LOG_ERROR("qmi_wds_bind_subscription: subs_id binding failed");
+    }
+
     QCRIL_LOG_DEBUG("global qmi_wds_hndl [%d] initialized. "
                     "qmi_err_code is set to [%d]", global_qmi_wds_hndl,
                     qmi_err_code);
-
-    /* Register for data call status indications */
-    event_report_params.param_mask |= QMI_WDS_EVENT_DATA_CALL_STATUS_CHG_IND;
-    event_report_params.report_data_call_status_chg = TRUE;
-
-    rc = qmi_wds_set_event_report(global_qmi_wds_hndl,
-                                  &event_report_params,
-                                  &qmi_err_code);
-
-    if (rc != QMI_NO_ERR)
-    {
-      QCRIL_LOG_ERROR("qmi_wds_set_event_report failed with err [%d][%d]",
-                      rc, qmi_err_code);
-      break;
-    }
 
 
     /* Call flow for data registration indications:
@@ -8822,11 +9912,13 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
       global_dsd_info.service = QCRIL_DATA_DSD_SERVICE_TYPE_LEGACY;
       global_dsd_info.legacy.dsd_mode = QCRIL_DATA_LEGACY_DSD_MODE_NAS;
     }
-    else if (QMI_NO_ERR == qmi_client_init(default_qmi_port,
-                                           dsd_get_service_object_v01(),
-                                           qcril_data_qmi_dsd_ind_cb,
-                                           NULL,
-                                           &global_qmi_dsd_hndl))
+    else if ( QMI_NO_ERR == qmi_client_init_instance(dsd_svc_obj,
+                                       default_qmi_instance,
+                                       (qmi_client_ind_cb) qcril_data_qmi_dsd_ind_cb,
+                                       NULL,
+                                       &dsd_os_params,
+                                       QCRIL_QMI_DSD_TIMEOUT,
+                                       &global_qmi_dsd_hndl))
     {
       dsd_bind_subscription_req_msg_v01  bind_req_msg;
       dsd_bind_subscription_resp_msg_v01  bind_resp_msg;
@@ -8850,7 +9942,7 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
       QCRIL_LOG_DEBUG("binding subscription to subs=%d",
                       bind_req_msg.bind_subs);
 
-      rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+      rc = qmi_client_send_msg_sync_with_shm(global_qmi_dsd_hndl,
                                     QMI_DSD_BIND_SUBSCRIPTION_REQ_V01,
                                     &bind_req_msg,
                                     sizeof(bind_req_msg),
@@ -8883,7 +9975,7 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
       /* Query the current system status from QMI-DSD service */
       memset(&sys_resp_msg, 0, sizeof(sys_resp_msg));
 
-      rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+      rc = qmi_client_send_msg_sync_with_shm(global_qmi_dsd_hndl,
                                     QMI_DSD_GET_SYSTEM_STATUS_REQ_V01,
                                     NULL,
                                     0,
@@ -8912,7 +10004,7 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
       memset(&sys_reg_req_msg, 0, sizeof(sys_reg_req_msg));
       memset(&sys_reg_resp_msg, 0, sizeof(sys_reg_resp_msg));
 
-      rc = qmi_client_send_msg_sync(global_qmi_dsd_hndl,
+      rc = qmi_client_send_msg_sync_with_shm(global_qmi_dsd_hndl,
                                     QMI_DSD_SYSTEM_STATUS_CHANGE_REQ_V01,
                                     &sys_reg_req_msg,
                                     sizeof(sys_reg_req_msg),
@@ -8972,11 +10064,30 @@ void qcril_data_qmi_wds_init(boolean from_ssr)
       global_dsd_info.legacy.dsd_mode = QCRIL_DATA_LEGACY_DSD_MODE_NAS;
     }
 
+    /* Register for data call status indications */
+    event_report_params.param_mask |= QMI_WDS_EVENT_DATA_CALL_STATUS_CHG_IND;
+    event_report_params.report_data_call_status_chg = TRUE;
+
+    rc = qmi_wds_set_event_report(global_qmi_wds_hndl,
+                                   &event_report_params,
+                                   &qmi_err_code);
+
+    if (rc != QMI_NO_ERR)
+    {
+      QCRIL_LOG_ERROR("qmi_wds_set_event_report failed with err [%d][%d]",
+                       rc, qmi_err_code);
+      break;
+    }
+
+
 continue_init:
 
 #ifdef FEATURE_QCRIL_USE_QDP
     /* init qdp */
     qdp_init(default_qmi_port);
+
+    qdp_set_subscription(global_subs_id);
+
 #endif
 
     ret = DSI_SUCCESS;
@@ -9069,45 +10180,33 @@ void qcril_data_qmi_wds_release(void)
 /*=========================================================================*/
 void qcril_data_set_default_port()
 {
-  char args[QCRIL_DATA_PROP_SIZE];
-  char def[QCRIL_DATA_PROP_SIZE];
   int ret = 0;
+  ds_target_t target;
+  const char *target_str;
 
-  QCRIL_LOG_DEBUG("%s", "qcril_data_set_default_port: ENTRY");
+  target = ds_get_target();
+  target_str = ds_get_target_str(target);
+
+  QCRIL_LOG_DEBUG("qcril_data_set_default_port(): target: [%d]: [%s]", target, target_str);
 
   do
   {
-    /* default property value */
-    memset(def, 0, sizeof(def));
-    strlcpy(def, QCRIL_DATA_BASEBAND_UNDEFINED, sizeof(def));
-    /* prepare destination buffer */
-    memset(args, 0, sizeof(args));
-
-    /* get baseband property. if not found def will be used */
-    ret = property_get(QCRIL_DATA_PROP_BASEBAND, args, def);
-    if (ret > QCRIL_DATA_PROP_SIZE)
-    {
-      QCRIL_LOG_ERROR("property_get for baseband returned %d size", ret);
-      break;
-    }
-
-    QCRIL_LOG_DEBUG("%s property has %s value set on it",
-                    QCRIL_DATA_PROP_BASEBAND,
-                    args);
-
-    if (!strcmp(QCRIL_DATA_BASEBAND_MSM, args))
+    if (DS_TARGET_MSM == target ||
+        DS_TARGET_MSM8994 == target)
     {
       /* use smd/bam port */
       default_qmi_port = QMI_PORT_RMNET_0;
-      QCRIL_LOG_DEBUG("default_qmi_port set to %s", default_qmi_port);
+      default_qmi_instance = QMI_CLIENT_QMUX_RMNET_INSTANCE_0;  // local modem
+      QCRIL_LOG_DEBUG("default_qmi_port set to %s, default_qmi_instance \
+                       set to %d", default_qmi_port, default_qmi_instance);
       global_modem_id = QCRIL_DEFAULT_MODEM_ID;
       ignore_ril_tech = TRUE;
     }
-    else if (!strcmp(QCRIL_DATA_BASEBAND_SVLTE1, args) ||
-             !strcmp(QCRIL_DATA_BASEBAND_SVLTE2A, args) ||
-             !strcmp(QCRIL_DATA_BASEBAND_CSFB, args))
+    else if (DS_TARGET_SVLTE1 == target ||
+             DS_TARGET_SVLTE2 == target ||
+             DS_TARGET_CSFB == target)
     {
-      if (!strcmp(QCRIL_DATA_BASEBAND_SVLTE2A, args))
+      if (DS_TARGET_SVLTE2 == target)
       {
         /* ignore ril technology if svlte2 is the target */
         /* in nutshell, we are required to put this hack for certain
@@ -9119,22 +10218,40 @@ void qcril_data_set_default_port()
       }
       /* use sdio port */
       default_qmi_port = QMI_PORT_RMNET_SDIO_0;
-      QCRIL_LOG_DEBUG("default_qmi_port set to %s", default_qmi_port);
+      default_qmi_instance = QMI_CLIENT_QMUX_RMNET_SDIO_INSTANCE_0;
+      QCRIL_LOG_DEBUG("default_qmi_port set to %s, default_qmi_instance \
+                       set to %d", default_qmi_port, default_qmi_instance);
       global_modem_id = QCRIL_SECOND_MODEM_ID;
     }
-    else if (!strcmp(QCRIL_DATA_BASEBAND_MDMUSB, args))
+    else if (DS_TARGET_MDM == target)
     {
       ignore_ril_tech = TRUE; /* see above */
 
       /* use usb port */
       default_qmi_port = QMI_PORT_RMNET_USB_0;
+      default_qmi_instance = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
       strlcpy( qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port,
                QMI_PORT_RMNET_USB_0,
                sizeof(qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port));
-      QCRIL_LOG_DEBUG("default_qmi_port set to %s", default_qmi_port);
+      QCRIL_LOG_DEBUG("default_qmi_port set to %s, default_qmi_instance \
+                       set to %d", default_qmi_port, default_qmi_instance);
       global_modem_id = QCRIL_DEFAULT_MODEM_ID;
     }
-    else if (!strcmp(QCRIL_DATA_BASEBAND_DSDA, args))
+    else if (DS_TARGET_FUSION4_5_PCIE == target)
+    {
+      ignore_ril_tech = TRUE; /* see above */
+
+      /* use MHI port */
+      default_qmi_port = QMI_PORT_RMNET_MHI_0;
+      default_qmi_instance = QMI_CLIENT_QMUX_RMNET_MHI_INSTANCE_0;
+      strlcpy( qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port,
+               QMI_PORT_RMNET_MHI_0,
+               sizeof(qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port));
+      QCRIL_LOG_DEBUG("default qmi_port set to %s, default_qmi_instance \
+                      set to %d", default_qmi_port, default_qmi_instance);
+      global_modem_id = QCRIL_DEFAULT_MODEM_ID;
+    }
+    else if (DS_TARGET_DSDA == target || DS_TARGET_SGLTE2 == target)
     {
       ignore_ril_tech = TRUE; /* see above */
 
@@ -9142,6 +10259,7 @@ void qcril_data_set_default_port()
       {
          /* use usb port */
          default_qmi_port = QMI_PORT_RMNET_USB_0;
+        default_qmi_instance = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
          strlcpy( qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port,
                QMI_PORT_RMNET_USB_0,
                sizeof(qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port));
@@ -9150,14 +10268,16 @@ void qcril_data_set_default_port()
       {
          /* use smux port */
          default_qmi_port = QMI_PORT_RMNET_SMUX_0;
+         default_qmi_instance = QMI_CLIENT_QMUX_RMNET_SMUX_INSTANCE_0;
          strlcpy( qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port,
                QMI_PORT_RMNET_SMUX_0,
                sizeof(qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port));
       }
-      QCRIL_LOG_DEBUG("default_qmi_port set to %s", default_qmi_port);
+      QCRIL_LOG_DEBUG("default_qmi_port set to %s, default_qmi_instance \
+                       set to %d", default_qmi_port, default_qmi_instance);
       global_modem_id = QCRIL_DEFAULT_MODEM_ID;
     }
-    else if (!strcmp(QCRIL_DATA_BASEBAND_DSDA2, args))
+    else if (DS_TARGET_DSDA2 == target)
     {
       ignore_ril_tech = TRUE; /* see above */
 
@@ -9165,6 +10285,7 @@ void qcril_data_set_default_port()
       {
          /* use HSIC port */
          default_qmi_port = QMI_PORT_RMNET_USB_0;
+         default_qmi_instance = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
          strlcpy( qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port,
                QMI_PORT_RMNET_USB_0,
                sizeof(qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port));
@@ -9173,18 +10294,21 @@ void qcril_data_set_default_port()
       {
          /* use USB port corresponding to second modem */
          default_qmi_port = QMI_PORT_RMNET2_USB_0;
+        default_qmi_instance = QMI_CLIENT_QMUX_RMNET_USB_INSTANCE_0;
          strlcpy( qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port,
                QMI_PORT_RMNET2_USB_0,
                sizeof(qcril_data_modem_port_map_tbl[QCRIL_SECOND_MODEM_ID].qmi_port));
       }
-      QCRIL_LOG_DEBUG("default_qmi_port set to %s", default_qmi_port);
+      QCRIL_LOG_DEBUG("default_qmi_port set to %s, default_qmi_instance \
+                       set to %d", default_qmi_port, default_qmi_instance);
       global_modem_id = QCRIL_DEFAULT_MODEM_ID;
     }
     else
     {
       /* do not set default_qmi_port for any thing else right now
        * as we don't know */
-      QCRIL_LOG_DEBUG("default_qmi_port left as-is to %s", default_qmi_port);
+      QCRIL_LOG_DEBUG("default_qmi_port left as-is to %s, default_qmi_instance\
+                       to %d", default_qmi_port, default_qmi_instance);
     }
 
   } while (0);
@@ -9212,6 +10336,7 @@ void qcril_data_init()
 {
 /*-----------------------------------------------------------------------*/
   int i = 0;
+  qcril_modem_stack_id_e_type stack_id;
   pthread_mutexattr_t info_tbl_mutex_attr;
 
   QCRIL_LOG_DEBUG( "%s", "qcril_data_init: ENTRY" );
@@ -9243,6 +10368,32 @@ void qcril_data_init()
 
   /* init dsi */
   dsi_set_ril_instance(global_instance_id);
+
+  stack_id = qmi_ril_get_stack_id(global_instance_id);
+
+  switch(stack_id)
+  {
+    case QCRIL_MODEM_PRIMARY_STACK_ID:
+     global_subs_id = QMI_WDS_PRIMARY_SUBS;
+     break;
+
+    case QCRIL_MODEM_SECONDARY_STACK_ID:
+     global_subs_id = QMI_WDS_SECONDARY_SUBS;
+     break;
+
+    case QCRIL_MODEM_TERTIARY_STACK_ID:
+     global_subs_id = QMI_WDS_TERTIARY_SUBS;
+     break;
+
+    default:
+     global_subs_id = QMI_WDS_DEFAULT_SUBS;
+  }
+
+  QCRIL_LOG_DEBUG( "qcril_data_init: stack_id: %d, subs_id: %d",
+                      stack_id,global_subs_id);
+
+  dsi_set_modem_subs_id(global_subs_id);
+
   dsi_init(DSI_MODE_GENERAL);
 
 #ifdef FEATURE_QCRIL_FUSION
@@ -9425,7 +10576,65 @@ void qcril_data_update_mtu
         QCRIL_LOG_DEBUG("Changing default MTU value to [%d] for Call [%d]",
                         mtu, info_tbl[i].dsi_hndl);
         qcril_data_iface_set_mtu(info_tbl[i].dsi_hndl, mtu);
+
+        /* Post a MTU update event */
+        qcril_data_post_dsi_netctrl_event(info_tbl[i].instance_id,
+                                          info_tbl[i].modem_id,
+                                          info_tbl[i].pend_tok,
+                                          &info_tbl[i],
+                                          DSI_EVT_NET_NEWMTU,
+                                          NULL);
       }
     } /* for */
   }
+}
+void qcril_data_process_stack_switch
+(
+  qcril_modem_stack_id_e_type old_stack_id,
+  qcril_modem_stack_id_e_type new_stack_id,
+  qcril_instance_id_e_type instance_id
+)
+{
+ qcril_data_cmd_data_t *cmd_data;
+
+ QCRIL_LOG_VERBOSE( "%s", "qcril_data_process_stack_switch: ENTRY" );
+
+ if(old_stack_id != new_stack_id)
+ {
+   QCRIL_LOG_DEBUG("Stack ID changed from %d to %d",
+     old_stack_id,new_stack_id);
+ }
+ else
+ {
+   goto bail;
+ }
+
+ cmd_data = ( qcril_data_cmd_data_t *)malloc( sizeof( qcril_data_cmd_data_t ) );
+
+ if(NULL == cmd_data)
+ {
+   QCRIL_LOG_ERROR("%s", "Not enough memory\n");
+   goto bail;
+ }
+
+ cmd_data->old_stack_id = old_stack_id;
+ cmd_data->new_stack_id = new_stack_id;
+ cmd_data->self = cmd_data;
+ cmd_data->cmd_id = QCRIL_DATA_STACK_SWITCH_CMD;
+
+ if(E_SUCCESS != qcril_event_queue( instance_id,
+                                      global_modem_id,
+                                      QCRIL_DATA_NOT_ON_STACK,
+                                      QCRIL_EVT_DATA_COMMAND_CALLBACK,
+                                      ( void * )cmd_data,
+                                      sizeof( qcril_data_cmd_data_t ),
+                                      (RIL_Token) QCRIL_TOKEN_ID_INTERNAL ) )
+ {
+   QCRIL_LOG_ERROR("%s", "qcril_event_queue failed\n");
+   goto bail;
+ }
+
+bail:
+
+ QCRIL_LOG_VERBOSE( "%s", "qcril_data_process_stack_switch: EXIT" );
 }

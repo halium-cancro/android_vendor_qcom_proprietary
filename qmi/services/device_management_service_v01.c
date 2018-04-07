@@ -11,14 +11,14 @@ GENERAL DESCRIPTION
 
 
 
-  $Header: //Commercial/MPSS.TR.2.0.c2/Main/modem_proc/qmimsgs/dms/src/device_management_service_v01.c#2 $
+  $Header$
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7 
-   It was generated on: Thu Feb 13 2014 (Spin 0)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Mon Jun 23 2014 (Spin 0)
    From IDL File: device_management_service_v01.idl */
 
 #include "stdint.h"
@@ -82,6 +82,26 @@ static const uint8_t dms_multisim_capability_type_data_v01[] = {
   QMI_DMS_MAX_CONFIG_LIST_LEN_V01,
   QMI_IDL_OFFSET8(dms_multisim_capability_type_v01, subscription_config_list) - QMI_IDL_OFFSET8(dms_multisim_capability_type_v01, subscription_config_list_len),
   QMI_IDL_TYPE88(0, 3),
+  QMI_IDL_FLAG_END_VALUE
+};
+
+static const uint8_t dms_subs_voice_data_capability_type_data_v01[] = {
+  QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(dms_subs_voice_data_capability_type_v01, subs_voice_data_capability),
+
+  QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dms_subs_voice_data_capability_type_v01, simul_voice_data_capable),
+
+  QMI_IDL_FLAG_END_VALUE
+};
+
+static const uint8_t dms_current_multisim_capability_type_data_v01[] = {
+  QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dms_current_multisim_capability_type_v01, max_subscriptions),
+
+  QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(dms_current_multisim_capability_type_v01, max_active),
+
   QMI_IDL_FLAG_END_VALUE
 };
 
@@ -332,6 +352,17 @@ static const uint8_t dms_facility_unblock_info_type_data_v01[] = {
   QMI_IDL_FLAG_END_VALUE
 };
 
+static const uint8_t dms_image_ver_type_data_v01[] = {
+  QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(dms_image_ver_type_v01, image_type),
+
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(dms_image_ver_type_v01, image_ver),
+  QMI_DMS_IMAGE_VER_LEN_MAX_V01,
+
+  QMI_IDL_FLAG_END_VALUE
+};
+
 /*Message Definitions*/
 /* 
  * dms_reset_req_msg is empty
@@ -455,11 +486,37 @@ static const uint8_t dms_event_report_ind_msg_data_v01[] = {
    QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(dms_event_report_ind_msg_v01, cdma_lock_mode_state),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_event_report_ind_msg_v01, multisim_capability) - QMI_IDL_OFFSET8(dms_event_report_ind_msg_v01, multisim_capability_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_event_report_ind_msg_v01, multisim_capability) - QMI_IDL_OFFSET8(dms_event_report_ind_msg_v01, multisim_capability_valid)),
   0x19,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_event_report_ind_msg_v01, multisim_capability),
-  QMI_IDL_TYPE88(0, 4)
+  QMI_IDL_TYPE88(0, 4),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, current_multisim_capability) - QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, current_multisim_capability_valid)),
+  0x1A,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET16ARRAY(dms_event_report_ind_msg_v01, current_multisim_capability),
+  QMI_IDL_TYPE88(0, 6),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, current_subscription_capability) - QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, current_subscription_capability_valid)),
+  0x1B,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_8_BYTE,
+  QMI_IDL_OFFSET16ARRAY(dms_event_report_ind_msg_v01, current_subscription_capability),
+  QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01,
+  QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, current_subscription_capability) - QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, current_subscription_capability_len),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, subs_voice_data_capability) - QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, subs_voice_data_capability_valid)),
+  0x1C,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET16ARRAY(dms_event_report_ind_msg_v01, subs_voice_data_capability),
+  QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01,
+  QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, subs_voice_data_capability) - QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, subs_voice_data_capability_len),
+  QMI_IDL_TYPE88(0, 5),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, max_active_data_subscriptions) - QMI_IDL_OFFSET16RELATIVE(dms_event_report_ind_msg_v01, max_active_data_subscriptions_valid)),
+  0x1D,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET16ARRAY(dms_event_report_ind_msg_v01, max_active_data_subscriptions)
 };
 
 /* 
@@ -477,7 +534,7 @@ static const uint8_t dms_get_device_cap_resp_msg_data_v01[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, device_capabilities),
-  QMI_IDL_TYPE88(0, 5),
+  QMI_IDL_TYPE88(0, 7),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, device_service_capability) - QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, device_service_capability_valid)),
   0x10,
@@ -494,11 +551,44 @@ static const uint8_t dms_get_device_cap_resp_msg_data_v01[] = {
    QMI_IDL_GENERIC_8_BYTE,
   QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, simul_voice_and_data_capability),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, multisim_capability) - QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, multisim_capability_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, multisim_capability) - QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, multisim_capability_valid)),
   0x13,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_get_device_cap_resp_msg_v01, multisim_capability),
-  QMI_IDL_TYPE88(0, 4)
+  QMI_IDL_TYPE88(0, 4),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, current_multisim_capability) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, current_multisim_capability_valid)),
+  0x14,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET16ARRAY(dms_get_device_cap_resp_msg_v01, current_multisim_capability),
+  QMI_IDL_TYPE88(0, 6),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, current_subscription_capability) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, current_subscription_capability_valid)),
+  0x15,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_8_BYTE,
+  QMI_IDL_OFFSET16ARRAY(dms_get_device_cap_resp_msg_v01, current_subscription_capability),
+  QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01,
+  QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, current_subscription_capability) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, current_subscription_capability_len),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_voice_data_capability) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_voice_data_capability_valid)),
+  0x16,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET16ARRAY(dms_get_device_cap_resp_msg_v01, subs_voice_data_capability),
+  QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01,
+  QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_voice_data_capability) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_voice_data_capability_len),
+  QMI_IDL_TYPE88(0, 5),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_device_feature_mode) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_device_feature_mode_valid)),
+  0x17,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET16ARRAY(dms_get_device_cap_resp_msg_v01, subs_device_feature_mode),
+  QMI_DMS_MAX_SUBSCRIPTION_LIST_LEN_V01,
+  QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_device_feature_mode) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, subs_device_feature_mode_len),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, max_active_data_subscriptions) - QMI_IDL_OFFSET16RELATIVE(dms_get_device_cap_resp_msg_v01, max_active_data_subscriptions_valid)),
+  0x18,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET16ARRAY(dms_get_device_cap_resp_msg_v01, max_active_data_subscriptions)
 };
 
 /* 
@@ -635,6 +725,43 @@ static const uint8_t dms_get_device_serial_numbers_resp_msg_data_v01[] = {
 };
 
 /* 
+ * dms_get_encrypted_device_serial_numbers_req_msg is empty
+ * static const uint8_t dms_get_encrypted_device_serial_numbers_req_msg_data_v01[] = {
+ * };
+ */
+  
+static const uint8_t dms_get_encrypted_device_serial_numbers_resp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, esn) - QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, esn_valid)),
+  0x10,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
+  QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, esn),
+  QMI_DMS_ENCRYPTED_ESN_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imei) - QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imei_valid)),
+  0x11,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
+  QMI_IDL_OFFSET16ARRAY(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imei),
+  QMI_DMS_ENCRYPTED_IMEI_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, meid) - QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, meid_valid)),
+  0x12,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
+  QMI_IDL_OFFSET16ARRAY(dms_get_encrypted_device_serial_numbers_resp_msg_v01, meid),
+  QMI_DMS_ENCRYPTED_MEID_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imeisv_svn) - QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imeisv_svn_valid)),
+  0x13,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
+  QMI_IDL_OFFSET16ARRAY(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imeisv_svn),
+  QMI_DMS_ENCRYPTED_IMEISV_MAX_V01
+};
+
+/* 
  * dms_get_power_state_req_msg is empty
  * static const uint8_t dms_get_power_state_req_msg_data_v01[] = {
  * };
@@ -656,7 +783,7 @@ static const uint8_t dms_uim_set_pin_protection_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_set_pin_protection_req_msg_v01, pin_protection_info),
-  QMI_IDL_TYPE88(0, 6)
+  QMI_IDL_TYPE88(0, 8)
 };
 
 static const uint8_t dms_uim_set_pin_protection_resp_msg_data_v01[] = {
@@ -669,14 +796,14 @@ static const uint8_t dms_uim_set_pin_protection_resp_msg_data_v01[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_set_pin_protection_resp_msg_v01, pin_retries_status),
-  QMI_IDL_TYPE88(0, 7)
+  QMI_IDL_TYPE88(0, 9)
 };
 
 static const uint8_t dms_uim_verify_pin_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_verify_pin_req_msg_v01, pin_info),
-  QMI_IDL_TYPE88(0, 8)
+  QMI_IDL_TYPE88(0, 10)
 };
 
 static const uint8_t dms_uim_verify_pin_resp_msg_data_v01[] = {
@@ -689,14 +816,14 @@ static const uint8_t dms_uim_verify_pin_resp_msg_data_v01[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_verify_pin_resp_msg_v01, pin_retries_status),
-  QMI_IDL_TYPE88(0, 7)
+  QMI_IDL_TYPE88(0, 9)
 };
 
 static const uint8_t dms_uim_unblock_pin_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_unblock_pin_req_msg_v01, pin_unblock_info),
-  QMI_IDL_TYPE88(0, 9)
+  QMI_IDL_TYPE88(0, 11)
 };
 
 static const uint8_t dms_uim_unblock_pin_resp_msg_data_v01[] = {
@@ -709,14 +836,14 @@ static const uint8_t dms_uim_unblock_pin_resp_msg_data_v01[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_unblock_pin_resp_msg_v01, pin_retries_status),
-  QMI_IDL_TYPE88(0, 7)
+  QMI_IDL_TYPE88(0, 9)
 };
 
 static const uint8_t dms_uim_change_pin_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_change_pin_req_msg_v01, pin_change_info),
-  QMI_IDL_TYPE88(0, 10)
+  QMI_IDL_TYPE88(0, 12)
 };
 
 static const uint8_t dms_uim_change_pin_resp_msg_data_v01[] = {
@@ -729,7 +856,7 @@ static const uint8_t dms_uim_change_pin_resp_msg_data_v01[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_change_pin_resp_msg_v01, pin_retries_status),
-  QMI_IDL_TYPE88(0, 7)
+  QMI_IDL_TYPE88(0, 9)
 };
 
 /* 
@@ -830,7 +957,7 @@ static const uint8_t dms_get_time_resp_msg_data_v01[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_get_time_resp_msg_v01, device_time),
-  QMI_IDL_TYPE88(0, 11),
+  QMI_IDL_TYPE88(0, 13),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_get_time_resp_msg_v01, sys_time_in_ms) - QMI_IDL_OFFSET8(dms_get_time_resp_msg_v01, sys_time_in_ms_valid)),
   0x10,
@@ -886,7 +1013,7 @@ static const uint8_t dms_activate_automatic_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_activate_automatic_req_msg_v01, activation_code),
-  QMI_IDL_TYPE88(0, 12)
+  QMI_IDL_TYPE88(0, 14)
 };
 
 static const uint8_t dms_activate_automatic_resp_msg_data_v01[] = {
@@ -900,25 +1027,25 @@ static const uint8_t dms_activate_manual_req_msg_data_v01[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, activation_data),
-  QMI_IDL_TYPE88(0, 13),
+  QMI_IDL_TYPE88(0, 15),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, mn_ha_key) - QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, mn_ha_key_valid)),
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, mn_ha_key),
-  QMI_IDL_TYPE88(0, 14),
+  QMI_IDL_TYPE88(0, 16),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, mn_aaa_key) - QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, mn_aaa_key_valid)),
   0x12,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, mn_aaa_key),
-  QMI_IDL_TYPE88(0, 15),
+  QMI_IDL_TYPE88(0, 17),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, pref_roaming_list) - QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, pref_roaming_list_valid)),
   0x13,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_activate_manual_req_msg_v01, pref_roaming_list),
-  QMI_IDL_TYPE88(0, 16)
+  QMI_IDL_TYPE88(0, 18)
 };
 
 static const uint8_t dms_activate_manual_resp_msg_data_v01[] = {
@@ -949,7 +1076,7 @@ static const uint8_t dms_set_user_lock_state_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_set_user_lock_state_req_msg_v01, lock_info),
-  QMI_IDL_TYPE88(0, 17)
+  QMI_IDL_TYPE88(0, 19)
 };
 
 static const uint8_t dms_set_user_lock_state_resp_msg_data_v01[] = {
@@ -963,7 +1090,7 @@ static const uint8_t dms_set_user_lock_code_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_set_user_lock_code_req_msg_v01, lock_info),
-  QMI_IDL_TYPE88(0, 18)
+  QMI_IDL_TYPE88(0, 20)
 };
 
 static const uint8_t dms_set_user_lock_code_resp_msg_data_v01[] = {
@@ -988,14 +1115,14 @@ static const uint8_t dms_read_user_data_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_read_user_data_resp_msg_v01, user_data),
-  QMI_IDL_TYPE88(0, 19)
+  QMI_IDL_TYPE88(0, 21)
 };
 
 static const uint8_t dms_write_user_data_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_write_user_data_req_msg_v01, user_data),
-  QMI_IDL_TYPE88(0, 19)
+  QMI_IDL_TYPE88(0, 21)
 };
 
 static const uint8_t dms_write_user_data_resp_msg_data_v01[] = {
@@ -1020,7 +1147,7 @@ static const uint8_t dms_read_eri_file_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_read_eri_file_resp_msg_v01, eri_file),
-  QMI_IDL_TYPE88(0, 20)
+  QMI_IDL_TYPE88(0, 22)
 };
 
 static const uint8_t dms_restore_factory_defaults_req_msg_data_v01[] = {
@@ -1084,7 +1211,7 @@ static const uint8_t dms_uim_get_ck_status_resp_msg_data_v01[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_get_ck_status_resp_msg_v01, facility_info),
-  QMI_IDL_TYPE88(0, 21),
+  QMI_IDL_TYPE88(0, 23),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_uim_get_ck_status_resp_msg_v01, operation_blocking) - QMI_IDL_OFFSET8(dms_uim_get_ck_status_resp_msg_v01, operation_blocking_valid)),
   0x10,
@@ -1096,7 +1223,7 @@ static const uint8_t dms_uim_set_ck_protection_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_set_ck_protection_req_msg_v01, facility_set_ck_info),
-  QMI_IDL_TYPE88(0, 22)
+  QMI_IDL_TYPE88(0, 24)
 };
 
 static const uint8_t dms_uim_set_ck_protection_resp_msg_data_v01[] = {
@@ -1115,7 +1242,7 @@ static const uint8_t dms_uim_unblock_ck_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_uim_unblock_ck_req_msg_v01, facility_unblock_info),
-  QMI_IDL_TYPE88(0, 23)
+  QMI_IDL_TYPE88(0, 25)
 };
 
 static const uint8_t dms_uim_unblock_ck_resp_msg_data_v01[] = {
@@ -1270,10 +1397,18 @@ static const uint8_t dms_get_sw_version_resp_msg_data_v01[] = {
   QMI_IDL_OFFSET8(dms_get_sw_version_resp_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+  0x01,
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
   QMI_IDL_OFFSET8(dms_get_sw_version_resp_msg_v01, sw_version),
-  QMI_DMS_SW_VERSION_MAX_V01
+  QMI_DMS_SW_VERSION_MAX_V01,
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_get_sw_version_resp_msg_v01, image_versions) - QMI_IDL_OFFSET8(dms_get_sw_version_resp_msg_v01, image_versions_valid)),
+  0x10,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(dms_get_sw_version_resp_msg_v01, image_versions),
+  QMI_DMS_IMAGE_VER_MAX_V01,
+  QMI_IDL_OFFSET8(dms_get_sw_version_resp_msg_v01, image_versions) - QMI_IDL_OFFSET8(dms_get_sw_version_resp_msg_v01, image_versions_len),
+  QMI_IDL_TYPE88(0, 26)
 };
 
 static const uint8_t dms_set_spc_req_msg_data_v01[] = {
@@ -1292,80 +1427,6 @@ static const uint8_t dms_set_spc_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(dms_set_spc_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0)
-};
-
-static const uint8_t dms_get_flag_resp_msg_data_v01[] = {
-  0x01,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(dms_get_flag_resp_msg_v01, flag),
-  QMI_DMS_FLAG_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_get_flag_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0)
-};
-
-static const uint8_t dms_get_hw_version_resp_msg_data_v01[] = {
-  0x01,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(dms_get_hw_version_resp_msg_v01, hw_version),
-  QMI_DMS_HW_VERSION_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_get_hw_version_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0)
-};
-
-static const uint8_t dms_get_qcn_resp_msg_data_v01[] = {
-  0x01,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(dms_get_qcn_resp_msg_v01, qcn_version),
-  QMI_DMS_QCN_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_get_qcn_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0)
-};
-
-static const uint8_t dms_get_sn_resp_msg_data_v01[] = {
-  0x01,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(dms_get_sn_resp_msg_v01, get_sn),
-  QMI_DMS_SN_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_get_sn_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0)
-};
-
-static const uint8_t dms_update_cit_flag_resp_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
-  QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_update_cit_flag_nv2499_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0)
-};
-
-static const uint8_t dms_get_nv2499_resp_msg_data_v01[] = {
-  0x01,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(dms_get_nv2499_resp_msg_v01, get_nv2499),
-  QMI_DMS_NV2499_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_get_nv2499_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0)
-};
-
-static const uint8_t dms_update_cit_flag_nv2499_resp_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
-  QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_get_nv2499_resp_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0)
 };
 
@@ -1543,43 +1604,6 @@ static const uint8_t dms_get_mac_address_resp_msg_data_v01[] = {
   QMI_IDL_OFFSET8(dms_get_mac_address_resp_msg_v01, mac_address) - QMI_IDL_OFFSET8(dms_get_mac_address_resp_msg_v01, mac_address_len)
 };
 
-/* 
- * dms_get_encrypted_device_serial_numbers_req_msg is empty
- * static const uint8_t dms_get_encrypted_device_serial_numbers_req_msg_data_v01[] = {
- * };
- */
-  
-static const uint8_t dms_get_encrypted_device_serial_numbers_resp_msg_data_v01[] = {
-  0x02,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, resp),
-  QMI_IDL_TYPE88(1, 0),
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, esn) - QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, esn_valid)),
-  0x10,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_STRING,
-  QMI_IDL_OFFSET8(dms_get_encrypted_device_serial_numbers_resp_msg_v01, esn),
-  QMI_DMS_ENCRYPTED_ESN_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imei) - QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imei_valid)),
-  0x11,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
-  QMI_IDL_OFFSET16ARRAY(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imei),
-  QMI_DMS_ENCRYPTED_IMEI_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, meid) - QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, meid_valid)),
-  0x12,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
-  QMI_IDL_OFFSET16ARRAY(dms_get_encrypted_device_serial_numbers_resp_msg_v01, meid),
-  QMI_DMS_ENCRYPTED_MEID_MAX_V01,
-
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imeisv_svn) - QMI_IDL_OFFSET16RELATIVE(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imeisv_svn_valid)),
-  0x13,
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_STRING,
-  QMI_IDL_OFFSET16ARRAY(dms_get_encrypted_device_serial_numbers_resp_msg_v01, imeisv_svn),
-  QMI_DMS_ENCRYPTED_IMEISV_MAX_V01
-};
-
 /* Type Table */
 static const qmi_idl_type_table_entry  dms_type_table_v01[] = {
   {sizeof(dms_battery_lvl_limits_type_v01), dms_battery_lvl_limits_type_data_v01},
@@ -1587,6 +1611,8 @@ static const qmi_idl_type_table_entry  dms_type_table_v01[] = {
   {sizeof(dms_pin_status_type_v01), dms_pin_status_type_data_v01},
   {sizeof(dms_subs_config_type_v01), dms_subs_config_type_data_v01},
   {sizeof(dms_multisim_capability_type_v01), dms_multisim_capability_type_data_v01},
+  {sizeof(dms_subs_voice_data_capability_type_v01), dms_subs_voice_data_capability_type_data_v01},
+  {sizeof(dms_current_multisim_capability_type_v01), dms_current_multisim_capability_type_data_v01},
   {sizeof(dms_device_capabilities_type_v01), dms_device_capabilities_type_data_v01},
   {sizeof(dms_pin_protection_info_type_v01), dms_pin_protection_info_type_data_v01},
   {sizeof(dms_pin_retries_status_type_v01), dms_pin_retries_status_type_data_v01},
@@ -1605,7 +1631,8 @@ static const qmi_idl_type_table_entry  dms_type_table_v01[] = {
   {sizeof(dms_eri_data_type_v01), dms_eri_data_type_data_v01},
   {sizeof(dms_facility_state_info_type_v01), dms_facility_state_info_type_data_v01},
   {sizeof(dms_facility_set_ck_info_type_v01), dms_facility_set_ck_info_type_data_v01},
-  {sizeof(dms_facility_unblock_info_type_v01), dms_facility_unblock_info_type_data_v01}
+  {sizeof(dms_facility_unblock_info_type_v01), dms_facility_unblock_info_type_data_v01},
+  {sizeof(dms_image_ver_type_v01), dms_image_ver_type_data_v01}
 };
 
 /* Message Table */
@@ -1627,6 +1654,8 @@ static const qmi_idl_message_table_entry dms_message_table_v01[] = {
   {sizeof(dms_get_msisdn_resp_msg_v01), dms_get_msisdn_resp_msg_data_v01},
   {sizeof(dms_get_device_serial_numbers_req_msg_v01), 0},
   {sizeof(dms_get_device_serial_numbers_resp_msg_v01), dms_get_device_serial_numbers_resp_msg_data_v01},
+  {sizeof(dms_get_encrypted_device_serial_numbers_req_msg_v01), 0},
+  {sizeof(dms_get_encrypted_device_serial_numbers_resp_msg_v01), dms_get_encrypted_device_serial_numbers_resp_msg_data_v01},
   {sizeof(dms_get_power_state_req_msg_v01), 0},
   {sizeof(dms_get_power_state_resp_msg_v01), dms_get_power_state_resp_msg_data_v01},
   {sizeof(dms_uim_set_pin_protection_req_msg_v01), dms_uim_set_pin_protection_req_msg_data_v01},
@@ -1716,23 +1745,7 @@ static const qmi_idl_message_table_entry dms_message_table_v01[] = {
   {sizeof(dms_oem_china_operator_req_msg_v01), 0},
   {sizeof(dms_oem_china_operator_resp_msg_v01), dms_oem_china_operator_resp_msg_data_v01},
   {sizeof(dms_get_mac_address_req_msg_v01), dms_get_mac_address_req_msg_data_v01},
-  {sizeof(dms_get_mac_address_resp_msg_v01), dms_get_mac_address_resp_msg_data_v01},
-  {sizeof(dms_get_encrypted_device_serial_numbers_req_msg_v01), 0},
-  {sizeof(dms_get_encrypted_device_serial_numbers_resp_msg_v01), dms_get_encrypted_device_serial_numbers_resp_msg_data_v01},
-  {sizeof(dms_get_hw_version_req_msg_v01), 0},
-  {sizeof(dms_get_hw_version_resp_msg_v01), dms_get_hw_version_resp_msg_data_v01},
-  {sizeof(dms_get_qcn_req_msg_v01), 0},
-  {sizeof(dms_get_qcn_resp_msg_v01), dms_get_qcn_resp_msg_data_v01},
-  {sizeof(dms_get_sn_req_msg_v01), 0},
-  {sizeof(dms_get_sn_resp_msg_v01), dms_get_sn_resp_msg_data_v01},
-  {sizeof(dms_update_cit_flag_req_msg_v01), 0},
-  {sizeof(dms_update_cit_flag_resp_msg_v01), dms_update_cit_flag_resp_msg_data_v01},
-  {sizeof(dms_get_nv2499_req_msg_v01), 0},
-  {sizeof(dms_get_nv2499_resp_msg_v01), dms_get_nv2499_resp_msg_data_v01},
-  {sizeof(dms_update_cit_flag_nv2499_req_msg_v01), 0},
-  {sizeof(dms_update_cit_flag_nv2499_resp_msg_v01), dms_update_cit_flag_nv2499_resp_msg_data_v01},
-  {sizeof(dms_get_flag_req_msg_v01), 0},
-  {sizeof(dms_get_flag_resp_msg_v01), dms_get_flag_resp_msg_data_v01},
+  {sizeof(dms_get_mac_address_resp_msg_v01), dms_get_mac_address_resp_msg_data_v01}
 };
 
 /* Range Table */
@@ -1768,130 +1781,115 @@ static const qmi_idl_service_message_table_entry dms_service_command_messages_v0
   {QMI_DMS_GET_DEVICE_REV_ID_REQ_V01, QMI_IDL_TYPE16(0, 11), 0},
   {QMI_DMS_GET_MSISDN_REQ_V01, QMI_IDL_TYPE16(0, 13), 0},
   {QMI_DMS_GET_DEVICE_SERIAL_NUMBERS_REQ_V01, QMI_IDL_TYPE16(0, 15), 0},
-  {QMI_DMS_GET_POWER_STATE_REQ_V01, QMI_IDL_TYPE16(0, 17), 0},
-  {QMI_DMS_UIM_SET_PIN_PROTECTION_REQ_V01, QMI_IDL_TYPE16(0, 19), 22},
-  {QMI_DMS_UIM_VERIFY_PIN_REQ_V01, QMI_IDL_TYPE16(0, 21), 21},
-  {QMI_DMS_UIM_UNBLOCK_PIN_REQ_V01, QMI_IDL_TYPE16(0, 23), 38},
-  {QMI_DMS_UIM_CHANGE_PIN_REQ_V01, QMI_IDL_TYPE16(0, 25), 38},
-  {QMI_DMS_UIM_GET_PIN_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 27), 0},
-  {QMI_DMS_GET_DEVICE_HARDWARE_REV_REQ_V01, QMI_IDL_TYPE16(0, 29), 0},
-  {QMI_DMS_GET_OPERATING_MODE_REQ_V01, QMI_IDL_TYPE16(0, 31), 0},
-  {QMI_DMS_SET_OPERATING_MODE_REQ_V01, QMI_IDL_TYPE16(0, 33), 4},
-  {QMI_DMS_GET_TIME_REQ_V01, QMI_IDL_TYPE16(0, 35), 0},
-  {QMI_DMS_GET_PRL_VER_REQ_V01, QMI_IDL_TYPE16(0, 37), 0},
-  {QMI_DMS_GET_ACTIVATION_STATE_REQ_V01, QMI_IDL_TYPE16(0, 39), 0},
-  {QMI_DMS_ACTIVATE_AUTOMATIC_REQ_V01, QMI_IDL_TYPE16(0, 41), 85},
-  {QMI_DMS_ACTIVATE_MANUAL_REQ_V01, QMI_IDL_TYPE16(0, 43), 1627},
-  {QMI_DMS_GET_USER_LOCK_STATE_REQ_V01, QMI_IDL_TYPE16(0, 45), 0},
-  {QMI_DMS_SET_USER_LOCK_STATE_REQ_V01, QMI_IDL_TYPE16(0, 47), 8},
-  {QMI_DMS_SET_USER_LOCK_CODE_REQ_V01, QMI_IDL_TYPE16(0, 49), 11},
-  {QMI_DMS_READ_USER_DATA_REQ_V01, QMI_IDL_TYPE16(0, 51), 0},
-  {QMI_DMS_WRITE_USER_DATA_REQ_V01, QMI_IDL_TYPE16(0, 53), 517},
-  {QMI_DMS_READ_ERI_FILE_REQ_V01, QMI_IDL_TYPE16(0, 55), 0},
-  {QMI_DMS_RESTORE_FACTORY_DEFAULTS_REQ_V01, QMI_IDL_TYPE16(0, 57), 9},
-  {QMI_DMS_VALIDATE_SERVICE_PROGRAMMING_CODE_REQ_V01, QMI_IDL_TYPE16(0, 59), 9},
-  {QMI_DMS_UIM_GET_ICCID_REQ_V01, QMI_IDL_TYPE16(0, 61), 0},
-  {QMI_DMS_UIM_GET_CK_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 63), 4},
-  {QMI_DMS_UIM_SET_CK_PROTECTION_REQ_V01, QMI_IDL_TYPE16(0, 65), 14},
-  {QMI_DMS_UIM_UNBLOCK_CK_REQ_V01, QMI_IDL_TYPE16(0, 67), 13},
-  {QMI_DMS_UIM_GET_IMSI_REQ_V01, QMI_IDL_TYPE16(0, 69), 0},
-  {QMI_DMS_UIM_GET_STATE_REQ_V01, QMI_IDL_TYPE16(0, 71), 0},
-  {QMI_DMS_GET_BAND_CAPABILITY_REQ_V01, QMI_IDL_TYPE16(0, 73), 0},
-  {QMI_DMS_GET_FACTORY_SKU_REQ_V01, QMI_IDL_TYPE16(0, 75), 0},
-  {QMI_DMS_SET_TIME_REQ_V01, QMI_IDL_TYPE16(0, 77), 18},
-  {QMI_DMS_GET_ALT_NET_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 79), 0},
-  {QMI_DMS_SET_ALT_NET_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 81), 4},
-  {QMI_DMS_GET_SW_VERSION_REQ_V01, QMI_IDL_TYPE16(0, 83), 0},
-  {QMI_DMS_SET_SPC_REQ_V01, QMI_IDL_TYPE16(0, 85), 18},
-  {QMI_DMS_GET_CURRENT_PRL_INFO_REQ_V01, QMI_IDL_TYPE16(0, 87), 0},
-  {QMI_DMS_BIND_SUBSCRIPTION_REQ_V01, QMI_IDL_TYPE16(0, 89), 7},
-  {QMI_DMS_GET_BIND_SUBSCRIPTION_REQ_V01, QMI_IDL_TYPE16(0, 91), 0},
-  {QMI_DMS_SET_AP_SW_VERSION_REQ_V01, QMI_IDL_TYPE16(0, 93), 35},
-  {QMI_DMS_GET_CDMA_LOCK_MODE_REQ_V01, QMI_IDL_TYPE16(0, 95), 0},
-  {QMI_DMS_SET_TEST_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 97), 7},
-  {QMI_DMS_GET_TEST_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 99), 0},
-  {QMI_DMS_CLEAR_TEST_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 101), 0},
-  {QMI_DMS_OEM_CHINA_OPERATOR_REQ_V01, QMI_IDL_TYPE16(0, 103), 0},
-  {QMI_DMS_GET_MAC_ADDRESS_REQ_V01, QMI_IDL_TYPE16(0, 105), 7},
-  {QMI_DMS_GET_ENCRYPTED_DEVICE_SERIAL_NUMBERS_REQ_V01, QMI_IDL_TYPE16(0, 107), 0},
-  {QMI_DMS_GET_DEVICE_HW_VERSION_REQ_V01, QMI_IDL_TYPE16(0, 109), 0},
-  {QMI_DMS_GET_DEVICE_QCN_REQ_V01, QMI_IDL_TYPE16(0, 111), 0},
-  {QMI_DMS_GET_DEVICE_SN_REQ_V01, QMI_IDL_TYPE16(0, 113), 0},
-  {QMI_DMS_UPDATE_CIT_FLAG_NV2499_REQ_V01, QMI_IDL_TYPE16(0, 115), 0},
-  {QMI_DMS_GET_NV2499_REQ_V01, QMI_IDL_TYPE16(0, 117), 0},
-  {QMI_DMS_UPDATE_CIT_FLAG_NV2499_FAIL_REQ_V01, QMI_IDL_TYPE16(0, 119), 0},
-  {QMI_DMS_GET_DEVICE_FLAG_REQ_V01, QMI_IDL_TYPE16(0, 121), 0},
+  {QMI_DMS_GET_POWER_STATE_REQ_V01, QMI_IDL_TYPE16(0, 19), 0},
+  {QMI_DMS_UIM_SET_PIN_PROTECTION_REQ_V01, QMI_IDL_TYPE16(0, 21), 22},
+  {QMI_DMS_UIM_VERIFY_PIN_REQ_V01, QMI_IDL_TYPE16(0, 23), 21},
+  {QMI_DMS_UIM_UNBLOCK_PIN_REQ_V01, QMI_IDL_TYPE16(0, 25), 38},
+  {QMI_DMS_UIM_CHANGE_PIN_REQ_V01, QMI_IDL_TYPE16(0, 27), 38},
+  {QMI_DMS_UIM_GET_PIN_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 29), 0},
+  {QMI_DMS_GET_DEVICE_HARDWARE_REV_REQ_V01, QMI_IDL_TYPE16(0, 31), 0},
+  {QMI_DMS_GET_OPERATING_MODE_REQ_V01, QMI_IDL_TYPE16(0, 33), 0},
+  {QMI_DMS_SET_OPERATING_MODE_REQ_V01, QMI_IDL_TYPE16(0, 35), 4},
+  {QMI_DMS_GET_TIME_REQ_V01, QMI_IDL_TYPE16(0, 37), 0},
+  {QMI_DMS_GET_PRL_VER_REQ_V01, QMI_IDL_TYPE16(0, 39), 0},
+  {QMI_DMS_GET_ACTIVATION_STATE_REQ_V01, QMI_IDL_TYPE16(0, 41), 0},
+  {QMI_DMS_ACTIVATE_AUTOMATIC_REQ_V01, QMI_IDL_TYPE16(0, 43), 85},
+  {QMI_DMS_ACTIVATE_MANUAL_REQ_V01, QMI_IDL_TYPE16(0, 45), 1627},
+  {QMI_DMS_GET_USER_LOCK_STATE_REQ_V01, QMI_IDL_TYPE16(0, 47), 0},
+  {QMI_DMS_SET_USER_LOCK_STATE_REQ_V01, QMI_IDL_TYPE16(0, 49), 8},
+  {QMI_DMS_SET_USER_LOCK_CODE_REQ_V01, QMI_IDL_TYPE16(0, 51), 11},
+  {QMI_DMS_READ_USER_DATA_REQ_V01, QMI_IDL_TYPE16(0, 53), 0},
+  {QMI_DMS_WRITE_USER_DATA_REQ_V01, QMI_IDL_TYPE16(0, 55), 517},
+  {QMI_DMS_READ_ERI_FILE_REQ_V01, QMI_IDL_TYPE16(0, 57), 0},
+  {QMI_DMS_RESTORE_FACTORY_DEFAULTS_REQ_V01, QMI_IDL_TYPE16(0, 59), 9},
+  {QMI_DMS_VALIDATE_SERVICE_PROGRAMMING_CODE_REQ_V01, QMI_IDL_TYPE16(0, 61), 9},
+  {QMI_DMS_UIM_GET_ICCID_REQ_V01, QMI_IDL_TYPE16(0, 63), 0},
+  {QMI_DMS_UIM_GET_CK_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 65), 4},
+  {QMI_DMS_UIM_SET_CK_PROTECTION_REQ_V01, QMI_IDL_TYPE16(0, 67), 14},
+  {QMI_DMS_UIM_UNBLOCK_CK_REQ_V01, QMI_IDL_TYPE16(0, 69), 13},
+  {QMI_DMS_UIM_GET_IMSI_REQ_V01, QMI_IDL_TYPE16(0, 71), 0},
+  {QMI_DMS_UIM_GET_STATE_REQ_V01, QMI_IDL_TYPE16(0, 73), 0},
+  {QMI_DMS_GET_BAND_CAPABILITY_REQ_V01, QMI_IDL_TYPE16(0, 75), 0},
+  {QMI_DMS_GET_FACTORY_SKU_REQ_V01, QMI_IDL_TYPE16(0, 77), 0},
+  {QMI_DMS_SET_TIME_REQ_V01, QMI_IDL_TYPE16(0, 79), 18},
+  {QMI_DMS_GET_ALT_NET_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 81), 0},
+  {QMI_DMS_SET_ALT_NET_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 83), 4},
+  {QMI_DMS_GET_SW_VERSION_REQ_V01, QMI_IDL_TYPE16(0, 85), 0},
+  {QMI_DMS_SET_SPC_REQ_V01, QMI_IDL_TYPE16(0, 87), 18},
+  {QMI_DMS_GET_CURRENT_PRL_INFO_REQ_V01, QMI_IDL_TYPE16(0, 89), 0},
+  {QMI_DMS_BIND_SUBSCRIPTION_REQ_V01, QMI_IDL_TYPE16(0, 91), 7},
+  {QMI_DMS_GET_BIND_SUBSCRIPTION_REQ_V01, QMI_IDL_TYPE16(0, 93), 0},
+  {QMI_DMS_SET_AP_SW_VERSION_REQ_V01, QMI_IDL_TYPE16(0, 95), 35},
+  {QMI_DMS_GET_CDMA_LOCK_MODE_REQ_V01, QMI_IDL_TYPE16(0, 97), 0},
+  {QMI_DMS_SET_TEST_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 99), 7},
+  {QMI_DMS_GET_TEST_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 101), 0},
+  {QMI_DMS_CLEAR_TEST_CONFIG_REQ_V01, QMI_IDL_TYPE16(0, 103), 0},
+  {QMI_DMS_OEM_CHINA_OPERATOR_REQ_V01, QMI_IDL_TYPE16(0, 105), 0},
+  {QMI_DMS_GET_MAC_ADDRESS_REQ_V01, QMI_IDL_TYPE16(0, 107), 7},
+  {QMI_DMS_GET_ENCRYPTED_DEVICE_SERIAL_NUMBERS_REQ_V01, QMI_IDL_TYPE16(0, 17), 0}
 };
-
 
 static const qmi_idl_service_message_table_entry dms_service_response_messages_v01[] = {
   {QMI_DMS_RESET_RESP_V01, QMI_IDL_TYPE16(0, 1), 7},
   {QMI_DMS_SET_EVENT_REPORT_RESP_V01, QMI_IDL_TYPE16(0, 3), 7},
   {QMI_DMS_GET_SUPPORTED_MSGS_RESP_V01, QMI_IDL_TYPE16(1, 1), 8204},
   {QMI_DMS_GET_SUPPORTED_FIELDS_RESP_V01, QMI_IDL_TYPE16(1, 3), 115},
-  {QMI_DMS_GET_DEVICE_CAP_RESP_V01, QMI_IDL_TYPE16(0, 6), 1675},
+  {QMI_DMS_GET_DEVICE_CAP_RESP_V01, QMI_IDL_TYPE16(0, 6), 1798},
   {QMI_DMS_GET_DEVICE_MFR_RESP_V01, QMI_IDL_TYPE16(0, 8), 138},
   {QMI_DMS_GET_DEVICE_MODEL_ID_RESP_V01, QMI_IDL_TYPE16(0, 10), 266},
   {QMI_DMS_GET_DEVICE_REV_ID_RESP_V01, QMI_IDL_TYPE16(0, 12), 543},
   {QMI_DMS_GET_MSISDN_RESP_V01, QMI_IDL_TYPE16(0, 14), 112},
   {QMI_DMS_GET_DEVICE_SERIAL_NUMBERS_RESP_V01, QMI_IDL_TYPE16(0, 16), 370},
-  {QMI_DMS_GET_POWER_STATE_RESP_V01, QMI_IDL_TYPE16(0, 18), 12},
-  {QMI_DMS_UIM_SET_PIN_PROTECTION_RESP_V01, QMI_IDL_TYPE16(0, 20), 12},
-  {QMI_DMS_UIM_VERIFY_PIN_RESP_V01, QMI_IDL_TYPE16(0, 22), 12},
-  {QMI_DMS_UIM_UNBLOCK_PIN_RESP_V01, QMI_IDL_TYPE16(0, 24), 12},
-  {QMI_DMS_UIM_CHANGE_PIN_RESP_V01, QMI_IDL_TYPE16(0, 26), 12},
-  {QMI_DMS_UIM_GET_PIN_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 28), 19},
-  {QMI_DMS_GET_DEVICE_HARDWARE_REV_RESP_V01, QMI_IDL_TYPE16(0, 30), 266},
-  {QMI_DMS_GET_OPERATING_MODE_RESP_V01, QMI_IDL_TYPE16(0, 32), 20},
-  {QMI_DMS_SET_OPERATING_MODE_RESP_V01, QMI_IDL_TYPE16(0, 34), 7},
-  {QMI_DMS_GET_TIME_RESP_V01, QMI_IDL_TYPE16(0, 36), 40},
-  {QMI_DMS_GET_PRL_VER_RESP_V01, QMI_IDL_TYPE16(0, 38), 16},
-  {QMI_DMS_GET_ACTIVATION_STATE_RESP_V01, QMI_IDL_TYPE16(0, 40), 12},
-  {QMI_DMS_ACTIVATE_AUTOMATIC_RESP_V01, QMI_IDL_TYPE16(0, 42), 7},
-  {QMI_DMS_ACTIVATE_MANUAL_RESP_V01, QMI_IDL_TYPE16(0, 44), 7},
-  {QMI_DMS_GET_USER_LOCK_STATE_RESP_V01, QMI_IDL_TYPE16(0, 46), 11},
-  {QMI_DMS_SET_USER_LOCK_STATE_RESP_V01, QMI_IDL_TYPE16(0, 48), 7},
-  {QMI_DMS_SET_USER_LOCK_CODE_RESP_V01, QMI_IDL_TYPE16(0, 50), 7},
-  {QMI_DMS_READ_USER_DATA_RESP_V01, QMI_IDL_TYPE16(0, 52), 524},
-  {QMI_DMS_WRITE_USER_DATA_RESP_V01, QMI_IDL_TYPE16(0, 54), 7},
-  {QMI_DMS_READ_ERI_FILE_RESP_V01, QMI_IDL_TYPE16(0, 56), 1036},
-  {QMI_DMS_RESTORE_FACTORY_DEFAULTS_RESP_V01, QMI_IDL_TYPE16(0, 58), 7},
-  {QMI_DMS_VALIDATE_SERVICE_PROGRAMMING_CODE_RESP_V01, QMI_IDL_TYPE16(0, 60), 7},
-  {QMI_DMS_UIM_GET_ICCID_RESP_V01, QMI_IDL_TYPE16(0, 62), 30},
-  {QMI_DMS_UIM_GET_CK_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 64), 17},
-  {QMI_DMS_UIM_SET_CK_PROTECTION_RESP_V01, QMI_IDL_TYPE16(0, 66), 11},
-  {QMI_DMS_UIM_UNBLOCK_CK_RESP_V01, QMI_IDL_TYPE16(0, 68), 11},
-  {QMI_DMS_UIM_GET_IMSI_RESP_V01, QMI_IDL_TYPE16(0, 70), 42},
-  {QMI_DMS_UIM_GET_STATE_RESP_V01, QMI_IDL_TYPE16(0, 72), 11},
-  {QMI_DMS_GET_BAND_CAPABILITY_RESP_V01, QMI_IDL_TYPE16(0, 74), 40},
-  {QMI_DMS_GET_FACTORY_SKU_RESP_V01, QMI_IDL_TYPE16(0, 76), 138},
-  {QMI_DMS_SET_TIME_RESP_V01, QMI_IDL_TYPE16(0, 78), 7},
-  {QMI_DMS_GET_ALT_NET_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 80), 11},
-  {QMI_DMS_SET_ALT_NET_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 82), 7},
-  {QMI_DMS_GET_SW_VERSION_RESP_V01, QMI_IDL_TYPE16(0, 84), 42},
-  {QMI_DMS_SET_SPC_RESP_V01, QMI_IDL_TYPE16(0, 86), 7},
-  {QMI_DMS_GET_CURRENT_PRL_INFO_RESP_V01, QMI_IDL_TYPE16(0, 88), 16},
-  {QMI_DMS_BIND_SUBSCRIPTION_RESP_V01, QMI_IDL_TYPE16(0, 90), 7},
-  {QMI_DMS_GET_BIND_SUBSCRIPTION_RESP_V01, QMI_IDL_TYPE16(0, 92), 14},
-  {QMI_DMS_SET_AP_SW_VERSION_RESP_V01, QMI_IDL_TYPE16(0, 94), 7},
-  {QMI_DMS_GET_CDMA_LOCK_MODE_RESP_V01, QMI_IDL_TYPE16(0, 96), 14},
-  {QMI_DMS_SET_TEST_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 98), 7},
-  {QMI_DMS_GET_TEST_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 100), 21},
-  {QMI_DMS_CLEAR_TEST_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 102), 7},
-  {QMI_DMS_OEM_CHINA_OPERATOR_RESP_V01, QMI_IDL_TYPE16(0, 104), 14},
-  {QMI_DMS_GET_MAC_ADDRESS_RESP_V01, QMI_IDL_TYPE16(0, 106), 19},
-  {QMI_DMS_GET_ENCRYPTED_DEVICE_SERIAL_NUMBERS_RESP_V01, QMI_IDL_TYPE16(0, 108), 1039},
-  {QMI_DMS_GET_DEVICE_HW_VERSION_RESP_V01, QMI_IDL_TYPE16(0, 110), 42},
-  {QMI_DMS_GET_DEVICE_QCN_RESP_V01, QMI_IDL_TYPE16(0, 112), 0},
-  {QMI_DMS_GET_DEVICE_SN_RESP_V01, QMI_IDL_TYPE16(0, 114), 124},
-  {QMI_DMS_UPDATE_CIT_FLAG_NV2499_RESP_V01, QMI_IDL_TYPE16(0, 116), 124},
-  {QMI_DMS_GET_NV2499_RESP_V01, QMI_IDL_TYPE16(0, 118), 128},
-  {QMI_DMS_UPDATE_CIT_FLAG_NV2499_FAIL_RESP_V01, QMI_IDL_TYPE16(0, 120), 124},
-  {QMI_DMS_GET_DEVICE_FLAG_RESP_V01, QMI_IDL_TYPE16(0, 122), 124},
+  {QMI_DMS_GET_POWER_STATE_RESP_V01, QMI_IDL_TYPE16(0, 20), 12},
+  {QMI_DMS_UIM_SET_PIN_PROTECTION_RESP_V01, QMI_IDL_TYPE16(0, 22), 12},
+  {QMI_DMS_UIM_VERIFY_PIN_RESP_V01, QMI_IDL_TYPE16(0, 24), 12},
+  {QMI_DMS_UIM_UNBLOCK_PIN_RESP_V01, QMI_IDL_TYPE16(0, 26), 12},
+  {QMI_DMS_UIM_CHANGE_PIN_RESP_V01, QMI_IDL_TYPE16(0, 28), 12},
+  {QMI_DMS_UIM_GET_PIN_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 30), 19},
+  {QMI_DMS_GET_DEVICE_HARDWARE_REV_RESP_V01, QMI_IDL_TYPE16(0, 32), 266},
+  {QMI_DMS_GET_OPERATING_MODE_RESP_V01, QMI_IDL_TYPE16(0, 34), 20},
+  {QMI_DMS_SET_OPERATING_MODE_RESP_V01, QMI_IDL_TYPE16(0, 36), 7},
+  {QMI_DMS_GET_TIME_RESP_V01, QMI_IDL_TYPE16(0, 38), 40},
+  {QMI_DMS_GET_PRL_VER_RESP_V01, QMI_IDL_TYPE16(0, 40), 16},
+  {QMI_DMS_GET_ACTIVATION_STATE_RESP_V01, QMI_IDL_TYPE16(0, 42), 12},
+  {QMI_DMS_ACTIVATE_AUTOMATIC_RESP_V01, QMI_IDL_TYPE16(0, 44), 7},
+  {QMI_DMS_ACTIVATE_MANUAL_RESP_V01, QMI_IDL_TYPE16(0, 46), 7},
+  {QMI_DMS_GET_USER_LOCK_STATE_RESP_V01, QMI_IDL_TYPE16(0, 48), 11},
+  {QMI_DMS_SET_USER_LOCK_STATE_RESP_V01, QMI_IDL_TYPE16(0, 50), 7},
+  {QMI_DMS_SET_USER_LOCK_CODE_RESP_V01, QMI_IDL_TYPE16(0, 52), 7},
+  {QMI_DMS_READ_USER_DATA_RESP_V01, QMI_IDL_TYPE16(0, 54), 524},
+  {QMI_DMS_WRITE_USER_DATA_RESP_V01, QMI_IDL_TYPE16(0, 56), 7},
+  {QMI_DMS_READ_ERI_FILE_RESP_V01, QMI_IDL_TYPE16(0, 58), 1036},
+  {QMI_DMS_RESTORE_FACTORY_DEFAULTS_RESP_V01, QMI_IDL_TYPE16(0, 60), 7},
+  {QMI_DMS_VALIDATE_SERVICE_PROGRAMMING_CODE_RESP_V01, QMI_IDL_TYPE16(0, 62), 7},
+  {QMI_DMS_UIM_GET_ICCID_RESP_V01, QMI_IDL_TYPE16(0, 64), 30},
+  {QMI_DMS_UIM_GET_CK_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 66), 17},
+  {QMI_DMS_UIM_SET_CK_PROTECTION_RESP_V01, QMI_IDL_TYPE16(0, 68), 11},
+  {QMI_DMS_UIM_UNBLOCK_CK_RESP_V01, QMI_IDL_TYPE16(0, 70), 11},
+  {QMI_DMS_UIM_GET_IMSI_RESP_V01, QMI_IDL_TYPE16(0, 72), 42},
+  {QMI_DMS_UIM_GET_STATE_RESP_V01, QMI_IDL_TYPE16(0, 74), 11},
+  {QMI_DMS_GET_BAND_CAPABILITY_RESP_V01, QMI_IDL_TYPE16(0, 76), 40},
+  {QMI_DMS_GET_FACTORY_SKU_RESP_V01, QMI_IDL_TYPE16(0, 78), 138},
+  {QMI_DMS_SET_TIME_RESP_V01, QMI_IDL_TYPE16(0, 80), 7},
+  {QMI_DMS_GET_ALT_NET_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 82), 11},
+  {QMI_DMS_SET_ALT_NET_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 84), 7},
+  {QMI_DMS_GET_SW_VERSION_RESP_V01, QMI_IDL_TYPE16(0, 86), 4302},
+  {QMI_DMS_SET_SPC_RESP_V01, QMI_IDL_TYPE16(0, 88), 7},
+  {QMI_DMS_GET_CURRENT_PRL_INFO_RESP_V01, QMI_IDL_TYPE16(0, 90), 16},
+  {QMI_DMS_BIND_SUBSCRIPTION_RESP_V01, QMI_IDL_TYPE16(0, 92), 7},
+  {QMI_DMS_GET_BIND_SUBSCRIPTION_RESP_V01, QMI_IDL_TYPE16(0, 94), 14},
+  {QMI_DMS_SET_AP_SW_VERSION_RESP_V01, QMI_IDL_TYPE16(0, 96), 7},
+  {QMI_DMS_GET_CDMA_LOCK_MODE_RESP_V01, QMI_IDL_TYPE16(0, 98), 14},
+  {QMI_DMS_SET_TEST_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 100), 7},
+  {QMI_DMS_GET_TEST_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 102), 21},
+  {QMI_DMS_CLEAR_TEST_CONFIG_RESP_V01, QMI_IDL_TYPE16(0, 104), 7},
+  {QMI_DMS_OEM_CHINA_OPERATOR_RESP_V01, QMI_IDL_TYPE16(0, 106), 14},
+  {QMI_DMS_GET_MAC_ADDRESS_RESP_V01, QMI_IDL_TYPE16(0, 108), 19},
+  {QMI_DMS_GET_ENCRYPTED_DEVICE_SERIAL_NUMBERS_RESP_V01, QMI_IDL_TYPE16(0, 18), 1039}
 };
 
 static const qmi_idl_service_message_table_entry dms_service_indication_messages_v01[] = {
-  {QMI_DMS_EVENT_REPORT_IND_V01, QMI_IDL_TYPE16(0, 4), 1650}
+  {QMI_DMS_EVENT_REPORT_IND_V01, QMI_IDL_TYPE16(0, 4), 1745}
 };
 
 /*Service Object*/
@@ -1905,7 +1903,7 @@ struct qmi_idl_service_object dms_qmi_idl_service_object_v01 = {
     sizeof(dms_service_indication_messages_v01)/sizeof(qmi_idl_service_message_table_entry) },
   { dms_service_command_messages_v01, dms_service_response_messages_v01, dms_service_indication_messages_v01},
   &dms_qmi_idl_type_table_object_v01,
-  0x24,
+  0x28,
   NULL
 };
 

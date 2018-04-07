@@ -12,12 +12,18 @@
   ---------------------------------------------------------------------------
 ******************************************************************************/
 
+#define __STDC_FORMAT_MACROS 1
 #include <pthread.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
 #include "qcril_qmi_generic_socket.h"
 #include "qcril_qmi_oem_socket.h"
+
+#ifdef QMI_RIL_UTF
+extern "C" uint32 qcril_get_time_milliseconds();
+#include <unistd.h>
+#endif
 
 extern "C" {
 
@@ -30,7 +36,7 @@ extern "C" {
     uint32_t qcril_qmi_oem_free_and_convert_ril_token_to_oem_token(RIL_Token ril_token);
 }
 
-#ifdef FEATURE_TARGET_GLIBC_x86
+#if defined(FEATURE_TARGET_GLIBC_x86) || defined(QMI_RIL_UTF)
    extern "C" size_t strlcat(char *, const char *, size_t);
    extern "C" size_t strlcpy(char *, const char *, size_t);
 #endif
@@ -42,7 +48,11 @@ extern "C" {
 ===========================================================================*/
 
 /* Prefix for OEM socket path */
+#ifndef QMI_RIL_UTF
 #define QCRIL_QMI_OEM_SOCKET_PATH               "/dev/socket/qmux_radio/rild_oem"
+#else
+#define QCRIL_QMI_OEM_SOCKET_PATH               "./oem_connect_socket"
+#endif
 
 /* Maximum socket connections possible */
 #define QCRIL_QMI_OEM_SOCKET_MAX_PENDING_CONNS  5
@@ -333,6 +343,20 @@ boolean qcril_qmi_oem_socket_agent::process_incoming_message
 
     memset(&param, 0, sizeof(param));
     param.instance_id = qmi_ril_get_process_instance_id();
+#ifdef QMI_RIL_UTF
+  if (shutdown_request != 0)
+  {
+    close(listen_sid);
+    close(conn_sid);
+    delete instance;
+    instance = NULL;
+    listen_sid = 0;
+    conn_sid = 0;
+    recv_byte_num = 0;
+    shutdown_request = 0;
+    pthread_exit(NULL);
+  }
+#endif
 
     do {
 

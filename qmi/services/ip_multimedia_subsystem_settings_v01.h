@@ -37,14 +37,14 @@
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/imss/main/latest/api/ip_multimedia_subsystem_settings_v01.h#30 $
+  $Header: //source/qcom/qct/interfaces/qmi/imss/main/latest/api/ip_multimedia_subsystem_settings_v01.h#43 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7 
-   It was generated on: Wed Feb 26 2014 (Spin 0)
+/* This file was generated with Tool version 6.14.2 
+   It was generated on: Fri Dec 19 2014 (Spin 0)
    From IDL File: ip_multimedia_subsystem_settings_v01.idl */
 
 /** @defgroup imss_qmi_consts Constant values defined in the IDL */
@@ -70,11 +70,11 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define IMSS_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define IMSS_V01_IDL_MINOR_VERS 0x14
+#define IMSS_V01_IDL_MINOR_VERS 0x1E
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define IMSS_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define IMSS_V01_MAX_MESSAGE_ID 0x0052
+#define IMSS_V01_MAX_MESSAGE_ID 0x0056
 /**
     @}
   */
@@ -97,10 +97,14 @@ extern "C" {
 #define IMS_SETTINGS_POL_MGR_RAT_APN_SIZE_V01 10
 #define IMS_SETTINGS_POL_MGR_RAT_APN_FB_SIZE_V01 10
 #define IMS_SETTINGS_POL_MGR_APN_SIZE_V01 6
+#define IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01 127
+#define IMS_SETTINGS_UT_APN_NAME_LEN_V01 64
+#define IMS_SETTINGS_VOIP_CONFIG_CONF_URI_LEN_V01 127
+#define IMS_SETTINGS_SMS_PSI_LEN_V01 128
 
 /**  Enumeration for all the IMS Settings service specific Response 
      messages */
-#define IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01 127
+#define IMS_SETTINGS_PRESENCE_USERAGENT_LEN_V01 80
 /**
     @}
   */
@@ -261,10 +265,68 @@ typedef enum {
   */
 typedef enum {
   IMS_SETTINGS_QIPCALL_VT_QUALITY_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  IMS_SETTINGS_VT_QUALITY_LEVEL_0_V01 = 0x00, /**<  VT Quality Selector Level 0  */
-  IMS_SETTINGS_VT_QUALITY_LEVEL_1_V01 = 0x01, /**<  VT Quality Selector Level 1  */
+  IMS_SETTINGS_VT_QUALITY_LEVEL_0_V01 = 0x00, /**<  VT quality selector level 0  */
+  IMS_SETTINGS_VT_QUALITY_LEVEL_1_V01 = 0x01, /**<  VT quality selector level 1  */
   IMS_SETTINGS_QIPCALL_VT_QUALITY_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }ims_settings_qipcall_vt_quality_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_enums
+    @{
+  */
+typedef enum {
+  IMS_SETTINGS_IP_ADDR_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_SETTINGS_IP_TYPE_UNKNOWN_V01 = 0x00, /**<  Unknown IP address type \n  */
+  IMS_SETTINGS_IP_TYPE_IPV4_V01 = 0x01, /**<  IPv4 address \n  */
+  IMS_SETTINGS_IP_TYPE_IPV6_V01 = 0x02, /**<  IPv6 address  */
+  IMS_SETTINGS_IP_ADDR_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}ims_settings_ip_addr_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_enums
+    @{
+  */
+typedef enum {
+  IMS_SETTINGS_WFC_STATUS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_SETTINGS_WFC_STATUS_NOT_SUPPORTED_V01 = 0, /**<  WFC is not supported  */
+  IMS_SETTINGS_WFC_STATUS_ON_V01 = 1, /**<  WFC is enabled  */
+  IMS_SETTINGS_WFC_STATUS_OFF_V01 = 2, /**<  WFC is disabled  */
+  IMS_SETTINGS_WFC_STATUS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}ims_settings_wfc_status_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_enums
+    @{
+  */
+typedef enum {
+  IMS_SETTINGS_WFC_PREFERENCE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_SETTINGS_WFC_CALL_PREF_NONE_V01 = 0, /**<  None  */
+  IMS_SETTINGS_WFC_WLAN_PREFERRED_V01 = 1, /**<  WLAN preferred mode  */
+  IMS_SETTINGS_WFC_WLAN_ONLY_V01 = 2, /**<  WLAN only mode  */
+  IMS_SETTINGS_WFC_CELLULAR_PREFERRED_V01 = 3, /**<  Cellular preferred mode  */
+  IMS_SETTINGS_WFC_CELLULAR_ONLY_V01 = 4, /**<  Cellular only mode  */
+  IMS_SETTINGS_WFC_PREFERENCE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}ims_settings_wfc_preference_v01;
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_enums
+    @{
+  */
+typedef enum {
+  IMS_SETTINGS_WFC_ROAMING_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_SETTINGS_WFC_ROAMING_NOT_SUPPORTED_V01 = 0, /**<  WFC roaming is not supported  */
+  IMS_SETTINGS_WFC_ROAMING_ENABLED_V01 = 1, /**<  WFC roaming is enabled  */
+  IMS_SETTINGS_WFC_ROAMING_DISABLED_V01 = 2, /**<  WFC roaming is disabled  */
+  IMS_SETTINGS_WFC_ROAMING_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}ims_settings_wfc_roaming_enum_v01;
 /**
     @}
   */
@@ -290,6 +352,20 @@ typedef uint64_t ims_settings_service_type_mask_v01;
 #define IMS_SETTINGS_SERVICE_TYPE_RCS_ALL_V01 ((ims_settings_service_type_mask_v01)0x400ull) /**<  Bitmask to indicate all the RCS services.  */
 #define IMS_SETTINGS_SERVICE_TYPE_DEFAULT_V01 ((ims_settings_service_type_mask_v01)0x8000ull) /**<  Bitmask to indicate the default services.\n
        If default service is enabled, operator mode will take preference.  */
+/** @addtogroup imss_qmi_enums
+    @{
+  */
+typedef enum {
+  IMS_SETTINGS_AUDIO_OFFLOAD_OPTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  IMS_SETTINGS_AUDIO_OFFLOAD_AP_V01 = 1, /**<  Audio offload to AP.  */
+  IMS_SETTINGS_AUDIO_OFFLOAD_NONE_V01 = 2, /**<  No Audio offload.  */
+  IMS_SETTINGS_AUDIO_OFFLOAD_MODEM_V01 = 3, /**<  Audio offload to MODEM.  */
+  IMS_SETTINGS_AUDIO_OFFLOAD_OPTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}ims_settings_audio_offload_option_enum_v01;
+/**
+    @}
+  */
+
 /** @addtogroup imss_qmi_aggregates
     @{
   */
@@ -341,11 +417,31 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t qdj_optimization2_enabled;
+  /**<   qdj_optimization2 enabled Flag. */
+
+  uint16_t qdj_go_through_threshold;
+  /**<   QDJ go through threshold value in Frame count, This will be used only 
+       when QDJ optimization 2 is enabled    */
+
+  uint16_t qdj_drop_threshold;
+  /**<   QDJ drop threshold - Maximum delay in frame in milliseconds, This will 
+       be used only when QDJ optimization 2 is enabled    */
+}ims_settings_qdj_optimization2_info_v01;  /* Type */
+/**
+    @}
+  */
+
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Request Message; Sets the IMS Session Initiation Protocol (SIP) configuration parameters for the 
-             requesting control point. */
+/** Request Message; Sets the IMS Session Initiation Protocol (SIP) configuration 
+             parameters for the requesting control point. */
 typedef struct {
 
   /* Optional */
@@ -358,13 +454,15 @@ typedef struct {
   /*  Timer SIP Registration */
   uint8_t timer_sip_reg_valid;  /**< Must be set to true if timer_sip_reg is being passed */
   uint32_t timer_sip_reg;
-  /**<   Initial SIP registration duration, in seconds, from the User Equipment (UE). */
+  /**<   Initial SIP registration duration, in seconds, from the 
+         User Equipment (UE). */
 
   /* Optional */
   /*  Subscribe Timer */
   uint8_t subscribe_timer_valid;  /**< Must be set to true if subscribe_timer is being passed */
   uint32_t subscribe_timer;
-  /**<   Duration, in seconds, of the subscription by the UE for IMS registration notifications. */
+  /**<   Duration, in seconds, of the subscription by the UE for IMS 
+         registration notifications. */
 
   /* Optional */
   /*  Timer T1   */
@@ -406,7 +504,8 @@ typedef struct {
   /*  Timer TJ Extended */
   uint8_t timer_tj_ext_valid;  /**< Must be set to true if timer_tj_ext is being passed */
   uint32_t timer_tj_ext;
-  /**<   Wait time, in milliseconds, for the non-invite request retransmission. */
+  /**<   Wait time, in milliseconds, for the non-invite request 
+         retransmission. */
 
   /* Optional */
   /*  Keep Alive Status */
@@ -429,24 +528,24 @@ typedef struct {
   /*  SIP_TIMER_OPERATOR_MODE_A Timer Value */
   uint8_t sip_timer_operator_mode_a_valid;  /**< Must be set to true if sip_timer_operator_mode_a is being passed */
   uint32_t sip_timer_operator_mode_a;
-  /**<   SIP timer operator mode A, in seconds; valid range of values is 0 to 30.
-         If this TLV is not included in the request, a value of 6 seconds is 
-         used.
+  /**<   SIP timer operator mode A, in seconds; valid range of values is 
+         0 to 30. If this TLV is not included in the request, a value of 
+         6 seconds is used.
     */
 
   /* Optional */
-  /*  SIP Timer TB Value */
+  /*  SIP Timer B Value */
   uint8_t timer_tb_value_valid;  /**< Must be set to true if timer_tb_value is being passed */
   uint32_t timer_tb_value;
-  /**<   SIP timer TB, in milliseconds. If this TLV is not included in the
-         request, a value of 0 is used.
+  /**<   SIP timer B's value, in milliseconds. If this TLV is not included in 
+         the request, a value of 0 is used.
     */
 
   /* Optional */
   /*  SIP GRUU Support Enable Flag */
   uint8_t gruu_enabled_valid;  /**< Must be set to true if gruu_enabled is being passed */
   uint8_t gruu_enabled;
-  /**<   SIP Globally Routable User-Agent URI(GRUU) support enable flag.
+  /**<   SIP Globally Routable User-Agent URI (GRUU) support enable flag.
          If this TLV is not included in the request, a value of FALSE is used.
     */
 
@@ -454,7 +553,7 @@ typedef struct {
   /*  SIP Transport Protocol Switch Support */
   uint8_t transport_switch_enabled_valid;  /**< Must be set to true if transport_switch_enabled is being passed */
   uint8_t transport_switch_enabled;
-  /**<   SIP transport protocol switching support enable flag as per RFC 3261.
+  /**<   SIP transport protocol switching support enable flag per RFC 3261.
          If this TLV is not included in the request, a value of FALSE is used.
     */
 
@@ -462,17 +561,86 @@ typedef struct {
   /*  SIP Maximum TCP Transport Backoff Timer Value */
   uint8_t tcp_max_backoff_timer_value_valid;  /**< Must be set to true if tcp_max_backoff_timer_value is being passed */
   uint32_t tcp_max_backoff_timer_value;
-  /**<   Maximum timeout, in milliseconds, for TCP transport for SIP packets after which
-         SIP packets will go over UDP. If this TLV is not included in the request,
-         a value of 10000 (i.e 10 Seconds) is used.
+  /**<   Maximum timeout, in milliseconds, for TCP transport of SIP packets 
+         after which SIP packets are sent via UDP. If this TLV is not included 
+         in the request, a value of 10000 (i.e., 10 seconds) is used.
     */
 
   /* Optional */
-  /*  SIP Gzip Decoding Outbuffer Multiplier Value */
+  /*  SIP GZIP Decoding Outbuffer Multiplier Value */
   uint8_t gzip_decoding_outbuffer_multiplier_valid;  /**< Must be set to true if gzip_decoding_outbuffer_multiplier is being passed */
   uint8_t gzip_decoding_outbuffer_multiplier;
-  /**<   SIP Gzip decoding outbuffer multiplier - compression multiplier value.
-         If this TLV is not included in the request, a value of 40 is used.
+  /**<   SIP GZIP decoding outbuffer multiplier, the compression multiplier 
+         value. If this TLV is not included in the request, a value of 40 is 
+         used.
+    */
+
+  /* Optional */
+  /*  SIP Timer D Value */
+  uint8_t timer_td_value_valid;  /**< Must be set to true if timer_td_value is being passed */
+  uint32_t timer_td_value;
+  /**<   SIP timer D's value, in milliseconds. 
+         Timer D is the wait time for response retransmits of the invite client 
+         transactions. If this TLV is not included in the request, a value of 
+         130000 (i.e., 130 seconds) is used.
+    */
+
+  /* Optional */
+  /*  SIP Timer T4 */
+  uint8_t timer_t4_valid;  /**< Must be set to true if timer_t4 is being passed */
+  uint32_t timer_t4;
+  /**<   SIP timer T4's value, in milliseconds. 
+         Timer T4 is the maximum duration that a SIP message can remain in the 
+         network.
+    */
+
+  /* Optional */
+  /*  SIP Timer A */
+  uint8_t timer_ta_value_valid;  /**< Must be set to true if timer_ta_value is being passed */
+  uint32_t timer_ta_value;
+  /**<   SIP timer A's value, in milliseconds. 
+         Timer A is the INVITE request retransmit interval, for UDP only
+    */
+
+  /* Optional */
+  /*  SIP Timer E */
+  uint8_t timer_te_value_valid;  /**< Must be set to true if timer_te_value is being passed */
+  uint32_t timer_te_value;
+  /**<   SIP timer E's value, in milliseconds. 
+         Timer E is the value Non-INVITE request retransmit interval, 
+         for UDP only.
+    */
+
+  /* Optional */
+  /*  SIP Timer G */
+  uint8_t timer_tg_value_valid;  /**< Must be set to true if timer_tg_value is being passed */
+  uint32_t timer_tg_value;
+  /**<   SIP timer G's value, in milliseconds. 
+         Timer G is the value of INVITE response retransmit interval.
+    */
+
+  /* Optional */
+  /*  SIP Timer H */
+  uint8_t timer_th_value_valid;  /**< Must be set to true if timer_th_value is being passed */
+  uint32_t timer_th_value;
+  /**<   SIP timer H's value, in milliseconds. 
+         Timer H is the value of wait time for ACK receipt.
+    */
+
+  /* Optional */
+  /*  SIP Timer I */
+  uint8_t timer_ti_value_valid;  /**< Must be set to true if timer_ti_value is being passed */
+  uint32_t timer_ti_value;
+  /**<   SIP timer I's value, in milliseconds. 
+         Timer I is the value of wait time for ACK retransmits.
+    */
+
+  /* Optional */
+  /*  SIP Timer K */
+  uint8_t timer_tk_value_valid;  /**< Must be set to true if timer_tk_value is being passed */
+  uint32_t timer_tk_value;
+  /**<   SIP timer K's value, in milliseconds. 
+         Timer K is the value of wait time for response retransmits.
     */
 }ims_settings_set_sip_config_req_msg_v01;  /* Message */
 /**
@@ -482,8 +650,8 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Sets the IMS Session Initiation Protocol (SIP) configuration parameters for the 
-             requesting control point. */
+/** Response Message; Sets the IMS Session Initiation Protocol (SIP) configuration 
+             parameters for the requesting control point. */
 typedef struct {
 
   /* Mandatory */
@@ -491,8 +659,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
       - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
-      - qmi_error_type  -- Error code. Possible error code values are described in
-                        the error codes section of each message definition.
+      - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -500,7 +668,7 @@ typedef struct {
   uint8_t settings_resp_valid;  /**< Must be set to true if settings_resp is being passed */
   ims_settings_rsp_enum_v01 settings_resp;
   /**<   Settings standard response type. A settings-specific error code is 
-         returned when the standard response error type is QMI_ERR_CAUSE_CODE. \n
+         returned when the standard response error type is QMI_ERR_CAUSE_CODE.\n
          Values: \n
          - 0 -- No error \n
          - 1 -- Not ready \n
@@ -559,8 +727,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                            the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -605,6 +774,14 @@ typedef struct {
   uint8_t phone_context_uri_valid;  /**< Must be set to true if phone_context_uri is being passed */
   char phone_context_uri[IMS_SETTINGS_STRING_LEN_MAX_V01 + 1];
   /**<   Phone context universal resource identifier. */
+
+  /* Optional */
+  /*  SMS PSI String */
+  uint8_t sms_psi_valid;  /**< Must be set to true if sms_psi is being passed */
+  char sms_psi[IMS_SETTINGS_SMS_PSI_LEN_V01 + 1];
+  /**<   
+        SMS PSI string value.
+    */
 }ims_settings_set_sms_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -622,8 +799,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                            the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described 
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -667,8 +845,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                            the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described 
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -686,8 +865,8 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Request Message; Sets the IMS Voice over Internet Protocol (VoIP) configuration parameters 
-             for the requesting control point. */
+/** Request Message; Sets the IMS Voice over Internet Protocol (VoIP) configuration 
+             parameters for the requesting control point. */
 typedef struct {
 
   /* Optional */
@@ -706,7 +885,8 @@ typedef struct {
   /*  Enable AMR WB  */
   uint8_t amr_wb_enable_valid;  /**< Must be set to true if amr_wb_enable is being passed */
   uint8_t amr_wb_enable;
-  /**<   Flag to enable/disable Adaptive Multirate codec (AMR) Wideband (WB) audio. \n
+  /**<   Flag to enable/disable Adaptive Multirate codec (AMR) Wideband (WB) 
+         audio. \n
         Values: \n
         -TRUE -- Enable \n
         -FALSE -- Disable 
@@ -831,20 +1011,24 @@ typedef struct {
   uint8_t voip_silent_redial_enabled;
   /**<   Flag that allows a device to silently redial over 1xRTT.
          If this TLV is not included in the request, a value of TRUE 
-         (i.e., enabled) is used.
-	*/
+         (i.e., enabled) is used.*/
 
   /* Optional */
-  /*  VOIP Preferred RTP Payload Type */
+  /*  VoIP Preferred RTP Payload Type */
   uint8_t voip_preferred_rtp_payload_type_valid;  /**< Must be set to true if voip_preferred_rtp_payload_type is being passed */
   uint16_t voip_preferred_rtp_payload_type;
-  /**<   Values for VOIP preferred codec mode. Needs to be set only when
+  /**<   Values for the VoIP preferred codec mode. Must be set only when
          G.711 support is required in addition to AMR and AMR-WB.\n
-         Refer http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-1 
-         for possible values.\n
-         If an unsupported codec value is set, we would fall back to use CODEC 
-         MIME as the default audio codec and G.711 codec will be ignored.
+         Refer to \hyperref[R1]{[R1]} for possible values.\n
+         If an unsupported codec value is set, CODEC MIME is the default audio 
+         codec and the G.711 codec is ignored.
     */
+
+  /* Optional */
+  /*  VoIP Configuration Conference Factory URI */
+  uint8_t voip_config_confURI_valid;  /**< Must be set to true if voip_config_confURI is being passed */
+  char voip_config_confURI[IMS_SETTINGS_VOIP_CONFIG_CONF_URI_LEN_V01 + 1];
+  /**<   VoIP configuration conference factory URI.     */
 }ims_settings_set_voip_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -853,8 +1037,8 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Sets the IMS Voice over Internet Protocol (VoIP) configuration parameters 
-             for the requesting control point. */
+/** Response Message; Sets the IMS Voice over Internet Protocol (VoIP) configuration 
+             parameters for the requesting control point. */
 typedef struct {
 
   /* Mandatory */
@@ -862,8 +1046,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                        the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described 
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -897,8 +1082,8 @@ typedef struct {
   /*  Publish Extended Expiry Timer */
   uint8_t publish_extended_expiry_timer_valid;  /**< Must be set to true if publish_extended_expiry_timer is being passed */
   uint32_t publish_extended_expiry_timer;
-  /**<   Publish extended timer, in seconds, when publish is sent on an IMS network 
-         in a non-4G radio access technology or when in Airplane 
+  /**<   Publish extended timer, in seconds, when publish is sent on an IMS 
+         network in a non-4G radio access technology or when in Airplane 
          Power-Down mode in a 4G radio access technology.
     */
 
@@ -921,7 +1106,8 @@ typedef struct {
   uint8_t capability_discovery_enable;
   /**<   Flag indicating whether discovery capability is enabled. \n
          Values: \n
-         -TRUE -- Presence publishes/subscribes and processes any notification received. \n
+         -TRUE -- Presence publishes/subscribes and processes any notification 
+                  received. \n
          -FALSE -- Presence does not publish/subscribe and 
                   ignores any notification received */
 
@@ -929,20 +1115,22 @@ typedef struct {
   /*  Cache Capability Expiration */
   uint8_t capabilites_cache_expiration_valid;  /**< Must be set to true if capabilites_cache_expiration is being passed */
   uint32_t capabilites_cache_expiration;
-  /**<   Duration of time, in seconds, for which the retrieved capability is considered valid.
+  /**<   Duration of time, in seconds, for which the retrieved capability is 
+         considered valid.
     */
 
   /* Optional */
   /*  Cache Availability Expiration */
   uint8_t availability_cache_expiration_valid;  /**< Must be set to true if availability_cache_expiration is being passed */
   uint32_t availability_cache_expiration;
-  /**<   Duration of time, in seconds, for which the retrieved availability is considered valid. */
+  /**<   Duration of time, in seconds, for which the retrieved availability is 
+         considered valid. */
 
   /* Optional */
   /*  Capability Poll Interval */
   uint8_t capability_poll_interval_valid;  /**< Must be set to true if capability_poll_interval is being passed */
   uint32_t capability_poll_interval;
-  /**<   Duration of time, in seconds, between successive capability polling.  */
+  /**<   Duration of time, in seconds, between successive capability polling. */
 
   /* Optional */
   /*  Maximum Subscription List Entries */
@@ -996,7 +1184,7 @@ typedef struct {
   /**<   Presence notification wait duration, in seconds. */
 
   /* Optional */
-  /*  Publish Error Recovery Timer */
+  /*  Publish Error Recovery Timer (Deprecated) */
   uint8_t publish_error_recovery_timer_valid;  /**< Must be set to true if publish_error_recovery_timer is being passed */
   uint32_t publish_error_recovery_timer;
   /**<   Publish error recovery timer, in seconds.
@@ -1020,8 +1208,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:
          - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
-         - qmi_error_type  -- Error code. Possible error code values are described in
-                        the error codes section of each message definition.
+         - qmi_error_type  -- Error code. Possible error code values are 
+                              described in the error codes section of each 
+                              message definition.
     */
 
   /* Optional */
@@ -1048,6 +1237,12 @@ typedef struct {
   uint8_t publish_error_recovery_timer_valid;  /**< Must be set to true if publish_error_recovery_timer is being passed */
   uint32_t publish_error_recovery_timer;
   /**<   Publish error recovery timer, in seconds. */
+
+  /* Optional */
+  /*  Publish User Agent */
+  uint8_t publish_user_agent_valid;  /**< Must be set to true if publish_user_agent is being passed */
+  char publish_user_agent[IMS_SETTINGS_PRESENCE_USERAGENT_LEN_V01 + 1];
+  /**<   User Agent > */
 }ims_settings_set_presence_ext_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -1065,8 +1260,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:
          - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
-         - qmi_error_type  -- Error code. Possible error code values are described in
-         the error codes section of each message definition.
+         - qmi_error_type  -- Error code. Possible error code values are 
+                              described in the error codes section of each 
+                              message definition.
     */
 
   /* Optional */
@@ -1085,7 +1281,7 @@ typedef struct {
     @{
   */
 /** Request Message; Sets the IMS media-related configuration parameters 
-             for the requesting control point. */
+             for the requesting control point. (Deprecated Ver 1.29) */
 typedef struct {
 
   /* Optional */
@@ -1162,7 +1358,7 @@ typedef struct {
     @{
   */
 /** Response Message; Sets the IMS media-related configuration parameters 
-             for the requesting control point. */
+             for the requesting control point. (Deprecated Ver 1.29) */
 typedef struct {
 
   /* Mandatory */
@@ -1170,8 +1366,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
         - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-        - qmi_error_type  -- Error code. Possible error code values are described in
-                        the error codes section of each message definition.
+        - qmi_error_type  -- Error code. Possible error code values are 
+                             described in the error codes section of each 
+                             message definition.
     */
 
   /* Optional */
@@ -1231,12 +1428,90 @@ typedef struct {
   /*  VT Quality Selector */
   uint8_t vt_quality_selector_valid;  /**< Must be set to true if vt_quality_selector is being passed */
   ims_settings_qipcall_vt_quality_enum_v01 vt_quality_selector;
-  /**<   Values for quality of video in VT call. If this TLV is not present in
- the request, IMS_SETTINGS_VT_QUALITY_LEVEL_0 value (i.e High Quality)
- is used. Values: \n
-      - IMS_SETTINGS_VT_QUALITY_LEVEL_0 (0x00) --  VT Quality Selector Level 0 
-      - IMS_SETTINGS_VT_QUALITY_LEVEL_1 (0x01) --  VT Quality Selector Level 1 
+  /**<   Values for video quality in a videotelephony (VT) call. If this 
+ TLV is not present in the request, a value of 
+ IMS_SETTINGS_VT_QUALITY_LEVEL_0(i.e., high quality) is used. Values: \n
+      - IMS_SETTINGS_VT_QUALITY_LEVEL_0 (0x00) --  VT quality selector level 0 
+      - IMS_SETTINGS_VT_QUALITY_LEVEL_1 (0x01) --  VT quality selector level 1 
  */
+
+  /* Optional */
+  /*  Smallest RTP Port Number */
+  uint8_t speech_start_port_valid;  /**< Must be set to true if speech_start_port is being passed */
+  uint16_t speech_start_port;
+  /**<   
+         Smallest RTP port number for a speech codec.
+    */
+
+  /* Optional */
+  /*  Largest RTP Port Number */
+  uint8_t speech_end_port_valid;  /**< Must be set to true if speech_end_port is being passed */
+  uint16_t speech_end_port;
+  /**<   
+         Largest RTP port number for a speech codec.
+    */
+
+  /* Optional */
+  /*  AMR-WB Octet Aligned Payload Type */
+  uint8_t amr_wb_octet_aligned_dynamic_pt_valid;  /**< Must be set to true if amr_wb_octet_aligned_dynamic_pt is being passed */
+  uint16_t amr_wb_octet_aligned_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR-WB in octet-aligned packetization.\n
+        Valid range of values: 96 to 127.
+    */
+
+  /* Optional */
+  /*  AMR-WB Bandwidth Efficient Payload Type */
+  uint8_t amr_wb_bandwidth_efficient_dynamic_pt_valid;  /**< Must be set to true if amr_wb_bandwidth_efficient_dynamic_pt is being passed */
+  uint16_t amr_wb_bandwidth_efficient_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR-WB in bandwidth-efficient packetization. \n
+        Valid range of values: 96 to 127.
+    */
+
+  /* Optional */
+  /*  AMR Octet Aligned Payload Type */
+  uint8_t amr_octet_aligned_dynamic_pt_valid;  /**< Must be set to true if amr_octet_aligned_dynamic_pt is being passed */
+  uint16_t amr_octet_aligned_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR in octet-aligned packetization. \n
+        Valid range of values: 96 to 127.
+    */
+
+  /* Optional */
+  /*  AMR Bandwidth Efficient Payload Type */
+  uint8_t amr_bandwidth_efficient_dynamic_pt_valid;  /**< Must be set to true if amr_bandwidth_efficient_dynamic_pt is being passed */
+  uint16_t amr_bandwidth_efficient_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR in bandwidth-efficient packetization.\n
+        Valid range of values: 96 to 127.
+    */
+
+  /* Optional */
+  /*  DTMF Wideband Payload Type */
+  uint8_t dtmf_wb_dynamic_pt_valid;  /**< Must be set to true if dtmf_wb_dynamic_pt is being passed */
+  uint16_t dtmf_wb_dynamic_pt;
+  /**<   
+        Dynamic payload type for DTMF at wideband. \n
+        Valid range of values: 96 to 127.
+    */
+
+  /* Optional */
+  /*  DTMF Narrowband Payload Type */
+  uint8_t dtmf_nb_dynamic_pt_valid;  /**< Must be set to true if dtmf_nb_dynamic_pt is being passed */
+  uint16_t dtmf_nb_dynamic_pt;
+  /**<   
+        Dynamic payload type for DTMF at narrowband. \n
+        Valid range of values: 96 to 127.
+    */
+
+  /* Optional */
+  /*  AMR Default Encoding Mode */
+  uint8_t amr_default_mode_valid;  /**< Must be set to true if amr_default_mode is being passed */
+  uint8_t amr_default_mode;
+  /**<   
+        AMR default encoding mode.
+    */
 }ims_settings_set_qipcall_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -1254,8 +1529,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
         - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-        - qmi_error_type  -- Error code. Possible error code values are described in
-                        the error codes section of each message definition.
+        - qmi_error_type  -- Error code. Possible error code values are 
+                             described in the error codes section of each 
+                             message definition.
     */
 
   /* Optional */
@@ -1281,18 +1557,37 @@ typedef struct {
   /*  Reregistration Delay */
   uint8_t reregistration_delay_valid;  /**< Must be set to true if reregistration_delay is being passed */
   uint16_t reregistration_delay;
-  /**<  IMS reregistration wait time when RAT transitions from eHRPD to LTE, in seconds.*/
+  /**<  IMS reregistration wait time when RAT transitions from eHRPD to LTE, 
+        in seconds.*/
 
   /* Optional */
-  /*  Delay Length for iRAT Transition */
+  /*  Delay Length for iRAT Transition (Deprecated) */
   uint8_t t_delay_valid;  /**< Must be set to true if t_delay is being passed */
   uint16_t t_delay;
   /**<   Delay length for an Inter-Radio Access Technology (iRAT) transition, 
          in seconds; allowed integer value range is 0 to 600. If this TLV is 
          not present in the request, a value of 0 is used.
         
-        Note: This TLV is deprecated and it was a duplicate.
+        Note: This TLV is deprecated; it was a duplicate.
         Use the Reregistration Delay TLV instead. 
+    */
+
+  /* Optional */
+  /*  RegRetryBaseTime */
+  uint8_t reg_retry_base_time_valid;  /**< Must be set to true if reg_retry_base_time is being passed */
+  uint16_t reg_retry_base_time;
+  /**<   RegRetryBaseTime value, in seconds. 
+         RegRetryBaseTime is the value of the base-time parameter of the 
+         flow recovery algorithm.
+    */
+
+  /* Optional */
+  /*  RegRetryMaxTime */
+  uint8_t reg_retry_max_time_valid;  /**< Must be set to true if reg_retry_max_time is being passed */
+  uint16_t reg_retry_max_time;
+  /**<   RegRetryMaxTime value, in seconds. 
+         RegRetryMaxTime is the value of the max-time parameter of the 
+         flow recovery algorithm.
     */
 }ims_settings_set_reg_mgr_extended_config_req_msg_v01;  /* Message */
 /**
@@ -1311,8 +1606,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                            the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described 
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -1331,7 +1627,7 @@ typedef struct {
     @{
   */
 /** Request Message; Sets the IMS policy manager configuration parameters 
-             for the requesting control point. This command is deprecated. */
+             for the requesting control point. (Deprecated) */
 typedef struct {
 
   /* Optional */
@@ -1344,7 +1640,8 @@ typedef struct {
   /*  Policy Manager RAT APN Fallback and Service Priority Information Array */
   uint8_t pol_mgr_rat_apn_fb_sp_info_valid;  /**< Must be set to true if pol_mgr_rat_apn_fb_sp_info is being passed */
   ims_settings_pol_mgr_rat_apn_fb_sp_info_v01 pol_mgr_rat_apn_fb_sp_info[IMS_SETTINGS_POL_MGR_RAT_APN_FB_SIZE_V01];
-  /**<   \n(Array of RAT and APN and their fallback and service priority information parameters.) */
+  /**<   \n(Array of RAT and APN and their fallback and service priority 
+            information parameters.) */
 
   /* Optional */
   /*  Policy Manager Allowed Services Over WLAN */
@@ -1402,7 +1699,7 @@ typedef struct {
     @{
   */
 /** Response Message; Sets the IMS policy manager configuration parameters 
-             for the requesting control point. This command is deprecated. */
+             for the requesting control point. (Deprecated) */
 typedef struct {
 
   /* Mandatory */
@@ -1410,8 +1707,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                            the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described 
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -1454,7 +1752,7 @@ typedef struct {
   uint8_t standalone_message_explorer_uri_valid;  /**< Must be set to true if standalone_message_explorer_uri is being passed */
   char standalone_message_explorer_uri[IMS_SETTINGS_RCS_SM_EXPLORER_URI_LEN_V01 + 1];
   /**<   Standalone message explorer URI.
-    	*/
+    */
 }ims_settings_set_rcs_sm_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -1472,8 +1770,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
          - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-         - qmi_error_type  -- Error code. Possible error code values are described in
-         the error codes section of each message definition.
+         - qmi_error_type  -- Error code. Possible error code values are 
+                              described in the error codes section of each 
+                              message definition.
     */
 
   /* Optional */
@@ -1491,7 +1790,7 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Request Message; Sets the IMS UT configuration parameters
+/** Request Message; Sets the IMS User Terminal (UT) configuration parameters
              for the requesting control point. */
 typedef struct {
 
@@ -1501,10 +1800,27 @@ typedef struct {
   uint8_t disable_ut;
   /**<   Values:  \n
          - TRUE -- Disable  \n
-         - FALSE -- Enable  (default)
+         - FALSE -- Enable (default) \n
          If this TLV is not included in the request, a value of FALSE 
-         (i.e. Enabled) is used.
+         (i.e., Enable) is used.
     */
+
+  /* Optional */
+  /*  UT Access Point Name */
+  uint8_t ut_apn_name_valid;  /**< Must be set to true if ut_apn_name is being passed */
+  char ut_apn_name[IMS_SETTINGS_UT_APN_NAME_LEN_V01 + 1];
+  /**<   UT APN string. */
+
+  /* Optional */
+  /*  UT IP Address Type */
+  uint8_t ut_ip_addr_type_valid;  /**< Must be set to true if ut_ip_addr_type is being passed */
+  ims_settings_ip_addr_type_enum_v01 ut_ip_addr_type;
+  /**<   UT IP address type. If this TLV is not present in the request,
+ a value of IMS_SETTINGS_IP_TYPE_ UNKNOWN is used. Values:\n
+      - IMS_SETTINGS_IP_TYPE_UNKNOWN (0x00) --  Unknown IP address type \n 
+      - IMS_SETTINGS_IP_TYPE_IPV4 (0x01) --  IPv4 address \n 
+      - IMS_SETTINGS_IP_TYPE_IPV6 (0x02) --  IPv6 address 
+ */
 }ims_settings_set_ut_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -1513,7 +1829,7 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Sets the IMS UT configuration parameters
+/** Response Message; Sets the IMS User Terminal (UT) configuration parameters
              for the requesting control point. */
 typedef struct {
 
@@ -1522,15 +1838,16 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
          - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-         - qmi_error_type  -- Error code. Possible error code values are described 
-                              in the error codes section of each message definition.
+         - qmi_error_type  -- Error code. Possible error code values are 
+                              described in the error codes section of each 
+                              message definition.
     */
 
   /* Optional */
   /*  Settings Standard Response Type */
   uint8_t settings_resp_valid;  /**< Must be set to true if settings_resp is being passed */
   ims_settings_rsp_enum_v01 settings_resp;
-  /**<   Settings-specific error code is returned when the standard response
+  /**<   A settings-specific error code is returned when the standard response
          error type is QMI_ERR_CAUSE_CODE.
     */
 }ims_settings_set_ut_config_rsp_msg_v01;  /* Message */
@@ -1538,11 +1855,181 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Sets the IMS client provisioning configuration parameters
+             for the requesting control point. */
+typedef struct {
+
+  /* Optional */
+  /*  Enable Client Provisioning */
+  uint8_t enable_client_provisioning_valid;  /**< Must be set to true if enable_client_provisioning is being passed */
+  uint8_t enable_client_provisioning;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable (default) \n
+         If this TLV is not included in the request, a value of FALSE 
+         (i.e., Disable) is used.
+    */
+
+  /* Optional */
+  /*  Enable VoLTE Support Through Client Provisioning */
+  uint8_t enable_volte_valid;  /**< Must be set to true if enable_volte is being passed */
+  uint8_t enable_volte;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable (default) \n
+         If this TLV is not included in the request, a value of FALSE 
+         (i.e., Disable) is used.
+    */
+
+  /* Optional */
+  /*  Enable VT Support Through Client Provisioning */
+  uint8_t enable_vt_valid;  /**< Must be set to true if enable_vt is being passed */
+  uint8_t enable_vt;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable (default) \n
+         If this TLV is not included in the request, a value of FALSE 
+         (i.e., Disable) is used.
+    */
+
+  /* Optional */
+  /*  Enable Presence Support Through Client Provisioning */
+  uint8_t enable_presence_valid;  /**< Must be set to true if enable_presence is being passed */
+  uint8_t enable_presence;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable (default) \n
+         If this TLV is not included in the request, a value of  FALSE 
+         (i.e., Disable) is used.
+    */
+
+  /* Optional */
+  /*  Wi-Fi Call Setting */
+  uint8_t wifi_call_valid;  /**< Must be set to true if wifi_call is being passed */
+  ims_settings_wfc_status_enum_v01 wifi_call;
+  /**<   Wi-Fi Call (WFC) status. Values: \n
+      - IMS_SETTINGS_WFC_STATUS_NOT_SUPPORTED (0) --  WFC is not supported 
+      - IMS_SETTINGS_WFC_STATUS_ON (1) --  WFC is enabled 
+      - IMS_SETTINGS_WFC_STATUS_OFF (2) --  WFC is disabled 
+ */
+
+  /* Optional */
+  /*  Wi-Fi Call Preference Setting */
+  uint8_t wifi_call_preference_valid;  /**< Must be set to true if wifi_call_preference is being passed */
+  ims_settings_wfc_preference_v01 wifi_call_preference;
+  /**<   WFC preference mode. Values: \n
+      - IMS_SETTINGS_WFC_CALL_PREF_NONE (0) --  None 
+      - IMS_SETTINGS_WFC_WLAN_PREFERRED (1) --  WLAN preferred mode 
+      - IMS_SETTINGS_WFC_WLAN_ONLY (2) --  WLAN only mode 
+      - IMS_SETTINGS_WFC_CELLULAR_PREFERRED (3) --  Cellular preferred mode 
+      - IMS_SETTINGS_WFC_CELLULAR_ONLY (4) --  Cellular only mode 
+ */
+
+  /* Optional */
+  /*  Wi-Fi Call Roaming Setting */
+  uint8_t wifi_call_roaming_valid;  /**< Must be set to true if wifi_call_roaming is being passed */
+  ims_settings_wfc_roaming_enum_v01 wifi_call_roaming;
+  /**<   WFC roaming mode. Values: \n
+      - IMS_SETTINGS_WFC_ROAMING_NOT_SUPPORTED (0) --  WFC roaming is not supported 
+      - IMS_SETTINGS_WFC_ROAMING_ENABLED (1) --  WFC roaming is enabled 
+      - IMS_SETTINGS_WFC_ROAMING_DISABLED (2) --  WFC roaming is disabled 
+ */
+}ims_settings_set_client_provisioning_config_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Response Message; Sets the IMS client provisioning configuration parameters
+             for the requesting control point. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code     */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+         - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
+         - qmi_error_type  -- Error code. Possible error code values are 
+                              described in the error codes section of each 
+                              message definition.
+    */
+
+  /* Optional */
+  /*  Settings Standard Response Type */
+  uint8_t settings_resp_valid;  /**< Must be set to true if settings_resp is being passed */
+  ims_settings_rsp_enum_v01 settings_resp;
+  /**<   A settings-specific error code is returned when the standard response
+         error type is QMI_ERR_CAUSE_CODE.
+    */
+}ims_settings_set_client_provisioning_config_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Sets the APCS_COMPLETE status 
+             for the requesting control point. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}ims_settings_set_apcs_complete_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Response Message; Sets the APCS_COMPLETE status 
+             for the requesting control point. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code     */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+         - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
+         - qmi_error_type  -- Error code. Possible error code values are 
+                              described in the error codes section of each 
+                              message definition.
+    */
+
+  /* Optional */
+  /*  Settings Standard Response Type */
+  uint8_t settings_resp_valid;  /**< Must be set to true if settings_resp is being passed */
+  ims_settings_rsp_enum_v01 settings_resp;
+  /**<   A settings-specific error code is returned when the standard response
+         error type is QMI_ERR_CAUSE_CODE.
+    */
+}ims_settings_set_apcs_complete_config_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the SIP configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_sip_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -1553,8 +2040,8 @@ typedef struct {
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Settings standard response type. A settings-specific error code is returned 
-         when the standard response error type is QMI_ERR_CAUSE_CODE.
+  /**<   Settings standard response type. A settings-specific error code is 
+         returned when the standard response error type is QMI_ERR_CAUSE_CODE.
     */
 
   /* Optional */
@@ -1581,8 +2068,8 @@ typedef struct {
   /*  Subscribe Timer */
   uint8_t subscribe_timer_valid;  /**< Must be set to true if subscribe_timer is being passed */
   uint32_t subscribe_timer;
-  /**<   Duration, in seconds, of the subscription by the UE for IMS registration 
-         notifications.
+  /**<   Duration, in seconds, of the subscription by the UE for IMS 
+         registration notifications.
     */
 
   /* Optional */
@@ -1629,7 +2116,8 @@ typedef struct {
   /*  Timer TJ Extended */
   uint8_t timer_tj_ext_valid;  /**< Must be set to true if timer_tj_ext is being passed */
   uint32_t timer_tj_ext;
-  /**<   Wait time, in milliseconds, for the non-invite request retransmission. */
+  /**<   Wait time, in milliseconds, for the non-invite request 
+         retransmission. */
 
   /* Optional */
   /*  Keep Alive Status */
@@ -1650,24 +2138,24 @@ typedef struct {
   /*  SIP_TIMER_OPERATOR_MODE_A Timer Value */
   uint8_t sip_timer_operator_mode_a_valid;  /**< Must be set to true if sip_timer_operator_mode_a is being passed */
   uint32_t sip_timer_operator_mode_a;
-  /**<   SIP timer operator mode A, in seconds; valid range of values is 0 to 30.
-         If this TLV is not included in the request, a value of 6 seconds is 
-         used.
+  /**<   SIP timer operator mode A, in seconds; valid range of values is 
+         0 to 30. If this TLV is not included in the request, a value of 
+         6 seconds is used.
     */
 
   /* Optional */
-  /*  SIP Timer TB Value */
+  /*  SIP Timer B Value */
   uint8_t timer_tb_value_valid;  /**< Must be set to true if timer_tb_value is being passed */
   uint32_t timer_tb_value;
-  /**<   SIP timer TB, in milliseconds. If this TLV is not included in the
-         request, a value of 0 is used.
+  /**<   SIP timer B's value, in milliseconds. If this TLV is not included in 
+         the request, a value of 0 is used.
     */
 
   /* Optional */
   /*  SIP GRUU Support Enable Flag */
   uint8_t gruu_enabled_valid;  /**< Must be set to true if gruu_enabled is being passed */
   uint8_t gruu_enabled;
-  /**<   SIP Globally Routable User-Agent URI(GRUU) support enable flag.
+  /**<   SIP GRUU support enable flag.
          If this TLV is not included in the request, a value of FALSE is used.
     */
 
@@ -1675,36 +2163,113 @@ typedef struct {
   /*  SIP Transport Protocol Switch Support */
   uint8_t transport_switch_enabled_valid;  /**< Must be set to true if transport_switch_enabled is being passed */
   uint8_t transport_switch_enabled;
-  /**<   SIP transport protocol switching support enable flag as per RFC 3261.
+  /**<   SIP transport protocol switching support enable flag per RFC 3261.
          If this TLV is not included in the request, a value of FALSE is used.
     */
 
   /* Optional */
-  /*  SIP Maximum TCP Trasport Backoff Timer Value */
+  /*  SIP Maximum TCP Transport Backoff Timer Value */
   uint8_t tcp_max_backoff_timer_value_valid;  /**< Must be set to true if tcp_max_backoff_timer_value is being passed */
   uint32_t tcp_max_backoff_timer_value;
-  /**<   Maximum timeout, in milliseconds, for TCP transport for SIP packets after which
-         SIP packets will go over UDP. If this TLV is not included in the request,
-         a value of 10000 (i.e 10 Seconds) is used.
+  /**<   Maximum timeout, in milliseconds, for TCP transport of SIP packets 
+         after which SIP packets are sent via UDP. If this TLV is not included 
+         in the request, a value of 10000 (i.e., 10 seconds) is used.
     */
 
   /* Optional */
-  /*  SIP Gzip Decoding Outbuffer Multiplier Value */
+  /*  SIP GZIP Decoding Outbuffer Multiplier Value */
   uint8_t gzip_decoding_outbuffer_multiplier_valid;  /**< Must be set to true if gzip_decoding_outbuffer_multiplier is being passed */
   uint8_t gzip_decoding_outbuffer_multiplier;
-  /**<   SIP Gzip decoding outbuffer multiplier - compression multiplier value.
-         If this TLV is not included in the request, a value of 40 is used.
+  /**<   SIP GZIP decoding outbuffer multiplier, the compression multiplier 
+         value. If this TLV is not included in the request, a value of 40 is 
+         used.
+    */
+
+  /* Optional */
+  /*  SIP Timer D Value */
+  uint8_t timer_td_value_valid;  /**< Must be set to true if timer_td_value is being passed */
+  uint32_t timer_td_value;
+  /**<   SIP timer D's value, in milliseconds. 
+         Timer D is the wait time for response retransmits of the invite client 
+         transactions.
+    */
+
+  /* Optional */
+  /*  SIP Timer T4 */
+  uint8_t timer_t4_valid;  /**< Must be set to true if timer_t4 is being passed */
+  uint32_t timer_t4;
+  /**<   SIP timer T4's value, in milliseconds. 
+         Timer T4 is the maximum duration that a SIP message can remain in the 
+         network.
+    */
+
+  /* Optional */
+  /*  SIP Timer A */
+  uint8_t timer_ta_value_valid;  /**< Must be set to true if timer_ta_value is being passed */
+  uint32_t timer_ta_value;
+  /**<   SIP timer A's value, in milliseconds. 
+         Timer A is the INVITE request retransmit interval, for UDP only
+    */
+
+  /* Optional */
+  /*  SIP Timer E */
+  uint8_t timer_te_value_valid;  /**< Must be set to true if timer_te_value is being passed */
+  uint32_t timer_te_value;
+  /**<   SIP timer E's value, in milliseconds. 
+         Timer E is the value Non-INVITE request retransmit interval, 
+         for UDP only.
+    */
+
+  /* Optional */
+  /*  SIP Timer G */
+  uint8_t timer_tg_value_valid;  /**< Must be set to true if timer_tg_value is being passed */
+  uint32_t timer_tg_value;
+  /**<   SIP timer G's value, in milliseconds. 
+         Timer G is the value of INVITE response retransmit interval.
+    */
+
+  /* Optional */
+  /*  SIP Timer H */
+  uint8_t timer_th_value_valid;  /**< Must be set to true if timer_th_value is being passed */
+  uint32_t timer_th_value;
+  /**<   SIP timer H's value, in milliseconds. 
+         Timer H is the value of wait time for ACK receipt.
+    */
+
+  /* Optional */
+  /*  SIP Timer I */
+  uint8_t timer_ti_value_valid;  /**< Must be set to true if timer_ti_value is being passed */
+  uint32_t timer_ti_value;
+  /**<   SIP timer I's value, in milliseconds. 
+         Timer I is the value of wait time for ACK retransmits.
+    */
+
+  /* Optional */
+  /*  SIP Timer K */
+  uint8_t timer_tk_value_valid;  /**< Must be set to true if timer_tk_value is being passed */
+  uint32_t timer_tk_value;
+  /**<   SIP timer K's value, in milliseconds. 
+         Timer K is the value of wait time for response retransmits.
     */
 }ims_settings_get_sip_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the registration manager configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_reg_mgr_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -1751,11 +2316,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the SMS configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_sms_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -1768,8 +2342,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -1802,16 +2376,33 @@ typedef struct {
   uint8_t phone_context_uri_valid;  /**< Must be set to true if phone_context_uri is being passed */
   char phone_context_uri[IMS_SETTINGS_STRING_LEN_MAX_V01 + 1];
   /**<   Phone context universal resource identifier. */
+
+  /* Optional */
+  /*  SMS PSI String */
+  uint8_t sms_psi_valid;  /**< Must be set to true if sms_psi is being passed */
+  char sms_psi[IMS_SETTINGS_SMS_PSI_LEN_V01 + 1];
+  /**<   
+        SMS PSI string value.
+    */
 }ims_settings_get_sms_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the user configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_user_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -1822,8 +2413,8 @@ typedef struct {
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Standard response type. A settings-specific error code is returned when the standard response
-       error type is QMI_ERR_CAUSE_CODE.
+  /**<   Standard response type. A settings-specific error code is returned when 
+         the standard response error type is QMI_ERR_CAUSE_CODE.
     */
 
   /* Optional */
@@ -1842,11 +2433,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the VoIP configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_voip_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -1996,30 +2596,43 @@ typedef struct {
   uint8_t voip_silent_redial_enabled;
   /**<   Flag that allows a device to silently redial over 1xRTT.
          If this TLV is not included in the request, a value of TRUE 
-         (i.e., enabled) is used.
-	*/
+         (i.e., enabled) is used.*/
 
   /* Optional */
-  /*  VOIP Preferred RTP Payload Type */
+  /*  VoIP Preferred RTP Payload Type */
   uint8_t voip_preferred_rtp_payload_type_valid;  /**< Must be set to true if voip_preferred_rtp_payload_type is being passed */
   uint16_t voip_preferred_rtp_payload_type;
-  /**<   Values for VOIP Preferred codec mode. Needs to be set only when
+  /**<   Values for the VoIP preferred codec mode. Must be set only when
          G.711 support is required in addition to AMR and AMR-WB.\n
-         Refer http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-1 
-         for possible values.\n
-         If an unsupported codec value is set, we would fall back to use CODEC 
-         MIME as the default audio codec and G.711 codec will be ignored.
+         Refer to \hyperref[R1]{[R1]} for possible values.\n
+         If an unsupported codec value is set, CODEC MIME is used 
+         as the default audio codec and the G.711 codec is ignored.
     */
+
+  /* Optional */
+  /*  VoIP Configuration Conference Factory URI */
+  uint8_t voip_config_confURI_valid;  /**< Must be set to true if voip_config_confURI is being passed */
+  char voip_config_confURI[IMS_SETTINGS_VOIP_CONFIG_CONF_URI_LEN_V01 + 1];
+  /**<   VoIP configuration conference factory URI.  */
 }ims_settings_get_voip_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the presence-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_presence_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2050,9 +2663,9 @@ typedef struct {
   /*  Publish Extended Expiry  */
   uint8_t publish_extended_expiry_timer_valid;  /**< Must be set to true if publish_extended_expiry_timer is being passed */
   uint32_t publish_extended_expiry_timer;
-  /**<    Publish extended timer, in seconds, when publish is sent on an IMS network
-          in a non-4G radio access technology, or when in Airplane Power-Down mode 
-          in a 4G radio access technology.
+  /**<    Publish extended timer, in seconds, when publish is sent on an IMS 
+          network in a non-4G radio access technology, or when in Airplane 
+          Power-Down mode in a 4G radio access technology.
      */
 
   /* Optional */
@@ -2104,7 +2717,7 @@ typedef struct {
   /*  Maximum Subscription List Entries */
   uint8_t max_subcription_list_entries_valid;  /**< Must be set to true if max_subcription_list_entries is being passed */
   uint32_t max_subcription_list_entries;
-  /**<    Maximum number of entries that can be kept in the list subscription. */
+  /**<    Maximum number of entries that can be kept in the list subscription.*/
 
   /* Optional */
   /*  VoLTE User Opted In Status */
@@ -2151,7 +2764,7 @@ typedef struct {
   /**<   Presence notification wait duration, in seconds. */
 
   /* Optional */
-  /*  Publish Error Recovery Timer */
+  /*  Publish Error Recovery Timer (Deprecated) */
   uint8_t publish_error_recovery_timer_valid;  /**< Must be set to true if publish_error_recovery_timer is being passed */
   uint32_t publish_error_recovery_timer;
   /**<   Publish error recovery timer, in seconds.
@@ -2163,11 +2776,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the presence extended-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_presence_ext_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2180,8 +2802,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
          - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-         - qmi_error_type  -- Error code. Possible error code values are described in
-        the error codes section of each message definition.
+         - qmi_error_type  -- Error code. Possible error code values are 
+           described in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -2197,16 +2819,31 @@ typedef struct {
   uint8_t publish_error_recovery_timer_valid;  /**< Must be set to true if publish_error_recovery_timer is being passed */
   uint32_t publish_error_recovery_timer;
   /**<   Publish error recovery timer, in seconds. */
+
+  /* Optional */
+  /*  Publish User Agent */
+  uint8_t publish_user_agent_valid;  /**< Must be set to true if publish_user_agent is being passed */
+  char publish_user_agent[IMS_SETTINGS_PRESENCE_USERAGENT_LEN_V01 + 1];
+  /**<   User Agent > */
 }ims_settings_get_presence_ext_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the media-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_media_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2219,8 +2856,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                        the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described 
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -2296,16 +2934,159 @@ typedef struct {
       - IMS_SETTINGS_CODEC_MPEG4_ISO (0x01) --  ISO MPEG4 codec
       - IMS_SETTINGS_CODEC_H263 (0x02) --  H.263 codec
       - IMS_SETTINGS_CODEC_H264 (0x03) --  H.264 codec */
+
+  /* Optional */
+  /*  Lipsync Drop Upper Limit  */
+  uint8_t lipsync_drop_upper_limit_valid;  /**< Must be set to true if lipsync_drop_upper_limit is being passed */
+  uint16_t lipsync_drop_upper_limit;
+  /**<   Lipsync Drop Upper Limit in units of video samples for video clock rate
+         of 90kHz. */
+
+  /* Optional */
+  /*  Lipsync Drop Lower Limit  */
+  uint8_t lipsync_drop_lower_limit_valid;  /**< Must be set to true if lipsync_drop_lower_limit is being passed */
+  uint16_t lipsync_drop_lower_limit;
+  /**<   Lipsync Drop Lower Limit in units of video samples for video clock rate
+         of 90kHz. */
+
+  /* Optional */
+  /*  RTP MTU Size  */
+  uint8_t rtp_mtu_size_valid;  /**< Must be set to true if rtp_mtu_size is being passed */
+  uint16_t rtp_mtu_size;
+  /**<   RTP MTU Size. */
+
+  /* Optional */
+  /*  qdj time warping enable option */
+  uint8_t qdj_time_warping_enabled_valid;  /**< Must be set to true if qdj_time_warping_enabled is being passed */
+  uint8_t qdj_time_warping_enabled;
+  /**<   QDJ time warping ( QDJ : Qualcomm's proprietary dejitter buffer). \n
+        -TRUE -- Enable  \n
+        -FALSE -- Disable 
+    */
+
+  /* Optional */
+  /*  qdj IBA Max value */
+  uint8_t qdj_iba_max_valid;  /**< Must be set to true if qdj_iba_max is being passed */
+  uint8_t qdj_iba_max;
+  /**<   Maximum number of chances given to a frames which decides underflow in 
+         QDJ. While dequeuing a frame with sequence number "x", maximum number 
+         of times to wait and look for "x" before moving to next frame "x+1" 
+         dequeue. */
+
+  /* Optional */
+  /*  qdj max frames to start dequeue */
+  uint8_t qdj_max_frames_at_start_valid;  /**< Must be set to true if qdj_max_frames_at_start is being passed */
+  uint8_t qdj_max_frames_at_start;
+  /**<   Number of frames needed in QDJ to start dequeue. */
+
+  /* Optional */
+  /*  qdj maximum dejitter delay */
+  uint8_t qdj_max_delay_valid;  /**< Must be set to true if qdj_max_delay is being passed */
+  uint8_t qdj_max_delay;
+  /**<   Maximum QDJ de-jitter delay value in milliseconds. */
+
+  /* Optional */
+  /*  qdj minimum dejitter delay */
+  uint8_t qdj_min_delay_valid;  /**< Must be set to true if qdj_min_delay is being passed */
+  uint8_t qdj_min_delay;
+  /**<   Minimum QDJ de-jitter delay value in milliseconds. */
+
+  /* Optional */
+  /*  qdj optimization2 Info */
+  uint8_t qdj_optimization2_info_valid;  /**< Must be set to true if qdj_optimization2_info is being passed */
+  ims_settings_qdj_optimization2_info_v01 qdj_optimization2_info;
+  /**<   QDJ optimization 2 Information. */
+
+  /* Optional */
+  /*  qdj max frames at run */
+  uint8_t qdj_max_frames_at_run_valid;  /**< Must be set to true if qdj_max_frames_at_run is being passed */
+  uint8_t qdj_max_frames_at_run;
+  /**<   QDJ max frames at run. 
+         Maximum number of frames to keep in queue. 
+         The oldest frame will be dropped if received 
+         qdj_max_frames_at_run + 1st frame. */
+
+  /* Optional */
+  /*  qdj max bumped up delay */
+  uint8_t qdj_max_bumped_up_delay_valid;  /**< Must be set to true if qdj_max_bumped_up_delay is being passed */
+  uint8_t qdj_max_bumped_up_delay;
+  /**<   QDJ max bumped up delay in milliseconds. 
+         This is QDJ specific which decides to change the maximum target delay 
+         if underflow is too huge.
+         The Target delay varies from min target delay to max target delay, 
+         however on certain extreme conditions where the underflow is huge or 
+         there is a lot of packet bundling, QDJ will bump up the target delay to 
+         a value higher than max delay but not greater than max bump up delay. 
+ */
+
+  /* Optional */
+  /*  qdj jitter increment */
+  uint8_t qdj_jitter_increment_valid;  /**< Must be set to true if qdj_jitter_increment is being passed */
+  uint8_t qdj_jitter_increment;
+  /**<   QDJ Step delay in milliseconds used while updating QDJ for each 
+         talkspurt. */
+
+  /* Optional */
+  /*  qdj target underflow rate */
+  uint8_t qdj_target_underflow_valid;  /**< Must be set to true if qdj_target_underflow is being passed */
+  uint16_t qdj_target_underflow;
+  /**<   QDJ underflow percent value multiplied by 1000. */
+
+  /* Optional */
+  /*  qdj drop threshold */
+  uint8_t qdj_default_jitter_valid;  /**< Must be set to true if qdj_default_jitter is being passed */
+  uint16_t qdj_default_jitter;
+  /**<   QDJ Default jitter -  The initial default jitter value to be added in 
+         QDJ play out in milliseconds */
+
+  /* Optional */
+  /*  gmin */
+  uint8_t gmin_valid;  /**< Must be set to true if gmin is being passed */
+  uint8_t gmin;
+  /**<   Number of frames in a run defines gap and burst matrices in RTCP XR 
+         report as per RFC 3611*/
+
+  /* Optional */
+  /*  tx system delay */
+  uint8_t tx_system_delay_valid;  /**< Must be set to true if tx_system_delay is being passed */
+  uint8_t tx_system_delay;
+  /**<   Tx system delay in milliseconds which will be used to calculate end 
+         system delay in RTCP XR report*/
+
+  /* Optional */
+  /*  Rx system delay */
+  uint8_t rx_system_delay_valid;  /**< Must be set to true if rx_system_delay is being passed */
+  uint8_t rx_system_delay;
+  /**<   Rx system delay in milliseconds which will be used to calculate end 
+         system delay in RTCP XR report*/
+
+  /* Optional */
+  /*  Audio offload */
+  uint8_t audio_offload_valid;  /**< Must be set to true if audio_offload is being passed */
+  ims_settings_audio_offload_option_enum_v01 audio_offload;
+  /**<   Audio offload option. Values: \n
+      - IMS_SETTINGS_AUDIO_OFFLOAD_AP (1) --  Audio offload to AP. 
+      - IMS_SETTINGS_AUDIO_OFFLOAD_NONE (2) --  No Audio offload. 
+      - IMS_SETTINGS_AUDIO_OFFLOAD_MODEM (3) --  Audio offload to MODEM.  */
 }ims_settings_get_media_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the QIPCall-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_qipcall_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2318,8 +3099,9 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
        - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-       - qmi_error_type  -- Error code. Possible error code values are described in
-                        the error codes section of each message definition.
+       - qmi_error_type  -- Error code. Possible error code values are described 
+                            in the error codes section of each message 
+                            definition.
     */
 
   /* Optional */
@@ -2368,25 +3150,108 @@ typedef struct {
   /*  VT Quality Selector */
   uint8_t vt_quality_selector_valid;  /**< Must be set to true if vt_quality_selector is being passed */
   ims_settings_qipcall_vt_quality_enum_v01 vt_quality_selector;
-  /**<   Values for quality of video in VT call. Values: \n
-      - IMS_SETTINGS_VT_QUALITY_LEVEL_0 (0x00) --  VT Quality Selector Level 0 
-      - IMS_SETTINGS_VT_QUALITY_LEVEL_1 (0x01) --  VT Quality Selector Level 1 
+  /**<   Values for video quality in a VT call. Values: \n
+      - IMS_SETTINGS_VT_QUALITY_LEVEL_0 (0x00) --  VT quality selector level 0 
+      - IMS_SETTINGS_VT_QUALITY_LEVEL_1 (0x01) --  VT quality selector level 1 
  */
+
+  /* Optional */
+  /*  Smallest RTP Port Number */
+  uint8_t speech_start_port_valid;  /**< Must be set to true if speech_start_port is being passed */
+  uint16_t speech_start_port;
+  /**<   
+         Smallest RTP port number for the speech codec.
+    */
+
+  /* Optional */
+  /*  Largest RTP Port Number */
+  uint8_t speech_end_port_valid;  /**< Must be set to true if speech_end_port is being passed */
+  uint16_t speech_end_port;
+  /**<   
+         Largest RTP port number for the speech codec.
+    */
+
+  /* Optional */
+  /*  AMR-WB Octet Aligned Payload Type */
+  uint8_t amr_wb_octet_aligned_dynamic_pt_valid;  /**< Must be set to true if amr_wb_octet_aligned_dynamic_pt is being passed */
+  uint16_t amr_wb_octet_aligned_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR-WB in octet-aligned packetization.
+    */
+
+  /* Optional */
+  /*  AMR-WB Bandwidth Efficient Payload Type */
+  uint8_t amr_wb_bandwidth_efficient_dynamic_pt_valid;  /**< Must be set to true if amr_wb_bandwidth_efficient_dynamic_pt is being passed */
+  uint16_t amr_wb_bandwidth_efficient_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR-WB in bandwidth-efficient packetization.
+    */
+
+  /* Optional */
+  /*  AMR Octet Aligned Payload Type */
+  uint8_t amr_octet_aligned_dynamic_pt_valid;  /**< Must be set to true if amr_octet_aligned_dynamic_pt is being passed */
+  uint16_t amr_octet_aligned_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR in octet-aligned packetization.
+    */
+
+  /* Optional */
+  /*  AMR Bandwidth Efficient Payload Type */
+  uint8_t amr_bandwidth_efficient_dynamic_pt_valid;  /**< Must be set to true if amr_bandwidth_efficient_dynamic_pt is being passed */
+  uint16_t amr_bandwidth_efficient_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR in bandwidth-efficient packetization.
+    */
+
+  /* Optional */
+  /*  DTMF Wideband Payload Type */
+  uint8_t dtmf_wb_dynamic_pt_valid;  /**< Must be set to true if dtmf_wb_dynamic_pt is being passed */
+  uint16_t dtmf_wb_dynamic_pt;
+  /**<   
+        Dynamic payload type for DTMF at wideband.
+    */
+
+  /* Optional */
+  /*  DTMF Narrowband Payload Type */
+  uint8_t dtmf_nb_dynamic_pt_valid;  /**< Must be set to true if dtmf_nb_dynamic_pt is being passed */
+  uint16_t dtmf_nb_dynamic_pt;
+  /**<   
+        Dynamic payload type for DTMF at narrowband.
+    */
+
+  /* Optional */
+  /*  AMR Default Encoding Mode */
+  uint8_t amr_default_mode_valid;  /**< Must be set to true if amr_default_mode is being passed */
+  uint8_t amr_default_mode;
+  /**<   
+        AMR default encoding mode.
+    */
 }ims_settings_get_qipcall_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the registration manager extended configuration 
+             parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_reg_mgr_extended_config_req_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Retrieves the registration manager extended configuration parameters. */
+/** Response Message; Retrieves the registration manager extended configuration 
+             parameters. */
 typedef struct {
 
   /* Mandatory */
@@ -2406,29 +3271,57 @@ typedef struct {
   /*  Reregistration Delay */
   uint8_t reregistration_delay_valid;  /**< Must be set to true if reregistration_delay is being passed */
   uint16_t reregistration_delay;
-  /**<  IMS reregistration wait time when RAT transitions from eHRPD to LTE, in seconds.*/
+  /**<  IMS reregistration wait time when RAT transitions from eHRPD to LTE, in 
+        seconds.*/
 
   /* Optional */
-  /*  Delay Length for iRAT Transition */
+  /*  Delay Length for iRAT Transition (Deprecated) */
   uint8_t t_delay_valid;  /**< Must be set to true if t_delay is being passed */
   uint16_t t_delay;
   /**<   The length of the delay for an iRAT transition, in seconds; 
          allowed integer value range is 0 to 600. If this 
          TLV is not present in the request, a value of 0 is used.
          
-        Note: This TLV is deprecated and it was a duplicate.
-         Use the Reregistration Delay TLV instead. 
+        Note: This TLV is deprecated and was a duplicate.
+        Use the Reregistration Delay TLV instead. 
+    */
+
+  /* Optional */
+  /*  RegRetryBaseTime */
+  uint8_t reg_retry_base_time_valid;  /**< Must be set to true if reg_retry_base_time is being passed */
+  uint16_t reg_retry_base_time;
+  /**<   RegRetryBaseTime value, in seconds. 
+         RegRetryBaseTime is the value of the base-time parameter of the 
+         flow recovery algorithm.
+    */
+
+  /* Optional */
+  /*  RegRetryMaxTime */
+  uint8_t reg_retry_max_time_valid;  /**< Must be set to true if reg_retry_max_time is being passed */
+  uint16_t reg_retry_max_time;
+  /**<   RegRetryMaxTime value, in seconds. 
+         RegRetryMaxTime is the value of the max-time parameter of the 
+         flow recovery algorithm.
     */
 }ims_settings_get_reg_mgr_extended_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the policy manager configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_pol_mgr_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2453,15 +3346,15 @@ typedef struct {
   /*  Policy Manager RAT APN Information Array */
   uint8_t pol_mgr_rat_apn_info_valid;  /**< Must be set to true if pol_mgr_rat_apn_info is being passed */
   ims_settings_pol_man_rat_apn_info_v01 pol_mgr_rat_apn_info[IMS_SETTINGS_POL_MGR_RAT_APN_SIZE_V01];
-  /**<   \n(Array of RAT and APN and their fallback and service priority information
-         parameters.) */
+  /**<   \n(Array of RAT and APN and their fallback and service priority 
+            information parameters.) */
 
   /* Optional */
   /*  Policy Manager RAT APN Fallback and Service Priority Information Array */
   uint8_t pol_mgr_rat_apn_fb_sp_info_valid;  /**< Must be set to true if pol_mgr_rat_apn_fb_sp_info is being passed */
   ims_settings_pol_mgr_rat_apn_fb_sp_info_v01 pol_mgr_rat_apn_fb_sp_info[IMS_SETTINGS_POL_MGR_RAT_APN_FB_SIZE_V01];
-  /**<   \n(Array of RAT and APN and their fallback and service priority information 
-         parameters.) */
+  /**<   \n(Array of RAT and APN and their fallback and service priority 
+           information parameters.) */
 
   /* Optional */
   /*  Policy Manager Allowed Services Over WLAN */
@@ -2515,11 +3408,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the RCS standalone messaging configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_rcs_sm_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2567,11 +3469,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the UT configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_ut_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2582,8 +3493,8 @@ typedef struct {
   /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
-  /**<   Settings standard response type. A settings-specific error code is returned 
-         when the standard response error type is QMI_ERR_CAUSE_CODE.
+  /**<   Settings standard response type. A settings-specific error code is 
+         returned when the standard response error type is QMI_ERR_CAUSE_CODE.
     */
 
   /* Optional */
@@ -2600,16 +3511,148 @@ typedef struct {
         -TRUE -- Disable \n
         -FALSE -- Enable
     */
+
+  /* Optional */
+  /*  UT Access Point Name */
+  uint8_t ut_apn_name_valid;  /**< Must be set to true if ut_apn_name is being passed */
+  char ut_apn_name[IMS_SETTINGS_UT_APN_NAME_LEN_V01 + 1];
+  /**<   UT APN string. */
+
+  /* Optional */
+  /*  UT IP Address Type */
+  uint8_t ut_ip_addr_type_valid;  /**< Must be set to true if ut_ip_addr_type is being passed */
+  ims_settings_ip_addr_type_enum_v01 ut_ip_addr_type;
+  /**<   UT IP address type. Values:\n
+      - IMS_SETTINGS_IP_TYPE_UNKNOWN (0x00) --  Unknown IP address type \n 
+      - IMS_SETTINGS_IP_TYPE_IPV4 (0x01) --  IPv4 address \n 
+      - IMS_SETTINGS_IP_TYPE_IPV6 (0x02) --  IPv6 address 
+ */
 }ims_settings_get_ut_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the client provisioning configuration parameters. */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}ims_settings_get_client_provisioning_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves the client provisioning configuration parameters. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Settings standard response type. A settings-specific error code is 
+         returned 
+         when the standard response error type is QMI_ERR_CAUSE_CODE.
+    */
+
+  /* Optional */
+  /*  Settings Response */
+  uint8_t settings_resp_valid;  /**< Must be set to true if settings_resp is being passed */
+  ims_settings_rsp_enum_v01 settings_resp;
+  /**<   Settings response. */
+
+  /* Optional */
+  /*  Enable Client Provisioning */
+  uint8_t enable_client_provisioning_valid;  /**< Must be set to true if enable_client_provisioning is being passed */
+  uint8_t enable_client_provisioning;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable  (default)
+    */
+
+  /* Optional */
+  /*  Enable VoLTE Support Through Client Provisioning */
+  uint8_t enable_volte_valid;  /**< Must be set to true if enable_volte is being passed */
+  uint8_t enable_volte;
+  /**<   Values:  \n
+         - TRUE -- Enable \n
+         - FALSE -- Disable (default)
+    */
+
+  /* Optional */
+  /*  Enable VT Support Through Client Provisioning */
+  uint8_t enable_vt_valid;  /**< Must be set to true if enable_vt is being passed */
+  uint8_t enable_vt;
+  /**<   Values:  \n
+         - TRUE -- Enable \n
+         - FALSE -- Disable (default)
+    */
+
+  /* Optional */
+  /*  Enable Presence Support Through Client Provisioning */
+  uint8_t enable_presence_valid;  /**< Must be set to true if enable_presence is being passed */
+  uint8_t enable_presence;
+  /**<   Values:  \n
+         - TRUE -- Enable \n
+         - FALSE -- Disable (default)
+    */
+
+  /* Optional */
+  /*  Wi-Fi Call Setting */
+  uint8_t wifi_call_valid;  /**< Must be set to true if wifi_call is being passed */
+  ims_settings_wfc_status_enum_v01 wifi_call;
+  /**<   WFC status. Values: \n
+      - IMS_SETTINGS_WFC_STATUS_NOT_SUPPORTED (0) --  WFC is not supported 
+      - IMS_SETTINGS_WFC_STATUS_ON (1) --  WFC is enabled 
+      - IMS_SETTINGS_WFC_STATUS_OFF (2) --  WFC is disabled 
+ */
+
+  /* Optional */
+  /*  Wi-Fi Call Preference Setting */
+  uint8_t wifi_call_preference_valid;  /**< Must be set to true if wifi_call_preference is being passed */
+  ims_settings_wfc_preference_v01 wifi_call_preference;
+  /**<   WFC preference mode. Values: \n
+      - IMS_SETTINGS_WFC_CALL_PREF_NONE (0) --  None 
+      - IMS_SETTINGS_WFC_WLAN_PREFERRED (1) --  WLAN preferred mode 
+      - IMS_SETTINGS_WFC_WLAN_ONLY (2) --  WLAN only mode 
+      - IMS_SETTINGS_WFC_CELLULAR_PREFERRED (3) --  Cellular preferred mode 
+      - IMS_SETTINGS_WFC_CELLULAR_ONLY (4) --  Cellular only mode 
+ */
+
+  /* Optional */
+  /*  Wi-Fi Call Roaming Setting */
+  uint8_t wifi_call_roaming_valid;  /**< Must be set to true if wifi_call_roaming is being passed */
+  ims_settings_wfc_roaming_enum_v01 wifi_call_roaming;
+  /**<   WFC roaming mode. Values: \n
+      - IMS_SETTINGS_WFC_ROAMING_NOT_SUPPORTED (0) --  WFC roaming is not supported 
+      - IMS_SETTINGS_WFC_ROAMING_ENABLED (1) --  WFC roaming is enabled 
+      - IMS_SETTINGS_WFC_ROAMING_DISABLED (2) --  WFC roaming is disabled 
+ */
+}ims_settings_get_client_provisioning_config_rsp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the SIP read-only-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_sip_read_only_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2622,8 +3665,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -2638,21 +3681,22 @@ typedef struct {
   /*  Timer T4 */
   uint8_t timer_t4_valid;  /**< Must be set to true if timer_t4 is being passed */
   uint32_t timer_t4;
-  /**<   Maximum duration, in milliseconds, that a message remains in the network.                                                        
+  /**<   Maximum duration, in milliseconds, that a message remains in the 
+        network.
     */
 
   /* Optional */
   /*  TCP Threshold Value */
   uint8_t tcp_threshold_value_valid;  /**< Must be set to true if tcp_threshold_value is being passed */
   uint16_t tcp_threshold_value;
-  /**<   Defines the packet size limiting value, in bytes.                                                        
+  /**<   Defines the packet size limiting value, in bytes.
     */
 
   /* Optional */
   /*  Compact Form Enabled */
   uint8_t compact_form_enabled_valid;  /**< Must be set to true if compact_form_enabled is being passed */
   uint8_t compact_form_enabled;
-  /**<   Indicates whether the SIP compact form is enabled.                                                        
+  /**<   Indicates whether the SIP compact form is enabled.
     */
 
   /* Optional */
@@ -2694,11 +3738,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the network read-only-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_network_read_only_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2711,8 +3764,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -2742,29 +3795,39 @@ typedef struct {
   /*  IPSec Encryption Algorithm */
   uint8_t ip_sec_enc_algo_valid;  /**< Must be set to true if ip_sec_enc_algo is being passed */
   ims_settings_encrypt_algo_mask_v01 ip_sec_enc_algo;
-  /**<   Bitmask indicating the IPSec encryption algorithm combination. Values: \n
+  /**<   Bitmask indicating the IPSec encryption algorithm combination. 
+ Values: \n
       - IMS_SETTINGS_ENCRYPT_ALGO_NULL (0x01) --  NULL algorithm is used for IPSec encryption 
       - IMS_SETTINGS_ENCRYPT_ALGO_AES_CBC (0x02) --  AES-CBC algorithm is used for IPSec encryption 
       - IMS_SETTINGS_ENCRYPT_ALGO_DES_EDE3_CBC (0x04) --  DES-EDE3-CBC algorithm is used for IPSec encryption  
  */
 
   /* Optional */
-  /*  Chunk size of MSRP Packet */
+  /*  Chunk Size of MSRP Packet */
   uint8_t msrp_pkt_size_valid;  /**< Must be set to true if msrp_pkt_size is being passed */
   uint16_t msrp_pkt_size;
-  /**<   Indicates MSRP Packet Chunk size in in KB(kilobytes).\n
-         Default value of 2KB is used.
+  /**<   Indicates MSRP packet chunk size in KB (kilobytes). 
+         Default value: 2KB.
     */
 }ims_settings_get_network_read_only_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the VoIP read-only-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_voip_read_only_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2777,8 +3840,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -2805,11 +3868,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the user read-only-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_user_read_only_config_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup imss_qmi_messages
     @{
@@ -2822,8 +3894,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -2856,16 +3928,27 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the registration manager read-only-related configuration 
+             parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_reg_mgr_read_only_config_req_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Retrieves the registration manager read-only-related configuration parameters. */
+/** Response Message; Retrieves the registration manager read-only-related configuration 
+             parameters. */
 typedef struct {
 
   /* Mandatory */
@@ -2873,8 +3956,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -2907,16 +3990,27 @@ typedef struct {
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the RCS automatic configuration read-only-related 
+             configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_rcs_auto_config_read_only_config_req_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Retrieves the RCS automatic configuration read-only-related configuration parameters. */
+/** Response Message; Retrieves the RCS automatic configuration read-only-related 
+             configuration parameters. */
 typedef struct {
 
   /* Mandatory */
@@ -2924,8 +4018,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -2994,31 +4088,42 @@ typedef struct {
   /*  RCS Wi-Fi FT List */
   uint8_t rcs_wifi_ft_list_valid;  /**< Must be set to true if rcs_wifi_ft_list is being passed */
   char rcs_wifi_ft_list[IMS_SETTINGS_RCS_FEATURE_TAG_LIST_LEN_V01 + 1];
-  /**<   List of RCS FTs to be supported in the Wi-Fi RAT.    */
+  /**<   List of RCS FTs to be supported in the Wi-Fi\reg RAT.    */
 
   /* Optional */
   /*  Disable Auto Configuration */
   uint8_t disable_auto_config_valid;  /**< Must be set to true if disable_auto_config is being passed */
   uint8_t disable_auto_config;
   /**<   Flag indicating whether to disable auto configuration of RCS. Values:\n
-         - TRUE - Disable\n
-         - FALSE - Enable
+         - TRUE -- Disable\n
+         - FALSE -- Enable
     */
 }ims_settings_get_rcs_auto_config_read_only_config_rsp_msg_v01;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the RCS IMS core automatic configuration 
+             read-only-related configuration parameters. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }ims_settings_get_rcs_imscore_auto_config_read_only_config_req_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Retrieves the RCS IMS core automatic configuration read-only-related configuration parameters. */
+/** Response Message; Retrieves the RCS IMS core automatic configuration 
+             read-only-related configuration parameters. */
 typedef struct {
 
   /* Mandatory */
@@ -3026,8 +4131,8 @@ typedef struct {
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members: \n
      - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
-     - qmi_error_type  -- Error code. Possible error code values are described in
-                          the error codes section of each message definition.
+     - qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message definition.
     */
 
   /* Optional */
@@ -3063,8 +4168,8 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Request Message; Sets the registration state for various settings service indications 
-             for the requesting control points. */
+/** Request Message; Sets the registration state for various settings service 
+             indications for the requesting control points. */
 typedef struct {
 
   /* Optional */
@@ -3201,6 +4306,15 @@ typedef struct {
        - 0x00 -- Disable \n
        - 0x01 -- Enable
   */
+
+  /* Optional */
+  /*  Client Provisioning Configuration */
+  uint8_t client_provisioning_config_valid;  /**< Must be set to true if client_provisioning_config is being passed */
+  uint8_t client_provisioning_config;
+  /**<   Values: \n
+       - 0x00 -- Disable \n
+       - 0x01 -- Enable
+  */
 }ims_settings_config_ind_reg_req_msg_v01;  /* Message */
 /**
     @}
@@ -3209,8 +4323,8 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Response Message; Sets the registration state for various settings service indications 
-             for the requesting control points. */
+/** Response Message; Sets the registration state for various settings service 
+             indications for the requesting control points. */
 typedef struct {
 
   /* Mandatory */
@@ -3246,8 +4360,8 @@ typedef struct {
   /*  Subscribe Timer */
   uint8_t subscribe_timer_valid;  /**< Must be set to true if subscribe_timer is being passed */
   uint32_t subscribe_timer;
-  /**<   Duration, in seconds, of the subscription by the UE for IMS registration 
-         notifications.
+  /**<   Duration, in seconds, of the subscription by the UE for IMS 
+         registration notifications.
     */
 
   /* Optional */
@@ -3293,7 +4407,8 @@ typedef struct {
   /*  Timer TJ Extended */
   uint8_t timer_tj_ext_valid;  /**< Must be set to true if timer_tj_ext is being passed */
   uint32_t timer_tj_ext;
-  /**<   Wait time, in milliseconds, for the non-invite request retransmission. */
+  /**<   Wait time, in milliseconds, for the non-invite request 
+         retransmission. */
 
   /* Optional */
   /*  Keep Alive Status */
@@ -3314,24 +4429,24 @@ typedef struct {
   /*  SIP_TIMER_OPERATOR_MODE_A Timer Value */
   uint8_t sip_timer_operator_mode_a_valid;  /**< Must be set to true if sip_timer_operator_mode_a is being passed */
   uint32_t sip_timer_operator_mode_a;
-  /**<   SIP timer operator mode A, in seconds; valid range of values is 0 to 30.
-         If this TLV is not included in the request, a value of 6 seconds is 
+  /**<   SIP timer operator mode A, in seconds; valid range of values is 0 to 
+         30. If this TLV is not included in the request, a value of 6 seconds is 
          used.
     */
 
   /* Optional */
-  /*  SIP Timer TB Value */
+  /*  SIP Timer B Value */
   uint8_t timer_tb_value_valid;  /**< Must be set to true if timer_tb_value is being passed */
   uint32_t timer_tb_value;
-  /**<   SIP timer TB, in milliseconds. If this TLV is not included in the
-         request, a value of 0 is used.
+  /**<   SIP timer B's value, in milliseconds. If this TLV is not included in 
+         the request, a value of 0 is used.
     */
 
   /* Optional */
   /*  SIP GRUU Support Enable Flag */
   uint8_t gruu_enabled_valid;  /**< Must be set to true if gruu_enabled is being passed */
   uint8_t gruu_enabled;
-  /**<   SIP Globally Routable User-Agent URI(GRUU) support enable flag.
+  /**<   SIP GRUU support enable flag.
          If this TLV is not included in the request, a value of FALSE is used.
     */
 
@@ -3339,25 +4454,93 @@ typedef struct {
   /*  SIP Transport Protocol Switch Support */
   uint8_t transport_switch_enabled_valid;  /**< Must be set to true if transport_switch_enabled is being passed */
   uint8_t transport_switch_enabled;
-  /**<   SIP transport protocol switching support enable flag as per RFC 3261.
+  /**<   SIP transport protocol switching support enable flag per RFC 3261.
          If this TLV is not included in the request, a value of FALSE is used.
     */
 
   /* Optional */
-  /*  SIP Maximum TCP Trasport Backoff Timer Value */
+  /*  SIP Maximum TCP Transport Backoff Timer Value */
   uint8_t tcp_max_backoff_timer_value_valid;  /**< Must be set to true if tcp_max_backoff_timer_value is being passed */
   uint32_t tcp_max_backoff_timer_value;
-  /**<   Maximum timeout, in milliseconds, for TCP transport for SIP packets after which
-         SIP packets will go over UDP. If this TLV is not included in the request,
-         a value of 10000 (i.e 10 Seconds) is used.
+  /**<   Maximum timeout, in milliseconds, for TCP transport of SIP packets 
+         after which SIP packets are sent via UDP. If this TLV is not included 
+         in the request, a value of 10000 (i.e., 10 seconds) is used.
     */
 
   /* Optional */
-  /*  SIP Gzip Decoding Outbuffer Multiplier Value */
+  /*  SIP GZIP Decoding Outbuffer Multiplier Value */
   uint8_t gzip_decoding_outbuffer_multiplier_valid;  /**< Must be set to true if gzip_decoding_outbuffer_multiplier is being passed */
   uint8_t gzip_decoding_outbuffer_multiplier;
-  /**<   SIP Gzip decoding outbuffer multiplier - compression multiplier value.
-         If this TLV is not included in the request, a value of 40 is used.
+  /**<   SIP GZIP decoding outbuffer multiplier, the compression multiplier 
+         value. If this TLV is not included in the request, a value of 40 is 
+         used.
+    */
+
+  /* Optional */
+  /*  SIP Timer D Value */
+  uint8_t timer_td_value_valid;  /**< Must be set to true if timer_td_value is being passed */
+  uint32_t timer_td_value;
+  /**<   SIP timer D's value, in milliseconds. 
+         Timer D is the wait time for response retransmits of the invite client 
+         transactions.
+    */
+
+  /* Optional */
+  /*  SIP Timer T4 */
+  uint8_t timer_t4_valid;  /**< Must be set to true if timer_t4 is being passed */
+  uint32_t timer_t4;
+  /**<   SIP timer T4's value, in milliseconds. 
+         Timer T4 is the maximum duration that a SIP message can remain in the 
+         network.
+    */
+
+  /* Optional */
+  /*  SIP Timer A */
+  uint8_t timer_ta_value_valid;  /**< Must be set to true if timer_ta_value is being passed */
+  uint32_t timer_ta_value;
+  /**<   SIP timer A's value, in milliseconds. 
+         Timer A is the INVITE request retransmit interval, for UDP only
+    */
+
+  /* Optional */
+  /*  SIP Timer E */
+  uint8_t timer_te_value_valid;  /**< Must be set to true if timer_te_value is being passed */
+  uint32_t timer_te_value;
+  /**<   SIP timer E's value, in milliseconds. 
+         Timer E is the value Non-INVITE request retransmit interval, 
+         for UDP only.
+    */
+
+  /* Optional */
+  /*  SIP Timer G */
+  uint8_t timer_tg_value_valid;  /**< Must be set to true if timer_tg_value is being passed */
+  uint32_t timer_tg_value;
+  /**<   SIP timer G's value, in milliseconds. 
+         Timer G is the value of INVITE response retransmit interval.
+    */
+
+  /* Optional */
+  /*  SIP Timer H */
+  uint8_t timer_th_value_valid;  /**< Must be set to true if timer_th_value is being passed */
+  uint32_t timer_th_value;
+  /**<   SIP timer H's value, in milliseconds. 
+         Timer H is the value of wait time for ACK receipt.
+    */
+
+  /* Optional */
+  /*  SIP Timer I */
+  uint8_t timer_ti_value_valid;  /**< Must be set to true if timer_ti_value is being passed */
+  uint32_t timer_ti_value;
+  /**<   SIP timer I's value, in milliseconds. 
+         Timer I is the value of wait time for ACK retransmits.
+    */
+
+  /* Optional */
+  /*  SIP Timer K */
+  uint8_t timer_tk_value_valid;  /**< Must be set to true if timer_tk_value is being passed */
+  uint32_t timer_tk_value;
+  /**<   SIP timer K's value, in milliseconds. 
+         Timer K is the value of wait time for response retransmits.
     */
 }ims_settings_sip_config_ind_msg_v01;  /* Message */
 /**
@@ -3427,6 +4610,14 @@ typedef struct {
   uint8_t phone_context_uri_valid;  /**< Must be set to true if phone_context_uri is being passed */
   char phone_context_uri[IMS_SETTINGS_STRING_LEN_MAX_V01 + 1];
   /**<   Phone context universal resource identifier. */
+
+  /* Optional */
+  /*  SMS PSI String */
+  uint8_t sms_psi_valid;  /**< Must be set to true if sms_psi is being passed */
+  char sms_psi[IMS_SETTINGS_SMS_PSI_LEN_V01 + 1];
+  /**<   
+        SMS PSI string value.
+    */
 }ims_settings_sms_config_ind_msg_v01;  /* Message */
 /**
     @}
@@ -3582,20 +4773,24 @@ typedef struct {
   uint8_t voip_silent_redial_enabled;
   /**<   Flag that allows a device to silently redial over 1xRTT.
          If this TLV is not included in the request, a value of TRUE 
-         (i.e., enabled) is used.
-	*/
+         (i.e., enabled) is used.*/
 
   /* Optional */
-  /*  VOIP Preferred RTP Payload Type */
+  /*  VoIP Preferred RTP Payload Type */
   uint8_t voip_preferred_rtp_payload_type_valid;  /**< Must be set to true if voip_preferred_rtp_payload_type is being passed */
   uint16_t voip_preferred_rtp_payload_type;
-  /**<   Values for VOIP preferred codec mode. Needs to be set only when
+  /**<   Values for the VoIP preferred codec mode. Must be set only when
          G.711 support is required in addition to AMR and AMR-WB.\n
-         Refer http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml#rtp-parameters-1 
-         for possible values.\n
-         If an unsupported codec value is set, we would fall back to use CODEC 
-         MIME as the default audio codec and G.711 codec will be ignored.
+         Refer to \hyperref[R1]{[R1]} for possible values.\n
+         If an unsupported codec value is set, CODEC MIME is used 
+         as the default audio codec and the G.711 codec is ignored.
     */
+
+  /* Optional */
+  /*  VoIP Configuration Conference Factory URI */
+  uint8_t voip_config_confURI_valid;  /**< Must be set to true if voip_config_confURI is being passed */
+  char voip_config_confURI[IMS_SETTINGS_VOIP_CONFIG_CONF_URI_LEN_V01 + 1];
+  /**<   VoIP configuration conference factory URI.      */
 }ims_settings_voip_config_ind_msg_v01;  /* Message */
 /**
     @}
@@ -3611,8 +4806,8 @@ typedef struct {
   /*  Publish Timer  */
   uint8_t publish_expiry_timer_valid;  /**< Must be set to true if publish_expiry_timer is being passed */
   uint32_t publish_expiry_timer;
-  /**<   Publish timer, in seconds, when publish is sent on an IMS network using 4G
-         radio access technology.
+  /**<   Publish timer, in seconds, when publish is sent on an IMS network using 
+         4G radio access technology.
     */
 
   /* Optional */
@@ -3644,7 +4839,8 @@ typedef struct {
   uint8_t capability_discovery_enable;
   /**<   Flag indicating whether or not discovery capability is enabled.
         Values: \n
-        -TRUE -- Presence publishes/subscribes and processes any notifications received \n
+        -TRUE -- Presence publishes/subscribes and processes any notifications 
+                 received \n
         -FALSE -- Presence does not publish/subscribe and 
                   ignores any notification received
     */
@@ -3653,21 +4849,24 @@ typedef struct {
   /*  Cache Capability Expiration */
   uint8_t capabilites_cache_expiration_valid;  /**< Must be set to true if capabilites_cache_expiration is being passed */
   uint32_t capabilites_cache_expiration;
-  /**<   Duration of time, in seconds, for which the retrieved capability is considered valid.
+  /**<   Duration of time, in seconds, for which the retrieved capability is 
+         considered valid.
     */
 
   /* Optional */
   /*  Cache Availability Expiration */
   uint8_t availability_cache_expiration_valid;  /**< Must be set to true if availability_cache_expiration is being passed */
   uint32_t availability_cache_expiration;
-  /**<   Duration of time, in seconds, for which the retrieved availability is considered valid.
+  /**<   Duration of time, in seconds, for which the retrieved availability is 
+         considered valid.
     */
 
   /* Optional */
   /*  Capability Poll Interval */
   uint8_t capability_poll_interval_valid;  /**< Must be set to true if capability_poll_interval is being passed */
   uint32_t capability_poll_interval;
-  /**<   Duration of time, in seconds, for which the retrieved availability is considered valid.
+  /**<   Duration of time, in seconds, for which the retrieved availability is 
+         considered valid.
     */
 
   /* Optional */
@@ -3722,7 +4921,7 @@ typedef struct {
   /**<   Presence notification wait duration, in seconds. */
 
   /* Optional */
-  /*  Publish Error Recovery Timer */
+  /*  Publish Error Recovery Timer (Deprecated) */
   uint8_t publish_error_recovery_timer_valid;  /**< Must be set to true if publish_error_recovery_timer is being passed */
   uint32_t publish_error_recovery_timer;
   /**<   Publish error recovery timer, in seconds.
@@ -3737,7 +4936,8 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Indication Message; Indicates when the presence extended-related configuration parameters change. */
+/** Indication Message; Indicates when the presence extended-related configuration 
+             parameters change. */
 typedef struct {
 
   /* Optional */
@@ -3745,6 +4945,12 @@ typedef struct {
   uint8_t publish_error_recovery_timer_valid;  /**< Must be set to true if publish_error_recovery_timer is being passed */
   uint32_t publish_error_recovery_timer;
   /**<   Publish error recovery timer, in seconds. */
+
+  /* Optional */
+  /*  Publish User Agent */
+  uint8_t publish_user_agent_valid;  /**< Must be set to true if publish_user_agent is being passed */
+  char publish_user_agent[IMS_SETTINGS_PRESENCE_USERAGENT_LEN_V01 + 1];
+  /**<   User Agent > */
 }ims_settings_presence_ext_config_ind_msg_v01;  /* Message */
 /**
     @}
@@ -3821,6 +5027,140 @@ typedef struct {
       - IMS_SETTINGS_CODEC_MPEG4_ISO (0x01) --  ISO MPEG4 codec
       - IMS_SETTINGS_CODEC_H263 (0x02) --  H.263 codec
       - IMS_SETTINGS_CODEC_H264 (0x03) --  H.264 codec */
+
+  /* Optional */
+  /*  Lipsync Drop Upper Limit  */
+  uint8_t lipsync_drop_upper_limit_valid;  /**< Must be set to true if lipsync_drop_upper_limit is being passed */
+  uint16_t lipsync_drop_upper_limit;
+  /**<   Lipsync Drop Upper Limit in units of video samples for video clock rate
+         of 90kHz. */
+
+  /* Optional */
+  /*  Lipsync Drop Lower Limit  */
+  uint8_t lipsync_drop_lower_limit_valid;  /**< Must be set to true if lipsync_drop_lower_limit is being passed */
+  uint16_t lipsync_drop_lower_limit;
+  /**<   Lipsync Drop Lower Limit in units of video samples for video clock rate
+         of 90kHz. */
+
+  /* Optional */
+  /*  RTP MTU Size  */
+  uint8_t rtp_mtu_size_valid;  /**< Must be set to true if rtp_mtu_size is being passed */
+  uint16_t rtp_mtu_size;
+  /**<   RTP MTU Size. */
+
+  /* Optional */
+  /*  qdj time warping enable option */
+  uint8_t qdj_time_warping_enabled_valid;  /**< Must be set to true if qdj_time_warping_enabled is being passed */
+  uint8_t qdj_time_warping_enabled;
+  /**<   QDJ time warping ( QDJ : Qualcomm's proprietary dejitter buffer). \n
+        -TRUE -- Enable  \n
+        -FALSE -- Disable 
+    */
+
+  /* Optional */
+  /*  qdj IBA Max value */
+  uint8_t qdj_iba_max_valid;  /**< Must be set to true if qdj_iba_max is being passed */
+  uint8_t qdj_iba_max;
+  /**<   Maximum number of chances given to a frames which decides underflow in 
+         QDJ. While dequeuing a frame with sequence number "x", maximum number 
+         of times to wait and look for "x" before moving to next frame "x+1" 
+         dequeue. */
+
+  /* Optional */
+  /*  qdj max frames to start dequeue */
+  uint8_t qdj_max_frames_at_start_valid;  /**< Must be set to true if qdj_max_frames_at_start is being passed */
+  uint8_t qdj_max_frames_at_start;
+  /**<   Number of frames needed in QDJ to start dequeue. */
+
+  /* Optional */
+  /*  qdj maximum dejitter delay */
+  uint8_t qdj_max_delay_valid;  /**< Must be set to true if qdj_max_delay is being passed */
+  uint8_t qdj_max_delay;
+  /**<   Maximum QDJ de-jitter delay value in milliseconds. */
+
+  /* Optional */
+  /*  qdj minimum dejitter delay */
+  uint8_t qdj_min_delay_valid;  /**< Must be set to true if qdj_min_delay is being passed */
+  uint8_t qdj_min_delay;
+  /**<   Minimum QDJ de-jitter delay value in milliseconds. */
+
+  /* Optional */
+  /*  qdj optimization2 Info */
+  uint8_t qdj_optimization2_info_valid;  /**< Must be set to true if qdj_optimization2_info is being passed */
+  ims_settings_qdj_optimization2_info_v01 qdj_optimization2_info;
+  /**<   QDJ optimization 2 Information. */
+
+  /* Optional */
+  /*  qdj max frames at run */
+  uint8_t qdj_max_frames_at_run_valid;  /**< Must be set to true if qdj_max_frames_at_run is being passed */
+  uint8_t qdj_max_frames_at_run;
+  /**<   QDJ max frames at run. 
+         Maximum number of frames to keep in queue. 
+         The oldest frame will be dropped if received 
+         qdj_max_frames_at_run + 1st frame. */
+
+  /* Optional */
+  /*  qdj max bumped up delay */
+  uint8_t qdj_max_bumped_up_delay_valid;  /**< Must be set to true if qdj_max_bumped_up_delay is being passed */
+  uint8_t qdj_max_bumped_up_delay;
+  /**<   QDJ max bumped up delay in milliseconds. 
+         This is QDJ specific which decides to change the maximum target delay 
+         if underflow is too huge.
+         The Target delay varies from min target delay to max target delay, 
+         however on certain extreme conditions where the underflow is huge or 
+         there is a lot of packet bundling, QDJ will bump up the target delay to 
+         a value higher than max delay but not greater than max bump up delay. 
+ */
+
+  /* Optional */
+  /*  qdj jitter increment */
+  uint8_t qdj_jitter_increment_valid;  /**< Must be set to true if qdj_jitter_increment is being passed */
+  uint8_t qdj_jitter_increment;
+  /**<   QDJ Step delay in milliseconds used while updating QDJ for each 
+         talkspurt. */
+
+  /* Optional */
+  /*  qdj target underflow rate */
+  uint8_t qdj_target_underflow_valid;  /**< Must be set to true if qdj_target_underflow is being passed */
+  uint16_t qdj_target_underflow;
+  /**<   QDJ underflow percent value multiplied by 1000. */
+
+  /* Optional */
+  /*  qdj drop threshold */
+  uint8_t qdj_default_jitter_valid;  /**< Must be set to true if qdj_default_jitter is being passed */
+  uint16_t qdj_default_jitter;
+  /**<   QDJ Default jitter -  The initial default jitter value to be added in 
+         QDJ play out in milliseconds */
+
+  /* Optional */
+  /*  gmin */
+  uint8_t gmin_valid;  /**< Must be set to true if gmin is being passed */
+  uint8_t gmin;
+  /**<   Number of frames in a run defines gap and burst matrices in RTCP XR 
+         report as per RFC 3611*/
+
+  /* Optional */
+  /*  tx system delay */
+  uint8_t tx_system_delay_valid;  /**< Must be set to true if tx_system_delay is being passed */
+  uint8_t tx_system_delay;
+  /**<   Tx system delay in milliseconds which will be used to calculate end 
+         system delay in RTCP XR report*/
+
+  /* Optional */
+  /*  Rx system delay */
+  uint8_t rx_system_delay_valid;  /**< Must be set to true if rx_system_delay is being passed */
+  uint8_t rx_system_delay;
+  /**<   Rx system delay in milliseconds which will be used to calculate end 
+         system delay in RTCP XR report*/
+
+  /* Optional */
+  /*  Audio offload */
+  uint8_t audio_offload_valid;  /**< Must be set to true if audio_offload is being passed */
+  ims_settings_audio_offload_option_enum_v01 audio_offload;
+  /**<   Audio offload option. Values: \n
+      - IMS_SETTINGS_AUDIO_OFFLOAD_AP (1) --  Audio offload to AP. 
+      - IMS_SETTINGS_AUDIO_OFFLOAD_NONE (2) --  No Audio offload. 
+      - IMS_SETTINGS_AUDIO_OFFLOAD_MODEM (3) --  Audio offload to MODEM.  */
 }ims_settings_media_config_ind_msg_v01;  /* Message */
 /**
     @}
@@ -3870,10 +5210,82 @@ typedef struct {
   /*  VT Quality Selector */
   uint8_t vt_quality_selector_valid;  /**< Must be set to true if vt_quality_selector is being passed */
   ims_settings_qipcall_vt_quality_enum_v01 vt_quality_selector;
-  /**<   Values for quality of video in VT call. Values: \n
-      - IMS_SETTINGS_VT_QUALITY_LEVEL_0 (0x00) --  VT Quality Selector Level 0 
-      - IMS_SETTINGS_VT_QUALITY_LEVEL_1 (0x01) --  VT Quality Selector Level 1 
+  /**<   Values for video quality in a VT call. Values: \n
+      - IMS_SETTINGS_VT_QUALITY_LEVEL_0 (0x00) --  VT quality selector level 0 
+      - IMS_SETTINGS_VT_QUALITY_LEVEL_1 (0x01) --  VT quality selector level 1 
  */
+
+  /* Optional */
+  /*  Smallest RTP Port Number */
+  uint8_t speech_start_port_valid;  /**< Must be set to true if speech_start_port is being passed */
+  uint16_t speech_start_port;
+  /**<   
+         Smallest RTP port number for the speech codec.
+    */
+
+  /* Optional */
+  /*  Largest RTP Port Number */
+  uint8_t speech_end_port_valid;  /**< Must be set to true if speech_end_port is being passed */
+  uint16_t speech_end_port;
+  /**<   
+         Largest RTP port number for the speech codec.
+    */
+
+  /* Optional */
+  /*  AMR-WB Octet Aligned Payload Type */
+  uint8_t amr_wb_octet_aligned_dynamic_pt_valid;  /**< Must be set to true if amr_wb_octet_aligned_dynamic_pt is being passed */
+  uint16_t amr_wb_octet_aligned_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR-WB in octet-aligned packetization.
+    */
+
+  /* Optional */
+  /*  AMR-WB Bandwidth Efficient Payload Type */
+  uint8_t amr_wb_bandwidth_efficient_dynamic_pt_valid;  /**< Must be set to true if amr_wb_bandwidth_efficient_dynamic_pt is being passed */
+  uint16_t amr_wb_bandwidth_efficient_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR-WB in bandwidth-efficient packetization.
+    */
+
+  /* Optional */
+  /*  AMR Octet Aligned Payload Type */
+  uint8_t amr_octet_aligned_dynamic_pt_valid;  /**< Must be set to true if amr_octet_aligned_dynamic_pt is being passed */
+  uint16_t amr_octet_aligned_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR in octet-aligned packetization.
+    */
+
+  /* Optional */
+  /*  AMR Bandwidth Efficient Payload Type */
+  uint8_t amr_bandwidth_efficient_dynamic_pt_valid;  /**< Must be set to true if amr_bandwidth_efficient_dynamic_pt is being passed */
+  uint16_t amr_bandwidth_efficient_dynamic_pt;
+  /**<   
+        Dynamic payload type for AMR in bandwidth-efficient packetization.
+    */
+
+  /* Optional */
+  /*  DTMF Wideband Payload Type */
+  uint8_t dtmf_wb_dynamic_pt_valid;  /**< Must be set to true if dtmf_wb_dynamic_pt is being passed */
+  uint16_t dtmf_wb_dynamic_pt;
+  /**<   
+        Dynamic payload type for DTMF at wideband.
+    */
+
+  /* Optional */
+  /*  DTMF Narrowband Payload Type */
+  uint8_t dtmf_nb_dynamic_pt_valid;  /**< Must be set to true if dtmf_nb_dynamic_pt is being passed */
+  uint16_t dtmf_nb_dynamic_pt;
+  /**<   
+        Dynamic payload type for DTMF at narrowband.
+    */
+
+  /* Optional */
+  /*  AMR Default Encoding Mode */
+  uint8_t amr_default_mode_valid;  /**< Must be set to true if amr_default_mode is being passed */
+  uint8_t amr_default_mode;
+  /**<   
+        AMR default encoding mode.
+    */
 }ims_settings_qipcall_config_ind_msg_v01;  /* Message */
 /**
     @}
@@ -3894,15 +5306,33 @@ typedef struct {
          in seconds.*/
 
   /* Optional */
-  /*  Delay Length for iRAT Transition */
+  /*  Delay Length for iRAT Transition (Deprecated) */
   uint8_t t_delay_valid;  /**< Must be set to true if t_delay is being passed */
   uint16_t t_delay;
   /**<   Length of the delay for an iRAT transition, in seconds; allowed integer
          value range is 0 to 600. If this TLV is not present in the request, 
          a value of 0 is used.
          
-        Note: This TLV is deprecated and it was a duplicate.
+        Note: This TLV is deprecated and was a duplicate.
         Use the Reregistration Delay TLV instead. 
+    */
+
+  /* Optional */
+  /*  RegRetryBaseTime */
+  uint8_t reg_retry_base_time_valid;  /**< Must be set to true if reg_retry_base_time is being passed */
+  uint16_t reg_retry_base_time;
+  /**<   RegRetryBaseTime value, in seconds. 
+         RegRetryBaseTime is the value of the base-time parameter of the 
+         flow recovery algorithm.
+    */
+
+  /* Optional */
+  /*  RegRetryMaxTime */
+  uint8_t reg_retry_max_time_valid;  /**< Must be set to true if reg_retry_max_time is being passed */
+  uint16_t reg_retry_max_time;
+  /**<   RegRetryMaxTime value, in seconds. 
+         RegRetryMaxTime is the value of the max-time parameter of the 
+         flow recovery algorithm.
     */
 }ims_settings_reg_mgr_extended_config_ind_msg_v01;  /* Message */
 /**
@@ -4029,6 +5459,21 @@ typedef struct {
         -TRUE -- Disable  \n
         -FALSE -- Enable
     */
+
+  /* Optional */
+  /*  UT Access Point Name */
+  uint8_t ut_apn_name_valid;  /**< Must be set to true if ut_apn_name is being passed */
+  char ut_apn_name[IMS_SETTINGS_UT_APN_NAME_LEN_V01 + 1];
+  /**<   UT APN string. */
+
+  /* Optional */
+  /*  UT IP Address Type */
+  uint8_t ut_ip_addr_type_valid;  /**< Must be set to true if ut_ip_addr_type is being passed */
+  ims_settings_ip_addr_type_enum_v01 ut_ip_addr_type;
+  /**<   UT IP address type. Values:\n
+      - IMS_SETTINGS_IP_TYPE_UNKNOWN (0x00) --  Unknown IP address type \n 
+      - IMS_SETTINGS_IP_TYPE_IPV4 (0x01) --  IPv4 address \n 
+      - IMS_SETTINGS_IP_TYPE_IPV6 (0x02) --  IPv6 address */
 }ims_settings_ut_config_ind_msg_v01;  /* Message */
 /**
     @}
@@ -4037,28 +5482,109 @@ typedef struct {
 /** @addtogroup imss_qmi_messages
     @{
   */
-/** Indication Message; Indicates when the SIP read-only-related configuration parameters change. */
+/** Indication Message; Indicates when the client provisioning configuration parameters 
+             change. */
+typedef struct {
+
+  /* Optional */
+  /*  Client Provisioning Enabled Status */
+  uint8_t client_provisioning_enabled_valid;  /**< Must be set to true if client_provisioning_enabled is being passed */
+  uint8_t client_provisioning_enabled;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable  (default)
+    */
+
+  /* Optional */
+  /*  Enabled VoLTE Support Through Client Provisioning */
+  uint8_t volte_enabled_valid;  /**< Must be set to true if volte_enabled is being passed */
+  uint8_t volte_enabled;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable  (default)
+    */
+
+  /* Optional */
+  /*  Enabled VT Support Through Client Provisioning */
+  uint8_t vt_enabled_valid;  /**< Must be set to true if vt_enabled is being passed */
+  uint8_t vt_enabled;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable  (default)
+    */
+
+  /* Optional */
+  /*  Enabled Presence Support Through Client Provisioning */
+  uint8_t presence_enabled_valid;  /**< Must be set to true if presence_enabled is being passed */
+  uint8_t presence_enabled;
+  /**<   Values:  \n
+         - TRUE -- Enable  \n
+         - FALSE -- Disable  (default)
+    */
+
+  /* Optional */
+  /*  Wi-Fi Call Setting */
+  uint8_t wifi_call_valid;  /**< Must be set to true if wifi_call is being passed */
+  ims_settings_wfc_status_enum_v01 wifi_call;
+  /**<   WFC status. Values: \n
+      - IMS_SETTINGS_WFC_STATUS_NOT_SUPPORTED (0) --  WFC is not supported 
+      - IMS_SETTINGS_WFC_STATUS_ON (1) --  WFC is enabled 
+      - IMS_SETTINGS_WFC_STATUS_OFF (2) --  WFC is disabled 
+ */
+
+  /* Optional */
+  /*  Wi-Fi Call Preference Setting */
+  uint8_t wifi_call_preference_valid;  /**< Must be set to true if wifi_call_preference is being passed */
+  ims_settings_wfc_preference_v01 wifi_call_preference;
+  /**<   WFC preference mode. Values: \n
+      - IMS_SETTINGS_WFC_CALL_PREF_NONE (0) --  None 
+      - IMS_SETTINGS_WFC_WLAN_PREFERRED (1) --  WLAN preferred mode 
+      - IMS_SETTINGS_WFC_WLAN_ONLY (2) --  WLAN only mode 
+      - IMS_SETTINGS_WFC_CELLULAR_PREFERRED (3) --  Cellular preferred mode 
+      - IMS_SETTINGS_WFC_CELLULAR_ONLY (4) --  Cellular only mode 
+ */
+
+  /* Optional */
+  /*  Wi-Fi Call Roaming Setting */
+  uint8_t wifi_call_roaming_valid;  /**< Must be set to true if wifi_call_roaming is being passed */
+  ims_settings_wfc_roaming_enum_v01 wifi_call_roaming;
+  /**<   WFC roaming mode. Values: \n
+      - IMS_SETTINGS_WFC_ROAMING_NOT_SUPPORTED (0) --  WFC roaming is not supported 
+      - IMS_SETTINGS_WFC_ROAMING_ENABLED (1) --  WFC roaming is enabled 
+      - IMS_SETTINGS_WFC_ROAMING_DISABLED (2) --  WFC roaming is disabled 
+ */
+}ims_settings_client_provisioning_config_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup imss_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates when the SIP read-only-related configuration parameters 
+             change. */
 typedef struct {
 
   /* Optional */
   /*  Timer T4 */
   uint8_t timer_t4_valid;  /**< Must be set to true if timer_t4 is being passed */
   uint32_t timer_t4;
-  /**<   Maximum duration, in milliseconds, that a message remains in the network.                                           
+  /**<   Maximum duration, in milliseconds, that a message remains in the 
+         network.
     */
 
   /* Optional */
   /*  TCP Threshold Value */
   uint8_t tcp_threshold_value_valid;  /**< Must be set to true if tcp_threshold_value is being passed */
   uint16_t tcp_threshold_value;
-  /**<   Defines the packet size limiting value, in bytes.                                                         
+  /**<   Defines the packet size limiting value, in bytes.
     */
 
   /* Optional */
   /*  Compact Form Enabled */
   uint8_t compact_form_enabled_valid;  /**< Must be set to true if compact_form_enabled is being passed */
   uint8_t compact_form_enabled;
-  /**<   Indicates whether the SIP compact form is enabled.                                                        
+  /**<   Indicates whether the SIP compact form is enabled.
     */
 
   /* Optional */
@@ -4117,7 +5643,8 @@ typedef struct {
   /*  IPSec Integrity Scheme */
   uint8_t ip_sec_int_scheme_valid;  /**< Must be set to true if ip_sec_int_scheme is being passed */
   ims_settings_integ_algo_mask_v01 ip_sec_int_scheme;
-  /**<   Bitmask indicating the integrity algorithm combination. Values: \n
+  /**<   Bitmask indicating the integrity algorithm combination. 
+ Values: \n
       - IMS_SETTINGS_INTEG_ALGO_HMAC_SHA_1_96 (0x01) --  HMAC-SHA-1-96 algorithm is used for IPSec integrity 
       - IMS_SETTINGS_INTEG_ALGO_HMAC_MD5_96 (0x02) --  HMAC-MD5-96 algorithm is used for IPSec integrity  
  */
@@ -4126,7 +5653,8 @@ typedef struct {
   /*  IPSec Encryption Algorithm */
   uint8_t ip_sec_enc_algo_valid;  /**< Must be set to true if ip_sec_enc_algo is being passed */
   ims_settings_encrypt_algo_mask_v01 ip_sec_enc_algo;
-  /**<   Bitmask indicating the IPSec encryption algorithm combination. Values: \n
+  /**<   Bitmask indicating the IPSec encryption algorithm combination. 
+ Values: \n
       - IMS_SETTINGS_ENCRYPT_ALGO_NULL (0x01) --  NULL algorithm is used for IPSec encryption 
       - IMS_SETTINGS_ENCRYPT_ALGO_AES_CBC (0x02) --  AES-CBC algorithm is used for IPSec encryption 
       - IMS_SETTINGS_ENCRYPT_ALGO_DES_EDE3_CBC (0x04) --  DES-EDE3-CBC algorithm is used for IPSec encryption  
@@ -4136,13 +5664,70 @@ typedef struct {
   /*  Chunk Size of MSRP Packet */
   uint8_t msrp_pkt_size_valid;  /**< Must be set to true if msrp_pkt_size is being passed */
   uint16_t msrp_pkt_size;
-  /**<   Indicates MSRP packet chunk size in KB(kilobytes).\n
-         Default value of 2KB is used.
+  /**<   Indicates MSRP packet chunk size in KB (kilobytes).
+         Default value: 2KB.
     */
 }ims_settings_network_read_only_config_ind_msg_v01;  /* Message */
 /**
     @}
   */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_IMS_SETTINGS_CLIENT_PROVISIONING_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_CONFIG_IND_REG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_CLIENT_PROVISIONING_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_MEDIA_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_NETWORK_READ_ONLY_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_POL_MGR_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_PRESENCE_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_PRESENCE_EXT_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_QIPCALL_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_RCS_AUTO_CONFIG_READ_ONLY_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_RCS_IMSCORE_AUTO_CONFIG_READ_ONLY_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_RCS_SM_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_REG_MGR_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_REG_MGR_EXTENDED_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_REG_MGR_READ_ONLY_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_SIP_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_SIP_READ_ONLY_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_SMS_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_SUPPORTED_FIELDS_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_SUPPORTED_MSGS_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_USER_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_USER_READ_ONLY_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_UT_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_VOIP_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_GET_VOIP_READ_ONLY_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_MEDIA_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_NETWORK_READ_ONLY_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_POL_MGR_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_PRESENCE_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_PRESENCE_EXT_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_QIPCALL_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_RCS_SM_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_REG_MGR_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_REG_MGR_EXTENDED_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_APCS_COMPLETE_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_CLIENT_PROVISIONING_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_MEDIA_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_POL_MGR_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_PRESENCE_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_PRESENCE_EXT_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_RCS_SM_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_REG_MGR_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_REG_MGR_EXTENDED_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_SIP_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_SMS_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_USER_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_UT_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SET_VOIP_CONFIG_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SIP_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SIP_READ_ONLY_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_SMS_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_USER_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_UT_CONFIG_IND_V01 
+//#define REMOVE_QMI_IMS_SETTINGS_VOIP_CONFIG_IND_V01 
 
 /*Service Message Definition*/
 /** @addtogroup imss_qmi_msg_ids
@@ -4235,6 +5820,13 @@ typedef struct {
 #define QMI_IMS_SETTINGS_GET_UT_CONFIG_REQ_V01 0x0051
 #define QMI_IMS_SETTINGS_GET_UT_CONFIG_RSP_V01 0x0051
 #define QMI_IMS_SETTINGS_UT_CONFIG_IND_V01 0x0052
+#define QMI_IMS_SETTINGS_SET_CLIENT_PROVISIONING_CONFIG_REQ_V01 0x0053
+#define QMI_IMS_SETTINGS_SET_CLIENT_PROVISIONING_CONFIG_RSP_V01 0x0053
+#define QMI_IMS_SETTINGS_GET_CLIENT_PROVISIONING_CONFIG_REQ_V01 0x0054
+#define QMI_IMS_SETTINGS_GET_CLIENT_PROVISIONING_CONFIG_RSP_V01 0x0054
+#define QMI_IMS_SETTINGS_CLIENT_PROVISIONING_CONFIG_IND_V01 0x0055
+#define QMI_IMS_SETTINGS_SET_APCS_COMPLETE_CONFIG_REQ_V01 0x0056
+#define QMI_IMS_SETTINGS_SET_APCS_COMPLETE_CONFIG_RESP_V01 0x0056
 /**
     @}
   */
@@ -4262,4 +5854,3 @@ qmi_idl_service_object_type imss_get_service_object_internal_v01
 }
 #endif
 #endif
-

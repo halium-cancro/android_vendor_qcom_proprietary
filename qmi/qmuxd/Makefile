@@ -1,62 +1,35 @@
-CC := gcc
 
-INCDIR := ../inc
-SRCDIR := ../src
-PLATDIR := ../platform
-OBJDIR := ../obj
-BINDIR := ../bin
-TARGET := qmuxd
+MODULE_NAME        := QMUXD
+MODULE_ROOT        := ../../data-noship
+MODULE_CFLAGS      := -DFEATURE_WAIT_FOR_MODEM_HACK -DQMI_DEBUG -DQMI_OFFTARGET
+MODULE_C_SOURCES   := qmi_qmux.c \
+                      qmi_util.c \
+                      linux_qmi_qmux_if_server.c \
+                      qmi_platform_qmux_io.c \
+                      qmi_platform.c \
+                      qmi_platform_config.c
 
-LDFLAGS := -Wl,-rpath,../lib/
-LDFLAGS += -Wl,-rpath,../../data/dsutils/lib
-CFLAGS += -DFEATURE_WAIT_FOR_MODEM_HACK
-CFLAGS += -DFEATURE_DATA_LOG_STDERR
+MODULE_CPP_SOURCES :=
+MODULE_HEADERS     := $(wildcard *.h)
+MODULE_LIB_LOC     := ../lib
+MODULE_LIB_TARGET  := libqmuxd.so
+MODULE_BIN_LOC     := ../bin
+MODULE_BIN_TARGET  := qmuxd
 
-LIBS += -lqmi
-LIBS += -lqmi_client_qmux
-LIBS += -ldsutils
+MODULE_LIBDEPS     += ../qmi_client_qmux
+MODULE_LIBDEPS     += ../../xmllib/src
+MODULE_LIBDEPS     += ../../data-noship/tf
+MODULE_LIBDEPS     += ../../data-noship/stubs
+MODULE_LIBDEPS     += ../../data/configdb/src
+MODULE_LIBDEPS     += ../../data/dsutils/src
+MODULE_LIBDEPS     += ../src
 
-LIBDIRS := -L../lib
-LIBDIRS += -L../../data/dsutils/lib
+MODULE_LOG_FILE    := qmuxd.log
+MODULE_PREBUILTS   := ../platform/qmi_config.xml
 
-INCPATHS := \
-	-I. \
-	-I$(INCDIR) \
-	-I$(PLATDIR) \
-	-I$(SRCDIR) \
-	-I../../common/inc \
-	-I../core/lib/inc \
+vpath %.c ../platform
+vpath %.c ../src
 
-SRCDIR_SOURCES := \
-	qmi_qmux.c \
-	qmi_util.c
+include $(MODULE_ROOT)/test.mk
 
-PLATDIR_SOURCES := \
-	linux_qmi_qmux_if_server.c \
-	qmi_platform_qmux_io.c \
-	qmi_platform.c
 
-SOURCES := PLATDIR_SOURCES \
-           SRCDIR_SOURCES
-
-PLATDIR_OBJS := $(addprefix $(OBJDIR)/, $(PLATDIR_SOURCES:.c=.o))
-SRCDIR_OBJS := $(addprefix $(OBJDIR)/, $(SRCDIR_SOURCES:.c=.o))
-OBJECTS := $(PLATDIR_OBJS) \
-           $(SRCDIR_OBJS)
-
-$(BINDIR)/$(TARGET): $(PLATDIR_OBJS) $(SRCDIR_OBJS) Makefile
-	@-mkdir -p $(BINDIR) 2> /dev/null
-	$(CC) -o $@ $(LDFLAGS) $(OBJECTS) $(LIBDIRS) $(LIBS)
-
-$(PLATDIR_OBJS): $(OBJDIR)/%.o: $(PLATDIR)/%.c
-	@-mkdir -p $(OBJDIR) 2> /dev/null
-	$(CC) -c $(CFLAGS) $(INCPATHS) -o $@ $<
-
-$(SRCDIR_OBJS): $(OBJDIR)/%.o: $(SRCDIR)/%.c
-	@-mkdir -p $(OBJDIR) 2> /dev/null
-	$(CC) -c $(CFLAGS) $(INCPATHS) -o $@ $<
-
-clean:
-	rm -f $(OBJECTS) $(BINDIR)/$(TARGET)
-
-all: $(BINDIR)/$(TARGET)

@@ -72,7 +72,7 @@ static const stm_transition_fn_t
   netmgr_sm_modem_reset_msg,    /* NETMGR_RESET_MSG_CMD */
   netmgr_sm_modem_connected,    /* NETMGR_WDS_CONNECTED_EV */
   netmgr_sm_qos_delete,    /* NETMGR_QOS_DELETE_EV */
-  NULL,    /* NETMGR_WDS_DISCONNECTED_EV */
+  netmgr_sm_modem_disconnected_in_inited,    /* NETMGR_WDS_DISCONNECTED_EV */
   NULL,    /* NETMGR_KIF_OPENED_EV */
   NULL,    /* NETMGR_KIF_CLOSED_EV */
   NULL,    /* NETMGR_KIF_CONFIGURED_EV */

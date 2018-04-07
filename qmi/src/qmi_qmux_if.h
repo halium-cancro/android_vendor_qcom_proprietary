@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2007-2013 Qualcomm Technologies, Inc. All Rights Reserved.
+** Copyright (c) 2007-2014 Qualcomm Technologies, Inc. All Rights Reserved.
 ** Qualcomm Technologies Proprietary and Confidential.
 */
 #ifndef QMI_QMUX_IF_H
@@ -130,6 +130,13 @@ typedef union
   {
     qmi_service_id_type service_id;
   } qmi_qmux_if_reg_srvc_req;
+
+  struct
+  {
+    qmi_connection_id_type conn_id;
+    int write_err_code;
+  }qmi_qmux_if_port_write_failed_ind;
+
 } qmi_qmux_if_cmd_rsp_type;
 
 typedef void (*qmi_qmux_if_rx_msg_hdlr_type)( qmi_connection_id_type  conn_id,

@@ -2,48 +2,49 @@
 #define PDC_SERVICE_01_H
 /**
   @file persistent_device_configuration_v01.h
-  
+
   @brief This is the public header file which defines the pdc service Data structures.
 
-  This header file defines the types and structures that were defined in 
+  This header file defines the types and structures that were defined in
   pdc. It contains the constant values defined, enums, structures,
-  messages, and service message IDs (in that order) Structures that were 
-  defined in the IDL as messages contain mandatory elements, optional 
-  elements, a combination of mandatory and optional elements (mandatory 
+  messages, and service message IDs (in that order) Structures that were
+  defined in the IDL as messages contain mandatory elements, optional
+  elements, a combination of mandatory and optional elements (mandatory
   always come before optionals in the structure), or nothing (null message)
-   
+
   An optional element in a message is preceded by a uint8_t value that must be
   set to true if the element is going to be included. When decoding a received
   message, the uint8_t values will be set to true or false by the decode
   routine, and should be checked before accessing the values that they
-  correspond to. 
-   
+  correspond to.
+
   Variable sized arrays are defined as static sized arrays with an unsigned
   integer (32 bit) preceding it that must be set to the number of elements
   in the array that are valid. For Example:
-   
+
   uint32_t test_opaque_len;
   uint8_t test_opaque[16];
-   
+
   If only 4 elements are added to test_opaque[] then test_opaque_len must be
   set to 4 before sending the message.  When decoding, the _len value is set 
-  by the decode routine and should be checked so that the correct number of 
-  elements in the array will be accessed. 
+  by the decode routine and should be checked so that the correct number of
+  elements in the array will be accessed.
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2013 Qualcomm Technologies, Inc.  All Rights Reserved.
-  Qualcomm Technologies Proprietary and Confidential.
+  Copyright (c) 2012-2013 Qualcomm Technologies, Inc.
+  All rights reserved.
+  Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //components/rel/qmimsgs.mpss/3.4.1/pdc/api/persistent_device_configuration_v01.h#2 $
+  $Header: //source/qcom/qct/interfaces/qmi/pdc/main/latest/api/persistent_device_configuration_v01.h#16 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
- *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
+ *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2 
-   It was generated on: Tue Jul 23 2013 (Spin 2)
+/* This file was generated with Tool version 6.13 
+   It was generated on: Wed Oct 29 2014 (Spin 0)
    From IDL File: persistent_device_configuration_v01.idl */
 
 /** @defgroup pdc_qmi_consts Constant values defined in the IDL */
@@ -63,19 +64,19 @@
 extern "C" {
 #endif
 
-/** @addtogroup pdc_qmi_version 
-    @{ 
-  */ 
+/** @addtogroup pdc_qmi_version
+    @{
+  */
 /** Major Version Number of the IDL used to generate this file */
 #define PDC_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define PDC_V01_IDL_MINOR_VERS 0x05
+#define PDC_V01_IDL_MINOR_VERS 0x08
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define PDC_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define PDC_V01_MAX_MESSAGE_ID 0x002B;
-/** 
-    @} 
+#define PDC_V01_MAX_MESSAGE_ID 0x002C
+/**
+    @}
   */
 
 
@@ -86,6 +87,7 @@ extern "C" {
 #define PDC_CONFIG_DESC_SIZE_MAX_V01 255
 #define PDC_CONFIG_LIST_SIZE_MAX_V01 25
 #define PDC_CONFIG_FRAME_SIZE_MAX_V01 32768
+#define PDC_CONFIG_PATH_SIZE_MAX_V01 255
 /**
     @}
   */
@@ -99,6 +101,34 @@ typedef enum {
   PDC_CONFIG_TYPE_MODEM_SW_V01 = 0x01, /**<  Modem software configuration type  */
   PDC_CONFIG_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }pdc_config_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup pdc_qmi_enums
+    @{
+  */
+typedef enum {
+  PDC_STORAGE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  PDC_STORAGE_LOCAL_V01 = 0x00, /**<  Local storage for the configuration  */
+  PDC_STORAGE_REMOTE_V01 = 0x01, /**<  Remote storage for the configuration  */
+  PDC_STORAGE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}pdc_storage_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup pdc_qmi_enums
+    @{
+  */
+typedef enum {
+  PDC_ACTIVATION_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  PDC_ACTIVATION_REGULAR_V01 = 0x00, /**<  Regular activation for selected configuration(s).  */
+  PDC_ACTIVATION_REFRESH_ONLY_V01 = 0x01, /**<  Refresh modem without selecting any configuration; used
+       for APPS centric configuration update. 
+   */
+  PDC_ACTIVATION_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}pdc_activation_type_enum_v01;
 /**
     @}
   */
@@ -291,6 +321,16 @@ typedef struct {
   uint32_t ind_token;
   /**<   Token used to identify the indication sent when the request is complete.
   */
+
+  /* Optional */
+  /*  Subscription ID */
+  uint8_t subscription_id_valid;  /**< Must be set to true if subscription_id is being passed */
+  uint32_t subscription_id;
+  /**<   Subscription ID from which to query selected configuration.
+
+       Note: If the value is greater than or equal to the number of subscriptions
+       device allows, the service responds with QMI_ERR_NOT_SUPPORTED 
+  */
 }pdc_get_selected_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -325,15 +365,13 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE              -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL          -- Internal error 
-       \item 0x0010 -- QMI_ERR_NOT_ PROVISIONED   -- Specified configuration was 
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE              -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL          -- Internal error \n
+       - 0x0010 -- QMI_ERR_NOT_ PROVISIONED   -- Specified configuration was 
                                                      not found
-       \vspace{-0.18in}
-       \end{itemize1}
-  */
+   */
 
   /* Optional */
   /*  Indication Token */
@@ -365,7 +403,8 @@ typedef struct {
 /** @addtogroup pdc_qmi_messages
     @{
   */
-/** Request Message; Sets an available configuration for the device. */
+/** Request Message; Sets an available configuration for the device.
+    \label{idl:setSelectConfig} */
 typedef struct {
 
   /* Mandatory */
@@ -378,6 +417,16 @@ typedef struct {
   uint32_t ind_token;
   /**<   Token used to identify the indication sent when the request is complete.
   */
+
+  /* Optional */
+  /*  Subscription ID */
+  uint8_t subscription_id_valid;  /**< Must be set to true if subscription_id is being passed */
+  uint32_t subscription_id;
+  /**<   Subscription ID to set the selected configuration.
+
+       Note: If the value is greater than or equal to the number of subscriptions the 
+       device allows, the service responds with QMI_ERR_NOT_SUPPORTED 
+  */
 }pdc_set_selected_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -386,7 +435,8 @@ typedef struct {
 /** @addtogroup pdc_qmi_messages
     @{
   */
-/** Response Message; Sets an available configuration for the device. */
+/** Response Message; Sets an available configuration for the device.
+    \label{idl:setSelectConfig} */
 typedef struct {
 
   /* Mandatory */
@@ -412,14 +462,13 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE        -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL    -- Internal error 
-       \item 0x0029 -- QMI_ERR_INVALID_ID  -- Specified argument already exists
-       \vspace{-0.18in}
-       \end{itemize1}
-  */
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE        -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL    -- Internal error \n
+       - 0x0029 -- QMI_ERR_INVALID_ID  -- Specified argument already exists 
+       
+    */
 
   /* Optional */
   /*  Indication Token */
@@ -435,7 +484,8 @@ typedef struct {
 /** @addtogroup pdc_qmi_messages
     @{
   */
-/** Request Message; Lists the configurations currently available on the device. */
+/** Request Message; Lists the configurations currently available on the device.
+    \label{idl:listConfig} */
 typedef struct {
 
   /* Optional */
@@ -464,7 +514,8 @@ typedef struct {
 /** @addtogroup pdc_qmi_messages
     @{
   */
-/** Response Message; Lists the configurations currently available on the device. */
+/** Response Message; Lists the configurations currently available on the device.
+    \label{idl:listConfig} */
 typedef struct {
 
   /* Mandatory */
@@ -490,12 +541,10 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE               -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL           -- Internal error
-       \vspace{-0.18in}
-       \end{itemize1}
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE               -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL           -- Internal error
   */
 
   /* Optional */
@@ -580,13 +629,11 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE        -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL    -- Internal error 
-       \item 0x0029 -- QMI_ERR_INVALID_ID  -- Specified argument already exists
-       \vspace{-0.18in}
-       \end{itemize1}
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE        -- Success \n 
+       - 0x0003 -- QMI_ERR_INTERNAL    -- Internal error \n
+       - 0x0029 -- QMI_ERR_INVALID_ID  -- Specified argument already exists
   */
 
   /* Optional */
@@ -616,6 +663,18 @@ typedef struct {
   uint32_t ind_token;
   /**<   Token used to identify the indication sent when the request is complete.
   */
+
+  /* Optional */
+  /*  Storage Mode */
+  uint8_t storage_valid;  /**< Must be set to true if storage is being passed */
+  pdc_storage_enum_v01 storage;
+  /**<   Storage mode. Values: \n
+      - PDC_STORAGE_LOCAL (0x00) --  Local storage for the configuration 
+      - PDC_STORAGE_REMOTE (0x01) --  Remote storage for the configuration 
+
+ Note: All other values are reserved, and the service responds with 
+ QMI_ERR_NOT_SUPPORTED.
+ */
 }pdc_load_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -658,20 +717,19 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE         -- Success 
-       \item 0x0002 -- QMI_ERR_NO_MEMORY    -- Insufficient memory to store 
-                                               the configuration 
-       \item 0x0003 -- QMI_ERR_INTERNAL     -- Internal error 
-       \item 0x0022 -- QMI_ERR_ AUTHENTICATION_FAILED -- Configuration 
-                                                         authentication failed 
-       \item 0x0029 -- QMI_ERR_INVALID_ID   -- Specified argument already 
-                                               exists 
-       \item 0x0030 -- QMI_ERR_INVALID_ARG  -- Sum of the frame data is  
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE         -- Success \n
+       - 0x0002 -- QMI_ERR_NO_MEMORY    -- Insufficient memory to store 
+                                               the configuration \n
+       - 0x0003 -- QMI_ERR_INTERNAL     -- Internal error \n
+       - 0x0022 -- QMI_ERR_ AUTHENTICATION_FAILED -- Configuration 
+                                                         authentication failed \n
+       - 0x0029 -- QMI_ERR_INVALID_ID   -- Specified argument already 
+                                               exists \n
+       - 0x0030 -- QMI_ERR_INVALID_ARG  -- Sum of the frame data is  
                                                greater than the total
-       \vspace{-0.18in}
-       \end{itemize1}
+  
   */
 
   /* Optional */
@@ -710,7 +768,8 @@ typedef struct {
 /** @addtogroup pdc_qmi_messages
     @{
   */
-/** Request Message; Activates a pending configuration for the component. */
+/** Request Message; Activates a pending configuration for the component.
+    \label{idl:activeConfig} */
 typedef struct {
 
   /* Mandatory */
@@ -730,6 +789,36 @@ typedef struct {
   uint32_t ind_token;
   /**<   Token used to identify the indication sent when the request is complete.
   */
+
+  /* Optional */
+  /*  Activation Type */
+  uint8_t activation_type_valid;  /**< Must be set to true if activation_type is being passed */
+  pdc_activation_type_enum_v01 activation_type;
+  /**<   Type of activation. Values: \n
+      - PDC_ACTIVATION_REGULAR (0x00) --  Regular activation for selected configuration(s). 
+      - PDC_ACTIVATION_REFRESH_ONLY (0x01) --  Refresh modem without selecting any configuration; used
+       for APPS centric configuration update. 
+  
+
+ Note: All other values are reserved, and the service responds with 
+ QMI_ERR_NOT_SUPPORTED.
+ */
+
+  /* Optional */
+  /*  Subscription ID */
+  uint8_t subscription_id_valid;  /**< Must be set to true if subscription_id is being passed */
+  uint32_t subscription_id;
+  /**<   Subscription ID from which to activate.
+  */
+
+  /* Optional */
+  /*  Slot ID */
+  uint8_t slot_id_valid;  /**< Must be set to true if slot_id is being passed */
+  uint32_t slot_id;
+  /**<   Slot ID associated with the Subscription ID from which to activate; the 
+       mapping of the Slot ID and Subscription ID should be consistent with the 
+       UIM session type.
+  */
 }pdc_activate_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -738,7 +827,8 @@ typedef struct {
 /** @addtogroup pdc_qmi_messages
     @{
   */
-/** Response Message; Activates a pending configuration for the component. */
+/** Response Message; Activates a pending configuration for the component.
+    \label{idl:activeConfig} */
 typedef struct {
 
   /* Mandatory */
@@ -764,14 +854,13 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE             -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL         -- Internal error 
-       \item 0x0010 -- QMI_ERR_NOT_ PROVISIONED -- Specified configuration was
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE             -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL         -- Internal error \n
+       - 0x0010 -- QMI_ERR_NOT_ PROVISIONED -- Specified configuration was
                                                    not found
-       \vspace{-0.18in}
-       \end{itemize1}
+        
   */
 
   /* Optional */
@@ -835,13 +924,14 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE        -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL    -- Internal error 
-       \item 0x0029 -- QMI_ERR_INVALID_ID  -- Specified argument already exists
-       \vspace{-0.18in}
-       \end{itemize1}
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE          -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL      -- Internal error \n
+       - 0x0029 -- QMI_ERR_INVALID_ID    -- Specified argument already exists \n
+       - 0x0052 -- QMI_ERR_ACCESS_ DENIED -- Access to the remote file path is 
+                                             denied or failed
+ 
   */
 
   /* Optional */
@@ -872,6 +962,30 @@ typedef struct {
   uint8_t config_version_valid;  /**< Must be set to true if config_version is being passed */
   uint32_t config_version;
   /**<   Version of the configuration in memory.
+  */
+
+  /* Optional */
+  /*  Storage Mode */
+  uint8_t storage_valid;  /**< Must be set to true if storage is being passed */
+  pdc_storage_enum_v01 storage;
+  /**<   Storage mode. Values: \n
+      - PDC_STORAGE_LOCAL (0x00) --  Local storage for the configuration 
+      - PDC_STORAGE_REMOTE (0x01) --  Remote storage for the configuration 
+ */
+
+  /* Optional */
+  /*  Path */
+  uint8_t path_valid;  /**< Must be set to true if path is being passed */
+  uint16_t path[PDC_CONFIG_PATH_SIZE_MAX_V01 + 1];
+  /**<   ASCII string containing the last truncated 255 characters of the 
+       configuration path on the remote.
+  */
+
+  /* Optional */
+  /*  Configuration Base Version */
+  uint8_t base_version_valid;  /**< Must be set to true if base_version is being passed */
+  uint32_t base_version;
+  /**<   Base version of the configuration in memory.
   */
 }pdc_get_config_info_ind_msg_v01;  /* Message */
 /**
@@ -937,12 +1051,11 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE               -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL           -- Internal error
-       \vspace{-0.18in}
-       \end{itemize1}
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE               -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL           -- Internal error
+  
   */
 
   /* Optional */
@@ -1029,12 +1142,11 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE               -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL           -- Internal error
-       \vspace{-0.18in}
-       \end{itemize1}
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE               -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL           -- Internal error
+  
   */
 
   /* Optional */
@@ -1094,6 +1206,16 @@ typedef struct {
   uint32_t ind_token;
   /**<   Token used to identify the indication sent when the request is complete.
   */
+
+  /* Optional */
+  /*  Subscription ID */
+  uint8_t subscription_id_valid;  /**< Must be set to true if subscription_id is being passed */
+  uint32_t subscription_id;
+  /**<   Subscription ID to deactivate configuration from
+
+       Note: If the value is greater than or equal to the number of subscriptions
+       device allows, the service responds with QMI_ERR_NOT_SUPPORTED 
+  */
 }pdc_deactivate_config_req_msg_v01;  /* Message */
 /**
     @}
@@ -1128,14 +1250,13 @@ typedef struct {
   /* Mandatory */
   /*  Indication Error Code */
   qmi_error_type_v01 error;
-  /**<   Error code. Values: 
-       \begin{itemize1}
-       \item 0x0000 -- QMI_ERR_NONE             -- Success 
-       \item 0x0003 -- QMI_ERR_INTERNAL         -- Internal error 
-       \item 0x0010 -- QMI_ERR_NOT_ PROVISIONED -- Specified configuration was
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE             -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL         -- Internal error \n
+       - 0x0010 -- QMI_ERR_NOT_ PROVISIONED -- Specified configuration was
                                                    not found
-       \vspace{-0.18in}
-       \end{itemize1}
+ 
   */
 
   /* Optional */
@@ -1148,6 +1269,159 @@ typedef struct {
 /**
     @}
   */
+
+/** @addtogroup pdc_qmi_messages
+    @{
+  */
+/** Request Message; Validates a specified configuration for the component. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Configuration Type */
+  pdc_config_type_enum_v01 config_type;
+  /**<   Type of configuration. Values: \n
+      - PDC_CONFIG_TYPE_MODEM_PLATFORM (0x00) --  Modem platform configuration type 
+      - PDC_CONFIG_TYPE_MODEM_SW (0x01) --  Modem software configuration type 
+
+ Note: All other values are reserved, and the service responds with 
+ QMI_ERR_NOT_SUPPORTED.
+ */
+
+  /* Optional */
+  /*  Indication Token */
+  uint8_t ind_token_valid;  /**< Must be set to true if ind_token is being passed */
+  uint32_t ind_token;
+  /**<   Token used to identify the indication sent when the request is complete.
+  */
+
+  /* Optional */
+  /*  Configuration ID */
+  uint8_t config_id_valid;  /**< Must be set to true if config_id is being passed */
+  uint32_t config_id_len;  /**< Must be set to # of elements in config_id */
+  uint8_t config_id[PDC_CONFIG_ID_SIZE_MAX_V01];
+  /**<   Unique ID for the configuration to be validated
+  */
+
+  /* Optional */
+  /*  Subscription ID */
+  uint8_t subscription_id_valid;  /**< Must be set to true if subscription_id is being passed */
+  uint32_t subscription_id;
+  /**<   Subscription ID to validate configuration from
+
+       Note: If the value is greater than or equal to the number of subscriptions
+       device allows, the service responds with QMI_ERR_NOT_SUPPORTED 
+  */
+
+  /* Optional */
+  /*  Path */
+  uint8_t path_valid;  /**< Must be set to true if path is being passed */
+  uint16_t path[PDC_CONFIG_PATH_SIZE_MAX_V01 + 1];
+  /**<   ASCII string containing diff file path to be stored on the remote file server.
+  */
+}pdc_validate_config_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup pdc_qmi_messages
+    @{
+  */
+/** Response Message; Validates a specified configuration for the component. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:\n
+       qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE.\n
+       qmi_error_type  -- Error code. Possible error code values are described 
+                          in the error codes section of each message 
+                          definition.
+  */
+}pdc_validate_config_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup pdc_qmi_messages
+    @{
+  */
+/** Indication Message; Indication with the validate configuration result.  */
+typedef struct {
+
+  /* Mandatory */
+  /*  Indication Error Code */
+  qmi_error_type_v01 error;
+  /**<   Error code. Values: \n
+       
+       - 0x0000 -- QMI_ERR_NONE             -- Success \n
+       - 0x0003 -- QMI_ERR_INTERNAL         -- Internal error \n
+       - 0x0010 -- QMI_ERR_NOT_ PROVISIONED -- Specified configuration was
+                                                   not found
+ 
+  */
+
+  /* Optional */
+  /*  Indication Token */
+  uint8_t ind_token_valid;  /**< Must be set to true if ind_token is being passed */
+  uint32_t ind_token;
+  /**<   Token passed in the request that generated.
+  */
+
+  /* Optional */
+  /*  Result Format */
+  uint8_t result_format_valid;  /**< Must be set to true if result_format is being passed */
+  uint32_t result_format;
+  /**<   The version of result.
+  */
+
+  /* Optional */
+  /*  Frame Index */
+  uint8_t frame_index_valid;  /**< Must be set to true if frame_index is being passed */
+  uint32_t frame_index;
+  /**<   The index of data frame starting from 0, 0xFFFFFFFF inidicates the last frame.
+  */
+
+  /* Optional */
+  /*  Result Data Frame */
+  uint8_t result_frame_valid;  /**< Must be set to true if result_frame is being passed */
+  uint32_t result_frame_len;  /**< Must be set to # of elements in result_frame */
+  uint8_t result_frame[PDC_CONFIG_FRAME_SIZE_MAX_V01];
+  /**<   Next frame of the configuration data to be stored.
+  */
+}pdc_validate_config_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_PDC_ACTIVATE_CONFIG_V01 
+//#define REMOVE_QMI_PDC_ACTIVATE_CONFIG_IND_V01 
+//#define REMOVE_QMI_PDC_CONFIG_CHANGE_IND_V01 
+//#define REMOVE_QMI_PDC_DEACTIVATE_CONFIG_V01 
+//#define REMOVE_QMI_PDC_DEACTIVATE_CONFIG_IND_V01 
+//#define REMOVE_QMI_PDC_DELETE_CONFIG_V01 
+//#define REMOVE_QMI_PDC_DELETE_CONFIG_IND_V01 
+//#define REMOVE_QMI_PDC_GET_CONFIG_INFO_V01 
+//#define REMOVE_QMI_PDC_GET_CONFIG_INFO_IND_V01 
+//#define REMOVE_QMI_PDC_GET_CONFIG_LIMITS_V01 
+//#define REMOVE_QMI_PDC_GET_CONFIG_LIMITS_IND_V01 
+//#define REMOVE_QMI_PDC_GET_DEFAULT_CONFIG_INFO_V01 
+//#define REMOVE_QMI_PDC_GET_DEFAULT_CONFIG_INFO_IND_V01 
+//#define REMOVE_QMI_PDC_GET_SELECTED_CONFIG_V01 
+//#define REMOVE_QMI_PDC_GET_SELECTED_CONFIG_IND_V01 
+//#define REMOVE_QMI_PDC_GET_SUPPORTED_FIELDS_V01 
+//#define REMOVE_QMI_PDC_GET_SUPPORTED_MSGS_V01 
+//#define REMOVE_QMI_PDC_INDICATION_REGISTER_V01 
+//#define REMOVE_QMI_PDC_LIST_CONFIGS_V01 
+//#define REMOVE_QMI_PDC_LIST_CONFIGS_IND_V01 
+//#define REMOVE_QMI_PDC_LOAD_CONFIG_V01 
+//#define REMOVE_QMI_PDC_LOAD_CONFIG_IND_V01 
+//#define REMOVE_QMI_PDC_RESET_V01 
+//#define REMOVE_QMI_PDC_SET_SELECTED_CONFIG_V01 
+//#define REMOVE_QMI_PDC_SET_SELECTED_CONFIG_IND_V01 
+//#define REMOVE_QMI_PDC_VALIDATE_CONFIG_V01 
+//#define REMOVE_QMI_PDC_VALIDATE_CONFIG_IND_V01 
 
 /*Service Message Definition*/
 /** @addtogroup pdc_qmi_msg_ids
@@ -1192,6 +1466,9 @@ typedef struct {
 #define QMI_PDC_DEACTIVATE_CONFIG_REQ_V01 0x002B
 #define QMI_PDC_DEACTIVATE_CONFIG_RESP_V01 0x002B
 #define QMI_PDC_DEACTIVATE_CONFIG_IND_V01 0x002B
+#define QMI_PDC_VALIDATE_CONFIG_REQ_V01 0x002C
+#define QMI_PDC_VALIDATE_CONFIG_RESP_V01 0x002C
+#define QMI_PDC_VALIDATE_CONFIG_IND_V01 0x002C
 /**
     @}
   */

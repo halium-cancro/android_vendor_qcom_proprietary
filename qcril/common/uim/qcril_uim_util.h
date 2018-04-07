@@ -2,7 +2,8 @@
 #define QCRIL_UIM_UTIL_H
 /*===========================================================================
 
-  Copyright (c) 2010-2012, 2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2012, 2014 Qualcomm Technologies, Inc. All Rights
+  Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -31,7 +32,10 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim_util.h#2 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
-03/25/14   yt      Added utility to check app type is provisioning
+12/01/14   hh      Support for get MCC and MNC
+06/17/14   tl      Added logic to better determine FCI value from AID
+04/18/14   tkl     Added support for RIL_REQUEST_SIM_AUTHENTICATION
+03/25/14   tl      Added utility to check app type is provisioning
 10/08/12   at      Support for ISIM Authentication API
 05/10/12   at      Added qcril_uim_find_app_in_slot function
 09/30/11   yt      Added support for ISIM Refresh
@@ -58,6 +62,30 @@ when       who     what, where, why
 #include <string.h>
 #include "qcril_uim.h"
 #include "qcril_scws.h"
+
+
+/*===========================================================================
+
+                           MACROS
+
+===========================================================================*/
+#define QCRIL_UIM_FREE_IF_NOT_NULL(x)                     \
+            if (x != NULL)                                \
+            {                                             \
+              qcril_free(x);                              \
+              x = NULL;                                   \
+            }
+
+#define QCRIL_UIM_DUPLICATE(dest_ptr, src_ptr, src_size)  \
+            dest_ptr = NULL;                              \
+            if (src_ptr != NULL && src_size > 0)          \
+            {                                             \
+              dest_ptr = qcril_malloc(src_size);          \
+              if (dest_ptr != NULL)                       \
+              {                                           \
+                memcpy(dest_ptr, src_ptr, src_size);      \
+              }                                           \
+            }
 
 
 /*===========================================================================
@@ -470,6 +498,26 @@ boolean qcril_uim_find_app_in_slot
 
 /*=========================================================================
 
+  FUNCTION:  qcril_uim_check_aid_with_app_type
+
+===========================================================================*/
+/*!
+    @brief
+    Determines if the given AID belongs to ISIM/USIM/CSIM app type
+
+    @return
+    boolean
+*/
+/*=========================================================================*/
+boolean qcril_uim_check_aid_with_app_type
+(
+  const qmi_uim_data_type * aid_ptr,
+  qmi_uim_app_type          app_type
+);
+
+
+/*=========================================================================
+
   FUNCTION:  qcril_uim_alloc_base64string_to_bin
 
 ===========================================================================*/
@@ -549,5 +597,47 @@ boolean qcril_uim_is_prov_app_activated
   uint8              aid_len,
   char             * aid_ptr
 );
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_determine_select_template_from_aid
+
+===========================================================================*/
+/*!
+    @brief
+    Function will attempt to determine the FCI values bases on the
+    AID/FCI data pairs sent through the UI. If this information is
+    not present or incorrect, then we will check hardcoded AID values
+    to try and find a match.
+
+    @return
+    qcril_uim_fci_value_type
+*/
+/*=========================================================================*/
+qcril_uim_fci_value_type qcril_uim_determine_select_template_from_aid
+(
+  const char                      * aid_ptr
+);
+
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_convert_fci_value
+
+===========================================================================*/
+/*!
+    @brief
+    Function converts QCRIL FCI value type to QMI FCI value type
+
+    @return
+    qmi_uim_fci_value_type
+*/
+/*=========================================================================*/
+qmi_uim_fci_value_type qcril_uim_convert_fci_value
+(
+  qcril_uim_fci_value_type  qcril_fci_value
+);
+
 #endif /* QCRIL_UIM_UTIL_H */
 

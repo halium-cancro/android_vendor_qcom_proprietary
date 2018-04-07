@@ -1,7 +1,7 @@
 /*!
   @file
   qcril_data.c
- 
+
   @brief
   Handles RIL requests for DATA services.
 
@@ -9,7 +9,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2009 - 2011 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2009 - 2011,2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -46,14 +46,14 @@ when       who     what, where, why
 05/14/09   pg      Changed NULL APN handling in data call setup.
                    Mainlined FEATURE_MULTIMODE_ANDROID.
 04/05/09   fc      Cleanup log macros.
-03/10/09   pg      Fixed multi-mode data call. 
-12/29/08   fc      Fixed wrong size issue being reported for the response 
+03/10/09   pg      Fixed multi-mode data call.
+12/29/08   fc      Fixed wrong size issue being reported for the response
                    payload of RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE.
 12/23/08   asn     code reorg and IP addr fix
 12/23/08   asn     Added handling on MO call-end, IP addr issue, APN trunc issue
-12/15/08   asn     Fixed call teardown and improved stability 
+12/15/08   asn     Fixed call teardown and improved stability
 12/08/08   pg      Added multi-mode data call hook up.
-11/18/08   fc      Changes to avoid APN string being truncated. 
+11/18/08   fc      Changes to avoid APN string being truncated.
 11/14/08   sm      Added temp CDMA data support.
 08/29/08   asn     Added data support
 08/08/08   asn     Initial version
@@ -146,30 +146,30 @@ typedef struct
 
   qcril_modem_id_e_type    modem_id;
 
-  RIL_Token                   pend_tok;     
+  RIL_Token                   pend_tok;
 
   int                         pend_req;
 
-  
+
   dsi_hndl_t                  dsi_hndl;
-  
+
   /* flag to indicate whether dev_name and call_index is valid */
   unsigned char               info_flg;
 
   dsi_call_info_t             call_info;
-  
+
   void                        *self;
 
 } qcril_data_call_info_tbl_type;
 
 static qcril_data_call_info_tbl_type info_tbl[ MAX_CONCURRENT_UMTS_DATA_CALLS ];
 
-/* 
-  This is used to store last call end reason for responding 
+/*
+  This is used to store last call end reason for responding
   to RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE. Meant for Single PDP only.
   Functionality fails for multiple PDP using QCRIL.
 */
-static int last_call_end_reason = CALL_FAIL_ERROR_UNSPECIFIED; 
+static int last_call_end_reason = CALL_FAIL_ERROR_UNSPECIFIED;
 
 typedef struct
 {
@@ -273,7 +273,7 @@ pthread_mutex_t qcril_data_global_mutex;
 static qcril_data_dormancy_ind_switch_type global_dorm_ind;
 
 #define VALIDATE_LOCAL_DATA_OBJ( ptr ) \
-    ( ( (ptr) != NULL ) &&  ( (ptr)->self == (void *)(ptr) ) ) 
+    ( ( (ptr) != NULL ) &&  ( (ptr)->self == (void *)(ptr) ) )
 
 #define IPCONV( ip_addr , t ) ( ( ip_addr >> (24 - 8 * t)) & 0xFF)
 
@@ -289,8 +289,8 @@ static void qcril_data_response_success
 (
   qcril_instance_id_e_type instance_id,
   RIL_Token t,
-  int request, 
-  void *response, 
+  int request,
+  void *response,
   size_t response_len
 );
 
@@ -298,30 +298,30 @@ static void qcril_data_response_generic_failure
 (
   qcril_instance_id_e_type instance_id,
   RIL_Token t,
-  int request 
+  int request
 );
 
 static int qcril_data_get_call_info
 (
   const qcril_data_call_info_tbl_type *const info_tbl_ptr,
-  dsi_call_info_t                     *const call_info_ptr 
+  dsi_call_info_t                     *const call_info_ptr
 );
 
 static void qcril_data_unsol_call_list_changed
 (
   qcril_instance_id_e_type instance_id,
-  void                        *response, 
+  void                        *response,
   size_t                      response_len
 );
 
 static int qcril_data_util_conv_ip_addr
-( 
+(
   const dsi_param_info_t  *const info,
   dsi_param_info_t        *const ip_addr_info /* output param */
 );
 
 static void qcril_data_util_buffer_dump
-( 
+(
   const dsi_param_info_t  *const info
 );
 
@@ -331,8 +331,8 @@ static void qcril_data_cleanup_call_state
 );
 
 static int qcril_data_util_is_req_pending
-( 
-  const qcril_data_call_info_tbl_type *, 
+(
+  const qcril_data_call_info_tbl_type *,
   unsigned int *
 );
 
@@ -357,14 +357,14 @@ static void qcril_data_util_update_call_state
 #endif /*((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))*/
 
 static void qcril_data_util_create_setup_rsp
-( 
+(
   qcril_data_call_info_tbl_type *,
-  qcril_data_call_response_type * 
+  qcril_data_call_response_type *
 );
 
-                                                
+
 #define QCRIL_MAX_DEV_NAME_SIZE             6 /*Length here is 6 as dev names are assumed to be rmnet[0,1,2]*/
-#define QCRIL_DATA_MAX_DEVS                 3 
+#define QCRIL_DATA_MAX_DEVS                 3
 
 typedef char  qcril_data_go_dormant_params_type[QCRIL_MAX_DEV_NAME_SIZE];
 
@@ -393,16 +393,16 @@ void qcril_data_process_qcrilhook_go_dormant
     @brief
     Called on network events from Data Services (DSI). This routine calls
     qcril_process_event to let QCRIL call the appropriate event/cmd handler
-    for event/cmd. 
+    for event/cmd.
     Note: do not assume the context in which handler will be called
 
-    
+
     @return
     None.
 */
 /*=========================================================================*/
-void qcril_data_net_cb( 
-  dsi_hndl_t     dsi_hndl, 
+void qcril_data_net_cb(
+  dsi_hndl_t     dsi_hndl,
   void          *user_data,
   dsi_net_evt_t  net_evt
 )
@@ -410,22 +410,22 @@ void qcril_data_net_cb(
   qcril_reqlist_public_type      reqlist_info;
   qcril_data_event_data_t       *evt;
   qcril_data_call_info_tbl_type *info_tbl_ptr;
-  
+
   QCRIL_LOG_DEBUG("%s", "qcril_data_net_cb: ENTRY");
 
   /* Input Validation, user data was pointer to info_tbl*/
   info_tbl_ptr = ( qcril_data_call_info_tbl_type *) user_data;
-  if ( ( !VALIDATE_LOCAL_DATA_OBJ( info_tbl_ptr ) ) || 
-       ( dsi_hndl != info_tbl_ptr->dsi_hndl ) ) 
+  if ( ( !VALIDATE_LOCAL_DATA_OBJ( info_tbl_ptr ) ) ||
+       ( dsi_hndl != info_tbl_ptr->dsi_hndl ) )
   {
-    QCRIL_LOG_ERROR( "invalid arg, user_data [%#x], dsi_hndl [%#x], cb_data->dsi_hndl [%#x]", 
-                     (unsigned int)user_data, (unsigned int)dsi_hndl, 
+    QCRIL_LOG_ERROR( "invalid arg, user_data [%#x], dsi_hndl [%#x], cb_data->dsi_hndl [%#x]",
+                     (unsigned int)user_data, (unsigned int)dsi_hndl,
                      (unsigned int)info_tbl_ptr->dsi_hndl );
     goto err_bad_input;
   }
   QCRIL_DS_LOG_DBG_MEM( "info_tbl", info_tbl_ptr );
-  QCRIL_LOG_DEBUG( "dsi net evt [%d], info_tbl index [%d], pend RIL Token [%d]", 
-                   net_evt, info_tbl_ptr->index, 
+  QCRIL_LOG_DEBUG( "dsi net evt [%d], info_tbl index [%d], pend RIL Token [%d]",
+                   net_evt, info_tbl_ptr->index,
                    qcril_log_get_token_id( info_tbl_ptr->pend_tok ) );
 
   /* Allocate from heap here and clean-up on call end */
@@ -444,10 +444,10 @@ void qcril_data_net_cb(
   evt->data_len = sizeof( qcril_data_call_info_tbl_type );
   evt->self     = evt;
 
-  /* 
+  /*
     Call QCRIL API to process this event
     The data event hdlr will be called by RIL thread
-    In case of unsol event RIL Token will be 0 
+    In case of unsol event RIL Token will be 0
   */
   QCRIL_LOG_VERBOSE( "queue QCRIL DATA event for RIL Token [%d]",
                      qcril_log_get_token_id( info_tbl_ptr->pend_tok ) );
@@ -458,7 +458,7 @@ void qcril_data_net_cb(
                      QCRIL_EVT_DATA_EVENT_CALLBACK,
                      ( void * )evt,
                      sizeof( qcril_data_event_data_t ),
-                     info_tbl_ptr->pend_tok ); 
+                     info_tbl_ptr->pend_tok );
 
   QCRIL_LOG_DEBUG("%s","qcril_data_net_cb: EXIT with suc");
   return;
@@ -538,7 +538,7 @@ void qcril_data_init()
 /*=========================================================================*/
 void qcril_data_command_hdlr(
   const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr 
+  qcril_request_return_type *const ret_ptr
 )
 {
   QCRIL_LOG_DEBUG( "%s", "qcril_data_command_hdlr: ENTRY" );
@@ -560,8 +560,8 @@ void qcril_data_command_hdlr(
 ===========================================================================*/
 /*!
     @brief
-    Registered with QCRIL to be called by QCRIL on event 
-    QCRIL_EVT_DATA_EVENT_CALLBACK 
+    Registered with QCRIL to be called by QCRIL on event
+    QCRIL_EVT_DATA_EVENT_CALLBACK
 
     @return
     None.
@@ -579,10 +579,10 @@ void qcril_data_event_hdlr
   qcril_data_call_response_type  response;
   qcril_data_event_data_t       *evt_info_ptr;
   unsigned int                   radio_tech = RADIO_TECH_UNKNOWN;
-  char *dummy_rsp[3] = { "0", "rmnet0", "0.0.0.0" };  
+  char *dummy_rsp[3] = { "0", "rmnet0", "0.0.0.0" };
   unsigned int                   pend_req  = DS_RIL_REQ_INVALID;
   errno_enum_type                qcril_ret = E_FAILURE;
-  int                            tmp_end_reason = CALL_FAIL_ERROR_UNSPECIFIED; 
+  int                            tmp_end_reason = CALL_FAIL_ERROR_UNSPECIFIED;
 
   /*-----------------------------------------------------------------------*/
 
@@ -597,14 +597,14 @@ void qcril_data_event_hdlr
   /* Input Validation */
   QCRIL_DS_ASSERT( params_ptr != NULL, "validate input params_ptr" );
   QCRIL_DS_ASSERT( ret_ptr    != NULL, "validate input params_ptr" );
-  if ( ( params_ptr == NULL ) || ( ret_ptr == NULL ) ) 
+  if ( ( params_ptr == NULL ) || ( ret_ptr == NULL ) )
   {
     goto err_label_exit;
   }
 
   memset( &reqlist_info, 0, sizeof( qcril_reqlist_public_type ) );
   memset( &response,     0, sizeof( qcril_data_call_response_type ) );
-  
+
   evt_info_ptr = ( qcril_data_event_data_t * )params_ptr->data;
   QCRIL_DS_LOG_DBG_MEM( "event obj", evt_info_ptr );
   if ( !VALIDATE_LOCAL_DATA_OBJ( evt_info_ptr ) )
@@ -631,19 +631,19 @@ void qcril_data_event_hdlr
     QCRIL_DS_ASSERT( params_ptr->t == info_tbl_ptr->pend_tok, "validate pend RIL Token consistency" );
     if ( ( qcril_ret = qcril_reqlist_query( instance_id, params_ptr->t, &reqlist_info ) ) != E_SUCCESS )
     {
-      QCRIL_LOG_ERROR( "unable to find reqlist entry, RIL Token [%d]", 
+      QCRIL_LOG_ERROR( "unable to find reqlist entry, RIL Token [%d]",
                        qcril_log_get_token_id( params_ptr->t ) );
       goto err_label;
     }
 
-    QCRIL_LOG_DEBUG( "Req list entry found for RIL Token [%d]", 
+    QCRIL_LOG_DEBUG( "Req list entry found for RIL Token [%d]",
                      qcril_log_get_token_id( params_ptr->t ) );
 
-    /* Validate xtracted local info tbl pointer for a pending RIL Token from reqlist Node */ 
-    if ( qcril_ret == E_SUCCESS ) 
+    /* Validate xtracted local info tbl pointer for a pending RIL Token from reqlist Node */
+    if ( qcril_ret == E_SUCCESS )
     {
-      QCRIL_DS_ASSERT( ( info_tbl_ptr == 
-                     ( qcril_data_call_info_tbl_type * )reqlist_info.sub.ds.info ), 
+      QCRIL_DS_ASSERT( ( info_tbl_ptr ==
+                     ( qcril_data_call_info_tbl_type * )reqlist_info.sub.ds.info ),
                  "validate info_tbl ref" );
     }
     QCRIL_DS_LOG_DBG_MEM( "info_tbl", info_tbl_ptr );
@@ -651,7 +651,7 @@ void qcril_data_event_hdlr
   }
   else /* RIL REQ not pending */
   {
-    QCRIL_LOG_INFO( "%s", "RIL REQ NOT pend" ); 
+    QCRIL_LOG_INFO( "%s", "RIL REQ NOT pend" );
     QCRIL_DS_ASSERT( params_ptr->t == NULL, "validate null RIL Token" );
   }
 
@@ -660,13 +660,13 @@ void qcril_data_event_hdlr
     case DSI_EVT_NET_IS_CONN:
       QCRIL_LOG_INFO( ">>>DSI_EVT_NET_IS_CONN: START>>> cid [%d], index [%d]",
                       info_tbl_ptr->cid, info_tbl_ptr->index );
-      /* 
+      /*
         Check pending RIL SETUP REQ
         NET_IS_CONN event is not expected if a SETUP REQ is not pending
       */
       if ( pend_req != RIL_REQUEST_SETUP_DATA_CALL )
       {
-        QCRIL_LOG_DEBUG( "call setup NOT pending, RIL token [%d], pend req [%d]", 
+        QCRIL_LOG_DEBUG( "call setup NOT pending, RIL token [%d], pend req [%d]",
                          qcril_log_get_token_id( info_tbl_ptr->pend_tok ), info_tbl_ptr->pend_req );
         /* Hard assert here, todo: explore recovery */
         QCRIL_DS_ASSERT_H( 0, "pend req SETUP validation failed" );
@@ -681,7 +681,7 @@ void qcril_data_event_hdlr
       /* Update state of local tbl */
       info_tbl_ptr->pend_tok   = NULL;
       info_tbl_ptr->pend_req   = DS_RIL_REQ_INVALID;  /* is there a RIL_REQUEST_INVALID */
-  
+
       /* Enable dormancy indications if necessary */
       if (DORMANCY_INDICATIONS_ON == global_dorm_ind)
       {
@@ -698,7 +698,7 @@ void qcril_data_event_hdlr
 #endif
       dsi_req_get_data_bearer_tech(info_tbl_ptr->dsi_hndl, &radio_tech);
 
-      /* dss API exposes the similar data bearer tech enum 
+      /* dss API exposes the similar data bearer tech enum
        * as RIL, hence doing a type conversion here
        */
       //call_tbl [ info_tbl_ptr->index ].radioTech = (RIL_RadioTechnology) radio_tech;
@@ -715,10 +715,10 @@ void qcril_data_event_hdlr
 #endif
 
       /* Post RIL Response */
-      qcril_data_response_success( instance_id, params_ptr->t,  
-                                   RIL_REQUEST_SETUP_DATA_CALL, 
-                                   (void *) ( &(response.setup_rsp) ), 
-                                   sizeof response.setup_rsp ); 
+      qcril_data_response_success( instance_id, params_ptr->t,
+                                   RIL_REQUEST_SETUP_DATA_CALL,
+                                   (void *) ( &(response.setup_rsp) ),
+                                   sizeof response.setup_rsp );
       QCRIL_LOG_DEBUG( "%s", "<<<RIL RSP SENT<<<" );
 
       QCRIL_LOG_INFO( "%s", "<<<DSI_EVT_NET_IS_CONN: DONE<<<" );
@@ -736,14 +736,14 @@ void qcril_data_event_hdlr
           break;
 
         default:
-          QCRIL_LOG_DEBUG( "RIL REQ NOT pending, Token ID [%d]", 
+          QCRIL_LOG_DEBUG( "RIL REQ NOT pending, Token ID [%d]",
                            qcril_log_get_token_id( params_ptr->t ) );
           QCRIL_DS_ASSERT( info_tbl_ptr->pend_req == DS_RIL_REQ_INVALID, "validate pend_req" );
           QCRIL_DS_ASSERT( info_tbl_ptr->pend_tok == NULL, "validate pend_tok" );
       }
 
       /* Verify call params and mark call as inactive */
-      QCRIL_DS_ASSERT( call_tbl [ info_tbl_ptr->index ].cid == info_tbl_ptr->cid, 
+      QCRIL_DS_ASSERT( call_tbl [ info_tbl_ptr->index ].cid == info_tbl_ptr->cid,
                        "validate call_tbl.cid" );
 
       /* Get call fail reason or use default reason */
@@ -763,21 +763,21 @@ void qcril_data_event_hdlr
       qcril_data_cleanup_call_state( info_tbl_ptr );
 
       /* Post RIL RSP Success */
-      if ( pend_req == RIL_REQUEST_SETUP_DATA_CALL ) 
+      if ( pend_req == RIL_REQUEST_SETUP_DATA_CALL )
       {
         qcril_data_response_generic_failure( instance_id,
-                                             params_ptr->t,  
+                                             params_ptr->t,
                                              pend_req );
       }
       else
-      if ( pend_req == RIL_REQUEST_DEACTIVATE_DATA_CALL ) 
+      if ( pend_req == RIL_REQUEST_DEACTIVATE_DATA_CALL )
       {
         qcril_data_response_success( instance_id,
-                                     params_ptr->t,  
+                                     params_ptr->t,
                                      pend_req,
-                                     NULL, 
-                                     0 ); 
-      }    
+                                     NULL,
+                                     0 );
+      }
       else
       {
         /* NO_NET event from LL, postpone cleanup, send ind to RIL */
@@ -785,9 +785,9 @@ void qcril_data_event_hdlr
       }
 
       /* Update state of local tbl LAST
-       * this is to indicate that the pending request is NOW 
+       * this is to indicate that the pending request is NOW
        * fully processed (info_tbl entry is clean)
-       */ 
+       */
       QCRIL_DATA_MUTEX_LOCK(&info_tbl_mutex);
       info_tbl_ptr->pend_tok   = NULL;
       info_tbl_ptr->pend_req   = DS_RIL_REQ_INVALID;  /* is there a RIL_REQUEST_INVALID */
@@ -855,7 +855,7 @@ ret:
   return;
 
 err_label:
-  QCRIL_DS_ASSERT( evt_info_ptr != NULL, "validate event obj" ); 
+  QCRIL_DS_ASSERT( evt_info_ptr != NULL, "validate event obj" );
   QCRIL_LOG_INFO( "%s", "try event obj dealloc" );
   if ( evt_info_ptr != NULL ) free( evt_info_ptr );
 
@@ -888,7 +888,7 @@ err_label_exit:
 */
 /*=========================================================================*/
 void qcril_data_request_setup_data_call
-( 
+(
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
@@ -903,7 +903,7 @@ void qcril_data_request_setup_data_call
   const char                     *ril_apn;
   const char                     *ril_user;
   const char                     *ril_pass;
-  const char                     *ril_auth_pref = NULL; 
+  const char                     *ril_auth_pref = NULL;
   const char                     *ril_tech = NULL;
   const char                     *ril_profile = NULL;
   const char                     *ril_ip_family = NULL;
@@ -911,16 +911,16 @@ void qcril_data_request_setup_data_call
   qcril_data_net_cb_info_t       *trn;
   int                            profile_param_id = 0;
   qcril_reqlist_u_type           u_info;
-  qcril_reqlist_public_type      reqlist_entry; 
+  qcril_reqlist_public_type      reqlist_entry;
 
   QCRIL_DATA_MUTEX_LOCK(&qcril_data_global_mutex);
 
   /*-----------------------------------------------------------------------*/
-  if ((params_ptr == NULL) || (ret_ptr == NULL) || 
+  if ((params_ptr == NULL) || (ret_ptr == NULL) ||
       ((params_ptr->datalen % 4 ) != 0))
   {
     QCRIL_LOG_ERROR( " Bad Input params_ptr [%#x], ret_ptr [%#x], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr, 
+                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
                      params_ptr->datalen );
     goto err_bad_input;
   }
@@ -958,13 +958,13 @@ void qcril_data_request_setup_data_call
     goto err_bad_input;
   }
 
-  if ( (ril_user != NULL) && (ril_pass != NULL) ) 
+  if ( (ril_user != NULL) && (ril_pass != NULL) )
   {
-    QCRIL_LOG_DEBUG( "RIL provided USERNAME len [%d], PASSWORD len [%d]", 
+    QCRIL_LOG_DEBUG( "RIL provided USERNAME len [%d], PASSWORD len [%d]",
                       strlen( ril_user), strlen( ril_pass ) );
   }
 
-  if ( ril_apn != NULL ) 
+  if ( ril_apn != NULL )
   {
     /* APN len calculations */
     apn_len = MINIMUM( strlen( ril_apn ), DS_CALL_INFO_APN_MAX_LEN );
@@ -978,9 +978,9 @@ void qcril_data_request_setup_data_call
     QCRIL_LOG_DEBUG( "%s", "RIL APN is NULL, Use NULL string." );
   }
 
-  if (!ril_auth_pref) 
+  if (!ril_auth_pref)
   {
-    QCRIL_LOG_DEBUG("%s","No Authentication Preference provided."); 
+    QCRIL_LOG_DEBUG("%s","No Authentication Preference provided.");
   }
   else
   {
@@ -1016,7 +1016,7 @@ void qcril_data_request_setup_data_call
   info_tbl[i].self                = &info_tbl[i];
 
   if ( ( info_tbl[i].dsi_hndl = dsi_get_data_srvc_hndl( qcril_data_net_cb,
-                                                        ( void *) &info_tbl[i] ) ) == NULL ) 
+                                                        ( void *) &info_tbl[i] ) ) == NULL )
   {
     QCRIL_LOG_ERROR( "%s", "unable to get dsi hndl" );
     goto err_label;
@@ -1078,11 +1078,11 @@ void qcril_data_request_setup_data_call
   }
 
   /* Setup buffer */
-  if (ril_apn != NULL) 
+  if (ril_apn != NULL)
   {
     apn_info.buf = (void *)ril_apn;
     apn_info.len = strlen( ril_apn );
-    QCRIL_LOG_VERBOSE( "RIL provided APN len [%d], APN string [%s]", 
+    QCRIL_LOG_VERBOSE( "RIL provided APN len [%d], APN string [%s]",
                        apn_info.len, (char *) apn_info.buf );
   }
   else
@@ -1100,7 +1100,7 @@ void qcril_data_request_setup_data_call
     goto err_label;
   }
 
-  if (ril_user != NULL) 
+  if (ril_user != NULL)
   {
     username_info.buf = (void *)ril_user;
     username_info.len = strlen( ril_user );
@@ -1113,7 +1113,7 @@ void qcril_data_request_setup_data_call
       goto err_label;
     }
   }
-  if (ril_pass != NULL) 
+  if (ril_pass != NULL)
   {
     password_info.buf = (void *)ril_pass;
     password_info.len = strlen( ril_pass );
@@ -1144,13 +1144,13 @@ void qcril_data_request_setup_data_call
 
   /* Insert local info tbl ref in reqlist */
   u_info.ds.info = (void *) &info_tbl[i];
-  qcril_reqlist_default_entry( params_ptr->t, 
-                               params_ptr->event_id, 
-                               modem_id, 
-                               QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS, 
-                               QCRIL_EVT_DATA_EVENT_CALLBACK, 
-                               &u_info, 
-                               &reqlist_entry ); 
+  qcril_reqlist_default_entry( params_ptr->t,
+                               params_ptr->event_id,
+                               modem_id,
+                               QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS,
+                               QCRIL_EVT_DATA_EVENT_CALLBACK,
+                               &u_info,
+                               &reqlist_entry );
   if ( qcril_reqlist_new( instance_id, &reqlist_entry ) != E_SUCCESS )
   {
     /* Fail to insert entry to ReqList */
@@ -1210,7 +1210,7 @@ err_bad_input:
 */
 /*=========================================================================*/
 void qcril_data_request_deactivate_data_call
-( 
+(
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
@@ -1251,7 +1251,7 @@ void qcril_data_request_deactivate_data_call
 
   cid    = strtol( cid_ptr, NULL, 10 );
 
-  QCRIL_LOG_DEBUG( "RIL says CID [%d], len [%d]", 
+  QCRIL_LOG_DEBUG( "RIL says CID [%d], len [%d]",
                    cid, params_ptr->datalen );
 
   QCRIL_DS_ASSERT( params_ptr->datalen == sizeof cid, "validate CID len" );
@@ -1264,7 +1264,7 @@ void qcril_data_request_deactivate_data_call
     {
       QCRIL_LOG_DEBUG("found matching CID [%d], index [%d]", cid, i);
       break;
-    }    
+    }
   }/* for() */
 
   if ( i == MAX_CONCURRENT_UMTS_DATA_CALLS )
@@ -1277,13 +1277,13 @@ void qcril_data_request_deactivate_data_call
   if ( qcril_data_util_is_req_pending( &info_tbl[i], &pend_req ) )
   {
     QCRIL_LOG_INFO( "UNEXPECTED RIL REQ pend [%s], cid [%d], index [%d]",
-                    qcril_log_lookup_event_name( pend_req ), 
+                    qcril_log_lookup_event_name( pend_req ),
                     info_tbl[i].cid, info_tbl[i].index );
     /* if deactivate request is already pending, ignore another one */
     if (pend_req == RIL_REQUEST_DEACTIVATE_DATA_CALL)
     {
         QCRIL_LOG_INFO("RIL_REQUEST_DEACTIVATE_DATA_CALL already pending, "
-                       "cid [%d], index [%d]", 
+                       "cid [%d], index [%d]",
                        info_tbl[i].cid, info_tbl[i].index);
     }
     goto err_label;
@@ -1300,13 +1300,13 @@ void qcril_data_request_deactivate_data_call
   /* Insert local info tbl ref in reqlist */
   u_info.ds.info = ( void *) &info_tbl[i];
 
-  qcril_reqlist_default_entry( params_ptr->t, 
-                               RIL_REQUEST_DEACTIVATE_DATA_CALL, 
-                               modem_id, 
-                               QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS, 
-                               QCRIL_EVT_DATA_EVENT_CALLBACK, 
-                               &u_info, 
-                               &reqlist_entry ); 
+  qcril_reqlist_default_entry( params_ptr->t,
+                               RIL_REQUEST_DEACTIVATE_DATA_CALL,
+                               modem_id,
+                               QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS,
+                               QCRIL_EVT_DATA_EVENT_CALLBACK,
+                               &u_info,
+                               &reqlist_entry );
 
   if ( qcril_reqlist_new( instance_id, &reqlist_entry ) != E_SUCCESS )
   {
@@ -1328,8 +1328,8 @@ void qcril_data_request_deactivate_data_call
   return;
 
 err_label:
-  qcril_data_response_generic_failure( instance_id, 
-                                       params_ptr->t, 
+  qcril_data_response_generic_failure( instance_id,
+                                       params_ptr->t,
                                        RIL_REQUEST_DEACTIVATE_DATA_CALL);
   QCRIL_LOG_DEBUG("%s", "respond to QCRIL as generic failure");
 
@@ -1349,13 +1349,13 @@ err_bad_input:
 /*!
     @brief
     Handles RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE.
-    This function calls 
+    This function calls
     @return
     None.
 */
 /*=========================================================================*/
 void qcril_data_request_last_data_call_fail_cause
-( 
+(
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
@@ -1386,15 +1386,15 @@ void qcril_data_request_last_data_call_fail_cause
   response.cause_code = last_call_end_reason;
   response.size = sizeof( response.cause_code );
 
-  QCRIL_LOG_VERBOSE( "send cause code [%u], size [%d] ", 
+  QCRIL_LOG_VERBOSE( "send cause code [%u], size [%d] ",
                      response.cause_code, response.size );
 
-  qcril_data_response_success( instance_id, 
-                               params_ptr->t,  
-                               RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE, 
-                               (void *) &(response.cause_code), 
-                               response.size ); 
-  
+  qcril_data_response_success( instance_id,
+                               params_ptr->t,
+                               RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE,
+                               (void *) &(response.cause_code),
+                               response.size );
+
   QCRIL_DATA_MUTEX_UNLOCK(&qcril_data_global_mutex);
   QCRIL_LOG_DEBUG("%s", "qcril_data_request_last_data_call_fail_cause: EXIT with suc");
   return;
@@ -1425,7 +1425,7 @@ err_bad_input:
 */
 /*=========================================================================*/
 void qcril_data_request_data_call_list
-( 
+(
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
@@ -1433,7 +1433,7 @@ void qcril_data_request_data_call_list
   qcril_instance_id_e_type    instance_id;
   qcril_data_call_response_type response;
   int i = 0;
-  
+
   QCRIL_DATA_MUTEX_LOCK(&qcril_data_global_mutex);
 
   /*-----------------------------------------------------------------------*/
@@ -1469,10 +1469,10 @@ void qcril_data_request_data_call_list
   QCRIL_DATA_MUTEX_LOCK(&call_tbl_mutex);
 
   qcril_data_response_success( instance_id,
-                               params_ptr->t,  
-                               RIL_REQUEST_DATA_CALL_LIST, 
-                               (void *) call_tbl, 
-                               response.size ); 
+                               params_ptr->t,
+                               RIL_REQUEST_DATA_CALL_LIST,
+                               (void *) call_tbl,
+                               response.size );
 
   /* unlock call_tbl now */
   QCRIL_DATA_MUTEX_UNLOCK(&call_tbl_mutex);
@@ -1499,10 +1499,10 @@ err_bad_input:
     @brief
     Handles RIL_REQUEST_GET_DATA_CALL_PROFILE.
     Currently empty stub as it's only required for certain target that
-    should be using the definition from qcril_data_netctrl.c instead. If 
+    should be using the definition from qcril_data_netctrl.c instead. If
     upper layers behave, this function from qcril_data.c should never be
     called.
- 
+
     @return
 */
 /*=========================================================================*/
@@ -1529,14 +1529,24 @@ void qcril_data_request_omh_profile_info
   (void) qcril_reqlist_free (params_ptr->instance_id,
                              params_ptr->t);
   /* Send not supported as the response to the RIL command */
-  qcril_default_request_resp_params( params_ptr->instance_id, 
-                                     params_ptr->t, 
+  qcril_default_request_resp_params( params_ptr->instance_id,
+                                     params_ptr->t,
                                      RIL_REQUEST_GET_DATA_CALL_PROFILE,
-                                     RIL_E_REQUEST_NOT_SUPPORTED, 
+                                     RIL_E_REQUEST_NOT_SUPPORTED,
                                      &resp );
   qcril_send_request_response( &resp );
   QCRIL_LOG_DEBUG("%s","qcril_data_request_omh_profile_info: EXIT");
 }
+
+void qcril_data_request_set_data_profile
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr /*!< Output parameter */
+)
+{
+  QCRIL_LOG_DEBUG("%s","qcril_data_request_set_data_profile: UNSUPPORTED");
+}
+
 
 /*-------------------------------------------------------------------------
 
@@ -1561,15 +1571,15 @@ static void qcril_data_response_generic_failure
 (
   qcril_instance_id_e_type instance_id,
   RIL_Token t,
-  int request 
+  int request
 )
 {
   qcril_request_resp_params_type resp;
 
   /*-----------------------------------------------------------------------*/
-  
+
   QCRIL_LOG_ERROR( "%s", "qcril_data_response_generic_failure" );
-  
+
   /* Remove the entry from ReqList */
   (void) qcril_reqlist_free( instance_id, t );
 
@@ -1596,8 +1606,8 @@ static void qcril_data_response_success
 (
   qcril_instance_id_e_type instance_id,
   RIL_Token t,
-  int request, 
-  void *response, 
+  int request,
+  void *response,
   size_t response_len
 )
 {
@@ -1609,7 +1619,7 @@ static void qcril_data_response_success
 
   /* Successfully remove the entry from ReqList */
   (void) qcril_reqlist_free( instance_id, t );
-   
+
   /* Send SUCCESS as the response to the RIL command */
   qcril_default_request_resp_params( instance_id, t, request, RIL_E_SUCCESS, &resp );
   resp.resp_pkt = response;
@@ -1634,7 +1644,7 @@ static void qcril_data_response_success
 static void qcril_data_unsol_call_list_changed
 (
   qcril_instance_id_e_type instance_id,
-  void                        *response, 
+  void                        *response,
   size_t                      response_len
 )
 {
@@ -1681,14 +1691,14 @@ static void qcril_data_cleanup_call_state
     goto err_label;
   }
 
-  QCRIL_LOG_DEBUG( "clean up local info tbl, index [%d], cid [%d]", 
+  QCRIL_LOG_DEBUG( "clean up local info tbl, index [%d], cid [%d]",
                       info_tbl_ptr->index, info_tbl_ptr->cid );
 
   info_tbl_ptr->cid      = CALL_ID_INVALID;
   memset( &info_tbl_ptr->call_info, 0, sizeof info_tbl_ptr->call_info );
   info_tbl_ptr->dsi_hndl = NULL;
   info_tbl_ptr->pend_tok = NULL;
-  info_tbl_ptr->pend_req = DS_RIL_REQ_INVALID;  
+  info_tbl_ptr->pend_req = DS_RIL_REQ_INVALID;
   info_tbl_ptr->self     = NULL;
 
   /* update the corresponding entry in the call tbl as well */
@@ -1716,7 +1726,7 @@ err_label:
     This routine populates:
     Call Type   :  IPv4, IPv6 etc
     APN:          Access Point Name
-    IP Address  : 
+    IP Address  :
     Device Name :
 
     @return
@@ -1727,7 +1737,7 @@ err_label:
 static int qcril_data_get_call_info
 (
   const qcril_data_call_info_tbl_type *const  info_tbl_ptr,
-  dsi_call_info_t                     *const  call_info_ptr 
+  dsi_call_info_t                     *const  call_info_ptr
 )
 {
   dsi_param_info_t           call_type_info, ip_addr_info, info;
@@ -1735,12 +1745,12 @@ static int qcril_data_get_call_info
   memset( &info, 0, sizeof( dsi_param_info_t ) );
   memset( &ip_addr_info,   0, sizeof( dsi_param_info_t ) );
 
-  QCRIL_LOG_DEBUG( "%s", "qcril_data_get_call_info: ENTRY" ); 
+  QCRIL_LOG_DEBUG( "%s", "qcril_data_get_call_info: ENTRY" );
 
   QCRIL_LOG_DEBUG( "dsi_hndl [%d]", (unsigned int)info_tbl_ptr->dsi_hndl );
 
   /* Get call type */
-  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl, 
+  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl,
                                   DATA_CALL_INFO_CALL_TYPE,
                                  &info ) ) != DSI_SUCCESS )
   {
@@ -1750,11 +1760,11 @@ static int qcril_data_get_call_info
   }
 
   qcril_data_util_buffer_dump( &info );
-    
+
   /* Check type len */
   if ( info.len > DS_CALL_INFO_TYPE_MAX_LEN )
   {
-    QCRIL_LOG_ERROR( "type too long, len [%d], restricting to [%d]", 
+    QCRIL_LOG_ERROR( "type too long, len [%d], restricting to [%d]",
                      info.len, DS_CALL_INFO_TYPE_MAX_LEN );
     info.len = DS_CALL_INFO_TYPE_MAX_LEN;
   }
@@ -1765,7 +1775,7 @@ static int qcril_data_get_call_info
   /*----------------------------------------------------------------------------
     Get APN
   ----------------------------------------------------------------------------*/
-  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl, 
+  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl,
                                   DATA_CALL_INFO_APN_NAME,
                                  &info ) ) != DSI_SUCCESS )
   {
@@ -1776,7 +1786,7 @@ static int qcril_data_get_call_info
   /* Check APN len */
   if ( info.len > DS_CALL_INFO_APN_MAX_LEN )
   {
-    QCRIL_LOG_ERROR( "APN too long, len [%d], restricting to [%d]", 
+    QCRIL_LOG_ERROR( "APN too long, len [%d], restricting to [%d]",
                      info.len, DS_CALL_INFO_APN_MAX_LEN );
     info.len = DS_CALL_INFO_TYPE_MAX_LEN;
   }
@@ -1789,7 +1799,7 @@ static int qcril_data_get_call_info
   /*----------------------------------------------------------------------------
     Get address
   ----------------------------------------------------------------------------*/
-  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl, 
+  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl,
                                   DATA_CALL_INFO_IP_ADDR,
                                  &info ) ) != DSI_SUCCESS )
   {
@@ -1800,7 +1810,7 @@ static int qcril_data_get_call_info
   /* Check IP address len */
   if ( info.len > DS_CALL_INFO_IP_ADDR_MAX_LEN )
   {
-    QCRIL_LOG_ERROR( "IP addr too long, len [%d], restrict to [%d]", 
+    QCRIL_LOG_ERROR( "IP addr too long, len [%d], restrict to [%d]",
                      info.len, DS_CALL_INFO_IP_ADDR_MAX_LEN );
     info.len = DS_CALL_INFO_TYPE_MAX_LEN;
   }
@@ -1810,11 +1820,11 @@ static int qcril_data_get_call_info
   /* Get IP address as a string */
   if ( qcril_data_util_conv_ip_addr( &info, &ip_addr_info ) != SUCCESS )
   {
-    QCRIL_LOG_ERROR( "ip addr conv err, ip addr [%d]", 
+    QCRIL_LOG_ERROR( "ip addr conv err, ip addr [%d]",
                         *(( char *)info.buf) );
     goto err_label;
   }
-  
+
   strncpy( call_info_ptr->address, ip_addr_info.buf, ip_addr_info.len );
   call_info_ptr->address[ ip_addr_info.len ] = '\0';
 
@@ -1824,7 +1834,7 @@ static int qcril_data_get_call_info
   /*---------------------------------------------------------
     Get device name
   ---------------------------------------------------------*/
-  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl, 
+  if ( ( dsi_get_data_call_param( info_tbl_ptr->dsi_hndl,
                                   DATA_CALL_INFO_DEVICE_NAME,
                                  &info ) ) != DSI_SUCCESS )
   {
@@ -1838,7 +1848,7 @@ static int qcril_data_get_call_info
     QCRIL_LOG_ERROR( "dev_name too long, len [%d]", info.len );
     goto err_label;
   }
-  
+
   strncpy( call_info_ptr->dev_name, info.buf, info.len );
   call_info_ptr->dev_name[ info.len ] = '\0';
 
@@ -1853,14 +1863,14 @@ err_label:
 
 }/* qcril_data_get_call_info() */
 
-static int qcril_data_util_conv_ip_addr( 
+static int qcril_data_util_conv_ip_addr(
   const dsi_param_info_t  *const info,
   dsi_param_info_t        *const ip_addr_info /* output param */
 )
 {
   char *ip_addr = "0.0.0.0\0";
 
-  QCRIL_LOG_DEBUG( "%s", "qcril_data_util_conv_ip_addr: ENTRY" ); 
+  QCRIL_LOG_DEBUG( "%s", "qcril_data_util_conv_ip_addr: ENTRY" );
 
   QCRIL_DS_ASSERT( info->len == sizeof( long int ), "validate IPv4 addr len" );
 
@@ -1886,13 +1896,13 @@ static int qcril_data_util_conv_ip_addr(
 */
 /*=========================================================================*/
 static void qcril_data_util_buffer_dump(
-  const dsi_param_info_t    *const info 
+  const dsi_param_info_t    *const info
 )
 {
   unsigned int i = 0;
   const dsi_param_info_t * tmp = (dsi_param_info_t *) info;
- 
-  if ( tmp == NULL ) 
+
+  if ( tmp == NULL )
   {
     QCRIL_LOG_ERROR( "%s", "cannot dump null ptr" );
     goto err_label;
@@ -1902,7 +1912,7 @@ static void qcril_data_util_buffer_dump(
 
   for( i = 0; i < tmp->len; i++ )
   {
-    if ( isalpha( ( (char *)tmp->buf )[ i ]) ) 
+    if ( isalpha( ( (char *)tmp->buf )[ i ]) )
     {
       QCRIL_LOG_DEBUG( "buffer[%d] = %c", i, ((char *)tmp->buf)[ i ] );
     }
@@ -1931,7 +1941,7 @@ err_label:
 */
 /*=========================================================================*/
 static int qcril_data_util_is_req_pending
-( 
+(
   const qcril_data_call_info_tbl_type *info_tbl_ptr,
   unsigned int *pend_req
 )
@@ -1946,19 +1956,19 @@ static int qcril_data_util_is_req_pending
     goto err_label;
   }
 
-  if ( ( info_tbl_ptr->pend_tok == NULL ) && 
+  if ( ( info_tbl_ptr->pend_tok == NULL ) &&
        ( info_tbl_ptr->pend_req == DS_RIL_REQ_INVALID ) )
   {
     *pend_req = DS_RIL_REQ_INVALID;
     goto err_label;
   }
-  else if ( ( info_tbl_ptr->pend_tok != NULL ) && 
-            ( info_tbl_ptr->pend_req != DS_RIL_REQ_INVALID ) ) 
+  else if ( ( info_tbl_ptr->pend_tok != NULL ) &&
+            ( info_tbl_ptr->pend_req != DS_RIL_REQ_INVALID ) )
   {
     *pend_req = info_tbl_ptr->pend_req;
     ret = TRUE;
-  } 
-  else 
+  }
+  else
   {
     QCRIL_DATA_MUTEX_UNLOCK(&info_tbl_mutex);
     QCRIL_DS_ASSERT_H( 0, "bad state, pend_tok and pend_req out of sync" );
@@ -2015,7 +2025,7 @@ static void qcril_data_util_fill_call_params
   else
   {
     /* Copy according to presentation layer  */
-    memcpy( info_tbl_ptr->call_info.type, param_info.buf, 
+    memcpy( info_tbl_ptr->call_info.type, param_info.buf,
             param_info.len );
     info_tbl_ptr->call_info.type[ param_info.len ] = '\0';
 
@@ -2191,14 +2201,14 @@ static void qcril_data_util_create_setup_rsp
 
 #else /*((RIL_QCOM_VERSION >= 1) || (RIL_VERSION >= 6))*/
 static void qcril_data_util_update_call_state
-( 
+(
   qcril_data_call_info_tbl_type *info_tbl_ptr,
   int call_state
 )
 {
   QCRIL_DS_ASSERT( ( info_tbl_ptr->index < MAX_CONCURRENT_UMTS_DATA_CALLS ),
                    "validate info_tbl index value range" );
-   
+
   /* lock call_tbl while updating */
   QCRIL_DATA_MUTEX_LOCK(&call_tbl_mutex);
 
@@ -2213,9 +2223,9 @@ static void qcril_data_util_update_call_state
 }/* qcril_data_util_update_call_state()*/
 
 static void qcril_data_util_create_setup_rsp
-( 
+(
   qcril_data_call_info_tbl_type *info_tbl_ptr,
-  qcril_data_call_response_type *rsp_ptr 
+  qcril_data_call_response_type *rsp_ptr
 )
 {
   rsp_ptr->setup_rsp.cid      = info_tbl_ptr->call_info.cid;
@@ -2234,11 +2244,11 @@ static void qcril_data_util_create_setup_rsp
 /*!
     @brief
 
-    Handles RIL_REQUEST_OEM_HOOK_RAW - QCRIL_EVT_HOOK_DATA_GO_DORMANT. 
+    Handles RIL_REQUEST_OEM_HOOK_RAW - QCRIL_EVT_HOOK_DATA_GO_DORMANT.
     The input to this handler can be a name of an interface, in which
     case this routine will issue dormancy command on the specified interface.
     If no input is provided, Dormancy is issued on all Active interfaces.
-    The request is considered to be successful on receipt of PHSYLINK_DOWN 
+    The request is considered to be successful on receipt of PHSYLINK_DOWN
     indication from DSS.
 
     @return
@@ -2262,7 +2272,7 @@ void qcril_data_process_qcrilhook_go_dormant
   int rmnet_physlink_down[QCRIL_DATA_MAX_DEVS] = {FALSE,FALSE,FALSE};
   int rmnet_phsylink_status_arr_index;
   dsi_iface_ioctl_type   ioctl = DSI_IFACE_IOCTL_GO_DORMANT;
-  
+
   QCRIL_DATA_MUTEX_LOCK(&qcril_data_global_mutex);
   /*-----------------------------------------------------------------------*/
   if ((params_ptr == NULL) || (ret_ptr == NULL))
@@ -2281,21 +2291,21 @@ void qcril_data_process_qcrilhook_go_dormant
 
   /*-----------------------------------------------------------------------*/
 
-  QCRIL_LOG_DEBUG( "%s","Entered: qcril_data_process_qcrilhook_go_dormant" );   
-  QCRIL_LOG_DEBUG( " request = %d", params_ptr->event_id );   
-  QCRIL_LOG_DEBUG( " Data Length = %d", params_ptr->datalen );   
-  QCRIL_LOG_DEBUG( " token = %d", params_ptr->t );   
+  QCRIL_LOG_DEBUG( "%s","Entered: qcril_data_process_qcrilhook_go_dormant" );
+  QCRIL_LOG_DEBUG( " request = %d", params_ptr->event_id );
+  QCRIL_LOG_DEBUG( " Data Length = %d", params_ptr->datalen );
+  QCRIL_LOG_DEBUG( " token = %d", params_ptr->t );
 
   if (params_ptr->datalen == 0)
-  { 
+  {
     /*Issue Go Dormant on all active interfaces*/
-    QCRIL_LOG_DEBUG( "%s","RIL provided NULL dev name will issue Dormancy on all active interfaces"); 
+    QCRIL_LOG_DEBUG( "%s","RIL provided NULL dev name will issue Dormancy on all active interfaces");
 
     for( i = 0; i < MAX_CONCURRENT_UMTS_DATA_CALLS; i++ )
     {
       QCRIL_LOG_DEBUG( "on Index = %d, call_tbl[ info_tbl[i].index ].active = %d ",i,call_tbl[ info_tbl[i].index ].active);
 
-      if(VALIDATE_LOCAL_DATA_OBJ(&info_tbl[i]) && 
+      if(VALIDATE_LOCAL_DATA_OBJ(&info_tbl[i]) &&
          (call_tbl[ info_tbl[i].index ].active  != CALL_INACTIVE) &&
          rmnet_physlink_down[GET_DEV_INSTANCE_FROM_NAME(i)] == FALSE)
       {
@@ -2305,7 +2315,7 @@ void qcril_data_process_qcrilhook_go_dormant
           QCRIL_LOG_ERROR( "%s","Request to issue Dormancy failed.");
           goto err_label;
         }
-        rmnet_physlink_down[GET_DEV_INSTANCE_FROM_NAME(i)] = TRUE; 
+        rmnet_physlink_down[GET_DEV_INSTANCE_FROM_NAME(i)] = TRUE;
       }
     }/* for() */
   }
@@ -2325,9 +2335,9 @@ void qcril_data_process_qcrilhook_go_dormant
     for( i = 0; i < MAX_CONCURRENT_UMTS_DATA_CALLS; i++ )
     {
       /*search info table for the specified interface*/
-      if (VALIDATE_LOCAL_DATA_OBJ((&info_tbl[i])) && 
+      if (VALIDATE_LOCAL_DATA_OBJ((&info_tbl[i])) &&
           (call_tbl[ info_tbl[i].index ].active  != CALL_INACTIVE) &&
-          (!strncmp(info_tbl[i].call_info.dev_name,dev_name,QCRIL_MAX_DEV_NAME_SIZE)) && 
+          (!strncmp(info_tbl[i].call_info.dev_name,dev_name,QCRIL_MAX_DEV_NAME_SIZE)) &&
           rmnet_physlink_down[rmnet_phsylink_status_arr_index] == FALSE)
       {
         if ((ret_val = dsi_iface_ioctl(info_tbl[i].dsi_hndl, ioctl)) == DSI_ERROR)
@@ -2344,16 +2354,16 @@ void qcril_data_process_qcrilhook_go_dormant
     QCRIL_LOG_ERROR( "%s","qcril_data_process_qcrilhook_go_dormant: Bad input received");
     goto err_label;
   }
-  
+
   QCRIL_LOG_INFO( "%s","qcril_data_process_qcrilhook_go_dormant: EXIT with SUCCESS");
 
   qcril_data_response_success( instance_id,
-                               params_ptr->t,  
-                               params_ptr->event_id, 
-                               NULL, 0 ); 
+                               params_ptr->t,
+                               params_ptr->event_id,
+                               NULL, 0 );
   QCRIL_DATA_MUTEX_UNLOCK(&qcril_data_global_mutex);
   return;
-  
+
 err_label:
   qcril_data_response_generic_failure( instance_id,
                                        params_ptr->t,
@@ -2372,17 +2382,17 @@ err_bad_input:
 /*!
     @brief
 
-    Handles request to turn ON/OFF dormancy indications. Typically called to 
-    turn off indications when in power save mode  and turn back on when out 
+    Handles request to turn ON/OFF dormancy indications. Typically called to
+    turn off indications when in power save mode  and turn back on when out
     of power save mode.
 
     @return QCRIL_DS_SUCCESS on success and QCRIL_DS_ERROR on failure.
 */
 /*=========================================================================*/
 
-int 
+int
 qcril_data_toggle_dormancy_indications
-( 
+(
   qcril_data_dormancy_ind_switch_type       dorm_ind_switch
 )
 {
@@ -2399,21 +2409,21 @@ qcril_data_toggle_dormancy_indications
   {
     ioctl = DSI_IFACE_IOCTL_DORMANCY_INDICATIONS_ON;
   }
-  else 
+  else
   {
     QCRIL_LOG_ERROR( "%s","Bad input received.");
     goto err_label;
   }
 
-  QCRIL_LOG_DEBUG( "%s","Switch ON/OFF dormancy indications on all active interfaces"); 
+  QCRIL_LOG_DEBUG( "%s","Switch ON/OFF dormancy indications on all active interfaces");
 
   /* save the dormancy indication switch */
   global_dorm_ind = dorm_ind_switch;
 
   for( i = 0; i < MAX_CONCURRENT_UMTS_DATA_CALLS; i++ )
   {
-    if(VALIDATE_LOCAL_DATA_OBJ(&info_tbl[i]) && 
-       (call_tbl[ info_tbl[i].index ].active  != CALL_INACTIVE) && 
+    if(VALIDATE_LOCAL_DATA_OBJ(&info_tbl[i]) &&
+       (call_tbl[ info_tbl[i].index ].active  != CALL_INACTIVE) &&
        rmnet_physlink_toggled[GET_DEV_INSTANCE_FROM_NAME(i)] == FALSE)
     {
       QCRIL_LOG_DEBUG( "selected index = %d",i);
@@ -2423,8 +2433,8 @@ qcril_data_toggle_dormancy_indications
         ret_val = QCRIL_DS_ERROR;
         goto err_label;
       }
-      rmnet_physlink_toggled[GET_DEV_INSTANCE_FROM_NAME(i)] = TRUE; 
-    } 
+      rmnet_physlink_toggled[GET_DEV_INSTANCE_FROM_NAME(i)] = TRUE;
+    }
   }/* for() */
 
   QCRIL_LOG_INFO( "%s","qcril_data_toggle_dormancy_indications: EXIT with SUCCESS");

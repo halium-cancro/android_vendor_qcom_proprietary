@@ -30,7 +30,7 @@ libnetmgr_c_sources = netmgr_client.c \
         netmgr_netlink.c \
         netmgr_util.c
 
-requiredlibs = -lpthread
+#requiredlibs = -lpthread
 
 library_includedir = $(pkgincludedir)
 
@@ -39,10 +39,12 @@ libnetmgr_la_CC = @CC@
 libnetmgr_la_SOURCES = $(libnetmgr_c_sources)
 if USE_GLIB
 libnetmgr_la_CFLAGS  = -DUSE_GLIB $(AM_CFLAGS) @GLIB_CFLAGS@
-libnetmgr_la_LDFLAGS  = $(DSUTILS_LIBS) -lpthread @GLIB_LIBS@
+#libnetmgr_la_LDFLAGS  = $(DSUTILS_LIBS) -lpthread @GLIB_LIBS@
+libnetmgr_la_LDFLAGS  = $(DSUTILS_LIBS) @GLIB_LIBS@
 else
 libnetmgr_la_CFLAGS = $(AM_CFLAGS) -fPIC
-libnetmgr_la_LDFLAGS = -lpthread $(DSUTILS_LIBS)
+#libnetmgr_la_LDFLAGS = -lpthread $(DSUTILS_LIBS)
+libnetmgr_la_LDFLAGS = $(DSUTILS_LIBS)
 endif
 libnetmgr_la_CPPFLAGS = $(AM_CPPFLAGS)
 libnetmgr_la_LIBADD = $(requiredlibs)
@@ -67,7 +69,8 @@ netmgrd_CC = @CC@
 netmgrd_SOURCES = $(netmgrd_sources) $(netmgrd_h_sources)
 if USE_GLIB
 netmgrd_CFLAGS = -DUSE_GLIB $(AM_CFLAGS) @GLIB_CFLAGS@
-netmgrd_LDFLAGS = $(DIAG_LIBS) $(DSUTILS_LIBS) -lqmi -lpthread @GLIB_LIBS@
+#netmgrd_LDFLAGS = $(DIAG_LIBS) $(DSUTILS_LIBS) -lqmi -lpthread @GLIB_LIBS@
+netmgrd_LDFLAGS = $(DIAG_LIBS) $(DSUTILS_LIBS) -lqmi @GLIB_LIBS@
 else
 netmgrd_CFLAGS = $(AM_CFLAGS) -fPIC
 netmgrd_LDFLAGS = $(DIAG_LIBS) $(DSUTILS_LIBS) -lqmi

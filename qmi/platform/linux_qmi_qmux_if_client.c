@@ -9,7 +9,7 @@
   None
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2009-2012 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2009-2012,2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -30,6 +30,8 @@
 #include "qmi_qmux_if.h"
 
 #define LINUX_QMI_MAX_CONNECT_TRIES (60)
+#define LINUX_QMI_MAX_RETRIES       (5)
+#define LINUX_QMI_RETRY_DELAY       (10000)  /* 10 ms */
 
 #define READ_PIPE_FD_INDEX 0
 #define WRITE_PIPE_FD_INDEX 1
@@ -78,9 +80,16 @@ static linux_qmi_qmux_if_conn_sock_info_t linux_qmi_qmux_if_client_conn_socks[] 
   { "bluetooth",  QMI_QMUX_IF_BLUETOOTH_CLIENT_SOCKET_PATH, QMI_QMUX_IF_BLUETOOTH_CONN_SOCKET_PATH },
 
   /* GPS Group Client Process */
-  { "gps",        QMI_QMUX_IF_GPS_CLIENT_SOCKET_PATH,       QMI_QMUX_IF_GPS_CONN_SOCKET_PATH }
+  { "gps",        QMI_QMUX_IF_GPS_CLIENT_SOCKET_PATH,       QMI_QMUX_IF_GPS_CONN_SOCKET_PATH },
+
+  /* NFC Group Client Process */
+  { "nfc",        QMI_QMUX_IF_NFC_CLIENT_SOCKET_PATH,       QMI_QMUX_IF_NFC_CONN_SOCKET_PATH },
 #endif
 };
+
+#ifdef FEATURE_QMI_ANDROID
+int qmi_log_adb_level;
+#endif
 
 /* Forward function declarations */
 
@@ -123,7 +132,8 @@ linux_qmi_qmux_if_client_get_proc_name
 {
   char proc_entry[50];
   char tmp_proc_name[50];
-  int fd, nread;
+  int fd;
+  ssize_t nread;
   int rc = QMI_INTERNAL_ERR;
   char *ptr = NULL;
 
@@ -164,7 +174,7 @@ linux_qmi_qmux_if_client_get_proc_name
   if (NULL == (ptr = strrchr(tmp_proc_name, '/')))
   {
 #ifdef FEATURE_QMI_ANDROID
-    strlcpy(proc_name, tmp_proc_name, proc_name_size);
+    strlcpy(proc_name, tmp_proc_name, (size_t)proc_name_size);
 #else
     strncpy(proc_name, tmp_proc_name, proc_name_size-1);
     proc_name[proc_name_size-1] = '\0';
@@ -173,7 +183,7 @@ linux_qmi_qmux_if_client_get_proc_name
   else
   {
 #ifdef FEATURE_QMI_ANDROID
-    strlcpy(proc_name, ptr+1, proc_name_size);
+    strlcpy(proc_name, ptr+1, (size_t)proc_name_size);
 #else
     strncpy(proc_name, ptr+1, proc_name_size-1);
     proc_name[proc_name_size-1] = '\0';
@@ -236,7 +246,7 @@ linux_qmi_qmux_if_client_get_proc_group_name
                   grp->gr_name);
 
 #ifdef FEATURE_QMI_ANDROID
-    strlcpy(grp_name, grp->gr_name, grp_name_size);
+    strlcpy(grp_name, grp->gr_name, (size_t)grp_name_size);
 #else
     strncpy(grp_name, grp->gr_name, grp_name_size-1);
     grp_name[grp_name_size-1] = '\0';
@@ -308,7 +318,7 @@ linux_qmi_qmux_if_client_get_socket_paths
 
   /* Allocate memory for storing the supplementary gids + effective gid */
   ++num_grps;
-  gids = malloc(sizeof(gid_t) * num_grps);
+  gids = malloc(sizeof(gid_t) * (size_t)num_grps);
 
   if (!gids)
   {
@@ -349,8 +359,8 @@ linux_qmi_qmux_if_client_get_socket_paths
     /* Match the process' supplementary group with our table */
     for (j = 0; j < (int)LINUX_QMI_QMUX_IF_NUM_CLIENT_CONN_SOCK_ENTRIES; ++j)
     {
-      int len_conn_sock_grp_name = strlen(linux_qmi_qmux_if_client_conn_socks[j].grp_name);
-      int len_grp_name = strlen(name);
+      size_t len_conn_sock_grp_name = strlen(linux_qmi_qmux_if_client_conn_socks[j].grp_name);
+      size_t len_grp_name = strlen(name);
 
       if (0 == strncmp(linux_qmi_qmux_if_client_conn_socks[j].grp_name,
                        name,
@@ -364,7 +374,10 @@ linux_qmi_qmux_if_client_get_socket_paths
   }
 
 bail:
-  free(gids);
+  if (NULL != gids)
+  {
+    free(gids);
+  }
 #endif
   return QMI_NO_ERR;
 }
@@ -489,7 +502,7 @@ bail:
 ===========================================================================*/
 /*!
 @brief
-  Reset the QMUXD connection and send a Modem Out of Service followed by a 
+  Reset the QMUXD connection and send a Modem Out of Service followed by a
   Modem In Service system indication to the QMI QMUX IF layer
 
 @return
@@ -518,6 +531,12 @@ linux_qmi_qmux_if_reset
   int rc = QMI_INTERNAL_ERR;
   int ret;
 
+  union
+  {
+    unsigned char *uchar_ptr;
+    qmi_qmux_if_msg_hdr_type *if_hdr_ptr;
+  } tmp;
+
   if (!client_data || !master_fd_set || !max_fd)
   {
     QMI_ERR_MSG_0("linux_qmi_qmux_if_send_reset_msg: invalid parameters\n");
@@ -544,8 +563,10 @@ linux_qmi_qmux_if_reset
 
   memset(buf, 0, sizeof(buf));
 
+  tmp.uchar_ptr = buf;
+
   /* Send an Out of Service message */
-  hdr = (qmi_qmux_if_msg_hdr_type *)buf;
+  hdr = tmp.if_hdr_ptr;
 
   /* Set hdr values */
   hdr->msg_id = QMI_QMUX_IF_MODEM_OUT_OF_SERVICE_MSG_ID;
@@ -592,6 +613,7 @@ linux_qmi_qmux_if_rx_msg
 {
   ssize_t buf_size;
   int zero_bytes_count = 0;
+  int ret = 0;
   linux_qmi_qmux_if_platform_hdr_type   platform_msg_hdr;
   linux_qmi_qmux_if_client_data_t  *client_data = (linux_qmi_qmux_if_client_data_t *) param;
   int                              client_fd;
@@ -624,14 +646,25 @@ linux_qmi_qmux_if_rx_msg
   {
     select_fd_set = master_fd_set;
 
-    if (select (max_fd + 1, &select_fd_set, NULL, NULL, NULL) < 0)
+    if ((ret = select (max_fd + 1, &select_fd_set, NULL, NULL, NULL)) < 0)
     {
       QMI_ERR_MSG_4 ("qmi_client [%d] %x: select errno[%d:%s]\n",
                      linux_qmi_qmux_pid,
                      qmux_client_id,
                      errno,
                      strerror(errno));
-      return (void*)-1;
+
+      if (-1 == ret && EINTR == errno)
+      {
+        continue;
+      }
+      else
+      {
+        QMI_ERR_MSG_2 ("qmi_client [%d] %x: RX thread exiting\n",
+                       linux_qmi_qmux_pid,
+                       qmux_client_id);
+        return (void*)-1;
+      }
     }
 
     /* Locate the correponding client data */
@@ -683,7 +716,7 @@ linux_qmi_qmux_if_rx_msg
     if (buf_size == 0)
     {
       /* Limit number of debugging messages regarding 0 length buffers to 5 before we surpress them */
-      if (zero_bytes_count < 5)
+      if (zero_bytes_count < LINUX_QMI_MAX_RETRIES)
       {
         QMI_DEBUG_MSG_4 ("qmi_client [%d] %x: received %d bytes on fd = %d\n",
                          linux_qmi_qmux_pid,
@@ -691,6 +724,7 @@ linux_qmi_qmux_if_rx_msg
                          (int)buf_size,
                          client->qmux_client_fd);
         zero_bytes_count++;
+        usleep(LINUX_QMI_RETRY_DELAY);
       }
       else
       {
@@ -707,7 +741,7 @@ linux_qmi_qmux_if_rx_msg
     else
     {
       /* If we surpressed the 0 length debug messages reset the surpressions */
-      if (zero_bytes_count >= 5)
+      if (zero_bytes_count >= LINUX_QMI_MAX_RETRIES)
       {
         QMI_DEBUG_MSG_3 ("qmi_client [%d] %x: Resetting zero_bytes_count message surpression for fd = %d\n",
                          linux_qmi_qmux_pid,
@@ -762,7 +796,7 @@ linux_qmi_qmux_if_rx_msg
             }
             else
             {
-              remaining_bytes -= buf_size;
+              remaining_bytes -= (size_t)buf_size;
             }
           }
         }
@@ -790,7 +824,7 @@ linux_qmi_qmux_if_rx_msg
           else
           {
             /* Process message */
-            qmi_qmux_if_rx_msg (client->rx_buf,remaining_bytes);
+            qmi_qmux_if_rx_msg (client->rx_buf,(int)remaining_bytes);
           }
         }
       }
@@ -822,8 +856,8 @@ static int linux_qmi_qmux_if_client_get_client_id
                                        QMI_QMUX_CLIENT_ID_SIZE,
                                        0))
   {
-    QMI_ERR_MSG_1 ("linux_qmi_qmux_if_client_get_client_id [%d]: recv failed",
-                   linux_qmi_qmux_pid);
+    QMI_ERR_MSG_3 ("linux_qmi_qmux_if_client_get_client_id [%d]: recv failed. [%d:%s]",
+                   linux_qmi_qmux_pid, errno, strerror(errno));
     goto bail;
   }
 
@@ -845,7 +879,7 @@ bail:
 
 @param
   None
- 
+
 @note
 
   - Side Effects
@@ -861,7 +895,9 @@ linux_qmi_qmux_if_connect(void)
   const char *bind_sock_path = NULL;
   const char *conn_sock_path = NULL;
   int  ret_fd = LINUX_QMI_INVALID_FD;
-  int len, rc, i;
+  int  rc, i;
+  socklen_t len;
+  qmi_platform_sockaddr_type tmp;
 
   /* Initialize the addr variables */
   memset (&server_addr,0,sizeof (struct sockaddr_un));
@@ -897,14 +933,17 @@ linux_qmi_qmux_if_connect(void)
             bind_sock_path,
             linux_qmi_qmux_pid);
 
-  len = offsetof (struct sockaddr_un, sun_path) + strlen (client_addr.sun_path);
+  len = (socklen_t)(offsetof (struct sockaddr_un, sun_path) + strlen (client_addr.sun_path));
 
 
   /* Delete file in case it exists */
   unlink (client_addr.sun_path);
 
+
+  tmp.sunaddr = &client_addr;
+
   /* Bind socket to address */
-  if ((rc = bind (client_fd, (struct sockaddr *)&client_addr, len)) < 0)
+  if ((rc = bind (client_fd, tmp.saddr, sizeof(struct sockaddr_un))) < 0)
   {
     QMI_ERR_MSG_4 ("qmi_client [%d]: unable to bind to client socket, rc = %d errno[%d:%s]\n",
                    linux_qmi_qmux_pid,
@@ -931,12 +970,14 @@ linux_qmi_qmux_if_connect(void)
             "%s",
             conn_sock_path);
 
-  len = offsetof (struct sockaddr_un, sun_path) + strlen (server_addr.sun_path);
+  len = (socklen_t)(offsetof (struct sockaddr_un, sun_path) + strlen (server_addr.sun_path));
+
+  tmp.sunaddr = &server_addr;
 
   /* Connect to the server's connection socket */
   for (i = 0; i < LINUX_QMI_MAX_CONNECT_TRIES; i++)
   {
-    if ((rc = connect (client_fd, (struct sockaddr *) &server_addr, len)) < 0)
+    if ((rc = connect (client_fd, tmp.saddr, len)) < 0)
     {
       QMI_ERR_MSG_4 ("qmi_client [%d]: unable to connect to server, errno=[%d:%s], attempt=%d\n",
                      linux_qmi_qmux_pid,
@@ -1007,6 +1048,20 @@ int linux_qmi_qmux_if_client_init
       QMI_ERR_MSG_0 ("Failed on DIAG init\n");
     }
     diag_inited = TRUE;
+  }
+#endif
+
+#ifdef FEATURE_QMI_ANDROID
+  /* If property is not set, we will log only ERROR messages */
+  qmi_log_adb_level = QMI_LOG_ADB_LEVEL_ERROR;
+  char property[PROPERTY_VALUE_MAX];
+  if (property_get(QMI_LOG_ADB_PROP, property, NULL) > 0)
+  {
+    qmi_log_adb_level = atoi(property);
+  }
+  if ((qmi_log_adb_level < QMI_LOG_ADB_LEVEL_NONE) || (qmi_log_adb_level > QMI_LOG_ADB_LEVEL_ALL))
+  {
+    qmi_log_adb_level = QMI_LOG_ADB_LEVEL_ERROR;
   }
 #endif
 
@@ -1123,7 +1178,8 @@ int linux_qmi_qmux_if_client_tx_msg
 )
 {
   linux_qmi_qmux_if_platform_hdr_type *p;
-  int  rc, ret = QMI_INTERNAL_ERR;
+  int  ret = QMI_INTERNAL_ERR;
+  ssize_t rc;
   linux_qmi_qmux_if_client_data_t  *client = NULL, *prev = NULL;
   int  client_fd = LINUX_QMI_INVALID_FD;
 
@@ -1150,7 +1206,7 @@ int linux_qmi_qmux_if_client_tx_msg
   }
 
   msg -= QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE;
-  msg_len += QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE;
+  msg_len += (int)QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE;
   p = (linux_qmi_qmux_if_platform_hdr_type *) msg;
   p->total_msg_size = msg_len;
   p->qmux_client_id = qmux_client_id;
@@ -1164,7 +1220,7 @@ int linux_qmi_qmux_if_client_tx_msg
   if ((rc = send (client_fd,
                   (void *) msg,
                   (size_t) msg_len,
-                  0)) < 0)
+                  MSG_DONTWAIT | MSG_NOSIGNAL)) < 0)
   {
     QMI_ERR_MSG_3 ("qmi_client [%d] %x:  send error = %d\n",
                    linux_qmi_qmux_pid,

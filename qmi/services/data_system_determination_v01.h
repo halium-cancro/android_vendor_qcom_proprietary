@@ -32,7 +32,7 @@
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2012-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2012-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
@@ -43,8 +43,8 @@
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.6 
-   It was generated on: Wed Dec 11 2013 (Spin 0)
+/* This file was generated with Tool version 6.14 
+   It was generated on: Thu Oct 16 2014 (Spin 0)
    From IDL File: data_system_determination_v01.idl */
 
 /** @defgroup dsd_qmi_consts Constant values defined in the IDL */
@@ -70,11 +70,11 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define DSD_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define DSD_V01_IDL_MINOR_VERS 0x07
+#define DSD_V01_IDL_MINOR_VERS 0x0A
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define DSD_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define DSD_V01_MAX_MESSAGE_ID 0x0031
+#define DSD_V01_MAX_MESSAGE_ID 0x0038
 /**
     @}
   */
@@ -163,6 +163,8 @@ typedef uint64_t dsd_sys_so_mask_v01;
 #define QMI_DSD_3GPP_SO_MASK_LTE_LIMITED_SRVC_V01 ((dsd_sys_so_mask_v01)0x0000000000000800ull) 
 #define QMI_DSD_3GPP_SO_MASK_LTE_FDD_V01 ((dsd_sys_so_mask_v01)0x0000000000001000ull) 
 #define QMI_DSD_3GPP_SO_MASK_LTE_TDD_V01 ((dsd_sys_so_mask_v01)0x0000000000002000ull) 
+#define QMI_DSD_3GPP_SO_MASK_TDSCDMA_V01 ((dsd_sys_so_mask_v01)0x0000000000004000ull) 
+#define QMI_DSD_3GPP_SO_MASK_DC_HSUPA_V01 ((dsd_sys_so_mask_v01)0x0000000000008000ull) 
 #define QMI_DSD_3GPP2_SO_MASK_1X_IS95_V01 ((dsd_sys_so_mask_v01)0x0000000001000000ull) 
 #define QMI_DSD_3GPP2_SO_MASK_1X_IS2000_V01 ((dsd_sys_so_mask_v01)0x0000000002000000ull) 
 #define QMI_DSD_3GPP2_SO_MASK_1X_IS2000_REL_A_V01 ((dsd_sys_so_mask_v01)0x0000000004000000ull) 
@@ -226,6 +228,8 @@ typedef struct {
        - 0x800 -- LTE Limited Service \n
        - 0x1000 -- LTE FDD \n
        - 0x2000 -- LTE TDD \n
+       - 0x4000 -- TDSCDMA \n
+       - 0x8000 -- DC HSUPA \n
        3GPP2 SO Mask: \n
        - 0x01000000   -- 1X IS95 \n
        - 0x02000000   -- 1X IS2000 \n
@@ -238,7 +242,7 @@ typedef struct {
        - 0x100000000  -- HDR REVA EMPA \n
        - 0x200000000  -- HDR REVB EMPA \n
        - 0x400000000  -- HDR REVB MMPA \n
-       - 0x800000000  -- HDR EVDO FMC\n     */
+       - 0x800000000  -- HDR EVDO FMC     */
 }dsd_system_status_info_type_v01;  /* Type */
 /**
     @}
@@ -255,7 +259,7 @@ typedef struct {
   uint32_t apn_avail_sys_len;  /**< Must be set to # of elements in apn_avail_sys */
   dsd_system_status_info_type_v01 apn_avail_sys[QMI_DSD_MAX_AVAIL_SYS_V01];
   /**<  \n Array of all available systems for the APN. The first entry in the
-       list will contain the preferred system for the APN.
+       list contains the preferred system for the APN.
   */
 }dsd_apn_avail_sys_info_type_v01;  /* Type */
 /**
@@ -288,7 +292,7 @@ typedef struct {
   uint8_t avail_sys_valid;  /**< Must be set to true if avail_sys is being passed */
   uint32_t avail_sys_len;  /**< Must be set to # of elements in avail_sys */
   dsd_system_status_info_type_v01 avail_sys[QMI_DSD_MAX_AVAIL_SYS_V01];
-  /**<  \n Array of all available systems. The first entry in the list will be
+  /**<   Array of all available systems. The first entry in the list is
        the preferred system. 
   */
 
@@ -314,8 +318,8 @@ typedef struct {
   /*  Suppress SO changes */
   uint8_t limit_so_mask_change_ind_valid;  /**< Must be set to true if limit_so_mask_change_ind is being passed */
   uint8_t limit_so_mask_change_ind;
-  /**<   If this TLV is provided in the request message, the indication will not 
-       be generated if only the so_mask changes from the last indication.
+  /**<   If this TLV is provided in the request message, the indication is 
+       generated only if the rat_value changes from the last indication.
   */
 }dsd_system_status_change_req_msg_v01;  /* Message */
 /**
@@ -352,7 +356,7 @@ typedef struct {
   uint8_t avail_sys_valid;  /**< Must be set to true if avail_sys is being passed */
   uint32_t avail_sys_len;  /**< Must be set to # of elements in avail_sys */
   dsd_system_status_info_type_v01 avail_sys[QMI_DSD_MAX_AVAIL_SYS_V01];
-  /**<  \n Array of all available systems. The first entry in the list will be
+  /**<  \n Array of all available systems. The first entry in the list is
        the preferred system.  
   */
 
@@ -496,7 +500,7 @@ typedef struct {
   dsd_ipv6_addr_type_v01 wlan_ipv6_address;
 
   /* Optional */
-  /*  WiFi Quality Estimation (WQE) Status */
+  /*  WiFi Quality Estimation (WQE) status. */
   uint8_t wqe_status_valid;  /**< Must be set to true if wqe_status is being passed */
   dsd_wqe_status_enum_v01 wqe_status;
   /**<   Conveys if WQE was performed on the application 
@@ -764,10 +768,10 @@ typedef struct {
   */
 typedef enum {
   DSD_MODEM_POWER_COST_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  DSD_MODEM_POWER_COST_NOT_SUPPORTED_V01 = 0, /**<  Not supported  */
-  DSD_MODEM_POWER_COST_LOW_V01 = 1, /**<  Low  */
-  DSD_MODEM_POWER_COST_MEDIUM_V01 = 2, /**<  Medium  */
-  DSD_MODEM_POWER_COST_HIGH_V01 = 3, /**<  High  */
+  DSD_MODEM_POWER_COST_NOT_SUPPORTED_V01 = 0, /**<  Not supported.  */
+  DSD_MODEM_POWER_COST_LOW_V01 = 1, /**<  Low.  */
+  DSD_MODEM_POWER_COST_MEDIUM_V01 = 2, /**<  Medium.  */
+  DSD_MODEM_POWER_COST_HIGH_V01 = 3, /**<  High.  */
   DSD_MODEM_POWER_COST_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }dsd_modem_power_cost_enum_v01;
 /**
@@ -783,7 +787,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Queries for the cost of modem power */
+/** Response Message; Queries for the cost of modem power. */
 typedef struct {
 
   /* Mandatory */
@@ -811,7 +815,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Starts a transaction to access the PDN policy database */
+/** Response Message; Starts a transaction to access the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
@@ -835,9 +839,9 @@ typedef struct {
   */
 typedef enum {
   DSD_PDN_POLICY_OVERRIDE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  DSD_PDN_POLICY_OVERRIDE_NONE_V01 = 0, /**<  No override. This is the default  */
-  DSD_PDN_POLICY_OVERRIDE_API_V01 = 1, /**<  API override  */
-  DSD_PDN_POLICY_OVERRIDE_OPTION_V01 = 2, /**<  UI Option override  */
+  DSD_PDN_POLICY_OVERRIDE_NONE_V01 = 0, /**<  No override (default). */
+  DSD_PDN_POLICY_OVERRIDE_API_V01 = 1, /**<  API override.  */
+  DSD_PDN_POLICY_OVERRIDE_OPTION_V01 = 2, /**<  UI option override.  */
   DSD_PDN_POLICY_OVERRIDE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }dsd_pdn_policy_override_enum_v01;
 /**
@@ -847,33 +851,36 @@ typedef enum {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Request Message; Adds an entry to the PDN policy database */
+/** Request Message; Adds an entry to the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t txn_id;
-  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_TXN \n
+  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_ TXN. 
   */
 
   /* Mandatory */
   /*  APN Name */
   char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
-  /**<   The APN name will uniquely identify each entry \n
+  /**<   The APN uniquely identifies each entry.
   */
 
   /* Mandatory */
   /*  Supported System Priority List */
   uint32_t supported_system_priority_list_len;  /**< Must be set to # of elements in supported_system_priority_list */
   dsd_apn_pref_sys_enum_v01 supported_system_priority_list[QMI_DSD_MAX_SYSTEMS_V01];
-  /**<   Supported systems for the APN in decreasing order of priority \n
-  */
+  /**<   Supported systems for the APN in decreasing order of priority.\n
+      - DSD_APN_PREF_SYS_WWAN (0) --  WWAN is preferred. 
+      - DSD_APN_PREF_SYS_WLAN (1) --  WLAN is preferred. 
+      - DSD_APN_PREF_SYS_IWLAN (2) --  IWLAN is preferred. 
+ */
 
   /* Optional */
   /*  Is Default */
   uint8_t is_default_valid;  /**< Must be set to true if is_default is being passed */
   uint8_t is_default;
-  /**<   Specifies if this is the default APN. Values: \n
+  /**<   Specifies whether this is the default APN. Values: \n
        - 0 -- FALSE (Default value when TLV is absent) \n
        - 1 -- TRUE 
   */
@@ -882,11 +889,11 @@ typedef struct {
   /*  Override Type */
   uint8_t override_type_valid;  /**< Must be set to true if override_type is being passed */
   dsd_pdn_policy_override_enum_v01 override_type;
-  /**<   Specifies if an override is possible for the preferred system of the PDN. 
+  /**<   Specifies whether an override is possible for the preferred system of the PDN. 
  Values: \n
-      - DSD_PDN_POLICY_OVERRIDE_NONE (0) --  No override. This is the default 
-      - DSD_PDN_POLICY_OVERRIDE_API (1) --  API override 
-      - DSD_PDN_POLICY_OVERRIDE_OPTION (2) --  UI Option override 
+      - DSD_PDN_POLICY_OVERRIDE_NONE (0) --  No override (default).
+      - DSD_PDN_POLICY_OVERRIDE_API (1) --  API override. 
+      - DSD_PDN_POLICY_OVERRIDE_OPTION (2) --  UI option override. 
  */
 }dsd_add_pdn_policy_req_msg_v01;  /* Message */
 /**
@@ -896,7 +903,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Adds an entry to the PDN policy database */
+/** Response Message; Adds an entry to the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
@@ -911,19 +918,19 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Request Message; Modifies an existing entry in the PDN policy database */
+/** Request Message; Modifies an existing entry in the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t txn_id;
-  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_TXN \n
+  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_ TXN.
   */
 
   /* Mandatory */
   /*  APN Name */
   char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
-  /**<   The APN name that uniquely identifies each entry \n
+  /**<   The APN that uniquely identifies each entry.
   */
 
   /* Optional */
@@ -931,14 +938,17 @@ typedef struct {
   uint8_t supported_system_priority_list_valid;  /**< Must be set to true if supported_system_priority_list is being passed */
   uint32_t supported_system_priority_list_len;  /**< Must be set to # of elements in supported_system_priority_list */
   dsd_apn_pref_sys_enum_v01 supported_system_priority_list[QMI_DSD_MAX_SYSTEMS_V01];
-  /**<   Supported systems for the APN in decreasing order of priority \n
-  */
+  /**<   Supported systems for the APN in decreasing order of priority.\n
+      - DSD_APN_PREF_SYS_WWAN (0) --  WWAN is preferred. 
+      - DSD_APN_PREF_SYS_WLAN (1) --  WLAN is preferred. 
+      - DSD_APN_PREF_SYS_IWLAN (2) --  IWLAN is preferred. 
+ */
 
   /* Optional */
   /*  Is Default */
   uint8_t is_default_valid;  /**< Must be set to true if is_default is being passed */
   uint8_t is_default;
-  /**<   Specifies if this is the default APN. Values: \n
+  /**<   Specifies whether this is the default APN. Values: \n
        - 0 -- FALSE  \n
        - 1 -- TRUE 
   */
@@ -947,11 +957,11 @@ typedef struct {
   /*  Override Type */
   uint8_t override_type_valid;  /**< Must be set to true if override_type is being passed */
   dsd_pdn_policy_override_enum_v01 override_type;
-  /**<   Specifies if an override is possible for the preferred system of the PDN. 
+  /**<   Specifies whether an override is possible for the preferred system of the PDN. 
  Values: \n
-      - DSD_PDN_POLICY_OVERRIDE_NONE (0) --  No override. This is the default 
-      - DSD_PDN_POLICY_OVERRIDE_API (1) --  API override 
-      - DSD_PDN_POLICY_OVERRIDE_OPTION (2) --  UI Option override 
+      - DSD_PDN_POLICY_OVERRIDE_NONE (0) --  No override (default).
+      - DSD_PDN_POLICY_OVERRIDE_API (1) --  API override. 
+      - DSD_PDN_POLICY_OVERRIDE_OPTION (2) --  UI option override. 
  */
 }dsd_modify_pdn_policy_req_msg_v01;  /* Message */
 /**
@@ -961,7 +971,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Modifies an existing entry in the PDN policy database */
+/** Response Message; Modifies an existing entry in the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
@@ -976,19 +986,19 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Request Message; Deletes an entry in the PDN policy database */
+/** Request Message; Deletes an entry in the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t txn_id;
-  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_TXN \n
+  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_ TXN.
   */
 
   /* Mandatory */
   /*  APN Name */
   char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
-  /**<   The APN name that uniquely identifies each entry \n
+  /**<   The APN that uniquely identifies each entry.
   */
 }dsd_delete_pdn_policy_by_apn_req_msg_v01;  /* Message */
 /**
@@ -998,7 +1008,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Deletes an entry in the PDN policy database */
+/** Response Message; Deletes an entry in the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
@@ -1016,7 +1026,7 @@ typedef struct {
 typedef struct {
 
   char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
-  /**<   APN name
+  /**<   APN name.
    */
 }dsd_apn_name_type_v01;  /* Type */
 /**
@@ -1026,13 +1036,13 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Request Message; Retrieves list of APNs from the PDN policy database */
+/** Request Message; Retrieves a list of APNs from the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t txn_id;
-  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_TXN \n
+  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_ TXN.
   */
 }dsd_get_pdn_policy_apn_list_req_msg_v01;  /* Message */
 /**
@@ -1042,7 +1052,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Retrieves list of APNs from the PDN policy database */
+/** Response Message; Retrieves a list of APNs from the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
@@ -1055,7 +1065,7 @@ typedef struct {
   uint8_t apn_list_valid;  /**< Must be set to true if apn_list is being passed */
   uint32_t apn_list_len;  /**< Must be set to # of elements in apn_list */
   dsd_apn_name_type_v01 apn_list[QMI_DSD_MAX_APNS_V01];
-  /**<   List of APN names \n
+  /**<   \n List of APNs.
   */
 }dsd_get_pdn_policy_apn_list_resp_msg_v01;  /* Message */
 /**
@@ -1065,19 +1075,19 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Request Message; Retrieves settings for a particular APN from the PDN policy database */
+/** Request Message; Retrieves settings for a particular APN from the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t txn_id;
-  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_TXN \n
+  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_ TXN.
   */
 
   /* Mandatory */
   /*  APN Name */
   char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
-  /**<   The APN name that uniquely identifies each entry \n
+  /**<   The APN that uniquely identifies each entry.
   */
 }dsd_get_pdn_policy_settings_for_apn_req_msg_v01;  /* Message */
 /**
@@ -1087,7 +1097,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Retrieves settings for a particular APN from the PDN policy database */
+/** Response Message; Retrieves settings for a particular APN from the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
@@ -1099,7 +1109,7 @@ typedef struct {
   /*  APN Name */
   uint8_t apn_name_valid;  /**< Must be set to true if apn_name is being passed */
   char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
-  /**<   The APN name that uniquely identifies each entry \n
+  /**<   The APN that uniquely identifies each entry.
   */
 
   /* Optional */
@@ -1107,14 +1117,17 @@ typedef struct {
   uint8_t supported_system_priority_list_valid;  /**< Must be set to true if supported_system_priority_list is being passed */
   uint32_t supported_system_priority_list_len;  /**< Must be set to # of elements in supported_system_priority_list */
   dsd_apn_pref_sys_enum_v01 supported_system_priority_list[QMI_DSD_MAX_SYSTEMS_V01];
-  /**<   Supported systems for the APN in decreasing order of priority \n
-  */
+  /**<   Supported systems for the APN in decreasing order of priority.\n
+      - DSD_APN_PREF_SYS_WWAN (0) --  WWAN is preferred. 
+      - DSD_APN_PREF_SYS_WLAN (1) --  WLAN is preferred. 
+      - DSD_APN_PREF_SYS_IWLAN (2) --  IWLAN is preferred. 
+ */
 
   /* Optional */
   /*  Is Default */
   uint8_t is_default_valid;  /**< Must be set to true if is_default is being passed */
   uint8_t is_default;
-  /**<   Specifies if this is the default APN. Values: \n
+  /**<   Specifies whether this is the default APN. Values: \n
        - 0 -- FALSE  \n
        - 1 -- TRUE 
   */
@@ -1123,11 +1136,11 @@ typedef struct {
   /*  Override Type */
   uint8_t override_type_valid;  /**< Must be set to true if override_type is being passed */
   dsd_pdn_policy_override_enum_v01 override_type;
-  /**<   Specifies if an override is possible for the preferred system of the PDN.
+  /**<   Specifies whether an override is possible for the preferred system of the PDN.
  Values: \n
-      - DSD_PDN_POLICY_OVERRIDE_NONE (0) --  No override. This is the default 
-      - DSD_PDN_POLICY_OVERRIDE_API (1) --  API override 
-      - DSD_PDN_POLICY_OVERRIDE_OPTION (2) --  UI Option override 
+      - DSD_PDN_POLICY_OVERRIDE_NONE (0) --  No override (default).
+      - DSD_PDN_POLICY_OVERRIDE_API (1) --  API override. 
+      - DSD_PDN_POLICY_OVERRIDE_OPTION (2) --  UI option override. 
  */
 }dsd_get_pdn_policy_settings_for_apn_resp_msg_v01;  /* Message */
 /**
@@ -1139,8 +1152,8 @@ typedef struct {
   */
 typedef enum {
   DSD_PDN_POLICY_END_TRANSACTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  DSD_PDN_POLICY_TRANSACTION_COMMIT_V01 = 0, /**<  Commit the transaction changes to persistent storage  */
-  DSD_PDN_POLICY_TRANSACTION_CANCEL_V01 = 1, /**<  Rollback the transaction changes  */
+  DSD_PDN_POLICY_TRANSACTION_COMMIT_V01 = 0, /**<  Commit the transaction changes to persistent storage.  */
+  DSD_PDN_POLICY_TRANSACTION_CANCEL_V01 = 1, /**<  Rollback the transaction changes.  */
   DSD_PDN_POLICY_END_TRANSACTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }dsd_pdn_policy_end_transaction_enum_v01;
 /**
@@ -1150,21 +1163,21 @@ typedef enum {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Request Message; Ends the outstanding transaction on the PDN Policy Database */
+/** Request Message; Ends the outstanding transaction on the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
   /*  Transaction ID */
   uint32_t txn_id;
-  /**<   Transaction Id handle obtained using QMI_DSD_PDN_POLICY_START_TXN \n
+  /**<   Transaction ID handle obtained using QMI_DSD_PDN_POLICY_START_ TXN.
   */
 
   /* Mandatory */
   /*  Txn Exec Type */
   dsd_pdn_policy_end_transaction_enum_v01 txn_exec_type;
   /**<   Either commit or cancel the transaction changes. Values : \n
-      - DSD_PDN_POLICY_TRANSACTION_COMMIT (0) --  Commit the transaction changes to persistent storage 
-      - DSD_PDN_POLICY_TRANSACTION_CANCEL (1) --  Rollback the transaction changes 
+      - DSD_PDN_POLICY_TRANSACTION_COMMIT (0) --  Commit the transaction changes to persistent storage. 
+      - DSD_PDN_POLICY_TRANSACTION_CANCEL (1) --  Rollback the transaction changes. 
  */
 }dsd_pdn_policy_end_txn_req_msg_v01;  /* Message */
 /**
@@ -1174,7 +1187,7 @@ typedef struct {
 /** @addtogroup dsd_qmi_messages
     @{
   */
-/** Response Message; Ends the outstanding transaction on the PDN Policy Database */
+/** Response Message; Ends the outstanding transaction on the PDN policy database. */
 typedef struct {
 
   /* Mandatory */
@@ -1185,6 +1198,330 @@ typedef struct {
 /**
     @}
   */
+
+/** @addtogroup dsd_qmi_enums
+    @{
+  */
+typedef enum {
+  DSD_APN_TYPE_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  DSD_APN_TYPE_DEFAULT_V01 = 0, /**<  APN type for Default/Internet traffic  */
+  DSD_APN_TYPE_IMS_V01 = 1, /**<  APN type for IMS  */
+  DSD_APN_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}dsd_apn_type_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  dsd_apn_type_enum_v01 apn_type;
+  /**<   APN type enum. Values : \n
+      - DSD_APN_TYPE_DEFAULT (0) --  APN type for Default/Internet traffic 
+      - DSD_APN_TYPE_IMS (1) --  APN type for IMS 
+ */
+
+  char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
+  /**<   APN name.
+   */
+}dsd_apn_info_type_v01;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Request Message; Sets the APN information */
+typedef struct {
+
+  /* Mandatory */
+  /*  APN information */
+  dsd_apn_info_type_v01 apn_info;
+  /**<   APN information Values : \n
+       @ENUM()
+  */
+}dsd_set_apn_info_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Response Message; Sets the APN information */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result code. */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type.       */
+}dsd_set_apn_info_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Request Message; Gets the APN information */
+typedef struct {
+
+  /* Mandatory */
+  /*  APN information */
+  dsd_apn_type_enum_v01 apn_type;
+  /**<   APN type enum. Values : \n
+      - DSD_APN_TYPE_DEFAULT (0) --  APN type for Default/Internet traffic 
+      - DSD_APN_TYPE_IMS (1) --  APN type for IMS 
+ */
+}dsd_get_apn_info_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Response Message; Gets the APN information */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type.     */
+
+  /* Optional */
+  /*  APN Name */
+  uint8_t apn_name_valid;  /**< Must be set to true if apn_name is being passed */
+  char apn_name[QMI_DSD_MAX_APN_LEN_V01 + 1];
+  /**<   APN name.
+   */
+}dsd_get_apn_info_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Request Message; Configures the data setting */
+typedef struct {
+
+  /* Optional */
+  /*  Data Service ON/OFF Switch */
+  uint8_t data_service_switch_valid;  /**< Must be set to true if data_service_switch is being passed */
+  uint8_t data_service_switch;
+  /**<   Specifies whether data is ON/OFF \n
+       Values: \n
+       - 0 -- FALSE -- Data Service is OFF
+       - 1 -- TRUE -- Data Service is ON
+  */
+
+  /* Optional */
+  /*  Data Service Roaming ON/OFF Switch */
+  uint8_t data_service_roaming_switch_valid;  /**< Must be set to true if data_service_roaming_switch is being passed */
+  uint8_t data_service_roaming_switch;
+  /**<   Specifies whether data roaming is ON/OFF \n
+       Values: \n
+       - 0 -- FALSE -- Data Service Roaming is OFF
+       - 1 -- TRUE -- Data Service Roaming is ON
+  */
+}dsd_notify_data_settings_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Response Message; Configures the data setting */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result code. */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type.       */
+}dsd_notify_data_settings_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}dsd_get_data_settings_req_msg_v01;
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Response Message; Queries the data settings */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result code. */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type.       */
+
+  /* Optional */
+  /*  Data Service ON/OFF Switch */
+  uint8_t data_service_switch_valid;  /**< Must be set to true if data_service_switch is being passed */
+  uint8_t data_service_switch;
+  /**<   Specifies whether data service is ON/OFF \n
+       Values: \n
+       - 0 -- TRUE -- Data Service is OFF
+       - 1 -- TRUE -- Data Service is ON
+  */
+
+  /* Optional */
+  /*  Data Service Roaming ON/OFF Switch */
+  uint8_t data_service_roaming_switch_valid;  /**< Must be set to true if data_service_roaming_switch is being passed */
+  uint8_t data_service_roaming_switch;
+  /**<   Specifies whether data roaming is ON/OFF \n
+       Values: \n
+       - 0 -- TRUE -- Data Service Roaming is OFF
+       - 1 -- TRUE -- Data Service Roaming is ON
+  */
+}dsd_get_data_settings_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_enums
+    @{
+  */
+typedef enum {
+  DSD_THERMAL_MITIGATION_ACTION_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  DSD_THERMAL_MITIGATION_ACTION_ALL_CALLS_ALLOWED_V01 = 0, /**<  All calls allowed \n  */
+  DSD_THERMAL_MITIGATION_ACTION_IMS_CALLS_ONLY_V01 = 1, /**<  IMS calls only \n  */
+  DSD_THERMAL_MITIGATION_ACTION_NO_CALLS_ALLOWED_V01 = 2, /**<  Data calls not allowed  */
+  DSD_THERMAL_MITIGATION_ACTION_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}dsd_thermal_mitigation_action_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates the thermal info changes. */
+typedef struct {
+
+  /* Optional */
+  /*  Thermal Mitigation Info */
+  uint8_t thermal_action_valid;  /**< Must be set to true if thermal_action is being passed */
+  dsd_thermal_mitigation_action_enum_v01 thermal_action;
+  /**<  \n Thermal mitigation action info
+      - DSD_THERMAL_MITIGATION_ACTION_ALL_CALLS_ALLOWED (0) --  All calls allowed \n 
+      - DSD_THERMAL_MITIGATION_ACTION_IMS_CALLS_ONLY (1) --  IMS calls only \n 
+      - DSD_THERMAL_MITIGATION_ACTION_NO_CALLS_ALLOWED (2) --  Data calls not allowed  
+ */
+}dsd_thermal_info_change_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}dsd_get_thermal_mitigation_info_req_msg_v01;
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Response Message; Queries the current thermal mitigation info */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type.       
+ Standard response type. Contains the following data members: \n
+     - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
+     - qmi_error_type  -- Error code. Possible error code values are described in
+                          the error codes section of each message definition.
+   */
+
+  /* Optional */
+  /*  Thermal Mitigation Info */
+  uint8_t thermal_action_valid;  /**< Must be set to true if thermal_action is being passed */
+  dsd_thermal_mitigation_action_enum_v01 thermal_action;
+  /**<  \n Thermal mitigation action info
+      - DSD_THERMAL_MITIGATION_ACTION_ALL_CALLS_ALLOWED (0) --  All calls allowed \n 
+      - DSD_THERMAL_MITIGATION_ACTION_IMS_CALLS_ONLY (1) --  IMS calls only \n 
+      - DSD_THERMAL_MITIGATION_ACTION_NO_CALLS_ALLOWED (2) --  Data calls not allowed  
+ */
+}dsd_get_thermal_mitigation_info_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Request Message; Registers the requesting control point for various indications */
+typedef struct {
+
+  /* Optional */
+  /*  Thermal Mitigation Info */
+  uint8_t report_thermal_info_changes_valid;  /**< Must be set to true if report_thermal_info_changes is being passed */
+  uint8_t report_thermal_info_changes;
+  /**<   If this TLV is provided in the request message, the control point
+       learns about changes in thermal info changes
+  */
+}dsd_indication_register_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup dsd_qmi_messages
+    @{
+  */
+/** Response Message; Registers the requesting control point for various indications */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members: \n
+     - qmi_result_type -- QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE \n
+     - qmi_error_type  -- Error code. Possible error code values are described in
+                          the error codes section of each message definition.
+            */
+}dsd_indication_register_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_DSD_ADD_PDN_POLICY_V01 
+//#define REMOVE_QMI_DSD_BIND_SUBSCRIPTION_V01 
+//#define REMOVE_QMI_DSD_DELETE_PDN_POLICY_BY_APN_V01 
+//#define REMOVE_QMI_DSD_GET_APN_INFO_V01 
+//#define REMOVE_QMI_DSD_GET_BIND_SUBSCRIPTION_V01 
+//#define REMOVE_QMI_DSD_GET_DATA_SETTING_V01 
+//#define REMOVE_QMI_DSD_GET_MODEM_POWER_COST_V01 
+//#define REMOVE_QMI_DSD_GET_PDN_POLICY_APN_LIST_V01 
+//#define REMOVE_QMI_DSD_GET_PDN_POLICY_SETTINGS_FOR_APN_V01 
+//#define REMOVE_QMI_DSD_GET_SYSTEM_STATUS_V01 
+//#define REMOVE_QMI_DSD_GET_THERMAL_MITIGATION_INFO_V01 
+//#define REMOVE_QMI_DSD_GET_WLAN_PREFERENCE_V01 
+//#define REMOVE_QMI_DSD_INDICATION_REGISTER_V01 
+//#define REMOVE_QMI_DSD_MODIFY_PDN_POLICY_V01 
+//#define REMOVE_QMI_DSD_NOTIFY_DATA_SETTING_V01 
+//#define REMOVE_QMI_DSD_PDN_POLICY_END_TXN_V01 
+//#define REMOVE_QMI_DSD_PDN_POLICY_START_TXN_V01 
+//#define REMOVE_QMI_DSD_SET_APN_INFO_V01 
+//#define REMOVE_QMI_DSD_SET_APN_PREFERRED_SYSTEM_V01 
+//#define REMOVE_QMI_DSD_SET_WLAN_PREFERENCE_V01 
+//#define REMOVE_QMI_DSD_SYSTEM_STATUS_CHANGE_V01 
+//#define REMOVE_QMI_DSD_SYSTEM_STATUS_IND_V01 
+//#define REMOVE_QMI_DSD_THERMAL_INFO_CHANGE_IND_V01 
+//#define REMOVE_QMI_DSD_WLAN_AVAILABLE_V01 
+//#define REMOVE_QMI_DSD_WLAN_NOT_AVAILABLE_V01 
 
 /*Service Message Definition*/
 /** @addtogroup dsd_qmi_msg_ids
@@ -1225,6 +1562,19 @@ typedef struct {
 #define QMI_DSD_GET_PDN_POLICY_SETTINGS_FOR_APN_RESP_V01 0x0030
 #define QMI_DSD_PDN_POLICY_END_TXN_REQ_V01 0x0031
 #define QMI_DSD_PDN_POLICY_END_TXN_RESP_V01 0x0031
+#define QMI_DSD_SET_APN_INFO_REQ_V01 0x0032
+#define QMI_DSD_SET_APN_INFO_RESP_V01 0x0032
+#define QMI_DSD_GET_APN_INFO_REQ_V01 0x0033
+#define QMI_DSD_GET_APN_INFO_RESP_V01 0x0033
+#define QMI_DSD_NOTIFY_DATA_SETTING_REQ_V01 0x0034
+#define QMI_DSD_NOTIFY_DATA_SETTING_RESP_V01 0x0034
+#define QMI_DSD_GET_DATA_SETTING_REQ_V01 0x0035
+#define QMI_DSD_GET_DATA_SETTING_RESP_V01 0x0035
+#define QMI_DSD_THERMAL_INFO_CHANGE_IND_V01 0x0036
+#define QMI_DSD_GET_THERMAL_MITIGATION_INFO_REQ_V01 0x0037
+#define QMI_DSD_GET_THERMAL_MITIGATION_INFO_RESP_V01 0x0037
+#define QMI_DSD_INDICATION_REGISTER_REQ_V01 0x0038
+#define QMI_DSD_INDICATION_REGISTER_RESP_V01 0x0038
 /**
     @}
   */

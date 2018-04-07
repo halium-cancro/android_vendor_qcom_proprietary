@@ -1213,6 +1213,9 @@ IxErrnoType qcril_reqlist_free_and_dispatch_follower_req
   /*-----------------------------------------------------------------------*/
 
   QCRIL_LOG_FUNC_ENTRY();
+
+  QCRIL_NOTUSED(data);
+  QCRIL_NOTUSED(datalen);
   QCRIL_MUTEX_LOCK( &qcril_reqlist_mutex, "qcril_reqlist_mutex" );
 
   buf_ptr = qcril_reqlist_find( instance_id, t );
@@ -1291,7 +1294,7 @@ RIL_Token qcril_reqlist_get_follower_token( qcril_instance_id_e_type instance_id
     res = QMI_RIL_ZERO;
   }
 
-  QCRIL_LOG_FUNC_RETURN_WITH_RET( (int)res );
+  QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
   return res;
 }
 
@@ -2087,7 +2090,7 @@ qcril_req_concurrency_state_e_type qcril_reqlist_generic_check_concurrency_from_
   QCRIL_ASSERT( instance_id < QCRIL_MAX_INSTANCE_ID );
 
   QCRIL_LOG_FUNC_ENTRY();
-
+  QCRIL_NOTUSED(req);
   if ( NULL != data )
   {
     qcril_reqlist_generic_concurency_requests_requirement_type *requests_requirement = data;

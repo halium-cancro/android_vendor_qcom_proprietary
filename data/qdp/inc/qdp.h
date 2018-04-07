@@ -9,7 +9,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential
 
@@ -68,12 +68,15 @@ typedef enum qdp_ril_param_idx_e
   QDP_RIL_PARAM_MAX = 7
 } qdp_ril_param_idx_t;
 
+#define QDP_RIL_CLASS  8
+
 /* Mask for each technology */
 typedef enum qdp_tech_e
 {
   QDP_NOTECH = 0x00,
   QDP_3GPP = 0x01,
-  QDP_3GPP2 = 0x02
+  QDP_3GPP2 = 0x02,
+  QDP_EPC = 0x03
 } qdp_tech_t;
 
 #define QDP_INVALID_PROFILE ((unsigned int)0xFFFFFFFF)
@@ -221,6 +224,38 @@ extern int qdp_profile_look_up
   qdp_error_info_t * error_info
 );
 
+
+extern int qdp_profile_look_up_by_param
+(
+  const char  ** param_strings,    /* the order of params must match with the
+                                      order specified in qdp_ril_param_idx_t */
+  int            param_to_match,
+  int            param_value,
+  unsigned int * profile_id_3gpp,  /* value (not pointer it-self) must
+                                      be set to zero by caller */
+  qdp_profile_pdn_type *profile_pdn_type_3gpp,  /* 3gpp profile PDN type */
+  unsigned int * profile_id_3gpp2, /* value must be set to zero by caller */
+  qdp_profile_pdn_type *profile_pdn_type_3gpp2, /* 3gpp2 profile PDN type */
+  qmi_wds_profile_params_type * p_params,  /* out placeholder */
+  qdp_tech_t                  *tech_type,
+  qdp_error_info_t * error_info
+);
+
+extern int qdp_3gpp_profile_update_ex
+(
+  qmi_wds_profile_params_type * p_params,
+  unsigned int                  profile_id,
+  int                         * error_code
+);
+
+extern int qdp_epc_profile_update_ex
+(
+  qmi_wds_profile_params_type * p_params,
+  unsigned int                  profile_id,
+  int                         * error_code
+);
+
+
 /*===========================================================================
   FUNCTION:  qdp_profile_release
 ===========================================================================*/
@@ -259,6 +294,31 @@ int qdp_profile_release
 */
 /*=========================================================================*/
 extern int qdp_init(const char * default_port);
+
+
+/*===========================================================================
+  FUNCTION:  qdp_set_subscription
+===========================================================================*/
+/*!
+    @brief
+    Sets the appropriate subscription as a result the WDS client get binded to this subscription
+
+    @params
+    subs_id:  Subscription ID
+
+    @return
+    QDP_SUCCESS
+    QDP_FAILURE
+
+    @notes
+       Dependencies
+    - qdp_init() must be called for the associated port first.
+*/
+/*=========================================================================*/
+extern int qdp_set_subscription
+(
+  int subs_id
+);
 
 /*===========================================================================
   FUNCTION:  qdp_deinit

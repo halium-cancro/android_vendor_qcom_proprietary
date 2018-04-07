@@ -30,6 +30,8 @@ LOCAL_COPY_HEADERS      += ../platform/qmi_platform_qmux_io.h
 
 LOCAL_COPY_HEADERS      += ../proxy/qmi_proxy.h
 
+LOCAL_COPY_HEADERS      += ../qmi_client_helper/qmi_client_helper.h
+
 LOCAL_COPY_HEADERS      += ../services/card_application_toolkit_v02.h
 LOCAL_COPY_HEADERS      += ../services/common_v01.h
 LOCAL_COPY_HEADERS      += ../services/control_service_v01.h
@@ -59,11 +61,15 @@ LOCAL_COPY_HEADERS      += ../services/radio_frequency_radiated_performance_enha
 LOCAL_COPY_HEADERS      += ../services/data_system_determination_v01.h
 LOCAL_COPY_HEADERS      += ../services/persistent_device_configuration_v01.h
 LOCAL_COPY_HEADERS      += ../services/application_traffic_pairing_v01.h
+LOCAL_COPY_HEADERS      += ../services/data_filter_service_v01.h
+LOCAL_COPY_HEADERS      += ../services/data_common_v01.h
+LOCAL_COPY_HEADERS      += ../services/secure_filesystem_service_v01.h
 
 
 LOCAL_CFLAGS += -DFEATURE_QMI_ANDROID
+LOCAL_CFLAGS += -DFEATURE_QMI_IWLAN
 
-# Logging Features. Turn any one ON at any time  
+# Logging Features. Turn any one ON at any time
 
 #LOCAL_CFLAGS  += -DFEATURE_DATA_LOG_STDERR
 #LOCAL_CFLAGS += -DFEATURE_DATA_LOG_ADB
@@ -101,8 +107,6 @@ LOCAL_SHARED_LIBRARIES += libdsutils
 LOCAL_SHARED_LIBRARIES += libqmiservices
 LOCAL_SHARED_LIBRARIES += libidl
 LOCAL_SHARED_LIBRARIES += liblog
-
-#LOCAL_LDLIBS += -lpthread
 
 LOCAL_MODULE := libqmi
 

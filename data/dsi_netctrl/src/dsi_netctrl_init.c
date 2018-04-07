@@ -9,7 +9,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -207,7 +207,10 @@ int dsi_init(int mode)
   } while (0);
 
   /* start the thread for send/recv netmgr ready state */
-  ret = dsi_init_ping_thread();
+  if (DSI_SUCCESS == ret)
+  {
+    ret = dsi_init_ping_thread();
+  }
 
   if (ret == DSI_SUCCESS)
   {

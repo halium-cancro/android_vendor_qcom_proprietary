@@ -57,11 +57,18 @@ typedef struct util_list_info_type
     add_evaluator_type default_add_evaluator;
     delete_evaluator_type default_delete_evaluator;
     util_bit_field_type list_bit_field;
+    unsigned int num_of_node;
 }util_list_info_type;
 
-
-
-
+void util_list_default_delete_evaluator(util_list_node_data_type *to_be_deleted_data);
+void util_list_delete_data_from_list_by_user_data(util_list_info_type *list_info,
+                                                  void *to_be_deleted_data,
+                                                  delete_evaluator_type delete_evaluator);
+util_list_node_data_type* util_list_find_data_in_list_with_param(
+    const util_list_info_type *list_info,
+    int (*find_evaluator)(const util_list_node_data_type *to_be_found_data, void *compare_data),
+    const void* compare_data
+);
 
 
 

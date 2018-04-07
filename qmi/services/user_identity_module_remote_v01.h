@@ -37,14 +37,14 @@
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/uimrmt/main/latest/api/user_identity_module_remote_v01.h#3 $
+  $Header: //source/qcom/qct/interfaces/qmi/uimrmt/main/latest/api/user_identity_module_remote_v01.h#4 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 /* This file was generated with Tool version 6.7
-   It was generated on: Sat Mar  1 2014 (Spin 0)
+   It was generated on: Wed May 21 2014 (Spin 0)
    From IDL File: user_identity_module_remote_v01.idl */
 
 /** @defgroup uim_remote_qmi_consts Constant values defined in the IDL */
@@ -70,7 +70,7 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define UIM_REMOTE_V01_IDL_MAJOR_VERS 0x01
 /** Revision Number of the IDL used to generate this file */
-#define UIM_REMOTE_V01_IDL_MINOR_VERS 0x01
+#define UIM_REMOTE_V01_IDL_MINOR_VERS 0x02
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define UIM_REMOTE_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
@@ -156,7 +156,8 @@ typedef enum {
   UIM_REMOTE_CARD_ERROR_UNKNOWN_ERROR_V01 = 0x0, /**<  Unknown error \n  */
   UIM_REMOTE_CARD_ERROR_NO_LINK_ESTABLISHED_V01 = 0x1, /**<  No link was established \n  */
   UIM_REMOTE_CARD_ERROR_COMMAND_TIMEOUT_V01 = 0x2, /**<  Command timeout \n  */
-  UIM_REMOTE_CARD_ERROR_DUE_TO_POWER_DOWN_V01 = 0x3, /**<  Error due to power-down  */
+  UIM_REMOTE_CARD_ERROR_DUE_TO_POWER_DOWN_V01 = 0x3, /**<  Error due to card power-down  */
+  UIM_REMOTE_CARD_ERROR_DUE_TO_POWER_DOWN_TELECOM_V01 = 0x4, /**<  Error due to telecom power-down  */
   UIM_REMOTE_CARD_ERROR_TYPE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }uim_remote_card_error_type_enum_v01;
 /**
@@ -222,7 +223,8 @@ typedef struct {
       - UIM_REMOTE_CARD_ERROR_UNKNOWN_ERROR (0x0) --  Unknown error \n
       - UIM_REMOTE_CARD_ERROR_NO_LINK_ESTABLISHED (0x1) --  No link was established \n
       - UIM_REMOTE_CARD_ERROR_COMMAND_TIMEOUT (0x2) --  Command timeout \n
-      - UIM_REMOTE_CARD_ERROR_DUE_TO_POWER_DOWN (0x3) --  Error due to power-down  */
+      - UIM_REMOTE_CARD_ERROR_DUE_TO_POWER_DOWN (0x3) --  Error due to card power-down
+      - UIM_REMOTE_CARD_ERROR_DUE_TO_POWER_DOWN_TELECOM (0x4) --  Error due to telecom power-down  */
 }uim_remote_event_req_msg_v01;  /* Message */
 /**
     @}
@@ -439,6 +441,23 @@ typedef struct {
     @}
   */
 
+/** @addtogroup uim_remote_qmi_enums
+    @{
+  */
+typedef enum {
+  UIM_REMOTE_VOLTAGE_CLASS_ENUM_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  UIM_REMOTE_VOLTAGE_CLASS_C_LOW_V01 = 0x0, /**<  VOLTAGE_CLASS_C_LOW \n  */
+  UIM_REMOTE_VOLTAGE_CLASS_C_V01 = 0x1, /**<  VOLTAGE_CLASS_C \n  */
+  UIM_REMOTE_VOLTAGE_CLASS_C_HIGH_V01 = 0x2, /**<  VOLTAGE_CLASS_C_HIGH  \n  */
+  UIM_REMOTE_VOLTAGE_CLASS_B_LOW_V01 = 0x3, /**<  VOLTAGE_CLASS_B_LOW \n  */
+  UIM_REMOTE_VOLTAGE_CLASS_B_V01 = 0x4, /**<  VOLTAGE_CLASS_B \n  */
+  UIM_REMOTE_VOLTAGE_CLASS_B_HIGH_V01 = 0x5, /**<  VOLTAGE_CLASS_B_HIGH  */
+  UIM_REMOTE_VOLTAGE_CLASS_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}uim_remote_voltage_class_enum_v01;
+/**
+    @}
+  */
+
 /** @addtogroup uim_remote_qmi_messages
     @{
   */
@@ -453,6 +472,25 @@ typedef struct {
       - UIM_REMOTE_SLOT_1 (0x1) --  Slot 1 \n
       - UIM_REMOTE_SLOT_2 (0x2) --  Slot 2 \n
       - UIM_REMOTE_SLOT_3 (0x3) --  Slot 3  */
+
+  /* Optional */
+  /*  Response Timeout */
+  uint8_t response_timeout_valid;  /**< Must be set to true if response_timeout is being passed */
+  uint32_t response_timeout;
+  /**<   Response timeout in ms */
+
+  /* Optional */
+  /*  Voltage Class */
+  uint8_t voltage_class_valid;  /**< Must be set to true if voltage_class is being passed */
+  uim_remote_voltage_class_enum_v01 voltage_class;
+  /**<   Voltage class. Values: \n
+      - UIM_REMOTE_VOLTAGE_CLASS_C_LOW (0x0) --  VOLTAGE_CLASS_C_LOW \n
+      - UIM_REMOTE_VOLTAGE_CLASS_C (0x1) --  VOLTAGE_CLASS_C \n
+      - UIM_REMOTE_VOLTAGE_CLASS_C_HIGH (0x2) --  VOLTAGE_CLASS_C_HIGH  \n
+      - UIM_REMOTE_VOLTAGE_CLASS_B_LOW (0x3) --  VOLTAGE_CLASS_B_LOW \n
+      - UIM_REMOTE_VOLTAGE_CLASS_B (0x4) --  VOLTAGE_CLASS_B \n
+      - UIM_REMOTE_VOLTAGE_CLASS_B_HIGH (0x5) --  VOLTAGE_CLASS_B_HIGH  \n
+ All other values are reserved for future use. */
 }uim_remote_card_power_up_ind_msg_v01;  /* Message */
 /**
     @}

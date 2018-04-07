@@ -27,7 +27,11 @@ typedef struct util_timer_data_type
 static pthread_t timer_thread;
 static util_list_info_type* timer_queue;
 static int timer_read_fd;
+#ifdef QMI_RIL_UTF
+int timer_write_fd;
+#else
 static int timer_write_fd;
+#endif
 
 
 
@@ -154,10 +158,17 @@ int util_timer_start()
 
     if(timer_queue)
     {
+#ifdef QMI_RIL_UTF
+        err_code = utf_pthread_create_handler(&timer_thread,
+                                              NULL,
+                                              util_timer_thread_proc,
+                                              NULL);
+#else
         err_code = pthread_create(&timer_thread,
                                   NULL,
                                   util_timer_thread_proc,
                                   NULL);
+#endif
         if(err_code)
         {
             util_list_cleanup(timer_queue,
@@ -248,7 +259,19 @@ void* util_timer_thread_proc(void* util_timer_thread_proc_param)
               ret_code = read(timer_read_fd,
                               &temp_buff,
                               sizeof(temp_buff));
+#ifdef QMI_RIL_UTF
+              if ( ret_code == 6 )
+              {
+                if (strncmp((char*)temp_buff, "reset", 6) == 0)
+                {
+                  close(file_des[0]);
+                  close(file_des[1]);
+                  pthread_exit(NULL);
+                }
+              }
+#endif
             } while (ret_code > 0 || (ret_code < 0 && errno == EINTR));
+
 
             util_list_lock_list(timer_queue);
             util_timer_get_current_time(&current_time);

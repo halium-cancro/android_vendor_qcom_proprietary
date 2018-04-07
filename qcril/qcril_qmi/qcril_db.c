@@ -18,8 +18,22 @@
 
 #include "qcril_db.h"
 
+#ifdef QMI_RIL_UTF
+#define QCRIL_DATABASE_NAME "./qcril.db"
+#else
+#define QCRIL_DATABASE_NAME "/data/misc/radio/qcril.db"
+#endif
+
+
 /* QCRIL DB handle */
 sqlite3* qcril_db_handle = NULL;
+
+typedef enum
+{
+    QCRIL_DB_TABLE_FIRST = 0,
+    QCRIL_DB_TABLE_OPERATOR_TYPE = QCRIL_DB_TABLE_FIRST,
+    QCRIL_DB_TABLE_MAX
+} qcril_db_table_type;
 
 typedef struct qcril_db_table_info {
     char *table_name;
@@ -30,6 +44,10 @@ typedef struct qcril_db_escv_in_out {
     char *mnc;
     int escv_type;
 } qcril_db_escv_in_out;
+
+
+#define QCRIL_PROPERTIES_TABLE_NAME "qcril_properties_table"
+
 /* Statement to create qcril db tables */
 #define QCRIL_CREATE_EMRGENCY_TABLE    \
             "create table if not exists %s" \
@@ -45,7 +63,18 @@ typedef struct qcril_db_escv_in_out {
             "create table if not exists %s"\
             "(MCC TEXT, MNC TEXT, NUMBER TEXT, ESCV INTEGER, PRIMARY KEY(MCC,NUMBER, ESCV))"
 
-/* Table containing qcril db table names */
+/* Statement to create qcril db escv nw table */
+#define QCRIL_DB_CREATE_PROPERTIES_TABLE  \
+            "create table if not exists %s"\
+            "(PROPERTY TEXT,VALUE TEXT, PRIMARY KEY(PROPERTY))"
+
+/* Statement to create qcril db operator type table */
+#define QCRIL_DB_CREATE_OPERATOR_TYPE_TABLE  \
+            "create table if not exists %s"\
+            "(MCC TEXT, MNC TEXT, TYPE TEXT, PRIMARY KEY(MCC,MNC))"
+
+
+/* Table containing qcril db emergency table names */
 qcril_db_table_info qcril_db_emergency_number_tables[QMI_RIL_CUSTOM_EMERGENCY_NUMBERS_SOURCE_MAX] =
 {
     [QMI_RIL_CUSTOM_EMERGENCY_NUMBERS_SOURCE_MCC]       =
@@ -60,6 +89,13 @@ qcril_db_table_info qcril_db_emergency_number_tables[QMI_RIL_CUSTOM_EMERGENCY_NU
                  { "qcril_emergency_source_escv_iin_table", QCRIL_DB_CREATE_ESCV_IIN_TABLE },
     [QMI_RIL_CUSTOM_EMERGENCY_NUMBERS_SOURCE_ESCV_NW]  =
                  { "qcril_emergency_source_escv_nw_table", QCRIL_DB_CREATE_ESCV_NW_TABLE },
+};
+
+/* Table containing qcril db table names */
+qcril_db_table_info qcril_db_tables[QCRIL_DB_TABLE_MAX] =
+{
+    [QCRIL_DB_TABLE_OPERATOR_TYPE]  =
+                 { "qcril_operator_type_table", QCRIL_DB_CREATE_OPERATOR_TYPE_TABLE},
 };
 
 #define QCRIL_DB_MAX_STMT_LEN 300
@@ -92,6 +128,14 @@ static char* qcril_db_query_escv_iin_stmt =
 static char* qcril_db_query_escv_nw_stmt   =
                       "select ESCV, MNC from %s where MCC='%s' and NUMBER='%s'";
 
+/* Query statement to query emergency number escv type using iin */
+static char* qcril_db_query_properties_stmt =
+                      "select VALUE from %s where PROPERTY='%s'";
+
+/* Query statement to query operator type using mcc and mnc */
+static char* qcril_db_query_operator_type_stmt =
+                      "select TYPE from %s where MCC='%s' and MNC='%s'";
+
 /* Emergency numbers retrieved */
 static int qcril_db_emergency_numbers_escv_type = 0;
 static int qcril_db_query_result = 0;
@@ -120,6 +164,8 @@ static int qcril_db_retrieve_emergency_num_callback
     int     tmp_len = 0;
     char   *ptr;
     uint32_t len;
+
+    QCRIL_NOTUSED(azColName);
 
     if (data)
     {
@@ -169,6 +215,8 @@ static int qcril_db_check_num_and_mcc_callback
 )
 {
 
+    QCRIL_NOTUSED(azColName);
+
     if ((argc > 0) && strlen(argv[0]) > 0 && data)
     {
         *(int*)data = 1;
@@ -201,6 +249,8 @@ static int qcril_db_check_escv_callback
     int ret = -1;
     qcril_db_escv_in_out *result = data;
     int escv = 0;
+
+    QCRIL_NOTUSED(azColName);
 
     if (result)
     {
@@ -265,6 +315,8 @@ static int qcril_db_retrieve_ims_address_from_mcc_emergency_num_callback
     char   *ptr;
     int     len;
 
+    QCRIL_NOTUSED(azColName);
+
     if (data)
     {
         QCRIL_LOG_INFO("argc %d argv[0] %s", argc, argv[0] ? argv[0] : "null");
@@ -286,6 +338,44 @@ static int qcril_db_retrieve_ims_address_from_mcc_emergency_num_callback
 
     return 0;
 }
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_query_property_callback
+
+===========================================================================*/
+/*!
+    @brief
+    update property.
+
+    @return
+    0 if function is successful.
+*/
+/*=========================================================================*/
+static int qcril_db_query_property_callback
+(
+    void   *data,
+    int     argc,
+    char  **argv,
+    char  **azColName
+)
+{
+    int ret = 0;
+    int len = 0;
+
+    if ( data )
+    {
+        if ( argc == 1 && argv[0] )
+        {
+            len = strlen(argv[0]);
+            strlcpy(data,argv[0],len+1);
+        }
+    }
+
+    return ret;
+}
+
+
 
 /*===========================================================================
 
@@ -322,7 +412,7 @@ int qcril_db_init
     {
         /* open qcril DB */
         if (SQLITE_OK !=
-                 (res = sqlite3_open_v2("/data/misc/radio/qcril.db",
+                 (res = sqlite3_open_v2(QCRIL_DATABASE_NAME,
                          &qcril_db_handle,
                           SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL)))
         {
@@ -352,6 +442,57 @@ int qcril_db_init
                             sqlite3_free(zErrMsg);
                         }
                     }
+                }
+                memset(create_stmt,0,sizeof(create_stmt));
+            }
+
+            for (i = QCRIL_DB_TABLE_FIRST;
+                 i < QCRIL_DB_TABLE_MAX; i++)
+            {
+                if (qcril_db_tables[i].table_name &&
+                     qcril_db_tables[i].create_stmt)
+                {
+                    snprintf(create_stmt, QCRIL_DB_MAX_STMT_LEN,
+                             qcril_db_tables[i].create_stmt,
+                             qcril_db_tables[i].table_name);
+
+                    /* create qcril DB tables */
+                    if (SQLITE_OK !=
+                             (res = sqlite3_exec(qcril_db_handle,
+                                     create_stmt, NULL, NULL, &zErrMsg)))
+                    {
+                        if (zErrMsg)
+                        {
+                            QCRIL_LOG_ERROR("Could not create table %d %s",
+                                             res, zErrMsg);
+                            sqlite3_free(zErrMsg);
+                        }
+                    }
+                }
+
+                memset(create_stmt,0,sizeof(create_stmt));
+            }
+
+            // create rat tlv table.
+            snprintf(create_stmt,
+                     QCRIL_DB_MAX_STMT_LEN,
+                     QCRIL_DB_CREATE_PROPERTIES_TABLE,
+                     QCRIL_PROPERTIES_TABLE_NAME);
+
+            if (SQLITE_OK != (res = sqlite3_exec(qcril_db_handle,
+                                                 create_stmt,
+                                                 NULL,
+                                                 NULL,
+                                                 &zErrMsg
+                                                 )
+                             )
+               )
+            {
+                if (zErrMsg)
+                {
+                    QCRIL_LOG_ERROR("Could not create table %d %s",
+                                     res, zErrMsg);
+                    sqlite3_free(zErrMsg);
                 }
             }
         }
@@ -391,7 +532,8 @@ int qcril_db_is_mcc_part_of_emergency_numbers_table
     QCRIL_LOG_INFO("Source %d MCC %s", source, mcc? mcc: "null");
 
     if ((source < QMI_RIL_CUSTOM_EMERGENCY_NUMBERS_SOURCE_MAX) &&
-         mcc && qcril_db_emergency_number_tables[source].table_name)
+         mcc && qcril_db_emergency_number_tables[source].table_name
+         && emergency_num)
     {
 
         snprintf(query, QCRIL_DB_MAX_STMT_LEN,
@@ -413,16 +555,13 @@ int qcril_db_is_mcc_part_of_emergency_numbers_table
             if ( *((int*)emergency_numbers) > 0 )
             {
                 res = TRUE;
-                if (emergency_num)
-                {
-                    strlcpy(emergency_num, emergency_numbers + RESERVED_TO_STORE_LENGTH,
-                             QCRIL_MAX_EMERGENCY_NUMBERS_LEN);
-                }
+                strlcpy(emergency_num, emergency_numbers + RESERVED_TO_STORE_LENGTH,
+                         QCRIL_MAX_EMERGENCY_NUMBERS_LEN);
+                QCRIL_LOG_INFO("Emergency numbers %s", emergency_num);
             }
         }
     }
 
-    QCRIL_LOG_INFO("Emergency numbers %s", emergency_num);
     QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
     return res;
 }
@@ -459,7 +598,8 @@ int qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state
     QCRIL_LOG_INFO("Source %d MCC %s", source, mcc? mcc: "null");
 
     if ((source < QMI_RIL_CUSTOM_EMERGENCY_NUMBERS_SOURCE_MAX) &&
-         mcc && service &&qcril_db_emergency_number_tables[source].table_name)
+         mcc && service &&qcril_db_emergency_number_tables[source].table_name
+         && emergency_num)
     {
 
         snprintf(query, QCRIL_DB_MAX_STMT_LEN,
@@ -482,16 +622,13 @@ int qcril_db_is_mcc_part_of_emergency_numbers_table_with_service_state
             if ( *((int*)emergency_numbers) > 0 )
             {
                 res = TRUE;
-                if (emergency_num)
-                {
-                    strlcpy(emergency_num, emergency_numbers + RESERVED_TO_STORE_LENGTH,
-                             QCRIL_MAX_EMERGENCY_NUMBERS_LEN);
-                }
+                strlcpy(emergency_num, emergency_numbers + RESERVED_TO_STORE_LENGTH,
+                         QCRIL_MAX_EMERGENCY_NUMBERS_LEN);
+                QCRIL_LOG_INFO("Emergency numbers %s", emergency_num);
             }
         }
     }
 
-    QCRIL_LOG_INFO("Emergency numbers %s", emergency_num);
     QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
     return res;
 }
@@ -710,4 +847,196 @@ int qcril_db_query_escv_type
 
     QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
     return res;
+}
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_query_properties_table
+
+===========================================================================*/
+/*!
+    @brief
+    Query property table.
+    Caller of this function should pass sufficient buffer (value)
+    for storing the information retrieved from database
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_db_query_properties_table
+(
+    char *property_name,
+    char *value
+)
+{
+    int     res     = 0;
+    char   *zErrMsg = NULL;
+    int     ret     = SQLITE_OK;
+    char    query[QCRIL_DB_MAX_STMT_LEN] = {0};
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    do
+    {
+        // if null pointer
+        if ( !value || !property_name )
+        {
+            break;
+        }
+        snprintf(query,
+                 QCRIL_DB_MAX_STMT_LEN,
+                 qcril_db_query_properties_stmt,
+                 QCRIL_PROPERTIES_TABLE_NAME,
+                 property_name
+                 );
+
+        QCRIL_LOG_INFO(" Query %s", query);
+
+        if (SQLITE_OK != (ret = sqlite3_exec(qcril_db_handle,
+                                             query,
+                                             qcril_db_query_property_callback,
+                                             value,
+                                             &zErrMsg
+                                             )
+                         )
+           )
+        {
+            if (zErrMsg)
+            {
+                QCRIL_LOG_ERROR("Could not query %d %s", ret, zErrMsg);
+                sqlite3_free(zErrMsg);
+                break;
+            }
+        }
+    } while (0);
+
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_query_operator_type_callback
+
+===========================================================================*/
+/*!
+    @brief
+    retrieve operator type.
+
+    @return
+    0 if function is successful.
+*/
+/*=========================================================================*/
+static int qcril_db_query_operator_type_callback
+(
+    void   *data,
+    int     argc,
+    char  **argv,
+    char  **azColName
+)
+{
+    int ret = 0;
+    int len = 0;
+
+    if (data)
+    {
+        if (argc == 1 && argv[0])
+        {
+            strlcpy(data, argv[0], QCRIL_DB_MAX_OPERATOR_TYPE_LEN);
+        }
+    }
+
+    return ret;
+}
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_query_operator_type
+
+===========================================================================*/
+/*!
+    @brief
+    Query operator type based upon (mcc, mnc)
+
+    @output
+    string 3gpp or 3gpp2
+*/
+/*=========================================================================*/
+void qcril_db_query_operator_type
+(
+    char *mcc,
+    char *mnc,
+    char operator_type[QCRIL_DB_MAX_OPERATOR_TYPE_LEN]
+)
+{
+    char    query[QCRIL_DB_MAX_STMT_LEN] = {0};
+    int     res     = 0;
+    int     ret     = SQLITE_OK;
+    char   *zErrMsg = NULL;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    QCRIL_LOG_INFO(" mcc: %s, mnc: %s",
+                     mcc? mcc : "null",
+                     mnc? mnc : "null");
+    do {
+        if (!(mcc && mnc && operator_type))
+        {
+            break;
+        }
+
+        snprintf(query, QCRIL_DB_MAX_STMT_LEN,
+           qcril_db_query_operator_type_stmt,
+           qcril_db_tables[QCRIL_DB_TABLE_OPERATOR_TYPE].table_name,
+           mcc,
+           mnc);
+
+        QCRIL_LOG_INFO(" Query: %s", query);
+
+        if (SQLITE_OK != (ret = sqlite3_exec(qcril_db_handle,
+                                             query,
+                                             qcril_db_query_operator_type_callback,
+                                             operator_type, &zErrMsg)))
+        {
+            if (zErrMsg)
+            {
+                QCRIL_LOG_ERROR("Could not query %d %s", ret, zErrMsg);
+                sqlite3_free(zErrMsg);
+            }
+        }
+
+    } while (0);
+
+    return;
+}
+
+/*===========================================================================
+
+  FUNCTION  qcril_db_reset_cleanup
+
+===========================================================================*/
+/*!
+    @brief
+    Reset all global vars and release database
+
+    @return
+    0 on success
+*/
+/*=========================================================================*/
+
+int qcril_db_reset_cleanup()
+{
+  int ret = sqlite3_close(qcril_db_handle);
+  sqlite3_shutdown();
+  qcril_db_emergency_numbers_escv_type = 0;
+  qcril_db_query_result = 0;
+
+
+  if (ret != SQLITE_OK)
+  {
+    return -1;
+  }
+
+  return 0;
+
 }

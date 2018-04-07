@@ -5,19 +5,19 @@
 GENERAL DESCRIPTION
   This is the file which defines the uim service Data structures.
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/uim/main/latest/src/user_identity_module_v01.c#34 $
+  $Header: //source/qcom/qct/interfaces/qmi/uim/main/latest/src/user_identity_module_v01.c#45 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.5 
-   It was generated on: Sat Oct 26 2013 (Spin 0)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Tue Aug 19 2014 (Spin 0)
    From IDL File: user_identity_module_v01.idl */
 
 #include "stdint.h"
@@ -687,6 +687,25 @@ static const uint8_t uim_1x_network_type2_perso_type_data_v01[] = {
   QMI_IDL_FLAG_END_VALUE
 };
 
+static const uint8_t uim_personalization_status_other_slots_type_data_v01[] = {
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_personalization_status_other_slots_type_v01, personalization_status),
+  QMI_UIM_PERSO_FEATURE_MAX_V01,
+  QMI_IDL_OFFSET8(uim_personalization_status_other_slots_type_v01, personalization_status) - QMI_IDL_OFFSET8(uim_personalization_status_other_slots_type_v01, personalization_status_len),
+  QMI_IDL_TYPE88(0, 29),
+  QMI_IDL_FLAG_END_VALUE
+};
+
+static const uint8_t profile_info_type_data_v01[] = {
+  QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(profile_info_type_v01, profile_id),
+
+  QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(profile_info_type_v01, profile_type),
+
+  QMI_IDL_FLAG_END_VALUE
+};
+
 /*Message Definitions*/
 /* 
  * uim_reset_req_msg is empty
@@ -768,14 +787,14 @@ static const uint8_t uim_read_transparent_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_read_transparent_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_read_transparent_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_read_transparent_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_read_transparent_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_read_transparent_ind_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_read_transparent_ind_msg_v01, card_result_valid)),
   0x10,
@@ -863,14 +882,14 @@ static const uint8_t uim_read_record_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_read_record_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_read_record_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_read_record_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_read_record_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_read_record_ind_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_read_record_ind_msg_v01, card_result_valid)),
   0x10,
@@ -932,14 +951,14 @@ static const uint8_t uim_write_transparent_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_write_transparent_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_write_transparent_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_write_transparent_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_write_transparent_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_write_transparent_ind_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_write_transparent_ind_msg_v01, card_result_valid)),
   0x10,
@@ -989,14 +1008,14 @@ static const uint8_t uim_write_record_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_write_record_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_write_record_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_write_record_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_write_record_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_write_record_ind_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_write_record_ind_msg_v01, card_result_valid)),
   0x10,
@@ -1057,14 +1076,14 @@ static const uint8_t uim_get_file_attributes_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_get_file_attributes_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_get_file_attributes_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_get_file_attributes_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_get_file_attributes_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_file_attributes_ind_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_get_file_attributes_ind_msg_v01, card_result_valid)),
   0x10,
@@ -1212,14 +1231,14 @@ static const uint8_t uim_set_pin_protection_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_set_pin_protection_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_set_pin_protection_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_set_pin_protection_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_set_pin_protection_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_set_pin_protection_ind_msg_v01, retries_left) - QMI_IDL_OFFSET8(uim_set_pin_protection_ind_msg_v01, retries_left_valid)),
   0x10,
@@ -1299,14 +1318,14 @@ static const uint8_t uim_verify_pin_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_verify_pin_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_verify_pin_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_verify_pin_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_verify_pin_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_verify_pin_ind_msg_v01, retries_left) - QMI_IDL_OFFSET8(uim_verify_pin_ind_msg_v01, retries_left_valid)),
   0x10,
@@ -1380,14 +1399,14 @@ static const uint8_t uim_unblock_pin_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_unblock_pin_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_unblock_pin_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_unblock_pin_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_unblock_pin_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_unblock_pin_ind_msg_v01, retries_left) - QMI_IDL_OFFSET8(uim_unblock_pin_ind_msg_v01, retries_left_valid)),
   0x10,
@@ -1461,14 +1480,14 @@ static const uint8_t uim_change_pin_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_change_pin_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_change_pin_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_change_pin_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_change_pin_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_change_pin_ind_msg_v01, retries_left) - QMI_IDL_OFFSET8(uim_change_pin_ind_msg_v01, retries_left_valid)),
   0x10,
@@ -1490,10 +1509,15 @@ static const uint8_t uim_change_pin_ind_msg_data_v01[] = {
 };
 
 static const uint8_t uim_depersonalization_req_msg_data_v01[] = {
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+  0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_depersonalization_req_msg_v01, depersonalization),
-  QMI_IDL_TYPE88(0, 20)
+  QMI_IDL_TYPE88(0, 20),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_depersonalization_req_msg_v01, slot) - QMI_IDL_OFFSET8(uim_depersonalization_req_msg_v01, slot_valid)),
+  0x10,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_depersonalization_req_msg_v01, slot)
 };
 
 static const uint8_t uim_depersonalization_resp_msg_data_v01[] = {
@@ -1684,14 +1708,14 @@ static const uint8_t uim_authenticate_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_authenticate_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_authenticate_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_authenticate_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_authenticate_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_authenticate_ind_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_authenticate_ind_msg_v01, card_result_valid)),
   0x10,
@@ -1727,9 +1751,14 @@ static const uint8_t uim_get_service_status_req_msg_data_v01[] = {
   QMI_IDL_OFFSET8(uim_get_service_status_req_msg_v01, session_information),
   QMI_IDL_TYPE88(0, 0),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+  0x02,
    QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_get_service_status_req_msg_v01, mask)
+  QMI_IDL_OFFSET8(uim_get_service_status_req_msg_v01, mask),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_service_status_req_msg_v01, service_number) - QMI_IDL_OFFSET8(uim_get_service_status_req_msg_v01, service_number_valid)),
+  0x10,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(uim_get_service_status_req_msg_v01, service_number)
 };
 
 static const uint8_t uim_get_service_status_resp_msg_data_v01[] = {
@@ -1758,10 +1787,15 @@ static const uint8_t uim_get_service_status_resp_msg_data_v01[] = {
    QMI_IDL_1_BYTE_ENUM,
   QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, esn_status),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, acl_status) - QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, acl_status_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, acl_status) - QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, acl_status_valid)),
   0x14,
    QMI_IDL_1_BYTE_ENUM,
-  QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, acl_status)
+  QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, acl_status),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, service_status) - QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, service_status_valid)),
+  0x15,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(uim_get_service_status_resp_msg_v01, service_status)
 };
 
 static const uint8_t uim_set_service_status_req_msg_data_v01[] = {
@@ -1855,10 +1889,18 @@ static const uint8_t uim_get_configuration_resp_msg_data_v01[] = {
   QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, personalization_status) - QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, personalization_status_len),
   QMI_IDL_TYPE88(0, 29),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, halt_subscription) - QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, halt_subscription_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, halt_subscription) - QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, halt_subscription_valid)),
   0x12,
    QMI_IDL_GENERIC_1_BYTE,
-  QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, halt_subscription)
+  QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, halt_subscription),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, extended_personalization_status) - QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, extended_personalization_status_valid)),
+  0x13,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, extended_personalization_status),
+  QMI_UIM_EXTENDED_CARDS_MAX_V01,
+  QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, extended_personalization_status) - QMI_IDL_OFFSET8(uim_get_configuration_resp_msg_v01, extended_personalization_status_len),
+  QMI_IDL_TYPE88(0, 46)
 };
 
 static const uint8_t uim_send_apdu_req_msg_data_v01[] = {
@@ -2376,13 +2418,28 @@ static const uint8_t uim_personalization_req_msg_data_v01[] = {
   QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_network2_perso) - QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_network2_perso_len),
   QMI_IDL_TYPE88(0, 45),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_ruim_perso) - QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_ruim_perso_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_ruim_perso) - QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_ruim_perso_valid)),
   0x17,
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(uim_personalization_req_msg_v01, feature_1x_ruim_perso),
   QMI_UIM_PERSO_NUM_SIM_MAX_V01,
   QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_ruim_perso) - QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, feature_1x_ruim_perso_len),
-  QMI_IDL_TYPE88(0, 44)
+  QMI_IDL_TYPE88(0, 44),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, slot) - QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, slot_valid)),
+  0x18,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET16ARRAY(uim_personalization_req_msg_v01, slot),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, num_iterations) - QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, num_iterations_valid)),
+  0x19,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET16ARRAY(uim_personalization_req_msg_v01, num_iterations),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, num_retries) - QMI_IDL_OFFSET16RELATIVE(uim_personalization_req_msg_v01, num_retries_valid)),
+  0x1A,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET16ARRAY(uim_personalization_req_msg_v01, num_retries)
 };
 
 static const uint8_t uim_personalization_resp_msg_data_v01[] = {
@@ -2447,14 +2504,14 @@ static const uint8_t uim_increase_resp_msg_data_v01[] = {
 };
 
 static const uint8_t uim_increase_ind_msg_data_v01[] = {
-  0x01,
-   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, indication_token),
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, resp),
   QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, indication_token),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, card_result_valid)),
   0x10,
@@ -2468,6 +2525,163 @@ static const uint8_t uim_increase_ind_msg_data_v01[] = {
   QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, increase_result),
   QMI_UIM_INCREASE_DATA_MAX_V01,
   QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, increase_result) - QMI_IDL_OFFSET8(uim_increase_ind_msg_v01, increase_result_len)
+};
+
+static const uint8_t uim_recovery_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_recovery_req_msg_v01, slot)
+};
+
+static const uint8_t uim_recovery_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_recovery_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
+};
+
+static const uint8_t uim_reselect_req_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_reselect_req_msg_v01, slot),
+
+  0x02,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(uim_reselect_req_msg_v01, channel_id),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x03,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_reselect_req_msg_v01, select_mode)
+};
+
+static const uint8_t uim_reselect_resp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, card_result) - QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, card_result_valid)),
+  0x10,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, card_result),
+  QMI_IDL_TYPE88(0, 3),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, select_response) - QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, select_response_valid)),
+  0x11,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, select_response),
+  QMI_UIM_SELECT_RESPONSE_MAX_V01,
+  QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, select_response) - QMI_IDL_OFFSET8(uim_reselect_resp_msg_v01, select_response_len)
+};
+
+static const uint8_t uim_recovery_ind_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_recovery_ind_msg_v01, slot)
+};
+
+static const uint8_t uim_send_status_cmd_req_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_send_status_cmd_req_msg_v01, session_information),
+  QMI_IDL_TYPE88(0, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_send_status_cmd_req_msg_v01, status_cmd_mode) - QMI_IDL_OFFSET8(uim_send_status_cmd_req_msg_v01, status_cmd_mode_valid)),
+  0x10,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_send_status_cmd_req_msg_v01, status_cmd_mode),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_send_status_cmd_req_msg_v01, status_cmd_resp) - QMI_IDL_OFFSET8(uim_send_status_cmd_req_msg_v01, status_cmd_resp_valid)),
+  0x11,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_send_status_cmd_req_msg_v01, status_cmd_resp)
+};
+
+static const uint8_t uim_send_status_cmd_resp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_send_status_cmd_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_send_status_cmd_resp_msg_v01, status_response) - QMI_IDL_OFFSET8(uim_send_status_cmd_resp_msg_v01, status_response_valid)),
+  0x10,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(uim_send_status_cmd_resp_msg_v01, status_response),
+  QMI_UIM_SELECT_RESPONSE_MAX_V01,
+  QMI_IDL_OFFSET8(uim_send_status_cmd_resp_msg_v01, status_response) - QMI_IDL_OFFSET8(uim_send_status_cmd_resp_msg_v01, status_response_len),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(uim_send_status_cmd_resp_msg_v01, card_result) - QMI_IDL_OFFSET16RELATIVE(uim_send_status_cmd_resp_msg_v01, card_result_valid)),
+  0x11,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET16ARRAY(uim_send_status_cmd_resp_msg_v01, card_result),
+  QMI_IDL_TYPE88(0, 3)
+};
+
+static const uint8_t uim_get_sim_profile_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_get_sim_profile_req_msg_v01, slot)
+};
+
+static const uint8_t uim_get_sim_profile_resp_msg_data_v01[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, profile_info) - QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, profile_info_valid)),
+  0x10,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, profile_info),
+  QMI_UIM_PROFILES_MAX_V01,
+  QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, profile_info) - QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, profile_info_len),
+  QMI_IDL_TYPE88(0, 47),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, active_profile_info) - QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, active_profile_info_valid)),
+  0x11,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_get_sim_profile_resp_msg_v01, active_profile_info),
+  QMI_IDL_TYPE88(0, 47)
+};
+
+static const uint8_t uim_set_sim_profile_req_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_set_sim_profile_req_msg_v01, slot),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_set_sim_profile_req_msg_v01, profile_id)
+};
+
+static const uint8_t uim_set_sim_profile_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_set_sim_profile_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
+};
+
+static const uint8_t uim_supply_voltage_req_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_supply_voltage_req_msg_v01, slot)
+};
+
+static const uint8_t uim_supply_voltage_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(uim_supply_voltage_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
+};
+
+static const uint8_t uim_supply_voltage_ind_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_1_BYTE_ENUM,
+  QMI_IDL_OFFSET8(uim_supply_voltage_ind_msg_v01, slot),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(uim_supply_voltage_ind_msg_v01, vcc_command)
 };
 
 /* Type Table */
@@ -2517,7 +2731,9 @@ static const qmi_idl_type_table_entry  uim_type_table_v01[] = {
   {sizeof(uim_gw_sp_perso_type_v01), uim_gw_sp_perso_type_data_v01},
   {sizeof(uim_gw_corporate_perso_type_v01), uim_gw_corporate_perso_type_data_v01},
   {sizeof(uim_sim_perso_type_v01), uim_sim_perso_type_data_v01},
-  {sizeof(uim_1x_network_type2_perso_type_v01), uim_1x_network_type2_perso_type_data_v01}
+  {sizeof(uim_1x_network_type2_perso_type_v01), uim_1x_network_type2_perso_type_data_v01},
+  {sizeof(uim_personalization_status_other_slots_type_v01), uim_personalization_status_other_slots_type_data_v01},
+  {sizeof(profile_info_type_v01), profile_info_type_data_v01}
 };
 
 /* Message Table */
@@ -2620,7 +2836,21 @@ static const qmi_idl_message_table_entry uim_message_table_v01[] = {
   {sizeof(uim_personalization_resp_msg_v01), uim_personalization_resp_msg_data_v01},
   {sizeof(uim_increase_req_msg_v01), uim_increase_req_msg_data_v01},
   {sizeof(uim_increase_resp_msg_v01), uim_increase_resp_msg_data_v01},
-  {sizeof(uim_increase_ind_msg_v01), uim_increase_ind_msg_data_v01}
+  {sizeof(uim_increase_ind_msg_v01), uim_increase_ind_msg_data_v01},
+  {sizeof(uim_recovery_req_msg_v01), uim_recovery_req_msg_data_v01},
+  {sizeof(uim_recovery_resp_msg_v01), uim_recovery_resp_msg_data_v01},
+  {sizeof(uim_reselect_req_msg_v01), uim_reselect_req_msg_data_v01},
+  {sizeof(uim_reselect_resp_msg_v01), uim_reselect_resp_msg_data_v01},
+  {sizeof(uim_recovery_ind_msg_v01), uim_recovery_ind_msg_data_v01},
+  {sizeof(uim_send_status_cmd_req_msg_v01), uim_send_status_cmd_req_msg_data_v01},
+  {sizeof(uim_send_status_cmd_resp_msg_v01), uim_send_status_cmd_resp_msg_data_v01},
+  {sizeof(uim_get_sim_profile_req_msg_v01), uim_get_sim_profile_req_msg_data_v01},
+  {sizeof(uim_get_sim_profile_resp_msg_v01), uim_get_sim_profile_resp_msg_data_v01},
+  {sizeof(uim_set_sim_profile_req_msg_v01), uim_set_sim_profile_req_msg_data_v01},
+  {sizeof(uim_set_sim_profile_resp_msg_v01), uim_set_sim_profile_resp_msg_data_v01},
+  {sizeof(uim_supply_voltage_req_msg_v01), uim_supply_voltage_req_msg_data_v01},
+  {sizeof(uim_supply_voltage_resp_msg_v01), uim_supply_voltage_resp_msg_data_v01},
+  {sizeof(uim_supply_voltage_ind_msg_v01), uim_supply_voltage_ind_msg_data_v01}
 };
 
 /* Range Table */
@@ -2658,7 +2888,7 @@ static const qmi_idl_service_message_table_entry uim_service_command_messages_v0
   {QMI_UIM_VERIFY_PIN_REQ_V01, QMI_IDL_TYPE16(0, 28), 320},
   {QMI_UIM_UNBLOCK_PIN_REQ_V01, QMI_IDL_TYPE16(0, 31), 70},
   {QMI_UIM_CHANGE_PIN_REQ_V01, QMI_IDL_TYPE16(0, 34), 70},
-  {QMI_UIM_DEPERSONALIZATION_REQ_V01, QMI_IDL_TYPE16(0, 37), 22},
+  {QMI_UIM_DEPERSONALIZATION_REQ_V01, QMI_IDL_TYPE16(0, 37), 26},
   {QMI_UIM_REFRESH_REGISTER_REQ_V01, QMI_IDL_TYPE16(0, 17), 1344},
   {QMI_UIM_REFRESH_OK_REQ_V01, QMI_IDL_TYPE16(0, 19), 41},
   {QMI_UIM_REFRESH_COMPLETE_REQ_V01, QMI_IDL_TYPE16(0, 21), 41},
@@ -2669,7 +2899,7 @@ static const qmi_idl_service_message_table_entry uim_service_command_messages_v0
   {QMI_UIM_POWER_UP_REQ_V01, QMI_IDL_TYPE16(0, 41), 8},
   {QMI_UIM_AUTHENTICATE_REQ_V01, QMI_IDL_TYPE16(0, 49), 1074},
   {QMI_UIM_CLOSE_SESSION_REQ_V01, QMI_IDL_TYPE16(0, 52), 37},
-  {QMI_UIM_GET_SERVICE_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 54), 44},
+  {QMI_UIM_GET_SERVICE_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 54), 48},
   {QMI_UIM_SET_SERVICE_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 56), 45},
   {QMI_UIM_CHANGE_PROVISIONING_SESSION_REQ_V01, QMI_IDL_TYPE16(0, 58), 42},
   {QMI_UIM_GET_LABEL_REQ_V01, QMI_IDL_TYPE16(0, 60), 37},
@@ -2686,8 +2916,14 @@ static const qmi_idl_service_message_table_entry uim_service_command_messages_v0
   {QMI_UIM_SWITCH_SLOT_REQ_V01, QMI_IDL_TYPE16(0, 85), 11},
   {QMI_UIM_GET_SLOTS_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 87), 0},
   {QMI_UIM_GET_PLMN_NAME_TABLE_INFO_REQ_V01, QMI_IDL_TYPE16(0, 92), 0},
-  {QMI_UIM_PERSONALIZATION_REQ_V01, QMI_IDL_TYPE16(0, 94), 4453},
-  {QMI_UIM_INCREASE_REQ_V01, QMI_IDL_TYPE16(0, 96), 191}
+  {QMI_UIM_PERSONALIZATION_REQ_V01, QMI_IDL_TYPE16(0, 94), 4471},
+  {QMI_UIM_INCREASE_REQ_V01, QMI_IDL_TYPE16(0, 96), 191},
+  {QMI_UIM_RECOVERY_REQ_V01, QMI_IDL_TYPE16(0, 99), 4},
+  {QMI_UIM_RESELECT_REQ_V01, QMI_IDL_TYPE16(0, 101), 15},
+  {QMI_UIM_SEND_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 104), 51},
+  {QMI_UIM_GET_SIM_PROFILE_REQ_V01, QMI_IDL_TYPE16(0, 106), 4},
+  {QMI_UIM_SET_SIM_PROFILE_REQ_V01, QMI_IDL_TYPE16(0, 108), 11},
+  {QMI_UIM_SUPPLY_VOLTAGE_REQ_V01, QMI_IDL_TYPE16(0, 110), 4}
 };
 
 static const qmi_idl_service_message_table_entry uim_service_response_messages_v01[] = {
@@ -2714,11 +2950,11 @@ static const qmi_idl_service_message_table_entry uim_service_response_messages_v
   {QMI_UIM_POWER_UP_RESP_V01, QMI_IDL_TYPE16(0, 42), 7},
   {QMI_UIM_AUTHENTICATE_RESP_V01, QMI_IDL_TYPE16(0, 50), 1048},
   {QMI_UIM_CLOSE_SESSION_RESP_V01, QMI_IDL_TYPE16(0, 53), 7},
-  {QMI_UIM_GET_SERVICE_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 55), 27},
+  {QMI_UIM_GET_SERVICE_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 55), 31},
   {QMI_UIM_SET_SERVICE_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 57), 7},
   {QMI_UIM_CHANGE_PROVISIONING_SESSION_RESP_V01, QMI_IDL_TYPE16(0, 59), 7},
   {QMI_UIM_GET_LABEL_RESP_V01, QMI_IDL_TYPE16(0, 61), 266},
-  {QMI_UIM_GET_CONFIGURATION_RESP_V01, QMI_IDL_TYPE16(0, 63), 79},
+  {QMI_UIM_GET_CONFIGURATION_RESP_V01, QMI_IDL_TYPE16(0, 63), 388},
   {QMI_UIM_SEND_APDU_RESP_V01, QMI_IDL_TYPE16(0, 65), 1045},
   {QMI_UIM_SAP_CONNECTION_RESP_V01, QMI_IDL_TYPE16(0, 68), 11},
   {QMI_UIM_SAP_REQUEST_RESP_V01, QMI_IDL_TYPE16(0, 70), 1554},
@@ -2732,7 +2968,13 @@ static const qmi_idl_service_message_table_entry uim_service_response_messages_v
   {QMI_UIM_GET_SLOTS_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 88), 111},
   {QMI_UIM_GET_PLMN_NAME_TABLE_INFO_RESP_V01, QMI_IDL_TYPE16(0, 93), 21},
   {QMI_UIM_PERSONALIZATION_RESP_V01, QMI_IDL_TYPE16(0, 95), 12},
-  {QMI_UIM_INCREASE_RESP_V01, QMI_IDL_TYPE16(0, 97), 150}
+  {QMI_UIM_INCREASE_RESP_V01, QMI_IDL_TYPE16(0, 97), 150},
+  {QMI_UIM_RECOVERY_RESP_V01, QMI_IDL_TYPE16(0, 100), 7},
+  {QMI_UIM_RESELECT_RESP_V01, QMI_IDL_TYPE16(0, 102), 271},
+  {QMI_UIM_SEND_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 105), 271},
+  {QMI_UIM_GET_SIM_PROFILE_RESP_V01, QMI_IDL_TYPE16(0, 107), 86},
+  {QMI_UIM_SET_SIM_PROFILE_RESP_V01, QMI_IDL_TYPE16(0, 109), 7},
+  {QMI_UIM_SUPPLY_VOLTAGE_RESP_V01, QMI_IDL_TYPE16(0, 111), 7}
 };
 
 static const qmi_idl_service_message_table_entry uim_service_indication_messages_v01[] = {
@@ -2754,7 +2996,9 @@ static const qmi_idl_service_message_table_entry uim_service_indication_messages
   {QMI_UIM_SLOT_STATUS_CHANGE_IND_V01, QMI_IDL_TYPE16(0, 89), 104},
   {QMI_UIM_READ_TRANSPARENT_LONG_IND_V01, QMI_IDL_TYPE16(0, 90), 4118},
   {QMI_UIM_SIM_BUSY_STATUS_IND_V01, QMI_IDL_TYPE16(0, 91), 9},
-  {QMI_UIM_INCREASE_IND_V01, QMI_IDL_TYPE16(0, 98), 150}
+  {QMI_UIM_INCREASE_IND_V01, QMI_IDL_TYPE16(0, 98), 150},
+  {QMI_UIM_RECOVERY_IND_V01, QMI_IDL_TYPE16(0, 103), 4},
+  {QMI_UIM_SUPPLY_VOLTAGE_IND_V01, QMI_IDL_TYPE16(0, 112), 11}
 };
 
 /*Service Object*/
@@ -2768,7 +3012,7 @@ struct qmi_idl_service_object uim_qmi_idl_service_object_v01 = {
     sizeof(uim_service_indication_messages_v01)/sizeof(qmi_idl_service_message_table_entry) },
   { uim_service_command_messages_v01, uim_service_response_messages_v01, uim_service_indication_messages_v01},
   &uim_qmi_idl_type_table_object_v01,
-  0x25,
+  0x2B,
   NULL
 };
 

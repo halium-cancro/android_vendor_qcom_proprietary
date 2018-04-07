@@ -30,7 +30,7 @@ LDLIBS += $(SYSROOTLIB_DIR)/libdiag.so.$(LIBVER)
 all:qmuxd
 
 qmuxd:$(QMUX_SRC_FILES)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $^ 
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $^ -lpthread
 
 clean:
 	rm -rf *.o qmuxd

@@ -32,8 +32,8 @@
 
 #define QMI_CTL_SRVC_CLIENT_ID 0x00
 
-#define MAX_QMI_CLIENT_IDS      16
-
+#define MAX_QMI_CLIENT_IDS      50
+#define QMI_RESULT_CODE_TYPE_ID 0x02
 typedef enum
 {
   QMI_CTL_SERVICE_REQUEST_MSG,
@@ -56,9 +56,9 @@ typedef struct qmi_qmux_client_srvc_type
 } qmi_qmux_client_srvc_type;
 
 /* Definitions for status flags */
-#define QMI_QMUX_CONN_STATUS_IS_ACTIVE    0x00000001
-#define QMI_QMUX_CONN_STATUS_IN_RESET     0x00000002
-#define QMI_QMUX_CONN_STATUS_IS_DISABLED  0x00000004
+#define QMI_QMUX_CONN_STATUS_IS_ACTIVE    0x00000001U
+#define QMI_QMUX_CONN_STATUS_IN_RESET     0x00000002U
+#define QMI_QMUX_CONN_STATUS_IS_DISABLED  0x00000004U
 
 /* Data kept for each connection ID */
 typedef struct
@@ -114,66 +114,7 @@ static int           num_services = 0;
 
 #ifdef QMI_DEBUG
 
-#define PRINT_QMI_MSG(msg,len) print_qmi_msg (msg,len)
-static
-void print_qmi_msg (
-  unsigned char           *msg,
-  int                     msg_len
-)
-{
-  if (NULL != msg)
-  {
-    #define MAX_BUFFER_BYTES_PER_LINE 16
-    #define MAX_OUTPUT_BUF_SIZE ((MAX_BUFFER_BYTES_PER_LINE * 3) + 2)
-    char output_buf [MAX_OUTPUT_BUF_SIZE];
-
-    int i;
-    char *p;
-    while (msg_len > 0)
-    {
-      p = output_buf;
-
-      /* Collect MAX_BUFFER_BYTES_PER_LINE bytes of buffer for display */
-      for (i=0; (i<MAX_BUFFER_BYTES_PER_LINE) && (msg_len > 0); i++)
-      {
-        unsigned char val;
-
-        /* First digit */
-        val = (*msg >> 4) & 0x0F;
-        if (val <= 9)
-        {
-          *p++ = val + '0';
-        }
-        else
-        {
-          *p++ = (val - 10) + 'A';
-        }
-
-        /* Second digit... ugly copied code */
-        val = *msg & 0x0F;
-        if (val <= 9)
-        {
-          *p++ = val + '0';
-        }
-        else
-        {
-          *p++ = (val - 10) + 'A';
-        }
-
-        /* Add a space, and increment msg pointer */
-        *p++ = ' ';
-        msg++;
-        msg_len--;
-      }
-
-      /* Add \n and NULL terminator and print out */
-      *p++ = '\n';
-      *p = '\0';
-      QMI_DEBUG_MSG_1 ("%s",output_buf);
-    }
-  }
-
-}
+#define PRINT_QMI_MSG(msg,len) qmi_platform_log_raw_qmi_msg (msg,len)
 
 #else
 
@@ -357,7 +298,7 @@ void qmi_qmux_if_send_to_client (
 
   /* Decrement msg pointer and increment msg_len */
   msg -= QMI_QMUX_IF_HDR_SIZE;
-  msg_len += QMI_QMUX_IF_HDR_SIZE;
+  msg_len += (int)QMI_QMUX_IF_HDR_SIZE;
 
   /* Copy header into message buffer */
   memcpy ((void *)msg, (void *)&hdr, QMI_QMUX_IF_HDR_SIZE);
@@ -666,7 +607,6 @@ int qmi_qmux_add_qmi_service_client (
     if (i < MAX_QMI_CLIENT_IDS)
     {
       QMI_DEBUG_MSG_3 ("Adding client %d, service %d, conn_id=%d...\n",client_id,service_id,conn_id);
-      QMI_DEBUG_MSG_3 (".... for qmux_client_id = %x, in slot %d, for clnt_srv_info=%x\n",qmux_client_id,i,(unsigned int)client_srvc_info);
       client_srvc_info->qmi_client_ids[i] = client_id;
     }
     else
@@ -989,7 +929,7 @@ void qmi_qmux_rx_client_broadcast (
   qmi_client_id_type        client_id,
   unsigned char             control_flags,
   unsigned char             *msg_ptr,
-  unsigned long             msg_len
+  int                       msg_len
 )
 {
   qmi_qmux_conn_info_type *conn_info;
@@ -1228,6 +1168,7 @@ void qmi_qmux_rx_msg (
   int                     rem_bytes;
   int                     msg_len = 0;
   unsigned char           *msg_ptr = rx_buf_ptr;
+  unsigned char           *msg_start_ptr = NULL;
 
   /* Validate connection ID to make sure it is valid */
   if( !QMI_CONN_ID_IS_VALID( conn_id ) )
@@ -1247,7 +1188,6 @@ void qmi_qmux_rx_msg (
   }
 
   QMI_DEBUG_MSG_2 ("qmi_qmux: TX/RX - RX %d bytes on conn_id=%d\n",rx_buf_len,(int)conn_id);
-  PRINT_QMI_MSG (rx_buf_ptr, rx_buf_len);
 
   /* If there are multiple QMI messages, extract one at a time and deliver to the upper layer */
   for (rem_bytes = rx_buf_len; rem_bytes > 0; rem_bytes -= (msg_len + QMI_QMUX_HDR_SIZE))
@@ -1262,6 +1202,10 @@ void qmi_qmux_rx_msg (
     size(byte): 1        |   2   |      1       |      1      |    1     |
     ------------------------------------------------------------------------------
      */
+
+    /* Store pointer to the start of the message */
+    msg_start_ptr = msg_ptr;
+
     /* Read the I/F byte, make sure it is a 1 */
     READ_8_BIT_VAL(msg_ptr,i_f_byte);
 
@@ -1292,6 +1236,8 @@ void qmi_qmux_rx_msg (
       QMI_ERR_MSG_2 ("qmi_qmux: packet rem_bytes < length (%d) + 1\n", rem_bytes, (int)length);
       return;
     }
+
+    PRINT_QMI_MSG (msg_start_ptr, length+1);
 
     /* Read the control flags */
     READ_8_BIT_VAL(msg_ptr,control_flags);
@@ -1327,7 +1273,6 @@ void qmi_qmux_rx_msg (
     /* Calculate length of the actual message
     */
     msg_len = length - QMI_QMUX_HDR_SIZE + 1;
-
 
     /* Now, determine if the message is a broadcast message meant for all clients.  This
     ** is determined by the client ID == 0xFF
@@ -1388,13 +1333,13 @@ int qmi_qmux_tx_to_modem
   qmi_service_id_type      service_id,
   qmi_client_id_type       client_id,
   unsigned char            *msg_ptr,
-  unsigned long            msg_len,
-  qmi_qmux_if_msg_hdr_type *msg_hdr
+  int                      msg_len
 )
 {
   qmi_qmux_conn_info_type   *conn_info;
   unsigned char             *tmp_msg_ptr;
   int                       rc = 0;
+
   /* Verifiy the conn_id parameter since it will be used to index
   ** into an array
   */
@@ -1458,7 +1403,7 @@ int qmi_qmux_tx_to_modem
        (!(conn_info->status_flags & QMI_QMUX_CONN_STATUS_IN_RESET)))
   {
     QMI_DEBUG_MSG_2 ("qmi_qmux: TX/RX - TX %d bytes on conn_id=%d\n", (int) msg_len,(int)conn_id);
-    PRINT_QMI_MSG (msg_ptr, msg_len);
+    PRINT_QMI_MSG (msg_ptr, (int)msg_len);
     rc = QMI_QMUX_IO_PLATFORM_SEND_QMI_MSG (conn_id, msg_ptr, (int) msg_len);
 
     if (rc != QMI_NO_ERR)
@@ -1470,8 +1415,8 @@ int qmi_qmux_tx_to_modem
   {
     QMI_ERR_MSG_2 ("qmi_qmux: TX failed, connection inactive or in reset, "
                    "conn_id=%d, status_flags=%x\n",
-                                                                                              (int)conn_id,
-                                                                                              (int)conn_info->status_flags);
+                   (int)conn_id,
+                   (int)conn_info->status_flags);
     rc = QMI_PORT_NOT_OPEN_ERR;
   }
 
@@ -1512,7 +1457,7 @@ int qmi_qmux_tx_msg  (
 
   /* Advance msg pointer and decrement msg_len */
   msg += QMI_QMUX_IF_HDR_SIZE;
-  msg_len -= QMI_QMUX_IF_HDR_SIZE;
+  msg_len -= (int)QMI_QMUX_IF_HDR_SIZE;
 
   /* Verify connection ID */
   if (!QMI_CONN_ID_IS_VALID(msg_hdr.qmi_conn_id))
@@ -1523,9 +1468,11 @@ int qmi_qmux_tx_msg  (
 
   /* port open retry if necessary */
   conn_info = &qmi_qmux_conn_info[msg_hdr.qmi_conn_id];
-  if (!(conn_info->status_flags & QMI_QMUX_CONN_STATUS_IS_ACTIVE))
+  if (!(conn_info->status_flags & QMI_QMUX_CONN_STATUS_IN_RESET) &&
+      !(conn_info->status_flags & QMI_QMUX_CONN_STATUS_IS_ACTIVE))
   {
-    if (QMI_NO_ERR == qmi_qmux_open_connection( msg_hdr.qmi_conn_id ))
+    if (QMI_NO_ERR == qmi_qmux_open_connection( msg_hdr.qmi_conn_id,
+                                                QMI_QMUX_OPEN_MODE_NORMAL))
     {
       QMI_DEBUG_MSG_1 ("qmi_qmux_tx_msg: successfully opened inactive connd_id=%d\n",
                        msg_hdr.qmi_conn_id);
@@ -1562,8 +1509,7 @@ int qmi_qmux_tx_msg  (
                                  msg_hdr.qmi_service_id,
                                  msg_hdr.qmi_client_id,
                                  msg,
-                                 msg_len,
-                                 &msg_hdr );
+                                 msg_len );
     }
   }
   else if (QMI_QMUX_IF_SEND_RAW_QMI_CTL_MSG_ID == msg_hdr.msg_id)
@@ -1606,24 +1552,28 @@ int qmi_qmux_tx_msg  (
     }
   }
 
+bail:
   if (rc != QMI_NO_ERR)
   {
-    QMI_DEBUG_MSG_0("qmi_qmux_tx_msg failed....replying back to client\n");
-    unsigned char tx_buf [QMI_QMUX_IF_MSG_HDR_SIZE + sizeof (qmi_qmux_if_cmd_rsp_type)];
-    memset (tx_buf, 0x0, (QMI_QMUX_IF_MSG_HDR_SIZE + sizeof (qmi_qmux_if_cmd_rsp_type)));
-    qmi_qmux_if_send_to_client (msg_hdr.msg_id,
-                                msg_hdr.qmux_client_id,
-                                msg_hdr.qmux_txn_id,
-                                msg_hdr.qmi_conn_id,
-                                msg_hdr.qmi_service_id,
-                                msg_hdr.qmi_client_id,
-                                0, // control flags not used
-                                rc,
-                                QMI_SERVICE_ERR_NONE,
-                                (unsigned char *)(tx_buf + QMI_QMUX_IF_MSG_HDR_SIZE),
-                                sizeof (qmi_qmux_if_cmd_rsp_type));
-
-
+    /* respond with error this error only for CTL_SVC messages errors for all other
+       services are handled by the QMI_QMUX_IF_PORT_WRITE_FAIL_IND_MSG_ID sys ind  */
+    if( QMI_CTL_SERVICE == msg_hdr.qmi_service_id )
+    {
+      QMI_DEBUG_MSG_0("qmi_qmux_tx_msg failed....replying back to client\n");
+      unsigned char tx_buf [QMI_QMUX_IF_MSG_HDR_SIZE + sizeof (qmi_qmux_if_cmd_rsp_type)];
+      memset (tx_buf, 0x0, (QMI_QMUX_IF_MSG_HDR_SIZE + sizeof (qmi_qmux_if_cmd_rsp_type)));
+      qmi_qmux_if_send_to_client (msg_hdr.msg_id,
+                                  msg_hdr.qmux_client_id,
+                                  msg_hdr.qmux_txn_id,
+                                  msg_hdr.qmi_conn_id,
+                                  msg_hdr.qmi_service_id,
+                                  msg_hdr.qmi_client_id,
+                                  0, // control flags not used
+                                  rc,
+                                  QMI_SERVICE_ERR_NONE,
+                                  (unsigned char *)(tx_buf + QMI_QMUX_IF_MSG_HDR_SIZE),
+                                  sizeof (qmi_qmux_if_cmd_rsp_type));
+    }
   }
 
   return rc;
@@ -1750,6 +1700,9 @@ void qmi_qmux_event_cb
 )
 {
   qmi_qmux_conn_info_type *conn_info;
+
+  (void) event_info;
+
   QMI_DEBUG_MSG_2 ("qmi_qmux: I/O Platform EVENT callback: event=%d, conn_id=%d\n",(int)event,(int)conn_id);
 
   if( !QMI_CONN_ID_IS_VALID( conn_id ) )
@@ -1784,10 +1737,19 @@ void qmi_qmux_event_cb
         memset((void*)&cmd_data, 0x0, sizeof(cmd_data));
         cmd_data.qmi_qmux_if_sub_sys_restart_ind.conn_id = conn_id;
         qmi_qmux_broadcast_sys_ind_to_all_clients (conn_id, QMI_QMUX_IF_MODEM_OUT_OF_SERVICE_MSG_ID, &cmd_data);
+        QMI_QMUX_IF_PLATFORM_REINIT_CONN(conn_id);
       }
     }
     break;
 
+    case QMI_QMUX_IO_PORT_WRITE_FAILED_EVT:
+    {
+      qmi_qmux_if_cmd_rsp_type   cmd_data;
+      memset((void*)&cmd_data, 0x0, sizeof(cmd_data));
+      cmd_data.qmi_qmux_if_port_write_failed_ind.conn_id = event_info->qmi_qmux_io_platform_write_failed_err.conn_id;
+      cmd_data.qmi_qmux_if_port_write_failed_ind.write_err_code = event_info->qmi_qmux_io_platform_write_failed_err.write_err_code;
+      qmi_qmux_broadcast_sys_ind_to_all_clients (conn_id, QMI_QMUX_IF_PORT_WRITE_FAIL_IND_MSG_ID, &cmd_data);
+    }
     case QMI_QMUX_IO_PORT_READ_ERR_UNKNOWN_EVT:
     case QMI_QMUX_IO_PORT_READ_ERR_CLEARED_EVT:
     break;
@@ -1822,7 +1784,8 @@ void qmi_qmux_event_cb
 */
 /*=========================================================================*/
 int qmi_qmux_open_connection (
-  qmi_connection_id_type  conn_id
+  qmi_connection_id_type   conn_id,
+  qmi_qmux_open_mode_type  mode
 )
 {
   qmi_qmux_conn_info_type *conn_info;
@@ -1864,6 +1827,9 @@ int qmi_qmux_open_connection (
     return QMI_NO_ERR;
   }
 
+  /* Unlock the mutex */
+  QMI_PLATFORM_MUTEX_UNLOCK (&conn_info->list_mutex);
+
   if (NULL != qmi_qmux_rx_buffers[conn_id])
   {
     QMI_ERR_MSG_1 ("qmi_qmux_open_connection: freeing pre-existing RX buffer for conn_id=%d\n",conn_id);
@@ -1886,9 +1852,16 @@ int qmi_qmux_open_connection (
   rx_buf_len = QMI_MAX_MSG_SIZE - (QMI_QMUX_IF_MSG_HDR_SIZE - QMI_QMUX_HDR_SIZE);
 
   /* If we don't sucessfully open connection, then re-init connection info fields */
-  if ((rc = QMI_QMUX_IO_PLATFORM_OPEN_CONN (conn_id,rx_buf,rx_buf_len)) < 0)
+  rc = QMI_QMUX_IO_PLATFORM_OPEN_CONN (conn_id,rx_buf,rx_buf_len,mode);
+
+  /* Lock connection semaphore */
+  QMI_PLATFORM_MUTEX_LOCK (&conn_info->list_mutex);
+
+  if (rc < 0)
   {
-    QMI_ERR_MSG_1 ("qmi_qmux_open_connection: QMI_QMUX_IO_PLATFORM_OPEN_CONN failed %d \n", (int) rc);
+    QMI_ERR_MSG_2 ("qmi_qmux_open_connection: QMI_QMUX_IO_PLATFORM_OPEN_CONN failed conn_id=%d rc=%d \n",
+                   (int) conn_id,
+                   (int) rc);
     conn_info->status_flags &= ~QMI_QMUX_CONN_STATUS_IS_ACTIVE;
     free(qmi_qmux_rx_buffers[conn_id]);
     qmi_qmux_rx_buffers[conn_id] = NULL;
@@ -1906,9 +1879,90 @@ int qmi_qmux_open_connection (
   {
     qmi_ctl_send_sync_msg (conn_id);
   }
+
+  return rc;
+} /* qmux_open_connection */
+
+
+/*===========================================================================
+  FUNCTION  qmi_qmux_close_connection
+===========================================================================*/
+/*!
+@brief
+  Function to close a QMI QMUX control port connection.  Function takes
+  two parameters:  The connection ID of the connection to close
+
+@return
+  0 if function is successful, negative value if not.
+
+@note
+
+  -
+
+  - Side Effects
+    -
+*/
+
+/*=========================================================================*/
+int qmi_qmux_close_connection
+(
+  qmi_connection_id_type  conn_id
+)
+{
+  qmi_qmux_conn_info_type *conn_info;
+  int                     rc;
+
+  /* Verifiy the conn_id parameter since it will be used to index
+  ** into an array
+  */
+  if( !QMI_CONN_ID_IS_VALID( conn_id ) )
+  {
+    QMI_ERR_MSG_0 ("qmi_qmux_close_connection: bad connection ID\n");
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Get pointer to connection info */
+  conn_info = &qmi_qmux_conn_info[conn_id];
+
+  /* Lock connection semaphore */
+  QMI_PLATFORM_MUTEX_LOCK (&conn_info->list_mutex);
+
+  /* Verify that connection isn't already in use
+  */
+  if (conn_info->status_flags & QMI_QMUX_CONN_STATUS_IS_DISABLED)
+  {
+    QMI_ERR_MSG_1 ("qmi_qmux_close_connection: connection is disabled for conn_id=%d\n",conn_id);
+    QMI_PLATFORM_MUTEX_UNLOCK (&conn_info->list_mutex);
+    return QMI_INTERNAL_ERR;
+  }
+
+  /* Verify that connection isn't already in use
+  */
+  if (!(conn_info->status_flags & QMI_QMUX_CONN_STATUS_IS_ACTIVE))
+  {
+    QMI_ERR_MSG_1 ("qmi_qmux_close_connection: connection already inactive for conn_id=%d\n",conn_id);
+    QMI_PLATFORM_MUTEX_UNLOCK (&conn_info->list_mutex);
+    return QMI_NO_ERR;
+  }
+
+  /* If we don't sucessfully open connection, then re-init connection info fields */
+  if ((rc = QMI_QMUX_IO_PLATFORM_CLOSE_CONN (conn_id)) < 0)
+  {
+    QMI_ERR_MSG_2 ("qmi_qmux_close_connection: QMI_QMUX_IO_PLATFORM_CLOSE_CONN failed conn_id=%d rc=%d \n",
+                   (int) conn_id,
+                   (int) rc);
+  }
+
+  conn_info->status_flags &= ~QMI_QMUX_CONN_STATUS_IS_ACTIVE;
+  free(qmi_qmux_rx_buffers[conn_id]);
+  qmi_qmux_rx_buffers[conn_id] = NULL;
+
+  /* We are done, unlock mutex and return success code */
+  QMI_PLATFORM_MUTEX_UNLOCK (&conn_info->list_mutex);
+
   return rc;
 
-} /* qmux_open_connection */
+} /* qmi_qmux_close_connection */
 
 
 /*===========================================================================
@@ -1938,6 +1992,7 @@ int
 qmi_qmux_disable_port
 (
   qmi_connection_id_type  conn_id,
+  char                   *conn_id_str,
   int                     disable
 )
 {
@@ -1967,12 +2022,12 @@ qmi_qmux_disable_port
   if (disable)
   {
     conn_info->status_flags |= QMI_QMUX_CONN_STATUS_IS_DISABLED;
-    QMI_DEBUG_MSG_1 ("qmi_qmux_disable_port:  Sucessfully disabled port_id=%d\n",conn_id);
+    QMI_DEBUG_MSG_2 ("qmi_qmux_disable_port:  Sucessfully disabled port_id=%d, %s\n",conn_id, conn_id_str);
   }
   else
   {
     conn_info->status_flags &= ~QMI_QMUX_CONN_STATUS_IS_DISABLED;
-    QMI_DEBUG_MSG_1 ("qmi_qmux_disable_port:  Sucessfully enabled port_id=%d\n",conn_id);
+    QMI_DEBUG_MSG_2 ("qmi_qmux_disable_port:  Sucessfully enabled port_id=%d, %s\n",conn_id, conn_id_str);
   }
 
   return QMI_NO_ERR;
@@ -2369,8 +2424,7 @@ int qmi_ctl_tx_msg (
                                     (qmi_service_id_type) QMI_CTL_SERVICE,
                                     QMI_CTL_SRVC_CLIENT_ID,
                                     msg,
-                                    msg_len,
-                                    msg_hdr ) ) < 0 )
+                                    msg_len ) ) < 0 )
   {
     QMI_ERR_MSG_0( "qmi_ctl_tx_msg: qmi_qmux_tx_msg failed\n" );
   }
@@ -2404,7 +2458,10 @@ int qmi_ctl_handle_set_event_report_req
 )
 {
   int rc = QMI_NO_ERR;
-  uint8 set_event_report = 1;
+  unsigned char set_event_report = 1;
+
+  (void) msg_hdr;
+  (void) cmd_data;
 
   /* Prepare TLV for QMI_CTL_SET_EVENT_REPORT_MSG_ID */
   if (qmi_util_write_std_tlv(msg,
@@ -2432,7 +2489,9 @@ int qmi_ctl_handle_reg_srvc_avail_req
   int i, rc = QMI_NO_ERR;
   int service_found = 0;
 
-  QMI_DEBUG_MSG_0("qmi_ctl_handle_reg_srvc_avail_req: Requesting for new service id:%02x\n", cmd_data->qmi_qmux_if_reg_srvc_req.service_id);
+  (void) msg_hdr;
+
+  QMI_DEBUG_MSG_1("qmi_ctl_handle_reg_srvc_avail_req: Requesting for new service id:%02x\n", cmd_data->qmi_qmux_if_reg_srvc_req.service_id);
 
   for (i=1; i<QMI_MAX_SERVICES+1; i++)
   {
@@ -2449,7 +2508,7 @@ int qmi_ctl_handle_reg_srvc_avail_req
   {
     /* Increment number of service ref count */
     num_services++;
-    srvc_list[0] = num_services;
+    srvc_list[0] = (unsigned char)num_services;
 
     /* Add service to the list of requested services */
     srvc_list[srvc_list_index] = (unsigned char) cmd_data->qmi_qmux_if_reg_srvc_req.service_id;
@@ -2463,7 +2522,7 @@ int qmi_ctl_handle_reg_srvc_avail_req
   if (qmi_util_write_std_tlv(msg,
                             msg_size,
                             QMI_CTL_SET_SVC_AVAIL_LIST_REQ,
-                            num_services+1,
+                            (unsigned long)(num_services+1),
                             (void *) srvc_list) < 0)
   {
     QMI_ERR_MSG_0 ("qmi_ctl_handle_request: write tlv get client failed\n");
@@ -2485,6 +2544,8 @@ int qmi_ctl_handle_get_client_id_req (
 )
 {
   int rc = QMI_NO_ERR;
+
+  (void) msg_hdr;
 
   /* Construct TLV for client ID request */
   if (qmi_util_write_std_tlv (msg,
@@ -2511,6 +2572,7 @@ int qmi_ctl_handle_release_client_id_req (
   int rc = QMI_NO_ERR;
   unsigned char tlv_data[2];
 
+  (void) msg_hdr;
 
   /* Construct TLV for client ID release request TLV contains service ID followed
   ** by client ID
@@ -2538,6 +2600,8 @@ int qmi_ctl_handle_set_data_format_req (
 )
 {
   int rc = QMI_NO_ERR;
+
+  (void) msg_hdr;
 
   /* Set the QoS header state TLV (mandatory) */
   if (qmi_util_write_std_tlv (msg,
@@ -2577,6 +2641,8 @@ int qmi_ctl_reg_pwr_save_mode_req (
 {
   int rc = QMI_NO_ERR;
 
+  (void) msg_hdr;
+
   /* Construct TLV for client ID request */
   if (qmi_util_write_std_tlv (msg,
                              msg_size,
@@ -2606,6 +2672,8 @@ int qmi_ctl_config_pwr_save_settings_req (
   unsigned char *tmp_buf_ptr = tmp_buf;
   int rc = QMI_NO_ERR;
 
+  (void) msg_hdr;
+
   /* First set up mandatory power save descriptor TLV */
   WRITE_32_BIT_VAL (tmp_buf_ptr,cmd_data->qmi_qmux_if_config_pwr_save_settings_req.pwr_state_hndl);
   WRITE_8_BIT_VAL (tmp_buf_ptr,(unsigned char)cmd_data->qmi_qmux_if_config_pwr_save_settings_req.service_id);
@@ -2629,7 +2697,7 @@ int qmi_ctl_config_pwr_save_settings_req (
     if (qmi_util_write_std_tlv (msg,
                                 msg_size,
                                 QMI_CTL_REG_PWR_SAVE_INDICATION_SET_TYPE_ID_REQ,
-                                2 * cmd_data->qmi_qmux_if_config_pwr_save_settings_req.num_indication_ids,
+                                (unsigned long)(2 * cmd_data->qmi_qmux_if_config_pwr_save_settings_req.num_indication_ids),
                                 (void *)cmd_data->qmi_qmux_if_config_pwr_save_settings_req.indication_ids) < 0)
     {
       QMI_ERR_MSG_0 ("qmi_ctl_reg_pwr_save_mode_req: write tlv failed\n");
@@ -2648,6 +2716,8 @@ int qmi_ctl_set_pwr_save_mode_req (
 )
 {
   int rc = QMI_NO_ERR;
+
+  (void) msg_hdr;
 
   /* Construct TLV for client ID request */
   if (qmi_util_write_std_tlv (msg,
@@ -2827,12 +2897,10 @@ int qmi_qmux_read_ctl_srvc_msg_hdr (
   return QMI_NO_ERR;
 }
 
-
-
 static
 int qmi_qmux_get_ctl_srvc_client_ids (
-  unsigned char         *msg,
-  int                   msg_len,
+  unsigned char         **msg,
+  int                   *msg_len,
   qmi_client_id_type    *client_id,
   qmi_service_id_type   *service_id
 )
@@ -2842,8 +2910,8 @@ int qmi_qmux_get_ctl_srvc_client_ids (
   unsigned char temp;
   int rc;
 
-  if ((rc = qmi_util_read_std_tlv (&msg,
-                                   &msg_len,
+  if ((rc = qmi_util_read_std_tlv (msg,
+                                   msg_len,
                                    &type,
                                    &length,
                                    &value_ptr)) > 0)
@@ -2862,7 +2930,6 @@ int qmi_qmux_get_ctl_srvc_client_ids (
       READ_8_BIT_VAL (value_ptr,temp);
       *client_id = (qmi_client_id_type) temp;
       rc = QMI_NO_ERR;
-
     }
   }
   return rc;
@@ -2910,46 +2977,62 @@ int qmi_ctl_cmp_txn (
   return rc;
 }
 
-
 static
 int qmi_ctl_handle_get_client_id_rsp (
   unsigned char             *msg,
   int                       msg_len,
   qmi_ctl_txn_type          *txn,
-  qmi_qmux_if_cmd_rsp_type  *cmd_data
+  qmi_qmux_if_cmd_rsp_type  *cmd_data,
+  int                       *qmi_err_code
 )
 {
-  int rc;
+  int rc = QMI_NO_ERR;
+  qmi_client_id_type  client_id = 0;
+  qmi_service_id_type service_id = QMI_MAX_SERVICES;
 
-  qmi_client_id_type  client_id;
-  qmi_service_id_type service_id;
+  while (msg_len > 0)
+  {
+    /*TLV type*/
+    switch (*msg)
+    {
+      case QMI_RESULT_CODE_TYPE_ID:
+        rc = qmi_util_get_std_result_code(&msg, &msg_len, qmi_err_code);
+        break;
 
-  rc = qmi_qmux_get_ctl_srvc_client_ids (msg,
-                                         msg_len,
-                                         &client_id,
-                                         &service_id);
+      default:
+        rc = qmi_qmux_get_ctl_srvc_client_ids(&msg,
+                                              &msg_len,
+                                              &client_id,
+                                              &service_id);
+        cmd_data->qmi_qmux_if_alloc_client_rsp.new_client_id = client_id;
+        cmd_data->qmi_qmux_if_alloc_client_rsp.service_id = service_id;
+        break;
+    }
 
-  cmd_data->qmi_qmux_if_alloc_client_rsp.new_client_id = client_id;
-  cmd_data->qmi_qmux_if_alloc_client_rsp.service_id = service_id;
+    if (rc != QMI_NO_ERR)
+    {
+      break;
+    }
+  }
 
   /* Add client in QMUX */
   if (rc == QMI_NO_ERR)
   {
-    rc = qmi_qmux_add_qmi_service_client (txn->qmux_if_hdr.qmux_client_id,
-                                          txn->qmux_if_hdr.qmi_conn_id,
-                                          service_id,
-                                          client_id);
+    rc = qmi_qmux_add_qmi_service_client(txn->qmux_if_hdr.qmux_client_id,
+                                         txn->qmux_if_hdr.qmi_conn_id,
+                                         service_id,
+                                         client_id);
   }
   return rc;
 }
-
 
 static
 int qmi_ctl_handle_get_version_info_rsp (
     unsigned char             *msg,
     int                       msg_len,
     qmi_ctl_txn_type          *txn,
-    qmi_qmux_if_cmd_rsp_type  *cmd_data
+    qmi_qmux_if_cmd_rsp_type  *cmd_data,
+    int                       *qmi_err_code
     )
 {
   unsigned char   *value_ptr;
@@ -2961,55 +3044,69 @@ int qmi_ctl_handle_get_version_info_rsp (
   unsigned short  minor_ver;
   int rc,index;
 
-  if ((rc = qmi_util_read_std_tlv (&msg,
-                                   &msg_len,
-                                   &type,
-                                   &length,
-                                   &value_ptr)) < 0)
+  (void) txn;
+
+  rc = QMI_NO_ERR;
+  while (msg_len > 0)
   {
-    return rc;
-  }
-
-  QMI_DEBUG_MSG_0("Parsing the version list \n");
-  switch (type ) {
-  case QMI_CTL_GET_SERVICE_VERSION_LIST_TYPE_ID:
-      /* Read number of instances */
-
-      READ_8_BIT_VAL (value_ptr,num_instances);
-
-      if (num_instances > QMI_MAX_SERVICE_VERSIONS ) {
-          QMI_DEBUG_MSG_1(" Num of instances greater than Max service version:%d\n",QMI_MAX_SERVICE_VERSIONS);
-          return QMI_INTERNAL_ERR;
+    if (*msg == QMI_RESULT_CODE_TYPE_ID)
+    {
+      rc = qmi_util_get_std_result_code(&msg, &msg_len, qmi_err_code);
+    }
+    else
+    {
+      if ((rc = qmi_util_read_std_tlv(&msg,
+                                      &msg_len,
+                                      &type,
+                                      &length,
+                                      &value_ptr)) < 0)
+      {
+        return rc;
       }
 
-      cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version_len = num_instances;
-      QMI_DEBUG_MSG_1("Number of instances is :%d\n",num_instances);
-      for (index = 0;index < num_instances; index++ ) {
-          /* Read the service type */
-          READ_8_BIT_VAL(value_ptr,qmi_svc_type);
-          /* Read the major number */
-          READ_16_BIT_VAL(value_ptr,major_ver);
-          /* Read the minor number */
-          READ_16_BIT_VAL(value_ptr,minor_ver);
+      QMI_DEBUG_MSG_0("Parsing the version list \n");
+      switch (type)
+      {
+        case QMI_CTL_GET_SERVICE_VERSION_LIST_TYPE_ID:
+          /* Read number of instances */
+          READ_8_BIT_VAL (value_ptr,num_instances);
 
-          /* Copy it in the structure */
-          cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version[index].qmi_svc_type =  qmi_svc_type;
-          cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version[index].major_ver = major_ver;
-          cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version[index].minor_ver = minor_ver;
-          QMI_DEBUG_MSG_1("Service ID ........%d\n",qmi_svc_type);
-          QMI_DEBUG_MSG_1("Major Number.......%d\n",major_ver);
-          QMI_DEBUG_MSG_1("Minor Number.......%d\n",minor_ver);
+          if (num_instances > QMI_MAX_SERVICE_VERSIONS )
+          {
+            QMI_DEBUG_MSG_1("Num of instances greater than Max service version:%d\n",QMI_MAX_SERVICE_VERSIONS);
+            return QMI_INTERNAL_ERR;
+          }
 
-      }
-      QMI_DEBUG_MSG_0("Parsing successful ........\n");
-      rc = QMI_NO_ERR;
+          cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version_len = num_instances;
+          QMI_DEBUG_MSG_1("Number of instances is :%d\n",num_instances);
+          for (index = 0;index < num_instances; index++ )
+          {
+            /* Read the service type */
+            READ_8_BIT_VAL(value_ptr,qmi_svc_type);
+            /* Read the major number */
+            READ_16_BIT_VAL(value_ptr,major_ver);
+            /* Read the minor number */
+            READ_16_BIT_VAL(value_ptr,minor_ver);
 
-      break;
+            /* Copy it in the structure */
+            cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version[index].qmi_svc_type =  qmi_svc_type;
+            cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version[index].major_ver = major_ver;
+            cmd_data->qmi_qmux_if_get_version_info_rsp.qmi_service_version[index].minor_ver = minor_ver;
+            QMI_DEBUG_MSG_1("Service ID ........%d\n",qmi_svc_type);
+            QMI_DEBUG_MSG_1("Major Number.......%d\n",major_ver);
+            QMI_DEBUG_MSG_1("Minor Number.......%d\n",minor_ver);
 
-  default:
+          }
+          QMI_DEBUG_MSG_0("Parsing successful ........\n");
+          rc = QMI_NO_ERR;
+          break;
 
-      rc = QMI_INTERNAL_ERR;
-  }
+        default:
+          rc = QMI_INTERNAL_ERR;
+          break;
+      } /* switch type */
+    }
+  } /* while */
 
   return rc;
 }
@@ -3018,23 +3115,41 @@ static
 int qmi_ctl_handle_release_client_id_rsp (
   unsigned char             *msg,
   int                       msg_len,
-  qmi_ctl_txn_type          *txn
+  qmi_ctl_txn_type          *txn,
+  int                       *qmi_err_code
 )
 {
-  int rc;
+  int rc = QMI_NO_ERR;
   qmi_client_id_type  client_id;
   qmi_service_id_type service_id;
 
-  rc = qmi_qmux_get_ctl_srvc_client_ids (msg,
-                                         msg_len,
-                                         &client_id,
-                                         &service_id);
+  while (msg_len > 0)
+  {
+    switch (*msg)/*TLV type*/
+    {
+      case QMI_RESULT_CODE_TYPE_ID:
+        rc = qmi_util_get_std_result_code(&msg, &msg_len, qmi_err_code);
+        break;
+
+      default:
+        rc = qmi_qmux_get_ctl_srvc_client_ids(&msg,
+                                              &msg_len,
+                                              &client_id,
+                                              &service_id);
+        break;
+    }
+
+    if (rc != QMI_NO_ERR)
+    {
+      break;
+    }
+  }
 
   /* Add client in QMUX.  Only do so if the QMUX client ID is valid.  QMUX
   ** client ID will be invalid for "internally" (qmux) generated removals which
   ** happens when a QMUX client dies without releasing it's QMI client ID's
   */
-  if ((rc == QMI_NO_ERR) &&
+  if (rc == QMI_NO_ERR &&
       (txn->qmux_if_hdr.qmux_client_id != QMI_QMUX_INVALID_QMUX_CLIENT_ID))
   {
     rc = qmi_qmux_remove_qmi_service_client (txn->qmux_if_hdr.qmux_client_id,
@@ -3051,46 +3166,66 @@ int qmi_ctl_handle_set_data_format_rsp (
   unsigned char             *msg,
   int                       msg_len,
   qmi_ctl_txn_type          *txn,
-  qmi_qmux_if_cmd_rsp_type  *cmd_data
+  qmi_qmux_if_cmd_rsp_type  *cmd_data,
+  int                       *qmi_err_code
 )
 {
   unsigned char *value_ptr;
   unsigned long  type, length, temp;
   int rc;
 
+  (void) txn;
+
   /* Initialize response data */
   rc = QMI_NO_ERR;
   cmd_data->qmi_qmux_if_set_data_format_rsp.link_protocol =
                                QMI_DATA_FORMAT_LINK_PROTOCOL_UNSPECIFIED;
 
-  /* Process all TLV's */
   while (msg_len > 0)
   {
+    switch (*msg)/*TLV type*/
+    {
+      case QMI_RESULT_CODE_TYPE_ID:
+        rc = qmi_util_get_std_result_code (&msg, &msg_len, qmi_err_code);
+        break;
 
-    if (qmi_util_read_std_tlv (&msg,
-                                    &msg_len,
-                                    &type,
-                                    &length,
-                               &value_ptr) > 0)
+      default:
+        while (msg_len > 0)
+        {
+          if (qmi_util_read_std_tlv (&msg,
+                                     &msg_len,
+                                     &type,
+                                     &length,
+                                     &value_ptr) > 0)
+          {
+            if (type != QMI_CTL_SET_DATA_FORMAT_LINK_PROT_REQ_RSP)
+            {
+              QMI_ERR_MSG_1 ("qmi_ctl_handle_set_data_format_rsp, skipping unknown type = %d\n",(int)type);
+            }
+            else
+            {
+              /* Read service ID and client ID */
+              READ_16_BIT_VAL (value_ptr,temp);
+              cmd_data->qmi_qmux_if_set_data_format_rsp.link_protocol =
+                                         (qmi_link_layer_protocol_type) temp;
+            }
+          }
+          else
+          {
+            rc = QMI_INTERNAL_ERR;
+            break;
+          }
+        } /* while */
+        break;
+    } /* switch */
+
+    if (rc != QMI_NO_ERR)
     {
-      if (type != QMI_CTL_SET_DATA_FORMAT_LINK_PROT_REQ_RSP)
-      {
-        QMI_ERR_MSG_1 ("qmi_ctl_handle_set_data_format_rsp, skipping unknown type = %d\n",(int)type);
-      }
-      else
-      {
-        /* Read service ID and client ID */
-        READ_16_BIT_VAL (value_ptr,temp);
-        cmd_data->qmi_qmux_if_set_data_format_rsp.link_protocol =
-                                      (qmi_link_layer_protocol_type) temp;
-      }
-    }
-    else
-    {
-      rc = QMI_INTERNAL_ERR;
       break;
     }
-  } /* while */
+  }
+  /* Process all TLV's */
+
   return rc;
 }
 
@@ -3101,31 +3236,52 @@ int qmi_ctl_get_pwr_save_mode_rsp (
   unsigned char             *msg,
   int                       msg_len,
   qmi_ctl_txn_type          *txn,
-  qmi_qmux_if_cmd_rsp_type  *cmd_data
+  qmi_qmux_if_cmd_rsp_type  *cmd_data,
+  int                       *qmi_err_code
 )
 {
   unsigned char *value_ptr;
   unsigned long  type, length;
   int rc = QMI_NO_ERR;
 
-  if (qmi_util_read_std_tlv (&msg,
-                             &msg_len,
-                             &type,
-                             &length,
-                             &value_ptr) > 0 )
+  (void) txn;
+
+  while (msg_len > 0)
   {
-    if (type == QMI_CTL_GET_PWR_SAVE_MODE_TYPE_ID_RSP)
+    switch (*msg)/*TLV type*/
     {
-      unsigned long tmp;
-      READ_32_BIT_VAL (value_ptr,tmp);
-      cmd_data->qmi_qmux_if_get_pwr_save_mode_rsp.curr_pwr_state = tmp;
-    }
-    else
+     case QMI_RESULT_CODE_TYPE_ID:
+       rc = qmi_util_get_std_result_code(&msg, &msg_len, qmi_err_code);
+       break;
+
+     default:
+       if (qmi_util_read_std_tlv(&msg,
+                                 &msg_len,
+                                 &type,
+                                 &length,
+                                 &value_ptr) > 0)
+       {
+         if (type == QMI_CTL_GET_PWR_SAVE_MODE_TYPE_ID_RSP)
+         {
+           unsigned long tmp;
+           READ_32_BIT_VAL (value_ptr,tmp);
+           cmd_data->qmi_qmux_if_get_pwr_save_mode_rsp.curr_pwr_state = tmp;
+         }
+         else
+         {
+           QMI_ERR_MSG_1 ("qmi_ctl_get_pwr_save_mode_rsp: Unknown TLV type = %x",(unsigned)type);
+           rc = QMI_INTERNAL_ERR;
+         }
+       }
+       break;
+    } /* switch */
+
+    if (rc != QMI_NO_ERR)
     {
-      QMI_ERR_MSG_1 ("qmi_ctl_get_pwr_save_mode_rsp: Unknown TLV type = %x",(unsigned)type);
-      rc = QMI_INTERNAL_ERR;
+      break;
     }
-  }
+  } /* while */
+
   return rc;
 }
 
@@ -3142,10 +3298,10 @@ int qmi_ctl_get_pwr_save_ind_data (
 
   while (msg_len > 0)
   {
-  if (qmi_util_read_std_tlv (&msg,
-                             &msg_len,
-                             &type,
-                             &length,
+    if (qmi_util_read_std_tlv (&msg,
+                               &msg_len,
+                               &type,
+                               &length,
                                &value_ptr) < 0)
     {
       rc = QMI_INTERNAL_ERR;
@@ -3154,22 +3310,22 @@ int qmi_ctl_get_pwr_save_ind_data (
     else
     {
       switch (type)
-  {
+      {
         case QMI_CTL_PWR_SAVE_MODE_REPORT_TYPE_ID:
-    {
-      unsigned long tmp;
-      READ_32_BIT_VAL (value_ptr,tmp);
-      cmd_data->qmi_qmux_if_pwr_state_ind.curr_pwr_state_hndl = tmp;
-      READ_32_BIT_VAL (value_ptr,tmp);
-      cmd_data->qmi_qmux_if_pwr_state_ind.prev_pwr_state_hndl = tmp;
+        {
+          unsigned long tmp;
+          READ_32_BIT_VAL (value_ptr,tmp);
+          cmd_data->qmi_qmux_if_pwr_state_ind.curr_pwr_state_hndl = (int)tmp;
+          READ_32_BIT_VAL (value_ptr,tmp);
+          cmd_data->qmi_qmux_if_pwr_state_ind.prev_pwr_state_hndl = (int)tmp;
           rc = QMI_NO_ERR;
-    }
+        }
         break;
 
         default:
-    {
-      QMI_ERR_MSG_1 ("qmi_ctl_get_pwr_save_mode_rsp: Unknown TLV type = %x",(unsigned)type);
-  }
+        {
+          QMI_ERR_MSG_1 ("qmi_ctl_get_pwr_save_mode_rsp: Unknown TLV type = %x",(unsigned)type);
+        }
         break;
       } /* switch */
     } /* else */
@@ -3411,50 +3567,43 @@ static void qmi_ctl_rx_msg
   /* Zero out cmd_data for good measure. */
   memset (&cmd_data,0,sizeof (qmi_qmux_if_cmd_rsp_type));
   QMI_DEBUG_MSG_0(" Striping of the standard result code ...\n");
-
   /* Read the standard result code from message */
-  if ( ( rc = qmi_util_get_std_result_code( &msg,
-                                            &msg_len,
-                                            &qmi_err_code ) ) == QMI_NO_ERR )
+  /* Process message */
+  switch (rx_msg_id)
   {
-    /* Process message */
-    switch (rx_msg_id)
-    {
-      case QMI_CTL_GET_CLIENT_ID_MSG_ID:
-        rc = qmi_ctl_handle_get_client_id_rsp (msg, msg_len, txn, &cmd_data);
-        break;
+     case QMI_CTL_GET_CLIENT_ID_MSG_ID:
+       rc = qmi_ctl_handle_get_client_id_rsp (msg, msg_len, txn, &cmd_data, &qmi_err_code);
+       break;
 
-      case QMI_CTL_GET_VER_INFO_MSG_ID:
-        printf("  Parsing the version information ...\n");
-        QMI_DEBUG_MSG_0(" Parsing the version information ...\n");
-        rc = qmi_ctl_handle_get_version_info_rsp(msg, msg_len, txn, &cmd_data);
-        break;
+     case QMI_CTL_GET_VER_INFO_MSG_ID:
+       printf("  Parsing the version information ...\n");
+       QMI_DEBUG_MSG_0(" Parsing the version information ...\n");
+       rc = qmi_ctl_handle_get_version_info_rsp(msg, msg_len, txn, &cmd_data,&qmi_err_code);
+       break;
 
-      case QMI_CTL_RELEASE_CLIENT_ID_MSG_ID:
-        rc = qmi_ctl_handle_release_client_id_rsp (msg, msg_len, txn);
-        break;
+     case QMI_CTL_RELEASE_CLIENT_ID_MSG_ID:
+       rc = qmi_ctl_handle_release_client_id_rsp (msg, msg_len, txn, &qmi_err_code);
+     break;
 
-      case QMI_CTL_SET_DATA_FORMAT_MSG_ID:
-        rc = qmi_ctl_handle_set_data_format_rsp (msg, msg_len, txn, &cmd_data);
-        break;
+     case QMI_CTL_SET_DATA_FORMAT_MSG_ID:
+       rc = qmi_ctl_handle_set_data_format_rsp (msg, msg_len, txn, &cmd_data,&qmi_err_code);
+     break;
 
-      case QMI_CTL_GET_PWR_SAVE_MODE_MSG_ID:
-        rc = qmi_ctl_get_pwr_save_mode_rsp (msg, msg_len, txn, &cmd_data);
-        break;
+     case QMI_CTL_GET_PWR_SAVE_MODE_MSG_ID:
+       rc = qmi_ctl_get_pwr_save_mode_rsp (msg, msg_len, txn, &cmd_data,&qmi_err_code);
+     break;
 
-      /* No reply data other than result code for following messages */
-      case QMI_CTL_REG_PWR_SAVE_MODE_MSG_ID:
-      case QMI_CTL_CONFIG_PWR_SAVE_SETTINGS_MSG_ID:
-      case QMI_CTL_SET_PWR_SAVE_MODE_MSG_ID:
-      case QMI_CTL_SET_SVC_AVAIL_LIST_MSG_ID:
-      case QMI_CTL_SET_EVENT_REPORT_MSG_ID:
+     /* No reply data other than result code for following messages */
+     case QMI_CTL_REG_PWR_SAVE_MODE_MSG_ID:
+     case QMI_CTL_CONFIG_PWR_SAVE_SETTINGS_MSG_ID:
+     case QMI_CTL_SET_PWR_SAVE_MODE_MSG_ID:
+     case QMI_CTL_SET_SVC_AVAIL_LIST_MSG_ID:
+     case QMI_CTL_SET_EVENT_REPORT_MSG_ID:
+     break;
 
-        break;
-
-      default:
-        rc = QMI_INTERNAL_ERR;
-        QMI_ERR_MSG_1 ("qmi_ctl_rx_msg.c Unhandled RX msg ID = %d\n", (int) rx_msg_id);
-    }
+     default:
+       rc = QMI_INTERNAL_ERR;
+       QMI_ERR_MSG_1 ("qmi_ctl_rx_msg.c Unhandled RX msg ID = %d\n", (int) rx_msg_id);
   }
 
   /* If this is a response to a raw control request previously sent */

@@ -9,7 +9,7 @@
 
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -88,7 +88,8 @@ dsi_mni_vtable_t dsi_mni_vtbl =
   .mni_embms_tmgi_activate_f = dsi_mni_embms_tmgi_activate,
   .mni_embms_tmgi_deactivate_f = dsi_mni_embms_tmgi_deactivate,
   .mni_embms_tmgi_act_deactivate_f = dsi_mni_embms_tmgi_activate_deactivate,
-  .mni_embms_tmgi_list_query_f = dsi_mni_embms_tmgi_list_query
+  .mni_embms_tmgi_list_query_f = dsi_mni_embms_tmgi_list_query,
+  .mni_embms_tmgi_content_desc_update_f = dsi_mni_embms_tmgi_content_desc_update,
 };
 
 dsi_store_tbl_t  dsi_store_table[DSI_MAX_DATA_CALLS];
@@ -149,20 +150,6 @@ dsi_qmi_ce_reason_type_mapping_tbl[] =
   { QMI_WDS_CE_TYPE_IPV6,                 DSI_CE_TYPE_IPV6                 }
 };
 
-/* Macros for target identification */
-#define DSI_PROPERTY_BASEBAND        "ro.baseband"
-#define DSI_PROPERTY_BASEBAND_SIZE   10
-#define DSI_BASEBAND_VALUE_MSM       "msm"
-#define DSI_BASEBAND_VALUE_APQ       "apq"
-#define DSI_BASEBAND_VALUE_SVLTE1    "svlte1"
-#define DSI_BASEBAND_VALUE_SVLTE2A   "svlte2a"
-#define DSI_BASEBAND_VALUE_CSFB      "csfb"
-#define DSI_BASEBAND_VALUE_MDMUSB    "mdm"
-#define DSI_BASEBAND_VALUE_SGLTE     "sglte"
-#define DSI_BASEBAND_VALUE_DSDA      "dsda"
-#define DSI_BASEBAND_VALUE_DSDA2     "dsda2"
-#define DSI_BASEBAND_VALUE_UNDEFINED "undefined"
-
 /* Macros for QOS configuration */
 #define DSI_PROPERTY_QOS             "persist.data.netmgrd.qos.enable"
 #define DSI_PROPERTY_QOS_SIZE        5
@@ -170,7 +157,6 @@ dsi_qmi_ce_reason_type_mapping_tbl[] =
 
 /* Assume QOS feature disabled by default */
 int dsi_qos_enable = DSI_FALSE;
-
 
 /*===========================================================================
                     HELPER FUNCTIONS
@@ -678,7 +664,14 @@ void dsi_fill_addr_info
     return;
   }
 
-    /* Check for any valid client for the iface */
+  if (!info_ptr)
+  {
+    DSI_LOG_ERROR("%s","invalid nl info rcvd");
+    DSI_LOG_DEBUG("%s","dsi_fill_addr_info: EXIT");
+    return;
+  }
+
+  /* Check for any valid client for the iface */
   for (i = 0; i < DSI_MAX_DATA_CALLS; i++)
   {
     st = dsi_store_table[i].dsi_store_ptr;
@@ -707,6 +700,11 @@ void dsi_fill_addr_info
                                        tech_name))
   {
     DSI_LOG_ERROR("%s","failed to get addr info from QDI");
+  }
+
+  if (info_ptr->param_mask & NETMGR_EVT_PARAM_MTU)
+  {
+    DSI_SET_MTU(dsi_id, info_ptr->mtu);
   }
 
   DSI_LOG_DEBUG("%s","dsi_fill_addr_info: EXIT");
@@ -791,6 +789,65 @@ void dsi_fill_qos_info
   DSI_LOG_DEBUG("%s","dsi_fill_qos_info: EXIT");
 }
 
+
+/*===========================================================================
+  FUNCTION:  dsi_wait_for_sig_with_timeout
+===========================================================================*/
+/*!
+    @brief
+    wait on the conditional variable with a time out or until signalled by
+    a response received from netmgr for the corresponding txn
+
+    signal_ptr dsi_signal data structure to hold the cv
+    timeout_milli_secs  time for which we need to wait before returning a
+                        time out error
+
+    @return
+    DSI_ERROR - in case of timeout
+    DSI_SUCCESS - if receiving a response from netmgr
+*/
+/*=========================================================================*/
+int
+dsi_wait_for_sig_with_timeout
+(
+  dsi_signal_data_t  *signal_ptr,
+  int                timeout_milli_secs
+)
+{
+  int rc = DSI_SUCCESS;
+  struct timeval curr_time;
+  struct timespec wait_till_time;
+
+  /* Get current time of day */
+  gettimeofday (&curr_time,NULL);
+
+  /* Set wait time seconds to current + the number of seconds needed for timeout */
+  wait_till_time.tv_sec =  curr_time.tv_sec + (timeout_milli_secs/1000);
+  wait_till_time.tv_nsec = (curr_time.tv_usec * 1000) +  ((timeout_milli_secs % 1000) * 1000 * 1000);
+
+  /* Check the nano sec overflow */
+  if (wait_till_time.tv_nsec >= NANO_SEC ) {
+
+      wait_till_time.tv_sec +=  wait_till_time.tv_nsec/NANO_SEC;
+      wait_till_time.tv_nsec %= NANO_SEC;
+  }
+
+  while((signal_ptr)->cond_predicate == FALSE)
+  {
+    if (pthread_cond_timedwait (&(signal_ptr)->cond_var,
+                                &(signal_ptr)->cond_mutex,
+                                &wait_till_time) == ETIMEDOUT)
+    {
+      rc = DSI_ERROR;
+      break;
+    }
+  }
+
+  pthread_mutex_unlock(&(signal_ptr)->cond_mutex);
+
+  return rc;
+}
+
 /*===========================================================================
   FUNCTION:  dsi_release_dsi_iface
 ===========================================================================*/
@@ -864,6 +921,7 @@ void dsi_release_dsi_iface
   DSI_SET_STATE(i,DSI_IFACE_STATE_NOT_IN_USE);
   DSI_SET_WDS_TXN(i,DSI_INVALID_WDS_TXN);
   DSI_SET_COUNT(i,0);
+  DSI_SET_MTU(i,DSI_INVALID_MTU);
 
   for (ipf = DSI_IP_FAMILY_V4; ipf < DSI_NUM_IP_FAMILIES; ++ipf)
   {
@@ -1709,6 +1767,7 @@ static DSI_INLINE void dsi_invalidate_iface(int dsi_iface)
     DSI_SET_QOS_HNDL(dsi_iface,DSI_INVALID_QOS_HNDL);
     DSI_SET_IPV6_PROFILE(dsi_iface, DSI_INVALID_PROFILE_INDEX);
     DSI_SET_COUNT(dsi_iface,0);
+    DSI_SET_MTU(dsi_iface,DSI_INVALID_MTU);
 
     for (ipf = DSI_IP_FAMILY_V4; ipf < DSI_NUM_IP_FAMILIES; ++ipf)
     {
@@ -1932,46 +1991,32 @@ static void dsi_cleanup_device_names(void)
 }
 
 /*===========================================================================
-  FUNCTION  dsi_process_baseband
+  FUNCTION  dsi_process_target
 ===========================================================================*/
 /*!
 @brief
-  Updates DSI data strutures based on baseband property value
+  Updates DSI data strutures based on current target configuration
 
 @return
   DSI_SUCCESS on success, DSI_ERROR otherwise
 
 */
 /*=========================================================================*/
-static int dsi_process_baseband()
+static int dsi_process_target()
 {
-  char args[PROPERTY_VALUE_MAX];
-  char def[DSI_PROPERTY_BASEBAND_SIZE];
   int ret = DSI_ERROR;
+  ds_target_t target;
+  const char *target_str;
 
-  DSI_LOG_DEBUG( "%s", "dsi_process_baseband(): ENTRY" );
+  target = ds_get_target();
+  target_str = ds_get_target_str(target);
+
+  DSI_LOG_DEBUG("dsi_process_target(): [%d] : [%s]", target, target_str);
 
   do {
-    /* retrieve value of DSI_PROPERTY_BASEBAND */
-    (void)strlcpy(def,
-                  DSI_BASEBAND_VALUE_UNDEFINED,
-                  DSI_PROPERTY_BASEBAND_SIZE);
-    memset(args, 0, sizeof(args));
-
-    ret = property_get(DSI_PROPERTY_BASEBAND, args, def);
-    if (ret > DSI_PROPERTY_BASEBAND_SIZE)
-    {
-      DSI_LOG_ERROR("property [%s] has size [%d] that exceeds max [%d]",
-                    DSI_PROPERTY_BASEBAND,
-                    ret,
-                    DSI_PROPERTY_BASEBAND_SIZE);
-      break;
-    }
-
-    DSI_LOG_INFO("baseband property is set to [%s]", args);
 
     /* Update the 4GMODEM QMI port names for USB transport */
-    if(!strcmp(DSI_BASEBAND_VALUE_MDMUSB, args))
+    if (DS_TARGET_MDM == target)
     {
       dsi_qmi_port_names[8]  = DSI_QMI_PORT_RMNET_USB_0;
       dsi_qmi_port_names[9]  = DSI_QMI_PORT_RMNET_USB_1;
@@ -1994,7 +2039,7 @@ static int dsi_process_baseband()
        * to DSI interface array. */
       DSI_MODEM_SET_QMI_OFFSET(DSI_RADIO_4GMODEM, -1);
     }
-    else if (!strcmp(DSI_BASEBAND_VALUE_SGLTE, args))
+    else if (DS_TARGET_SGLTE == target)
     {
       dsi_qmi_port_names[8] = DSI_QMI_PORT_RMNET_SMUX_0;
       dsi_qmi_port_names[9] = DSI_QMI_PORT_RMNET_INVALID;
@@ -2019,7 +2064,7 @@ static int dsi_process_baseband()
         break;
       }
     }
-    else if (!strcmp(DSI_BASEBAND_VALUE_DSDA, args))
+    else if (DS_TARGET_DSDA == target)
     {
       if (0 == dsi_get_ril_instance())
       {
@@ -2102,7 +2147,7 @@ static int dsi_process_baseband()
         }
       }
     }
-    else if (!strcmp(DSI_BASEBAND_VALUE_DSDA2, args))
+    else if (DS_TARGET_DSDA2 == target)
     {
       if (0 == dsi_get_ril_instance())
       {
@@ -2182,10 +2227,99 @@ static int dsi_process_baseband()
         DSI_MODEM_SET_QMI_OFFSET(DSI_RADIO_4GMODEM, -1);
       }
     }
+    else if (DS_TARGET_DSDA3 == target)
+    {
+      if (0 == dsi_get_ril_instance())
+      {
+        dsi_qmi_port_names[0] = DSI_QMI_PORT_RMNET_0;
+        dsi_qmi_port_names[1] = DSI_QMI_PORT_RMNET_1;
+        dsi_qmi_port_names[2] = DSI_QMI_PORT_RMNET_2;
+        dsi_qmi_port_names[3] = DSI_QMI_PORT_RMNET_3;
+        dsi_qmi_port_names[4] = DSI_QMI_PORT_RMNET_4;
+        dsi_qmi_port_names[5] = DSI_QMI_PORT_RMNET_5;
+        dsi_qmi_port_names[6] = DSI_QMI_PORT_RMNET_6;
+        dsi_qmi_port_names[7] = DSI_QMI_PORT_RMNET_7;
 
+        if (DSI_SUCCESS != dsi_install_device_names(DSI_DEV_RMNET_USB_PREFIX,
+                                                    DSI_LOCAL_MODEM_IFACE_START,
+                                                    DSI_LOCAL_MODEM_IFACE_END))
+        {
+          break;
+        }
+
+        dsi_qmi_port_names[8]  = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[9]  = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[10] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[11] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[12] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[13] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[14] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[15] = DSI_QMI_PORT_RMNET_INVALID;
+
+        if (DSI_SUCCESS != dsi_install_device_names(DSI_DEV_RMNET_INVALID_PREFIX,
+                                                    DSI_REMOTE_MODEM_IFACE_START,
+                                                    DSI_REMOTE_MODEM_IFACE_END))
+        {
+          break;
+        }
+        /* Assign Modem offset for route lookup results when QMI
+         * instance is specified. Offset is applied to map QMI instance
+         * to DSI interface array. */
+        DSI_MODEM_SET_QMI_OFFSET(DSI_RADIO_4GMODEM, -1);
+      }
+      else
+      {
+        dsi_qmi_port_names[0] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[1] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[2] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[3] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[4] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[5] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[6] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[7] = DSI_QMI_PORT_RMNET_INVALID;
+
+        if (DSI_SUCCESS != dsi_install_device_names(DSI_DEV_RMNET_INVALID_PREFIX,
+                                                    DSI_LOCAL_MODEM_IFACE_START,
+                                                    DSI_LOCAL_MODEM_IFACE_END))
+        {
+          break;
+        }
+
+        dsi_qmi_port_names[8] = DSI_QMI_PORT_RMNET_SMUX_0;
+        dsi_qmi_port_names[9] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[10] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[11] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[12] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[13] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[14] = DSI_QMI_PORT_RMNET_INVALID;
+        dsi_qmi_port_names[15] = DSI_QMI_PORT_RMNET_INVALID;
+
+        if (DSI_SUCCESS != dsi_install_device_names(DSI_DEV_RMNET_SMUX_PREFIX,
+                                                    DSI_LOCAL_MODEM_IFACE_START,
+                                                    DSI_LOCAL_MODEM_IFACE_START))
+        {
+          break;
+        }
+
+        if (DSI_SUCCESS != dsi_install_device_names(DSI_DEV_RMNET_INVALID_PREFIX,
+                                                    DSI_LOCAL_MODEM_IFACE_START+1,
+                                                    DSI_LOCAL_MODEM_IFACE_END))
+        {
+          break;
+        }
+
+
+      }
+    }
+    else if (DS_TARGET_FUSION4_5_PCIE == target)
+    {
+      /* Configure ports from xml for Fusion4.5 PCIe targets*/
+      DSI_LOG_DEBUG("%s","Fusion 4.5 PCIe target configuration");
+    }
     ret = DSI_SUCCESS;
-  }
-  while (0);
+
+
+  } while(0);
 
   if (DSI_SUCCESS != ret)
   {
@@ -2210,15 +2344,13 @@ static int dsi_process_baseband()
 static int dsi_configure_qos()
 {
   char args[PROPERTY_VALUE_MAX];
-  char def[DSI_PROPERTY_QOS_SIZE+1];
   int ret = DSI_ERROR;
 
   do {
-    memset(def, 0, sizeof(def));
     memset(args, 0, sizeof(args));
 
     /* retrieve value of DSI_PROPERTY_QOS */
-    ret = property_get(DSI_PROPERTY_QOS, args, def);
+    ret = property_get(DSI_PROPERTY_QOS, args, DSI_QOS_VALUE_ENABLE);
 
     /* Update the QOS state */
     dsi_qos_enable = (0==strcmp(DSI_QOS_VALUE_ENABLE, args))? DSI_TRUE : DSI_FALSE;
@@ -2267,9 +2399,9 @@ static DSI_INLINE int dsi_init_ifaces()
 
 #ifndef DSI_NETCTRL_OFFTARGET
   /* Query the Android propoerty to deterince the platform configuration */
-  if( DSI_ERROR == dsi_process_baseband())
+  if( DSI_ERROR == dsi_process_target())
   {
-    DSI_LOG_ERROR("%s", "error on baseband property query");
+    DSI_LOG_ERROR("%s", "error on target configuration");
     return DSI_ERROR;
   }
 
@@ -2467,6 +2599,9 @@ int dsi_init_internal(dsi_mni_vtable_t * mni_vtbl)
     {
       break;
     }
+
+    /* initialize txn_cnt mutex */
+    pthread_mutex_init(&dsi_netmgr_txn_mutex, NULL);
 
     /* initialize global mutex */
     pthread_mutex_init(&dsi_global_mutex, NULL);

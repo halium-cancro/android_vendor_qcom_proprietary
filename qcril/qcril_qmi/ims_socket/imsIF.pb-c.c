@@ -396,6 +396,49 @@ void   ims__call_list__free_unpacked
   PROTOBUF_C_ASSERT (message->base.descriptor == &ims__call_list__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   ims__colr__init
+                     (Ims__Colr         *message)
+{
+  static Ims__Colr init_value = IMS__COLR__INIT;
+  *message = init_value;
+}
+size_t ims__colr__get_packed_size
+                     (const Ims__Colr *message)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__colr__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ims__colr__pack
+                     (const Ims__Colr *message,
+                      uint8_t       *out)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__colr__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ims__colr__pack_to_buffer
+                     (const Ims__Colr *message,
+                      ProtobufCBuffer *buffer)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__colr__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Ims__Colr *
+       ims__colr__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Ims__Colr *)
+     protobuf_c_message_unpack (&ims__colr__descriptor,
+                                allocator, len, data);
+}
+void   ims__colr__free_unpacked
+                     (Ims__Colr *message,
+                      ProtobufCAllocator *allocator)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__colr__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 void   ims__dial__init
                      (Ims__Dial         *message)
 {
@@ -1348,6 +1391,49 @@ void   ims__call_forward_info_list__free_unpacked
   PROTOBUF_C_ASSERT (message->base.descriptor == &ims__call_forward_info_list__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   ims__call_fwd_timer_info__init
+                     (Ims__CallFwdTimerInfo         *message)
+{
+  static Ims__CallFwdTimerInfo init_value = IMS__CALL_FWD_TIMER_INFO__INIT;
+  *message = init_value;
+}
+size_t ims__call_fwd_timer_info__get_packed_size
+                     (const Ims__CallFwdTimerInfo *message)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__call_fwd_timer_info__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ims__call_fwd_timer_info__pack
+                     (const Ims__CallFwdTimerInfo *message,
+                      uint8_t       *out)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__call_fwd_timer_info__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ims__call_fwd_timer_info__pack_to_buffer
+                     (const Ims__CallFwdTimerInfo *message,
+                      ProtobufCBuffer *buffer)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__call_fwd_timer_info__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Ims__CallFwdTimerInfo *
+       ims__call_fwd_timer_info__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Ims__CallFwdTimerInfo *)
+     protobuf_c_message_unpack (&ims__call_fwd_timer_info__descriptor,
+                                allocator, len, data);
+}
+void   ims__call_fwd_timer_info__free_unpacked
+                     (Ims__CallFwdTimerInfo *message,
+                      ProtobufCAllocator *allocator)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__call_fwd_timer_info__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 void   ims__conf_info__init
                      (Ims__ConfInfo         *message)
 {
@@ -1606,6 +1692,221 @@ void   ims__video_call_quality__free_unpacked
   PROTOBUF_C_ASSERT (message->base.descriptor == &ims__video_call_quality__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   ims__mwi_message_summary__init
+                     (Ims__MwiMessageSummary         *message)
+{
+  static Ims__MwiMessageSummary init_value = IMS__MWI_MESSAGE_SUMMARY__INIT;
+  *message = init_value;
+}
+size_t ims__mwi_message_summary__get_packed_size
+                     (const Ims__MwiMessageSummary *message)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_summary__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ims__mwi_message_summary__pack
+                     (const Ims__MwiMessageSummary *message,
+                      uint8_t       *out)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_summary__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ims__mwi_message_summary__pack_to_buffer
+                     (const Ims__MwiMessageSummary *message,
+                      ProtobufCBuffer *buffer)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_summary__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Ims__MwiMessageSummary *
+       ims__mwi_message_summary__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Ims__MwiMessageSummary *)
+     protobuf_c_message_unpack (&ims__mwi_message_summary__descriptor,
+                                allocator, len, data);
+}
+void   ims__mwi_message_summary__free_unpacked
+                     (Ims__MwiMessageSummary *message,
+                      ProtobufCAllocator *allocator)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_summary__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   ims__mwi_message_details__init
+                     (Ims__MwiMessageDetails         *message)
+{
+  static Ims__MwiMessageDetails init_value = IMS__MWI_MESSAGE_DETAILS__INIT;
+  *message = init_value;
+}
+size_t ims__mwi_message_details__get_packed_size
+                     (const Ims__MwiMessageDetails *message)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_details__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ims__mwi_message_details__pack
+                     (const Ims__MwiMessageDetails *message,
+                      uint8_t       *out)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_details__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ims__mwi_message_details__pack_to_buffer
+                     (const Ims__MwiMessageDetails *message,
+                      ProtobufCBuffer *buffer)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_details__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Ims__MwiMessageDetails *
+       ims__mwi_message_details__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Ims__MwiMessageDetails *)
+     protobuf_c_message_unpack (&ims__mwi_message_details__descriptor,
+                                allocator, len, data);
+}
+void   ims__mwi_message_details__free_unpacked
+                     (Ims__MwiMessageDetails *message,
+                      ProtobufCAllocator *allocator)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi_message_details__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   ims__mwi__init
+                     (Ims__Mwi         *message)
+{
+  static Ims__Mwi init_value = IMS__MWI__INIT;
+  *message = init_value;
+}
+size_t ims__mwi__get_packed_size
+                     (const Ims__Mwi *message)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ims__mwi__pack
+                     (const Ims__Mwi *message,
+                      uint8_t       *out)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ims__mwi__pack_to_buffer
+                     (const Ims__Mwi *message,
+                      ProtobufCBuffer *buffer)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Ims__Mwi *
+       ims__mwi__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Ims__Mwi *)
+     protobuf_c_message_unpack (&ims__mwi__descriptor,
+                                allocator, len, data);
+}
+void   ims__mwi__free_unpacked
+                     (Ims__Mwi *message,
+                      ProtobufCAllocator *allocator)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__mwi__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   ims__hold__init
+                     (Ims__Hold         *message)
+{
+  static Ims__Hold init_value = IMS__HOLD__INIT;
+  *message = init_value;
+}
+size_t ims__hold__get_packed_size
+                     (const Ims__Hold *message)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__hold__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ims__hold__pack
+                     (const Ims__Hold *message,
+                      uint8_t       *out)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__hold__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ims__hold__pack_to_buffer
+                     (const Ims__Hold *message,
+                      ProtobufCBuffer *buffer)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__hold__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Ims__Hold *
+       ims__hold__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Ims__Hold *)
+     protobuf_c_message_unpack (&ims__hold__descriptor,
+                                allocator, len, data);
+}
+void   ims__hold__free_unpacked
+                     (Ims__Hold *message,
+                      ProtobufCAllocator *allocator)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__hold__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
+void   ims__resume__init
+                     (Ims__Resume         *message)
+{
+  static Ims__Resume init_value = IMS__RESUME__INIT;
+  *message = init_value;
+}
+size_t ims__resume__get_packed_size
+                     (const Ims__Resume *message)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__resume__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t ims__resume__pack
+                     (const Ims__Resume *message,
+                      uint8_t       *out)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__resume__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t ims__resume__pack_to_buffer
+                     (const Ims__Resume *message,
+                      ProtobufCBuffer *buffer)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__resume__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Ims__Resume *
+       ims__resume__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Ims__Resume *)
+     protobuf_c_message_unpack (&ims__resume__descriptor,
+                                allocator, len, data);
+}
+void   ims__resume__free_unpacked
+                     (Ims__Resume *message,
+                      ProtobufCAllocator *allocator)
+{
+  PROTOBUF_C_ASSERT (message->base.descriptor == &ims__resume__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor ims__msg_tag__field_descriptors[4] =
 {
   {
@@ -1683,7 +1984,7 @@ const ProtobufCMessageDescriptor ims__msg_tag__descriptor =
   (ProtobufCMessageInit) ims__msg_tag__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor ims__call_fail_cause_response__field_descriptors[2] =
+static const ProtobufCFieldDescriptor ims__call_fail_cause_response__field_descriptors[3] =
 {
   {
     "failcause",
@@ -1709,15 +2010,28 @@ static const ProtobufCFieldDescriptor ims__call_fail_cause_response__field_descr
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "networkErrorString",
+    3,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__CallFailCauseResponse, networkerrorstring),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__call_fail_cause_response__field_indices_by_name[] = {
   1,   /* field[1] = errorinfo */
   0,   /* field[0] = failcause */
+  2,   /* field[2] = networkErrorString */
 };
 static const ProtobufCIntRange ims__call_fail_cause_response__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 2 }
+  { 0, 3 }
 };
 const ProtobufCMessageDescriptor ims__call_fail_cause_response__descriptor =
 {
@@ -1727,7 +2041,7 @@ const ProtobufCMessageDescriptor ims__call_fail_cause_response__descriptor =
   "Ims__CallFailCauseResponse",
   "ims",
   sizeof(Ims__CallFailCauseResponse),
-  2,
+  3,
   ims__call_fail_cause_response__field_descriptors,
   ims__call_fail_cause_response__field_indices_by_name,
   1,  ims__call_fail_cause_response__number_ranges,
@@ -1966,7 +2280,8 @@ const ProtobufCMessageDescriptor ims__srv_status_list__descriptor =
   NULL,NULL,NULL    /* reserved[123] */
 };
 static const uint32_t ims__call_details__extras_length__default_value = 0;
-static const ProtobufCFieldDescriptor ims__call_details__field_descriptors[6] =
+static const int32_t ims__call_details__media_id__default_value = -1;
+static const ProtobufCFieldDescriptor ims__call_details__field_descriptors[8] =
 {
   {
     "callType",
@@ -2040,19 +2355,45 @@ static const ProtobufCFieldDescriptor ims__call_details__field_descriptors[6] =
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "callSubstate",
+    7,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_ENUM,
+    PROTOBUF_C_OFFSETOF(Ims__CallDetails, has_callsubstate),
+    PROTOBUF_C_OFFSETOF(Ims__CallDetails, callsubstate),
+    &ims__call_substate__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "mediaId",
+    8,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_SFIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallDetails, has_mediaid),
+    PROTOBUF_C_OFFSETOF(Ims__CallDetails, mediaid),
+    NULL,
+    &ims__call_details__media_id__default_value,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__call_details__field_indices_by_name[] = {
   1,   /* field[1] = callDomain */
+  6,   /* field[6] = callSubstate */
   0,   /* field[0] = callType */
   3,   /* field[3] = extras */
   2,   /* field[2] = extrasLength */
   4,   /* field[4] = localAbility */
+  7,   /* field[7] = mediaId */
   5,   /* field[5] = peerAbility */
 };
 static const ProtobufCIntRange ims__call_details__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 6 }
+  { 0, 8 }
 };
 const ProtobufCMessageDescriptor ims__call_details__descriptor =
 {
@@ -2062,7 +2403,7 @@ const ProtobufCMessageDescriptor ims__call_details__descriptor =
   "Ims__CallDetails",
   "ims",
   sizeof(Ims__CallDetails),
-  6,
+  8,
   ims__call_details__field_descriptors,
   ims__call_details__field_indices_by_name,
   1,  ims__call_details__number_ranges,
@@ -2133,7 +2474,7 @@ const ProtobufCMessageDescriptor ims__call_modify__descriptor =
   (ProtobufCMessageInit) ims__call_modify__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor ims__call_list__call__field_descriptors[13] =
+static const ProtobufCFieldDescriptor ims__call_list__call__field_descriptors[14] =
 {
   {
     "state",
@@ -2291,10 +2632,23 @@ static const ProtobufCFieldDescriptor ims__call_list__call__field_descriptors[13
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "failCause",
+    14,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_MESSAGE,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__CallList__Call, failcause),
+    &ims__call_fail_cause_response__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__call_list__call__field_indices_by_name[] = {
   5,   /* field[5] = als */
   12,   /* field[12] = callDetails */
+  13,   /* field[13] = failCause */
   1,   /* field[1] = index */
   4,   /* field[4] = isMT */
   3,   /* field[3] = isMpty */
@@ -2310,7 +2664,7 @@ static const unsigned ims__call_list__call__field_indices_by_name[] = {
 static const ProtobufCIntRange ims__call_list__call__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 13 }
+  { 0, 14 }
 };
 const ProtobufCMessageDescriptor ims__call_list__call__descriptor =
 {
@@ -2320,7 +2674,7 @@ const ProtobufCMessageDescriptor ims__call_list__call__descriptor =
   "Ims__CallList__Call",
   "ims",
   sizeof(Ims__CallList__Call),
-  13,
+  14,
   ims__call_list__call__field_descriptors,
   ims__call_list__call__field_indices_by_name,
   1,  ims__call_list__call__number_ranges,
@@ -2363,6 +2717,44 @@ const ProtobufCMessageDescriptor ims__call_list__descriptor =
   ims__call_list__field_indices_by_name,
   1,  ims__call_list__number_ranges,
   (ProtobufCMessageInit) ims__call_list__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor ims__colr__field_descriptors[1] =
+{
+  {
+    "presentation",
+    1,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_ENUM,
+    PROTOBUF_C_OFFSETOF(Ims__Colr, has_presentation),
+    PROTOBUF_C_OFFSETOF(Ims__Colr, presentation),
+    &ims__ip_presentation__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ims__colr__field_indices_by_name[] = {
+  0,   /* field[0] = presentation */
+};
+static const ProtobufCIntRange ims__colr__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor ims__colr__descriptor =
+{
+  PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC,
+  "ims.Colr",
+  "Colr",
+  "Ims__Colr",
+  "ims",
+  sizeof(Ims__Colr),
+  1,
+  ims__colr__field_descriptors,
+  ims__colr__field_indices_by_name,
+  1,  ims__colr__number_ranges,
+  (ProtobufCMessageInit) ims__colr__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
 static const ProtobufCFieldDescriptor ims__dial__field_descriptors[5] =
@@ -2813,18 +3205,20 @@ const ProtobufCMessageDescriptor ims__dtmf__descriptor =
   (ProtobufCMessageInit) ims__dtmf__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-const ProtobufCEnumValue ims__registration__reg_state__enum_values_by_number[2] =
+const ProtobufCEnumValue ims__registration__reg_state__enum_values_by_number[3] =
 {
   { "REGISTERED", "IMS__REGISTRATION__REG_STATE__REGISTERED", 1 },
   { "NOT_REGISTERED", "IMS__REGISTRATION__REG_STATE__NOT_REGISTERED", 2 },
+  { "REGISTERING", "IMS__REGISTRATION__REG_STATE__REGISTERING", 3 },
 };
 static const ProtobufCIntRange ims__registration__reg_state__value_ranges[] = {
-{1, 0},{0, 2}
+{1, 0},{0, 3}
 };
-const ProtobufCEnumValueIndex ims__registration__reg_state__enum_values_by_name[2] =
+const ProtobufCEnumValueIndex ims__registration__reg_state__enum_values_by_name[3] =
 {
   { "NOT_REGISTERED", 1 },
   { "REGISTERED", 0 },
+  { "REGISTERING", 2 },
 };
 const ProtobufCEnumDescriptor ims__registration__reg_state__descriptor =
 {
@@ -2833,15 +3227,15 @@ const ProtobufCEnumDescriptor ims__registration__reg_state__descriptor =
   "RegState",
   "Ims__Registration__RegState",
   "ims",
-  2,
+  3,
   ims__registration__reg_state__enum_values_by_number,
-  2,
+  3,
   ims__registration__reg_state__enum_values_by_name,
   1,
   ims__registration__reg_state__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-static const ProtobufCFieldDescriptor ims__registration__field_descriptors[1] =
+static const ProtobufCFieldDescriptor ims__registration__field_descriptors[3] =
 {
   {
     "state",
@@ -2855,14 +3249,40 @@ static const ProtobufCFieldDescriptor ims__registration__field_descriptors[1] =
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "errorCode",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__Registration, has_errorcode),
+    PROTOBUF_C_OFFSETOF(Ims__Registration, errorcode),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "errorMessage",
+    3,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__Registration, errormessage),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__registration__field_indices_by_name[] = {
+  1,   /* field[1] = errorCode */
+  2,   /* field[2] = errorMessage */
   0,   /* field[0] = state */
 };
 static const ProtobufCIntRange ims__registration__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 1 }
+  { 0, 3 }
 };
 const ProtobufCMessageDescriptor ims__registration__descriptor =
 {
@@ -2872,7 +3292,7 @@ const ProtobufCMessageDescriptor ims__registration__descriptor =
   "Ims__Registration",
   "ims",
   sizeof(Ims__Registration),
-  1,
+  3,
   ims__registration__field_descriptors,
   ims__registration__field_indices_by_name,
   1,  ims__registration__number_ranges,
@@ -3098,7 +3518,7 @@ const ProtobufCMessageDescriptor ims__extra__descriptor =
   (ProtobufCMessageInit) ims__extra__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor ims__handover__field_descriptors[4] =
+static const ProtobufCFieldDescriptor ims__handover__field_descriptors[6] =
 {
   {
     "type",
@@ -3148,8 +3568,34 @@ static const ProtobufCFieldDescriptor ims__handover__field_descriptors[4] =
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "errorCode",
+    5,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__Handover, errorcode),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "errorMessage",
+    6,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__Handover, errormessage),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__handover__field_indices_by_name[] = {
+  4,   /* field[4] = errorCode */
+  5,   /* field[5] = errorMessage */
   3,   /* field[3] = hoExtra */
   1,   /* field[1] = srcTech */
   2,   /* field[2] = targetTech */
@@ -3158,7 +3604,7 @@ static const unsigned ims__handover__field_indices_by_name[] = {
 static const ProtobufCIntRange ims__handover__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 4 }
+  { 0, 6 }
 };
 const ProtobufCMessageDescriptor ims__handover__descriptor =
 {
@@ -3168,7 +3614,7 @@ const ProtobufCMessageDescriptor ims__handover__descriptor =
   "Ims__Handover",
   "ims",
   sizeof(Ims__Handover),
-  4,
+  6,
   ims__handover__field_descriptors,
   ims__handover__field_indices_by_name,
   1,  ims__handover__number_ranges,
@@ -3493,7 +3939,7 @@ const ProtobufCMessageDescriptor ims__call_waiting_info__descriptor =
   (ProtobufCMessageInit) ims__call_waiting_info__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor ims__call_forward_info_list__call_forward_info__field_descriptors[6] =
+static const ProtobufCFieldDescriptor ims__call_forward_info_list__call_forward_info__field_descriptors[8] =
 {
   {
     "status",
@@ -3567,8 +4013,34 @@ static const ProtobufCFieldDescriptor ims__call_forward_info_list__call_forward_
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "callFwdTimerStart",
+    7,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_MESSAGE,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__CallForwardInfoList__CallForwardInfo, callfwdtimerstart),
+    &ims__call_fwd_timer_info__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "callFwdTimerEnd",
+    8,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_MESSAGE,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__CallForwardInfoList__CallForwardInfo, callfwdtimerend),
+    &ims__call_fwd_timer_info__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__call_forward_info_list__call_forward_info__field_indices_by_name[] = {
+  7,   /* field[7] = callFwdTimerEnd */
+  6,   /* field[6] = callFwdTimerStart */
   4,   /* field[4] = number */
   1,   /* field[1] = reason */
   2,   /* field[2] = service_class */
@@ -3579,7 +4051,7 @@ static const unsigned ims__call_forward_info_list__call_forward_info__field_indi
 static const ProtobufCIntRange ims__call_forward_info_list__call_forward_info__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 6 }
+  { 0, 8 }
 };
 const ProtobufCMessageDescriptor ims__call_forward_info_list__call_forward_info__descriptor =
 {
@@ -3589,7 +4061,7 @@ const ProtobufCMessageDescriptor ims__call_forward_info_list__call_forward_info_
   "Ims__CallForwardInfoList__CallForwardInfo",
   "ims",
   sizeof(Ims__CallForwardInfoList__CallForwardInfo),
-  6,
+  8,
   ims__call_forward_info_list__call_forward_info__field_descriptors,
   ims__call_forward_info_list__call_forward_info__field_indices_by_name,
   1,  ims__call_forward_info_list__call_forward_info__number_ranges,
@@ -3634,7 +4106,123 @@ const ProtobufCMessageDescriptor ims__call_forward_info_list__descriptor =
   (ProtobufCMessageInit) ims__call_forward_info_list__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor ims__conf_info__field_descriptors[1] =
+static const ProtobufCFieldDescriptor ims__call_fwd_timer_info__field_descriptors[7] =
+{
+  {
+    "year",
+    1,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, has_year),
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, year),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "month",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, has_month),
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, month),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "day",
+    3,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, has_day),
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, day),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "hour",
+    4,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, has_hour),
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, hour),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "minute",
+    5,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, has_minute),
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, minute),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "second",
+    6,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, has_second),
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, second),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "timezone",
+    7,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, has_timezone),
+    PROTOBUF_C_OFFSETOF(Ims__CallFwdTimerInfo, timezone),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ims__call_fwd_timer_info__field_indices_by_name[] = {
+  2,   /* field[2] = day */
+  3,   /* field[3] = hour */
+  4,   /* field[4] = minute */
+  1,   /* field[1] = month */
+  5,   /* field[5] = second */
+  6,   /* field[6] = timezone */
+  0,   /* field[0] = year */
+};
+static const ProtobufCIntRange ims__call_fwd_timer_info__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 7 }
+};
+const ProtobufCMessageDescriptor ims__call_fwd_timer_info__descriptor =
+{
+  PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC,
+  "ims.CallFwdTimerInfo",
+  "CallFwdTimerInfo",
+  "Ims__CallFwdTimerInfo",
+  "ims",
+  sizeof(Ims__CallFwdTimerInfo),
+  7,
+  ims__call_fwd_timer_info__field_descriptors,
+  ims__call_fwd_timer_info__field_indices_by_name,
+  1,  ims__call_fwd_timer_info__number_ranges,
+  (ProtobufCMessageInit) ims__call_fwd_timer_info__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor ims__conf_info__field_descriptors[2] =
 {
   {
     "conf_info_uri",
@@ -3648,14 +4236,27 @@ static const ProtobufCFieldDescriptor ims__conf_info__field_descriptors[1] =
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "confCallState",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_ENUM,
+    PROTOBUF_C_OFFSETOF(Ims__ConfInfo, has_confcallstate),
+    PROTOBUF_C_OFFSETOF(Ims__ConfInfo, confcallstate),
+    &ims__conf_call_state__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__conf_info__field_indices_by_name[] = {
+  1,   /* field[1] = confCallState */
   0,   /* field[0] = conf_info_uri */
 };
 static const ProtobufCIntRange ims__conf_info__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 1 }
+  { 0, 2 }
 };
 const ProtobufCMessageDescriptor ims__conf_info__descriptor =
 {
@@ -3665,14 +4266,14 @@ const ProtobufCMessageDescriptor ims__conf_info__descriptor =
   "Ims__ConfInfo",
   "ims",
   sizeof(Ims__ConfInfo),
-  1,
+  2,
   ims__conf_info__field_descriptors,
   ims__conf_info__field_indices_by_name,
   1,  ims__conf_info__number_ranges,
   (ProtobufCMessageInit) ims__conf_info__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor ims__supp_svc_notification__field_descriptors[6] =
+static const ProtobufCFieldDescriptor ims__supp_svc_notification__field_descriptors[7] =
 {
   {
     "notificationType",
@@ -3746,10 +4347,23 @@ static const ProtobufCFieldDescriptor ims__supp_svc_notification__field_descript
     0,            /* packed */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "history_info",
+    7,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__SuppSvcNotification, history_info),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned ims__supp_svc_notification__field_indices_by_name[] = {
   1,   /* field[1] = code */
   5,   /* field[5] = connId */
+  6,   /* field[6] = history_info */
   2,   /* field[2] = index */
   0,   /* field[0] = notificationType */
   4,   /* field[4] = number */
@@ -3758,7 +4372,7 @@ static const unsigned ims__supp_svc_notification__field_indices_by_name[] = {
 static const ProtobufCIntRange ims__supp_svc_notification__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 6 }
+  { 0, 7 }
 };
 const ProtobufCMessageDescriptor ims__supp_svc_notification__descriptor =
 {
@@ -3768,7 +4382,7 @@ const ProtobufCMessageDescriptor ims__supp_svc_notification__descriptor =
   "Ims__SuppSvcNotification",
   "ims",
   sizeof(Ims__SuppSvcNotification),
-  6,
+  7,
   ims__supp_svc_notification__field_descriptors,
   ims__supp_svc_notification__field_indices_by_name,
   1,  ims__supp_svc_notification__number_ranges,
@@ -3992,6 +4606,352 @@ const ProtobufCMessageDescriptor ims__video_call_quality__descriptor =
   (ProtobufCMessageInit) ims__video_call_quality__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
+static const ProtobufCFieldDescriptor ims__mwi_message_summary__field_descriptors[5] =
+{
+  {
+    "messageType",
+    1,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_ENUM,
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, has_messagetype),
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, messagetype),
+    &ims__mwi_message_type__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "newMessage",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, has_newmessage),
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, newmessage),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "oldMessage",
+    3,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, has_oldmessage),
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, oldmessage),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "newUrgent",
+    4,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, has_newurgent),
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, newurgent),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "oldUrgent",
+    5,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, has_oldurgent),
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageSummary, oldurgent),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ims__mwi_message_summary__field_indices_by_name[] = {
+  0,   /* field[0] = messageType */
+  1,   /* field[1] = newMessage */
+  3,   /* field[3] = newUrgent */
+  2,   /* field[2] = oldMessage */
+  4,   /* field[4] = oldUrgent */
+};
+static const ProtobufCIntRange ims__mwi_message_summary__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 5 }
+};
+const ProtobufCMessageDescriptor ims__mwi_message_summary__descriptor =
+{
+  PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC,
+  "ims.MwiMessageSummary",
+  "MwiMessageSummary",
+  "Ims__MwiMessageSummary",
+  "ims",
+  sizeof(Ims__MwiMessageSummary),
+  5,
+  ims__mwi_message_summary__field_descriptors,
+  ims__mwi_message_summary__field_indices_by_name,
+  1,  ims__mwi_message_summary__number_ranges,
+  (ProtobufCMessageInit) ims__mwi_message_summary__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor ims__mwi_message_details__field_descriptors[7] =
+{
+  {
+    "toAddress",
+    1,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, toaddress),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "fromAddress",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, fromaddress),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "subject",
+    3,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, subject),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "date",
+    4,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, date),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "priority",
+    5,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_ENUM,
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, has_priority),
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, priority),
+    &ims__mwi_priority__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "messageId",
+    6,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, messageid),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "messageType",
+    7,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_ENUM,
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, has_messagetype),
+    PROTOBUF_C_OFFSETOF(Ims__MwiMessageDetails, messagetype),
+    &ims__mwi_message_type__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ims__mwi_message_details__field_indices_by_name[] = {
+  3,   /* field[3] = date */
+  1,   /* field[1] = fromAddress */
+  5,   /* field[5] = messageId */
+  6,   /* field[6] = messageType */
+  4,   /* field[4] = priority */
+  2,   /* field[2] = subject */
+  0,   /* field[0] = toAddress */
+};
+static const ProtobufCIntRange ims__mwi_message_details__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 7 }
+};
+const ProtobufCMessageDescriptor ims__mwi_message_details__descriptor =
+{
+  PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC,
+  "ims.MwiMessageDetails",
+  "MwiMessageDetails",
+  "Ims__MwiMessageDetails",
+  "ims",
+  sizeof(Ims__MwiMessageDetails),
+  7,
+  ims__mwi_message_details__field_descriptors,
+  ims__mwi_message_details__field_indices_by_name,
+  1,  ims__mwi_message_details__number_ranges,
+  (ProtobufCMessageInit) ims__mwi_message_details__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor ims__mwi__field_descriptors[3] =
+{
+  {
+    "mwiMsgSummary",
+    1,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    PROTOBUF_C_OFFSETOF(Ims__Mwi, n_mwimsgsummary),
+    PROTOBUF_C_OFFSETOF(Ims__Mwi, mwimsgsummary),
+    &ims__mwi_message_summary__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "ueAddress",
+    2,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    PROTOBUF_C_OFFSETOF(Ims__Mwi, ueaddress),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "mwiMsgDetail",
+    3,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    PROTOBUF_C_OFFSETOF(Ims__Mwi, n_mwimsgdetail),
+    PROTOBUF_C_OFFSETOF(Ims__Mwi, mwimsgdetail),
+    &ims__mwi_message_details__descriptor,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ims__mwi__field_indices_by_name[] = {
+  2,   /* field[2] = mwiMsgDetail */
+  0,   /* field[0] = mwiMsgSummary */
+  1,   /* field[1] = ueAddress */
+};
+static const ProtobufCIntRange ims__mwi__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 3 }
+};
+const ProtobufCMessageDescriptor ims__mwi__descriptor =
+{
+  PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC,
+  "ims.Mwi",
+  "Mwi",
+  "Ims__Mwi",
+  "ims",
+  sizeof(Ims__Mwi),
+  3,
+  ims__mwi__field_descriptors,
+  ims__mwi__field_indices_by_name,
+  1,  ims__mwi__number_ranges,
+  (ProtobufCMessageInit) ims__mwi__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor ims__hold__field_descriptors[1] =
+{
+  {
+    "callId",
+    1,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__Hold, has_callid),
+    PROTOBUF_C_OFFSETOF(Ims__Hold, callid),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ims__hold__field_indices_by_name[] = {
+  0,   /* field[0] = callId */
+};
+static const ProtobufCIntRange ims__hold__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor ims__hold__descriptor =
+{
+  PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC,
+  "ims.Hold",
+  "Hold",
+  "Ims__Hold",
+  "ims",
+  sizeof(Ims__Hold),
+  1,
+  ims__hold__field_descriptors,
+  ims__hold__field_indices_by_name,
+  1,  ims__hold__number_ranges,
+  (ProtobufCMessageInit) ims__hold__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor ims__resume__field_descriptors[1] =
+{
+  {
+    "callId",
+    1,
+    PROTOBUF_C_LABEL_OPTIONAL,
+    PROTOBUF_C_TYPE_FIXED32,
+    PROTOBUF_C_OFFSETOF(Ims__Resume, has_callid),
+    PROTOBUF_C_OFFSETOF(Ims__Resume, callid),
+    NULL,
+    NULL,
+    0,            /* packed */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned ims__resume__field_indices_by_name[] = {
+  0,   /* field[0] = callId */
+};
+static const ProtobufCIntRange ims__resume__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor ims__resume__descriptor =
+{
+  PROTOBUF_C_MESSAGE_DESCRIPTOR_MAGIC,
+  "ims.Resume",
+  "Resume",
+  "Ims__Resume",
+  "ims",
+  sizeof(Ims__Resume),
+  1,
+  ims__resume__field_descriptors,
+  ims__resume__field_indices_by_name,
+  1,  ims__resume__number_ranges,
+  (ProtobufCMessageInit) ims__resume__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
 const ProtobufCEnumValue ims__msg_type__enum_values_by_number[4] =
 {
   { "UNKNOWN", "IMS__MSG_TYPE__UNKNOWN", 0 },
@@ -4024,7 +4984,7 @@ const ProtobufCEnumDescriptor ims__msg_type__descriptor =
   ims__msg_type__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-const ProtobufCEnumValue ims__msg_id__enum_values_by_number[49] =
+const ProtobufCEnumValue ims__msg_id__enum_values_by_number[55] =
 {
   { "UNKNOWN_REQ", "IMS__MSG_ID__UNKNOWN_REQ", 0 },
   { "REQUEST_IMS_REGISTRATION_STATE", "IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE", 1 },
@@ -4059,8 +5019,13 @@ const ProtobufCEnumValue ims__msg_id__enum_values_by_number[49] =
   { "REQUEST_SET_SERVICE_STATUS", "IMS__MSG_ID__REQUEST_SET_SERVICE_STATUS", 30 },
   { "REQUEST_SUPP_SVC_STATUS", "IMS__MSG_ID__REQUEST_SUPP_SVC_STATUS", 31 },
   { "REQUEST_DEFLECT_CALL", "IMS__MSG_ID__REQUEST_DEFLECT_CALL", 32 },
+  { "REQUEST_GET_COLR", "IMS__MSG_ID__REQUEST_GET_COLR", 33 },
+  { "REQUEST_SET_COLR", "IMS__MSG_ID__REQUEST_SET_COLR", 34 },
   { "REQUEST_QUERY_VT_CALL_QUALITY", "IMS__MSG_ID__REQUEST_QUERY_VT_CALL_QUALITY", 35 },
   { "REQUEST_SET_VT_CALL_QUALITY", "IMS__MSG_ID__REQUEST_SET_VT_CALL_QUALITY", 36 },
+  { "REQUEST_HOLD", "IMS__MSG_ID__REQUEST_HOLD", 37 },
+  { "REQUEST_RESUME", "IMS__MSG_ID__REQUEST_RESUME", 38 },
+  { "REQUEST_SEND_UI_TTY_MODE", "IMS__MSG_ID__REQUEST_SEND_UI_TTY_MODE", 39 },
   { "UNSOL_RSP_BASE", "IMS__MSG_ID__UNSOL_RSP_BASE", 200 },
   { "UNSOL_RESPONSE_CALL_STATE_CHANGED", "IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED", 201 },
   { "UNSOL_CALL_RING", "IMS__MSG_ID__UNSOL_CALL_RING", 202 },
@@ -4075,11 +5040,12 @@ const ProtobufCEnumValue ims__msg_id__enum_values_by_number[49] =
   { "UNSOL_SUPP_SVC_NOTIFICATION", "IMS__MSG_ID__UNSOL_SUPP_SVC_NOTIFICATION", 211 },
   { "UNSOL_TTY_NOTIFICATION", "IMS__MSG_ID__UNSOL_TTY_NOTIFICATION", 212 },
   { "UNSOL_RADIO_STATE_CHANGED", "IMS__MSG_ID__UNSOL_RADIO_STATE_CHANGED", 213 },
+  { "UNSOL_MWI", "IMS__MSG_ID__UNSOL_MWI", 214 },
 };
 static const ProtobufCIntRange ims__msg_id__value_ranges[] = {
-{0, 0},{35, 33},{200, 35},{0, 49}
+{0, 0},{200, 40},{0, 55}
 };
-const ProtobufCEnumValueIndex ims__msg_id__enum_values_by_name[49] =
+const ProtobufCEnumValueIndex ims__msg_id__enum_values_by_name[55] =
 {
   { "REQUEST_ADD_PARTICIPANT", 28 },
   { "REQUEST_ANSWER", 3 },
@@ -4092,10 +5058,12 @@ const ProtobufCEnumValueIndex ims__msg_id__enum_values_by_name[49] =
   { "REQUEST_EXIT_EMERGENCY_CALLBACK_MODE", 11 },
   { "REQUEST_EXPLICIT_CALL_TRANSFER", 12 },
   { "REQUEST_GET_CLIR", 20 },
+  { "REQUEST_GET_COLR", 33 },
   { "REQUEST_GET_CURRENT_CALLS", 6 },
   { "REQUEST_HANGUP", 4 },
   { "REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND", 8 },
   { "REQUEST_HANGUP_WAITING_OR_BACKGROUND", 7 },
+  { "REQUEST_HOLD", 37 },
   { "REQUEST_IMS_REGISTRATION_STATE", 1 },
   { "REQUEST_IMS_REG_STATE_CHANGE", 26 },
   { "REQUEST_LAST_CALL_FAIL_CAUSE", 5 },
@@ -4105,31 +5073,35 @@ const ProtobufCEnumValueIndex ims__msg_id__enum_values_by_name[49] =
   { "REQUEST_QUERY_CALL_WAITING", 24 },
   { "REQUEST_QUERY_CLIP", 19 },
   { "REQUEST_QUERY_SERVICE_STATUS", 29 },
-  { "REQUEST_QUERY_VT_CALL_QUALITY", 33 },
+  { "REQUEST_QUERY_VT_CALL_QUALITY", 35 },
+  { "REQUEST_RESUME", 38 },
+  { "REQUEST_SEND_UI_TTY_MODE", 39 },
   { "REQUEST_SET_CALL_FORWARD_STATUS", 23 },
   { "REQUEST_SET_CALL_WAITING", 25 },
   { "REQUEST_SET_CLIR", 21 },
+  { "REQUEST_SET_COLR", 34 },
   { "REQUEST_SET_SERVICE_STATUS", 30 },
   { "REQUEST_SET_SUPP_SVC_NOTIFICATION", 27 },
-  { "REQUEST_SET_VT_CALL_QUALITY", 34 },
+  { "REQUEST_SET_VT_CALL_QUALITY", 36 },
   { "REQUEST_SUPP_SVC_STATUS", 31 },
   { "REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE", 9 },
   { "REQUEST_UDUB", 16 },
   { "UNKNOWN_REQ", 0 },
-  { "UNSOL_CALL_RING", 37 },
-  { "UNSOL_ENTER_EMERGENCY_CALLBACK_MODE", 40 },
-  { "UNSOL_EXIT_EMERGENCY_CALLBACK_MODE", 41 },
-  { "UNSOL_MODIFY_CALL", 42 },
-  { "UNSOL_RADIO_STATE_CHANGED", 48 },
-  { "UNSOL_REFRESH_CONF_INFO", 44 },
-  { "UNSOL_RESPONSE_CALL_STATE_CHANGED", 36 },
-  { "UNSOL_RESPONSE_HANDOVER", 43 },
-  { "UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED", 39 },
-  { "UNSOL_RINGBACK_TONE", 38 },
-  { "UNSOL_RSP_BASE", 35 },
-  { "UNSOL_SRV_STATUS_UPDATE", 45 },
-  { "UNSOL_SUPP_SVC_NOTIFICATION", 46 },
-  { "UNSOL_TTY_NOTIFICATION", 47 },
+  { "UNSOL_CALL_RING", 42 },
+  { "UNSOL_ENTER_EMERGENCY_CALLBACK_MODE", 45 },
+  { "UNSOL_EXIT_EMERGENCY_CALLBACK_MODE", 46 },
+  { "UNSOL_MODIFY_CALL", 47 },
+  { "UNSOL_MWI", 54 },
+  { "UNSOL_RADIO_STATE_CHANGED", 53 },
+  { "UNSOL_REFRESH_CONF_INFO", 49 },
+  { "UNSOL_RESPONSE_CALL_STATE_CHANGED", 41 },
+  { "UNSOL_RESPONSE_HANDOVER", 48 },
+  { "UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED", 44 },
+  { "UNSOL_RINGBACK_TONE", 43 },
+  { "UNSOL_RSP_BASE", 40 },
+  { "UNSOL_SRV_STATUS_UPDATE", 50 },
+  { "UNSOL_SUPP_SVC_NOTIFICATION", 51 },
+  { "UNSOL_TTY_NOTIFICATION", 52 },
 };
 const ProtobufCEnumDescriptor ims__msg_id__descriptor =
 {
@@ -4138,11 +5110,11 @@ const ProtobufCEnumDescriptor ims__msg_id__descriptor =
   "MsgId",
   "Ims__MsgId",
   "ims",
-  49,
+  55,
   ims__msg_id__enum_values_by_number,
-  49,
+  55,
   ims__msg_id__enum_values_by_name,
-  3,
+  2,
   ims__msg_id__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
@@ -4188,7 +5160,7 @@ const ProtobufCEnumDescriptor ims__error__descriptor =
   ims__error__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-const ProtobufCEnumValue ims__call_state__enum_values_by_number[6] =
+const ProtobufCEnumValue ims__call_state__enum_values_by_number[7] =
 {
   { "CALL_ACTIVE", "IMS__CALL_STATE__CALL_ACTIVE", 0 },
   { "CALL_HOLDING", "IMS__CALL_STATE__CALL_HOLDING", 1 },
@@ -4196,15 +5168,17 @@ const ProtobufCEnumValue ims__call_state__enum_values_by_number[6] =
   { "CALL_ALERTING", "IMS__CALL_STATE__CALL_ALERTING", 3 },
   { "CALL_INCOMING", "IMS__CALL_STATE__CALL_INCOMING", 4 },
   { "CALL_WAITING", "IMS__CALL_STATE__CALL_WAITING", 5 },
+  { "CALL_END", "IMS__CALL_STATE__CALL_END", 6 },
 };
 static const ProtobufCIntRange ims__call_state__value_ranges[] = {
-{0, 0},{0, 6}
+{0, 0},{0, 7}
 };
-const ProtobufCEnumValueIndex ims__call_state__enum_values_by_name[6] =
+const ProtobufCEnumValueIndex ims__call_state__enum_values_by_name[7] =
 {
   { "CALL_ACTIVE", 0 },
   { "CALL_ALERTING", 3 },
   { "CALL_DIALING", 2 },
+  { "CALL_END", 6 },
   { "CALL_HOLDING", 1 },
   { "CALL_INCOMING", 4 },
   { "CALL_WAITING", 5 },
@@ -4216,9 +5190,9 @@ const ProtobufCEnumDescriptor ims__call_state__descriptor =
   "CallState",
   "Ims__CallState",
   "ims",
-  6,
+  7,
   ims__call_state__enum_values_by_number,
-  6,
+  7,
   ims__call_state__enum_values_by_name,
   1,
   ims__call_state__value_ranges,
@@ -4254,7 +5228,7 @@ const ProtobufCEnumDescriptor ims__radio_state__descriptor =
   ims__radio_state__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-const ProtobufCEnumValue ims__call_type__enum_values_by_number[11] =
+const ProtobufCEnumValue ims__call_type__enum_values_by_number[12] =
 {
   { "CALL_TYPE_VOICE", "IMS__CALL_TYPE__CALL_TYPE_VOICE", 0 },
   { "CALL_TYPE_VT_TX", "IMS__CALL_TYPE__CALL_TYPE_VT_TX", 1 },
@@ -4267,11 +5241,12 @@ const ProtobufCEnumValue ims__call_type__enum_values_by_number[11] =
   { "CALL_TYPE_PS_VS_RX", "IMS__CALL_TYPE__CALL_TYPE_PS_VS_RX", 8 },
   { "CALL_TYPE_UNKNOWN", "IMS__CALL_TYPE__CALL_TYPE_UNKNOWN", 9 },
   { "CALL_TYPE_SMS", "IMS__CALL_TYPE__CALL_TYPE_SMS", 10 },
+  { "CALL_TYPE_UT", "IMS__CALL_TYPE__CALL_TYPE_UT", 11 },
 };
 static const ProtobufCIntRange ims__call_type__value_ranges[] = {
-{0, 0},{0, 11}
+{0, 0},{0, 12}
 };
-const ProtobufCEnumValueIndex ims__call_type__enum_values_by_name[11] =
+const ProtobufCEnumValueIndex ims__call_type__enum_values_by_name[12] =
 {
   { "CALL_TYPE_CS_VS_RX", 6 },
   { "CALL_TYPE_CS_VS_TX", 5 },
@@ -4279,6 +5254,7 @@ const ProtobufCEnumValueIndex ims__call_type__enum_values_by_name[11] =
   { "CALL_TYPE_PS_VS_TX", 7 },
   { "CALL_TYPE_SMS", 10 },
   { "CALL_TYPE_UNKNOWN", 9 },
+  { "CALL_TYPE_UT", 11 },
   { "CALL_TYPE_VOICE", 0 },
   { "CALL_TYPE_VT", 3 },
   { "CALL_TYPE_VT_NODIR", 4 },
@@ -4292,15 +5268,49 @@ const ProtobufCEnumDescriptor ims__call_type__descriptor =
   "CallType",
   "Ims__CallType",
   "ims",
-  11,
+  12,
   ims__call_type__enum_values_by_number,
-  11,
+  12,
   ims__call_type__enum_values_by_name,
   1,
   ims__call_type__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-const ProtobufCEnumValue ims__call_fail_cause__enum_values_by_number[12] =
+const ProtobufCEnumValue ims__call_substate__enum_values_by_number[5] =
+{
+  { "CALL_SUBSTATE_NONE", "IMS__CALL_SUBSTATE__CALL_SUBSTATE_NONE", 0 },
+  { "CALL_SUBSTATE_AUDIO_CONNECTED_SUSPENDED", "IMS__CALL_SUBSTATE__CALL_SUBSTATE_AUDIO_CONNECTED_SUSPENDED", 1 },
+  { "CALL_SUBSTATE_VIDEO_CONNECTED_SUSPENDED", "IMS__CALL_SUBSTATE__CALL_SUBSTATE_VIDEO_CONNECTED_SUSPENDED", 2 },
+  { "CALL_SUBSTATE_AVP_RETRY", "IMS__CALL_SUBSTATE__CALL_SUBSTATE_AVP_RETRY", 4 },
+  { "CALL_SUBSTATE_MEDIA_PAUSED", "IMS__CALL_SUBSTATE__CALL_SUBSTATE_MEDIA_PAUSED", 8 },
+};
+static const ProtobufCIntRange ims__call_substate__value_ranges[] = {
+{0, 0},{4, 3},{8, 4},{0, 5}
+};
+const ProtobufCEnumValueIndex ims__call_substate__enum_values_by_name[5] =
+{
+  { "CALL_SUBSTATE_AUDIO_CONNECTED_SUSPENDED", 1 },
+  { "CALL_SUBSTATE_AVP_RETRY", 3 },
+  { "CALL_SUBSTATE_MEDIA_PAUSED", 4 },
+  { "CALL_SUBSTATE_NONE", 0 },
+  { "CALL_SUBSTATE_VIDEO_CONNECTED_SUSPENDED", 2 },
+};
+const ProtobufCEnumDescriptor ims__call_substate__descriptor =
+{
+  PROTOBUF_C_ENUM_DESCRIPTOR_MAGIC,
+  "ims.CallSubstate",
+  "CallSubstate",
+  "Ims__CallSubstate",
+  "ims",
+  5,
+  ims__call_substate__enum_values_by_number,
+  5,
+  ims__call_substate__enum_values_by_name,
+  3,
+  ims__call_substate__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
+};
+const ProtobufCEnumValue ims__call_fail_cause__enum_values_by_number[37] =
 {
   { "CALL_FAIL_UNOBTAINABLE_NUMBER", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_UNOBTAINABLE_NUMBER", 1 },
   { "CALL_FAIL_NORMAL", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_NORMAL", 16 },
@@ -4308,30 +5318,80 @@ const ProtobufCEnumValue ims__call_fail_cause__enum_values_by_number[12] =
   { "CALL_FAIL_CONGESTION", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_CONGESTION", 34 },
   { "CALL_FAIL_INCOMPATIBILITY_DESTINATION", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_INCOMPATIBILITY_DESTINATION", 88 },
   { "CALL_FAIL_CALL_BARRED", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_CALL_BARRED", 240 },
+  { "CALL_FAIL_USER_BUSY", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_BUSY", 501 },
+  { "CALL_FAIL_USER_REJECT", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_REJECT", 502 },
+  { "CALL_FAIL_LOW_BATTERY", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_LOW_BATTERY", 503 },
+  { "CALL_FAIL_BLACKLISTED_CALL_ID", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_BLACKLISTED_CALL_ID", 504 },
   { "CALL_FAIL_NETWORK_UNAVAILABLE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_NETWORK_UNAVAILABLE", 1010 },
   { "CALL_FAIL_FEATURE_UNAVAILABLE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_FEATURE_UNAVAILABLE", 1011 },
   { "CALL_FAIL_SIP_Error", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_ERROR", 1012 },
   { "CALL_FAIL_MISC", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_MISC", 1013 },
   { "CALL_FAIL_ANSWERED_ELSEWHERE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_ANSWERED_ELSEWHERE", 1014 },
+  { "CALL_FAIL_SIP_REDIRECTED", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REDIRECTED", 2001 },
+  { "CALL_FAIL_SIP_BAD_REQUEST", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_REQUEST", 2002 },
+  { "CALL_FAIL_SIP_FORBIDDEN", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_FORBIDDEN", 2003 },
+  { "CALL_FAIL_SIP_NOT_FOUND", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_FOUND", 2004 },
+  { "CALL_FAIL_SIP_NOT_SUPPORTED", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_SUPPORTED", 2005 },
+  { "CALL_FAIL_SIP_REQUEST_TIMEOUT", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_TIMEOUT", 2006 },
+  { "CALL_FAIL_SIP_TEMPORARILY_UNAVAILABLE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_TEMPORARILY_UNAVAILABLE", 2007 },
+  { "CALL_FAIL_SIP_BAD_ADDRESS", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_ADDRESS", 2008 },
+  { "CALL_FAIL_SIP_BUSY", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BUSY", 2009 },
+  { "CALL_FAIL_SIP_REQUEST_CANCELLED", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_CANCELLED", 2010 },
+  { "CALL_FAIL_SIP_NOT_ACCEPTABLE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_ACCEPTABLE", 2011 },
+  { "CALL_FAIL_SIP_NOT_REACHABLE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_REACHABLE", 2012 },
+  { "CALL_FAIL_SIP_SERVER_INTERNAL_ERROR", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_INTERNAL_ERROR", 2013 },
+  { "CALL_FAIL_SIP_SERVICE_UNAVAILABLE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVICE_UNAVAILABLE", 2014 },
+  { "CALL_FAIL_SIP_SERVER_TIMEOUT", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_TIMEOUT", 2015 },
+  { "CALL_FAIL_SIP_USER_REJECTED", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_USER_REJECTED", 2016 },
+  { "CALL_FAIL_SIP_GLOBAL_ERROR", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_GLOBAL_ERROR", 2017 },
+  { "CALL_FAIL_MEDIA_INIT_FAILED", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_INIT_FAILED", 3001 },
+  { "CALL_FAIL_MEDIA_NO_DATA", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_NO_DATA", 3002 },
+  { "CALL_FAIL_MEDIA_NOT_ACCEPTABLE", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_NOT_ACCEPTABLE", 3003 },
+  { "CALL_FAIL_MEDIA_UNSPECIFIED_ERROR", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_MEDIA_UNSPECIFIED_ERROR", 3004 },
   { "CALL_FAIL_ERROR_UNSPECIFIED", "IMS__CALL_FAIL_CAUSE__CALL_FAIL_ERROR_UNSPECIFIED", 65535 },
 };
 static const ProtobufCIntRange ims__call_fail_cause__value_ranges[] = {
-{1, 0},{16, 1},{34, 3},{88, 4},{240, 5},{1010, 6},{65535, 11},{0, 12}
+{1, 0},{16, 1},{34, 3},{88, 4},{240, 5},{501, 6},{1010, 10},{2001, 15},{3001, 32},{65535, 36},{0, 37}
 };
-const ProtobufCEnumValueIndex ims__call_fail_cause__enum_values_by_name[12] =
+const ProtobufCEnumValueIndex ims__call_fail_cause__enum_values_by_name[37] =
 {
-  { "CALL_FAIL_ANSWERED_ELSEWHERE", 10 },
+  { "CALL_FAIL_ANSWERED_ELSEWHERE", 14 },
+  { "CALL_FAIL_BLACKLISTED_CALL_ID", 9 },
   { "CALL_FAIL_BUSY", 2 },
   { "CALL_FAIL_CALL_BARRED", 5 },
   { "CALL_FAIL_CONGESTION", 3 },
-  { "CALL_FAIL_ERROR_UNSPECIFIED", 11 },
-  { "CALL_FAIL_FEATURE_UNAVAILABLE", 7 },
+  { "CALL_FAIL_ERROR_UNSPECIFIED", 36 },
+  { "CALL_FAIL_FEATURE_UNAVAILABLE", 11 },
   { "CALL_FAIL_INCOMPATIBILITY_DESTINATION", 4 },
-  { "CALL_FAIL_MISC", 9 },
-  { "CALL_FAIL_NETWORK_UNAVAILABLE", 6 },
+  { "CALL_FAIL_LOW_BATTERY", 8 },
+  { "CALL_FAIL_MEDIA_INIT_FAILED", 32 },
+  { "CALL_FAIL_MEDIA_NOT_ACCEPTABLE", 34 },
+  { "CALL_FAIL_MEDIA_NO_DATA", 33 },
+  { "CALL_FAIL_MEDIA_UNSPECIFIED_ERROR", 35 },
+  { "CALL_FAIL_MISC", 13 },
+  { "CALL_FAIL_NETWORK_UNAVAILABLE", 10 },
   { "CALL_FAIL_NORMAL", 1 },
-  { "CALL_FAIL_SIP_Error", 8 },
+  { "CALL_FAIL_SIP_BAD_ADDRESS", 22 },
+  { "CALL_FAIL_SIP_BAD_REQUEST", 16 },
+  { "CALL_FAIL_SIP_BUSY", 23 },
+  { "CALL_FAIL_SIP_Error", 12 },
+  { "CALL_FAIL_SIP_FORBIDDEN", 17 },
+  { "CALL_FAIL_SIP_GLOBAL_ERROR", 31 },
+  { "CALL_FAIL_SIP_NOT_ACCEPTABLE", 25 },
+  { "CALL_FAIL_SIP_NOT_FOUND", 18 },
+  { "CALL_FAIL_SIP_NOT_REACHABLE", 26 },
+  { "CALL_FAIL_SIP_NOT_SUPPORTED", 19 },
+  { "CALL_FAIL_SIP_REDIRECTED", 15 },
+  { "CALL_FAIL_SIP_REQUEST_CANCELLED", 24 },
+  { "CALL_FAIL_SIP_REQUEST_TIMEOUT", 20 },
+  { "CALL_FAIL_SIP_SERVER_INTERNAL_ERROR", 27 },
+  { "CALL_FAIL_SIP_SERVER_TIMEOUT", 29 },
+  { "CALL_FAIL_SIP_SERVICE_UNAVAILABLE", 28 },
+  { "CALL_FAIL_SIP_TEMPORARILY_UNAVAILABLE", 21 },
+  { "CALL_FAIL_SIP_USER_REJECTED", 30 },
   { "CALL_FAIL_UNOBTAINABLE_NUMBER", 0 },
+  { "CALL_FAIL_USER_BUSY", 6 },
+  { "CALL_FAIL_USER_REJECT", 7 },
 };
 const ProtobufCEnumDescriptor ims__call_fail_cause__descriptor =
 {
@@ -4340,11 +5400,11 @@ const ProtobufCEnumDescriptor ims__call_fail_cause__descriptor =
   "CallFailCause",
   "Ims__CallFailCause",
   "ims",
-  12,
+  37,
   ims__call_fail_cause__enum_values_by_number,
-  12,
+  37,
   ims__call_fail_cause__enum_values_by_name,
-  7,
+  10,
   ims__call_fail_cause__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
@@ -4510,17 +5570,19 @@ const ProtobufCEnumDescriptor ims__radio_tech_type__descriptor =
   ims__radio_tech_type__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-const ProtobufCEnumValue ims__ip_presentation__enum_values_by_number[2] =
+const ProtobufCEnumValue ims__ip_presentation__enum_values_by_number[3] =
 {
   { "IP_PRESENTATION_NUM_ALLOWED", "IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_ALLOWED", 0 },
   { "IP_PRESENTATION_NUM_RESTRICTED", "IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_RESTRICTED", 1 },
+  { "IP_PRESENTATION_NUM_DEFAULT", "IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_DEFAULT", 2 },
 };
 static const ProtobufCIntRange ims__ip_presentation__value_ranges[] = {
-{0, 0},{0, 2}
+{0, 0},{0, 3}
 };
-const ProtobufCEnumValueIndex ims__ip_presentation__enum_values_by_name[2] =
+const ProtobufCEnumValueIndex ims__ip_presentation__enum_values_by_name[3] =
 {
   { "IP_PRESENTATION_NUM_ALLOWED", 0 },
+  { "IP_PRESENTATION_NUM_DEFAULT", 2 },
   { "IP_PRESENTATION_NUM_RESTRICTED", 1 },
 };
 const ProtobufCEnumDescriptor ims__ip_presentation__descriptor =
@@ -4530,29 +5592,31 @@ const ProtobufCEnumDescriptor ims__ip_presentation__descriptor =
   "IpPresentation",
   "Ims__IpPresentation",
   "ims",
-  2,
+  3,
   ims__ip_presentation__enum_values_by_number,
-  2,
+  3,
   ims__ip_presentation__enum_values_by_name,
   1,
   ims__ip_presentation__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
-const ProtobufCEnumValue ims__handover__msg__type__enum_values_by_number[4] =
+const ProtobufCEnumValue ims__handover__msg__type__enum_values_by_number[5] =
 {
   { "START", "IMS__HANDOVER__MSG__TYPE__START", 0 },
   { "COMPLETE_SUCCESS", "IMS__HANDOVER__MSG__TYPE__COMPLETE_SUCCESS", 1 },
   { "COMPLETE_FAIL", "IMS__HANDOVER__MSG__TYPE__COMPLETE_FAIL", 2 },
   { "CANCEL", "IMS__HANDOVER__MSG__TYPE__CANCEL", 3 },
+  { "NOT_TRIGGERED", "IMS__HANDOVER__MSG__TYPE__NOT_TRIGGERED", 4 },
 };
 static const ProtobufCIntRange ims__handover__msg__type__value_ranges[] = {
-{0, 0},{0, 4}
+{0, 0},{0, 5}
 };
-const ProtobufCEnumValueIndex ims__handover__msg__type__enum_values_by_name[4] =
+const ProtobufCEnumValueIndex ims__handover__msg__type__enum_values_by_name[5] =
 {
   { "CANCEL", 3 },
   { "COMPLETE_FAIL", 2 },
   { "COMPLETE_SUCCESS", 1 },
+  { "NOT_TRIGGERED", 4 },
   { "START", 0 },
 };
 const ProtobufCEnumDescriptor ims__handover__msg__type__descriptor =
@@ -4562,9 +5626,9 @@ const ProtobufCEnumDescriptor ims__handover__msg__type__descriptor =
   "Handover_Msg_Type",
   "Ims__HandoverMsgType",
   "ims",
-  4,
+  5,
   ims__handover__msg__type__enum_values_by_number,
-  4,
+  5,
   ims__handover__msg__type__enum_values_by_name,
   1,
   ims__handover__msg__type__value_ranges,
@@ -4684,6 +5748,36 @@ const ProtobufCEnumDescriptor ims__service_class_status__descriptor =
   ims__service_class_status__enum_values_by_name,
   1,
   ims__service_class_status__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
+};
+const ProtobufCEnumValue ims__conf_call_state__enum_values_by_number[3] =
+{
+  { "RINGING", "IMS__CONF_CALL_STATE__RINGING", 0 },
+  { "FOREGROUND", "IMS__CONF_CALL_STATE__FOREGROUND", 1 },
+  { "BACKGROUND", "IMS__CONF_CALL_STATE__BACKGROUND", 2 },
+};
+static const ProtobufCIntRange ims__conf_call_state__value_ranges[] = {
+{0, 0},{0, 3}
+};
+const ProtobufCEnumValueIndex ims__conf_call_state__enum_values_by_name[3] =
+{
+  { "BACKGROUND", 2 },
+  { "FOREGROUND", 1 },
+  { "RINGING", 0 },
+};
+const ProtobufCEnumDescriptor ims__conf_call_state__descriptor =
+{
+  PROTOBUF_C_ENUM_DESCRIPTOR_MAGIC,
+  "ims.ConfCallState",
+  "ConfCallState",
+  "Ims__ConfCallState",
+  "ims",
+  3,
+  ims__conf_call_state__enum_values_by_number,
+  3,
+  ims__conf_call_state__enum_values_by_name,
+  1,
+  ims__conf_call_state__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
 const ProtobufCEnumValue ims__notification_type__enum_values_by_number[2] =
@@ -4822,5 +5916,75 @@ const ProtobufCEnumDescriptor ims__quality__descriptor =
   ims__quality__enum_values_by_name,
   1,
   ims__quality__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
+};
+const ProtobufCEnumValue ims__mwi_message_type__enum_values_by_number[7] =
+{
+  { "MWI_MSG_NONE", "IMS__MWI_MESSAGE_TYPE__MWI_MSG_NONE", -1 },
+  { "MWI_MSG_VOICE", "IMS__MWI_MESSAGE_TYPE__MWI_MSG_VOICE", 0 },
+  { "MWI_MSG_VIDEO", "IMS__MWI_MESSAGE_TYPE__MWI_MSG_VIDEO", 1 },
+  { "MWI_MSG_FAX", "IMS__MWI_MESSAGE_TYPE__MWI_MSG_FAX", 2 },
+  { "MWI_MSG_PAGER", "IMS__MWI_MESSAGE_TYPE__MWI_MSG_PAGER", 3 },
+  { "MWI_MSG_MULTIMEDIA", "IMS__MWI_MESSAGE_TYPE__MWI_MSG_MULTIMEDIA", 4 },
+  { "MWI_MSG_TEXT", "IMS__MWI_MESSAGE_TYPE__MWI_MSG_TEXT", 5 },
+};
+static const ProtobufCIntRange ims__mwi_message_type__value_ranges[] = {
+{4294967295, 0},{0, 7}
+};
+const ProtobufCEnumValueIndex ims__mwi_message_type__enum_values_by_name[7] =
+{
+  { "MWI_MSG_FAX", 3 },
+  { "MWI_MSG_MULTIMEDIA", 5 },
+  { "MWI_MSG_NONE", 0 },
+  { "MWI_MSG_PAGER", 4 },
+  { "MWI_MSG_TEXT", 6 },
+  { "MWI_MSG_VIDEO", 2 },
+  { "MWI_MSG_VOICE", 1 },
+};
+const ProtobufCEnumDescriptor ims__mwi_message_type__descriptor =
+{
+  PROTOBUF_C_ENUM_DESCRIPTOR_MAGIC,
+  "ims.MwiMessageType",
+  "MwiMessageType",
+  "Ims__MwiMessageType",
+  "ims",
+  7,
+  ims__mwi_message_type__enum_values_by_number,
+  7,
+  ims__mwi_message_type__enum_values_by_name,
+  1,
+  ims__mwi_message_type__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
+};
+const ProtobufCEnumValue ims__mwi_priority__enum_values_by_number[4] =
+{
+  { "MWI_MSG_PRIORITY_UNKNOWN", "IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_UNKNOWN", -1 },
+  { "MWI_MSG_PRIORITY_LOW", "IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_LOW", 0 },
+  { "MWI_MSG_PRIORITY_NORMAL", "IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_NORMAL", 1 },
+  { "MWI_MSG_PRIORITY_URGENT", "IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_URGENT", 2 },
+};
+static const ProtobufCIntRange ims__mwi_priority__value_ranges[] = {
+{4294967295, 0},{0, 4}
+};
+const ProtobufCEnumValueIndex ims__mwi_priority__enum_values_by_name[4] =
+{
+  { "MWI_MSG_PRIORITY_LOW", 1 },
+  { "MWI_MSG_PRIORITY_NORMAL", 2 },
+  { "MWI_MSG_PRIORITY_UNKNOWN", 0 },
+  { "MWI_MSG_PRIORITY_URGENT", 3 },
+};
+const ProtobufCEnumDescriptor ims__mwi_priority__descriptor =
+{
+  PROTOBUF_C_ENUM_DESCRIPTOR_MAGIC,
+  "ims.MwiPriority",
+  "MwiPriority",
+  "Ims__MwiPriority",
+  "ims",
+  4,
+  ims__mwi_priority__enum_values_by_number,
+  4,
+  ims__mwi_priority__enum_values_by_name,
+  1,
+  ims__mwi_priority__value_ranges,
   NULL,NULL,NULL,NULL   /* reserved[1234] */
 };

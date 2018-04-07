@@ -43,7 +43,7 @@ extern "C" {
                      GLOBAL DEFINITIONS AND DECLARATIONS
 ===========================================================================*/
 
-/*--------------------------------------------------------------------------- 
+/*---------------------------------------------------------------------------
    Type representing a dll node - clients must never access the fields of
    this structure directly
 ---------------------------------------------------------------------------*/
@@ -53,8 +53,8 @@ typedef struct ds_dll_el_s {
     const void         * data;
 } ds_dll_el_t;
 
-/*--------------------------------------------------------------------------- 
-   Type of comparison function registered by clients used in search and 
+/*---------------------------------------------------------------------------
+   Type of comparison function registered by clients used in search and
    delete operations
 ---------------------------------------------------------------------------*/
 typedef long int (* ds_dll_comp_f) (const void * first, const void * second);
@@ -68,10 +68,10 @@ typedef long int (* ds_dll_comp_f) (const void * first, const void * second);
 ===========================================================================*/
 /*!
 @brief
-  Initializes a dll and returns the head pointer. 
+  Initializes a dll and returns the head pointer.
 
 @return
-  ds_dll_el_t * - pointer to list's head 
+  ds_dll_el_t * - pointer to list's head
 
 @note
 
@@ -82,7 +82,7 @@ typedef long int (* ds_dll_comp_f) (const void * first, const void * second);
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
+ds_dll_el_t *
 ds_dll_init (ds_dll_el_t * head);
 
 /*===========================================================================
@@ -90,7 +90,7 @@ ds_dll_init (ds_dll_el_t * head);
 ===========================================================================*/
 /*!
 @brief
-  Enqueues given node/data to the tail of the dll. 
+  Enqueues given node/data to the tail of the dll.
 
 @return
   ds_dll_el_t * - pointer to newly added node
@@ -104,15 +104,38 @@ ds_dll_init (ds_dll_el_t * head);
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
+ds_dll_el_t *
 ds_dll_enq (ds_dll_el_t * dlist, ds_dll_el_t * node, const void * data);
+
+/*===========================================================================
+  FUNCTION  ds_dll_insert
+===========================================================================*/
+/*!
+@brief
+  Enqueues given node/data at a given index in a dll
+
+@return
+  ds_dll_el_t * - pointer to newly added node
+
+@note
+
+  - Dependencies
+    - None
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+ds_dll_el_t *
+ds_dll_insert (ds_dll_el_t * dlist, ds_dll_el_t * node, const void * data,
+  const unsigned long int index);
 
 /*===========================================================================
   FUNCTION  ds_dll_deq
 ===========================================================================*/
 /*!
 @brief
-  Dequeues a node from the head of the dll.  
+  Dequeues a node from the head of the dll.
 
 @return
   ds_dll_el_t * - pointer to dequeued node if available, NULL otherwise
@@ -126,7 +149,7 @@ ds_dll_enq (ds_dll_el_t * dlist, ds_dll_el_t * node, const void * data);
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
+ds_dll_el_t *
 ds_dll_deq (ds_dll_el_t * dlist, ds_dll_el_t ** tail, const void ** data);
 
 /*===========================================================================
@@ -134,7 +157,7 @@ ds_dll_deq (ds_dll_el_t * dlist, ds_dll_el_t ** tail, const void ** data);
 ===========================================================================*/
 /*!
 @brief
-  Searches for a node in the given dll and removes it from the list.  
+  Searches for a node in the given dll and removes it from the list.
 
 @return
   ds_dll_el_t * - pointer to node removed if found, NULL otherwise
@@ -148,12 +171,12 @@ ds_dll_deq (ds_dll_el_t * dlist, ds_dll_el_t ** tail, const void ** data);
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
-ds_dll_delete 
+ds_dll_el_t *
+ds_dll_delete
 (
-    ds_dll_el_t * head, 
-    ds_dll_el_t ** tail, 
-    const void * data, 
+    ds_dll_el_t * head,
+    ds_dll_el_t ** tail,
+    const void * data,
     ds_dll_comp_f comp_f
 );
 
@@ -162,7 +185,7 @@ ds_dll_delete
 ===========================================================================*/
 /*!
 @brief
-  Returns the next node in a dll for the given node.   
+  Returns the next node in a dll for the given node.
 
 @return
   ds_dll_el_t * - pointer to the next node if one exists, NULL otherwise
@@ -185,7 +208,7 @@ ds_dll_next (ds_dll_el_t * node, const void ** data);
 /*!
 @brief
   Searches for a node in the given dll. Note that the node is not removed
-  from the list. 
+  from the list.
 
 @return
   ds_dll_el_t * - pointer to node if found, NULL otherwise
@@ -199,7 +222,7 @@ ds_dll_next (ds_dll_el_t * node, const void ** data);
     - None
 */
 /*=========================================================================*/
-ds_dll_el_t * 
+ds_dll_el_t *
 ds_dll_search (ds_dll_el_t * head, const void * data, ds_dll_comp_f comp_f);
 
 /*===========================================================================
@@ -207,7 +230,7 @@ ds_dll_search (ds_dll_el_t * head, const void * data, ds_dll_comp_f comp_f);
 ===========================================================================*/
 /*!
 @brief
-  Returns the client data pointer for a given node.  
+  Returns the client data pointer for a given node.
 
 @return
   void * - pointer to client data
@@ -221,7 +244,7 @@ ds_dll_search (ds_dll_el_t * head, const void * data, ds_dll_comp_f comp_f);
     - None
 */
 /*=========================================================================*/
-const void * 
+const void *
 ds_dll_data (ds_dll_el_t * node);
 
 /*===========================================================================
@@ -229,7 +252,7 @@ ds_dll_data (ds_dll_el_t * node);
 ===========================================================================*/
 /*!
 @brief
-  Frees memory allocated for a node.   
+  Frees memory allocated for a node.
 
 @return
   void
@@ -244,7 +267,7 @@ ds_dll_data (ds_dll_el_t * node);
     - None
 */
 /*=========================================================================*/
-void 
+void
 ds_dll_free (ds_dll_el_t * node);
 
 /*===========================================================================
@@ -252,7 +275,7 @@ ds_dll_free (ds_dll_el_t * node);
 ===========================================================================*/
 /*!
 @brief
-  Dll list destructor.  
+  Dll list destructor.
 
 @return
   void
@@ -267,7 +290,7 @@ ds_dll_free (ds_dll_el_t * node);
     - None
 */
 /*=========================================================================*/
-void 
+void
 ds_dll_destroy (ds_dll_el_t * head);
 
 #ifdef __cplusplus

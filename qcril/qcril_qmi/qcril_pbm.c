@@ -27,6 +27,7 @@
 
 #include "phonebook_manager_service_v01.h"
 #include "qcril_qmi_client.h"
+#include "qmi_ril_platform_dep.h"
 
 /*===========================================================================
 
@@ -75,7 +76,7 @@ RIL_Errno qcril_qmi_pbm_enable_emergency_number_indications(int enable)
     indication_req.reg_mask = 0x00000000;
   }
 
-  qmi_transport_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_PBM ),
+  qmi_transport_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_PBM ),
                                                    QMI_PBM_INDICATION_REGISTER_REQ_V01,
                                                    &indication_req,
                                                    sizeof(indication_req),
@@ -363,67 +364,146 @@ void qcril_qmi_pbm_emergency_list_ind_hdlr
 void qcril_qmi_pbm_unsol_ind_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 )
 {
-  uint32_t decoded_payload_len = 0;
-  qmi_client_error_type qmi_err;
-  void* decoded_payload = NULL;
+  qmi_ind_callback_type qmi_callback;
 
   QCRIL_LOG_FUNC_ENTRY();
 
-  QCRIL_NOTUSED( user_handle );
-  QCRIL_NOTUSED( ind_cb_data );
+  memset(&qmi_callback,0,sizeof(qmi_callback));
+  qmi_callback.data_buf = qcril_malloc(ind_buf_len);
 
-  qmi_err = qmi_idl_get_message_c_struct_len(qcril_qmi_client_get_service_object(QCRIL_QMI_CLIENT_PBM),
-                                                QMI_IDL_INDICATION,
-                                                msg_id,
-                                                &decoded_payload_len);
-
-  if ( qmi_err == QMI_NO_ERR )
+  if( qmi_callback.data_buf )
   {
-    decoded_payload = qcril_malloc( decoded_payload_len );
-    if ( NULL != decoded_payload )
-    {
-      qmi_err = qmi_client_message_decode(qcril_qmi_client_get_user_handle(QCRIL_QMI_CLIENT_PBM),
-                                          QMI_IDL_INDICATION,
-                                          msg_id,
-                                          ind_buf,
-                                          ind_buf_len,
-                                          decoded_payload,
-                                          (int)decoded_payload_len);
+    qmi_callback.user_handle = user_handle;
+    qmi_callback.msg_id = msg_id;
+    memcpy(qmi_callback.data_buf,ind_buf,ind_buf_len);
+    qmi_callback.data_buf_len = ind_buf_len;
+    qmi_callback.cb_data = ind_cb_data;
 
-      if (QMI_NO_ERR == qmi_err)
-      {
-        switch(msg_id)
-        {
-          case QMI_PBM_EMERGENCY_LIST_IND_V01:
-            qcril_qmi_pbm_emergency_list_ind_hdlr(decoded_payload, decoded_payload_len);
-            break;
-
-          default:
-            QCRIL_LOG_INFO("Unsupported QMI PBM indication %x hex", msg_id);
-            break;
-        }
-      }
-      else
-      {
-        QCRIL_LOG_INFO("Indication decode failed for msg %d of svc %d with error %d", msg_id, QCRIL_QMI_CLIENT_PBM, qmi_err );
-      }
-    }
+    qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
+                   QCRIL_DEFAULT_MODEM_ID,
+                   QCRIL_DATA_ON_STACK,
+                   QCRIL_EVT_QMI_PBM_HANDLE_INDICATIONS,
+                   (void*) &qmi_callback,
+                   sizeof(qmi_callback),
+                   (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
+  }
+  else
+  {
+    QCRIL_LOG_FATAL("malloc failed");
   }
 
-  if (decoded_payload != NULL)
-  {
-    qcril_free(decoded_payload);
-  }
-
-  QCRIL_LOG_FUNC_RETURN_WITH_RET( (int)qmi_err );
-
+  QCRIL_LOG_FUNC_RETURN();
 }/* qcril_qmi_pbm_unsol_ind_cb */
+
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_pbm_unsolicited_indication_cb_helper
+
+===========================================================================*/
+/*!
+    @brief
+    helper function for handling pbm indication
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_pbm_unsolicited_indication_cb_helper
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+    void * decoded_payload = NULL;
+    qmi_client_error_type qmi_err;
+    uint32_t decoded_payload_len;
+
+    qmi_ind_callback_type *qmi_callback = (qmi_ind_callback_type*) params_ptr->data;
+
+    do {
+
+       if( !qmi_callback )
+       {
+          QCRIL_LOG_ERROR("qmi_callback is NULL");
+          QCRIL_ASSERT(0); // this is a noop in release build
+          break;
+       }
+
+       QCRIL_LOG_INFO("invoked msg 0x%x", (int) qmi_callback->msg_id);
+
+       qmi_err = qmi_idl_get_message_c_struct_len( pbm_get_service_object_v01(),
+                                                   QMI_IDL_INDICATION,
+                                                   qmi_callback->msg_id,
+                                                   &decoded_payload_len);
+       if ( qmi_err != QMI_NO_ERR )
+       {
+          QCRIL_LOG_ERROR("Failed to process qmi message w/%d", qmi_err);
+          QCRIL_ASSERT(0); // this is a noop in release build
+          break;
+       }
+
+       if( !decoded_payload_len )
+       {
+          // ok, this is a null payload - don't need to process it.
+       }
+       else
+       {
+          // process the payload
+          decoded_payload = qcril_malloc( decoded_payload_len );
+          if ( !decoded_payload )
+          {
+             QCRIL_LOG_ERROR("Failed to alloc memory for decoded payload");
+             QCRIL_ASSERT(0); // this is a noop in release build
+             break;
+          }
+
+          memset( decoded_payload, 0, decoded_payload_len );
+
+          qmi_err = qmi_client_message_decode(
+                        qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_PBM ),
+                        QMI_IDL_INDICATION,
+                        qmi_callback->msg_id,
+                        qmi_callback->data_buf,
+                        qmi_callback->data_buf_len,
+                        decoded_payload,
+                        (int)decoded_payload_len );
+
+          if ( qmi_err != QMI_NO_ERR )
+          {
+             QCRIL_LOG_ERROR("Failed to process qmi message w/%d", qmi_err);
+             QCRIL_ASSERT(0); // this is a noop in release build
+             qcril_free(decoded_payload);
+             break;
+          }
+
+          switch ( qmi_callback->msg_id )
+          {
+            case QMI_PBM_EMERGENCY_LIST_IND_V01:
+              qcril_qmi_pbm_emergency_list_ind_hdlr(decoded_payload, decoded_payload_len);
+              break;
+
+            default:
+              QCRIL_LOG_INFO("Unsupported QMI PBM indication %x hex", qmi_callback->msg_id);
+              break;
+          }
+          qcril_free( decoded_payload );
+       }
+
+    } while(0);
+
+    if( qmi_callback && qmi_callback->data_buf )
+    {
+      qcril_free(qmi_callback->data_buf);
+    }
+    QCRIL_LOG_FUNC_RETURN();
+}//qcril_qmi_pbm_unsolicited_indication_cb_helper
+
 //===========================================================================
 //qmi_ril_phone_number_is_emergency
 //===========================================================================

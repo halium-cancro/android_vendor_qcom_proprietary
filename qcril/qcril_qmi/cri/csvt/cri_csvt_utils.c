@@ -71,6 +71,62 @@ qmi_error_type_v01 cri_csvt_utils_init_client(cri_core_subscription_id_type subs
 
 /***************************************************************************************************
     @function
+    cri_csvt_utils_reset_client
+
+    @implementation detail
+    None.
+***************************************************************************************************/
+qmi_error_type_v01 cri_csvt_utils_reset_client()
+{
+    qmi_error_type_v01      client_init_error = QMI_ERR_INTERNAL_V01;
+    csvt_reset_req_msg_v01  csvt_reset_req;
+    csvt_reset_resp_msg_v01 csvt_reset_resp;
+
+    UTIL_LOG_MSG("entry");
+
+    if(QMI_INTERNAL_ERR != csvt_client_id)
+    {
+        memset(&csvt_reset_req, NIL, sizeof(csvt_reset_req));
+
+        client_init_error = cri_core_qmi_send_msg_sync(csvt_client_id,
+                               QMI_CSVT_RESET_REQ_V01,
+                               (void *)&csvt_reset_req,
+                               sizeof(csvt_reset_req),
+                               &csvt_reset_resp,
+                               sizeof(csvt_reset_resp),
+                               CRI_CORE_MINIMAL_TIMEOUT);
+    }
+
+    UTIL_LOG_MSG("exit");
+
+    return client_init_error;
+}
+
+/***************************************************************************************************
+    @function
+    cri_csvt_utils_reinit_client
+
+    @implementation detail
+    None.
+***************************************************************************************************/
+qmi_error_type_v01 cri_csvt_utils_reinit_client(cri_core_subscription_id_type subscription_id)
+{
+    qmi_error_type_v01 client_init_error = QMI_ERR_INTERNAL_V01;
+
+    UTIL_LOG_MSG("entry");
+
+    if(QMI_INTERNAL_ERR != csvt_client_id)
+    {
+        client_init_error = QMI_ERR_NONE_V01;
+        cri_csvt_init_client_state(subscription_id);
+    }
+
+    UTIL_LOG_MSG("exit");
+
+    return client_init_error;
+}
+/***************************************************************************************************
+    @function
     cri_csvt_init_client_state
 
     @implementation detail
@@ -201,7 +257,7 @@ void cri_csvt_utils_log_csvt_call_objects()
     @implementation detail
     None.
 ***************************************************************************************************/
-int cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls()
+int cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls(boolean ignore_call_end)
 {
     int iter_call_object;
     int number_of_ongoing_csvt_calls;
@@ -212,9 +268,13 @@ int cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls()
     for(iter_call_object = 0; iter_call_object < CRI_CSVT_MAX_CALLS; iter_call_object++)
     {
         if(TRUE == csvt_calls[iter_call_object].is_valid &&
-           CSVT_EVENT_TYPE_END_V01 != csvt_calls[iter_call_object].csvt_info.event_type &&
            CSVT_EVENT_TYPE_SETUP_V01 != csvt_calls[iter_call_object].csvt_info.event_type)
         {
+            if (CSVT_EVENT_TYPE_END_V01 == csvt_calls[iter_call_object].csvt_info.event_type &&
+                    ignore_call_end)
+            {
+                continue;
+            }
             number_of_ongoing_csvt_calls++;
         }
     }
@@ -232,7 +292,9 @@ int cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls()
     @implementation detail
     Allocates memory which has to be freed up by the caller.
 ***************************************************************************************************/
-cri_csvt_utils_hlos_call_object_type* cri_csvt_utils_retrieve_hlos_ongoing_call_objects()
+cri_csvt_utils_hlos_call_object_type* cri_csvt_utils_retrieve_hlos_ongoing_call_objects(
+        boolean ignore_call_end
+)
 {
     int iter_call_object;
     int iter_ongoing_csvt_call;
@@ -246,7 +308,8 @@ cri_csvt_utils_hlos_call_object_type* cri_csvt_utils_retrieve_hlos_ongoing_call_
     number_of_ongoing_csvt_calls = NIL;
     hlos_ongoing_call_objects = NULL;
 
-    number_of_ongoing_csvt_calls = cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls();
+    number_of_ongoing_csvt_calls = cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls(
+                                           ignore_call_end);
     if(NIL != number_of_ongoing_csvt_calls)
     {
         hlos_ongoing_call_objects = util_memory_alloc(number_of_ongoing_csvt_calls *
@@ -256,9 +319,15 @@ cri_csvt_utils_hlos_call_object_type* cri_csvt_utils_retrieve_hlos_ongoing_call_
             for(iter_call_object = 0; iter_call_object < CRI_CSVT_MAX_CALLS; iter_call_object++)
             {
                 if(TRUE == csvt_calls[iter_call_object].is_valid &&
-                   CSVT_EVENT_TYPE_END_V01 != csvt_calls[iter_call_object].csvt_info.event_type &&
                    CSVT_EVENT_TYPE_SETUP_V01 != csvt_calls[iter_call_object].csvt_info.event_type)
                 {
+                    if ((CSVT_EVENT_TYPE_END_V01 ==
+                                csvt_calls[iter_call_object].csvt_info.event_type) &&
+                            ignore_call_end)
+                    {
+                        continue;
+                    }
+
                     hlos_ongoing_call_objects[iter_ongoing_csvt_call].hlos_call_id =
                                                         csvt_calls[iter_call_object].hlos_call_id;
                     hlos_ongoing_call_objects[iter_ongoing_csvt_call].csvt_call_state =
@@ -269,6 +338,11 @@ cri_csvt_utils_hlos_call_object_type* cri_csvt_utils_retrieve_hlos_ongoing_call_
                                    remote_party_number));
                     hlos_ongoing_call_objects[iter_ongoing_csvt_call].is_mt =
                                                                 csvt_calls[iter_call_object].is_mt;
+                    if (csvt_calls[iter_call_object].csvt_info.call_end_cause_valid == TRUE)
+                    {
+                        hlos_ongoing_call_objects[iter_ongoing_csvt_call].call_fail_cause =
+                            csvt_calls[iter_call_object].csvt_info.call_end_cause;
+                    }
                     iter_ongoing_csvt_call++;
                 }
             }
@@ -725,7 +799,7 @@ void cri_csvt_utils_setup_timer_to_invalidate_csvt_call_object(int csvt_call_obj
         csvt_calls[csvt_call_object_id].csvt_call_object_invalidate_timer_id =
             util_timer_add(&csvt_call_object_invalidate_timeval,
                            cri_csvt_utils_invalidate_csvt_call_object_timer_expiry_handler,
-                           (void*) csvt_call_object_id,
+                           (void*)(intptr_t) csvt_call_object_id,
                            sizeof(csvt_call_object_id));
         UTIL_LOG_MSG("invalidate timer id %d, csvt call object id %d",
                      csvt_calls[csvt_call_object_id].csvt_call_object_invalidate_timer_id,
@@ -751,7 +825,7 @@ void cri_csvt_utils_invalidate_csvt_call_object_timer_expiry_handler(
 
     UTIL_LOG_MSG("csvt call object id to be invalidated %d",
                  csvt_call_object_id);
-    csvt_call_object_id = (int) invalidate_csvt_call_object_cb_data;
+    csvt_call_object_id = (intptr_t) invalidate_csvt_call_object_cb_data;
     if(TRUE == cri_csvt_utils_is_valid_csvt_call_object_id(csvt_call_object_id))
     {
         csvt_calls[csvt_call_object_id].csvt_call_object_invalidate_timer_id = NIL;

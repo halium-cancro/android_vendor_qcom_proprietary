@@ -39,7 +39,9 @@ typedef enum
   QMI_EAP_SRVC_INVALID_IND_MSG,
   QMI_EAP_SRVC_SESSION_RESULT_IND_MSG,
   QMI_EAP_AKA_RESULT_IND_MSG,
-  QMI_EAP_NOTIF_CODE_IND_MSG
+  QMI_EAP_NOTIF_CODE_IND_MSG,
+  QMI_EAP_ERROR_CODE_IND_MSG,
+  QMI_EAP_AUTH_REJ_IND_MSG,
   /* To be filled in in future release */
 } qmi_eap_indication_id_type;
 
@@ -81,6 +83,7 @@ typedef union
   }aka_result;
 
   unsigned short  eap_notif_code;
+  unsigned short  eap_err_code;
 
 }qmi_eap_indication_data_type;
 
@@ -362,6 +365,8 @@ qmi_eap_auth_start_eap_session_ex
 
 /* QMI_AUTH_INDICATION_REGISTER related defines */
 #define QMI_AUTH_EAP_NOTIF_CODE_REG_PARAM_MASK 0x00000001
+#define QMI_AUTH_EAP_ERROR_CODE_REG_PARAM_MASK 0x00000002
+#define QMI_AUTH_EAP_AUTH_REJ_REG_PARAM_MASK   0x00000004
 
 typedef struct
 {
@@ -372,6 +377,10 @@ typedef struct
 
   /* Valid if QMI_AUTH_EAP_NOTIF_CODE_REG_PARAM_MASK is set */
   unsigned char  report_eap_notif_code;
+  /* Valid if QMI_AUTH_EAP_ERROR_CODE_REG_PARAM_MASK is set */
+  unsigned char  report_eap_err_code;
+  /* Valid if QMI_AUTH_EAP_AUTH_REJ_REG_PARAM_MASK is set */
+  unsigned char  report_eap_auth_reject;
 
 } qmi_auth_indication_reg_type;
 
@@ -607,7 +616,8 @@ qmi_auth_get_bind_subscription
 /*!
 @brief
   Register/deregister for different QMI AUTH indications. Indications include
-  QMI_AUTH_EAP_NOTIFICATION_CODE_IND
+  QMI_AUTH_EAP_NOTIFICATION_CODE_IND, QMI_AUTH_EAP_ERROR_CODE_IND,
+  QMI_AUTH_EAP_AUTH_REJ_IND
 
 @return
   QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is

@@ -20,24 +20,24 @@
                            INCLUDE FILES
 
 ===========================================================================*/
+#ifdef QMI_RIL_UTF
+#define __STDC_LIMIT_MACROS
+#endif
 
 #include "ril.h"
 #include "ril_cdma_sms.h"
 #include "IxErrno.h"
 #include "qcril_uim_srvc.h"
 #include "qcril_log.h"
+#include "qmi_client_instance_defs.h"
 #include <pthread.h>
 #include <stdint.h>
 
 #ifdef QCRIL_PROTOBUF_BUILD_ENABLED
     #include "imsIF.pb-c.h"
 #endif
-#ifndef QMI_RIL_UTF
 #include "qcril_qmi_ims_if_pb.h"
-#else
-#define ERANGE      34
-int errno;
-#endif
+
 /*===========================================================================
 
                    EXTERNAL DEFINITIONS AND TYPES
@@ -67,6 +67,11 @@ enum
     QMI_RIL_FEATURE_8974,
     QMI_RIL_FEATURE_8226,
     QMI_RIL_FEATURE_8610,
+    QMI_RIL_FEATURE_8916,
+    QMI_RIL_FEATURE_8084,
+    QMI_RIL_FEATURE_8994,
+    QMI_RIL_FEATURE_8909,
+    QMI_RIL_FEATURE_8992,
     QMI_RIL_FEATURE_IMS_RETRY_3GPP,
     QMI_RIL_FEATURE_IMS_RETRY_3GPP2,
     QMI_RIL_FEATURE_PLAIN_ANDROID,
@@ -77,12 +82,18 @@ enum
     QMI_RIL_FEATURE_POSIX_CLOCKS,
     QMI_RIL_FEATURE_LEGACY_RAT,
     QMI_RIL_FEATURE_COMBINE_RAT,
-    QMI_RIL_FEATURE_SAP_SILENT_PIN_VERIFY
+    QMI_RIL_FEATURE_PCI,
+    QMI_RIL_FEATURE_SAP_SILENT_PIN_VERIFY,
+    QMI_RIL_FEATURE_SRLTE,
+    QMI_RIL_FEATURE_ATEL_STKCC,
+    QMI_RIL_FEATURE_SHM,
+    QMI_RIL_FEATURE_SUPPRESS_REQ
 };
 
 #define QCRIL_FEATURE_KDDI_HOLD_ANSWER_ON "persist.radio.kddi_hold_answ_on"
 #define QMI_RIL_SYS_PROP_NAME_MULTI_SIM   "persist.radio.multisim.config"
 #define QMI_RIL_SYS_PROP_LENGTH_MULTI_SIM 4
+#define QMI_RIL_MULTI_SIM_STACK_ID "persist.radio.msim.stackid_"
 
 #define QCRIL_FEATURE_SAP_SILENT_PIN_VERIFY "persist.radio.sap_silent_pin"
 
@@ -137,6 +148,14 @@ extern int qmi_ril_is_multi_sim_feature_supported();
 #define QMI_RIL_VOICE_SPEECH_CODEC_THREAD_NAME          "speech_codec"
 #define QMI_RIL_IMS_SOCKET_THREAD_NAME                  "ims_socket"
 #define QMI_RIL_OEM_SOCKET_THREAD_NAME                  "oem_socket"
+
+#ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+#define QMI_RIL_UIM_REMOTE_CLIENT_SOCKET_THREAD_NAME    "uim_remote_client_socket"
+#endif
+#ifdef FEATURE_QCRIL_UIM_REMOTE_SERVER
+  #define QMI_RIL_UIM_REMOTE_SERVER_SOCKET_THREAD_NAME  "uim_remote_server_socket"
+#endif
+
 #define QMI_RIL_IMS_PIL_MONITOR_THREAD_NAME             "pil_monitor"
 
 #define QMI_RIL_SYS_PROP_NAME_MULTI_SIM         "persist.radio.multisim.config"
@@ -190,6 +209,17 @@ typedef enum
   QCRIL_THIRD_INSTANCE_ID  = 2,
   QCRIL_MAX_INSTANCE_ID
 } qcril_instance_id_e_type;
+
+/* Modem stack ID */
+typedef enum
+{
+  QCRIL_INVALID_MODEM_STACK_ID = -1,
+  QCRIL_DEFAULT_MODEM_STACK_ID = 0,
+  QCRIL_MODEM_PRIMARY_STACK_ID = QCRIL_DEFAULT_MODEM_STACK_ID,
+  QCRIL_MODEM_SECONDARY_STACK_ID  = 1,
+  QCRIL_MODEM_TERTIARY_STACK_ID  = 2,
+  QCRIL_MODEM_MAX_STACK_ID
+} qcril_modem_stack_id_e_type;
 
 /* DSDS QCRIL Instance Pair */
 #define QCRIL_DSDS_INSTANCE_PAIR( instance_id ) ( ( instance_id + 1 ) % 2 )
@@ -254,6 +284,7 @@ typedef enum
   QCRIL_CARD_STATUS_POWERDOWN_FAILED = 7, /*!< Indicates that card powerdown failure */
   QCRIL_CARD_STATUS_ILLEGAL          = 8, /*!< Indicates that card is illegal, for internal use */
   QCRIL_CARD_STATUS_ABSENT           = 9, /*!< Indicates that card is absent */
+  QCRIL_CARD_STATUS_SIM_READY        = 10, /*!< Indicates that SIM is ready */
 } qcril_card_status_e_type;
 
 /* Provision status */
@@ -293,6 +324,7 @@ typedef enum
     QMI_RIL_GEN_OPERATIONAL_STATUS_RESUME_PENDING,
     QMI_RIL_GEN_OPERATIONAL_STATUS_RESUMING,
     QMI_RIL_GEN_OPERATIONAL_STATUS_RESUME_RETRY,
+    QMI_RIL_GEN_OPERATIONAL_STATUS_UNBIND,
     QMI_RIL_GEN_OPERATIONAL_STATUS_HALTED
 } qmi_ril_gen_operational_status_type;
 
@@ -312,6 +344,16 @@ typedef struct
   int slot;                              /* Slot where the card resides */
   qcril_card_status_e_type status;       /* Status of the card */
 } qcril_card_info_type;
+
+/*! @brief App status
+*/
+typedef struct
+{
+  uint8                   aid_len;/* Number of bytes in aid_value */
+  char                    aid_value[QMI_UIM_MAX_AID_LEN]; /* Binary AID value */
+  qmi_uim_app_type        app_type; /* Type of app */
+  qmi_uim_app_state_type  app_state; /* State of the app */
+}qcril_card_app_info_type;
 
 /*! @brief Slot IDs List
 */
@@ -337,6 +379,15 @@ typedef struct
   uint8 num_of_modems;
   qcril_modem_id_e_type modem_id[ QCRIL_MAX_MODEM_NUM ];
 } qcril_modem_ids_list_type;
+
+/*! @brief MCC MNC info type
+*/
+typedef struct
+{
+  char       mcc[4];
+  char       mnc[4];
+  RIL_Errno  err_code;
+}qcril_mcc_mnc_info_type;
 
 /* RIL info */
 typedef struct
@@ -383,6 +434,7 @@ typedef enum
   QCRIL_EVT_CM_ACTIVATE_PROVISION_STATUS,
   QCRIL_EVT_CM_DEACTIVATE_PROVISION_STATUS,
   QCRIL_EVT_CM_UPDATE_FDN_STATUS,
+  QCRIL_EVT_CM_CARD_APP_STATUS_CHANGED,
   QCRIL_EVT_CM_MAX,
 
   /* Internal events */
@@ -396,6 +448,7 @@ typedef enum
 
   QCRIL_EVT_UIM_QMI_COMMAND_CALLBACK,
   QCRIL_EVT_UIM_QMI_INDICATION,
+  QCRIL_EVT_UIM_MCC_MNC_INFO,
 
   QCRIL_EVT_MMGSDI_IMSI_COMMAND_CALLBACK,
 
@@ -414,6 +467,8 @@ typedef enum
   QCRIL_EVT_INTERNAL_MMGSDI_DEACTIVATE_SUBS,
   QCRIL_EVT_INTERNAL_MMGSDI_MODEM_RESTART_START,
   QCRIL_EVT_INTERNAL_MMGSDI_MODEM_RESTART_COMPLETE,
+  QCRIL_EVT_INTERNAL_UIM_SAP_RESP,
+  QCRIL_EVT_INTERNAL_UIM_GET_MCC_MNC,
   QCRIL_EVT_MMGSDI_MAX,
 
   /* AMSS(GSTK) to QCRIL(GSTK) events */
@@ -464,7 +519,6 @@ typedef enum
   QCRIL_EVT_HOOK_SET_PAGING_PRIORITY           = QCRIL_EVT_HOOK_BASE + 7,
   QCRIL_EVT_HOOK_GET_PAGING_PRIORITY           = QCRIL_EVT_HOOK_BASE + 8,
   QCRIL_EVT_HOOK_GET_NEIGHBORING_CELLS_INFO    = QCRIL_EVT_HOOK_BASE + 9,
-  QCRIL_EVT_HOOK_INFORM_SHUTDOWN               = QCRIL_EVT_HOOK_BASE + 10,
   QCRIL_EVT_HOOK_SET_CDMA_SUB_SRC_WITH_SPC     = QCRIL_EVT_HOOK_BASE + 11,
   QCRIL_EVT_HOOK_SET_DEFAULT_VOICE_SUB         = QCRIL_EVT_HOOK_BASE + 12,
   QCRIL_EVT_HOOK_SET_LOCAL_CALL_HOLD           = QCRIL_EVT_HOOK_BASE + 13,
@@ -480,7 +534,28 @@ typedef enum
   QCRIL_EVT_HOOK_GET_AVAILABLE_CONFIGS         = QCRIL_EVT_HOOK_BASE + 23,
   QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_ACQ_ORDER = QCRIL_EVT_HOOK_BASE + 27,
   QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_ACQ_ORDER = QCRIL_EVT_HOOK_BASE + 28,
+  QCRIL_EVT_HOOK_GET_CURRENT_SETUP_CALLS       = QCRIL_EVT_HOOK_BASE + 29,
+  QCRIL_EVT_HOOK_REQUEST_SETUP_ANSWER          = QCRIL_EVT_HOOK_BASE + 30,
   QCRIL_EVT_HOOK_CLEANUP_LOADED_CONFIGS        = QCRIL_EVT_HOOK_BASE + 31,
+  QCRIL_EVT_HOOK_SEL_CONFIG                    = QCRIL_EVT_HOOK_BASE + 32,
+  QCRIL_EVT_HOOK_GET_META_INFO                 = QCRIL_EVT_HOOK_BASE + 33,
+  QCRIL_EVT_HOOK_GET_MODEM_CAPABILITY          = QCRIL_EVT_HOOK_BASE + 35,
+  QCRIL_EVT_HOOK_UPDATE_SUB_BINDING            = QCRIL_EVT_HOOK_BASE + 36,
+  QCRIL_EVT_HOOK_SET_DATA_SUBSCRIPTION         = QCRIL_EVT_HOOK_BASE + 39,
+  QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_BAND_PREF = QCRIL_EVT_HOOK_BASE + 37,
+  QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_BAND_PREF = QCRIL_EVT_HOOK_BASE + 38,
+  QCRIL_EVT_HOOK_SET_IS_DATA_ENABLED             = QCRIL_EVT_HOOK_BASE + 40,
+  QCRIL_EVT_HOOK_SET_IS_DATA_ROAMING_ENABLED     = QCRIL_EVT_HOOK_BASE + 41,
+  QCRIL_EVT_HOOK_SET_APN_INFO                    = QCRIL_EVT_HOOK_BASE + 42,
+  QCRIL_EVT_HOOK_SET_LTE_TUNE_AWAY = QCRIL_EVT_HOOK_BASE + 43,
+  QCRIL_EVT_HOOK_DEACTIVATE_CONFIGS            = QCRIL_EVT_HOOK_BASE + 44,
+  QCRIL_EVT_HOOK_GET_QC_VERSION_OF_FILE        = QCRIL_EVT_HOOK_BASE + 45,
+  QCRIL_EVT_HOOK_VALIDATE_CONFIG               = QCRIL_EVT_HOOK_BASE + 46,
+  QCRIL_EVT_HOOK_GET_QC_VERSION_OF_CONFIGID    = QCRIL_EVT_HOOK_BASE + 47,
+  QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_FILE       = QCRIL_EVT_HOOK_BASE + 48,
+  QCRIL_EVT_HOOK_GET_OEM_VERSION_OF_CONFIGID   = QCRIL_EVT_HOOK_BASE + 49,
+  QCRIL_EVT_HOOK_ACTIVATE_CONFIGS              = QCRIL_EVT_HOOK_BASE + 50,
+
 
   /* generic request id for all VT/Presence/EMBMS requests */
   QCRIL_EVT_HOOK_REQ_GENERIC                   = QCRIL_EVT_HOOK_BASE + 100,
@@ -508,8 +583,14 @@ typedef enum
   QCRIL_EVT_HOOK_UNSOL_SS_ERROR_CODE           = QCRIL_EVT_HOOK_BASE + 1013,
   QCRIL_EVT_HOOK_UNSOL_PDC_CONFIG              = QCRIL_EVT_HOOK_BASE + 1014,
   QCRIL_EVT_HOOK_UNSOL_AUDIO_STATE_CHANGED     = QCRIL_EVT_HOOK_BASE + 1015,
-  QCRIL_EVT_HOOK_UNSOL_PDC_CLEAR_CONFIGS       = QCRIL_EVT_HOOK_BASE + 1017,
   QCRIL_EVT_HOOK_UNSOL_SIM_REFRESH             = QCRIL_EVT_HOOK_BASE + 1016,
+  QCRIL_EVT_HOOK_UNSOL_PDC_CLEAR_CONFIGS       = QCRIL_EVT_HOOK_BASE + 1017,
+  QCRIL_EVT_HOOK_UNSOL_WWAN_AVAILABLE       = QCRIL_EVT_HOOK_BASE + 1018,
+  QCRIL_EVT_HOOK_UNSOL_MODEM_CAPABILITY        = QCRIL_EVT_HOOK_BASE + 1020,
+  QCRIL_EVT_HOOK_UNSOL_UICC_VOLTAGE_STATUS     = QCRIL_EVT_HOOK_BASE + 1021,
+  QCRIL_EVT_HOOK_UICC_VOLTAGE_STATUS_REQ       = QCRIL_EVT_HOOK_BASE + 1022,
+  QCRIL_EVT_HOOK_UNSOL_PDC_VALIDATE_CONFIGS    = QCRIL_EVT_HOOK_BASE + 1023,
+  QCRIL_EVT_HOOK_UNSOL_PDC_VALIDATE_DUMPED     = QCRIL_EVT_HOOK_BASE + 1024,
 
   //Others reserved for future use
   QCRIL_EVT_HOOK_UNSOL_CSG_SYS_INFO_IND     = QCRIL_EVT_HOOK_BASE + 1050,
@@ -576,7 +657,10 @@ typedef enum
   QCRIL_EVT_HOOK_EMBMS_GET_UTC_TIME              = QCRIL_EVT_HOOK_EMBMS_BASE + 26,
   QCRIL_EVT_HOOK_EMBMS_GET_ACTIVE_LOG_PACKET_IDS = QCRIL_EVT_HOOK_EMBMS_BASE + 27,
   QCRIL_EVT_HOOK_EMBMS_DELIVER_LOG_PACKET        = QCRIL_EVT_HOOK_EMBMS_BASE + 28,
-
+  QCRIL_EVT_HOOK_EMBMS_GET_E911_STATE            = QCRIL_EVT_HOOK_EMBMS_BASE + 29,
+  QCRIL_EVT_HOOK_EMBMS_UNSOL_E911_STATE_CHANGED  = QCRIL_EVT_HOOK_EMBMS_BASE + 30,
+  QCRIL_EVT_HOOK_EMBMS_CONTENT_DESC_UPDATE       = QCRIL_EVT_HOOK_EMBMS_BASE + 31,
+  QCRIL_EVT_HOOK_EMBMS_UNSOL_CONTENT_DESC_CONTROL = QCRIL_EVT_HOOK_EMBMS_BASE + 32,
 
   QCRIL_EVT_HOOK_RFPE_BASE                          = QCRIL_EVT_HOOK_BASE + 6200,
   QCRIL_EVT_HOOK_SET_RFM_SCENARIO_REQ               = QCRIL_EVT_HOOK_RFPE_BASE + 1,
@@ -603,13 +687,20 @@ typedef enum
   QCRIL_EVT_QMI_IMSA_HANDLE_INDICATIONS        = QCRIL_EVT_QMI_VOICE_BASE + 19,
   QCRIL_EVT_QMI_IMSA_HANDLE_COMM_CALLBACKS     = QCRIL_EVT_QMI_VOICE_BASE + 20,
   QCRIL_EVT_QMI_NAS_DSDS_SUBS_DEACTIVATE_FOLLOWUP         = QCRIL_EVT_QMI_VOICE_BASE + 21,
+  QCRIL_EVT_QMI_NAS_CARD_STATUS_UPDATE         = QCRIL_EVT_QMI_VOICE_BASE + 22,
 
   QCRIL_EVT_QMI_NAS_CLEANUP_NW_SEL,
   QCRIL_EVT_QMI_NAS_PASSOVER_NW_SEL_IND,
   QCRIL_EVT_QMI_NAS_HANDLE_INDICATIONS,
-
+  QCRIL_EVT_QMI_NAS_HANDLE_ASYNC_CB,
   QCRIL_EVT_QMI_DMS_HANDLE_INDICATIONS,
+#ifdef QMI_RIL_UTF
+    QCRIL_EVT_QMI_DSD_HANDLE_INDICATIONS,
+#endif
+  QCRIL_EVT_QMI_PBM_HANDLE_INDICATIONS,
+  QCRIL_EVT_QMI_SMS_HANDLE_INDICATIONS,
 
+  QCRIL_EVT_QMI_RIL_SERVICE_DOWN,
   QCRIL_EVT_QMI_RIL_MODEM_RESTART_RIL_CORE_PRE_SUSPEND_REQ,
   QCRIL_EVT_QMI_RIL_MODEM_RESTART_DATA_SUSPEND_REQ,
   QCRIL_EVT_QMI_RIL_MODEM_RESTART_UIM_SUSPEND_REQ,
@@ -627,7 +718,6 @@ typedef enum
   QCRIL_EVT_QMI_RIL_MODEM_RESTART_DATA_RESUME_CON,
   QCRIL_EVT_QMI_RIL_MODEM_RESTART_UIM_RESUME_CON,
   QCRIL_EVT_QMI_RIL_MODEM_RESTART_RIL_CORE_FINAL_RESUME_CON,
-
 
   QCRIL_EVT_QMI_RIL_SEND_UNSOL_RADIO_STATE_CHANGED,
   QCRIL_EVT_QMI_RIL_CONNECTED_EMEGENCY_CALL_END,
@@ -654,11 +744,15 @@ typedef enum
   QCRIL_EVT_QMI_RIL_CELL_INFO_LIST_CHANGED_IND,
   QCRIL_EVT_QMI_RIL_ENFORCE_DEFERRED_MODE_PREF_SET,
 
+  QCRIL_EVT_QMI_RIL_MODEM_RESTART_CHECK_IF_SERVICE_UP,
+
   QCRIL_EVT_QMI_RIL_PDC_LOAD_CONFIGURATION,
   QCRIL_EVT_QMI_RIL_PDC_SELECT_CONFIGURATION,
   QCRIL_EVT_QMI_RIL_PDC_ACTIVATE_CONFIGURATION,
   QCRIL_EVT_QMI_RIL_PDC_DELETE_CONFIGURATION,
   QCRIL_EVT_QMI_RIL_PDC_LIST_CONFIGURATION,
+  QCRIL_EVT_QMI_RIL_PDC_DEACTIVATE_CONFIGURATION,
+  QCRIL_EVT_QMI_RIL_PDC_PARSE_DIFF_RESULT,
 
   QCRIL_EVT_QMI_REQUEST_BASE                  = 0xc0000,
   QCRIL_EVT_QMI_REQUEST_NW_SCAN               = QCRIL_EVT_QMI_REQUEST_BASE + 1,
@@ -675,6 +769,10 @@ typedef enum
   QCRIL_EVT_QMI_REQUEST_MODIFY_CONFIRM        = QCRIL_EVT_QMI_REQUEST_BASE + 12,
   QCRIL_EVT_QMI_REQUEST_INIT_ATTACH_APN       = QCRIL_EVT_QMI_REQUEST_BASE + 13,
   QCRIL_EVT_QMI_REQUEST_SET_SYS_SEL_PREF      = QCRIL_EVT_QMI_REQUEST_BASE + 14,
+  QCRIL_EVT_QMI_REQUEST_EMBMS_SET_ENABLE      = QCRIL_EVT_QMI_REQUEST_BASE + 15,
+  QCRIL_EVT_QMI_REQUEST_ALLOW_DATA            = QCRIL_EVT_QMI_REQUEST_BASE + 18,
+  QCRIL_EVT_QMI_REQUEST_SHUTDOWN              = QCRIL_EVT_QMI_REQUEST_BASE + 19,
+  QCRIL_EVT_QMI_REQUEST_SET_LTE_TUNE_AWAY_MODE = QCRIL_EVT_QMI_REQUEST_BASE + 20,
 
   QCRIL_EVT_IMS_SOCKET_REQ_BASE               = 0xd0000,
   QCRIL_EVT_IMS_SOCKET_IMS_REGISTRATION_STATE = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 1,
@@ -710,7 +808,24 @@ typedef enum
   QCRIL_EVT_IMS_SOCKET_REQ_CALL_DEFLECTION   = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 33,
   QCRIL_EVT_IMS_SOCKET_REQ_QUERY_VT_CALL_QUALITY = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 34,
   QCRIL_EVT_IMS_SOCKET_REQ_SET_VT_CALL_QUALITY   = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 35,
+  QCRIL_EVT_IMS_SOCKET_REQ_GET_COLR   = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 36,
+  QCRIL_EVT_IMS_SOCKET_REQ_SET_COLR   = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 37,
+  QCRIL_EVT_IMS_SOCKET_SEND_UNSOL_CURRENT_CALLS  = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 38,
+  QCRIL_EVT_IMS_SOCKET_REQ_HOLD       = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 39,
+  QCRIL_EVT_IMS_SOCKET_REQ_RESUME     = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 40,
+  QCRIL_EVT_IMS_SOCKET_REQ_SET_TTY_MODE = QCRIL_EVT_IMS_SOCKET_REQ_BASE + 41,
   QCRIL_EVT_IMS_SOCKET_REQ_MAX,
+
+
+  QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_BASE = 0xe0000,
+  QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_EVENT  = QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_BASE + 1,
+  QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_APDU = QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_BASE + 2,
+  QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_MAX,
+
+  QCRIL_EVT_UIM_REMOTE_SERVER_SOCKET_REQ_BASE = 0xe8000,
+  QCRIL_EVT_UIM_REMOTE_SERVER_SOCKET_REQ_DISPATCH = QCRIL_EVT_UIM_REMOTE_SERVER_SOCKET_REQ_BASE + 1,
+  QCRIL_EVT_UIM_REMOTE_SERVER_SOCKET_REQ_MAX,
+
 
   QCRIL_EVT_NONE                               = 0xfffff /* Internal use only */
 } qcril_evt_e_type;
@@ -737,6 +852,7 @@ typedef struct
   void *resp_pkt;
   size_t resp_len;
   const char *logstr;
+  int rild_sock_oem_req;
 } qcril_request_resp_params_type;
 
 /* Payload of RIL Unsolicited Response */
@@ -754,6 +870,10 @@ typedef enum {
   QCRIL_SUBS_MODE_GW  = 1
 } qcril_subs_mode_pref;
 
+#ifndef RIL_REQUEST_ALLOW_DATA
+#define RIL_REQUEST_ALLOW_DATA 10115
+#endif
+
 #ifndef RIL_REQUEST_SET_SUBSCRIPTION_MODE
 #define RIL_REQUEST_SET_SUBSCRIPTION_MODE  10113
 #endif
@@ -766,6 +886,10 @@ typedef enum {
 #define RIL_REQUEST_GET_DATA_SUBSCRIPTION  10112
 #endif
 
+#ifndef RIL_REQUEST_SET_DATA_SUBSCRIPTION
+#define RIL_REQUEST_SET_DATA_SUBSCRIPTION 10110
+#endif
+
 #ifdef RIL_REQUEST_SET_UICC_SUBSCRIPTION
 // Remove RIL_SUBSCRIPTION_3 when telephony TSTS changes are merged.
 #ifndef RIL_SUBSCRIPTION_3
@@ -775,7 +899,6 @@ typedef enum {
 #define FEATURE_QCRIL_DSDS
 #else
 #define RIL_REQUEST_SET_UICC_SUBSCRIPTION  10109
-#define RIL_REQUEST_SET_DATA_SUBSCRIPTION  10110
 #define RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED 11041
 
 typedef enum {
@@ -892,6 +1015,10 @@ typedef struct qcril_dispatch_tag
   uint16 allowed_radio_states_mask;
 } qcril_dispatch_table_entry_type;
 
+#ifndef RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE
+#define RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE 8
+#endif
+
 #ifndef RIL_REQUEST_SET_INITIAL_ATTACH_APN
 #define RIL_REQUEST_SET_INITIAL_ATTACH_APN 123
 typedef struct {
@@ -903,8 +1030,37 @@ typedef struct {
 } RIL_InitialAttachApn;
 #endif
 
-#define RIL_E_UNUSED                     16
+#ifndef RIL_REQUEST_SET_DATA_PROFILE
+#define RIL_REQUEST_SET_DATA_PROFILE 128
+typedef struct {
+    int profileId;
+    char* apn;
+    char* protocol;
+    int authType;
+    char* user;
+    char* password;
+    int type;
+    int maxConnsTime;
+    int maxConns;
+    int waitTime;
+    int enabled;
+} RIL_DataProfileInfo;
+#endif
 #define RIL_E_SKIP_LTE_REATTACH RIL_E_UNUSED
+
+/* -----------------------------------------------------------------------------
+   ENUM:      RIL_UiccVoltageStatus
+
+   DESCRIPTION:
+     Used to convey the SIM card's voltage status
+-------------------------------------------------------------------------------*/
+typedef enum
+{
+  UICC_VOLTAGE_START_ACTIVATION    = 0,
+  UICC_VOLTAGE_ACTIVATED,
+  UICC_VOLTAGE_START_DEACTIVATION,
+  UICC_VOLTAGE_DEACTIVATED
+} RIL_UiccVoltageStatus;
 
 typedef void (*qcril_timed_callback_type) (qcril_timed_callback_handler_params_type* handler_params);
 
@@ -928,6 +1084,12 @@ void qcril_gstk_qmi_init( void );
 void qcril_data_init();
 void qcril_data_qmi_wds_init(boolean from_ssr);
 void qcril_data_qmi_wds_release(void);
+void qcril_data_process_stack_switch(qcril_modem_stack_id_e_type old_stack_id, qcril_modem_stack_id_e_type new_stack_id, qcril_instance_id_e_type instance_id);
+void qcril_data_request_set_data_profile
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+);
 void qcril_other_init( void );
 void qcril_other_mute( qcril_instance_id_e_type instance_id, boolean mic_mute, boolean ear_mute );
 void qcril_event_init( void );
@@ -975,17 +1137,29 @@ void qmi_ril_fw_send_request_response_epilog( qcril_instance_id_e_type instance_
                                               int is_abnormal_drop,
                                               qcril_request_resp_params_type *param_ptr_ref );
 void qmi_ril_fw_android_request_flow_control_abandon_requests_family_main_thrd( int android_request_id, RIL_Errno cause );
-void qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd( RIL_Errno cause );
-void qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( int voice_calls_related_only  );
+void qmi_ril_fw_android_request_flow_control_abandon_all_requests_main_thrd( RIL_Errno cause, int is_unbind_cleanup );
+void qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( int voice_calls_related_only, int is_unbind_cleanup  );
 
 pthread_t qmi_ril_fw_get_main_thread_id();
 
 void qcril_default_unsol_resp_params( qcril_instance_id_e_type instance_id, int response_id, qcril_unsol_resp_params_type *param );
 void qcril_send_unsol_response( qcril_unsol_resp_params_type *param_ptr );
 void qcril_hook_unsol_response( qcril_instance_id_e_type instance_id, uint32 unsol_event, char *data, uint32 data_len );
+#ifndef QMI_RIL_UTF
 #define qcril_malloc(size) qcril_malloc_adv(size, __func__, __LINE__)
+#else
+#define qcril_malloc(size) utf_qcril_malloc_adv(size, __func__, __LINE__)
+void *utf_qcril_malloc_adv( size_t size, const char* func_name, int line_num );
+int utf_pthread_create_handler( pthread_t *thread, const pthread_attr_t *attr,
+                                void *(*start_routine) (void *), void *arg);
+#endif
 void *qcril_malloc_adv( size_t size, const char* func_name, int line_num );
+#ifndef QMI_RIL_UTF
 #define qcril_free(mem_ptr) qcril_free_adv(mem_ptr, __func__, __LINE__)
+#else
+#define qcril_free(mem_ptr) utf_qcril_free_adv(mem_ptr, __func__, __LINE__)
+void utf_qcril_free_adv( void *mem_ptr, const char* func_name, int line_num );
+#endif
 void qcril_free_adv( void *mem_ptr, const char* func_name, int line_num );
 void qcril_release( void );
 #define QCRIL_EXTERN( xxx_request ) \
@@ -1009,6 +1183,8 @@ extern void get_ecc_property_name(char *ecc_prop_name);
 
 /// returns sim card slot index for current RIL instance
 uint32_t qmi_ril_get_sim_slot(void);
+
+qcril_modem_stack_id_e_type qmi_ril_get_stack_id( qcril_instance_id_e_type instance_id );
 
 extern int ril_to_uim_is_dsds_enabled(void);
 extern int ril_to_uim_is_tsts_enabled(void);
@@ -1038,12 +1214,40 @@ void qcril_common_update_current_imsi( char * imsi_str, int is_gwl );
 void qcril_qmi_print_hex(unsigned char *msg, int msg_len);
 
 int qmi_ril_retrieve_number_of_rilds();
-char* qmi_ril_client_get_master_port(void);
+qmi_client_qmux_instance_type qmi_ril_client_get_master_port(void);
 
-//Stub for the Data Ril Function - to be removed when Data Ril Function is available
-RIL_Errno qcril_data_request_set_lte_attach_profile(RIL_InitialAttachApn*);
 
+// function to reset all globals and release shared data
+int qmi_ril_reboot_cleanup();
+int qmi_ril_threads_shutdown();
+
+void qcril_qmi_modem_power_set_voting_state(int state);
+void qcril_qmi_modem_power_process_apm_off();
+int qcril_qmi_modem_power_voting_state();
+boolean qcril_qmi_modem_power_is_voting_feature_supported
+(
+    void
+);
 void qmi_ril_reset_multi_sim_ftr_info( void );
+
+// function to get the maximum subscription that modem allowed
+uint8_t qcril_qmi_nas_get_max_subscriptions( void );
+
+RIL_Errno qcril_data_set_is_data_enabled
+(
+    boolean is_data_enabled
+);
+
+RIL_Errno qcril_data_set_is_data_roaming_enabled
+(
+    boolean is_data_enabled
+);
+
+RIL_Errno qcril_data_set_apn_info
+(
+    char *apn_type,
+    char *apn_name
+);
 
 /* Data Services */
 QCRIL_EXTERN (data_request_setup_data_call);
@@ -1072,6 +1276,7 @@ QCRIL_EXTERN (data_embms_deactivate_tmgi);
 QCRIL_EXTERN (data_embms_activate_deactivate_tmgi);
 QCRIL_EXTERN (data_embms_get_available_tmgi);
 QCRIL_EXTERN (data_embms_get_active_tmgi);
+QCRIL_EXTERN (data_embms_content_desc_update);
 
 /* PBM events internal, external handling*/
 QCRIL_EXTERN (pbm_event_handler);
@@ -1251,13 +1456,22 @@ QCRIL_EXTERN (uim_request_enter_perso_key);
 QCRIL_EXTERN (uim_request_get_imsi);
 QCRIL_EXTERN (uim_request_sim_io);
 QCRIL_EXTERN (uim_request_isim_authenticate);
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+#if defined(RIL_REQUEST_SIM_APDU) || defined(RIL_REQUEST_SIM_TRANSMIT_CHANNEL) || \
+    defined(RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC) || defined(RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL)
 QCRIL_EXTERN (uim_request_send_apdu);
+#endif /* RIL_REQUEST_SIM_APDU || RIL_REQUEST_SIM_TRANSMIT_CHANNEL ||
+          RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC || RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL */
+#if defined(RIL_REQUEST_SIM_OPEN_CHANNEL) || defined(RIL_REQUEST_SIM_CLOSE_CHANNEL)
 QCRIL_EXTERN (uim_request_logical_channel);
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
+#endif /* RIL_REQUEST_SIM_OPEN_CHANNEL || RIL_REQUEST_SIM_CLOSE_CHANNEL */
+#if defined RIL_REQUEST_SIM_GET_ATR
 QCRIL_EXTERN (uim_request_get_atr);
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+#endif /* RIL_REQUEST_SIM_GET_ATR */
+#ifdef RIL_REQUEST_SIM_AUTHENTICATION
+QCRIL_EXTERN (uim_request_sim_authenticate);
+#endif /* RIL_REQUEST_SIM_AUTHENTICATION */
+QCRIL_EXTERN (uim_request_voltage_status);
+QCRIL_EXTERN (uim_sap_process_response);
 
 /* SMS (WMS) */
 QCRIL_EXTERN (sms_request_send_sms);
@@ -1338,7 +1552,7 @@ QCRIL_EXTERN (pbm_event_update_ota_ecc_list);
 /* QMI_VOICE */
 QCRIL_EXTERN (qmi_voice_request_dial);
 QCRIL_EXTERN (qmi_voice_request_get_current_atel_calls);
-QCRIL_EXTERN (qmi_voice_request_get_current_ims_calls);
+QCRIL_EXTERN (qmi_voice_send_current_ims_calls);
 QCRIL_EXTERN (qmi_voice_request_answer);
 QCRIL_EXTERN (qmi_voice_request_hangup);
 QCRIL_EXTERN (qmi_voice_request_last_call_fail_cause);
@@ -1377,6 +1591,9 @@ QCRIL_EXTERN(qmi_voice_supsvc_request_send_ussd);
 QCRIL_EXTERN(qmi_voice_supsvc_request_cancel_ussd);
 QCRIL_EXTERN (qmi_voice_request_ims_set_supp_srv_status);
 QCRIL_EXTERN(qmi_voice_request_call_deflection);
+QCRIL_EXTERN (qmi_voice_request_get_colr);
+QCRIL_EXTERN (qmi_voice_request_set_colr);
+QCRIL_EXTERN (qmi_voice_request_manage_calls_hold_resume);
 
 #if (RIL_VERSION >= 9)
 #define QMI_RIL_IS_KK
@@ -1408,23 +1625,25 @@ QCRIL_EXTERN(qmi_voice_request_call_deflection);
 // Added by Qualcomm to identify illegal SIM apps.
 #define RIL_APPSTATE_ILLEGAL    RIL_APPSTATE_READY
 
-#if !defined(RIL_QCOM_VERSION) || RIL_QCOM_VERSION < 3
+#if (!defined(RIL_QCOM_VERSION) || RIL_QCOM_VERSION < 3 ) && (RIL_VERSION < 9)
 #define RADIO_TECH_TD_SCDMA     117
+#define RADIO_TECH_MAX          (RADIO_TECH_GSM)
 
-//typedef struct {
-//  int rscp; /* The Received Signal Code Power in dBm multipled by -1.
-//             * Range : 25 to 120
-//             * INT_MAX: 0x7FFFFFFF denotes invalid value.
-//             * Reference: 3GPP TS 25.123, section 9.1.1.1 */
-//} RIL_TD_SCDMA_SignalStrength;
+typedef struct {
+  int rscp; /* The Received Signal Code Power in dBm multipled by -1.
+             * Range : 25 to 120
+             * INT_MAX: 0x7FFFFFFF denotes invalid value.
+             * Reference: 3GPP TS 25.123, section 9.1.1.1 */
+} RIL_TD_SCDMA_SignalStrength;
 
-#else /* !defined(RIL_QCOM_VERSION) || RIL_QCOM_VERSION < 3 */
+#else /* !defined(RIL_QCOM_VERSION) || RIL_QCOM_VERSION < 3 && (RIL_VERSION < 9) */
 
-#if (RIL_VERSION >= 9)
+#if (RIL_VERSION == 9)
 #define RIL_TD_SCDMA_SignalStrength RIL_TD_SCDMA_SignalStrength_CAF
-#endif /* (RIL_VERSION >= 9) */
-
 #define QCRIL_TDSCDMA_UI
+#endif /* (RIL_VERSION == 9) */
+
+#define RADIO_TECH_MAX          (RADIO_TECH_TD_SCDMA)
 
 #endif /* !defined(RIL_QCOM_VERSION) || RIL_QCOM_VERSION < 3 */
 
@@ -1434,12 +1653,17 @@ QCRIL_EXTERN(qmi_voice_request_call_deflection);
 #define RIL_LTE_SignalStrength_qc RIL_LTE_SignalStrength
 #endif /* (RIL_VERSION >= 9) */
 
+#ifdef QMI_RIL_UTF
+#define RADIO_TECH_TD_SCDMA  117
+#endif
 typedef struct {
   RIL_GW_SignalStrength GW_SignalStrength;
   RIL_CDMA_SignalStrength CDMA_SignalStrength;
   RIL_EVDO_SignalStrength EVDO_SignalStrength;
   RIL_LTE_SignalStrength_qc LTE_SignalStrength;
+#ifndef QMI_RIL_UTF
   RIL_TD_SCDMA_SignalStrength TD_SCDMA_SignalStrength;
+#endif
 } RIL_SignalStrength_qc_internal;
 
 #endif /* (RIL_VERSION >= 6) */
@@ -1676,7 +1900,7 @@ typedef enum {
 #endif /* QCRIL_TDSCDMA_UI */
 
 
-#define RIL_REQUEST_UNKOWN  106
+#define RIL_REQUEST_UNKOWN  998
 #define RIL_UNSOL_UNKOWN 1101
 
 #ifndef RIL_REQUEST_MODIFY_CALL_INITIATE
@@ -1700,12 +1924,20 @@ typedef enum {
     RIL_CALL_DOMAIN_AUTOMATIC = 3
 } RIL_Call_Domain;
 
+typedef enum {
+    RIL_CALL_SUB_STATE_UNDEFINED = 0,
+    RIL_CALL_SUB_STATE_AUDIO_CONNECTED_SUSPENDED = 1,
+    RIL_CALL_SUB_STATE_VIDEO_CONNECTED_SUSPENDED = 2,
+    RIL_CALL_SUB_STATE_AVP_RETRY                 = 4,
+    RIL_CALL_SUB_STATE_MEDIA_PAUSED              = 8,
+} RIL_Call_Sub_State;
 typedef struct {
     RIL_Call_Type   callType;
     RIL_Call_Domain callDomain;
     int extrasLength;
     int n_extras;
     const char **extras;
+    RIL_Call_Sub_State callSubState;
 } RIL_Call_Details;
 
 typedef struct {
@@ -2088,5 +2320,13 @@ typedef struct {
 #define RIL_E_SUBSCRIPTION_NOT_SUPPORTED 26 /* Subscription not supported by RIL */
 
 #endif //RIL_UNSOL_ON_SS
+
+typedef struct
+{
+    size_t len;
+    uint8_t *data;
+}qcril_binary_data_type;
+
+#define RIL_VALID_FILE_HANDLE   (0)
 
 #endif /* QCRILI_H */

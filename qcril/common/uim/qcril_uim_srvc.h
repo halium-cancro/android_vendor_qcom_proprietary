@@ -6,18 +6,6 @@
   Copyright (c) 2010-2014 Qualcomm Technologies, Inc.  All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
-  Export of this technology or software is regulated by the U.S. Government.
-  Diversion contrary to U.S. law prohibited.
-
-  All ideas, data and information contained in or disclosed by
-  this document are confidential and proprietary information of
-  Qualcomm Technologies, Inc. and all rights therein are expressly reserved.
-  By accepting this material the recipient agrees that this material
-  and the information contained therein are held in confidence and in
-  trust and will not be used, copied, reproduced in whole or in part,
-  nor its contents revealed in any manner to others without the express
-  written permission of Qualcomm Technologies, Inc.
-
 ===========================================================================*/
 /*===========================================================================
   @file    qcril_uim_srvc.h
@@ -309,9 +297,11 @@ typedef enum
 -------------------------------------------------------------------------------*/
 typedef enum
 {
-  QMI_UIM_EVENT_MASK_CARD_STATUS          = 0x00000001,
-  QMI_UIM_EVENT_MASK_SAP_CONNECTION       = 0x00000002,
-  QMI_UIM_EVENT_MASK_EXTENDED_CARD_STATUS = 0x00000004,
+  QMI_UIM_EVENT_MASK_CARD_STATUS           = 0x00000001,
+  QMI_UIM_EVENT_MASK_SAP_CONNECTION        = 0x00000002,
+  QMI_UIM_EVENT_MASK_EXTENDED_CARD_STATUS  = 0x00000004,
+  QMI_UIM_EVENT_MASK_RECOVERY              = 0x00000080,
+  QMI_UIM_EVENT_MASK_SUPPLY_VOLTAGE_STATUS = 0x00000100
 } qmi_uim_event_mask_type;
 
 /* -----------------------------------------------------------------------------
@@ -416,6 +406,18 @@ typedef enum
 } qmi_uim_sap_request_op_type;
 
 /* -----------------------------------------------------------------------------
+   ENUM:      QMI_UIM_SAP_CONN_CONDITION_TYPE
+
+-------------------------------------------------------------------------------*/
+typedef enum
+{
+  QMI_UIM_SAP_CONN_COND_BLOCK_VOICE_OR_DATA   = 0,
+  QMI_UIM_SAP_CONN_COND_BLOCK_DATA            = 1,
+  QMI_UIM_SAP_CONN_COND_BLOCK_VOICE           = 2,
+  QMI_UIM_SAP_CONN_COND_BLOCK_NONE            = 3
+} qmi_uim_sap_conn_condition_type;
+
+/* -----------------------------------------------------------------------------
    ENUM:      QMI_UIM_SAP_CONNECTION_STATE_TYPE
 
 -------------------------------------------------------------------------------*/
@@ -486,6 +488,33 @@ typedef enum
 } qmi_uim_fci_value_type;
 
 /* -----------------------------------------------------------------------------
+   ENUM:      QMI_UIM_SELECT_MODE_TYPE
+
+   DESCRIPTION:
+     Indicates the values for the template requested from the card in the SELECT
+     command when the application is selected
+-------------------------------------------------------------------------------*/
+typedef enum
+{
+  QMI_UIM_SELECT_MODE_FIRST_OR_ONLY           = 0,
+  QMI_UIM_SELECT_MODE_LAST                    = 1,
+  QMI_UIM_SELECT_MODE_NEXT                    = 2,
+  QMI_UIM_SELECT_MODE_PREVIOUS                = 3
+} qmi_uim_select_mode_type;
+
+/* -----------------------------------------------------------------------------
+   ENUM:      QMI_UIM_VCC_COMMAND_TYPE
+
+   DESCRIPTION:
+     Indicates the values for the supply voltage command type
+-------------------------------------------------------------------------------*/
+typedef enum
+{
+  QMI_UIM_VCC_ACTIVATED                       = 0,
+  QMI_UIM_VCC_START_DEACTIVATION              = 1
+} qmi_uim_vcc_command_type;
+
+/* -----------------------------------------------------------------------------
    ENUM:      QMI_UIM_INDICATION_ID_TYPE
 
    DESCRIPTION:
@@ -496,7 +525,9 @@ typedef enum
   QMI_UIM_SRVC_INVALID_IND_MSG,
   QMI_UIM_SRVC_STATUS_CHANGE_IND_MSG,
   QMI_UIM_SRVC_REFRESH_IND_MSG,
-  QMI_UIM_SRVC_SEND_APDU_IND_MSG
+  QMI_UIM_SRVC_SEND_APDU_IND_MSG,
+  QMI_UIM_SRVC_RECOVERY_IND_MSG,
+  QMI_UIM_SRVC_SUPPLY_VOLTAGE_IND_MSG
 } qmi_uim_indication_id_type;
 
 /* -----------------------------------------------------------------------------
@@ -534,8 +565,38 @@ typedef enum
   QMI_UIM_SRVC_SAP_CONNECTION_RSP_MSG,
   QMI_UIM_SRVC_SAP_REQUEST_RSP_MSG,
   QMI_UIM_SRVC_LOGICAL_CHANNEL_RSP_MSG,
-  QMI_UIM_SRVC_GET_ATR_RSP_MSG
+  QMI_UIM_SRVC_GET_ATR_RSP_MSG,
+  QMI_UIM_SRVC_SEND_STATUS_RSP_MSG,
+  QMI_UIM_SRVC_OPEN_LOGICAL_CHANNEL_RSP_MSG,
+  QMI_UIM_SRVC_RESELECT_RSP_MSG,
+  QMI_UIM_SRVC_SUPPLY_VOLTAGE_RSP_MSG
 } qmi_uim_rsp_id_type;
+
+/* -----------------------------------------------------------------------------
+   ENUM:      QMI_UIM_STATUS_CMD_MODE_TYPE
+
+   DESCRIPTION:
+     Modes for STATUS command
+-------------------------------------------------------------------------------*/
+typedef enum
+{
+  QMI_UIM_STATUS_CMD_MODE_NO_INDICATION      = 0,
+  QMI_UIM_STATUS_CMD_MODE_APP_INITIALIZED    = 1,
+  QMI_UIM_STATUS_CMD_MODE_WILL_TERMINATE_APP = 2
+} qmi_uim_status_cmd_mode_type;
+
+/* -----------------------------------------------------------------------------
+   ENUM:      QMI_UIM_STATUS_CMD_RSP_TYPE
+
+   DESCRIPTION:
+     Response type for STATUS command
+-------------------------------------------------------------------------------*/
+typedef enum
+{
+  QMI_UIM_STATUS_CMD_FCP_RSP     = 0,
+  QMI_UIM_STATUS_CMD_AID_RSP     = 1,
+  QMI_UIM_STATUS_CMD_NO_DATA_RSP = 2
+} qmi_uim_status_cmd_rsp_type;
 
 /*---------------------------------------------------------------------------
   COMMON STRUCTURES
@@ -898,6 +959,8 @@ typedef struct
   qmi_uim_bool_type                 card_status;
   qmi_uim_bool_type                 sap_connection;
   qmi_uim_bool_type                 extended_card_status;
+  qmi_uim_bool_type                 recovery;
+  qmi_uim_bool_type                 supply_voltage_status;
 } qmi_uim_event_reg_params_type;
 
 /* -----------------------------------------------------------------------------
@@ -1006,6 +1069,7 @@ typedef struct
   qmi_uim_sap_connection_op_type    operation_type;
   qmi_uim_slot_type                 slot;
   qmi_uim_sap_disconnect_mode_type  disconnect_mode;
+  qmi_uim_sap_conn_condition_type   conn_condition;
 } qmi_uim_sap_connection_params_type;
 
 /* -----------------------------------------------------------------------------
@@ -1029,8 +1093,10 @@ typedef struct
    DESCRIPTION:   Structure used for logical channel command
      operation_type: Type of operation on the logical channel
      slot: Slot on with the operation is requested
+     file_control_information: FCI template requested
      aid: Application id on which the open operation is requested
      channel_id: Channel id on which close opertation is requested
+     terminate_app: Indicates if app is terminated before closing the channel
 -------------------------------------------------------------------------------*/
 typedef struct
 {
@@ -1040,9 +1106,30 @@ typedef struct
   union
   {
     qmi_uim_data_type               aid;
-    unsigned char                   channel_id;
+    struct
+    {
+      unsigned char                 channel_id;
+      qmi_uim_bool_type             terminate_app;
+    }                               close_channel_info;
   }                                 channel_data;
 } qmi_uim_logical_channel_params_type;
+
+/* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_OPEN_LOGICAL_CHANNEL_PARAMS_TYPE
+
+   DESCRIPTION:   Structure used for open logical channel command
+     slot: Slot on with the operation is requested
+     file_control_information: FCI template requested
+     aid_present: Flag that specifies if AID is present or not
+     aid: Application id on which the open operation is requested
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  qmi_uim_slot_type                 slot;
+  qmi_uim_file_control_info_type    file_control_information;
+  qmi_uim_bool_type                 aid_present;
+  qmi_uim_data_type                 aid;
+} qmi_uim_open_logical_channel_params_type;
 
 /* -----------------------------------------------------------------------------
    STRUCTURE:    QMI_UIM_GET_ATR_PARAMS_TYPE
@@ -1056,9 +1143,34 @@ typedef struct
 } qmi_uim_get_atr_params_type;
 
 /* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_RESELECT_PARAMS_TYPE
+
+   DESCRIPTION:   Structure used for reselect command
+     slot:       Slot value
+     channel_id: Channel id on which select operation is requested
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  qmi_uim_slot_type                slot;
+  unsigned char                    channel_id;
+  qmi_uim_select_mode_type         select_mode;
+} qmi_uim_reselect_params_type;
+
+/* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_SUPPLY_VOLTAGE_PARAMS_TYPE
+
+   DESCRIPTION:   Structure used for supply voltage command
+     slot:    Slot value
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  qmi_uim_slot_type                slot;
+} qmi_uim_supply_voltage_params_type;
+
+/* -----------------------------------------------------------------------------
    STRUCTURE:    QMI_UIM_CARD_STATUS_TYPE_TYPE
 
-   DESCRIPTION:   Enum to describe which card status TLV was received in 
+   DESCRIPTION:   Enum to describe which card status TLV was received in
                   indication. To be used only while copying indication data
                   to qcril_uim global.
 -------------------------------------------------------------------------------*/
@@ -1067,6 +1179,18 @@ typedef enum
   QMI_UIM_LEGACY_CARD_STATUS_TYPE   = 0,
   QMI_UIM_EXTENDED_CARD_STATUS_TYPE = 1
 }qmi_uim_card_status_type_type;
+
+/* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_STATUS_PARAMS_TYPE
+
+   DESCRIPTION:   Structure used to hold parameters for STATUS command.
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  qmi_uim_session_info_type        session_info;
+  qmi_uim_status_cmd_mode_type     mode;
+  qmi_uim_status_cmd_rsp_type      resp_type;
+}qmi_uim_status_cmd_params_type;
 
 /*---------------------------------------------------------------------------
   DATA TYPES FOR QMI INDICATIONS AND RESPONSES
@@ -1339,11 +1463,11 @@ typedef struct
    DESCRIPTION:   Result of get service status command.
       fdn_status_valid:         Indicates if FDN status in response is valid
       fdn_status:               Fixed dialing number status
-      hidden_key_status_valid:  Indicates if Hidden Key status in response is 
+      hidden_key_status_valid:  Indicates if Hidden Key status in response is
                                 valid
       hidden_key_status:        Status of the hidden key PIN
       index_valid:              Indicates if index in response is valid
-      index:                    Index of the application in the EF_DIR file, 
+      index:                    Index of the application in the EF_DIR file,
                                 starting from 1
       esn_status_valid:         Indicates if ESN status in response is valid
       esn_status:               ESN status
@@ -1398,6 +1522,7 @@ typedef struct
 -------------------------------------------------------------------------------*/
 typedef struct
 {
+  qmi_uim_bool_type                    connection_status_valid;
   qmi_uim_sap_connection_state_type    connection_status;
 } qmi_uim_sap_connection_rsp_type;
 
@@ -1416,11 +1541,16 @@ typedef struct
    STRUCTURE:    QMI_UIM_LOGICAL_CHANNEL_RSP_TYPE
 
    DESCRIPTION:   Result of logical channel command.
-       channel_id: Channel id
+       channel_id:      Channel id
+       select_response: Raw data of response sent by the card to the previous
+                        SELECT command.
 -------------------------------------------------------------------------------*/
 typedef struct
 {
   unsigned char                   channel_id;
+  unsigned char                   sw1;
+  unsigned char                   sw2;
+  qmi_uim_data_type               select_response;
 } qmi_uim_logical_channel_rsp_type;
 
 /* -----------------------------------------------------------------------------
@@ -1433,6 +1563,33 @@ typedef struct
 {
   qmi_uim_data_type               atr_response;
 } qmi_uim_get_atr_rsp_type;
+
+/* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_STATUS_RSP_TYPE
+
+   DESCRIPTION:   Result of STATUS command.
+       status_response: Response from the card (contains either AID or FCP)
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  qmi_uim_data_type               status_response;
+} qmi_uim_send_status_rsp_type;
+
+/* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_RESELECT_RSP_TYPE
+
+   DESCRIPTION:   Result of logical channel reselection.
+       sw1:             SW1 from the card
+       sw2:             SW2 from the card
+       select_response: Raw data of response sent by the card to the previous
+                        SELECT command.
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  unsigned char                   sw1;
+  unsigned char                   sw2;
+  qmi_uim_data_type               select_response;
+} qmi_uim_reselect_rsp_type;
 
 /* -----------------------------------------------------------------------------
    STRUCTURE:    QMI_UIM_REFRESH_IND_TYPE
@@ -1459,6 +1616,29 @@ typedef struct
   qmi_uim_data_type              apdu;
 } qmi_uim_send_apdu_ind_type;
 
+/* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_RECOVERY_IND_TYPE
+
+   DESCRIPTION:   Structure used for recovery indications
+
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  qmi_uim_slot_type               slot;
+} qmi_uim_recovery_ind_type;
+
+/* -----------------------------------------------------------------------------
+   STRUCTURE:    QMI_UIM_SUPPLY_VOLTAGE_IND_TYPE
+
+   DESCRIPTION:   Structure used for supply voltage indication
+
+-------------------------------------------------------------------------------*/
+typedef struct
+{
+  qmi_uim_slot_type             slot;
+  qmi_uim_vcc_command_type      vcc_command;
+} qmi_uim_supply_voltage_ind;
+
 /*---------------------------------------------------------------------------
   QMI INDICATIONS
 ---------------------------------------------------------------------------*/
@@ -1473,12 +1653,12 @@ typedef union
   qmi_uim_status_change_ind_type      status_change_ind;
   qmi_uim_refresh_ind_type            refresh_ind;
   qmi_uim_send_apdu_ind_type          send_apdu_ind;
+  qmi_uim_recovery_ind_type           recovery_ind;
+  qmi_uim_supply_voltage_ind          supply_voltage_ind;
 } qmi_uim_indication_data_type;
 
 typedef void (*qmi_uim_indication_hdlr_type)
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   void                         * user_data,
   qmi_uim_indication_id_type     ind_id,
   qmi_uim_indication_data_type * ind_data_ptr
@@ -1515,14 +1695,14 @@ typedef struct
     qmi_uim_sap_request_rsp_type            sap_response_rsp;
     qmi_uim_logical_channel_rsp_type        logical_channel_rsp;
     qmi_uim_get_atr_rsp_type                get_atr_rsp;
+    qmi_uim_send_status_rsp_type            send_status_rsp;
+    qmi_uim_reselect_rsp_type               reselect_rsp;
   }                                         rsp_data;
 } qmi_uim_rsp_data_type;
 
 
 typedef void (*qmi_uim_user_async_cb_type)
 (
-  int                            user_handle,
-  qmi_service_id_type            service_id,
   qmi_uim_rsp_data_type        * rsp_data,
   void                         * user_data
 );
@@ -2700,3 +2880,4 @@ EXTERN int qmi_uim_get_atr
 #endif
 
 #endif  /* QMI_UIM_SRVC_H */
+

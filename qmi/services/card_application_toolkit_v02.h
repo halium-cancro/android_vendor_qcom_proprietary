@@ -2,50 +2,49 @@
 #define CAT_SERVICE_02_H
 /**
   @file card_application_toolkit_v02.h
-  
+
   @brief This is the public header file which defines the cat service Data structures.
 
-  This header file defines the types and structures that were defined in 
+  This header file defines the types and structures that were defined in
   cat. It contains the constant values defined, enums, structures,
-  messages, and service message IDs (in that order) Structures that were 
-  defined in the IDL as messages contain mandatory elements, optional 
-  elements, a combination of mandatory and optional elements (mandatory 
+  messages, and service message IDs (in that order) Structures that were
+  defined in the IDL as messages contain mandatory elements, optional
+  elements, a combination of mandatory and optional elements (mandatory
   always come before optionals in the structure), or nothing (null message)
-   
+
   An optional element in a message is preceded by a uint8_t value that must be
   set to true if the element is going to be included. When decoding a received
   message, the uint8_t values will be set to true or false by the decode
   routine, and should be checked before accessing the values that they
-  correspond to. 
-   
+  correspond to.
+
   Variable sized arrays are defined as static sized arrays with an unsigned
   integer (32 bit) preceding it that must be set to the number of elements
   in the array that are valid. For Example:
-   
+
   uint32_t test_opaque_len;
   uint8_t test_opaque[16];
-   
+
   If only 4 elements are added to test_opaque[] then test_opaque_len must be
   set to 4 before sending the message.  When decoding, the _len value is set 
-  by the decode routine and should be checked so that the correct number of 
-  elements in the array will be accessed. 
+  by the decode routine and should be checked so that the correct number of
+  elements in the array will be accessed.
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2009-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2009-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/cat/main/latest/api/card_application_toolkit_v02.h#24 $
+  $Header: //source/qcom/qct/interfaces/qmi/cat/main/latest/api/card_application_toolkit_v02.h#32 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
- *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
+ *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2 
-   It requires encode/decode library version 5 or later
-   It was generated on: Thu Jun 27 2013 (Spin 1)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Fri Jul  4 2014 (Spin 0)
    From IDL File: card_application_toolkit_v02.idl */
 
 /** @defgroup cat_qmi_consts Constant values defined in the IDL */
@@ -65,19 +64,19 @@
 extern "C" {
 #endif
 
-/** @addtogroup cat_qmi_version 
-    @{ 
-  */ 
+/** @addtogroup cat_qmi_version
+    @{
+  */
 /** Major Version Number of the IDL used to generate this file */
 #define CAT_V02_IDL_MAJOR_VERS 0x02
 /** Revision Number of the IDL used to generate this file */
-#define CAT_V02_IDL_MINOR_VERS 0x17
+#define CAT_V02_IDL_MINOR_VERS 0x1A
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define CAT_V02_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define CAT_V02_MAX_MESSAGE_ID 0x002E;
-/** 
-    @} 
+#define CAT_V02_MAX_MESSAGE_ID 0x002F
+/**
+    @}
   */
 
 
@@ -112,6 +111,7 @@ extern "C" {
 #define QMI_CAT_SMS_PP_UICC_ACK_MAX_LENGTH_V02 128
 #define QMI_CAT_TX_ID_MAX_LENGTH_V02 255
 #define QMI_CAT_CAUSE_MAX_LENGTH_V02 30
+#define QMI_CAT_IMS_URI_MAX_LENGTH_V02 246
 #define QMI_CAT_SCWS_DATA_MAX_LENGTH_V02 1000
 #define QMI_CAT_TR_ADDITIONAL_INFO_MAX_LENGTH_V02 10
 #define QMI_CAT_TERMINAL_PROFILE_MAX_LENGTH_V02 80
@@ -168,11 +168,11 @@ extern "C" {
     @}
   */
 
-/*
- * cat_reset_req_msg is empty
- * typedef struct {
- * }cat_reset_req_msg_v02;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}cat_reset_req_msg_v02;
 
 /** @addtogroup cat_qmi_messages
     @{
@@ -268,7 +268,7 @@ typedef struct {
        - Bit 8  -- Setup Event -- Language Select Notify \n
        - Bit 9  -- Setup Idle Mode Text \n
        - Bit 10 -- Language Notification \n
-       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured 
+       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured
                    in Gobi mode) \n
        - Bit 12 -- End Proactive Session \n
        - Bit 13 -- Play Tone \n
@@ -377,10 +377,10 @@ typedef struct {
        - Bit 24 -- Activate \n
        - Bit 25 -- Setup Event -- HCI connectivity \n
        - Bit 26 -- Clients are to ignore this bit \n
-
        A set bit indicates that the corresponding proactive command has already
        been registered by another control point. If a bit that was not
-       set by the control point is included, the control point ignores the bit.
+       set by the control point is included, the control point is to ignore the
+       bit.
   */
 
   /* Optional */
@@ -399,7 +399,7 @@ typedef struct {
        - Bit 8  -- Setup Event -- Language Select Notify \n
        - Bit 9  -- Setup Idle Mode Text \n
        - Bit 10 -- Language Notification \n
-       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured 
+       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured
                    in Gobi mode) \n
        - Bit 12 -- End Proactive Session \n
        - Bit 13 -- Play Tone \n
@@ -417,8 +417,8 @@ typedef struct {
        - Bit 25 -- Setup Event -- HCI connectivity \n
        - Bit 26 -- Bearer Independent Protocol Status \n
        A set bit indicates that the corresponding proactive command has already
-       been registered by another control point. If a bit which was not
-       set by control point is included, control point should ignore the bit.
+       been registered by another control point. If a bit that was not
+       set by the control point is included, the control point is to ignore the bit.
   */
 
   /* Optional */
@@ -432,9 +432,9 @@ typedef struct {
        - Bit 3  -- Send SS \n
        - Bit 4  -- Send USSD \n
        A set bit indicates that QMI_CAT failed to enable/disable full function
-       capability handling for the corresponding proactive command. If a bit that
-       was not set by control point is included, control points are to ignore the
-       bit.
+       capability handling for the corresponding proactive command. If a bit
+       that was not set by the control point is included, the control point is
+       to ignore the bit.
   */
 }cat_set_event_report_resp_msg_v02;  /* Message */
 /**
@@ -1420,8 +1420,8 @@ typedef struct {
 
   uint32_t address_data_len;  /**< Must be set to # of elements in address_data */
   uint8_t address_data[QMI_CAT_ADDRESS_MAX_LENGTH_V02];
-  /**<   Address -- Decoded BCD string in ASCII format. The maximum
-       length of the address is 200 bytes (see \hyperref[S1]{[S1]}, \n Section 8.1).
+  /**<   Address in byte-based BCD format. The maximum
+       length of the address is 200 bytes (see \hyperref[S1]{[S1]}, Section 8.1).
   */
 }cat_address_type_v02;  /* Type */
 /**
@@ -2563,12 +2563,12 @@ typedef struct {
   cat_select_item_event_type_v02 select_item;
 
   /* Optional */
-  /*  Alpha Identifier Available (used only when QMI_CAT is configured in Gobi mode) */
+  /*  Alpha Identifier Available \n (used only when QMI_CAT is configured in Gobi mode) */
   uint8_t pc_alpha_id_available_valid;  /**< Must be set to true if pc_alpha_id_available is being passed */
   cat_alpha_id_type_v02 pc_alpha_id_available;
 
   /* Optional */
-  /*  Setup Event List Event (used only when QMI_CAT is configured in Gobi mode) */
+  /*  Setup Event List Event \n (used only when QMI_CAT is configured in Gobi mode) */
   uint8_t pc_setup_evt_list_valid;  /**< Must be set to true if pc_setup_evt_list is being passed */
   cat_setup_evt_list_type_v02 pc_setup_evt_list;
 
@@ -2583,7 +2583,7 @@ typedef struct {
   cat_lang_notification_event_type_v02 lang_notification;
 
   /* Optional */
-  /*  Refresh Event (used only when QMI_CAT is configured in Gobi mode) */
+  /*  Refresh Event \n (used only when QMI_CAT is configured in Gobi mode) */
   uint8_t refresh_valid;  /**< Must be set to true if refresh is being passed */
   cat_refresh_event_type_v02 refresh;
 
@@ -3004,11 +3004,11 @@ typedef struct {
     @}
   */
 
-/*
- * cat_get_service_state_req_msg is empty
- * typedef struct {
- * }cat_get_service_state_req_msg_v02;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}cat_get_service_state_req_msg_v02;
 
 /** @addtogroup cat_qmi_aggregates
     @{
@@ -3105,7 +3105,7 @@ typedef struct {
        - Bit 8  -- Setup Event -- Language Select Notify \n
        - Bit 9  -- Setup Idle Mode Text \n
        - Bit 10 -- Language Notification \n
-       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured 
+       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured
                    in Gobi mode) \n
        - Bit 12 -- End Proactive Session \n
        - Bit 13 -- Play Tone \n
@@ -3139,7 +3139,7 @@ typedef struct {
        - Bit 8  -- Setup Event -- Language Select Notify \n
        - Bit 9  -- Setup Idle Mode Text \n
        - Bit 10 -- Language Notification \n
-       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured 
+       - Bit 11 -- Refresh Alpha (not supported when QMI CAT is configured
                    in Gobi mode) \n
        - Bit 12 -- End Proactive Session \n
        - Bit 13 -- Play Tone \n
@@ -3171,10 +3171,6 @@ typedef struct {
 typedef struct {
 
   /* Mandatory */
-  /*  CAT Service State */
-  cat_service_state_type_v02 cat_service_state;
-
-  /* Mandatory */
   /*  Result Code */
   qmi_response_type_v01 resp;
   /**<   Standard response type. Contains the following data members:
@@ -3182,6 +3178,10 @@ typedef struct {
        - qmi_error_type  - Error code. Possible error code values are described in
                            the error codes section of each message definition.
   */
+
+  /* Mandatory */
+  /*  CAT Service State */
+  cat_service_state_type_v02 cat_service_state;
 
   /* Optional */
   /*  Decoded CAT Service State */
@@ -3208,6 +3208,8 @@ typedef struct {
 /** @addtogroup cat_qmi_aggregates
     @{
   */
+/**  \newpage 
+ */
 typedef struct {
 
   uint32_t uim_ref_id;
@@ -3500,12 +3502,12 @@ typedef struct {
   cat_select_item_event_type_v02 select_item;
 
   /* Optional */
-  /*  Alpha Identifier Available (used only when QMI_CAT is configured in Gobi mode) */
+  /*  Alpha Identifier Available \n (used only when QMI_CAT is configured in Gobi mode) */
   uint8_t pc_alpha_id_available_valid;  /**< Must be set to true if pc_alpha_id_available is being passed */
   cat_alpha_id_type_v02 pc_alpha_id_available;
 
   /* Optional */
-  /*  Setup Event List Event (used only when QMI_CAT is configured in Gobi mode) */
+  /*  Setup Event List Event \n (used only when QMI_CAT is configured in Gobi mode) */
   uint8_t pc_setup_evt_list_valid;  /**< Must be set to true if pc_setup_evt_list is being passed */
   cat_setup_evt_list_type_v02 pc_setup_evt_list;
 
@@ -3520,7 +3522,7 @@ typedef struct {
   cat_lang_notification_event_type_v02 lang_notification;
 
   /* Optional */
-  /*  Refresh Event (used only when QMI_CAT is configured in Gobi mode) */
+  /*  Refresh Event \n (used only when QMI_CAT is configured in Gobi mode) */
   uint8_t refresh_valid;  /**< Must be set to true if refresh is being passed */
   cat_refresh_event_type_v02 refresh;
 
@@ -4359,6 +4361,7 @@ typedef enum {
   CAT_ACCESS_TECH_UTRAN_V02 = 0x00000002, 
   CAT_ACCESS_TECH_CDMA_V02 = 0x00000003, 
   CAT_ACCESS_TECH_LTE_V02 = 0x00000004, 
+  CAT_ACCESS_TECH_WLAN_V02 = 0x00000005, 
   CAT_ACCESS_TECHNOLOGY_TYPE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }cat_access_technology_type_enum_v02;
 /**
@@ -4374,6 +4377,7 @@ typedef enum {
   CAT_CALL_CONTROL_SS_V02 = 0x00000001, 
   CAT_CALL_CONTROL_USSD_V02 = 0x00000002, 
   CAT_CALL_CONTROL_SMS_V02 = 0x00000003, 
+  CAT_CALL_CONTROL_IMS_V02 = 0x00000004, 
   CAT_CALL_TYPE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }cat_call_type_enum_v02;
 /**
@@ -4473,7 +4477,8 @@ typedef struct {
        - 0x00000001 -- CAT_ACCESS_TECH_GSM -- GSM is used \n
        - 0x00000002 -- CAT_ACCESS_TECH_UTRAN -- UTRAN is used \n
        - 0x00000003 -- CAT_ACCESS_TECH_CDMA -- CDMA is used \n
-       - 0x00000004 -- CAT_ACCESS_TECH_LTE -- LTE is used
+       - 0x00000004 -- CAT_ACCESS_TECH_LTE -- LTE is used \n
+       - 0x00000005 -- CAT_ACCESS_TECH_WLAN -- WLAN is used
   */
 
   /* Optional */
@@ -4484,7 +4489,8 @@ typedef struct {
        - 0x00000000 -- CAT_VOICE -- Voice \n
        - 0x00000001 -- CAT_SS -- SS \n
        - 0x00000002 -- CAT_USSD -- USSD \n
-       - 0x00000003 -- CAT_SMS -- SMS
+       - 0x00000003 -- CAT_SMS -- SMS \n
+       - 0x00000004 -- CAT_IMS -- IMS
   */
 
   /* Optional */
@@ -4509,7 +4515,13 @@ typedef struct {
   uint8_t cause_valid;  /**< Must be set to true if cause is being passed */
   uint32_t cause_len;  /**< Must be set to # of elements in cause */
   uint8_t cause[QMI_CAT_CAUSE_MAX_LENGTH_V02];
-  /**<   Cause (see \hyperref[S1]{[S1]},\n Section 8.26).*/
+  /**<   Cause (see \hyperref[S1]{[S1]}, Section 8.26).*/
+
+  /* Optional */
+  /*  IMS Request - URI */
+  uint8_t ims_request_uri_valid;  /**< Must be set to true if ims_request_uri is being passed */
+  uint32_t ims_request_uri_len;  /**< Must be set to # of elements in ims_request_uri */
+  char ims_request_uri[QMI_CAT_IMS_URI_MAX_LENGTH_V02];
 }cat_send_decoded_envelope_cmd_req_msg_v02;  /* Message */
 /**
     @}
@@ -4634,6 +4646,12 @@ typedef struct {
   /*  TP Address */
   uint8_t tp_dest_address_valid;  /**< Must be set to true if tp_dest_address is being passed */
   cat_address_type_v02 tp_dest_address;
+
+  /* Optional */
+  /*  IMS Request - URI */
+  uint8_t ims_request_uri_valid;  /**< Must be set to true if ims_request_uri is being passed */
+  uint32_t ims_request_uri_len;  /**< Must be set to # of elements in ims_request_uri */
+  char ims_request_uri[QMI_CAT_IMS_URI_MAX_LENGTH_V02];
 }cat_send_decoded_envelope_cmd_resp_msg_v02;  /* Message */
 /**
     @}
@@ -4751,7 +4769,7 @@ typedef struct {
     @{
   */
 /** Request Message; Sends the Open Channel indication to the Smart Card Web Server
-    (SCWS) Agent. */
+    (SCWS) agent. */
 typedef struct {
 
   /* Mandatory */
@@ -4771,7 +4789,7 @@ typedef struct {
     @{
   */
 /** Response Message; Sends the Open Channel indication to the Smart Card Web Server
-    (SCWS) Agent. */
+    (SCWS) agent. */
 typedef struct {
 
   /* Mandatory */
@@ -4833,7 +4851,7 @@ typedef struct {
 /** @addtogroup cat_qmi_messages
     @{
   */
-/** Request Message; Sends the Close Channel indication to the SCWS Agent. */
+/** Request Message; Sends the Close Channel indication to the SCWS agent. */
 typedef struct {
 
   /* Mandatory */
@@ -4852,7 +4870,7 @@ typedef struct {
 /** @addtogroup cat_qmi_messages
     @{
   */
-/** Response Message; Sends the Close Channel indication to the SCWS Agent. */
+/** Response Message; Sends the Close Channel indication to the SCWS agent. */
 typedef struct {
 
   /* Mandatory */
@@ -4930,7 +4948,7 @@ typedef struct {
 /** @addtogroup cat_qmi_messages
     @{
   */
-/** Request Message; Sends data to the SCWS Agent. */
+/** Request Message; Sends data to the SCWS agent. */
 typedef struct {
 
   /* Mandatory */
@@ -4949,7 +4967,7 @@ typedef struct {
 /** @addtogroup cat_qmi_messages
     @{
   */
-/** Response Message; Sends data to the SCWS Agent. */
+/** Response Message; Sends data to the SCWS agent. */
 typedef struct {
 
   /* Mandatory */
@@ -4990,7 +5008,7 @@ typedef struct {
 /** @addtogroup cat_qmi_messages
     @{
   */
-/** Indication Message; Indicates that the SCWS Agent must send data. */
+/** Indication Message; Indicates that the SCWS agent must send data. */
 typedef struct {
 
   /* Optional */
@@ -5036,6 +5054,7 @@ typedef struct {
   /* Mandatory */
   /*  Length of the Remaining Data */
   uint16_t remaining_data_len;
+  /**<   Remaining data length. */
 
   /* Optional */
   /*  Slot */
@@ -5138,6 +5157,7 @@ typedef struct {
   uint8_t terminal_profile_data_valid;  /**< Must be set to true if terminal_profile_data is being passed */
   uint32_t terminal_profile_data_len;  /**< Must be set to # of elements in terminal_profile_data */
   uint8_t terminal_profile_data[QMI_CAT_TERMINAL_PROFILE_MAX_LENGTH_V02];
+  /**<   Terminal profile data. */
 }cat_get_terminal_profile_resp_msg_v02;  /* Message */
 /**
     @}
@@ -5214,11 +5234,11 @@ typedef struct {
     @}
   */
 
-/*
- * cat_get_configuration_req_msg is empty
- * typedef struct {
- * }cat_get_configuration_req_msg_v02;
- */
+typedef struct {
+  /* This element is a placeholder to prevent the declaration of 
+     an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
+  char __placeholder;
+}cat_get_configuration_req_msg_v02;
 
 /** @addtogroup cat_qmi_messages
     @{
@@ -5263,6 +5283,105 @@ typedef struct {
 /**
     @}
   */
+
+/** @addtogroup cat_qmi_enums
+    @{
+  */
+typedef enum {
+  CAT_CACHED_COMMAND_ID_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  CAT_CACHED_COMMAND_ID_SETUP_MENU_V02 = 0x01, /**<  Setup menu  */
+  CAT_CACHED_COMMAND_ID_SETUP_EVENT_LIST_V02 = 0x02, /**<  Setup event list  */
+  CAT_CACHED_COMMAND_ID_SETUP_IDLE_TEXT_V02 = 0x03, /**<  Setup idle mode text  */
+  CAT_CACHED_COMMAND_ID_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}cat_cached_command_id_enum_v02;
+/**
+    @}
+  */
+
+/** @addtogroup cat_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves cached proactive command from the modem */
+typedef struct {
+
+  /* Mandatory */
+  /*  ID of the Proactive Command */
+  cat_cached_command_id_enum_v02 command_id;
+  /**<   ID of the proactive command: \n
+      - CAT_CACHED_COMMAND_ID_SETUP_MENU (0x01) --  Setup menu 
+      - CAT_CACHED_COMMAND_ID_SETUP_EVENT_LIST (0x02) --  Setup event list 
+      - CAT_CACHED_COMMAND_ID_SETUP_IDLE_TEXT (0x03) --  Setup idle mode text 
+ Other values are reserved for future use.
+ */
+
+  /* Optional */
+  /*  Slot */
+  uint8_t slot_valid;  /**< Must be set to true if slot is being passed */
+  cat_slot_type_v02 slot;
+}cat_get_cached_proactive_cmd_req_msg_v02;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup cat_qmi_messages
+    @{
+  */
+/** Response Message; Retrieves cached proactive command from the modem */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+  /**<   Standard response type. Contains the following data members:
+       qmi_result_type - QMI_RESULT_SUCCESS or QMI_RESULT_FAILURE
+       qmi_error_type  - Error code. Possible error code values are described in
+                         the error codes section of each message definition.
+  */
+
+  /* Optional */
+  /*  Setup Menu Event */
+  uint8_t setup_menu_valid;  /**< Must be set to true if setup_menu is being passed */
+  cat_setup_menu_event_type_v02 setup_menu;
+
+  /* Optional */
+  /*  Setup Event List Raw Event */
+  uint8_t setup_event_list_raw_valid;  /**< Must be set to true if setup_event_list_raw is being passed */
+  cat_setup_event_list_raw_event_type_v02 setup_event_list_raw;
+
+  /* Optional */
+  /*  Setup Idle Mode Text Event */
+  uint8_t idle_mode_text_valid;  /**< Must be set to true if idle_mode_text is being passed */
+  cat_setup_idle_mode_text_event_type_v02 idle_mode_text;
+}cat_get_cached_proactive_cmd_resp_msg_v02;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_CAT_EVENT_CONFIRMATION_V02 
+//#define REMOVE_QMI_CAT_EVENT_REPORT_IND_V02 
+//#define REMOVE_QMI_CAT_GET_CACHED_PROACTIVE_CMD_V02 
+//#define REMOVE_QMI_CAT_GET_CONFIGURATION_V02 
+//#define REMOVE_QMI_CAT_GET_EVENT_REPORT_V02 
+//#define REMOVE_QMI_CAT_GET_SERVICE_STATE_V02 
+//#define REMOVE_QMI_CAT_GET_SUPPORTED_FIELDS_V02 
+//#define REMOVE_QMI_CAT_GET_SUPPORTED_MSGS_V02 
+//#define REMOVE_QMI_CAT_GET_TERMINAL_PROFILE_V02 
+//#define REMOVE_QMI_CAT_RESET_V02 
+//#define REMOVE_QMI_CAT_SCWS_CHANNEL_STATUS_V02 
+//#define REMOVE_QMI_CAT_SCWS_CLOSE_CHANNEL_V02 
+//#define REMOVE_QMI_CAT_SCWS_CLOSE_CHANNEL_IND_V02 
+//#define REMOVE_QMI_CAT_SCWS_DATA_AVAILABLE_V02 
+//#define REMOVE_QMI_CAT_SCWS_OPEN_CHANNEL_V02 
+//#define REMOVE_QMI_CAT_SCWS_OPEN_CHANNEL_IND_V02 
+//#define REMOVE_QMI_CAT_SCWS_SEND_DATA_V02 
+//#define REMOVE_QMI_CAT_SCWS_SEND_DATA_IND_V02 
+//#define REMOVE_QMI_CAT_SEND_DECODED_ENVELOPE_CMD_V02 
+//#define REMOVE_QMI_CAT_SEND_DECODED_TR_V02 
+//#define REMOVE_QMI_CAT_SEND_ENVELOPE_CMD_V02 
+//#define REMOVE_QMI_CAT_SEND_TR_V02 
+//#define REMOVE_QMI_CAT_SET_CONFIGURATION_V02 
+//#define REMOVE_QMI_CAT_SET_EVENT_REPORT_V02 
 
 /*Service Message Definition*/
 /** @addtogroup cat_qmi_msg_ids
@@ -5310,6 +5429,8 @@ typedef struct {
 #define QMI_CAT_SET_CONFIGURATION_RESP_V02 0x002D
 #define QMI_CAT_GET_CONFIGURATION_REQ_V02 0x002E
 #define QMI_CAT_GET_CONFIGURATION_RESP_V02 0x002E
+#define QMI_CAT_GET_CACHED_PROACTIVE_CMD_REQ_V02 0x002F
+#define QMI_CAT_GET_CACHED_PROACTIVE_CMD_RESP_V02 0x002F
 /**
     @}
   */

@@ -406,7 +406,10 @@ bail:
 
 */
 /*=========================================================================*/
-int netmgr_client_send_user_cmd(int cmd)
+int netmgr_client_send_user_cmd(
+  int cmd,
+  netmgr_user_cmd_data_t *cmd_data
+)
 {
 
   int                     result = NETMGR_FAILURE;
@@ -428,6 +431,13 @@ int netmgr_client_send_user_cmd(int cmd)
   event_info->event = NETMGR_USER_CMD;
   event_info->param_mask |= NETMGR_EVT_PARAM_USER_CMD;
   event_info->user_cmd = cmd;
+
+  /* if cmd_id has associated command data with copy to event_info */
+  if( NULL != cmd_data)
+  {
+    event_info->param_mask |= NETMGR_EVT_PARAM_CMD_DATA;
+    memcpy(&(event_info->cmd_data), cmd_data, sizeof(netmgr_user_cmd_data_t));
+  }
 
   result = netmgr_nl_encode_netmgr_event(event_info, &buffer, &buflen);
   if (NETMGR_SUCCESS != result)

@@ -57,18 +57,10 @@ when       who     what, where, why
 /*---------------------------------------------------------------------------
                            DECLARATIONS
 ---------------------------------------------------------------------------*/
-#define DSI_LOG_ENTRY  DSI_LOG_DEBUG( "%s: ENTRY", __func__ );
-#define DSI_LOG_EXIT                                     \
-  if( DSI_SUCCESS == ret ) {                             \
-    DSI_LOG_DEBUG( "%s: EXIT with suc", __func__ );      \
-  } else {                                               \
-    DSI_LOG_DEBUG( "%s: EXIT with err", __func__ );      \
-  }
-
 #define DS_PRIMARY_FLOW_ID   (0)
 
 /*===========================================================================
-                          PUBLIC FUNCTIONS 
+                          PUBLIC FUNCTIONS
 ===========================================================================*/
 
 /*===========================================================================
@@ -142,7 +134,7 @@ int dsi_request_qos
                      qmi_ret, qmi_err_code);
       break;
     }
-    
+
     ret = DSI_SUCCESS;
   } while(0);
 
@@ -217,7 +209,7 @@ int dsi_release_qos
                      qmi_ret, qmi_err_code);
       break;
     }
-    
+
     ret = DSI_SUCCESS;
   } while(0);
 
@@ -298,14 +290,14 @@ int dsi_modify_qos
                                               qos_spec_err_list,
                                               &qmi_err_code );
     }
-    
+
     if( QMI_NO_ERR != qmi_ret )
     {
       DSI_LOG_ERROR( "qmi_qos_modify_qos failed with error [%d][%d]",
                      qmi_ret, qmi_err_code);
       break;
     }
-    
+
     ret = DSI_SUCCESS;
   } while(0);
 
@@ -382,7 +374,7 @@ int dsi_suspend_qos
                      qmi_ret, qmi_err_code);
       break;
     }
-    
+
     ret = DSI_SUCCESS;
   } while(0);
 
@@ -458,7 +450,7 @@ int dsi_resume_qos
                      qmi_ret, qmi_err_code);
       break;
     }
-    
+
     ret = DSI_SUCCESS;
   } while(0);
 
@@ -484,6 +476,7 @@ int dsi_get_granted_qos
 (
   dsi_hndl_t                 hndl,
   dsi_qos_id_type            qos_id,
+  int                        ip_family,
   dsi_qos_granted_info_type *qos_info
 )
 {
@@ -491,6 +484,7 @@ int dsi_get_granted_qos
   int ret = DSI_ERROR, i = 0;
   int qmi_ret = QMI_NO_ERR;
   int qmi_err_code = QMI_NO_ERR;
+  qmi_ip_family_pref_type qmi_ip_pref = QMI_IP_FAMILY_PREF_UNSPECIFIED;
 
   DSI_LOG_ENTRY;
 
@@ -523,6 +517,35 @@ int dsi_get_granted_qos
       break;
     }
 
+    switch(ip_family)
+    {
+      case AF_INET:
+      {
+        qmi_ip_pref = QMI_IP_FAMILY_PREF_IPV4;
+        break;
+      }
+      case AF_INET6:
+      {
+        qmi_ip_pref = QMI_IP_FAMILY_PREF_IPV6;
+        break;
+      }
+      default:
+      {
+        qmi_ip_pref = QMI_IP_FAMILY_PREF_IPV4;
+        break;
+      }
+    }
+    /* Set ip_family_pref for the qos handle */
+    qmi_ret = qmi_qos_set_client_ip_pref(DSI_GET_QOS_HNDL(st_hndl->priv.dsi_iface_id),
+                                         qmi_ip_pref,
+                                         &qmi_err_code);
+    if( QMI_NO_ERR != qmi_ret )
+    {
+      DSI_LOG_ERROR( "qmi_qos_set_client_ip_pref failed with error [%d][%d]",
+                     qmi_ret, qmi_err_code);
+      break;
+    }
+
     /* Send command request to QMI layer */
     if( DS_PRIMARY_FLOW_ID == qos_id )
     {
@@ -547,7 +570,7 @@ int dsi_get_granted_qos
                      qmi_ret, qmi_err_code);
       break;
     }
-    
+
     ret = DSI_SUCCESS;
   } while(0);
 
@@ -623,7 +646,7 @@ int dsi_get_qos_status
                      qmi_ret, qmi_err_code);
       break;
     }
-    
+
     ret = DSI_SUCCESS;
   } while(0);
 
@@ -638,7 +661,7 @@ int dsi_get_qos_status
 /*!
     @brief
     Handles packet service indications.  This routine is invoked within
-    the DSI_NetCtrl command processing thread context. 
+    the DSI_NetCtrl command processing thread context.
 
     @return
     DSI_ERROR
@@ -660,13 +683,13 @@ static int dsi_handle_qos_status_rpt_ind
   int i = (int)user_data;
 
   DSI_LOG_ENTRY;
-  
+
   do
   {
     DSI_LOG_DEBUG("received status_report with qos_hndl [0x%08x] "
                   "sid [%d] user_data [%p] ind_data [%p]",
                   qos_hndl, sid, user_data, ind_data);
-    
+
     if (NULL == ind_data)
     {
       DSI_LOG_ERROR("%s", "NULL ind data received in qos_ind_cb");
@@ -698,7 +721,7 @@ static int dsi_handle_qos_status_rpt_ind
     payload.qos_info.reason_code =
       (ind_data->status_report.qos_reason_is_valid)?
       ind_data->status_report.qos_reason : 0;
-    
+
     switch( ind_data->status_report.qos_status_information.qos_event )
     {
       case QMI_QOS_ACTIVATED_EV:
@@ -792,7 +815,7 @@ static int dsi_handle_qos_status_rpt_ind
                          &payload );
         }
         break;
-        
+
       default:
         DSI_LOG_ERROR( "unsupported qos event [%d]",
                        ind_data->status_report.qos_status_information.qos_event );
@@ -843,7 +866,7 @@ void dsi_process_qos_ind
     DSI_LOG_VERBOSE("received ind_id [%d] with qos_hndl [0x%08x] "
                     "sid [%d] user_data [%p] ind_data [%p]",
                     ind_id, qos_hndl, sid, user_data, ind_data);
-    
+
     switch(ind_id)
     {
     case QMI_QOS_SRVC_STATUS_REPORT_IND_MSG:

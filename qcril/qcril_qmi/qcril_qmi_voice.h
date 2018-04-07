@@ -48,9 +48,10 @@ when       who     what, where, why
 ===========================================================================*/
 
 #define QCRIL_INFORCE_0X9E_TREAT_AS_TAG "persist.radio.0x9e_not_callname"
-#define QCRIL_JBIMS "persist.radio.jbims"
 #define QCRIL_PROCESS_SUPS_IND "persist.radio.process_sups_ind"
 #define QCRIL_PARENT_CALL_ID_STR "parentCallId="
+#define QCRIL_ADD_CALL_INFO_STR  "AdditionalCallInfo="
+#define QCRIL_DISPLAY_TEXT_STR   "DisplayText="
 
 #define QCRIL_QMI_VOICE_RIL_PI_ALLOWED 0
 #define QCRIL_QMI_VOICE_RIL_PI_RESTRICTED 1
@@ -63,16 +64,22 @@ when       who     what, where, why
 #define QCRIL_QMI_VOICE_INTERCODING_BUF_LEN     1024
 #define QCRIL_QMI_VOICE_DIAL_NUMBER_MAX_LEN     256
 
+#define MAX_DEC_INT_STR 10
+#define QCRIL_QMI_VOICE_SUBADDRESS_IA5_IDENTIFIER 0x50
+
 
 /* CLIR Persistent System Property */
 #define QCRIL_QMI_VOICE_CLIR                         "persist.radio.clir"
-#define QCRIL_QMI_VOICE_IMS_CLIR                     "persist.radio.ims_clir"
 #define QCRIL_QMI_AUTO_ANSWER                        "persist.sys.tel.autoanswer.ms"
 #define QCRIL_QMI_VOICE_REPORT_SPEECH_CODEC          "persist.radio.report_codec"
 #define QMI_RIL_SYS_PROP_NAME_SUBADDRESS             "persist.radio.support_subaddr"
 #define QMI_RIL_SYS_PROP_NAME_SUBADDRESS_AMPERSAND   "persist.radio.subaddr_amp"
 #define QCRIL_REJECT_CAUSE_21_SUPPORTED              "persist.radio.reject_cause_21"
 #define QMI_RIL_SYS_PROP_NAME_REDIR_PARTY_NUM        "persist.radio.redir_party_num"
+#define QCRIL_QMI_VOICE_DTMF_INTERVAL                "ro.ril.dtmf_interval"
+#define QCRIL_QMI_CDMA_VOICE_EMER_VOICE              "persist.radio.call_type"
+
+#define QMI_RIL_SYS_PROP_NAME_SUBADDRESS_IA5_IDENTIFIER         "persist.radio.subaddr_ia5_id"
 
 #define QCRIL_QMI_VOICE_SS_TA_UNKNOWN       129 /* 0x80|CM_TON_UNKNOWN      |CM_NPI_ISDN */
 #define QCRIL_QMI_VOICE_SS_TA_INTERNATIONAL 145 /* 0x80|CM_TON_INTERNATIONAL|CM_NPI_ISDN */
@@ -94,10 +101,19 @@ when       who     what, where, why
 #define CM_MAX_EPS_BEARERS_CONTEXTS ( SYS_MAX_EPS_BEARERS_CONTEXTS - \
                                       SYS_MAX_PRIMARY_PDP_CONTEXTS )
 
+#define INVALID_MEDIA_ID -1
+
 // backport from cm.h -- end
 
 #define QCRIL_QMI_VOICE_MAX_MT_USSD_CHAR  183
+#define QCRIL_QMI_VOICE_ALPHA_LENGTH_IN_NULL_CASE 1
 #define QCRIL_QMI_VOICE_MAX_SUPS_FAILURE_STR_LEN  256
+
+//Should be the same value as defined in QMI VOICE
+//interface file - QMI_VOICE_IP_FORWARD_HIST_INFO_MAX_LEN_V02
+#define QCRIL_QMI_VOICE_MAX_IP_HISTORY_INFO_LEN  512
+
+#define INVALID_NEGATIVE_ONE -1
 
 typedef enum qcril_qmi_voice_ss_supps_notification_mo_e
 {
@@ -174,6 +190,15 @@ typedef struct
   char *child_number[ CM_CALL_ID_MAX ];
   uint8_t display_text_valid[ CM_CALL_ID_MAX ];
   char *display_text[ CM_CALL_ID_MAX ];
+  uint8_t additional_call_info_valid[ CM_CALL_ID_MAX ];
+  char *additional_call_info[ CM_CALL_ID_MAX ];
+  call_mode_enum_v02 mode[ CM_CALL_ID_MAX ];
+  boolean lcf_valid[ CM_CALL_ID_MAX ];
+  RIL_LastCallFailCause lcf[ CM_CALL_ID_MAX ];
+  char lcf_extended_codes[ CM_CALL_ID_MAX ][MAX_DEC_INT_STR + 1];
+  int32_t media_id[CM_CALL_ID_MAX];
+  uint8_t end_reason_text_valid[ CM_CALL_ID_MAX ];
+  char *end_reason_text[ CM_CALL_ID_MAX ];
   uint32 num_of_calls;
 } qcril_qmi_voice_current_calls_type;
 
@@ -243,6 +268,11 @@ typedef enum qcril_qmi_voice_clir_status_e {
   QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_RESTRICTED = 3,
   QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_ALLOWED    = 4
 } qcril_qmi_voice_clir_status_e_type;
+
+typedef enum qcril_qmi_voice_sups_active_status_e {
+  QCRIL_QMI_VOICE_SRV_INACTIVE                     = 0,
+  QCRIL_QMI_VOICE_SRV_ACTIVE                       = 1,
+} qcril_qmi_voice_sups_active_status_e_type;
 
 #define QCRIL_QMI_VOICE_REASON_CALL_WAITING 0x0F
 
@@ -334,6 +364,8 @@ typedef struct
    uint32 filled_size;
    int8  last_sequence_number;
    uint8* buffer;
+   boolean call_id_valid;
+   uint8_t call_id;
 } qcril_qmi_voice_conference_xml_type;
 
 typedef struct
@@ -344,6 +376,7 @@ typedef struct
   uint8 *last_call_failure_extended_codes;
   int last_call_failure_extended_codes_len;
   boolean   last_call_is_local_ringback;
+  uint8_t last_local_ringback_call_id;
   uint8 clir;
   uint8 ims_clir;
   uint8 last_cfw_reason;
@@ -436,6 +469,8 @@ typedef uint64_t qcril_qmi_voice_voip_call_info_elaboration_type;
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NO_QMI_ID_RECEIVED                (((uint64_t) 1) << 47)
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_MODIFY_CONFIRM_PENDING       (((uint64_t) 1) << 48)
 
+#define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_ATTR_VALID                   (((uint64_t) 1) << 49)
+
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CODEC_VALID                       (((uint64_t) 1) << 50)
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONF_PATICIAPNT_CALL_END_REPORTED (((uint64_t) 1) << 51)
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PHANTOM_CALL                      (((uint64_t) 1) << 52)
@@ -452,6 +487,7 @@ typedef uint64_t qcril_qmi_voice_voip_call_info_elaboration_type;
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMER_NUM_TO_IMS_ADDR              (((uint64_t) 1) << 61)
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_IP_NUMBER_VALID           (((uint64_t) 1) << 62)
 #define QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONN_PARTY_IP_NUM_VALID           (((uint64_t) 1) << 63)
+
 
 #define VOICE_INVALID_CALL_ID       0xFF
 #define VOICE_LOWEST_CALL_ID        1
@@ -552,6 +588,15 @@ typedef struct qmi_ril_voice_ims_command_exec_oversight_type
 
 typedef struct
 {
+   boolean is_add_info_present;
+   uint32 total_size;
+   uint32 filled_size;
+   int8  last_sequence_number;
+   uint8* buffer;
+} qcril_qmi_voice_additional_call_info_type;
+
+typedef struct
+{
     union
     {
         qmi_ril_voice_ims_command_exec_oversight_type*      command_oversight;
@@ -568,6 +613,8 @@ typedef struct qcril_qmi_voice_voip_call_info_entry_type
 {
     uint8_t                                 android_call_id;
     uint8_t                                 qmi_call_id;
+    int32_t                                 media_id;
+
     qcril_qmi_voice_voip_call_info_elaboration_type elaboration;
 
     voice_call_info2_type_v02               voice_scv_info;
@@ -589,27 +636,38 @@ typedef struct qcril_qmi_voice_voip_call_info_entry_type
     qcril_qmi_voice_emer_voice_feature_info_type emer_voice_number;
     voice_call_attributes_type_v02          voice_audio_attrib;   /* Video Call audio attributes */
     voice_call_attributes_type_v02          voice_video_attrib;   /* Video Call video attributes */
+    voice_call_attrib_status_type_v02       call_attrib_status;
     voice_ip_num_id_type_v02                voice_svc_remote_party_ip_number;
     voice_conn_ip_num_with_id_type_v02      voice_svc_conn_party_ip_num;
     RIL_Token                               pending_end_call_req_tid;
     uint32                                  call_obj_phase_out_timer_id;
     voice_is_srvcc_call_with_id_type_v02    is_srvcc;
-#ifndef QMI_RIL_UTF
+    voice_child_number_info_type_v02        child_number;
     Ims__CallDomain                         to_modify_call_domain;
     Ims__CallType                           to_modify_call_type;
-#endif
     voice_speech_codec_enum_v02             codec;
     uint8_t                                 srvcc_parent_call_info_valid;
     voice_srvcc_parent_call_id_type_v02     srvcc_parent_call_info;
     char parent_call_id[ CM_CALL_ID_MAX ];
     voice_ip_call_capabilities_info_type_v02 local_call_capabilities_info;
     voice_ip_call_capabilities_info_type_v02 peer_call_capabilities_info;
-    voice_child_number_info_type_v02        child_number;
     voice_display_text_info_type_v02        display_text;
     qcril_qmi_voice_emer_num_ims_addr_info_type emer_num_ims_addr_info;
     qmi_ril_voice_ims_audio_call_type       audio_call_type;
+    uint8_t                                 answered_call_type_valid;
+    Ims__CallType                           answered_call_type;
+    qcril_qmi_voice_additional_call_info_type additional_call_info;
+    uint8_t                                   ip_caller_name_valid;
+    voice_ip_caller_name_info_type_v02        ip_caller_name;
+    uint8_t                                   end_reason_text_valid;
+    voice_ip_end_reason_text_type_v02         end_reason_text;
+    //TODO: remove the structure mpty_voip_call_list
     struct qcril_qmi_voice_voip_call_info_entry_type * mpty_voip_call_list; /* number of parties in a multiparty voip call, pl refer call flows */
     struct qcril_qmi_voice_voip_call_info_entry_type * next;
+    boolean lcf_valid;
+    RIL_LastCallFailCause lcf;
+    char lcf_extended_codes[MAX_DEC_INT_STR + 1];
+    boolean srvcc_in_progress;
 } qcril_qmi_voice_voip_call_info_entry_type;
 
 typedef enum
@@ -655,10 +713,32 @@ typedef struct
     qcril_qmi_voice_voip_call_info_entry_type* active_or_single_call;
 } qcril_qmi_voice_voip_current_call_summary_type;
 
+#define QCRIL_QMI_VOICE_DIAL_NUMBER_MAX_LEN 256
+
+typedef struct {
+    int             index;      /* Connection Index for use with, eg, AT+CHLD */
+    int             toa;        /* type of address, eg 145 = intl */
+    char            als;        /* ALS line indicator if available
+                                   (0 = line 1) */
+    char            isVoice;    /* nonzero if this is is a voice call */
+    char            number[QCRIL_QMI_VOICE_DIAL_NUMBER_MAX_LEN];     /* Remote party number */
+    int             numberPresentation; /* 0=Allowed, 1=Restricted, 2=Not Specified/Unknown 3=Payphone */
+    char            name[QCRIL_QMI_VOICE_DIAL_NUMBER_MAX_LEN];       /* Remote party name */
+    int             namePresentation; /* 0=Allowed, 1=Restricted, 2=Not Specified/Unknown 3=Payphone */
+} qcril_qmi_voice_setup_call_info;
+
+typedef struct {
+    boolean rejection;
+} qcril_qmi_voice_setup_answer_data_type;
+
 void qcril_qmi_voice_voip_lock_overview();
 void qcril_qmi_voice_voip_unlock_overview();
 
-qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_create_call_info_entry( uint8_t call_qmi_id, int need_allocate_call_android_id, qcril_qmi_voice_voip_call_info_elaboration_type initial_elaboration );
+qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_create_call_info_entry(
+        uint8_t call_qmi_id,
+        int32_t call_media_id,
+        int need_allocate_call_android_id,
+        qcril_qmi_voice_voip_call_info_elaboration_type initial_elaboration );
 void qcril_qmi_voice_voip_destroy_call_info_entry( qcril_qmi_voice_voip_call_info_entry_type* entry );
 void qcril_qmi_voice_voip_destroy_mpty_call_info_entry( qcril_qmi_voice_voip_call_info_entry_type* entry );
 RIL_Errno qcril_qmi_voice_voip_allocate_call_android_id( uint8_t* new_call_android_id );
@@ -696,6 +776,8 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
                                                  voice_call_attributes_type_v02 *audio_attrib,
                                                  uint8_t video_attrib_valid,
                                                  voice_call_attributes_type_v02 *video_attrib,
+                                                 uint8_t call_attrib_status_valid,
+                                                 voice_call_attrib_status_type_v02 *call_attrib_status,
                                                  uint8_t is_srvcc_valid,
                                                  voice_is_srvcc_call_with_id_type_v02 *is_srvcc,
                                                  uint8_t srvcc_parent_call_info_valid,
@@ -711,7 +793,13 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
                                                  uint8_t ip_num_info_valid,
                                                  voice_ip_num_id_type_v02 *ip_num_info,
                                                  uint8_t conn_ip_num_info_valid,
-                                                 voice_conn_ip_num_with_id_type_v02 *conn_ip_num_info
+                                                 voice_conn_ip_num_with_id_type_v02 *conn_ip_num_info,
+                                                 uint8_t is_add_info_present_valid,
+                                                 voice_is_add_info_present_with_id_type_v02 *is_add_info_present,
+                                                 uint8_t ip_caller_name_valid,
+                                                 voice_ip_caller_name_info_type_v02 *ip_caller_name,
+                                                 uint8_t end_reason_text_valid,
+                                                 voice_ip_end_reason_text_type_v02 *end_reason_text
                                                  );
 void qcril_qmi_voice_voip_update_call_info_uus(qcril_qmi_voice_voip_call_info_entry_type* entry,
                                                uus_type_enum_v02 uus_type,
@@ -771,20 +859,20 @@ RIL_Errno qcril_qmi_voice_pre_init(void);
 void qcril_qmi_voice_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 msg_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 );
 
 void qcril_qmi_voice_unsol_ind_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 );
 
 int qcril_qmi_voice_is_stk_cc_in_progress(void);
@@ -859,6 +947,7 @@ QCRIL_QMI_EXTERN(qmi_voice_orig_ussd_resp_hdlr);
 QCRIL_QMI_EXTERN(qmi_voice_answer_ussd_resp_hdlr);
 QCRIL_QMI_EXTERN(qmi_voice_cancel_ussd_resp_hdlr);
 QCRIL_QMI_EXTERN(qmi_voice_voip_manage_ip_calls_resp_hdlr);
+QCRIL_QMI_EXTERN(qmi_voice_get_colr_resp_hdlr);
 
 void qcril_qmi_voice_send_unsol_call_state_changed
 (
@@ -918,6 +1007,7 @@ void qcril_qmi_voice_oem_hook_reject_incoming_call_cause_21
    const qcril_request_params_type *const params_ptr,
    qcril_request_return_type *const ret_ptr
 );
+int qcril_qmi_voice_reboot_cleanup();
 
 typedef boolean (*qcril_qmi_voice_call_filter)
 (
@@ -926,10 +1016,62 @@ typedef boolean (*qcril_qmi_voice_call_filter)
 
 boolean qcril_qmi_voice_has_specific_call(qcril_qmi_voice_call_filter filter);
 
-boolean qcril_qmi_voice_is_ims_call
+boolean qcril_qmi_voice_is_call_has_ims_audio
 (
     const qcril_qmi_voice_voip_call_info_entry_type * call_info_entry
 );
 
-#endif /* QCRIL_QMI_VOICE_H */
+boolean qcril_qmi_voice_is_call_has_voice_audio
+(
+    const qcril_qmi_voice_voip_call_info_entry_type * call_info_entry
+);
 
+void qcril_qmi_voice_process_for_ims_dial
+(
+   void *data,
+   size_t datalen,
+   RIL_Token t
+);
+
+void qcril_qmi_voice_get_current_setup_calls
+(
+   const qcril_request_params_type *const params_ptr,
+   qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_voice_request_setup_answer
+(
+   const qcril_request_params_type *const params_ptr,
+   qcril_request_return_type *const ret_ptr
+);
+
+void qcril_qmi_voice_voip_reset_answered_call_type
+(
+ qcril_qmi_voice_voip_call_info_entry_type *call_info,
+ voice_modified_ind_msg_v02                *modify_ind_ptr
+);
+
+boolean qcril_qmi_voice_nas_control_is_any_calls_present();
+
+boolean qcril_qmi_voice_map_qmi_to_ril_provision_status
+(
+ provision_status_enum_v02 qmi_provision_status,
+ int *ril_provision_status
+);
+
+boolean qcril_qmi_voice_map_qmi_status_to_ims_provision_status
+(
+ provision_status_enum_v02 qmi_provision_status,
+ active_status_enum_v02 qmi_activation_status,
+ int *ril_provision_status
+);
+
+#ifndef VOIP_SUPS_TYPE_CALL_HOLD_V02
+#define VOIP_SUPS_TYPE_CALL_HOLD_V02 0x0C
+#endif
+
+#ifndef VOIP_SUPS_TYPE_CALL_RESUME_V02
+#define VOIP_SUPS_TYPE_CALL_RESUME_V02 0x0D
+#endif
+
+#endif /* QCRIL_QMI_VOICE_H */

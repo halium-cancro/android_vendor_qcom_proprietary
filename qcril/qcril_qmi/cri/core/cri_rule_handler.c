@@ -226,10 +226,11 @@ int cri_rule_handler_rule_add(cri_rule_handler_rule_info_type *cri_rule_handler_
             memcpy(temp_rule_info,
                    cri_rule_handler_rule_info,
                    sizeof(cri_rule_handler_rule_info_type));
-            temp_rule_info->timer_id = util_timer_add(rule_timeout,
-                                                      rule_timedout_cb,
-                                                      &temp_rule_info->context,
-                                                      sizeof(cri_core_context_type*));
+            temp_rule_info->core_rule_info.timer_id =
+                        util_timer_add(rule_timeout,
+                                       rule_timedout_cb,
+                                       &temp_rule_info->core_rule_info.context,
+                                       sizeof(cri_core_context_type*));
             ret_code = util_list_add(rule_queue,
                                      temp_rule_info,
                                      NULL,
@@ -242,7 +243,9 @@ int cri_rule_handler_rule_add(cri_rule_handler_rule_info_type *cri_rule_handler_
             else
             {
                 UTIL_LOG_MSG("rule creation success, %s, timeout %d seconds",
-                             cri_core_create_loggable_context(temp_rule_info->context),
+                             cri_core_create_loggable_context(
+                                 temp_rule_info->core_rule_info.context
+                                 ),
                              rule_timeout->tv_sec);
             }
         }
@@ -293,9 +296,9 @@ void cri_rule_handler_rule_check(cri_core_context_type context,
                                             temp_node_data->user_data;
             if(context == NIL) //received indication
             {
-                if((NULL != cri_rule_handler_rule_info->rule_check_handler) &&
-                   (TRUE == ((*(cri_rule_handler_rule_info->rule_check_handler))
-                             (cri_rule_handler_rule_info->rule_data)))
+                if((NULL != cri_rule_handler_rule_info->user_rule_info.rule_check_handler) &&
+                   (TRUE == ((*(cri_rule_handler_rule_info->user_rule_info.rule_check_handler))
+                             (cri_rule_handler_rule_info->user_rule_info.rule_data)))
                   )
                 {
                     rule_check_helper(temp_node_data,
@@ -304,36 +307,39 @@ void cri_rule_handler_rule_check(cri_core_context_type context,
                                       cri_resp_data);
                 }
             }
-            else if(context == cri_rule_handler_rule_info->context)
+            else if(context == cri_rule_handler_rule_info->core_rule_info.context)
             {
-                if(NULL != cri_rule_handler_rule_info->qmi_resp_data)
+                if(NULL != cri_rule_handler_rule_info->core_rule_info.qmi_resp_data)
                 {
-                    if(QMI_ERR_INJECT_TIMEOUT_V01 != cri_core_error)
+                    if(CRI_ERR_INJECT_TIMEOUT_V01 != cri_core_error)
                     {
-                        cri_rule_handler_rule_info->qmi_resp_data = NULL;
+                        cri_rule_handler_rule_info->core_rule_info.qmi_resp_data = NULL;
                     }
                     else
                     {
-                        util_memory_free((void**) &cri_rule_handler_rule_info->qmi_resp_data);
+                        util_memory_free(
+                            (void**) &cri_rule_handler_rule_info->core_rule_info.qmi_resp_data);
                     }
                 }
 
-                if(NULL != cri_rule_handler_rule_info->qmi_cb_data)
+                if(NULL != cri_rule_handler_rule_info->core_rule_info.qmi_cb_data)
                 {
-                    if(QMI_ERR_INJECT_TIMEOUT_V01 != cri_core_error)
+                    if(CRI_ERR_INJECT_TIMEOUT_V01 != cri_core_error)
                     {
-                        cri_rule_handler_rule_info->qmi_cb_data = NULL;
+                        cri_rule_handler_rule_info->core_rule_info.qmi_cb_data = NULL;
                     }
                     else
                     {
-                        util_memory_free((void**) &cri_rule_handler_rule_info->qmi_cb_data);
+                        util_memory_free(
+                            (void**) &cri_rule_handler_rule_info->core_rule_info.qmi_cb_data);
                     }
                 }
 
-                if((QMI_ERR_NONE_V01 != cri_core_error) ||
-                   (NULL == cri_rule_handler_rule_info->rule_check_handler) ||
-                   (TRUE == ((*(cri_rule_handler_rule_info->rule_check_handler))
-                             (cri_rule_handler_rule_info->rule_data))) //TODO : pass sub_id
+                if((CRI_ERR_NONE_V01 != cri_core_error) ||
+                   (NULL == cri_rule_handler_rule_info->user_rule_info.rule_check_handler) ||
+                   (TRUE == ((*(cri_rule_handler_rule_info->user_rule_info.rule_check_handler))
+                             (cri_rule_handler_rule_info->user_rule_info.rule_data)))
+                            //TODO : pass sub_id
                   )
                 {
                     rule_check_helper(temp_node_data,
@@ -363,21 +369,23 @@ void rule_check_helper(util_list_node_data_type *rule_node_data,
                        void *cri_resp_data)
 {
     cri_rule_handler_rule_info_type *cri_rule_info;
+    void *hlos_cri_resp_data;
 
     UTIL_LOG_MSG("entry");
 
     cri_rule_info = NULL;
+    hlos_cri_resp_data = NULL;
 
     if(rule_node_data && rule_node_data->user_data)
     {
         cri_rule_info = (cri_rule_handler_rule_info_type*) rule_node_data->user_data;
 
-        if(QMI_ERR_INJECT_TIMEOUT_V01 != cri_core_error)
+        if(CRI_ERR_INJECT_TIMEOUT_V01 != cri_core_error)
         {
             UTIL_LOG_MSG("rule met due to async resp or indication");
-            if(cri_rule_info->timer_id)
+            if(cri_rule_info->core_rule_info.timer_id)
             {
-                util_timer_cancel(cri_rule_info->timer_id);
+                util_timer_cancel(cri_rule_info->core_rule_info.timer_id);
             }
         }
         else
@@ -385,17 +393,45 @@ void rule_check_helper(util_list_node_data_type *rule_node_data,
             UTIL_LOG_MSG("rule met due to expired timer");
         }
 
-        if(cri_rule_info->hlos_resp_cb)
+        if(cri_rule_info->user_rule_info.cri_resp_data_calculator)
         {
-            (*(cri_rule_info->hlos_resp_cb))(cri_rule_info->context,
-                                             cri_core_error,
-                                             cri_rule_info->hlos_resp_cb_data,
-                                             cri_resp_data);
+            hlos_cri_resp_data = ((*(cri_rule_info->user_rule_info.cri_resp_data_calculator))
+                                  (cri_core_error,
+                                   cri_rule_info->user_rule_info.cri_resp_util_data));
+        }
+        else
+        {
+            hlos_cri_resp_data = cri_resp_data;
         }
 
-        if(cri_rule_info->rule_data && cri_rule_info->rule_data_free_handler)
+        if(cri_rule_info->core_rule_info.hlos_resp_cb)
         {
-            (*(cri_rule_info->rule_data_free_handler))(cri_rule_info->rule_data);
+            (*(cri_rule_info->core_rule_info.hlos_resp_cb))(
+                                        cri_rule_info->core_rule_info.context,
+                                        cri_core_error,
+                                        (void*) cri_rule_info->core_rule_info.hlos_resp_cb_data,
+                                        hlos_cri_resp_data);
+        }
+
+        if(cri_rule_info->user_rule_info.rule_data && cri_rule_info->user_rule_info.rule_data_free_handler)
+        {
+            (*(cri_rule_info->user_rule_info.rule_data_free_handler))(
+                                        cri_rule_info->user_rule_info.rule_data);
+        }
+
+        if(cri_rule_info->user_rule_info.cri_resp_util_data &&
+           cri_rule_info->user_rule_info.cri_resp_util_data_free_handler)
+        {
+            (*(cri_rule_info->user_rule_info.cri_resp_util_data_free_handler))
+            (cri_rule_info->user_rule_info.cri_resp_util_data);
+        }
+
+        if(hlos_cri_resp_data &&
+           cri_rule_info->user_rule_info.cri_resp_data_calculator &&
+           cri_rule_info->user_rule_info.cri_resp_data_free_handler)
+        {
+            (*(cri_rule_info->user_rule_info.cri_resp_data_free_handler))
+            (hlos_cri_resp_data);
         }
 
         util_list_delete(rule_queue,
@@ -432,24 +468,34 @@ void cri_rule_handler_rule_delete(cri_core_context_type cri_core_context)
         {
             cri_rule_info = (cri_rule_handler_rule_info_type*)
                                 temp_node_data->user_data;
-            if(cri_rule_info->context == cri_core_context)
+            if(cri_rule_info->core_rule_info.context == cri_core_context)
             {
-                if(cri_rule_info->timer_id)
+                if(cri_rule_info->core_rule_info.timer_id)
                 {
-                    util_timer_cancel(cri_rule_info->timer_id);
+                    util_timer_cancel(cri_rule_info->core_rule_info.timer_id);
                 }
 
-                if(cri_rule_info->hlos_resp_cb)
+                if(cri_rule_info->core_rule_info.hlos_resp_cb)
                 {
-                    (*(cri_rule_info->hlos_resp_cb))(cri_rule_info->context,
-                                                     QMI_ERR_INTERNAL_V01,
-                                                     cri_rule_info->hlos_resp_cb_data,
-                                                     NULL);
+                    (*(cri_rule_info->core_rule_info.hlos_resp_cb))(
+                                                cri_rule_info->core_rule_info.context,
+                                                QMI_ERR_INTERNAL_V01,
+                                                (void*)
+                                                cri_rule_info->core_rule_info.hlos_resp_cb_data,
+                                                NULL);
                 }
 
-                if(cri_rule_info->rule_data_free_handler)
+                if(cri_rule_info->user_rule_info.rule_data_free_handler)
                 {
-                    (*(cri_rule_info->rule_data_free_handler))(cri_rule_info->rule_data);
+                    (*(cri_rule_info->user_rule_info.rule_data_free_handler))(
+                                                cri_rule_info->user_rule_info.rule_data);
+                }
+
+                if(cri_rule_info->user_rule_info.cri_resp_util_data &&
+                   cri_rule_info->user_rule_info.cri_resp_util_data_free_handler)
+                {
+                    (*(cri_rule_info->user_rule_info.cri_resp_util_data_free_handler))
+                    (cri_rule_info->user_rule_info.cri_resp_util_data);
                 }
 
                 util_list_delete(rule_queue,
@@ -506,22 +552,32 @@ void cri_rule_handler_rule_delete_all()
         if(temp_node_data->user_data)
         {
             cri_rule_info = (cri_rule_handler_rule_info_type*) temp_node_data->user_data;
-            if(cri_rule_info->timer_id)
+            if(cri_rule_info->core_rule_info.timer_id)
             {
-                util_timer_cancel(cri_rule_info->timer_id);
+                util_timer_cancel(cri_rule_info->core_rule_info.timer_id);
             }
 
-            if(cri_rule_info->hlos_resp_cb)
+            if(cri_rule_info->core_rule_info.hlos_resp_cb)
             {
-                (*(cri_rule_info->hlos_resp_cb))(cri_rule_info->context,
+                (*(cri_rule_info->core_rule_info.hlos_resp_cb))(
+                                                 cri_rule_info->core_rule_info.context,
                                                  QMI_ERR_INTERNAL_V01,
-                                                 cri_rule_info->hlos_resp_cb_data,
+                                                 (void*)
+                                                 cri_rule_info->core_rule_info.hlos_resp_cb_data,
                                                  NULL);
             }
 
-            if(cri_rule_info->rule_data_free_handler)
+            if(cri_rule_info->user_rule_info.rule_data_free_handler)
             {
-                (*(cri_rule_info->rule_data_free_handler))(cri_rule_info->rule_data);
+                (*(cri_rule_info->user_rule_info.rule_data_free_handler))(
+                                                      cri_rule_info->user_rule_info.rule_data);
+            }
+
+            if(cri_rule_info->user_rule_info.cri_resp_util_data &&
+               cri_rule_info->user_rule_info.cri_resp_util_data_free_handler)
+            {
+                (*(cri_rule_info->user_rule_info.cri_resp_util_data_free_handler))
+                (cri_rule_info->user_rule_info.cri_resp_util_data);
             }
 
             util_list_delete(rule_queue,

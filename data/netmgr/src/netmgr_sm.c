@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2015 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary and Confidential.
 
@@ -346,6 +346,7 @@ void netmgr_sm_state_inited_entry
 {
   netmgr_exec_cmd_t * cmd_buf = NULL;
   netmgr_nl_event_info_t * event_info = NULL;
+  const char *link_name;
 
   STM_UNUSED( sm );
 
@@ -385,31 +386,49 @@ void netmgr_sm_state_inited_entry
     }
 #endif /* FEATURE_DATA_IWLAN */
 
+    /* Call the function to remove the link-local interface from the
+     * custom network. Usually this would be done inside the OOS handler
+     * registered with netmgr_kif. However we might get a NETMGR_KIF_CLOSED_EV
+     * on the link before OOS_EV is received depending on when global
+     * rmnet cleanup happens. If CLOSED_EV is received then the link will
+     * move to inited state and we need to do the cleanup here */
+    netmgr_kif_remove_link_network(cmd_buf->data.link);
+
     /* Reset the QMI link WDS data */
     netmgr_qmi_reset_link_wds_data(cmd_buf->data.link);
 
     /* reset link_powerup state to DOWN */
     netmgr_kif_set_link_powerup_state(cmd_buf->data.link,
                                       NETMGR_KIF_LINK_POWERUP_STATE_DOWN);
-    /* Post event indication to clients */
-    event_info = netmgr_malloc( sizeof(netmgr_nl_event_info_t) );
-    if( NULL == event_info ) {
-      netmgr_log_err("failed to allocate event buffer!\n");
-    } else {
-      memset( event_info, 0x0, sizeof(netmgr_nl_event_info_t) );
-      event_info->event = NET_PLATFORM_DOWN_EV;
-      event_info->link = cmd_buf->data.link;
-      event_info->param_mask |= NETMGR_EVT_PARAM_LINK;
-      memcpy( &event_info->dev_name,
-              netmgr_kif_get_name(cmd_buf->data.link),
-              sizeof(event_info->dev_name) );
-      event_info->param_mask |= NETMGR_EVT_PARAM_DEVNAME;
 
-      if( NETMGR_SUCCESS != netmgr_kif_send_event_msg( event_info ) ) {
-        netmgr_log_err("failed on kif_send_event DOWN\n");
+    link_name = netmgr_kif_get_name(cmd_buf->data.link);
+    if (NULL == link_name)
+    {
+      netmgr_log_err("%s(): unable to determine name for link=%d\n",
+                      __func__, cmd_buf->data.link);
+    }
+    else
+    {
+      /* Post event indication to clients */
+      event_info = netmgr_malloc( sizeof(netmgr_nl_event_info_t) );
+      if( NULL == event_info ) {
+        netmgr_log_err("failed to allocate event buffer!\n");
+      } else {
+        memset( event_info, 0x0, sizeof(netmgr_nl_event_info_t) );
+        event_info->event = NET_PLATFORM_DOWN_EV;
+        event_info->link = cmd_buf->data.link;
+        event_info->param_mask |= NETMGR_EVT_PARAM_LINK;
+        strlcpy( event_info->dev_name,
+                 link_name,
+                 sizeof(event_info->dev_name) );
+        event_info->param_mask |= NETMGR_EVT_PARAM_DEVNAME;
+
+        if( NETMGR_SUCCESS != netmgr_kif_send_event_msg( event_info ) ) {
+          netmgr_log_err("failed on kif_send_event DOWN\n");
+        }
+
+        netmgr_free( event_info );
       }
-
-      netmgr_free( event_info );
     }
   }
 
@@ -524,6 +543,85 @@ bail:
 
 } /* netmgr_sm_modem_connected() */
 
+
+/*===========================================================================
+
+  TRANSITION FUNCTION:  netmgr_sm_modem_disconnected_in_inited
+
+===========================================================================*/
+/*!
+    @brief
+    Transition function for state machine NETMGR_SM,
+    state NETMGR_STATE_INITED,
+    upon receiving input NETMGR_WDS_DISCONNECTED_EV
+
+    @detail
+    Called upon receipt of input NETMGR_WDS_DISCONNECTED_EV, with optional
+    user-passed payload pointer.
+
+    @return
+    Returns the next state that the state machine should transition to
+    upon receipt of the input.  This state must be a valid state for this
+    state machine.
+
+*/
+/*=========================================================================*/
+stm_state_t netmgr_sm_modem_disconnected_in_inited
+(
+  stm_state_machine_t *sm,         /*!< State Machine instance pointer */
+  void                *payload     /*!< Payload pointer */
+)
+{
+  stm_state_t next_state = STM_SAME_STATE; /* Default 'next' state */
+  netmgr_exec_cmd_t * cmd_buf;
+
+  NETMGR_LOG_FUNC_ENTRY;
+
+  /* Ensure that the state machine instance pointer passed is valid */
+  STM_NULL_CHECK( sm );
+  STM_NULL_CHECK( payload );
+
+  cmd_buf = (netmgr_exec_cmd_t *)payload;
+
+#ifdef FEATURE_DATA_IWLAN
+  if (NETMGR_KIF_IS_REV_RMNET_LINK(cmd_buf->data.link) )
+  {
+    /* We don't expect NETMGR_WDS_DISCONNECTED_EV for reverse links in NETMGR_STATE_INITED
+     * Hoever if we do receive it we need to send a config complete event with CLEANUP so that
+     * all previous transactions are cleaned up and the state machine moves back to a working
+     * condition */
+
+     /* Send CLEANUP command for V4 */
+     netmgr_qmi_send_rev_ip_config_complete(NETMGR_QMI_IWLAN_CALL_CLEANUP,
+                                            cmd_buf->data.link,
+                                            AF_INET,
+                                            QMI_WDS_REV_IP_TRANSPORT_CONFIG_SUCCESS);
+
+     /* Send CLEANUP command for V6 */
+     netmgr_qmi_send_rev_ip_config_complete(NETMGR_QMI_IWLAN_CALL_CLEANUP,
+                                            cmd_buf->data.link,
+                                            AF_INET6,
+                                            QMI_WDS_REV_IP_TRANSPORT_CONFIG_SUCCESS);
+  }
+#endif /* FEATURE_DATA_IWLAN */
+
+  /* Getting NETMGR_WDS_DISCONNECTED event in INITED state should keep the state
+   * machine in inited state */
+  next_state = NETMGR_STATE_INITED;
+
+bail:
+  /* Release heap memory allocated in QMI module */
+  if (NULL != cmd_buf
+      && NULL != cmd_buf->data.info.connect_msg.addr_info_ptr)
+  {
+    ds_free( cmd_buf->data.info.connect_msg.addr_info_ptr );
+  }
+
+  NETMGR_LOG_FUNC_EXIT;
+  return( next_state );
+
+} /* netmgr_sm_modem_connected() */
+
 /*===========================================================================
 
   TRANSITION FUNCTION:  netmgr_sm_modem_connected_while_going_down
@@ -590,17 +688,33 @@ stm_state_t netmgr_sm_modem_connected_while_going_down
     }
     else
     {
-      /*  Modem interface connect while going down,
-          transition to GOING_DOWN_TO_COME_UP state */
-      next_state = NETMGR_STATE_GOING_DOWN_TO_COME_UP;
+      if(cmd_buf->repost_count == 0 )
+      {
+        /*  Modem interface connect while going down,
+            transition to GOING_DOWN_TO_COME_UP state
+            This is a valid connected ev coming from modem */
+        next_state = NETMGR_STATE_GOING_DOWN_TO_COME_UP;
+      }
+      /* else {
+         This event is being reposted locally from netmgr
+         Ignore this connected ev when in going down state
+      } */
     }
   }
   else
 #endif /* FEATURE_DATA_IWLAN */
   {
-    /*  Modem interface connect while going down,
-        transition to GOING_DOWN_TO_COME_UP state */
-    next_state = NETMGR_STATE_GOING_DOWN_TO_COME_UP;
+    if( 0 == cmd_buf->repost_count)
+    {
+      /*  Modem interface connect while going down,
+          transition to GOING_DOWN_TO_COME_UP state.
+          This is a valid connected ev coming from modem */
+      next_state = NETMGR_STATE_GOING_DOWN_TO_COME_UP;
+    }
+    /* else {
+       This event is being reposted locally from netmgr
+       Ignore this connected ev when in going down state
+    } */
   }
 
   /* Release heap memory allocated in QMI module */
@@ -814,11 +928,26 @@ stm_state_t netmgr_sm_modem_oos_msg
 
   cmd_buf = (netmgr_exec_cmd_t *)payload;
 
+  /* perform kif clean-up */
+  if (NETMGR_SUCCESS != netmgr_kif_out_of_service(cmd_buf->data.link))
+  {
+    netmgr_log_err("failed to execute kif out_of_service\n");
+  }
+
   /* release qmi clients */
   if (NETMGR_SUCCESS != netmgr_qmi_out_of_service(cmd_buf->data.link))
   {
     netmgr_log_err("failed to execute qmi out_of_service\n");
   }
+
+#ifdef FEATURE_DATA_IWLAN
+  /* release iWLAN clients if iwlan is enabled */
+  if (TRUE == netmgr_main_get_iwlan_enabled()
+      && NETMGR_SUCCESS != netmgrIwlanClientRelease())
+  {
+    netmgr_log_err("failed to execute iWLAN out_of_service\n");
+  }
+#endif
 
   next_state = NETMGR_STATE_DOWN;
 
@@ -879,6 +1008,15 @@ stm_state_t netmgr_sm_modem_is_msg
   if( NETMGR_SUCCESS != netmgr_kif_reset(cmd_buf->data.link, cmd_buf->data.type) ) {
     netmgr_log_err("failed on kif_reset\n");
   }
+
+#ifdef FEATURE_DATA_IWLAN
+  /* re-initialize iWLAN clients if iwlan is enabled */
+  if (TRUE == netmgr_main_get_iwlan_enabled()
+      && NETMGR_SUCCESS != netmgrIwlanClientInit())
+  {
+    netmgr_log_err("failed to re-initialize iWLAN clients\n");
+  }
+#endif
 
   next_state = NETMGR_STATE_INITED;
 
@@ -1234,6 +1372,7 @@ stm_state_t netmgr_sm_kif_closed
 {
   stm_state_t next_state = STM_SAME_STATE; /* Default 'next' state */
   netmgr_exec_cmd_t * cmd_buf = NULL;
+  netmgr_address_info_t *addr_info = NULL;
   int i;
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -1266,6 +1405,37 @@ stm_state_t netmgr_sm_kif_closed
 
   }
 #endif /* NETMGR_QOS_ENABLED */
+
+  /* If the reverse rmnet interface moves to CLOSED state before receiving
+   * OOS event then we will loose the WDS related state information for that
+   * link. If this happens we cannot remove the SA rules in the global kif
+   * cleanup function. We need to do it here */
+#ifdef FEATURE_DATA_IWLAN
+  if (NETMGR_KIF_IS_REV_RMNET_LINK(cmd_buf->data.link)
+      && NETMGR_STATE_UP == stm_get_state(&NETMGR_SM[cmd_buf->data.link]))
+  {
+    netmgr_log_med("%s(): Performing cleanup for link=%d\n",
+                   __func__, cmd_buf->data.link);
+
+    /* Get address info ptr */
+    addr_info = netmgr_qmi_get_addr_info(cmd_buf->data.link);
+
+    if (NULL != addr_info)
+    {
+      netmgr_kif_remove_sa_and_routing_rules(cmd_buf->data.link,
+                                             AF_INET,
+                                             &addr_info->ipv4);
+      netmgr_kif_remove_sa_and_routing_rules(cmd_buf->data.link,
+                                             AF_INET6,
+                                             &addr_info->ipv6);
+    }
+    else
+    {
+      netmgr_log_err("%s(): invalid addr_info for link=%d\n",
+                     __func__, cmd_buf->data.link);
+    }
+  }
+#endif /* FEATURE_DATA_IWLAN */
 
   next_state = NETMGR_STATE_INITED;
 
@@ -1823,6 +1993,7 @@ void netmgr_sm_state_up_entry
   netmgr_nl_event_info_t * event_info = NULL;
   netmgr_address_set_t * modem_addr_ptr = NULL;
   netmgr_nl_addr_info_t * nl_addr_ptr = NULL;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -1832,6 +2003,14 @@ void netmgr_sm_state_up_entry
   cmd_buf = (netmgr_exec_cmd_t *)payload;
   modem_addr_ptr = cmd_buf->data.info.connect_msg.addr_info_ptr;
   nl_addr_ptr = &cmd_buf->data.info.connect_msg.nlmsg_info.addr_info;
+
+  dev_name = netmgr_kif_get_name(cmd_buf->data.link);
+  if(dev_name == NULL)
+  {
+    netmgr_log_err("%s(): unable to determine name for link=%d\n",
+                    __func__, cmd_buf->data.link);
+    goto bail;
+  }
 
   event = (NETMGR_STATE_RECONFIGURING == prev_state)?
           NET_PLATFORM_RECONFIGURED_EV :  NET_PLATFORM_UP_EV;
@@ -1845,9 +2024,9 @@ void netmgr_sm_state_up_entry
     event_info->event = event;
     event_info->link = cmd_buf->data.link;
     event_info->param_mask |= NETMGR_EVT_PARAM_LINK;
-    memcpy( &event_info->dev_name,
-            netmgr_kif_get_name(cmd_buf->data.link),
-            sizeof(event_info->dev_name) );
+    strlcpy( event_info->dev_name,
+             dev_name,
+             sizeof(event_info->dev_name) );
     event_info->param_mask |= NETMGR_EVT_PARAM_DEVNAME;
 
     /* Populate address elements */
@@ -1883,6 +2062,9 @@ void netmgr_sm_state_up_entry
         event_info->param_mask |= NETMGR_EVT_PARAM_CACHE;
       }
 
+      event_info->mtu = netmgr_kif_get_mtu(cmd_buf->data.link);
+      event_info->param_mask |= NETMGR_EVT_PARAM_MTU;
+
 #ifdef FEATURE_DATA_IWLAN
       if( NETMGR_NLA_PARAM_PREFIXADDR & nl_addr_ptr->attr_info.param_mask ) {
         (void)netmgr_qmi_iwlan_update_link_assoc(cmd_buf->data.link, NULL);
@@ -1897,6 +2079,7 @@ void netmgr_sm_state_up_entry
     netmgr_free( event_info );
   }
 
+bail:
   NETMGR_LOG_FUNC_EXIT;
 } /* netmgr_sm_state_up_entry() */
 
@@ -2032,6 +2215,7 @@ stm_state_t netmgr_sm_qos_activate
   netmgr_exec_cmd_t * cmd_buf = NULL;
   netmgr_nl_event_info_t * event_info = NULL;
   int i =0;
+  const char *dev_name = NULL;
   NETMGR_LOG_FUNC_ENTRY;
 
   STM_UNUSED( sm );
@@ -2080,6 +2264,7 @@ stm_state_t netmgr_sm_qos_activate
     return next_state;
   }
 
+  dev_name = netmgr_kif_get_name(cmd_buf->data.link);
 
   if( netmgr_main_get_qos_enabled() &&
      !NETMGR_KIF_IS_REV_RMNET_LINK(cmd_buf->data.link) )
@@ -2089,6 +2274,10 @@ stm_state_t netmgr_sm_qos_activate
         netmgr_tc_flow_activate( cmd_buf->data.link,
                                  &cmd_buf->data.info.qos_flow ) ) {
       netmgr_log_err("failed on tc_flow_create\n");
+    }
+    else if(NULL == dev_name) {
+      netmgr_log_err("%s(): unable to determine name for link=%d\n",
+                      __func__, cmd_buf->data.link);
     }
     else {
       /* Post event indication to clients */
@@ -2102,9 +2291,9 @@ stm_state_t netmgr_sm_qos_activate
         event_info->flow_info.flow_id =  cmd_buf->data.info.qos_flow.flow_id;
         event_info->flow_info.flow_type =  cmd_buf->data.info.qos_flow.flow_type;
         event_info->param_mask |= ( NETMGR_EVT_PARAM_LINK | NETMGR_EVT_PARAM_FLOWINFO );
-        memcpy( &event_info->dev_name,
-                netmgr_kif_get_name(cmd_buf->data.link),
-                sizeof(event_info->dev_name) );
+        strlcpy( event_info->dev_name,
+                 dev_name,
+                 sizeof(event_info->dev_name) );
         event_info->param_mask |= NETMGR_EVT_PARAM_DEVNAME;
 
         if( NETMGR_SUCCESS !=
@@ -2159,6 +2348,7 @@ stm_state_t netmgr_sm_qos_modify
 #ifdef NETMGR_QOS_ENABLED
   netmgr_exec_cmd_t * cmd_buf = NULL;
   netmgr_nl_event_info_t * event_info = NULL;
+  const char *dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -2193,6 +2383,10 @@ stm_state_t netmgr_sm_qos_modify
         netmgr_exec_release_cmd(new_cmd);
       }
     }
+    else if(NULL == (dev_name = netmgr_kif_get_name(cmd_buf->data.link))) {
+      netmgr_log_err("%s(): unable to determine name for link=%d\n",
+                      __func__, cmd_buf->data.link);
+    }
     else
     {
       /* Post event indication to clients */
@@ -2206,9 +2400,9 @@ stm_state_t netmgr_sm_qos_modify
         event_info->flow_info.flow_id =  cmd_buf->data.info.qos_flow.flow_id;
         event_info->flow_info.flow_type =  cmd_buf->data.info.qos_flow.flow_type;
         event_info->param_mask |= ( NETMGR_EVT_PARAM_LINK | NETMGR_EVT_PARAM_FLOWINFO );
-        memcpy( &event_info->dev_name,
-                netmgr_kif_get_name(cmd_buf->data.link),
-                sizeof(event_info->dev_name) );
+        strlcpy( event_info->dev_name,
+                 dev_name,
+                 sizeof(event_info->dev_name) );
         event_info->param_mask |= NETMGR_EVT_PARAM_DEVNAME;
 
         if( NETMGR_SUCCESS !=
@@ -2264,6 +2458,7 @@ stm_state_t netmgr_sm_qos_delete
 #ifdef NETMGR_QOS_ENABLED
   netmgr_exec_cmd_t * cmd_buf = NULL;
   netmgr_nl_event_info_t * event_info = NULL;
+  const char * dev_name = NULL;
 
   NETMGR_LOG_FUNC_ENTRY;
 
@@ -2283,6 +2478,10 @@ stm_state_t netmgr_sm_qos_delete
     {
       netmgr_log_err("failed on tc_flow_delete\n");
     }
+    else if(NULL == (dev_name = netmgr_kif_get_name(cmd_buf->data.link))) {
+      netmgr_log_err("%s(): unable to determine name for link=%d\n",
+                      __func__, cmd_buf->data.link);
+    }
     else
     {
       /* Post event indication to clients */
@@ -2296,9 +2495,9 @@ stm_state_t netmgr_sm_qos_delete
         event_info->flow_info.flow_id =  cmd_buf->data.info.qos_flow.flow_id;
         event_info->flow_info.flow_type =  cmd_buf->data.info.qos_flow.flow_type;
         event_info->param_mask |= ( NETMGR_EVT_PARAM_LINK | NETMGR_EVT_PARAM_FLOWINFO );
-        memcpy( &event_info->dev_name,
-                netmgr_kif_get_name(cmd_buf->data.link),
-                sizeof(event_info->dev_name) );
+        strlcpy( event_info->dev_name,
+                 dev_name,
+                 sizeof(event_info->dev_name) );
         event_info->param_mask |= NETMGR_EVT_PARAM_DEVNAME;
 
         if( NETMGR_SUCCESS !=
@@ -2353,6 +2552,7 @@ stm_state_t netmgr_sm_qos_suspend
   netmgr_exec_cmd_t * cmd_buf = NULL;
   netmgr_nl_event_info_t * event_info = NULL;
   int i;
+  const char *dev_name = NULL;
   NETMGR_LOG_FUNC_ENTRY;
 
   STM_UNUSED( sm );
@@ -2412,6 +2612,11 @@ stm_state_t netmgr_sm_qos_suspend
     {
       netmgr_log_err("failed on tc_flow_suspend\n");
     }
+    else if(NULL == (dev_name = netmgr_kif_get_name(cmd_buf->data.link)))
+    {
+      netmgr_log_err("%s(): unable to determine name for link=%d\n",
+                      __func__, cmd_buf->data.link);
+    }
     else
     {
       /* Post event indication to clients */
@@ -2429,9 +2634,9 @@ stm_state_t netmgr_sm_qos_suspend
         event_info->flow_info.flow_id = cmd_buf->data.info.qos_flow.flow_id;
         event_info->flow_info.flow_type =  cmd_buf->data.info.qos_flow.flow_type;
         event_info->param_mask |= NETMGR_EVT_PARAM_LINK | NETMGR_EVT_PARAM_FLOWINFO;
-        memcpy( &event_info->dev_name,
-                netmgr_kif_get_name(cmd_buf->data.link),
-                sizeof(event_info->dev_name) );
+        strlcpy( event_info->dev_name,
+                 dev_name,
+                 sizeof(event_info->dev_name) );
         event_info->param_mask |= NETMGR_EVT_PARAM_DEVNAME;
 
         if (NETMGR_SUCCESS != netmgr_kif_send_event_msg(event_info))
@@ -2574,7 +2779,7 @@ void netmgr_sm_state_goingdown_entry
                      cmd_buf->data.link,
                      rev_link);
       (void)netmgr_qmi_iwlan_clear_link_assoc(cmd_buf->data.link, rev_link);
-      if (NETMGR_STATE_UP != stm_get_state(&NETMGR_SM[rev_link]))
+      if (NETMGR_STATE_GOING_DOWN == stm_get_state(&NETMGR_SM[rev_link]))
       {
         netmgr_kif_iface_close(rev_link, NULL, TRUE);
       }

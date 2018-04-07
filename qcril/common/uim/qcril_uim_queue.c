@@ -1,21 +1,8 @@
 
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved
-
-   Qualcomm Technologies Proprietary
-
-  Export of this technology or software is regulated by the U.S. Government.
-  Diversion contrary to U.S. law prohibited.
-
-  All ideas, data and information contained in or disclosed by
-  this document are confidential and proprietary information of
-  Qualcomm Technologies, Inc. and all rights therein are expressly reserved.
-  By accepting this material the recipient agrees that this material
-  and the information contained therein are held in confidence and in
-  trust and will not be used, copied, reproduced in whole or in part,
-  nor its contents revealed in any manner to others without the express
-  written permission of Qualcomm Technologies, Inc. 
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
+  Qualcomm Technologies Proprietary and Confidential.
 
 ===========================================================================*/
 
@@ -29,7 +16,16 @@ Notice that changes are listed in reverse chronological order.
 $Header: //linux/pkgs/proprietary/qc-ril/main/source/qcril_uim_queue.c#1 $
 
 when       who     what, where, why
---------   ---     ---------------------------------------------------------- 
+--------   ---     ----------------------------------------------------------
+12/01/14   hh      Support for get MCC and MNC
+11/12/14   at      QCRIL UIM SAP support
+08/20/14   at      Support for graceful UICC Voltage supply deactivation
+06/18/14   at      Support for SelectNext using reselect QMI command
+06/11/14   at      Support for open logical channel API
+05/14/14   yt      Support for STATUS command as part of SIM_IO request
+01/17/14   at      Changed the feature checks for RIL_REQUEST_SIM_GET_ATR
+12/11/13   at      Switch to new QCCI framework
+11/19/13   at      Changed the feature checks for streaming APDU APIs
 01/14/13   yt      Fix critical KW errors
 10/08/12   at      Support for ISIM Authentication API
 05/29/12   at      Reset the pending request count during SS Restart
@@ -63,29 +59,6 @@ when       who     what, where, why
 
 /*===========================================================================
 
-                           DEFINES
-
-===========================================================================*/
-#define QCRIL_UIM_FREE_IF_NOT_NULL(x)                     \
-            if (x != NULL)                                \
-            {                                             \
-              qcril_free(x);                              \
-              x = NULL;                                   \
-            }
-
-#define QCRIL_UIM_DUPLICATE(dest_ptr, src_ptr, src_size)  \
-            dest_ptr = NULL;                              \
-            if (src_ptr != NULL && src_size > 0)          \
-            {                                             \
-              dest_ptr = qcril_malloc(src_size);          \
-              if (dest_ptr != NULL)                       \
-              {                                           \
-                memcpy(dest_ptr, src_ptr, src_size);      \
-              }                                           \
-            }
-
-/*===========================================================================
-
                            GLOBALS
 
 ===========================================================================*/
@@ -111,7 +84,7 @@ static pthread_mutex_t                      qcril_uim_queue_mutex          = PTH
 static int qcril_uim_queue_add
 (
   qcril_uim_request_type                     request_type,
-  qmi_client_handle_type                     qmi_handle,
+  qmi_client_type                            qmi_handle,
   const void                               * param_data_ptr,
   qmi_uim_user_async_cb_type                 callback_function_ptr,
   const qcril_uim_original_request_type    * original_request_ptr
@@ -306,7 +279,7 @@ static int qcril_uim_queue_add
              param_data_ptr,
              sizeof(qmi_uim_power_down_params_type));
       break;
-    
+
     case QCRIL_UIM_REQUEST_CHANGE_PROV_SESSION:
       memcpy(&request_ptr->params.change_prov_session,
              param_data_ptr,
@@ -328,7 +301,21 @@ static int qcril_uim_queue_add
                           ((qmi_uim_authenticate_params_type*)param_data_ptr)->auth_data.data_len);
       break;
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+    case QCRIL_UIM_REQUEST_SAP_CONNECTION:
+      memcpy(&request_ptr->params.sap_connection,
+             param_data_ptr,
+             sizeof(qmi_uim_sap_connection_params_type));
+      break;
+
+    case QCRIL_UIM_REQUEST_SAP_REQUEST:
+      memcpy(&request_ptr->params.sap_request,
+             param_data_ptr,
+             sizeof(qmi_uim_sap_request_params_type));
+      QCRIL_UIM_DUPLICATE(request_ptr->params.sap_request.apdu.data_ptr,
+                          ((qmi_uim_sap_request_params_type*)param_data_ptr)->apdu.data_ptr,
+                          ((qmi_uim_sap_request_params_type*)param_data_ptr)->apdu.data_len);
+      break;
+
     case QCRIL_UIM_REQUEST_LOGICAL_CHANNEL:
       memcpy(&request_ptr->params.logical_channel,
              param_data_ptr,
@@ -341,6 +328,18 @@ static int qcril_uim_queue_add
       }
       break;
 
+    case QCRIL_UIM_REQUEST_OPEN_LOGICAL_CHANNEL:
+      memcpy(&request_ptr->params.open_logical_channel,
+             param_data_ptr,
+             sizeof(qmi_uim_open_logical_channel_params_type));
+      if (((qmi_uim_open_logical_channel_params_type*)param_data_ptr)->aid.data_ptr)
+      {
+        QCRIL_UIM_DUPLICATE(request_ptr->params.logical_channel.channel_data.aid.data_ptr,
+                            ((qmi_uim_open_logical_channel_params_type*)param_data_ptr)->aid.data_ptr,
+                            ((qmi_uim_open_logical_channel_params_type*)param_data_ptr)->aid.data_len);
+      }
+      break;
+
     case QCRIL_UIM_REQUEST_SEND_APDU:
       memcpy(&request_ptr->params.send_apdu,
              param_data_ptr,
@@ -349,15 +348,34 @@ static int qcril_uim_queue_add
                           ((qmi_uim_send_apdu_params_type*)param_data_ptr)->apdu.data_ptr,
                           ((qmi_uim_send_apdu_params_type*)param_data_ptr)->apdu.data_len);
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
     case QCRIL_UIM_REQUEST_GET_ATR:
       memcpy(&request_ptr->params.get_atr,
              param_data_ptr,
              sizeof(qmi_uim_get_atr_params_type));
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+
+    case QCRIL_UIM_REQUEST_SEND_STATUS:
+      memcpy(&request_ptr->params.send_status,
+             param_data_ptr,
+             sizeof(qmi_uim_status_cmd_params_type));
+      QCRIL_UIM_DUPLICATE(request_ptr->params.send_status.session_info.aid.data_ptr,
+                          ((qmi_uim_status_cmd_params_type*)param_data_ptr)->session_info.aid.data_ptr,
+                          ((qmi_uim_status_cmd_params_type*)param_data_ptr)->session_info.aid.data_len);
+      break;
+
+    case QCRIL_UIM_REQUEST_RESELECT:
+      memcpy(&request_ptr->params.reselect,
+             param_data_ptr,
+             sizeof(qmi_uim_reselect_params_type));
+      break;
+
+    case QCRIL_UIM_REQUEST_SUPPLY_VOLTAGE:
+      memcpy(&request_ptr->params.supply_voltage,
+             param_data_ptr,
+             sizeof(qmi_uim_supply_voltage_params_type));
+      break;
+
     default:
       /* This should never happen! */
       qcril_free(request_ptr);
@@ -403,7 +421,7 @@ static void qcril_uim_queue_remove_head
 )
 {
   qcril_uim_queue_request_entry_type * next_request_ptr = NULL;
-  
+
   if (qcril_uim_queue_head_ptr == NULL)
   {
     return;
@@ -411,7 +429,7 @@ static void qcril_uim_queue_remove_head
 
   /* Store the pointer to the next item */
   next_request_ptr = qcril_uim_queue_head_ptr->queue_next_ptr;
-  
+
   /* Free the request */
   switch(qcril_uim_queue_head_ptr->request_type)
   {
@@ -419,7 +437,7 @@ static void qcril_uim_queue_remove_head
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.read_transparent.session_info.aid.data_ptr);
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.read_transparent.file_id.path.data_ptr);
       break;
-      
+
     case QCRIL_UIM_REQUEST_READ_RECORD:
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.read_record.session_info.aid.data_ptr);
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.read_record.file_id.path.data_ptr);
@@ -481,10 +499,6 @@ static void qcril_uim_queue_remove_head
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.deperso.ck_data.data_ptr);
       break;
 
-    case QCRIL_UIM_REQUEST_POWER_UP:
-    case QCRIL_UIM_REQUEST_POWER_DOWN:
-      break;
-
     case QCRIL_UIM_REQUEST_CHANGE_PROV_SESSION:
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.change_prov_session.app_info.aid.data_ptr);
       break;
@@ -494,21 +508,34 @@ static void qcril_uim_queue_remove_head
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.authenticate.auth_data.data_ptr);
       break;
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+    case QCRIL_UIM_REQUEST_SAP_REQUEST:
+      QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.sap_request.apdu.data_ptr);
+      break;
+
     case QCRIL_UIM_REQUEST_LOGICAL_CHANNEL:
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.logical_channel.channel_data.aid.data_ptr);
+      break;
+
+    case QCRIL_UIM_REQUEST_OPEN_LOGICAL_CHANNEL:
+      QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.open_logical_channel.aid.data_ptr);
       break;
 
     case QCRIL_UIM_REQUEST_SEND_APDU:
       QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.send_apdu.apdu.data_ptr);
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
     case QCRIL_UIM_REQUEST_GET_ATR:
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
 
+    case QCRIL_UIM_REQUEST_SEND_STATUS:
+      QCRIL_UIM_FREE_IF_NOT_NULL(qcril_uim_queue_head_ptr->params.send_status.session_info.aid.data_ptr);
+      break;
+
+    case QCRIL_UIM_REQUEST_POWER_UP:
+    case QCRIL_UIM_REQUEST_POWER_DOWN:
+    case QCRIL_UIM_REQUEST_RESELECT:
+    case QCRIL_UIM_REQUEST_SUPPLY_VOLTAGE:
+    case QCRIL_UIM_REQUEST_SAP_CONNECTION:
     default:
       break;
   }
@@ -538,7 +565,7 @@ static void qcril_uim_queue_remove_head
 static int qcril_uim_queue_execute_request
 (
   qcril_uim_request_type                   request_type,
-  qmi_client_handle_type                   qmi_handle,
+  qmi_client_type                          qmi_handle,
   const void                             * param_data_ptr,
   qmi_uim_user_async_cb_type               callback_function_ptr,
   const qcril_uim_original_request_type  * original_request_ptr
@@ -688,13 +715,37 @@ static int qcril_uim_queue_execute_request
                                        NULL);
       break;
 
-#ifdef FEATURE_QCRIL_UIM_QMI_APDU_ACCESS
+    case QCRIL_UIM_REQUEST_SAP_CONNECTION:
+      ret = qcril_qmi_uim_sap_connection(qmi_handle,
+                                         (const qmi_uim_sap_connection_params_type*)param_data_ptr,
+                                         callback_function_ptr,
+                                         (void*)original_request_ptr,
+                                         NULL);
+      break;
+
+    case QCRIL_UIM_REQUEST_SAP_REQUEST:
+      ret = qcril_qmi_uim_sap_request(qmi_handle,
+                                      (const qmi_uim_sap_request_params_type*)param_data_ptr,
+                                      callback_function_ptr,
+                                      (void*)original_request_ptr,
+                                      NULL);
+      break;
+
     case QCRIL_UIM_REQUEST_LOGICAL_CHANNEL:
       ret = qcril_qmi_uim_logical_channel(qmi_handle,
                                          (const qmi_uim_logical_channel_params_type*)param_data_ptr,
                                          callback_function_ptr,
                                          (void*)original_request_ptr,
                                          NULL);
+      break;
+
+    case QCRIL_UIM_REQUEST_OPEN_LOGICAL_CHANNEL:
+      ret = qcril_qmi_uim_open_logical_channel(
+              qmi_handle,
+              (const qmi_uim_open_logical_channel_params_type*)param_data_ptr,
+              callback_function_ptr,
+              (void*)original_request_ptr,
+              NULL);
       break;
 
     case QCRIL_UIM_REQUEST_SEND_APDU:
@@ -704,9 +755,7 @@ static int qcril_uim_queue_execute_request
                                    (void*)original_request_ptr,
                                    NULL);
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_APDU_ACCESS */
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
     case QCRIL_UIM_REQUEST_GET_ATR:
       ret = qcril_qmi_uim_get_atr(qmi_handle,
                                   (const qmi_uim_get_atr_params_type*)param_data_ptr,
@@ -714,7 +763,31 @@ static int qcril_uim_queue_execute_request
                                   (void*)original_request_ptr,
                                   NULL);
       break;
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+
+    case QCRIL_UIM_REQUEST_SEND_STATUS:
+      ret = qcril_qmi_uim_send_status(qmi_handle,
+                                      (const qmi_uim_status_cmd_params_type*)param_data_ptr,
+                                      callback_function_ptr,
+                                      (void*)original_request_ptr,
+                                      NULL);
+      break;
+
+    case QCRIL_UIM_REQUEST_RESELECT:
+      ret = qcril_qmi_uim_reselect(qmi_handle,
+                                   (const qmi_uim_reselect_params_type*)param_data_ptr,
+                                   callback_function_ptr,
+                                   (void*)original_request_ptr,
+                                   NULL);
+      break;
+
+    case QCRIL_UIM_REQUEST_SUPPLY_VOLTAGE:
+      ret = qcril_qmi_uim_supply_voltage(qmi_handle,
+                                         (const qmi_uim_supply_voltage_params_type*)param_data_ptr,
+                                         callback_function_ptr,
+                                         (void*)original_request_ptr,
+                                         NULL);
+      break;
+
     default:
       ret = -1;
       break;
@@ -745,7 +818,7 @@ static int qcril_uim_queue_execute_request
 int qcril_uim_queue_send_request
 (
   qcril_uim_request_type                     request_type,
-  qmi_client_handle_type                     qmi_handle,
+  qmi_client_type                            qmi_handle,
   const void                               * param_data_ptr,
   qmi_uim_user_async_cb_type                 callback_function_ptr,
   const qcril_uim_original_request_type    * original_request_ptr
@@ -753,8 +826,8 @@ int qcril_uim_queue_send_request
 {
   int ret = -1;
 
-  if (param_data_ptr == NULL || 
-      original_request_ptr == NULL || 
+  if (param_data_ptr == NULL ||
+      original_request_ptr == NULL ||
       callback_function_ptr == NULL)
   {
     QCRIL_LOG_ERROR("%s", "NULL pointer");
@@ -840,7 +913,7 @@ void qcril_uim_queue_complete_request
     {
       qcril_uim_pending_qmi_requests--;
     }
-    
+
     QCRIL_LOG_INFO( "Remaining QMI commands: %d", qcril_uim_pending_qmi_requests);
 
     QCRIL_MUTEX_UNLOCK(&qcril_uim_queue_mutex, "qcril_uim_queue_mutex");
@@ -939,3 +1012,4 @@ void qcril_uim_queue_cleanup
 } /* qcril_uim_queue_cleanup */
 
 #endif /* defined (FEATURE_QCRIL_UIM_QMI) */
+

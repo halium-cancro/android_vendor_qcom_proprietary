@@ -13,10 +13,12 @@
   ---------------------------------------------------------------------------
 ******************************************************************************/
 
+#include "qcril_qmi_client.h"
 #include "qcril_qmi_imss.h"
 #include "ip_multimedia_subsystem_settings_v01.h"
 #include "qcril_reqlist.h"
-#include "qcril_qmi_client.h"
+#include "qcril_qmi_ims_socket.h"
+#include "qcril_qmi_ims_misc.h"
 
 //===========================================================================
 //                    INTERNAL DEFINITIONS AND TYPES
@@ -147,7 +149,7 @@ void qcril_qmi_imss_request_set_ims_registration
                                                                 sizeof(qmi_req),
                                                                 qmi_resp,
                                                                 sizeof(*qmi_resp),
-                                                                (void*)user_data );
+                                                                (void*)(uintptr_t)user_data );
             QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error );
 
             if (E_SUCCESS == qmi_client_error)
@@ -271,7 +273,7 @@ void qcril_qmi_imss_request_set_ims_srv_status
                                    QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_REQ_V01,
                                    &qmi_req, sizeof(qmi_req),
                                    qmi_resp, sizeof(*qmi_resp),
-                                   (void*)user_data );
+                                   (void*)(uintptr_t)user_data );
             QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error );
 
             if (E_SUCCESS == qmi_client_error)
@@ -347,7 +349,7 @@ void qcril_qmi_imss_request_query_vt_call_quality
                     0,
                     qmi_resp,
                     sizeof(*qmi_resp),
-                    (void*)user_data );
+                    (void*)(uintptr_t)user_data );
             QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error);
 
             if (E_SUCCESS == qmi_client_error)
@@ -449,7 +451,7 @@ void qcril_qmi_imss_request_set_vt_call_quality
                     sizeof(qmi_req),
                     qmi_resp,
                     sizeof(*qmi_resp),
-                    (void*)user_data );
+                    (void*)(uintptr_t)user_data );
             QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error );
 
             if (E_SUCCESS == qmi_client_error)
@@ -700,68 +702,62 @@ void qcril_qmi_imss_command_cb_helper
    qmi_resp_callback_type * qmi_resp_callback;
 
    QCRIL_LOG_FUNC_ENTRY();
+   QCRIL_NOTUSED(ret_ptr);
 
    qmi_resp_callback = (qmi_resp_callback_type *) params_ptr->data;
    if( qmi_resp_callback )
    {
       if (qmi_resp_callback->data_buf != NULL)
       {
-         if (qmi_resp_callback->cb_data != NULL)
+         user_data = ( uint32 )(uintptr_t) qmi_resp_callback->cb_data;
+         instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( user_data );
+         req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( user_data );
+
+         memset(&req_data, 0, sizeof(req_data));
+         req_data.modem_id = QCRIL_DEFAULT_MODEM_ID;
+         req_data.instance_id = instance_id;
+         req_data.datalen = qmi_resp_callback->data_buf_len;
+         req_data.data = qmi_resp_callback->data_buf;
+
+         /* Lookup the Token ID */
+         if ( qcril_reqlist_query_by_req_id( req_id, &instance_id, &req_info ) == E_SUCCESS )
          {
-            user_data = ( uint32 ) qmi_resp_callback->cb_data;
-            instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( user_data );
-            req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( user_data );
-
-            memset(&req_data, 0, sizeof(req_data));
-            req_data.modem_id = QCRIL_DEFAULT_MODEM_ID;
-            req_data.instance_id = instance_id;
-            req_data.datalen = qmi_resp_callback->data_buf_len;
-            req_data.data = qmi_resp_callback->data_buf;
-
-            /* Lookup the Token ID */
-            if ( qcril_reqlist_query_by_req_id( req_id, &instance_id, &req_info ) == E_SUCCESS )
+            if( qmi_resp_callback->transp_err != QMI_NO_ERR )
             {
-               if( qmi_resp_callback->transp_err != QMI_NO_ERR )
-               {
-                  QCRIL_LOG_INFO("Transp error (%d) recieved from QMI for RIL request %d", qmi_resp_callback->transp_err, req_info.request);
-                  /* Send GENERIC_FAILURE response */
-                  qcril_send_empty_payload_request_response( instance_id, req_info.t, req_info.request, RIL_E_GENERIC_FAILURE );
-               }
-               else
-               {
-                  req_data.t = req_info.t;
-                  req_data.event_id = req_info.request;
-                  switch(qmi_resp_callback->msg_id)
-                  {
-                  case QMI_IMS_SETTINGS_SET_REG_MGR_CONFIG_RSP_V01:
-                     qcril_qmi_imss_set_reg_mgr_config_resp_hdlr(&req_data);
-                     break;
-
-                  case QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_RSP_V01:
-                     qcril_qmi_imss_set_qipcall_config_resp_hdlr(&req_data);
-                     break;
-
-                  case QMI_IMS_SETTINGS_GET_QIPCALL_CONFIG_RSP_V01:
-                     qcril_qmi_imss_get_qipcall_config_resp_hdlr(&req_data);
-                     break;
-
-                  default:
-                     QCRIL_LOG_INFO("Unsupported QMI IMSS message %d", qmi_resp_callback->msg_id);
-                     break;
-                  }
-               }
+               QCRIL_LOG_INFO("Transp error (%d) recieved from QMI for RIL request %d", qmi_resp_callback->transp_err, req_info.request);
+               /* Send GENERIC_FAILURE response */
+               qcril_send_empty_payload_request_response( instance_id, req_info.t, req_info.request, RIL_E_GENERIC_FAILURE );
             }
             else
             {
-               QCRIL_LOG_ERROR( "Req ID: %d not found", req_id );
-            }
+               req_data.t = req_info.t;
+               req_data.event_id = req_info.request;
+               switch(qmi_resp_callback->msg_id)
+               {
+               case QMI_IMS_SETTINGS_SET_REG_MGR_CONFIG_RSP_V01:
+                  qcril_qmi_imss_set_reg_mgr_config_resp_hdlr(&req_data);
+                  break;
 
-            qcril_free( qmi_resp_callback->data_buf );
+               case QMI_IMS_SETTINGS_SET_QIPCALL_CONFIG_RSP_V01:
+                  qcril_qmi_imss_set_qipcall_config_resp_hdlr(&req_data);
+                  break;
+
+               case QMI_IMS_SETTINGS_GET_QIPCALL_CONFIG_RSP_V01:
+                  qcril_qmi_imss_get_qipcall_config_resp_hdlr(&req_data);
+                  break;
+
+               default:
+                  QCRIL_LOG_INFO("Unsupported QMI IMSS message %d", qmi_resp_callback->msg_id);
+                  break;
+               }
+            }
          }
          else
          {
-            QCRIL_LOG_ERROR("qmi_resp_callback->cb_data is NULL");
+            QCRIL_LOG_ERROR( "Req ID: %d not found", req_id );
          }
+
+         qcril_free( qmi_resp_callback->data_buf );
       }
       else
       {
@@ -777,10 +773,10 @@ void qcril_qmi_imss_command_cb_helper
 void qcril_qmi_imss_command_cb
 (
    qmi_client_type              user_handle,
-   unsigned long                msg_id,
-   void                         *resp_c_struct,
-   int                          resp_c_struct_len,
-   void                         *resp_cb_data,
+   unsigned int                 msg_id,
+   void                        *resp_c_struct,
+   unsigned int                 resp_c_struct_len,
+   void                        *resp_cb_data,
    qmi_client_error_type        transp_err
 )
 {

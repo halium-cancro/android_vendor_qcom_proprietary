@@ -5,20 +5,19 @@
 GENERAL DESCRIPTION
   This is the file which defines the cat service Data structures.
 
-  Copyright (c) 2009-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2009-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/cat/main/latest/src/card_application_toolkit_v02.c#24 $
+  $Header: //source/qcom/qct/interfaces/qmi/cat/main/latest/src/card_application_toolkit_v02.c#32 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2 
-   It requires encode/decode library version 5 or later
-   It was generated on: Thu Jun 27 2013 (Spin 1)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Fri Jul  4 2014 (Spin 0)
    From IDL File: card_application_toolkit_v02.idl */
 
 #include "stdint.h"
@@ -286,11 +285,11 @@ static const uint8_t cat_single_item_type_data_v02[] = {
 };
 
 static const uint8_t cat_items_type_data_v02[] = {
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN | QMI_IDL_AGGREGATE,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_items_type_v02, items),
   QMI_CAT_NUMBER_OF_ITEMS_MAX_V02,
   QMI_IDL_OFFSET8(cat_items_type_v02, items) - QMI_IDL_OFFSET8(cat_items_type_v02, items_len),
- 24, 0,
+  QMI_IDL_TYPE88(0, 24),
   QMI_IDL_FLAG_END_VALUE
 };
 
@@ -310,11 +309,11 @@ static const uint8_t cat_single_item_with_dcs_type_data_v02[] = {
 };
 
 static const uint8_t cat_items_with_dcs_type_data_v02[] = {
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN | QMI_IDL_AGGREGATE,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_items_with_dcs_type_v02, items),
   QMI_CAT_NUMBER_OF_ITEMS_MAX_V02,
   QMI_IDL_OFFSET8(cat_items_with_dcs_type_v02, items) - QMI_IDL_OFFSET8(cat_items_with_dcs_type_v02, items_len),
- 26, 0,
+  QMI_IDL_TYPE88(0, 26),
   QMI_IDL_FLAG_END_VALUE
 };
 
@@ -338,11 +337,11 @@ static const uint8_t cat_icon_id_list_type_data_v02[] = {
   QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(cat_icon_id_list_type_v02, display_icon_only),
 
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN | QMI_IDL_AGGREGATE,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_icon_id_list_type_v02, icon_list),
   QMI_CAT_NUMBER_OF_ICONS_MAX_V02,
   QMI_IDL_OFFSET8(cat_icon_id_list_type_v02, icon_list) - QMI_IDL_OFFSET8(cat_icon_id_list_type_v02, icon_list_len),
- 15, 0,
+  QMI_IDL_TYPE88(0, 15),
   QMI_IDL_FLAG_END_VALUE
 };
 
@@ -494,12 +493,12 @@ static const uint8_t cat_file_type_data_v02[] = {
 };
 
 static const uint8_t cat_prov_file_type_data_v02[] = {
-  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN | QMI_IDL_FLAGS_FIRST_EXTENDED |  QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_SZ_IS_32 ,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |QMI_IDL_FLAGS_FIRST_EXTENDED | QMI_IDL_AGGREGATE,
+  QMI_IDL_FLAGS_SZ_IS_32,
   QMI_IDL_OFFSET8(cat_prov_file_type_v02, file),
   ((QMI_CAT_NUMBER_OF_PROV_FILES_MAX_V02) & 0xFF), ((QMI_CAT_NUMBER_OF_PROV_FILES_MAX_V02) >> 8), 0, 0,
   QMI_IDL_OFFSET8(cat_prov_file_type_v02, file) - QMI_IDL_OFFSET8(cat_prov_file_type_v02, file_len),
- 47, 0,
+  QMI_IDL_TYPE88(0, 47),
   QMI_IDL_FLAG_END_VALUE
 };
 
@@ -1020,9 +1019,9 @@ static const uint8_t cat_tr_get_inkey_extra_info_type_data_v02[] = {
   QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(cat_tr_get_inkey_extra_info_type_v02, interval),
 
-   QMI_IDL_AGGREGATE,
+  QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_tr_get_inkey_extra_info_type_v02, get_inkey_text),
- 12, 0,
+  QMI_IDL_TYPE88(0, 12),
   QMI_IDL_FLAG_END_VALUE
 };
 
@@ -1166,9 +1165,9 @@ static const uint8_t cat_scws_data_available_type_data_v02[] = {
 };
 
 static const uint8_t cat_bip_status_type_data_v02[] = {
-   QMI_IDL_AGGREGATE,
+  QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_bip_status_type_v02, channel_id),
- 78, 0,
+  QMI_IDL_TYPE88(0, 78),
   QMI_IDL_GENERIC_4_BYTE,
   QMI_IDL_OFFSET8(cat_bip_status_type_v02, status),
 
@@ -1198,7 +1197,7 @@ static const uint8_t cat_reset_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_reset_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t cat_set_event_report_req_msg_data_v02[] = {
@@ -1227,7 +1226,7 @@ static const uint8_t cat_set_event_report_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_set_event_report_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_set_event_report_resp_msg_v02, pc_evt_report_req_err_mask) - QMI_IDL_OFFSET8(cat_set_event_report_resp_msg_v02, pc_evt_report_req_err_mask_valid)),
   0x10,
@@ -1250,609 +1249,609 @@ static const uint8_t cat_event_report_ind_msg_data_v02[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_event_report_ind_msg_v02, display_text),
-  0, 0,
+  QMI_IDL_TYPE88(0, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, get_inkey) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, get_inkey_valid)),
   0x11,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, get_inkey),
-  1, 0,
+  QMI_IDL_TYPE88(0, 1),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, get_input) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, get_input_valid)),
   0x12,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, get_input),
-  2, 0,
+  QMI_IDL_TYPE88(0, 2),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_menu) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_menu_valid)),
   0x13,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, setup_menu),
-  3, 0,
+  QMI_IDL_TYPE88(0, 3),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, select_item) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, select_item_valid)),
   0x14,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, select_item),
-  4, 0,
+  QMI_IDL_TYPE88(0, 4),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, pc_alpha_id_available) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, pc_alpha_id_available_valid)),
   0x15,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, pc_alpha_id_available),
-  5, 0,
+  QMI_IDL_TYPE88(0, 5),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, pc_setup_evt_list) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, pc_setup_evt_list_valid)),
   0x16,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, pc_setup_evt_list),
-  6, 0,
+  QMI_IDL_TYPE88(0, 6),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, idle_mode_text) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, idle_mode_text_valid)),
   0x17,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, idle_mode_text),
-  7, 0,
+  QMI_IDL_TYPE88(0, 7),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, lang_notification) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, lang_notification_valid)),
   0x18,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, lang_notification),
-  8, 0,
+  QMI_IDL_TYPE88(0, 8),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, refresh) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, refresh_valid)),
   0x19,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, refresh),
-  9, 0,
+  QMI_IDL_TYPE88(0, 9),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, proactive_session_end_type) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, proactive_session_end_type_valid)),
   0x1A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, proactive_session_end_type),
-  10, 0,
+  QMI_IDL_TYPE88(0, 10),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, decoded_header) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, decoded_header_valid)),
   0x1B,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, decoded_header),
-  11, 0,
+  QMI_IDL_TYPE88(0, 11),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, text_string) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, text_string_valid)),
   0x1C,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, text_string),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, high_priority) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, high_priority_valid)),
   0x1D,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, high_priority),
-  13, 0,
+  QMI_IDL_TYPE88(0, 13),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_control) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_control_valid)),
   0x1E,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, user_control),
-  14, 0,
+  QMI_IDL_TYPE88(0, 14),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, icon) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, icon_valid)),
   0x1F,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, icon),
-  15, 0,
+  QMI_IDL_TYPE88(0, 15),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, duration) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, duration_valid)),
   0x20,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, duration),
-  16, 0,
+  QMI_IDL_TYPE88(0, 16),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, response_format) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, response_format_valid)),
   0x21,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, response_format),
-  17, 0,
+  QMI_IDL_TYPE88(0, 17),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, help_available) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, help_available_valid)),
   0x22,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, help_available),
-  18, 0,
+  QMI_IDL_TYPE88(0, 18),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, response_packing_format) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, response_packing_format_valid)),
   0x23,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, response_packing_format),
-  19, 0,
+  QMI_IDL_TYPE88(0, 19),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, response_length) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, response_length_valid)),
   0x24,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, response_length),
-  20, 0,
+  QMI_IDL_TYPE88(0, 20),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, show_user_input) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, show_user_input_valid)),
   0x25,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, show_user_input),
-  21, 0,
+  QMI_IDL_TYPE88(0, 21),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, tone) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, tone_valid)),
   0x26,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, tone),
-  22, 0,
+  QMI_IDL_TYPE88(0, 22),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, softkey_selection) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, softkey_selection_valid)),
   0x27,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, softkey_selection),
-  23, 0,
+  QMI_IDL_TYPE88(0, 23),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, items) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, items_valid)),
   0x28,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, items),
-  25, 0,
+  QMI_IDL_TYPE88(0, 25),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, default_item) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, default_item_valid)),
   0x29,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, default_item),
-  28, 0,
+  QMI_IDL_TYPE88(0, 28),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, next_action_list) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, next_action_list_valid)),
   0x2A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, next_action_list),
-  29, 0,
+  QMI_IDL_TYPE88(0, 29),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, icon_id_list) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, icon_id_list_valid)),
   0x2B,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_event_report_ind_msg_v02, icon_id_list),
-  30, 0,
+  QMI_IDL_TYPE88(0, 30),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, presentation) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, presentation_valid)),
   0x2C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, presentation),
-  31, 0,
+  QMI_IDL_TYPE88(0, 31),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, packing_required) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, packing_required_valid)),
   0x2D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, packing_required),
-  32, 0,
+  QMI_IDL_TYPE88(0, 32),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, sms_tpdu) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, sms_tpdu_valid)),
   0x2E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, sms_tpdu),
-  33, 0,
+  QMI_IDL_TYPE88(0, 33),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, is_cdma_sms) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, is_cdma_sms_valid)),
   0x2F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, is_cdma_sms),
-  34, 0,
+  QMI_IDL_TYPE88(0, 34),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, address) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, address_valid)),
   0x30,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, address),
-  35, 0,
+  QMI_IDL_TYPE88(0, 35),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, call_setup_requirement) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, call_setup_requirement_valid)),
   0x31,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, call_setup_requirement),
-  36, 0,
+  QMI_IDL_TYPE88(0, 36),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, redial) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, redial_valid)),
   0x32,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, redial),
-  37, 0,
+  QMI_IDL_TYPE88(0, 37),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, subaddress) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, subaddress_valid)),
   0x33,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, subaddress),
-  38, 0,
+  QMI_IDL_TYPE88(0, 38),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, capability_config_data) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, capability_config_data_valid)),
   0x34,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, capability_config_data),
-  39, 0,
+  QMI_IDL_TYPE88(0, 39),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, dtmf_data) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, dtmf_data_valid)),
   0x35,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, dtmf_data),
-  40, 0,
+  QMI_IDL_TYPE88(0, 40),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, spec_lang_notify) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, spec_lang_notify_valid)),
   0x36,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, spec_lang_notify),
-  41, 0,
+  QMI_IDL_TYPE88(0, 41),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, language) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, language_valid)),
   0x37,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, language),
-  42, 0,
+  QMI_IDL_TYPE88(0, 42),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, launch_mode) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, launch_mode_valid)),
   0x38,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, launch_mode),
-  43, 0,
+  QMI_IDL_TYPE88(0, 43),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, url) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, url_valid)),
   0x39,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, url),
-  44, 0,
+  QMI_IDL_TYPE88(0, 44),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, browswer_id) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, browswer_id_valid)),
   0x3A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, browswer_id),
-  45, 0,
+  QMI_IDL_TYPE88(0, 45),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, bearer_list) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, bearer_list_valid)),
   0x3B,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, bearer_list),
-  46, 0,
+  QMI_IDL_TYPE88(0, 46),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, prov_files) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, prov_files_valid)),
   0x3C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, prov_files),
-  48, 0,
+  QMI_IDL_TYPE88(0, 48),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, ussd_string) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, ussd_string_valid)),
   0x3D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, ussd_string),
-  49, 0,
+  QMI_IDL_TYPE88(0, 49),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, default_text) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, default_text_valid)),
   0x3E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, default_text),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, immediate_resp) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, immediate_resp_valid)),
   0x3F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, immediate_resp),
-  50, 0,
+  QMI_IDL_TYPE88(0, 50),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_conf_alpha) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_conf_alpha_valid)),
   0x40,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, user_conf_alpha),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_call_disp_alpha) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_call_disp_alpha_valid)),
   0x41,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, setup_call_disp_alpha),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_conf_icon) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_conf_icon_valid)),
   0x42,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, user_conf_icon),
-  15, 0,
+  QMI_IDL_TYPE88(0, 15),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_call_disp_icon) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_call_disp_icon_valid)),
   0x43,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, setup_call_disp_icon),
-  15, 0,
+  QMI_IDL_TYPE88(0, 15),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, gateway_proxy) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, gateway_proxy_valid)),
   0x44,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, gateway_proxy),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, alpha) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, alpha_valid)),
   0x45,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, alpha),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, notification_required) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, notification_required_valid)),
   0x46,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, notification_required),
-  51, 0,
+  QMI_IDL_TYPE88(0, 51),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, play_tone) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, play_tone_valid)),
   0x47,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, play_tone),
-  52, 0,
+  QMI_IDL_TYPE88(0, 52),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_call) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_call_valid)),
   0x48,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, setup_call),
-  53, 0,
+  QMI_IDL_TYPE88(0, 53),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_dtmf) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_dtmf_valid)),
   0x49,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, send_dtmf),
-  54, 0,
+  QMI_IDL_TYPE88(0, 54),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, launch_browser) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, launch_browser_valid)),
   0x4A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, launch_browser),
-  55, 0,
+  QMI_IDL_TYPE88(0, 55),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_sms) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_sms_valid)),
   0x4B,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, send_sms),
-  56, 0,
+  QMI_IDL_TYPE88(0, 56),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_ss) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_ss_valid)),
   0x4C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, send_ss),
-  57, 0,
+  QMI_IDL_TYPE88(0, 57),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_ussd) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_ussd_valid)),
   0x4D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, send_ussd),
-  58, 0,
+  QMI_IDL_TYPE88(0, 58),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, provide_local_info) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, provide_local_info_valid)),
   0x4E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, provide_local_info),
-  59, 0,
+  QMI_IDL_TYPE88(0, 59),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_event_list_raw) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, setup_event_list_raw_valid)),
   0x4F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, setup_event_list_raw),
-  60, 0,
+  QMI_IDL_TYPE88(0, 60),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, slot) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, slot_valid)),
   0x50,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, slot),
-  61, 0,
+  QMI_IDL_TYPE88(0, 61),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, open_channel) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, open_channel_valid)),
   0x51,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, open_channel),
-  62, 0,
+  QMI_IDL_TYPE88(0, 62),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, close_channel) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, close_channel_valid)),
   0x52,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, close_channel),
-  63, 0,
+  QMI_IDL_TYPE88(0, 63),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_data) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_data_valid)),
   0x53,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, send_data),
-  64, 0,
+  QMI_IDL_TYPE88(0, 64),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, receive_data) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, receive_data_valid)),
   0x54,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, receive_data),
-  65, 0,
+  QMI_IDL_TYPE88(0, 65),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, on_demand_link) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, on_demand_link_valid)),
   0x55,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, on_demand_link),
-  66, 0,
+  QMI_IDL_TYPE88(0, 66),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, csd_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, csd_bearer_description_valid)),
   0x56,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, csd_bearer_description),
-  67, 0,
+  QMI_IDL_TYPE88(0, 67),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, gprs_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, gprs_bearer_description_valid)),
   0x57,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, gprs_bearer_description),
-  68, 0,
+  QMI_IDL_TYPE88(0, 68),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, eutran_ext_param_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, eutran_ext_param_bearer_description_valid)),
   0x58,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, eutran_ext_param_bearer_description),
-  69, 0,
+  QMI_IDL_TYPE88(0, 69),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, eutran_ext_mapped_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, eutran_ext_mapped_bearer_description_valid)),
   0x59,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, eutran_ext_mapped_bearer_description),
-  70, 0,
+  QMI_IDL_TYPE88(0, 70),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, buffer_size) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, buffer_size_valid)),
   0x5A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, buffer_size),
-  71, 0,
+  QMI_IDL_TYPE88(0, 71),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, network_access_name) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, network_access_name_valid)),
   0x5B,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, network_access_name),
-  72, 0,
+  QMI_IDL_TYPE88(0, 72),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, other_address) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, other_address_valid)),
   0x5C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, other_address),
-  73, 0,
+  QMI_IDL_TYPE88(0, 73),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_login) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_login_valid)),
   0x5D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, user_login),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_password) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, user_password_valid)),
   0x5E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, user_password),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, transport_level) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, transport_level_valid)),
   0x5F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, transport_level),
-  74, 0,
+  QMI_IDL_TYPE88(0, 74),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, data_destination_address) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, data_destination_address_valid)),
   0x60,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, data_destination_address),
-  73, 0,
+  QMI_IDL_TYPE88(0, 73),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, channel_data_length) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, channel_data_length_valid)),
   0x61,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, channel_data_length),
-  75, 0,
+  QMI_IDL_TYPE88(0, 75),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_data_immediately) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, send_data_immediately_valid)),
   0x62,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, send_data_immediately),
-  76, 0,
+  QMI_IDL_TYPE88(0, 76),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, channel_data) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, channel_data_valid)),
   0x63,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, channel_data),
-  77, 0,
+  QMI_IDL_TYPE88(0, 77),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, channel_id) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, channel_id_valid)),
   0x64,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, channel_id),
-  78, 0,
+  QMI_IDL_TYPE88(0, 78),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, items_with_dcs) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, items_with_dcs_valid)),
   0x65,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, items_with_dcs),
-  27, 0,
+  QMI_IDL_TYPE88(0, 27),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, activate) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, activate_valid)),
   0x66,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, activate),
-  79, 0,
+  QMI_IDL_TYPE88(0, 79),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, activate_target) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, activate_target_valid)),
   0x67,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, activate_target),
-  80, 0,
+  QMI_IDL_TYPE88(0, 80),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, rsp_type) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, rsp_type_valid)),
   0x68,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, rsp_type),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, bip_status) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, bip_status_valid)),
   0x69,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, bip_status),
-  105, 0,
+  QMI_IDL_TYPE88(0, 105),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, refresh_alpha) - QMI_IDL_OFFSET16RELATIVE(cat_event_report_ind_msg_v02, refresh_alpha_valid)),
   0x6A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_event_report_ind_msg_v02, refresh_alpha),
-  106, 0
+  QMI_IDL_TYPE88(0, 106)
 };
 
 /* 
@@ -1862,21 +1861,21 @@ static const uint8_t cat_event_report_ind_msg_data_v02[] = {
  */
   
 static const uint8_t cat_get_service_state_resp_msg_data_v02[] = {
-  0x01,
-   QMI_IDL_AGGREGATE,
-  QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, cat_service_state),
-  81, 0,
-
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
+
+  0x01,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, cat_service_state),
+  QMI_IDL_TYPE88(0, 81),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, decoded_cat_service_state) - QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, decoded_cat_service_state_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, decoded_cat_service_state),
-  82, 0,
+  QMI_IDL_TYPE88(0, 82),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, pc_full_func_evt_report_mask) - QMI_IDL_OFFSET8(cat_get_service_state_resp_msg_v02, pc_full_func_evt_report_mask_valid)),
   0x11,
@@ -1888,803 +1887,803 @@ static const uint8_t cat_send_tr_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_tr_req_msg_v02, terminal_response),
-  83, 0,
+  QMI_IDL_TYPE88(0, 83),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_tr_req_msg_v02, slot) - QMI_IDL_OFFSET16RELATIVE(cat_send_tr_req_msg_v02, slot_valid)),
   0x10,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_tr_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_send_tr_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_tr_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_tr_resp_msg_v02, tr_response_data) - QMI_IDL_OFFSET8(cat_send_tr_resp_msg_v02, tr_response_data_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_tr_resp_msg_v02, tr_response_data),
-  84, 0
+  QMI_IDL_TYPE88(0, 84)
 };
 
 static const uint8_t cat_send_envelope_cmd_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_envelope_cmd_req_msg_v02, envelope_cmd),
-  85, 0,
+  QMI_IDL_TYPE88(0, 85),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_envelope_cmd_req_msg_v02, slot) - QMI_IDL_OFFSET16RELATIVE(cat_send_envelope_cmd_req_msg_v02, slot_valid)),
   0x10,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_envelope_cmd_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_send_envelope_cmd_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_envelope_cmd_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_envelope_cmd_resp_msg_v02, env_resp_data) - QMI_IDL_OFFSET8(cat_send_envelope_cmd_resp_msg_v02, env_resp_data_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_envelope_cmd_resp_msg_v02, env_resp_data),
-  86, 0
+  QMI_IDL_TYPE88(0, 86)
 };
 
 static const uint8_t cat_get_event_report_req_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_event_report_req_msg_v02, proactive_command_input),
-  87, 0
+  QMI_IDL_TYPE88(0, 87)
 };
 
 static const uint8_t cat_get_event_report_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_event_report_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_get_event_report_resp_msg_v02, display_text) - QMI_IDL_OFFSET8(cat_get_event_report_resp_msg_v02, display_text_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_event_report_resp_msg_v02, display_text),
-  0, 0,
+  QMI_IDL_TYPE88(0, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, get_inkey) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, get_inkey_valid)),
   0x11,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, get_inkey),
-  1, 0,
+  QMI_IDL_TYPE88(0, 1),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, get_input) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, get_input_valid)),
   0x12,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, get_input),
-  2, 0,
+  QMI_IDL_TYPE88(0, 2),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_menu) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_menu_valid)),
   0x13,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, setup_menu),
-  3, 0,
+  QMI_IDL_TYPE88(0, 3),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, select_item) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, select_item_valid)),
   0x14,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, select_item),
-  4, 0,
+  QMI_IDL_TYPE88(0, 4),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, pc_alpha_id_available) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, pc_alpha_id_available_valid)),
   0x15,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, pc_alpha_id_available),
-  5, 0,
+  QMI_IDL_TYPE88(0, 5),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, pc_setup_evt_list) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, pc_setup_evt_list_valid)),
   0x16,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, pc_setup_evt_list),
-  6, 0,
+  QMI_IDL_TYPE88(0, 6),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, idle_mode_text) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, idle_mode_text_valid)),
   0x17,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, idle_mode_text),
-  7, 0,
+  QMI_IDL_TYPE88(0, 7),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, lang_notification) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, lang_notification_valid)),
   0x18,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, lang_notification),
-  8, 0,
+  QMI_IDL_TYPE88(0, 8),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, refresh) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, refresh_valid)),
   0x19,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, refresh),
-  9, 0,
+  QMI_IDL_TYPE88(0, 9),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, proactive_session_end_type) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, proactive_session_end_type_valid)),
   0x1A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, proactive_session_end_type),
-  10, 0,
+  QMI_IDL_TYPE88(0, 10),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, decoded_header) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, decoded_header_valid)),
   0x1B,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, decoded_header),
-  11, 0,
+  QMI_IDL_TYPE88(0, 11),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, text_string) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, text_string_valid)),
   0x1C,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, text_string),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, high_priority) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, high_priority_valid)),
   0x1D,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, high_priority),
-  13, 0,
+  QMI_IDL_TYPE88(0, 13),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_control) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_control_valid)),
   0x1E,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, user_control),
-  14, 0,
+  QMI_IDL_TYPE88(0, 14),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, icon) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, icon_valid)),
   0x1F,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, icon),
-  15, 0,
+  QMI_IDL_TYPE88(0, 15),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, duration) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, duration_valid)),
   0x20,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, duration),
-  16, 0,
+  QMI_IDL_TYPE88(0, 16),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, response_format) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, response_format_valid)),
   0x21,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, response_format),
-  17, 0,
+  QMI_IDL_TYPE88(0, 17),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, help_available) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, help_available_valid)),
   0x22,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, help_available),
-  18, 0,
+  QMI_IDL_TYPE88(0, 18),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, response_packing_format) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, response_packing_format_valid)),
   0x23,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, response_packing_format),
-  19, 0,
+  QMI_IDL_TYPE88(0, 19),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, response_length) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, response_length_valid)),
   0x24,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, response_length),
-  20, 0,
+  QMI_IDL_TYPE88(0, 20),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, show_user_input) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, show_user_input_valid)),
   0x25,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, show_user_input),
-  21, 0,
+  QMI_IDL_TYPE88(0, 21),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, tone) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, tone_valid)),
   0x26,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, tone),
-  22, 0,
+  QMI_IDL_TYPE88(0, 22),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, softkey_selection) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, softkey_selection_valid)),
   0x27,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, softkey_selection),
-  23, 0,
+  QMI_IDL_TYPE88(0, 23),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, items) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, items_valid)),
   0x28,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, items),
-  25, 0,
+  QMI_IDL_TYPE88(0, 25),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, default_item) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, default_item_valid)),
   0x29,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, default_item),
-  28, 0,
+  QMI_IDL_TYPE88(0, 28),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, next_action_list) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, next_action_list_valid)),
   0x2A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, next_action_list),
-  29, 0,
+  QMI_IDL_TYPE88(0, 29),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, icon_id_list) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, icon_id_list_valid)),
   0x2B,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_get_event_report_resp_msg_v02, icon_id_list),
-  30, 0,
+  QMI_IDL_TYPE88(0, 30),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, presentation) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, presentation_valid)),
   0x2C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, presentation),
-  31, 0,
+  QMI_IDL_TYPE88(0, 31),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, packing_required) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, packing_required_valid)),
   0x2D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, packing_required),
-  32, 0,
+  QMI_IDL_TYPE88(0, 32),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, sms_tpdu) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, sms_tpdu_valid)),
   0x2E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, sms_tpdu),
-  33, 0,
+  QMI_IDL_TYPE88(0, 33),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, is_cdma_sms) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, is_cdma_sms_valid)),
   0x2F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, is_cdma_sms),
-  34, 0,
+  QMI_IDL_TYPE88(0, 34),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, address) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, address_valid)),
   0x30,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, address),
-  35, 0,
+  QMI_IDL_TYPE88(0, 35),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, call_setup_requirement) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, call_setup_requirement_valid)),
   0x31,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, call_setup_requirement),
-  36, 0,
+  QMI_IDL_TYPE88(0, 36),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, redial) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, redial_valid)),
   0x32,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, redial),
-  37, 0,
+  QMI_IDL_TYPE88(0, 37),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, subaddress) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, subaddress_valid)),
   0x33,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, subaddress),
-  38, 0,
+  QMI_IDL_TYPE88(0, 38),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, capability_config_data) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, capability_config_data_valid)),
   0x34,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, capability_config_data),
-  39, 0,
+  QMI_IDL_TYPE88(0, 39),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, dtmf_data) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, dtmf_data_valid)),
   0x35,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, dtmf_data),
-  40, 0,
+  QMI_IDL_TYPE88(0, 40),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, spec_lang_notify) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, spec_lang_notify_valid)),
   0x36,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, spec_lang_notify),
-  41, 0,
+  QMI_IDL_TYPE88(0, 41),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, language) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, language_valid)),
   0x37,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, language),
-  42, 0,
+  QMI_IDL_TYPE88(0, 42),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, launch_mode) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, launch_mode_valid)),
   0x38,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, launch_mode),
-  43, 0,
+  QMI_IDL_TYPE88(0, 43),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, url) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, url_valid)),
   0x39,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, url),
-  44, 0,
+  QMI_IDL_TYPE88(0, 44),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, browswer_id) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, browswer_id_valid)),
   0x3A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, browswer_id),
-  45, 0,
+  QMI_IDL_TYPE88(0, 45),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, bearer_list) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, bearer_list_valid)),
   0x3B,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, bearer_list),
-  46, 0,
+  QMI_IDL_TYPE88(0, 46),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, prov_files) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, prov_files_valid)),
   0x3C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, prov_files),
-  48, 0,
+  QMI_IDL_TYPE88(0, 48),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, ussd_string) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, ussd_string_valid)),
   0x3D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, ussd_string),
-  49, 0,
+  QMI_IDL_TYPE88(0, 49),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, default_text) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, default_text_valid)),
   0x3E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, default_text),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, immediate_resp) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, immediate_resp_valid)),
   0x3F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, immediate_resp),
-  50, 0,
+  QMI_IDL_TYPE88(0, 50),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_conf_alpha) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_conf_alpha_valid)),
   0x40,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, user_conf_alpha),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_call_disp_alpha) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_call_disp_alpha_valid)),
   0x41,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, setup_call_disp_alpha),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_conf_icon) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_conf_icon_valid)),
   0x42,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, user_conf_icon),
-  15, 0,
+  QMI_IDL_TYPE88(0, 15),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_call_disp_icon) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_call_disp_icon_valid)),
   0x43,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, setup_call_disp_icon),
-  15, 0,
+  QMI_IDL_TYPE88(0, 15),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, gateway_proxy) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, gateway_proxy_valid)),
   0x44,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, gateway_proxy),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, alpha) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, alpha_valid)),
   0x45,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, alpha),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, notification_required) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, notification_required_valid)),
   0x46,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, notification_required),
-  51, 0,
+  QMI_IDL_TYPE88(0, 51),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, play_tone) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, play_tone_valid)),
   0x47,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, play_tone),
-  52, 0,
+  QMI_IDL_TYPE88(0, 52),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_call) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_call_valid)),
   0x48,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, setup_call),
-  53, 0,
+  QMI_IDL_TYPE88(0, 53),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_dtmf) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_dtmf_valid)),
   0x49,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, send_dtmf),
-  54, 0,
+  QMI_IDL_TYPE88(0, 54),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, launch_browser) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, launch_browser_valid)),
   0x4A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, launch_browser),
-  55, 0,
+  QMI_IDL_TYPE88(0, 55),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_sms) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_sms_valid)),
   0x4B,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, send_sms),
-  56, 0,
+  QMI_IDL_TYPE88(0, 56),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_ss) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_ss_valid)),
   0x4C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, send_ss),
-  57, 0,
+  QMI_IDL_TYPE88(0, 57),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_ussd) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_ussd_valid)),
   0x4D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, send_ussd),
-  58, 0,
+  QMI_IDL_TYPE88(0, 58),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, provide_local_info) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, provide_local_info_valid)),
   0x4E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, provide_local_info),
-  59, 0,
+  QMI_IDL_TYPE88(0, 59),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_event_list_raw) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, setup_event_list_raw_valid)),
   0x4F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, setup_event_list_raw),
-  60, 0,
+  QMI_IDL_TYPE88(0, 60),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, slot) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, slot_valid)),
   0x50,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, slot),
-  61, 0,
+  QMI_IDL_TYPE88(0, 61),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, open_channel) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, open_channel_valid)),
   0x51,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, open_channel),
-  62, 0,
+  QMI_IDL_TYPE88(0, 62),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, close_channel) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, close_channel_valid)),
   0x52,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, close_channel),
-  63, 0,
+  QMI_IDL_TYPE88(0, 63),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_data) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_data_valid)),
   0x53,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, send_data),
-  64, 0,
+  QMI_IDL_TYPE88(0, 64),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, receive_data) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, receive_data_valid)),
   0x54,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, receive_data),
-  65, 0,
+  QMI_IDL_TYPE88(0, 65),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, on_demand_link) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, on_demand_link_valid)),
   0x55,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, on_demand_link),
-  66, 0,
+  QMI_IDL_TYPE88(0, 66),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, csd_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, csd_bearer_description_valid)),
   0x56,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, csd_bearer_description),
-  67, 0,
+  QMI_IDL_TYPE88(0, 67),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, gprs_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, gprs_bearer_description_valid)),
   0x57,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, gprs_bearer_description),
-  68, 0,
+  QMI_IDL_TYPE88(0, 68),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, eutran_ext_param_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, eutran_ext_param_bearer_description_valid)),
   0x58,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, eutran_ext_param_bearer_description),
-  69, 0,
+  QMI_IDL_TYPE88(0, 69),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, eutran_ext_mapped_bearer_description) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, eutran_ext_mapped_bearer_description_valid)),
   0x59,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, eutran_ext_mapped_bearer_description),
-  70, 0,
+  QMI_IDL_TYPE88(0, 70),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, buffer_size) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, buffer_size_valid)),
   0x5A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, buffer_size),
-  71, 0,
+  QMI_IDL_TYPE88(0, 71),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, network_access_name) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, network_access_name_valid)),
   0x5B,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, network_access_name),
-  72, 0,
+  QMI_IDL_TYPE88(0, 72),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, other_address) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, other_address_valid)),
   0x5C,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, other_address),
-  73, 0,
+  QMI_IDL_TYPE88(0, 73),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_login) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_login_valid)),
   0x5D,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, user_login),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_password) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, user_password_valid)),
   0x5E,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, user_password),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, transport_level) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, transport_level_valid)),
   0x5F,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, transport_level),
-  74, 0,
+  QMI_IDL_TYPE88(0, 74),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, data_destination_address) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, data_destination_address_valid)),
   0x60,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, data_destination_address),
-  73, 0,
+  QMI_IDL_TYPE88(0, 73),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, channel_data_length) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, channel_data_length_valid)),
   0x61,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, channel_data_length),
-  75, 0,
+  QMI_IDL_TYPE88(0, 75),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_data_immediately) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, send_data_immediately_valid)),
   0x62,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, send_data_immediately),
-  76, 0,
+  QMI_IDL_TYPE88(0, 76),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, channel_data) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, channel_data_valid)),
   0x63,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, channel_data),
-  77, 0,
+  QMI_IDL_TYPE88(0, 77),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, channel_id) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, channel_id_valid)),
   0x64,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, channel_id),
-  78, 0,
+  QMI_IDL_TYPE88(0, 78),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, items_with_dcs) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, items_with_dcs_valid)),
   0x65,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, items_with_dcs),
-  27, 0,
+  QMI_IDL_TYPE88(0, 27),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, activate) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, activate_valid)),
   0x66,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, activate),
-  79, 0,
+  QMI_IDL_TYPE88(0, 79),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, activate_target) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, activate_target_valid)),
   0x67,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, activate_target),
-  80, 0,
+  QMI_IDL_TYPE88(0, 80),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, rsp_type) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, rsp_type_valid)),
   0x68,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_GENERIC_4_BYTE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, rsp_type),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, bip_status) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, bip_status_valid)),
   0x69,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, bip_status),
-  105, 0,
+  QMI_IDL_TYPE88(0, 105),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, refresh_alpha) - QMI_IDL_OFFSET16RELATIVE(cat_get_event_report_resp_msg_v02, refresh_alpha_valid)),
   0x6A,
   QMI_IDL_FLAGS_FIRST_EXTENDED |   QMI_IDL_AGGREGATE,
-  QMI_IDL_FLAGS_EXTENDED_OFFSET ,
+  QMI_IDL_FLAGS_EXTENDED_OFFSET,
   QMI_IDL_OFFSET32ARRAY(cat_get_event_report_resp_msg_v02, refresh_alpha),
-  106, 0
+  QMI_IDL_TYPE88(0, 106)
 };
 
 static const uint8_t cat_send_decoded_tr_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_tr_req_msg_v02, terminal_response),
-  88, 0,
+  QMI_IDL_TYPE88(0, 88),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_tr_req_msg_v02, text_string) - QMI_IDL_OFFSET8(cat_send_decoded_tr_req_msg_v02, text_string_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_tr_req_msg_v02, text_string),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, identifier) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, identifier_valid)),
   0x11,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_tr_req_msg_v02, identifier),
-  89, 0,
+  QMI_IDL_TYPE88(0, 89),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, get_inkey_extra_info) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, get_inkey_extra_info_valid)),
   0x12,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_tr_req_msg_v02, get_inkey_extra_info),
-  90, 0,
+  QMI_IDL_TYPE88(0, 90),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, language) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, language_valid)),
   0x13,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_tr_req_msg_v02, language),
-  42, 0,
+  QMI_IDL_TYPE88(0, 42),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, slot) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, slot_valid)),
   0x14,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_tr_req_msg_v02, slot),
-  61, 0,
+  QMI_IDL_TYPE88(0, 61),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, gst_inkey_yes_no_info) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_tr_req_msg_v02, gst_inkey_yes_no_info_valid)),
   0x15,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_tr_req_msg_v02, gst_inkey_yes_no_info),
-  91, 0
+  QMI_IDL_TYPE88(0, 91)
 };
 
 static const uint8_t cat_send_decoded_tr_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_tr_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_tr_resp_msg_v02, tr_response_data) - QMI_IDL_OFFSET8(cat_send_decoded_tr_resp_msg_v02, tr_response_data_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_tr_resp_msg_v02, tr_response_data),
-  84, 0
+  QMI_IDL_TYPE88(0, 84)
 };
 
 static const uint8_t cat_send_decoded_envelope_cmd_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, env_cmd_type),
-  92, 0,
+  QMI_IDL_TYPE88(0, 92),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, identifier) - QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, identifier_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, identifier),
-  93, 0,
+  QMI_IDL_TYPE88(0, 93),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, help_request) - QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, help_request_valid)),
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, help_request),
-  94, 0,
+  QMI_IDL_TYPE88(0, 94),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, language) - QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, language_valid)),
   0x12,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, language),
-  42, 0,
+  QMI_IDL_TYPE88(0, 42),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, slot) - QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, slot_valid)),
   0x13,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, slot),
-  61, 0,
+  QMI_IDL_TYPE88(0, 61),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, address) - QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, address_valid)),
   0x14,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_req_msg_v02, address),
-  35, 0,
+  QMI_IDL_TYPE88(0, 35),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, sub_address) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, sub_address_valid)),
   0x15,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, sub_address),
-  38, 0,
+  QMI_IDL_TYPE88(0, 38),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, capability_config_param1) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, capability_config_param1_valid)),
   0x16,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, capability_config_param1),
-  39, 0,
+  QMI_IDL_TYPE88(0, 39),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, capability_config_param2) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, capability_config_param2_valid)),
   0x17,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, capability_config_param2),
-  39, 0,
+  QMI_IDL_TYPE88(0, 39),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, ussd_string) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, ussd_string_valid)),
   0x18,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, ussd_string),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, pdp_context_act) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, pdp_context_act_valid)),
   0x19,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, pdp_context_act),
-  95, 0,
+  QMI_IDL_TYPE88(0, 95),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, eps_pdn_connect_act) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, eps_pdn_connect_act_valid)),
   0x1A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, eps_pdn_connect_act),
-  96, 0,
+  QMI_IDL_TYPE88(0, 96),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, browser_term_cause) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, browser_term_cause_valid)),
   0x1B,
@@ -2695,13 +2694,13 @@ static const uint8_t cat_send_decoded_envelope_cmd_req_msg_data_v02[] = {
   0x1C,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, sms_tpdu),
-  33, 0,
+  QMI_IDL_TYPE88(0, 33),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, is_cdma_sms) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, is_cdma_sms_valid)),
   0x1D,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, is_cdma_sms),
-  34, 0,
+  QMI_IDL_TYPE88(0, 34),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, rat) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, rat_valid)),
   0x1E,
@@ -2724,27 +2723,34 @@ static const uint8_t cat_send_decoded_envelope_cmd_req_msg_data_v02[] = {
   0x21,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, rp_dest_address),
-  35, 0,
+  QMI_IDL_TYPE88(0, 35),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, tp_dest_address) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, tp_dest_address_valid)),
   0x22,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, tp_dest_address),
-  35, 0,
+  QMI_IDL_TYPE88(0, 35),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause_valid)),
   0x23,
   QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, cause),
   QMI_CAT_CAUSE_MAX_LENGTH_V02,
-  QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause_len)
+  QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, cause_len),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, ims_request_uri) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, ims_request_uri_valid)),
+  0x24,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_req_msg_v02, ims_request_uri),
+  QMI_CAT_IMS_URI_MAX_LENGTH_V02,
+  QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, ims_request_uri) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_req_msg_v02, ims_request_uri_len)
 };
 
 static const uint8_t cat_send_decoded_envelope_cmd_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_resp_msg_v02, cc_result) - QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_resp_msg_v02, cc_result_valid)),
   0x10,
@@ -2755,49 +2761,49 @@ static const uint8_t cat_send_decoded_envelope_cmd_resp_msg_data_v02[] = {
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_send_decoded_envelope_cmd_resp_msg_v02, address),
-  35, 0,
+  QMI_IDL_TYPE88(0, 35),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, sub_address) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, sub_address_valid)),
   0x12,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, sub_address),
-  38, 0,
+  QMI_IDL_TYPE88(0, 38),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, capability_config_param1) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, capability_config_param1_valid)),
   0x13,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, capability_config_param1),
-  39, 0,
+  QMI_IDL_TYPE88(0, 39),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, capability_config_param2) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, capability_config_param2_valid)),
   0x14,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, capability_config_param2),
-  39, 0,
+  QMI_IDL_TYPE88(0, 39),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, ussd_string) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, ussd_string_valid)),
   0x15,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, ussd_string),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, pdp_context_act) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, pdp_context_act_valid)),
   0x16,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, pdp_context_act),
-  95, 0,
+  QMI_IDL_TYPE88(0, 95),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, eps_pdn_connect_act) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, eps_pdn_connect_act_valid)),
   0x17,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, eps_pdn_connect_act),
-  96, 0,
+  QMI_IDL_TYPE88(0, 96),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, alpha) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, alpha_valid)),
   0x18,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, alpha),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, bc_repeat_ind) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, bc_repeat_ind_valid)),
   0x19,
@@ -2815,13 +2821,20 @@ static const uint8_t cat_send_decoded_envelope_cmd_resp_msg_data_v02[] = {
   0x1B,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, rp_dest_address),
-  35, 0,
+  QMI_IDL_TYPE88(0, 35),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, tp_dest_address) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, tp_dest_address_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, tp_dest_address) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, tp_dest_address_valid)),
   0x1C,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, tp_dest_address),
-  35, 0
+  QMI_IDL_TYPE88(0, 35),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, ims_request_uri) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, ims_request_uri_valid)),
+  0x1D,
+  QMI_IDL_FLAGS_IS_ARRAY | QMI_IDL_FLAGS_IS_VARIABLE_LEN |  QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET16ARRAY(cat_send_decoded_envelope_cmd_resp_msg_v02, ims_request_uri),
+  QMI_CAT_IMS_URI_MAX_LENGTH_V02,
+  QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, ims_request_uri) - QMI_IDL_OFFSET16RELATIVE(cat_send_decoded_envelope_cmd_resp_msg_v02, ims_request_uri_len)
 };
 
 static const uint8_t cat_event_confirmation_req_msg_data_v02[] = {
@@ -2829,46 +2842,46 @@ static const uint8_t cat_event_confirmation_req_msg_data_v02[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_event_confirmation_req_msg_v02, confirm),
-  97, 0,
+  QMI_IDL_TYPE88(0, 97),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_event_confirmation_req_msg_v02, display) - QMI_IDL_OFFSET8(cat_event_confirmation_req_msg_v02, display_valid)),
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_event_confirmation_req_msg_v02, display),
-  98, 0,
+  QMI_IDL_TYPE88(0, 98),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_event_confirmation_req_msg_v02, slot) - QMI_IDL_OFFSET8(cat_event_confirmation_req_msg_v02, slot_valid)),
   0x12,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_event_confirmation_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_event_confirmation_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_event_confirmation_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t cat_scws_open_channel_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_open_channel_req_msg_v02, channel_status),
-  99, 0,
+  QMI_IDL_TYPE88(0, 99),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_scws_open_channel_req_msg_v02, slot) - QMI_IDL_OFFSET8(cat_scws_open_channel_req_msg_v02, slot_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_open_channel_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_scws_open_channel_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_open_channel_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t cat_scws_open_channel_ind_msg_data_v02[] = {
@@ -2876,39 +2889,39 @@ static const uint8_t cat_scws_open_channel_ind_msg_data_v02[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_open_channel_ind_msg_v02, open_channel_info),
-  100, 0,
+  QMI_IDL_TYPE88(0, 100),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_scws_open_channel_ind_msg_v02, slot) - QMI_IDL_OFFSET8(cat_scws_open_channel_ind_msg_v02, slot_valid)),
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_open_channel_ind_msg_v02, slot),
-  61, 0,
+  QMI_IDL_TYPE88(0, 61),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_scws_open_channel_ind_msg_v02, alpha) - QMI_IDL_OFFSET8(cat_scws_open_channel_ind_msg_v02, alpha_valid)),
   0x12,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_open_channel_ind_msg_v02, alpha),
-  12, 0
+  QMI_IDL_TYPE88(0, 12)
 };
 
 static const uint8_t cat_scws_close_channel_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_close_channel_req_msg_v02, channel_status),
-  99, 0,
+  QMI_IDL_TYPE88(0, 99),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_scws_close_channel_req_msg_v02, slot) - QMI_IDL_OFFSET8(cat_scws_close_channel_req_msg_v02, slot_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_close_channel_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_scws_close_channel_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_close_channel_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t cat_scws_close_channel_ind_msg_data_v02[] = {
@@ -2916,33 +2929,33 @@ static const uint8_t cat_scws_close_channel_ind_msg_data_v02[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_close_channel_ind_msg_v02, close_channel_info),
-  101, 0,
+  QMI_IDL_TYPE88(0, 101),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_scws_close_channel_ind_msg_v02, slot) - QMI_IDL_OFFSET8(cat_scws_close_channel_ind_msg_v02, slot_valid)),
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_close_channel_ind_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_scws_send_data_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_send_data_req_msg_v02, result),
-  102, 0,
+  QMI_IDL_TYPE88(0, 102),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_scws_send_data_req_msg_v02, slot) - QMI_IDL_OFFSET8(cat_scws_send_data_req_msg_v02, slot_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_send_data_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_scws_send_data_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_send_data_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t cat_scws_send_data_ind_msg_data_v02[] = {
@@ -2950,20 +2963,20 @@ static const uint8_t cat_scws_send_data_ind_msg_data_v02[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_send_data_ind_msg_v02, send_data_info),
-  103, 0,
+  QMI_IDL_TYPE88(0, 103),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_scws_send_data_ind_msg_v02, slot) - QMI_IDL_OFFSET16RELATIVE(cat_scws_send_data_ind_msg_v02, slot_valid)),
   0x11,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_scws_send_data_ind_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_scws_data_available_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_data_available_req_msg_v02, result),
-  104, 0,
+  QMI_IDL_TYPE88(0, 104),
 
   0x02,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_2_BYTE,
@@ -2973,34 +2986,34 @@ static const uint8_t cat_scws_data_available_req_msg_data_v02[] = {
   0x10,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(cat_scws_data_available_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_scws_data_available_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_data_available_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t cat_scws_channel_status_req_msg_data_v02[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_channel_status_req_msg_v02, channel_status),
-  99, 0,
+  QMI_IDL_TYPE88(0, 99),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_scws_channel_status_req_msg_v02, slot) - QMI_IDL_OFFSET8(cat_scws_channel_status_req_msg_v02, slot_valid)),
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_channel_status_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_scws_channel_status_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_scws_channel_status_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t cat_get_terminal_profile_req_msg_data_v02[] = {
@@ -3008,14 +3021,14 @@ static const uint8_t cat_get_terminal_profile_req_msg_data_v02[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_terminal_profile_req_msg_v02, slot),
-  61, 0
+  QMI_IDL_TYPE88(0, 61)
 };
 
 static const uint8_t cat_get_terminal_profile_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_terminal_profile_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_get_terminal_profile_resp_msg_v02, terminal_profile_data) - QMI_IDL_OFFSET8(cat_get_terminal_profile_resp_msg_v02, terminal_profile_data_valid)),
   0x10,
@@ -3042,7 +3055,7 @@ static const uint8_t cat_set_configuration_resp_msg_data_v02[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_set_configuration_resp_msg_v02, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 /* 
@@ -3055,7 +3068,7 @@ static const uint8_t cat_get_configuration_resp_msg_data_v02[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(cat_get_configuration_resp_msg_v02, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_get_configuration_resp_msg_v02, cat_config_mode) - QMI_IDL_OFFSET8(cat_get_configuration_resp_msg_v02, cat_config_mode_valid)),
   0x10,
@@ -3068,6 +3081,43 @@ static const uint8_t cat_get_configuration_resp_msg_data_v02[] = {
   QMI_IDL_OFFSET8(cat_get_configuration_resp_msg_v02, custom_tp),
   QMI_CAT_TERMINAL_PROFILE_MAX_LENGTH_V02,
   QMI_IDL_OFFSET8(cat_get_configuration_resp_msg_v02, custom_tp) - QMI_IDL_OFFSET8(cat_get_configuration_resp_msg_v02, custom_tp_len)
+};
+
+static const uint8_t cat_get_cached_proactive_cmd_req_msg_data_v02[] = {
+  0x01,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_req_msg_v02, command_id),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_req_msg_v02, slot) - QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_req_msg_v02, slot_valid)),
+  0x10,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_req_msg_v02, slot),
+  QMI_IDL_TYPE88(0, 61)
+};
+
+static const uint8_t cat_get_cached_proactive_cmd_resp_msg_data_v02[] = {
+  0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_resp_msg_v02, resp),
+  QMI_IDL_TYPE88(1, 0),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_resp_msg_v02, setup_menu) - QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_resp_msg_v02, setup_menu_valid)),
+  0x10,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(cat_get_cached_proactive_cmd_resp_msg_v02, setup_menu),
+  QMI_IDL_TYPE88(0, 3),
+
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_cached_proactive_cmd_resp_msg_v02, setup_event_list_raw) - QMI_IDL_OFFSET16RELATIVE(cat_get_cached_proactive_cmd_resp_msg_v02, setup_event_list_raw_valid)),
+  0x11,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET16ARRAY(cat_get_cached_proactive_cmd_resp_msg_v02, setup_event_list_raw),
+  QMI_IDL_TYPE88(0, 60),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(cat_get_cached_proactive_cmd_resp_msg_v02, idle_mode_text) - QMI_IDL_OFFSET16RELATIVE(cat_get_cached_proactive_cmd_resp_msg_v02, idle_mode_text_valid)),
+  0x12,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET16ARRAY(cat_get_cached_proactive_cmd_resp_msg_v02, idle_mode_text),
+  QMI_IDL_TYPE88(0, 7)
 };
 
 /* Type Table */
@@ -3183,12 +3233,12 @@ static const qmi_idl_type_table_entry  cat_type_table_v02[] = {
 
 /* Message Table */
 static const qmi_idl_message_table_entry cat_message_table_v02[] = {
-  {0, 0},
+  {sizeof(cat_reset_req_msg_v02), 0},
   {sizeof(cat_reset_resp_msg_v02), cat_reset_resp_msg_data_v02},
   {sizeof(cat_set_event_report_req_msg_v02), cat_set_event_report_req_msg_data_v02},
   {sizeof(cat_set_event_report_resp_msg_v02), cat_set_event_report_resp_msg_data_v02},
   {sizeof(cat_event_report_ind_msg_v02), cat_event_report_ind_msg_data_v02},
-  {0, 0},
+  {sizeof(cat_get_service_state_req_msg_v02), 0},
   {sizeof(cat_get_service_state_resp_msg_v02), cat_get_service_state_resp_msg_data_v02},
   {sizeof(cat_send_tr_req_msg_v02), cat_send_tr_req_msg_data_v02},
   {sizeof(cat_send_tr_resp_msg_v02), cat_send_tr_resp_msg_data_v02},
@@ -3219,9 +3269,14 @@ static const qmi_idl_message_table_entry cat_message_table_v02[] = {
   {sizeof(cat_get_terminal_profile_resp_msg_v02), cat_get_terminal_profile_resp_msg_data_v02},
   {sizeof(cat_set_configuration_req_msg_v02), cat_set_configuration_req_msg_data_v02},
   {sizeof(cat_set_configuration_resp_msg_v02), cat_set_configuration_resp_msg_data_v02},
-  {0, 0},
-  {sizeof(cat_get_configuration_resp_msg_v02), cat_get_configuration_resp_msg_data_v02}
+  {sizeof(cat_get_configuration_req_msg_v02), 0},
+  {sizeof(cat_get_configuration_resp_msg_v02), cat_get_configuration_resp_msg_data_v02},
+  {sizeof(cat_get_cached_proactive_cmd_req_msg_v02), cat_get_cached_proactive_cmd_req_msg_data_v02},
+  {sizeof(cat_get_cached_proactive_cmd_resp_msg_v02), cat_get_cached_proactive_cmd_resp_msg_data_v02}
 };
+
+/* Range Table */
+/* No Ranges Defined in IDL */
 
 /* Predefine the Type Table Object */
 static const qmi_idl_type_table_object cat_qmi_idl_type_table_object_v02;
@@ -3237,7 +3292,8 @@ static const qmi_idl_type_table_object cat_qmi_idl_type_table_object_v02 = {
   1,
   cat_type_table_v02,
   cat_message_table_v02,
-  cat_qmi_idl_type_table_object_referenced_tables_v02
+  cat_qmi_idl_type_table_object_referenced_tables_v02,
+  NULL
 };
 
 /*Arrays of service_message_table_entries for commands, responses and indications*/
@@ -3251,7 +3307,7 @@ static const qmi_idl_service_message_table_entry cat_service_command_messages_v0
   {QMI_CAT_SEND_ENVELOPE_CMD_REQ_V02, QMI_IDL_TYPE16(0, 9), 269},
   {QMI_CAT_GET_EVENT_REPORT_REQ_V02, QMI_IDL_TYPE16(0, 11), 8},
   {QMI_CAT_SEND_DECODED_TR_REQ_V02, QMI_IDL_TYPE16(0, 13), 562},
-  {QMI_CAT_SEND_DECODED_ENVELOPE_CMD_REQ_V02, QMI_IDL_TYPE16(0, 15), 2536},
+  {QMI_CAT_SEND_DECODED_ENVELOPE_CMD_REQ_V02, QMI_IDL_TYPE16(0, 15), 2786},
   {QMI_CAT_EVENT_CONFIRMATION_REQ_V02, QMI_IDL_TYPE16(0, 17), 12},
   {QMI_CAT_SCWS_OPEN_CHANNEL_REQ_V02, QMI_IDL_TYPE16(0, 19), 12},
   {QMI_CAT_SCWS_CLOSE_CHANNEL_REQ_V02, QMI_IDL_TYPE16(0, 22), 12},
@@ -3260,7 +3316,8 @@ static const qmi_idl_service_message_table_entry cat_service_command_messages_v0
   {QMI_CAT_SCWS_CHANNEL_STATUS_REQ_V02, QMI_IDL_TYPE16(0, 30), 12},
   {QMI_CAT_GET_TERMINAL_PROFILE_REQ_V02, QMI_IDL_TYPE16(0, 32), 4},
   {QMI_CAT_SET_CONFIGURATION_REQ_V02, QMI_IDL_TYPE16(0, 34), 88},
-  {QMI_CAT_GET_CONFIGURATION_REQ_V02, QMI_IDL_TYPE16(0, 36), 0}
+  {QMI_CAT_GET_CONFIGURATION_REQ_V02, QMI_IDL_TYPE16(0, 36), 0},
+  {QMI_CAT_GET_CACHED_PROACTIVE_CMD_REQ_V02, QMI_IDL_TYPE16(0, 38), 11}
 };
 
 static const qmi_idl_service_message_table_entry cat_service_response_messages_v02[] = {
@@ -3273,7 +3330,7 @@ static const qmi_idl_service_message_table_entry cat_service_response_messages_v
   {QMI_CAT_SEND_EVENLOPE_CMD_RESP_V02, QMI_IDL_TYPE16(0, 10), 268},
   {QMI_CAT_GET_EVENT_REPORT_RESP_V02, QMI_IDL_TYPE16(0, 12), 65535},
   {QMI_CAT_SEND_DECODED_TR_RESP_V02, QMI_IDL_TYPE16(0, 14), 268},
-  {QMI_CAT_SEND_DECODED_ENVELOPE_CMD_RESP_V02, QMI_IDL_TYPE16(0, 16), 2345},
+  {QMI_CAT_SEND_DECODED_ENVELOPE_CMD_RESP_V02, QMI_IDL_TYPE16(0, 16), 2595},
   {QMI_CAT_EVENT_CONFIRMATION_RESP_V02, QMI_IDL_TYPE16(0, 18), 7},
   {QMI_CAT_SCWS_OPEN_CHANNEL_RESP_V02, QMI_IDL_TYPE16(0, 20), 7},
   {QMI_CAT_SCWS_CLOSE_CHANNEL_RESP_V02, QMI_IDL_TYPE16(0, 23), 7},
@@ -3282,7 +3339,8 @@ static const qmi_idl_service_message_table_entry cat_service_response_messages_v
   {QMI_CAT_SCWS_CHANNEL_STATUS_RESP_V02, QMI_IDL_TYPE16(0, 31), 7},
   {QMI_CAT_GET_TERMINAL_PROFILE_RESP_V02, QMI_IDL_TYPE16(0, 33), 91},
   {QMI_CAT_SET_CONFIGURATION_RESP_V02, QMI_IDL_TYPE16(0, 35), 7},
-  {QMI_CAT_GET_CONFIGURATION_RESP_V02, QMI_IDL_TYPE16(0, 37), 95}
+  {QMI_CAT_GET_CONFIGURATION_RESP_V02, QMI_IDL_TYPE16(0, 37), 95},
+  {QMI_CAT_GET_CACHED_PROACTIVE_CMD_RESP_V02, QMI_IDL_TYPE16(0, 39), 808}
 };
 
 static const qmi_idl_service_message_table_entry cat_service_indication_messages_v02[] = {
@@ -3294,7 +3352,7 @@ static const qmi_idl_service_message_table_entry cat_service_indication_messages
 
 /*Service Object*/
 struct qmi_idl_service_object cat_qmi_idl_service_object_v02 = {
-  0x05,
+  0x06,
   0x02,
   0x0A,
   65535,
@@ -3303,7 +3361,7 @@ struct qmi_idl_service_object cat_qmi_idl_service_object_v02 = {
     sizeof(cat_service_indication_messages_v02)/sizeof(qmi_idl_service_message_table_entry) },
   { cat_service_command_messages_v02, cat_service_response_messages_v02, cat_service_indication_messages_v02},
   &cat_qmi_idl_type_table_object_v02,
-  0x17,
+  0x1A,
   NULL
 };
 

@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010-2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -629,6 +629,10 @@ const char *netmgr_util_get_ipsec_algo_str
       {
         algo_str = "\'hmac(sha1)\'";
       }
+      else if (QMI_WDS_IPSEC_ALGO_MD5 == algo)
+      {
+        algo_str = "\'hmac(md5)\'";
+      }
       break;
 
     case NETMGR_IPSEC_ALGO_CRYPTO:
@@ -636,6 +640,14 @@ const char *netmgr_util_get_ipsec_algo_str
           || QMI_WDS_IPSEC_ALGO_AES256 == algo)
       {
         algo_str = "\'cbc(aes)\'";
+      }
+      else if (QMI_WDS_IPSEC_ALGO_DES == algo)
+      {
+        algo_str = "\'cbc(des)\'";
+      }
+      else if (QMI_WDS_IPSEC_ALGO_3DES == algo)
+      {
+        algo_str = "\'cbc(des3_ede)\'";
       }
       break;
 

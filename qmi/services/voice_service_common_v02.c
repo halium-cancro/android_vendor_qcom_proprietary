@@ -10,14 +10,14 @@ GENERAL DESCRIPTION
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/voice/main/latest/src/voice_service_common_v02.c#2 $
+  $Header: //source/qcom/qct/interfaces/qmi/voice/main/latest/src/voice_service_common_v02.c#4 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7 
-   It was generated on: Wed Feb 12 2014 (Spin 0)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Wed Jul 16 2014 (Spin 0)
    From IDL File: voice_service_common_v02.idl */
 
 #include "stdint.h"

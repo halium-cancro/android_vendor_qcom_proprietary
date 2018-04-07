@@ -99,7 +99,8 @@ size_t qcril_qmi_ims_pack_msg(const void *msg, Ims__MsgType type, Ims__MsgId mes
         }
         else
         {
-            if (IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE == message_id && IMS__MSG_TYPE__RESPONSE == type)
+            if (IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE == message_id && IMS__MSG_TYPE__RESPONSE == type ||
+                IMS__MSG_ID__UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED == message_id && IMS__MSG_TYPE__UNSOL_RESPONSE == type)
             {
                 ret = qcril_qmi_ims__registration__get_packed_size((Ims__Registration*)msg);
 
@@ -184,7 +185,8 @@ size_t qcril_qmi_ims_pack_msg(const void *msg, Ims__MsgType type, Ims__MsgId mes
                     }
                 }
             }
-            else if (IMS__MSG_ID__REQUEST_GET_CURRENT_CALLS == message_id && IMS__MSG_TYPE__RESPONSE == type)
+            else if ( (IMS__MSG_ID__REQUEST_GET_CURRENT_CALLS == message_id && IMS__MSG_TYPE__RESPONSE == type) ||
+                      (IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED == message_id && IMS__MSG_TYPE__UNSOL_RESPONSE == type) )
             {
                 ret = qcril_qmi_ims__call_list__get_packed_size((Ims__CallList*)msg);
 
@@ -324,6 +326,24 @@ size_t qcril_qmi_ims_pack_msg(const void *msg, Ims__MsgType type, Ims__MsgId mes
                 {
                     if (qcril_qmi_ims__clip_provision_status__pack(\
                       (Ims__ClipProvisionStatus*)msg, buf) != ret)
+                    {
+                        QCRIL_LOG_ERROR("get_packed_size is different from pack size");
+                    }
+                }
+            }
+            else if (IMS__MSG_ID__REQUEST_GET_COLR == message_id &&
+                     IMS__MSG_TYPE__RESPONSE == type)
+            {
+                ret = qcril_qmi_ims__colr__get_packed_size((Ims__Colr*)msg);
+
+                if (max_buf_size < ret)
+                {
+                    QCRIL_LOG_ERROR("buf_size < size");
+                    ret = 0;
+                }
+                else
+                {
+                    if (qcril_qmi_ims__colr__pack((Ims__Colr*)msg, buf) != ret)
                     {
                         QCRIL_LOG_ERROR("get_packed_size is different from pack size");
                     }
@@ -480,6 +500,23 @@ size_t qcril_qmi_ims_pack_msg(const void *msg, Ims__MsgType type, Ims__MsgId mes
                 else
                 {
                     if (qcril_qmi_ims__tty_notify__pack((Ims__TtyNotify*)msg, buf) != ret)
+                    {
+                        QCRIL_LOG_ERROR("get_packed_size is different from pack size");
+                    }
+                }
+            }
+            else if (IMS__MSG_ID__UNSOL_MWI == message_id && IMS__MSG_TYPE__UNSOL_RESPONSE == type)
+            {
+                ret = qcril_qmi_ims__mwi__get_packed_size((Ims__Mwi*)msg);
+
+                if (max_buf_size < ret)
+                {
+                    QCRIL_LOG_ERROR("buf_size < size");
+                    return 0;
+                }
+                else
+                {
+                    if (qcril_qmi_ims__mwi__pack((Ims__Mwi*)msg, buf) != ret)
                     {
                         QCRIL_LOG_ERROR("get_packed_size is different from pack size");
                     }
@@ -684,6 +721,10 @@ void qcril_qmi_ims_parse_packed_msg(Ims__MsgType type, Ims__MsgId message_id, co
             *unpacked_msg_size_ptr = sizeof(Ims__Dial);
             *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_ADD_PARTICIPANT;
         }
+        else if (IMS__MSG_ID__REQUEST_QUERY_SERVICE_STATUS == message_id && IMS__MSG_TYPE__REQUEST == type)
+        {
+            *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_QUERY_SERVICE_STATUS;
+        }
         else if (IMS__MSG_ID__REQUEST_SET_SERVICE_STATUS == message_id && IMS__MSG_TYPE__REQUEST == type)
         {
             Ims__Info *msg_info_ptr = NULL;
@@ -691,10 +732,6 @@ void qcril_qmi_ims_parse_packed_msg(Ims__MsgType type, Ims__MsgId message_id, co
             *unpacked_msg = (void*)msg_info_ptr;
             *unpacked_msg_size_ptr = sizeof(Ims__Info);
             *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_SET_SERVICE_STATUS;
-        }
-        else if (IMS__MSG_ID__REQUEST_QUERY_SERVICE_STATUS == message_id && IMS__MSG_TYPE__REQUEST == type)
-        {
-            *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_QUERY_SERVICE_STATUS;
         }
         else if (IMS__MSG_ID__REQUEST_SUPP_SVC_STATUS == message_id &&
                  IMS__MSG_TYPE__REQUEST == type)
@@ -715,6 +752,18 @@ void qcril_qmi_ims_parse_packed_msg(Ims__MsgType type, Ims__MsgId message_id, co
             *unpacked_msg_size_ptr = sizeof(Ims__DeflectCall);
             *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_CALL_DEFLECTION;
         }
+        else if (IMS__MSG_ID__REQUEST_GET_COLR == message_id && IMS__MSG_TYPE__REQUEST == type)
+        {
+            *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_GET_COLR;
+        }
+        else if (IMS__MSG_ID__REQUEST_SET_COLR == message_id && IMS__MSG_TYPE__REQUEST == type)
+        {
+            Ims__Colr *msg_colr_ptr = NULL;
+            msg_colr_ptr = qcril_qmi_ims__colr__unpack(NULL, packed_msg_size, packed_msg);
+            *unpacked_msg = (void*)msg_colr_ptr;
+            *unpacked_msg_size_ptr = sizeof(Ims__Colr);
+            *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_SET_COLR;
+        }
         else if (IMS__MSG_ID__REQUEST_QUERY_VT_CALL_QUALITY == message_id &&
                  IMS__MSG_TYPE__REQUEST == type)
         {
@@ -729,6 +778,33 @@ void qcril_qmi_ims_parse_packed_msg(Ims__MsgType type, Ims__MsgId message_id, co
             *unpacked_msg = (void*)msg_vcq_ptr;
             *unpacked_msg_size_ptr = sizeof(Ims__VideoCallQuality);
             *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_SET_VT_CALL_QUALITY;
+        }
+        else if (IMS__MSG_ID__REQUEST_HOLD == message_id
+                 && IMS__MSG_TYPE__REQUEST == type)
+        {
+            Ims__Hold *msg_hold_ptr = NULL;
+            msg_hold_ptr = qcril_qmi_ims__hold__unpack (NULL, packed_msg_size, packed_msg);
+            *unpacked_msg = (void*)msg_hold_ptr;
+            *unpacked_msg_size_ptr = sizeof(Ims__Hold);
+            *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_HOLD;
+            QCRIL_LOG_ERROR("In packing: has_callid:%d",msg_hold_ptr->has_callid);
+        }
+        else if (IMS__MSG_ID__REQUEST_RESUME == message_id
+                 && IMS__MSG_TYPE__REQUEST == type)
+        {
+            Ims__Resume *msg_resume_ptr = NULL;
+            msg_resume_ptr = qcril_qmi_ims__resume__unpack (NULL, packed_msg_size, packed_msg);
+            *unpacked_msg = (void*)msg_resume_ptr;
+            *unpacked_msg_size_ptr = sizeof(Ims__Resume);
+            *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_RESUME;
+        }
+        else if (IMS__MSG_ID__REQUEST_SEND_UI_TTY_MODE == message_id && IMS__MSG_TYPE__REQUEST == type)
+        {
+            Ims__TtyNotify *msg_tty_notify_ptr = NULL;
+            msg_tty_notify_ptr = qcril_qmi_ims__tty_notify__unpack(NULL, packed_msg_size, packed_msg);
+            *unpacked_msg = (void*)msg_tty_notify_ptr;
+            *unpacked_msg_size_ptr = sizeof(Ims__TtyNotify);
+            *event_ptr = QCRIL_EVT_IMS_SOCKET_REQ_SET_TTY_MODE;
         }
         else
         {

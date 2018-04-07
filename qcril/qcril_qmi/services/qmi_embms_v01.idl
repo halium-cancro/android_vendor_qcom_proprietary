@@ -29,11 +29,17 @@ const SAI_PER_FREQ_MAX = 64;
 const FREQ_MAX = 9;
 const SAI_MAX = 576; //64*9
 const LOG_PACKET_ID_MAX = 256;
-const LOG_PACKET_SIZE_MAX = 512;
+const LOG_PACKET_SIZE_MAX = 2048;
+const CONTENT_PARAM_NUM_MAX = 64;
 
 struct {
     uint8 tmgi<TMGI_LENGTH_MAX>;
-}embms_tmgi_type;
+} embms_tmgi_type;
+
+struct {
+    int32 paramCode;
+    int32 paramValue;
+} embms_content_desc_type;
 
 //Enumeration for the radio state
 enum {
@@ -41,6 +47,10 @@ enum {
   RADIO_STATE_NOT_AVAILABLE = 0x01
 } radio_state_enum;
 
+enum {
+  EMBMS_E911_MODE_INACTIVE = 0x0,
+  EMBMS_E911_MODE_ACTIVE = 0x1
+} embms_e911_mode;
 //============================================================================
 /** @COMMAND QMI_EMBMS_ENABLE_EMBMS_REQ
     @BRIEF   Enables EMBMS
@@ -714,9 +724,103 @@ message {
 This command is to get UTC time.
 */
 
+//============================================================================
+/** @COMMAND QMI_EMBMS_GET_E911_STATE_REQ
+    @BRIEF   Find whether there's active e911 calls
+*/
+//============================================================================
+
+//! @MSG     QMI_EMBMS_GET_E911_STATE_REQ
+//! @TYPE    Request
+//! @SENDER  Control point
+//----------------------------------------------------------------------------
+message {
+    mandatory int32 dbg_trace_id;
+} embms_get_e911_state_req_msg;
+
+//! @MSG     QMI_EMBMS_GET_E911_STATE_RESP
+//! @TYPE    Response
+//! @SENDER  Service
+//----------------------------------------------------------------------------
+message {
+    mandatory int32  dbg_trace_id;
+    mandatory int32 resp_code;
+    optional  embms_e911_mode e911_state;
+} embms_get_e911_state_resp_msg;
+/** @DESCRIPTION
+This command is to get the E911 state
+*/
+
+//============================================================================
+/** @COMMAND QMI_EMBMS_UNSOL_E911_STATE_IND
+    @BRIEF   Indicates a change of e911 state
+*/
+//============================================================================
+
+//! @MSG     QMI_EMBMS_UNSOL_E911_STATE_IND
+//! @TYPE    Indication
+//! @SENDER  Service
+//! @SCOPE   Unicast (per control point)
+//----------------------------------------------------------------------------
+message {
+    mandatory int32  dbg_trace_id;
+    mandatory embms_e911_mode e911_state;
+} embms_unsol_e911_state_ind_msg;
+/** @DESCRIPTION
+This command is to indicate a change in e911 state.
+*/
+
+//============================================================================
+/** @COMMAND QMI_EMBMS_UPDATE_CONTENT_DESC_REQ
+    @BRIEF   Update the content description
+*/
+//============================================================================
+
+//! @MSG     QMI_EMBMS_UPDATE_CONTENT_DESC_REQ
+//! @TYPE    Request
+//! @SENDER  Control point
+//----------------------------------------------------------------------------
+message {
+    mandatory int32 dbg_trace_id;
+    mandatory uint8 call_id;
+    mandatory embms_tmgi_type tmgi_info;
+    optional  embms_content_desc_type content_desc<CONTENT_PARAM_NUM_MAX>;
+} embms_update_content_desc_req_msg;
+
+//! @MSG     QMI_EMBMS_UPDATE_CONTENT_DESC_RESP
+//! @TYPE    Response
+//! @SENDER  Service
+//----------------------------------------------------------------------------
+message {
+    mandatory int32 dbg_trace_id;
+    mandatory int32 resp_code;
+} embms_update_content_desc_resp_msg;
+/** @DESCRIPTION
+This command is to update the content description
+*/
+
+//============================================================================
+/** @COMMAND QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND
+    @BRIEF   Indicates a change in content description
+*/
+//============================================================================
+
+//! @MSG     QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND
+//! @TYPE    Indication
+//! @SENDER  Service
+//! @SCOPE   Unicast (per control point)
+//----------------------------------------------------------------------------
+message {
+    mandatory int32 dbg_trace_id;
+    mandatory embms_tmgi_type tmgi_info;
+    optional  int32 per_object_content_ctrl;
+    optional  int32 per_object_status_ctrl;
+} embms_unsol_content_desc_update_per_obj_ind_msg;
+/** @DESCRIPTION
+This command is to indicate a change in content description
+*/
+
 //------------------------------------------------------------------------------------
-
-
 
 service embms{
     // 0x0000
@@ -844,5 +948,22 @@ service embms{
     embms_get_utc_time_req_msg  QMI_EMBMS_GET_UTC_TIME_REQ,
     embms_get_utc_time_resp_msg QMI_EMBMS_GET_UTC_TIME_RESP;
 
+    // 0x001B
+    //! @ID QMI_EMBMS_GET_E911_STATE_REQ
+    embms_get_e911_state_req_msg  QMI_EMBMS_GET_E911_STATE_REQ,
+    embms_get_e911_state_resp_msg QMI_EMBMS_GET_E911_STATE_RESP;
+
+    // 0x001C
+    //! @ID QMI_EMBMS_UNSOL_E911_STATE_IND
+    embms_unsol_e911_state_ind_msg QMI_EMBMS_E911_STATE_IND;
+
+    // 0x001D
+    //! @ID QMI_EMBMS_UPDATE_CONTENT_DESC_REQ
+    embms_update_content_desc_req_msg  QMI_EMBMS_UPDATE_CONTENT_DESC_REQ,
+    embms_update_content_desc_resp_msg QMI_EMBMS_UPDATE_CONTENT_DESC_RESP;
+
+    // 0x001E
+    //! @ID QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND
+    embms_unsol_content_desc_update_per_obj_ind_msg QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND;
 } = 0x0002;
 

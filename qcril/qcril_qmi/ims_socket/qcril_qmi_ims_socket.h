@@ -39,6 +39,7 @@ extern "C" {
 #include "qcril_qmi_nas.h"
 
 #define QCRIL_QMI_IMS_SOCKET_MAX_BUF_SIZE (1024*8)
+#define QCRIL_QMI_IMS_SOCKET_MAX_THREAD_NAME_SIZE 50
 
 void qcril_qmi_ims_socket_init();
 void qcril_qmi_ims_socket_send(RIL_Token token, Ims__MsgType type, Ims__MsgId message_id, Ims__Error error, const void* msg, int msg_len);

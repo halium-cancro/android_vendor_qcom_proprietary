@@ -37,14 +37,14 @@
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/voice/main/latest/api/voice_service_common_v02.h#2 $
+  $Header: //source/qcom/qct/interfaces/qmi/voice/main/latest/api/voice_service_common_v02.h#4 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7 
-   It was generated on: Wed Feb 12 2014 (Spin 0)
+/* This file was generated with Tool version 6.10 
+   It was generated on: Wed Jul 16 2014 (Spin 0)
    From IDL File: voice_service_common_v02.idl */
 
 /** @defgroup voice_service_common_qmi_consts Constant values defined in the IDL */
@@ -69,7 +69,7 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define VOICE_SERVICE_COMMON_V02_IDL_MAJOR_VERS 0x02
 /** Revision Number of the IDL used to generate this file */
-#define VOICE_SERVICE_COMMON_V02_IDL_MINOR_VERS 0x01
+#define VOICE_SERVICE_COMMON_V02_IDL_MINOR_VERS 0x03
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define VOICE_SERVICE_COMMON_V02_IDL_TOOL_VERS 0x06
 
@@ -350,6 +350,50 @@ typedef enum {
   CALL_END_CAUSE_MERGED_TO_CONFERENCE_V02 = 0x147, 
   CALL_END_CAUSE_LOW_BATTERY_V02 = 0x148, 
   CALL_END_CAUSE_CALL_DEFLECTED_V02 = 0x149, 
+  CALL_END_CAUSE_RTP_RTCP_TIMEOUT_V02 = 0x14A, 
+  CALL_END_CAUSE_RINGING_RINGBACK_TIMEOUT_V02 = 0x14B, 
+  CALL_END_CAUSE_REG_RESTORATION_V02 = 0x14C, 
+  CALL_END_CAUSE_CODEC_ERROR_V02 = 0x14D, 
+  CALL_END_CAUSE_UNSUPPORTED_SDP_V02 = 0x14E, 
+  CALL_END_CAUSE_RTP_FAILURE_V02 = 0x14F, 
+  CALL_END_CAUSE_QoS_FAILURE_V02 = 0x150, 
+  CALL_END_CAUSE_MULTIPLE_CHOICES_V02 = 0x151, 
+  CALL_END_CAUSE_MOVED_PERMANENTLY_V02 = 0x152, 
+  CALL_END_CAUSE_MOVED_TEMPORARILY_V02 = 0x153, 
+  CALL_END_CAUSE_USE_PROXY_V02 = 0x154, 
+  CALL_END_CAUSE_ALTERNATE_SERVICE_V02 = 0x155, 
+  CALL_END_CAUSE_ALTERNATE_EMERGENCY_CALL_V02 = 0x156, 
+  CALL_END_CAUSE_UNAUTHORIZED_V02 = 0x157, 
+  CALL_END_CAUSE_PAYMENT_REQUIRED_V02 = 0x158, 
+  CALL_END_CAUSE_METHOD_NOT_ALLOWED_V02 = 0x159, 
+  CALL_END_CAUSE_NOT_ACCEPTABLE_V02 = 0x15A, 
+  CALL_END_CAUSE_PROXY_AUTHENTICATION_REQUIRED_V02 = 0x15B, 
+  CALL_END_CAUSE_GONE_V02 = 0x15C, 
+  CALL_END_CAUSE_REQUEST_ENTITY_TOO_LARGE_V02 = 0x15D, 
+  CALL_END_CAUSE_REQUEST_URI_TOO_LARGE_V02 = 0x15E, 
+  CALL_END_CAUSE_UNSUPPORTED_URI_SCHEME_V02 = 0x15F, 
+  CALL_END_CAUSE_BAD_EXTENSION_V02 = 0x160, 
+  CALL_END_CAUSE_EXTENSION_REQUIRED_V02 = 0x161, 
+  CALL_END_CAUSE_INTERVAL_TOO_BRIEF_V02 = 0x162, 
+  CALL_END_CAUSE_CALL_OR_TRANS_DOES_NOT_EXIST_V02 = 0x163, 
+  CALL_END_CAUSE_LOOP_DETECTED_V02 = 0x164, 
+  CALL_END_CAUSE_TOO_MANY_HOPS_V02 = 0x165, 
+  CALL_END_CAUSE_ADDRESS_INCOMPLETE_V02 = 0x166, 
+  CALL_END_CAUSE_AMBIGUOUS_V02 = 0x167, 
+  CALL_END_CAUSE_REQUEST_TERMINATED_V02 = 0x168, 
+  CALL_END_CAUSE_NOT_ACCEPTABLE_HERE_V02 = 0x169, 
+  CALL_END_CAUSE_REQUEST_PENDING_V02 = 0x16A, 
+  CALL_END_CAUSE_UNDECIPHERABLE_V02 = 0x16B, 
+  CALL_END_CAUSE_SERVER_INTERNAL_ERROR_V02 = 0x16C, 
+  CALL_END_CAUSE_NOT_IMPLEMENTED_V02 = 0x16D, 
+  CALL_END_CAUSE_BAD_GATEWAY_V02 = 0x16E, 
+  CALL_END_CAUSE_SERVER_TIME_OUT_V02 = 0x16F, 
+  CALL_END_CAUSE_VERSION_NOT_SUPPORTED_V02 = 0x170, 
+  CALL_END_CAUSE_MESSAGE_TOO_LARGE_V02 = 0x171, 
+  CALL_END_CAUSE_DOES_NOT_EXIST_ANYWHERE_V02 = 0x172, 
+  CALL_END_CAUSE_SESS_DESCR_NOT_ACCEPTABLE_V02 = 0x173, 
+  CALL_END_CAUSE_SRVCC_END_CALL_V02 = 0x174, 
+  CALL_END_CAUSE_INTERNAL_ERROR_V02 = 0x175, 
   CALL_END_REASON_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }call_end_reason_enum_v02;
 /**
@@ -376,6 +420,21 @@ typedef struct {
 /**
     @}
   */
+
+/** @addtogroup voice_service_common_qmi_enums
+    @{
+  */
+typedef enum {
+  ALERTING_TYPE_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  ALERTING_LOCAL_V02 = 0x00, 
+  ALERTING_REMOTE_V02 = 0x01, 
+  ALERTING_TYPE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}alerting_type_enum_v02;
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
 
 /*Extern Definition of Type Table Object*/
 /*THIS IS AN INTERNAL OBJECT AND SHOULD ONLY*/

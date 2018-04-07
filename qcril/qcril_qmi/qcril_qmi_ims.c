@@ -435,10 +435,10 @@ void qcril_qmi_ims_vt_end_call_resp_hdlr
 void qcril_qmi_ims_vt_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 msg_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
@@ -450,10 +450,10 @@ void qcril_qmi_ims_vt_command_cb
   qcril_request_resp_params_type resp;
   qcril_request_params_type req_data;
   /*-----------------------------------------------------------------------*/
-  QCRIL_ASSERT( resp_cb_data != NULL );
   QCRIL_ASSERT( resp_c_struct != NULL );
+  QCRIL_NOTUSED(user_handle);
 
-  user_data = ( uint32 ) resp_cb_data;
+  user_data = ( uint32 )(uintptr_t) resp_cb_data;
   instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( user_data );
   modem_id = QCRIL_EXTRACT_MODEM_ID_FROM_USER_DATA( user_data );
   req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( user_data );
@@ -525,10 +525,10 @@ void qcril_qmi_ims_vt_command_cb
 void qcril_qmi_ims_vt_unsol_ind_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 )
 {
   uint32_t decoded_payload_len = 0;
@@ -663,7 +663,7 @@ void qcril_qmi_ims_vt_dial_call
                                            sizeof(ims_vt_dial_call_req_v01),
                                            dial_call_resp,
                                            sizeof(ims_vt_dial_call_resp_v01),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
          {
            err = QMI_SERVICE_ERR_GENERAL;
          }
@@ -774,7 +774,7 @@ void qcril_qmi_ims_vt_answer_call
                                           sizeof(ims_vt_answer_call_req_v01),
                                           answer_call_resp,
                                           sizeof(ims_vt_answer_call_resp_v01),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
         {
            err = QMI_SERVICE_ERR_GENERAL;
         }
@@ -881,7 +881,7 @@ void qcril_qmi_ims_vt_end_call
                                           sizeof(ims_vt_end_call_req_v01),
                                           end_call_resp,
                                           sizeof(ims_vt_end_call_resp_v01),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
 
         {
            err = QMI_SERVICE_ERR_GENERAL;
@@ -1803,6 +1803,7 @@ void qcril_qmi_ims_presence_publish_ind_hdlr
 
   memset( &publish_resp, 0, sizeof(publish_resp) );
 
+  QCRIL_NOTUSED(ind_data_len);
   if( ind_data_ptr != NULL )
   {
      publish_ind = (imsp_send_publish_ind_v01*)ind_data_ptr;
@@ -1888,6 +1889,7 @@ void qcril_qmi_ims_presence_publish_xml_ind_hdlr
 
   memset( &publish_xml_resp, 0, sizeof(publish_xml_resp) );
 
+  QCRIL_NOTUSED(ind_data_len);
   if( ind_data_ptr != NULL )
   {
      publish_xml_ind = (imsp_send_publish_xml_ind_v01*)ind_data_ptr;
@@ -1972,6 +1974,7 @@ void qcril_qmi_ims_presence_unpublish_ind_hdlr
 
   memset( &unpublish_resp, 0, sizeof(unpublish_resp) );
 
+  QCRIL_NOTUSED(ind_data_len);
   if( ind_data_ptr != NULL )
   {
      unpublish_ind = (imsp_send_unpublish_ind_v01*)ind_data_ptr;
@@ -2055,6 +2058,7 @@ void qcril_qmi_ims_presence_subscribe_ind_hdlr
 
   memset( &subscribe_resp, 0, sizeof(subscribe_resp) );
 
+  QCRIL_NOTUSED(ind_data_len);
   if( ind_data_ptr != NULL )
   {
      subscribe_ind = (imsp_send_subscribe_ind_v01*)ind_data_ptr;
@@ -2139,6 +2143,7 @@ void qcril_qmi_ims_presence_subscribe_xml_ind_hdlr
 
   memset( &subscribe_xml_resp, 0, sizeof(subscribe_xml_resp) );
 
+  QCRIL_NOTUSED(ind_data_len);
   if( ind_data_ptr != NULL )
   {
      subscribe_xml_ind = (imsp_send_subscribe_xml_ind_v01*)ind_data_ptr;
@@ -2224,6 +2229,7 @@ void qcril_qmi_ims_presence_unsubscribe_ind_hdlr
 
   memset( &unsubscribe_resp, 0, sizeof(unsubscribe_resp) );
 
+  QCRIL_NOTUSED(ind_data_len);
   if( ind_data_ptr != NULL )
   {
      unsubscribe_ind = (imsp_send_unsubscribe_ind_v01*)ind_data_ptr;
@@ -2296,10 +2302,10 @@ void qcril_qmi_ims_presence_unsubscribe_ind_hdlr
 void qcril_qmi_ims_presence_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 msg_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
@@ -2313,9 +2319,8 @@ void qcril_qmi_ims_presence_command_cb
   /*-----------------------------------------------------------------------*/
   user_handle = user_handle;
 
-  QCRIL_ASSERT( resp_cb_data != NULL );
   QCRIL_ASSERT( resp_c_struct != NULL );
-  user_data = ( uint32 ) resp_cb_data;
+  user_data = ( uint32 )(uintptr_t) resp_cb_data;
   instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( user_data );
   modem_id = QCRIL_EXTRACT_MODEM_ID_FROM_USER_DATA( user_data );
   req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( user_data );
@@ -2423,10 +2428,10 @@ void qcril_qmi_ims_presence_command_cb
 void qcril_qmi_ims_presence_unsol_ind_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 )
 {
   uint32_t decoded_payload_len = 0;
@@ -2592,7 +2597,7 @@ void qcril_qmi_ims_presence_enabler_state_req
                                        0,
                                        enabler_state_resp,
                                        sizeof(*enabler_state_resp),
-                                       (void*)user_data) != E_SUCCESS )
+                                       (void*)(uintptr_t)user_data) != E_SUCCESS )
      {
         err = QMI_SERVICE_ERR_GENERAL;
      }
@@ -2695,7 +2700,7 @@ void qcril_qmi_ims_presence_send_publish_req
                                            sizeof( *send_publish_req ),
                                            send_publish_resp,
                                            sizeof( *send_publish_resp ),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
          {
             err = QMI_SERVICE_ERR_GENERAL;
          }
@@ -2797,7 +2802,7 @@ void qcril_qmi_ims_presence_send_publish_xml_req
                                            sizeof( *send_publish_req ),
                                            send_publish_resp,
                                            sizeof( *send_publish_resp ),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
          {
             err = QMI_SERVICE_ERR_GENERAL;
          }
@@ -2903,7 +2908,7 @@ void qcril_qmi_ims_presence_send_unpublish_req
                                        sizeof( *unpublish_req ),
                                        unpublish_resp,
                                        sizeof( *unpublish_resp ),
-                                       (void*)user_data) != E_SUCCESS )
+                                       (void*)(uintptr_t)user_data) != E_SUCCESS )
      {
         err = QMI_SERVICE_ERR_GENERAL;
      }
@@ -3015,7 +3020,7 @@ void qcril_qmi_ims_presence_send_subscribe_req
                                            sizeof( *send_subscribe_req ),
                                            send_subscribe_resp,
                                            sizeof( *send_subscribe_resp ),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
         {
            err = QMI_SERVICE_ERR_GENERAL;
         }
@@ -3119,7 +3124,7 @@ void qcril_qmi_ims_presence_send_subscribe_xml_req
                                            sizeof( *send_subscribe_req ),
                                            send_subscribe_resp,
                                            sizeof( *send_subscribe_resp ),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
         {
            err = QMI_SERVICE_ERR_GENERAL;
         }
@@ -3220,7 +3225,7 @@ void qcril_qmi_ims_presence_send_unsubscribe_req
                                            sizeof( *unsubscribe_req ),
                                            unsubscribe_resp,
                                            sizeof( *unsubscribe_resp ),
-                                           (void*)user_data);
+                                           (void*)(uintptr_t)user_data);
       }
       else
       {
@@ -3318,7 +3323,7 @@ void qcril_qmi_ims_presence_set_notify_fmt_req
                                            sizeof( *notify_fmt_req ),
                                            notify_fmt_resp,
                                            sizeof( *notify_fmt_resp ),
-                                           (void*)user_data);
+                                           (void*)(uintptr_t)user_data);
       }
       else
       {
@@ -3404,7 +3409,7 @@ void qcril_qmi_ims_presence_get_notify_fmt_req
                                            0,
                                            notify_fmt_resp,
                                            sizeof( *notify_fmt_resp ),
-                                           (void*)user_data);
+                                           (void*)(uintptr_t)user_data);
       }
       else
       {
@@ -3499,7 +3504,7 @@ void qcril_qmi_ims_presence_set_event_report_req
                                            sizeof( *event_report_req ),
                                            event_report_resp,
                                            sizeof( *event_report_resp ),
-                                           (void*)user_data);
+                                           (void*)(uintptr_t)user_data);
       }
       else
       {
@@ -3584,7 +3589,7 @@ void qcril_qmi_ims_presence_get_event_report_req
                                            0,
                                            event_report_resp,
                                            sizeof( *event_report_resp ),
-                                           (void*)user_data);
+                                           (void*)(uintptr_t)user_data);
       }
       else
       {

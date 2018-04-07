@@ -41,10 +41,8 @@
 #include "qcril_cmi.h"
 #include "qcril_pbm.h"
 #include "qcril_qmi_nas.h"
-#ifndef QMI_RIL_UTF
 #include "qcril_qmi_ims_socket.h"
 #include "qcril_qmi_ims_misc.h"
-#endif
 #include "qcril_qmi_pil_monitor.h"
 #include "qcril_am.h"
 
@@ -123,8 +121,6 @@ dtmf_digits: 64 bytes */
 
 #define QCRIL_QMI_VOICE_CFW_RESPONSE_BUF_SZ   7
 
-#define MAX_DEC_INT_STR  10
-
 #define QCRIL_QMI_VOICE_SPEECH_CODEC_BACKLOG            10
 #define QCRIL_QMI_VOICE_SPEECH_CODEC_PORT               "5001"
 #define QCRIL_QMI_VOICE_SPEECH_CODEC_BUFFER_MAX_SIZE    16
@@ -179,7 +175,11 @@ static int feature_subaddress_support_amp = 1;
 
 static int reject_cause_21_supported = FALSE;
 
+static int feature_subaddress_ia5_id_support = 0;
+
 static int feature_redir_party_num_support = 1;
+
+static int dtmf_rtp_event_interval = 85;
 
 static void qcril_qmi_voice_request_set_supp_svc
 (
@@ -244,22 +244,21 @@ static qcril_req_handler_type * supp_srv_status_query_handler_table\
 static qcril_qmi_voice_facility_e_type
   qcril_ims_to_ril_facility_lookup_table[IMS__SUPP_SVC_FACILITY_TYPE__MAX + 1];
 
+/* Enum consisting of constants to determine
+   when the conference is established.
+   Fixed Enum do-not add any items.
+*/
+typedef enum {
+  QCRIL_QMI_IMS_VOICE_CONF_NO_CONF     = 0x00, /*used when there is no conference*/
+  QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS = 0x0F, /*used when conference is in progress*/
+  QCRIL_QMI_IMS_VOICE_CONF_ESTABLISHED = 0xFF /*used when conference is established*/
+}qcril_qmi_ims_voice_conf_state;
+
 /*===========================================================================
 
                                 FUNCTIONS
 
 ===========================================================================*/
-void qcril_qmi_voice_send_hangup_on_call
-(
-    int conn_index
-);
-
-void qcril_qmi_voice_set_audio_call_type(const voice_call_info2_type_v02* iter_call_info, qcril_qmi_voice_voip_call_info_entry_type *call_info_entry);
-
-void qcril_qmi_voice_get_colp_resp_hdlr
-(
-  const qcril_request_params_type *const params_ptr
-);
 
 static void qcril_qmi_voice_handle_mng_call_req
 (
@@ -284,7 +283,7 @@ static RIL_Errno qcril_qmi_voice_post_manage_voip_calls_request( voip_sups_type_
 static void qcril_qmi_voice_store_last_call_failure_cause(RIL_LastCallFailCause reason);
 static void qcril_qmi_voice_invalid_last_call_failure_cause();
 static void qcril_qmi_voice_respond_ril_last_call_failure_request();
-static void qcril_qmi_voice_handle_new_last_call_failure_cause(int reason, boolean is_qmi_reason);
+static void qcril_qmi_voice_handle_new_last_call_failure_cause(int reason, boolean is_qmi_reason, qcril_qmi_voice_voip_call_info_entry_type *call_obj);
 static int qcril_qmi_voice_nas_control_is_call_mode_reported_voice_radio_tech_different(call_mode_enum_v02 call_mode);
 static RIL_RadioTechnologyFamily qcril_qmi_voice_nas_control_get_reported_voice_radio_tech();
 static unsigned int qcril_qmi_voice_convert_call_mode_to_radio_tech_family(call_mode_enum_v02 call_mode);
@@ -334,6 +333,8 @@ static void qmi_ril_voice_ended_call_obj_phase_out(void * param);
 static boolean qcril_qmi_voice_call_to_ims(const qcril_qmi_voice_voip_call_info_entry_type * call_info_entry);
 static boolean qcril_qmi_voice_call_to_atel(const qcril_qmi_voice_voip_call_info_entry_type * call_info_entry);
 
+static void qmi_ril_voice_ims_command_oversight_timeout_handler(void * param);
+
 static void qcril_qmi_voice_ims_conf_req_state_reset_vcl();
 static void qcril_qmi_voice_ims_conf_req_state_start_vcl();
 static void qcril_qmi_voice_ims_conf_add_call_req_state_start_vcl();
@@ -341,11 +342,10 @@ static qcril_qmi_voice_ims_conf_req_state qcril_qmi_voice_get_ims_conf_call_req_
 static void qcril_qmi_voice_set_ims_conf_req_txn_state_vcl(qcril_qmi_voice_ims_conf_req_state state);
 static void qcril_qmi_voice_set_ims_conf_call_req_txn_state_to_next_vcl();
 
-static void qmi_ril_voice_ims_command_oversight_timeout_handler(void * param);
-
 static boolean qmi_ril_voice_is_calls_supressed_by_pil_vcl();
 static void qcril_qmi_voice_handle_pil_state_changed(const qcril_qmi_pil_state* cur_state);
 static void qcril_qmi_voice_hangup_all_non_emergency_calls_vcl();
+static void qcril_qmi_voice_ims_dial_call_handler (qcril_timed_callback_handler_params_type *param);
 
 static boolean qcril_qmi_voice_get_atel_call_type_info_by_call_info
 (
@@ -358,8 +358,14 @@ static boolean qcril_qmi_voice_get_atel_call_type_info
    call_type_enum_v02 call_type,
    boolean video_attrib_valid,
    voice_call_attribute_type_mask_v02 video_attrib,
+   boolean audio_attrib_valid,
+   voice_call_attribute_type_mask_v02 audio_attrib,
+   boolean attrib_status_valid,
+   voice_call_attrib_status_enum_v02 attrib_status,
    boolean call_info_elab_valid,
    qcril_qmi_voice_voip_call_info_elaboration_type call_info_elab,
+   boolean cached_call_type_valid,
+   Ims__CallType cached_call_type,
    RIL_Call_Details *call_details
 );
 
@@ -384,6 +390,26 @@ void qcril_qmi_send_ss_failure_cause_oem_hook_unsol_resp
    qmi_sups_errors_enum_v02 sups_failure_cause,
    uint8_t call_id
 );
+
+static boolean qcril_qmi_voice_is_ims_send_calls(int event_id);
+static void qcril_qmi_voice_send_ims_unsol_call_state_changed();
+
+void qcril_qmi_voice_set_audio_call_type
+(
+    const voice_call_info2_type_v02* iter_call_info,
+    qcril_qmi_voice_voip_call_info_entry_type *call_info_entry
+);
+
+void qcril_qmi_voice_send_hangup_on_call
+(
+    int conn_index
+);
+
+void qcril_qmi_voice_get_colp_resp_hdlr
+(
+  const qcril_request_params_type *const params_ptr
+);
+
 
 static void qcril_initialize_ims_to_ril_facility_lookup_table( void )
 {
@@ -441,6 +467,26 @@ static void qcril_initialize_ims_to_ril_facility_lookup_table( void )
 
 };
 
+static void qcril_qmi_voice_setup_answer_resp_hdlr
+(
+   const qcril_request_params_type *const params_ptr
+);
+
+static qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_find_call_info_entry_by_qmi_call_state(call_state_enum_v02 qmi_call_state);
+static RIL_Errno qcril_qmi_voice_perform_null_check_and_reqlist_entry
+(
+   const qcril_request_params_type *const params_ptr,
+   uint32_t *user_data_ptr,
+   qcril_reqlist_public_type *reqlist_entry_ptr
+);
+static RIL_Errno qcril_qmi_voice_gather_current_call_information
+(
+   unsigned int iter,
+   const qcril_request_params_type *const params_ptr,
+   qcril_qmi_voice_current_calls_type *payload_ptr,
+   const qcril_qmi_voice_voip_call_info_entry_type *const call_info_entry
+);
+
 //===========================================================================
 // qcril_qmi_voice_pre_init
 //===========================================================================
@@ -460,25 +506,7 @@ RIL_Errno qcril_qmi_voice_pre_init(void)
     memset( &qcril_qmi_voice_info, 0, sizeof(qcril_qmi_voice_info));
 
 #ifdef QCRIL_PROTOBUF_BUILD_ENABLED
-    property_get( QCRIL_JBIMS, args, "" );
-
-    len = strlen( args );
-    if ( len > 0 )
-    {
-      ret_val = strtoul( args, &end_ptr, 0 );
-      if ( ( errno == ERANGE ) && ( ( ret_val == ULONG_MAX ) || ( ret_val == 0 ) ) )
-      {
-        QCRIL_LOG_ERROR( "Fail to convert jbims setting %s", args );
-      }
-      else if ( ret_val > 1 )
-      {
-        QCRIL_LOG_ERROR( "Invalid saved jbims setting %ld, use default", ret_val );
-      }
-      else
-      {
-        qcril_qmi_voice_info.jbims = ( boolean ) ret_val;
-      }
-    }
+    qcril_qmi_voice_info.jbims = TRUE;
 #else
     qcril_qmi_voice_info.jbims = FALSE;
 #endif
@@ -702,6 +730,65 @@ void qcril_qmi_voice_ind_registrations
     }
   }
 
+  memset(&indication_req, 0, sizeof(indication_req));
+  memset(&indication_resp_msg, 0, sizeof(indication_resp_msg));
+  indication_req.cc_result_events_valid = TRUE;
+  indication_req.cc_result_events = 0x01;
+  if ( qcril_qmi_client_send_msg_sync( QCRIL_QMI_CLIENT_VOICE,
+                                       QMI_VOICE_INDICATION_REGISTER_REQ_V02,
+                                       &indication_req,
+                                       sizeof(indication_req),
+                                       &indication_resp_msg,
+                                       sizeof(indication_resp_msg)
+                                     ) !=E_SUCCESS )
+  {
+     QCRIL_LOG_INFO("cc_result events indication register failed!");
+  }
+  else
+  {
+     QCRIL_LOG_INFO("cc_result events registration error code: %d", indication_resp_msg.resp.error);
+  }
+
+  memset(&indication_req, 0, sizeof(indication_req));
+  memset(&indication_resp_msg, 0, sizeof(indication_resp_msg));
+  indication_req.additional_call_info_events_valid = TRUE;
+  indication_req.additional_call_info_events = 0x01;
+  if ( qcril_qmi_client_send_msg_sync( QCRIL_QMI_CLIENT_VOICE,
+                                       QMI_VOICE_INDICATION_REGISTER_REQ_V02,
+                                       &indication_req,
+                                       sizeof(indication_req),
+                                       &indication_resp_msg,
+                                       sizeof(indication_resp_msg)
+                                     ) !=E_SUCCESS )
+  {
+     QCRIL_LOG_INFO("additional_call_info events indication register failed!");
+  }
+  else
+  {
+     QCRIL_LOG_INFO("additional_call_info events registration error code: %d",
+                    indication_resp_msg.resp.error);
+  }
+
+  memset(&indication_req, 0, sizeof(indication_req));
+  memset(&indication_resp_msg, 0, sizeof(indication_resp_msg));
+  indication_req.audio_rat_change_events_valid = TRUE;
+  indication_req.audio_rat_change_events = 0x01;
+  if ( qcril_qmi_client_send_msg_sync( QCRIL_QMI_CLIENT_VOICE,
+                                       QMI_VOICE_INDICATION_REGISTER_REQ_V02,
+                                       &indication_req,
+                                       sizeof(indication_req),
+                                       &indication_resp_msg,
+                                       sizeof(indication_resp_msg)
+                                     ) !=E_SUCCESS )
+  {
+     QCRIL_LOG_INFO("audio_rat_change events indication register failed!");
+  }
+  else
+  {
+     QCRIL_LOG_INFO("audio_rat_change events registration error code: %d",
+                    indication_resp_msg.resp.error);
+  }
+
   QCRIL_LOG_FUNC_RETURN();
 
 } // qcril_qmi_voice_ind_registrations
@@ -725,14 +812,11 @@ RIL_Errno qcril_qmi_voice_init
 
   qcril_qmi_voice_ind_registrations();
 
-  qcril_qmi_voice_cdma_call_type_to_be_considered = CALL_TYPE_VOICE_V02;
-
   /* Default CLIR */
   qcril_qmi_voice_info.clir = ( uint8 ) QCRIL_QMI_VOICE_SS_CLIR_PRESENTATION_INDICATOR;
 
   /* Use saved CLIR setting if available */
-  QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QCRIL_QMI_VOICE_CLIR);
-
+  QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s%d", QCRIL_QMI_VOICE_CLIR,qmi_ril_get_process_instance_id());
   property_get( property_name, args, "" );
   property_param_len = strlen( args );
   if ( property_param_len > 0 )
@@ -752,29 +836,6 @@ RIL_Errno qcril_qmi_voice_init
     }
   }
   QCRIL_LOG_DEBUG( "CLIR=%d", qcril_qmi_voice_info.clir );
-
-  /* Use saved CLIR setting if available */
-  QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s", QCRIL_QMI_VOICE_IMS_CLIR);
-
-  property_get( property_name, args, "" );
-  property_param_len = strlen( args );
-  if ( property_param_len > 0 )
-  {
-    ret_val = strtoul( args, &end_ptr, 0 );
-    if ( ( errno == ERANGE ) && ( ( ret_val == ULONG_MAX ) || ( ret_val == 0 ) ) )
-    {
-      QCRIL_LOG_ERROR( "QCRIL QMI VOICE Fail to convert IMS CLIR %s", args );
-    }
-    else if ( ret_val > QCRIL_QMI_VOICE_SS_CLIR_SUPPRESSION_OPTION )
-    {
-      QCRIL_LOG_ERROR( "QCRIL QMI VOICE Invalid saved IMS CLIR %ld, use default", ret_val );
-    }
-    else
-    {
-      qcril_qmi_voice_info.ims_clir = ( uint8 ) ret_val;
-    }
-  }
-  QCRIL_LOG_DEBUG( "IMS CLIR=%d", qcril_qmi_voice_info.ims_clir );
 
   /* Default Auto Answer timerID */
   qmi_voice_voip_overview.auto_answer_timer_id = QMI_RIL_ZERO;
@@ -804,13 +865,8 @@ RIL_Errno qcril_qmi_voice_init
   QCRIL_LOG_DEBUG( "REPORT_SPEECH_CODEC=%d", qcril_qmi_voice_speech_codec_info.report_speech_codec );
   qcril_qmi_voice_speech_codec_info_init();
 
-  if (qcril_qmi_voice_info.jbims && QCRIL_DEFAULT_INSTANCE_ID == qmi_ril_get_process_instance_id())
-  {
-#ifndef QMI_RIL_UTF
-    qcril_qmi_ims_socket_init();
-    qcril_qmi_voice_reset_conf_info_xml();
-#endif
-  }
+  qcril_qmi_ims_socket_init();
+  qcril_qmi_voice_reset_conf_info_xml();
 
   qmi_voice_voip_overview.cdma_call_id = VOICE_INVALID_CALL_ID;
 
@@ -873,6 +929,24 @@ RIL_Errno qcril_qmi_voice_init
   QCRIL_LOG_DEBUG("QCRIL_REJECT_CAUSE_21_SUPPORTED=%d", reject_cause_21_supported);
 
   QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s",
+      QMI_RIL_SYS_PROP_NAME_SUBADDRESS_IA5_IDENTIFIER);
+  property_get( property_name, args, "" );
+  property_param_len = strlen( args );
+  if ( property_param_len > 0 )
+  {
+    ret_val = strtoul( args, &end_ptr, 0 );
+    if ( ( errno == ERANGE ) && ( ret_val == ULONG_MAX ) )
+    {
+      QCRIL_LOG_ERROR( "QCRIL QMI VOICE Fail to convert QMI_RIL_SYS_PROP_NAME_SUBADDRESS_IA5_IDENTIFIER %s",
+          args );
+    }
+    else
+    {
+      feature_subaddress_ia5_id_support = ret_val;
+    }
+  }
+
+  QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s",
       QMI_RIL_SYS_PROP_NAME_REDIR_PARTY_NUM);
   property_get( property_name, args, "" );
   property_param_len = strlen( args );
@@ -890,8 +964,55 @@ RIL_Errno qcril_qmi_voice_init
     }
   }
   QCRIL_LOG_DEBUG("QMI_RIL_SYS_PROP_NAME_REDIR_PARTY_NUM=%d", feature_redir_party_num_support);
+
+  QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s",
+      QCRIL_QMI_VOICE_DTMF_INTERVAL);
+  property_get( property_name, args, "" );
+  property_param_len = strlen( args );
+  if ( property_param_len > 0 )
+  {
+    ret_val = strtoul( args, &end_ptr, 0 );
+    if ( ( errno == ERANGE ) && ( ret_val == ULONG_MAX ) )
+    {
+      QCRIL_LOG_ERROR( "QCRIL QMI VOICE Fail to convert QCRIL_QMI_VOICE_DTMF_INTERVAL %s",
+          args );
+    }
+    else
+    {
+      dtmf_rtp_event_interval = ret_val;
+    }
+  }
+  QCRIL_LOG_DEBUG("QCRIL_QMI_VOICE_DTMF_INTERVAL=%d", dtmf_rtp_event_interval);
+
   qcril_initialize_ims_to_ril_facility_lookup_table();
   QCRIL_LOG_DEBUG("Initialized IMS to RIL facility lookup table");
+
+  QCRIL_LOG_FUNC_RETURN_WITH_RET( (int)res );
+
+  qcril_qmi_voice_cdma_call_type_to_be_considered = CALL_TYPE_VOICE_V02;
+  QCRIL_SNPRINTF( property_name, sizeof( property_name ), "%s",
+      QCRIL_QMI_CDMA_VOICE_EMER_VOICE);
+  property_get( property_name, args, "" );
+  property_param_len = strlen( args );
+  if ( property_param_len > 0 )
+  {
+    ret_val = strtoul( args, &end_ptr, 0 );
+    if ( ( errno == ERANGE ) && ( ret_val == ULONG_MAX ) )
+    {
+      QCRIL_LOG_ERROR( "QCRIL QMI VOICE Fail to convert QCRIL_QMI_CDMA_VOICE_EMER_VOICE %s",
+          args );
+    }
+    else
+    {
+      QCRIL_LOG_DEBUG("QCRIL_QMI_CDMA_VOICE_EMER_VOICE=%d", ret_val);
+      if (ret_val == 0)
+      {
+        qcril_qmi_voice_cdma_call_type_to_be_considered = CALL_TYPE_EMERGENCY_V02;
+      }
+    }
+  }
+  QCRIL_LOG_DEBUG("qcril_qmi_voice_cdma_call_type_to_be_considered=%d",
+      qcril_qmi_voice_cdma_call_type_to_be_considered);
 
   QCRIL_LOG_FUNC_RETURN_WITH_RET( (int)res );
 
@@ -943,10 +1064,14 @@ void qcril_qmi_voice_speech_codec_info_init( void )
   {
     pthread_mutex_init(&qcril_qmi_voice_speech_codec_info.speech_codec_mutex, NULL);
     pthread_cond_init (&qcril_qmi_voice_speech_codec_info.speech_codec_cond_var, NULL);
-
+#ifdef QMI_RIL_UTF
+    pthread_attr_init(&attr);
+    utf_pthread_create_handler(&qcril_qmi_voice_speech_codec_info.speech_codec_thread_id, &attr, qcril_qmi_voice_speech_codec_info_thread_proc, NULL);
+#else
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_create(&qcril_qmi_voice_speech_codec_info.speech_codec_thread_id, &attr, qcril_qmi_voice_speech_codec_info_thread_proc, NULL);
+#endif
     qmi_ril_set_thread_name(qcril_qmi_voice_speech_codec_info.speech_codec_thread_id, QMI_RIL_VOICE_SPEECH_CODEC_THREAD_NAME);
     pthread_attr_destroy(&attr);
   }
@@ -995,8 +1120,10 @@ void* qcril_qmi_voice_speech_codec_info_thread_proc(void * param)
     int wait_res = 0;
     int invalid_case = 0;
 
+    QCRIL_NOTUSED(param);
+
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
+    hints.ai_family = AF_UNIX;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
@@ -1105,6 +1232,8 @@ void* qcril_qmi_voice_speech_codec_info_thread_proc(void * param)
 //===========================================================================
 void qcril_qmi_voice_speech_codec_thread_signal_handler_sigusr1(int arg)
 {
+
+  QCRIL_NOTUSED(arg);
   return;
 } //qcril_qmi_voice_speech_codec_thread_signal_handler_sigusr1
 
@@ -1130,11 +1259,28 @@ IxErrnoType qcril_qmi_voice_speech_codec_condition_wait_helper()
 void qcril_qmi_voice_cleanup(void)
 {
   qcril_qmi_voice_voip_call_info_entry_type* call_info_entry = NULL;
+  boolean unsol_resp = FALSE;
 
   QCRIL_LOG_FUNC_ENTRY();
 
   // clean call objects, will have to extend
 
+  qcril_qmi_voice_voip_lock_overview();
+  call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_first();
+  while ( NULL != call_info_entry )
+  {
+      if(qcril_qmi_voice_call_to_ims(call_info_entry))
+      {
+         unsol_resp = TRUE;
+      }
+      call_info_entry->voice_scv_info.call_state = CALL_STATE_END_V02;
+      call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_next();
+  }
+  qcril_qmi_voice_voip_unlock_overview();
+  if(unsol_resp)
+  {
+      qcril_qmi_voice_send_ims_unsol_call_state_changed();
+  }
   qcril_qmi_voice_voip_lock_overview();
   call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_first();
   while ( NULL != call_info_entry )
@@ -1153,18 +1299,21 @@ void qcril_qmi_voice_cleanup(void)
 boolean qcril_qmi_voice_call_to_ims(const qcril_qmi_voice_voip_call_info_entry_type * call_info_entry)
 {
    boolean ret = FALSE;
+
+
+
    if (call_info_entry)
    {
-     QCRIL_LOG_INFO("qcril_qmi_voice_info.jbims: %d, call_to_ims: %d", qcril_qmi_voice_info.jbims, (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE) ? TRUE : FALSE);
-     ret = qcril_qmi_voice_info.jbims && (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE);
+     ret = qcril_qmi_voice_info.jbims && !qcril_qmi_voice_call_to_atel(call_info_entry);
    }
+   QCRIL_LOG_FUNC_RETURN_WITH_RET((int)ret);
    return ret;
 } // qcril_qmi_voice_calls_to_ims
 
 //===========================================================================
-// qcril_qmi_voice_is_ims_call
+// qcril_qmi_voice_is_call_has_ims_audio
 //===========================================================================
-boolean qcril_qmi_voice_is_ims_call
+boolean qcril_qmi_voice_is_call_has_ims_audio
 (
     const qcril_qmi_voice_voip_call_info_entry_type * call_info_entry
 )
@@ -1181,7 +1330,23 @@ boolean qcril_qmi_voice_is_ims_call
         ret = qcril_qmi_voice_info.jbims && !is_cs;;
    }
    return ret;
-} // qcril_qmi_voice_is_ims_call
+} // qcril_qmi_voice_is_call_has_ims_audio
+
+//===========================================================================
+// qcril_qmi_voice_is_call_has_voice_audio
+//===========================================================================
+boolean qcril_qmi_voice_is_call_has_voice_audio
+(
+    const qcril_qmi_voice_voip_call_info_entry_type * call_info_entry
+)
+{
+    boolean ret = FALSE;
+    if (call_info_entry)
+    {
+        ret = call_info_entry->srvcc_in_progress || !qcril_qmi_voice_is_call_has_ims_audio(call_info_entry);
+   }
+   return ret;
+} // qcril_qmi_voice_is_call_has_voice_audio
 
 //===========================================================================
 // qcril_qmi_voice_get_answer_am_event
@@ -1194,7 +1359,7 @@ qcril_am_vs_type qcril_qmi_voice_get_answer_am_event
     qcril_am_event_type am_event = QCRIL_AM_EVENT_INVALID;
     if (call_info_entry)
     {
-        if ( qcril_qmi_voice_is_ims_call(call_info_entry) )
+        if ( qcril_qmi_voice_is_call_has_ims_audio(call_info_entry) )
         {
             am_event = QCRIL_AM_EVENT_IMS_ANSWER;
         }
@@ -1216,6 +1381,7 @@ boolean qcril_qmi_voice_call_to_atel(const qcril_qmi_voice_voip_call_info_entry_
    {
      ret = (!qcril_qmi_voice_info.jbims) || (QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN & call_info_entry->elaboration);
      QCRIL_LOG_INFO("call_to_atel: %d", ret);
+
    }
    return ret;
 } // qcril_qmi_voice_call_to_atel
@@ -1258,6 +1424,10 @@ static char *qcril_qmi_voice_lookup_command_name
       return "GET CLIP RESP";
     case QMI_VOICE_MANAGE_IP_CALLS_RESP_V02:
       return "MNG IP CALLS RESP";
+    case QMI_VOICE_SET_SUPS_SERVICE_RSEP_V02:
+      return "SET SUPS RESP";
+    case QMI_VOICE_GET_COLR_RESP_V02:
+      return "GET COLR RESP";
     default:
       return "Unknown";
   } /* end switch */
@@ -1305,6 +1475,78 @@ int qcril_qmi_voice_map_qmi_to_ril_num_pi
   }
   return ril_num_pi;
 }/* qcril_qmi_voice_map_qmi_to_ril_num_pi */
+
+boolean qcril_qmi_voice_map_qmi_to_ril_provision_status
+(
+ provision_status_enum_v02 qmi_provision_status,
+ int *ril_provision_status
+)
+{
+  boolean result = FALSE;
+
+  if (ril_provision_status)
+  {
+    result = TRUE;
+    switch(qmi_provision_status)
+    {
+      case PROVISION_STATUS_NOT_PROVISIONED_V02 :
+        *ril_provision_status = QCRIL_QMI_VOICE_CLIR_SRV_NOT_PROVISIONED;
+        break;
+      case PROVISION_STATUS_PRESENTATION_ALLOWED_V02 :
+        *ril_provision_status = QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_ALLOWED;
+        break;
+      case PROVISION_STATUS_PROVISIONED_PERMANENT_V02 :
+        *ril_provision_status = QCRIL_QMI_VOICE_CLIR_SRV_PROVISIONED_PERMANENT;
+        break;
+      case PROVISION_STATUS_PRESENTATION_RESTRICTED_V02:
+        *ril_provision_status = QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_RESTRICTED;
+        break;
+      default :
+        QCRIL_LOG_INFO("Invalid provision status %d", qmi_provision_status);
+        result = FALSE;
+        break;
+    }
+  }
+
+  return result;
+}
+
+boolean qcril_qmi_voice_map_qmi_status_to_ims_provision_status
+(
+ provision_status_enum_v02 qmi_provision_status,
+ active_status_enum_v02 qmi_activation_status,
+ int *ril_provision_status
+)
+{
+  boolean result = FALSE;
+
+  if(qmi_provision_status != PROVISION_STATUS_NOT_PROVISIONED_V02)
+  {
+    if (ril_provision_status)
+    {
+      result = TRUE;
+      switch(qmi_activation_status)
+      {
+        case ACTIVE_STATUS_INACTIVE_V02:
+          *ril_provision_status = QCRIL_QMI_VOICE_SRV_INACTIVE;
+          break;
+        case ACTIVE_STATUS_ACTIVE_V02:
+          *ril_provision_status = QCRIL_QMI_VOICE_SRV_ACTIVE;
+          break;
+        default :
+          QCRIL_LOG_INFO("Invalid avtivation status %d", qmi_activation_status);
+          result = FALSE;
+          break;
+      }
+    }
+  }
+  else
+  {
+    *ril_provision_status = QCRIL_QMI_VOICE_SRV_INACTIVE;
+  }
+
+  return result;
+}
 
 int  qcril_qmi_voice_get_facility_value
 (
@@ -1534,11 +1776,6 @@ RIL_LastCallFailCause qcril_qmi_voice_map_qmi_to_ril_last_call_failure_cause
       ret = CALL_FAIL_IMEI_NOT_ACCEPTED;
       break;
 
-    case CALL_END_CAUSE_OPERATOR_DETERMINED_BARRING_V02:
-    case CALL_END_CAUSE_INCOMING_CALLS_BARRED_WITHIN_CUG_V02:
-      ret = CALL_FAIL_CALL_BARRED;
-      break;
-
     case CALL_END_CAUSE_INCOM_REJ_V02:
     case CALL_END_CAUSE_SETUP_REJ_V02:
       ret = CALL_FAIL_BUSY;
@@ -1552,7 +1789,6 @@ RIL_LastCallFailCause qcril_qmi_voice_map_qmi_to_ril_last_call_failure_cause
       break;
 
     case CALL_END_CAUSE_NETWORK_CONGESTION_V02:
-    case CALL_END_CAUSE_SWITCHING_EQUIPMENT_CONGESTION_V02:
       ret = CALL_FAIL_CONGESTION;
       break;
 
@@ -1614,6 +1850,186 @@ RIL_LastCallFailCause qcril_qmi_voice_map_qmi_to_ril_last_call_failure_cause
       ret = CALL_FAIL_NORMAL;
       break;
 
+    case CALL_END_CAUSE_NO_ROUTE_TO_DESTINATION_V02:
+      ret = CALL_FAIL_NO_ROUTE_TO_DESTINATION;
+      break;
+
+    case CALL_END_CAUSE_CHANNEL_UNACCEPTABLE_V02:
+      ret = CALL_FAIL_CHANNEL_UNACCEPTABLE;
+      break;
+
+    case CALL_END_CAUSE_OPERATOR_DETERMINED_BARRING_V02:
+      ret = CALL_FAIL_OPERATOR_DETERMINED_BARRING;
+      break;
+
+    case CALL_END_CAUSE_NO_USER_RESPONDING_V02:
+      ret = CALL_FAIL_NO_USER_RESPONDING;
+      break;
+
+    case CALL_END_CAUSE_USER_ALERTING_NO_ANSWER_V02:
+      ret = CALL_FAIL_NO_ANSWER_FROM_USER;
+      break;
+
+    case CALL_END_CAUSE_CALL_REJECTED_V02:
+      ret = CALL_FAIL_CALL_REJECTED;
+      break;
+
+    case CALL_END_CAUSE_NUMBER_CHANGED_V02:
+      ret = CALL_FAIL_NUMBER_CHANGED;
+      break;
+
+    case CALL_END_CAUSE_PREEMPTION_V02:
+      ret = CALL_FAIL_PREEMPTION;
+      break;
+
+    case CALL_END_CAUSE_DESTINATION_OUT_OF_ORDER_V02:
+      ret = CALL_FAIL_DESTINATION_OUT_OF_ORDER;
+      break;
+
+    case CALL_END_CAUSE_INVALID_NUMBER_FORMAT_V02:
+      ret = CALL_FAIL_INVALID_NUMBER_FORMAT;
+      break;
+
+    case CALL_END_CAUSE_FACILITY_REJECTED_V02:
+      ret = CALL_FAIL_FACILITY_REJECTED;
+      break;
+
+    case CALL_END_CAUSE_RESP_TO_STATUS_ENQUIRY_V02:
+      ret = CALL_FAIL_RESP_TO_STATUS_ENQUIRY;
+      break;
+
+    case CALL_END_CAUSE_NORMAL_UNSPECIFIED_V02:
+      ret = CALL_FAIL_NORMAL_UNSPECIFIED;
+      break;
+
+    case CALL_END_CAUSE_NO_CIRCUIT_OR_CHANNEL_AVAILABLE_V02:
+      ret = CALL_FAIL_CONGESTION;
+      break;
+
+    case CALL_END_CAUSE_NETWORK_OUT_OF_ORDER_V02:
+      ret = CALL_FAIL_NETWORK_OUT_OF_ORDER;
+      break;
+
+    case CALL_END_CAUSE_TEMPORARY_FAILURE_V02:
+      ret = CALL_FAIL_TEMPORARY_FAILURE;
+      break;
+
+    case CALL_END_CAUSE_SWITCHING_EQUIPMENT_CONGESTION_V02:
+      ret = CALL_FAIL_SWITCHING_EQUIPMENT_CONGESTION;
+      break;
+
+    case CALL_END_CAUSE_ACCESS_INFORMATION_DISCARDED_V02:
+      ret = CALL_FAIL_ACCESS_INFORMATION_DISCARDED;
+      break;
+
+    case CALL_END_CAUSE_REQUESTED_CIRCUIT_OR_CHANNEL_NOT_AVAILABLE_V02:
+      ret = CALL_FAIL_REQUESTED_CIRCUIT_OR_CHANNEL_NOT_AVAILABLE;
+      break;
+
+    case CALL_END_CAUSE_RESOURCES_UNAVAILABLE_OR_UNSPECIFIED_V02:
+      ret = CALL_FAIL_RESOURCES_UNAVAILABLE_OR_UNSPECIFIED;
+      break;
+
+    case CALL_END_CAUSE_QOS_UNAVAILABLE_V02:
+      ret = CALL_FAIL_QOS_UNAVAILABLE;
+      break;
+
+    case CALL_END_CAUSE_REQUESTED_FACILITY_NOT_SUBSCRIBED_V02:
+      ret = CALL_FAIL_REQUESTED_FACILITY_NOT_SUBSCRIBED;
+      break;
+
+    case CALL_END_CAUSE_INCOMING_CALLS_BARRED_WITHIN_CUG_V02:
+      ret = CALL_FAIL_INCOMING_CALLS_BARRED_WITHIN_CUG;
+      break;
+
+    case CALL_END_CAUSE_BEARER_CAPABILITY_NOT_AUTH_V02:
+      ret = CALL_FAIL_BEARER_CAPABILITY_NOT_AUTHORIZED;
+      break;
+
+    case CALL_END_CAUSE_BEARER_CAPABILITY_UNAVAILABLE_V02:
+      ret = CALL_FAIL_BEARER_CAPABILITY_UNAVAILABLE;
+      break;
+
+    case CALL_END_CAUSE_SERVICE_OPTION_NOT_AVAILABLE_V02:
+      ret = CALL_FAIL_SERVICE_OPTION_NOT_AVAILABLE;
+      break;
+
+    case CALL_END_CAUSE_BEARER_SERVICE_NOT_IMPLEMENTED_V02:
+      ret = CALL_FAIL_BEARER_SERVICE_NOT_IMPLEMENTED;
+      break;
+
+    case CALL_END_CAUSE_ACM_LIMIT_EXCEEDED_V02:
+      ret = CALL_FAIL_ACM_LIMIT_EXCEEDED;
+      break;
+
+    case CALL_END_CAUSE_REQUESTED_FACILITY_NOT_IMPLEMENTED_V02:
+      ret = CALL_FAIL_REQUESTED_FACILITY_NOT_IMPLEMENTED;
+      break;
+
+    case CALL_END_CAUSE_ONLY_DIGITAL_INFORMATION_BEARER_AVAILABLE_V02:
+      ret = CALL_FAIL_ONLY_DIGITAL_INFORMATION_BEARER_AVAILABLE;
+      break;
+
+    case CALL_END_CAUSE_SERVICE_OR_OPTION_NOT_IMPLEMENTED_V02:
+      ret = CALL_FAIL_SERVICE_OR_OPTION_NOT_IMPLEMENTED;
+      break;
+
+    case CALL_END_CAUSE_INVALID_TRANSACTION_IDENTIFIER_V02:
+      ret = CALL_FAIL_INVALID_TRANSACTION_IDENTIFIER;
+      break;
+
+    case CALL_END_CAUSE_USER_NOT_MEMBER_OF_CUG_V02:
+      ret = CALL_FAIL_USER_NOT_MEMBER_OF_CUG;
+      break;
+
+    case CALL_END_CAUSE_INCOMPATIBLE_DESTINATION_V02:
+      ret = CALL_FAIL_INCOMPATIBLE_DESTINATION;
+      break;
+
+    case CALL_END_CAUSE_INVALID_TRANSIT_NW_SELECTION_V02:
+      ret = CALL_FAIL_INVALID_TRANSIT_NW_SELECTION;
+      break;
+
+    case CALL_END_CAUSE_SEMANTICALLY_INCORRECT_MESSAGE_V02:
+      ret = CALL_FAIL_SEMANTICALLY_INCORRECT_MESSAGE;
+      break;
+
+    case CALL_END_CAUSE_INVALID_MANDATORY_INFORMATION_V02:
+      ret = CALL_FAIL_INVALID_MANDATORY_INFORMATION;
+      break;
+
+    case CALL_END_CAUSE_MESSAGE_TYPE_NON_IMPLEMENTED_V02:
+      ret = CALL_FAIL_MESSAGE_TYPE_NON_IMPLEMENTED;
+      break;
+
+    case CALL_END_CAUSE_MESSAGE_TYPE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE_V02:
+      ret = CALL_FAIL_MESSAGE_TYPE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE;
+      break;
+
+    case CALL_END_CAUSE_INFORMATION_ELEMENT_NON_EXISTENT_V02:
+      ret = CALL_FAIL_INFORMATION_ELEMENT_NON_EXISTENT;
+      break;
+
+    case CALL_END_CAUSE_CONDITONAL_IE_ERROR_V02:
+      ret = CALL_FAIL_CONDITIONAL_IE_ERROR;
+      break;
+
+    case CALL_END_CAUSE_MESSAGE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE_V02:
+      ret = CALL_FAIL_MESSAGE_NOT_COMPATIBLE_WITH_PROTOCOL_STATE;
+      break;
+
+    case CALL_END_CAUSE_RECOVERY_ON_TIMER_EXPIRED_V02:
+      ret = CALL_FAIL_RECOVERY_ON_TIMER_EXPIRED;
+      break;
+
+    case CALL_END_CAUSE_PROTOCOL_ERROR_UNSPECIFIED_V02:
+      ret = CALL_FAIL_PROTOCOL_ERROR_UNSPECIFIED;
+      break;
+
+    case CALL_END_CAUSE_INTERWORKING_UNSPECIFIED_V02:
+      ret = CALL_FAIL_INTERWORKING_UNSPECIFIED;
+      break;
+
     // DSDS: To enable emergency redial. Android Telephony
     // shall redial emergency call on the other sub on receiving
     // the fail cause. This cause is specific to DSDS and not
@@ -1627,7 +2043,7 @@ RIL_LastCallFailCause qcril_qmi_voice_map_qmi_to_ril_last_call_failure_cause
       ret = CALL_FAIL_ERROR_UNSPECIFIED;
       break;
   } /* end switch */
-  QCRIL_LOG_INFO("map qmi reason: %d to ril reason: %d", reason, ret);
+  QCRIL_LOG_ESSENTIAL("map qmi reason: %d to ril reason: %d", reason, ret);
   return ret;
 }/* qcril_qmi_voice_map_qmi_to_ril_last_call_failure_cause */
 
@@ -1772,10 +2188,8 @@ void qcril_qmi_voice_last_call_fail_request_timeout_handler(void * param)
 
     if (E_SUCCESS == qcril_reqlist_query_by_request(QCRIL_DEFAULT_INSTANCE_ID, QCRIL_EVT_IMS_SOCKET_REQ_LAST_CALL_FAIL_CAUSE, &request_info))
     {
-#ifndef QMI_RIL_UTF
       qcril_qmi_ims_socket_send(request_info.t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_LAST_CALL_FAIL_CAUSE, IMS__ERROR__E_GENERIC_FAILURE, NULL, 0);
       response_sent = TRUE;
-#endif
     }
 
     qcril_qmi_voice_info.last_call_failure_cause.pending_req = FALSE;
@@ -1832,7 +2246,6 @@ void qcril_qmi_voice_respond_ril_last_call_failure_request()
       }
       else
       {
-#ifndef QMI_RIL_UTF
         Ims__CallFailCauseResponse lfc = IMS__CALL_FAIL_CAUSE_RESPONSE__INIT;
         lfc.has_failcause = TRUE;
         lfc.failcause = qcril_qmi_voice_info.last_call_failure_cause.last_call_failure_cause;
@@ -1840,14 +2253,13 @@ void qcril_qmi_voice_respond_ril_last_call_failure_request()
         if (qcril_qmi_voice_info.last_call_failure_extended_codes_len > 0)
         {
           lfc.failcause = qcril_qmi_ims_map_ril_failcause_to_ims_failcause ( qcril_qmi_voice_info.last_call_failure_cause.last_call_failure_cause,
-                                                                             atoi( qcril_qmi_voice_info.last_call_failure_extended_codes ) );
+                                                                             atoi( (char*)qcril_qmi_voice_info.last_call_failure_extended_codes ) );
           lfc.has_errorinfo = TRUE;
           lfc.errorinfo.len = qcril_qmi_voice_info.last_call_failure_extended_codes_len;
           lfc.errorinfo.data = qcril_qmi_voice_info.last_call_failure_extended_codes;
         }
 
         qcril_qmi_ims_socket_send(request_info.t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_LAST_CALL_FAIL_CAUSE, RIL_E_SUCCESS, &lfc, sizeof(lfc));
-#endif
       }
 
       qcril_qmi_voice_stk_cc_relay_alpha_if_necessary( QCRIL_DEFAULT_INSTANCE_ID, FALSE );
@@ -1861,7 +2273,7 @@ void qcril_qmi_voice_respond_ril_last_call_failure_request()
     if ( qcril_qmi_voice_info.last_call_failure_cause.pending_req )
     {
       qcril_qmi_voice_info.last_call_failure_cause.pending_req = FALSE;
-      qcril_cancel_timed_callback((void *) qcril_qmi_voice_info.last_call_failure_cause.pending_request_timeout_timer_id);
+      qcril_cancel_timed_callback((void *)(uintptr_t) qcril_qmi_voice_info.last_call_failure_cause.pending_request_timeout_timer_id);
     }
   }
   else
@@ -1909,30 +2321,9 @@ void qmi_ril_voice_review_call_objs_after_last_call_failure_response_vcl( void )
 } // qmi_ril_voice_review_call_objs_after_last_call_failure_response_vcl
 
 //===========================================================================
-// qcril_qmi_voice_handle_new_last_call_failure_cause_ex
-//===========================================================================
-void qcril_qmi_voice_handle_new_last_call_failure_cause_ex(int reason, boolean is_qmi_reason, uint8_t *extended_codes, unsigned extended_codes_len)
-{
-  QCRIL_LOG_FUNC_ENTRY();
-  RIL_LastCallFailCause ril_reason;
-
-  if ( is_qmi_reason )
-  {
-    ril_reason = qcril_qmi_voice_map_qmi_to_ril_last_call_failure_cause((call_end_reason_enum_v02)reason);
-  }
-  else
-  {
-    ril_reason = (call_end_reason_enum_v02)reason;
-  }
-  qcril_qmi_voice_store_last_call_failure_cause_ex(ril_reason, extended_codes, extended_codes_len);
-  qcril_qmi_voice_respond_ril_last_call_failure_request();
-  QCRIL_LOG_FUNC_RETURN();
-} // qcril_qmi_voice_handle_new_last_call_failure_cause_ex
-
-//===========================================================================
 // qcril_qmi_voice_handle_new_last_call_failure_cause
 //===========================================================================
-void qcril_qmi_voice_handle_new_last_call_failure_cause(int reason, boolean is_qmi_reason)
+void qcril_qmi_voice_handle_new_last_call_failure_cause(int reason, boolean is_qmi_reason, qcril_qmi_voice_voip_call_info_entry_type *call_obj)
 {
   QCRIL_LOG_FUNC_ENTRY();
   RIL_LastCallFailCause ril_reason;
@@ -1949,6 +2340,12 @@ void qcril_qmi_voice_handle_new_last_call_failure_cause(int reason, boolean is_q
   snprintf(extended_codes, MAX_DEC_INT_STR, "%d", reason);
   qcril_qmi_voice_store_last_call_failure_cause_ex(ril_reason, (uint8_t*)extended_codes, strlen(extended_codes));
   qcril_qmi_voice_respond_ril_last_call_failure_request();
+  if (call_obj)
+  {
+     call_obj->lcf_valid = TRUE;
+     call_obj->lcf = ril_reason;
+     snprintf(call_obj->lcf_extended_codes, MAX_DEC_INT_STR, "%d", reason);
+  }
   QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_voice_handle_new_last_call_failure_cause
 
@@ -2002,7 +2399,7 @@ void qcril_qmi_voice_make_incoming_call_ring (qcril_timed_callback_handler_param
   qcril_qmi_voice_voip_lock_overview();
 
   call_info = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration( QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NEED_FOR_RING_PENDING, TRUE );
-  QCRIL_LOG_INFO(".. call obj %d", (int) call_info );
+  QCRIL_LOG_INFO(".. call obj %p", call_info );
   if ( call_info )
   {
     qcril_qmi_voice_voip_call_info_dump( call_info );
@@ -2063,9 +2460,7 @@ void qcril_qmi_voice_make_incoming_call_ring (qcril_timed_callback_handler_param
     }
     else
     {
-#ifndef QMI_RIL_UTF
       qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_CALL_RING);
-#endif
     }
   }
 
@@ -2220,9 +2615,7 @@ void qcril_qmi_voice_privacy_ind_hdlr
 
       if (unsol_call_state_change_to_ims)
       {
-#ifndef QMI_RIL_UTF
-         qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
-#endif
+         qcril_qmi_voice_send_ims_unsol_call_state_changed();
       }
   }
 
@@ -2311,7 +2704,7 @@ void qmi_ril_voice_pending_1x_num_timeout(void * param)
 
     if ( QMI_RIL_ZERO != qmi_voice_voip_overview.num_1x_wait_timer_id )
     {
-      qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.num_1x_wait_timer_id );
+      qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.num_1x_wait_timer_id );
       qmi_voice_voip_overview.num_1x_wait_timer_id = QMI_RIL_ZERO;
     }
 
@@ -2411,6 +2804,31 @@ void qcril_qmi_voice_set_ps_cs_call_elab_vcl(const voice_call_info2_type_v02* it
    }
 } // qcril_qmi_voice_set_ps_cs_call_elab_vcl
 
+void qcril_qmi_voice_set_domain_elab_from_call_type
+(
+  call_type_enum_v02 call_type,
+  qcril_qmi_voice_voip_call_info_entry_type *call_info_entry
+)
+{
+    if ( CALL_TYPE_VOICE_IP_V02 == call_type ||
+         CALL_TYPE_VT_V02 == call_type ||
+         CALL_TYPE_EMERGENCY_IP_V02 == call_type
+       )
+    {
+        QCRIL_LOG_INFO("set the call as a PS call");
+        call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
+        call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUTO_DOMAIN;
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN;
+    }
+    else
+    {
+        QCRIL_LOG_INFO("set the call as a CS call");
+        call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN;
+        call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUTO_DOMAIN;
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
+    }
+}
+
 //===========================================================================
 // qcril_qmi_voice_auto_answer_if_needed
 //===========================================================================
@@ -2431,7 +2849,7 @@ void qcril_qmi_voice_auto_answer_if_needed()
   if ( auto_ans_len > 0 )
   {
     ret_val = strtol( args, &end_ptr, 0 );
-    if ( ( errno == ERANGE ) && ( ret_val == ULONG_MAX ) )
+    if ( ( errno == ERANGE ) && ( ret_val == LONG_MAX ) )
     {
       QCRIL_LOG_ERROR( "QCRIL QMI VOICE Fail to convert QCRIL_QMI_AUTO_ANSWER %s", args );
     }
@@ -2445,7 +2863,7 @@ void qcril_qmi_voice_auto_answer_if_needed()
     if ( QMI_RIL_ZERO != qmi_voice_voip_overview.auto_answer_timer_id )
     {
       QCRIL_LOG_INFO("Cancel Auto Answer timed callback");
-      qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.auto_answer_timer_id );
+      qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.auto_answer_timer_id );
       qmi_voice_voip_overview.auto_answer_timer_id = QMI_RIL_ZERO;
     }
     auto_answer_timerid = QMI_RIL_ZERO;
@@ -2495,6 +2913,59 @@ void qcril_qmi_voice_voip_change_call_elab_when_first_call_ind_received(qcril_qm
    }
 } // qcril_qmi_voice_voip_change_call_elab_when_first_call_ind_received
 
+//===========================================================================
+// qcril_qmi_voice_check_and_update_srvcc_no_mid_call_support
+//===========================================================================
+static void qcril_qmi_voice_check_and_update_srvcc_no_mid_call_support
+(
+ qcril_qmi_voice_voip_call_info_entry_type *call_info_entry,
+ voice_call_info2_type_v02                 *iter_call_info
+)
+{
+  qcril_qmi_voice_voip_call_info_entry_type * mpty_call_info = NULL;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  // In case of conference call SRVCC without mid-call SRVCC support, modem will
+  // report only one call after SRVCC with the call id same as the previous call.
+  // In this case, our call_info_entry which got updated for this indications
+  // would be a MPTY_CALL with list of participants in the mpty_voip_call_list.
+  if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID &&
+      call_info_entry->mpty_voip_call_list )
+  {
+    QCRIL_LOG_INFO("Conference call SRVCC without mid-call SRVCC support");
+
+    // Ensure the call is set as mpty. After SRVCC, if mid-call SRVCC is not supported,
+    // modem will be notifying the call with mpty set to FALSE.
+    if (!call_info_entry->voice_scv_info.is_mpty)
+    {
+      call_info_entry->voice_scv_info.is_mpty = TRUE;
+    }
+
+    mpty_call_info = call_info_entry->mpty_voip_call_list;
+
+    // Set first participant as CS DOMAIN - to make sure this call is report to rild socket
+    qcril_qmi_voice_set_ps_cs_call_elab_vcl(iter_call_info, mpty_call_info);
+
+    // Set first participant qmi_call_id as parent qmi_call_id - to make sure any
+    // operation on the android_call_id to map to actual qmi_call_id
+    mpty_call_info->qmi_call_id = call_info_entry->qmi_call_id;
+    mpty_call_info->media_id = call_info_entry->media_id;
+
+    // Reset the MEMBER_OF_MPTY_VOIP_CALL ELAB from remaining participats
+    // But keep the list - these are dummy calls to report to the IMS socket.
+    mpty_call_info = mpty_call_info->mpty_voip_call_list;
+    while (mpty_call_info &&
+           mpty_call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_MEMBER_OF_MPTY_VOIP_CALL)
+    {
+      mpty_call_info->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_MEMBER_OF_MPTY_VOIP_CALL;
+      mpty_call_info = mpty_call_info->mpty_voip_call_list;
+    }
+  }
+
+  QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_check_and_update_srvcc_no_mid_call_support
+
 /*=========================================================================
   FUNCTION:  qcril_qmi_voice_all_call_status_ind_hdlr
 
@@ -2524,6 +2995,11 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
   boolean  hangup_call    = FALSE;
   int res = 0;
 
+  /* variables defined to track modem initiated silent redial */
+  boolean is_request_on_autodomain = FALSE;
+  boolean is_call_on_cs_domain     = FALSE;
+  boolean is_silent_redialed       = FALSE;
+
   qcril_qmi_voice_voip_call_info_entry_type * call_info_entry = NULL;
   qcril_qmi_voice_voip_call_info_entry_type * parent_call_info_entry = NULL;
   qcril_qmi_voice_voip_call_info_entry_type * mpty_call_info = NULL;
@@ -2552,6 +3028,12 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
   voice_ip_num_id_type_v02*                   ip_num_info = NULL;
   uint8_t                                     conn_ip_num_info_valid;
   voice_conn_ip_num_with_id_type_v02*         conn_ip_num_info = NULL;
+  uint8_t                                     is_add_info_present_valid;
+  voice_is_add_info_present_with_id_type_v02* is_add_info_present = NULL;
+  uint8_t                                     ip_caller_name_valid;
+  voice_ip_caller_name_info_type_v02*         ip_caller_name = NULL;
+  uint8_t                                     end_reason_text_valid;
+  voice_ip_end_reason_text_type_v02*          end_reason_text = NULL;
 
   uint8_t                                     ril_call_state_valid;
   RIL_CallState                               ril_call_state;
@@ -2569,8 +3051,11 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
   uint8_t                                     video_attrib_valid;
   voice_call_attributes_type_v02              *video_attrib = NULL;
 
+  uint8_t                                     call_attrib_status_valid;
+  voice_call_attrib_status_type_v02           *call_attrib_status = NULL;
   qmi_ril_nw_reg_rte_type                     current_voice_rte;
   int                                         reported_voice_radio_tech;
+  qcril_qmi_ims_voice_conf_state ims_conf_status = QCRIL_QMI_IMS_VOICE_CONF_NO_CONF;
 
   qcril_qmi_voice_voip_call_info_entry_type * cdma_voice_call_info_entry = NULL;
 
@@ -2607,6 +3092,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
 
   char  parentCallID[25] = "\0";
   char  callID[5] = "\0";
+
+  int32_t iter_media_id = INVALID_MEDIA_ID;
 
   qmi_ril_voice_ims_command_exec_oversight_handle_event_params_type
                                               oversight_event_params;
@@ -2798,6 +3285,17 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             video_attrib = &call_status_ind_ptr->video_attrib[ j ];
           }
         }
+        // call attribute status
+        call_attrib_status_valid = FALSE;
+        call_attrib_status = NULL;
+        for ( j = 0; j < call_status_ind_ptr->call_attrib_status_len && ! call_attrib_status_valid; j++)
+        {
+           if ( call_status_ind_ptr->call_attrib_status[j].call_id == iter_call_id)
+           {
+              call_attrib_status_valid = TRUE;
+              call_attrib_status = &call_status_ind_ptr->call_attrib_status[j];
+           }
+        }
 
         // SRVCC Call
         is_srvcc_valid = FALSE;
@@ -2895,6 +3393,54 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
           }
         }
 
+        // Additional Call Info
+        is_add_info_present_valid = FALSE;
+        is_add_info_present = NULL;
+        for ( j = 0; j < call_status_ind_ptr->is_add_info_present_len && !is_add_info_present_valid; j++ )
+        {
+          if ( call_status_ind_ptr->is_add_info_present[ j ].call_id == iter_call_id )
+          {
+            is_add_info_present_valid = TRUE;
+            is_add_info_present = &call_status_ind_ptr->is_add_info_present[ j ];
+          }
+        }
+
+        // media_id
+        iter_media_id       = INVALID_MEDIA_ID;
+        for ( j = 0; j < call_status_ind_ptr->media_id_len; j++ )
+        {
+          if ( call_status_ind_ptr->media_id[ j ].call_id == iter_call_id )
+          {
+            iter_media_id       = call_status_ind_ptr->media_id[ j ].media_id;
+            break;
+          }
+        }
+
+
+        // IP Caller name
+        ip_caller_name_valid = FALSE;
+        ip_caller_name = NULL;
+        for ( j = 0; j < call_status_ind_ptr->ip_caller_name_len && !ip_caller_name_valid; j++ )
+        {
+          if ( call_status_ind_ptr->ip_caller_name[ j ].call_id == iter_call_id )
+          {
+            ip_caller_name_valid = TRUE;
+            ip_caller_name = &call_status_ind_ptr->ip_caller_name[ j ];
+          }
+        }
+
+        // End Reason Text for IP call
+        end_reason_text_valid = FALSE;
+        end_reason_text = NULL;
+        for ( j = 0; j < call_status_ind_ptr->end_reason_text_len && !end_reason_text_valid; j++ )
+        {
+          if ( call_status_ind_ptr->end_reason_text[ j ].call_id == iter_call_id )
+          {
+            end_reason_text_valid = TRUE;
+            end_reason_text = &call_status_ind_ptr->end_reason_text[ j ];
+          }
+        }
+
         // ril call state
         ril_call_state_valid = FALSE;
         ril_call_state = 0;
@@ -2905,14 +3451,18 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
         switch ( iter_call_info->call_state )
         {
           case CALL_STATE_INCOMING_V02:
-            QCRIL_LOG_INFO("call state INCOMING for conn id %d", iter_call_info->call_id);
+            QCRIL_LOG_ESSENTIAL("call state INCOMING for conn id %d", iter_call_info->call_id);
             ril_call_state_valid = TRUE;
             ril_call_state = RIL_CALL_INCOMING;
 
             call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_qmi_id( iter_call_info->call_id );
             if ( NULL == call_info_entry )
             { // fresh
-              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( iter_call_info->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING );
+              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                      iter_call_info->call_id,
+                      iter_media_id,
+                      TRUE,
+                      QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING );
             }
             else
             { // what we got?
@@ -2925,7 +3475,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
               if ( CALL_STATE_SETUP_V02 == call_info_entry->voice_scv_info.call_state &&
                    call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_RINING_TIME_ID_VALID )
               {
-                qcril_cancel_timed_callback((void *) call_info_entry->ringing_time_id);
+                qcril_cancel_timed_callback((void *)(uintptr_t) call_info_entry->ringing_time_id);
                 call_info_entry->ringing_time_id = QMI_RIL_ZERO;
                 call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_RINING_TIME_ID_VALID;
                 call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NEED_FOR_RING_PENDING;
@@ -2933,9 +3483,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
 
               if ( CALL_TYPE_VOICE_IP_V02 == iter_call_info->call_type || CALL_TYPE_VT_V02 == iter_call_info->call_type )
               {
-#ifndef QMI_RIL_UTF
                  qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_CALL_RING);
-#endif
               }
 
               qcril_qmi_voice_voip_update_call_info_entry_mainstream(
@@ -2967,6 +3515,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -2982,18 +3532,19 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
 
               qcril_qmi_voice_consider_shadow_remote_number_cpy_creation( call_info_entry );
 
-              qcril_qmi_voice_set_ps_cs_call_elab_vcl(iter_call_info, call_info_entry);
+              qcril_qmi_voice_set_domain_elab_from_call_type(iter_call_info->call_type, call_info_entry);
               qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
-
-              if ( qcril_qmi_voice_info.jbims && (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN) )
-              {
-                 call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
-              }
 
               if ( ( QMI_RIL_RTE_SUB_LTE == current_voice_rte || RADIO_TECH_LTE == reported_voice_radio_tech )
                     && CALL_TYPE_VOICE_V02 == call_info_entry->voice_scv_info.call_type
@@ -3017,7 +3568,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
 
                     if ( QMI_RIL_ZERO != qmi_voice_voip_overview.num_1x_wait_timer_id )
                     {
-                      qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.num_1x_wait_timer_id );
+                      qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.num_1x_wait_timer_id );
                       qmi_voice_voip_overview.num_1x_wait_timer_id = QMI_RIL_ZERO;
                     }
 
@@ -3087,6 +3638,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -3102,7 +3655,13 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
 
 
@@ -3118,11 +3677,17 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
               }
               qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
 
-              if ( !( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN ) &&
+              if ( ( NULL != call_info_entry ) &&
+                   !( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN ) &&
                    ( QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_ALERTING_OR_CONVERSATION_CALL_PENDING == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() ) &&
                    ( (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MPTY_VOIP_CALL) || (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_MPTY_VOIP_CALL) )
                  )
               {
+                 //ims mpty conf call
+                 if(ims_conf_status == QCRIL_QMI_IMS_VOICE_CONF_NO_CONF)
+                    ims_conf_status = QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
+                 else
+                    ims_conf_status &= QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
                  qcril_qmi_voice_set_ims_conf_call_req_txn_state_to_next_vcl();
                  if (iter_call_info->is_mpty)
                  {
@@ -3133,45 +3698,47 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             }
 
             /* Ringback tone handling */
-            if( call_status_ind_ptr->alerting_type_valid )
+            if( alerting_type_valid )
             {
-              for(j=0; j<call_status_ind_ptr->alerting_type_len; j++)
+              if(alerting_type->alerting_type == ALERTING_REMOTE_V02)
               {
-                if(call_status_ind_ptr->alerting_type[j].alerting_type == ALERTING_REMOTE_V02)
-                {
 
-                  QCRIL_LOG_INFO("Ringback Tone started");
-                  local_ringback_payload = TRUE;
-                  qcril_qmi_voice_info.last_call_is_local_ringback = TRUE;
-                  if (!qcril_qmi_voice_call_to_ims(call_info_entry))
-                  {
-                    qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
-                    unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
-                    unsol_resp.resp_len = sizeof( local_ringback_payload );
-                    qcril_send_unsol_response( &unsol_resp );
-                  }
-                  else
-                  {
-                    qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
-                  }
-                }
-                else if(qcril_qmi_voice_info.last_call_is_local_ringback &&
-                        (call_status_ind_ptr->alerting_type[j].alerting_type == ALERTING_LOCAL_V02))
+                QCRIL_LOG_INFO("Ringback Tone started with QMI id %d", iter_call_id);
+                local_ringback_payload = TRUE;
+                qcril_qmi_voice_info.last_call_is_local_ringback = TRUE;
+                qcril_qmi_voice_info.last_local_ringback_call_id = iter_call_id;
+
+                if (!qcril_qmi_voice_call_to_ims(call_info_entry))
                 {
-                  QCRIL_LOG_INFO("Ringback Tone stopped");
-                  local_ringback_payload = FALSE;
-                  qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
-                  if (!qcril_qmi_voice_call_to_ims(call_info_entry))
-                  {
-                    qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
-                    unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
-                    unsol_resp.resp_len = sizeof( local_ringback_payload );
-                    qcril_send_unsol_response( &unsol_resp );
-                  }
-                  else
-                  {
-                    qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
-                  }
+                  qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
+                  unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
+                  unsol_resp.resp_len = sizeof( local_ringback_payload );
+                  qcril_send_unsol_response( &unsol_resp );
+                }
+                else
+                {
+                  qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
+                }
+              }
+              else if(qcril_qmi_voice_info.last_call_is_local_ringback &&
+                       qcril_qmi_voice_info.last_local_ringback_call_id == iter_call_id &&
+                      (alerting_type->alerting_type == ALERTING_LOCAL_V02))
+              {
+                QCRIL_LOG_INFO("Ringback Tone stopped with QMI id %d", iter_call_id);
+                local_ringback_payload = FALSE;
+                qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
+                qcril_qmi_voice_info.last_local_ringback_call_id = VOICE_INVALID_CALL_ID;
+
+                if (!qcril_qmi_voice_call_to_ims(call_info_entry))
+                {
+                  qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
+                  unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
+                  unsol_resp.resp_len = sizeof( local_ringback_payload );
+                  qcril_send_unsol_response( &unsol_resp );
+                }
+                else
+                {
+                  qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
                 }
               }
             }
@@ -3190,7 +3757,11 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             {
               // This is the case of conference call SRVCC
               // Create call_info_entry with new call_id.
-              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( srvcc_parent_call_info->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID );
+              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                      srvcc_parent_call_info->call_id,
+                      INVALID_MEDIA_ID,
+                      TRUE,
+                      QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID );
 
               if( (NULL != call_info_entry) && (srvcc_parent_call_info->is_parent_id_cleared == TRUE) )
               {
@@ -3226,12 +3797,15 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                 {
                   QCRIL_LOG_INFO( "Call info with parent_call_id doesn't exist... " );
                 }
-                call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
               }
             }
             else if ( ( NULL == call_info_entry ) && ( TRUE == is_srvcc_valid ) && ( NULL != is_srvcc ) && ( TRUE == is_srvcc->is_srvcc_call ) )
             { // fresh creation of call_info_entry in case of SRVCC call from 3rd party
-                call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( is_srvcc->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID );
+                call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                        is_srvcc->call_id,
+                        INVALID_MEDIA_ID,
+                        TRUE,
+                        QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID );
             }
 
             if ( call_info_entry )
@@ -3242,7 +3816,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
 
                 if ( QMI_RIL_ZERO != qmi_voice_voip_overview.num_1x_wait_timer_id )
                 {
-                  qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.num_1x_wait_timer_id );
+                  qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.num_1x_wait_timer_id );
                   qmi_voice_voip_overview.num_1x_wait_timer_id = QMI_RIL_ZERO;
                 }
               }
@@ -3290,6 +3864,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -3305,27 +3881,41 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
               call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_GOT_CONNECTED;
 
+              // set the domain flag before ELA is reset by call_type
+              is_request_on_autodomain = (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUTO_DOMAIN)? TRUE:FALSE;
               qcril_qmi_voice_set_ps_cs_call_elab_vcl(iter_call_info, call_info_entry);
-              qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
-              if ( qcril_qmi_voice_info.jbims && (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN) )
-              {
-                  call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
-              }
+              // set the calltype flag after ELA is reset by call_type
+              is_call_on_cs_domain = (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN)? TRUE:FALSE;
+              is_silent_redialed = is_request_on_autodomain && is_call_on_cs_domain;
+              QCRIL_LOG_INFO("is_request_on_autodomain:%d is_call_on_cs_domain:%d is_silent_redialed:%d", is_request_on_autodomain, is_call_on_cs_domain, is_silent_redialed);
 
-              if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN &&
-                   ( QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_CONVERSATION_CALL_PENDING == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() ||
-                     QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_ALERTING_OR_CONVERSATION_CALL_PENDING == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() // alerting state could be skipped
-                   ) &&
+              qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
+
+              if ( ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN ) &&
+                     (QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_CONVERSATION_CALL_PENDING == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() ||
+                     QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_ALERTING_OR_CONVERSATION_CALL_PENDING == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() ||
+                     QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_MERGING_CALLS == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() )  &&
                    ( (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MPTY_VOIP_CALL) ||
-                     (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_MPTY_VOIP_CALL) )
-                 )
+                     (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_MPTY_VOIP_CALL) ) )
               {
                  if (iter_call_info->is_mpty)
                  {
+                    //ims mpty conf call
+                    if(ims_conf_status == QCRIL_QMI_IMS_VOICE_CONF_NO_CONF)
+                       ims_conf_status = QCRIL_QMI_IMS_VOICE_CONF_ESTABLISHED; //conference is established
+                    else
+                       ims_conf_status &= QCRIL_QMI_IMS_VOICE_CONF_ESTABLISHED; //conference is established
+
                     qcril_qmi_voice_set_ims_conf_req_txn_state_vcl(QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_MERGING_CALLS);
                     call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MPTY_VOIP_CALL;
                     call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_MPTY_VOIP_CALL;
@@ -3336,34 +3926,41 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                  }
 
               }
+
+              qcril_qmi_voice_check_and_update_srvcc_no_mid_call_support(call_info_entry, iter_call_info);
             }
 
             /* Ringback tone handling */
-            if( call_status_ind_ptr->alerting_type_valid )
+            if( alerting_type_valid )
             {
-              for(j=0;j<call_status_ind_ptr->alerting_type_len; j++)
+              if(qcril_qmi_voice_info.last_call_is_local_ringback &&
+                 qcril_qmi_voice_info.last_local_ringback_call_id == iter_call_id &&
+                 (alerting_type->alerting_type == ALERTING_LOCAL_V02) )
               {
-                if(qcril_qmi_voice_info.last_call_is_local_ringback)
+                QCRIL_LOG_INFO("Ringback Tone stopped with QMI call id %d", iter_call_id);
+                local_ringback_payload = FALSE;
+                qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
+                qcril_qmi_voice_info.last_local_ringback_call_id = VOICE_INVALID_CALL_ID;
+
+                if (!qcril_qmi_voice_call_to_ims(call_info_entry))
                 {
-                  QCRIL_LOG_INFO("Ringback Tone stopped");
-                  local_ringback_payload = FALSE;
-                  qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
-                  if (!qcril_qmi_voice_call_to_ims(call_info_entry))
-                  {
-                    qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
-                    unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
-                    unsol_resp.resp_len = sizeof( local_ringback_payload );
-                    qcril_send_unsol_response( &unsol_resp );
-                  }
-                  else
-                  {
-                    qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
-                  }
+                  qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
+                  unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
+                  unsol_resp.resp_len = sizeof( local_ringback_payload );
+                  qcril_send_unsol_response( &unsol_resp );
+                }
+                else
+                {
+                  qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
                 }
               }
             }
 
             qcril_qmi_voice_set_cdma_call_id_if_applicable_vcl(iter_call_info);
+
+            // Reset the PENDING_INCOMING and ANSWERING_CALL elabs
+            call_info_entry->elaboration &= ~(QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING |
+                                              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_ANSWERING_CALL);
 
             break; // end of case CALL_STATE_CONVERSATION_V02
 
@@ -3383,33 +3980,33 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                 if ( QMI_RIL_ZERO != qmi_voice_voip_overview.auto_answer_timer_id )
                 {
                   QCRIL_LOG_INFO("Cancel Auto Answer timed callback");
-                  qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.auto_answer_timer_id );
+                  qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.auto_answer_timer_id );
                   qmi_voice_voip_overview.auto_answer_timer_id = QMI_RIL_ZERO;
                 }
               }
             }
 
             // Ringback tone handling
-            if(call_status_ind_ptr->alerting_type_valid)
+            if(alerting_type_valid)
             {
-              for(j=0;j<call_status_ind_ptr->alerting_type_len; j++)
+              if(qcril_qmi_voice_info.last_call_is_local_ringback &&
+                 qcril_qmi_voice_info.last_local_ringback_call_id == iter_call_id &&
+                 (alerting_type->alerting_type == ALERTING_LOCAL_V02) )
               {
-                if(qcril_qmi_voice_info.last_call_is_local_ringback)
+                QCRIL_LOG_INFO("Ringback Tone stopped with QMI call id %d", iter_call_id);
+                local_ringback_payload = FALSE;
+                qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
+                qcril_qmi_voice_info.last_local_ringback_call_id = VOICE_INVALID_CALL_ID;
+                if (!qcril_qmi_voice_call_to_ims(call_info_entry))
                 {
-                  QCRIL_LOG_INFO("Ringback Tone stopped");
-                  local_ringback_payload = FALSE;
-                  qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
-                  if (!qcril_qmi_voice_call_to_ims(call_info_entry))
-                  {
-                    qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
-                    unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
-                    unsol_resp.resp_len = sizeof( local_ringback_payload );
-                    qcril_send_unsol_response( &unsol_resp );
-                  }
-                  else
-                  {
-                    qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
-                  }
+                  qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
+                  unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
+                  unsol_resp.resp_len = sizeof( local_ringback_payload );
+                  qcril_send_unsol_response( &unsol_resp );
+                }
+                else
+                {
+                  qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
                 }
               }
             }
@@ -3446,6 +4043,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -3461,7 +4060,13 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
 
               QCRIL_LOG_INFO( "call mode %d, call type %d, call got connected %d",
@@ -3481,8 +4086,9 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                     (RIL_Token) QCRIL_TOKEN_ID_INTERNAL );
               }
 
-              if ( !(call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_MEMBER_OF_MPTY_VOIP_CALL))
-              {
+             if ( !(call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_MEMBER_OF_MPTY_VOIP_CALL)
+                  && !qcril_qmi_voice_call_to_ims(call_info_entry))
+             {
                 (void)qcril_setup_timed_callback( QCRIL_DEFAULT_INSTANCE_ID,
                                             QCRIL_DEFAULT_MODEM_ID,
                                             qmi_ril_voice_ended_call_obj_phase_out,
@@ -3496,7 +4102,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             if( call_status_ind_ptr->call_end_reason_valid )
             {
               QCRIL_LOG_INFO("call failure cause %d", call_status_ind_ptr->call_end_reason[0].call_end_reason);
-              qcril_qmi_voice_handle_new_last_call_failure_cause(call_status_ind_ptr->call_end_reason[0].call_end_reason, TRUE);
+              qcril_qmi_voice_handle_new_last_call_failure_cause(call_status_ind_ptr->call_end_reason[0].call_end_reason, TRUE, call_info_entry);
             }
 
             qcril_qmi_voice_respond_pending_hangup_ril_response(iter_call_info->call_id);
@@ -3506,14 +4112,19 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
               call_info_entry->qmi_call_id = VOICE_INVALID_CALL_ID;
             }
 
-            if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN &&
+            if ( (NULL != call_info_entry) &&
+                 call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN &&
                  QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_MERGING_CALLS == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() &&
                  call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MEMBER_OF_MPTY_VOIP_CALL
                )
             {
-               qcril_qmi_voice_add_call_to_existing_mpty_voip_call_vcl(call_info_entry);
+                //This call got added to an ims mpty conference.
+                if(ims_conf_status == QCRIL_QMI_IMS_VOICE_CONF_NO_CONF)
+                    ims_conf_status = QCRIL_QMI_IMS_VOICE_CONF_ESTABLISHED; //conference is established
+               else
+                  ims_conf_status &= QCRIL_QMI_IMS_VOICE_CONF_ESTABLISHED; //conference is established
+               //qcril_qmi_voice_add_call_to_existing_mpty_voip_call_vcl(call_info_entry);
             }
-
             qcril_qmi_voice_reset_cdma_call_id_if_applicable_vcl(iter_call_info);
 
             break; // end of case CALL_STATE_END_V02
@@ -3528,21 +4139,29 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
 
             if ( NULL == call_info_entry )
             { // ghost call
-              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( iter_call_info->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NONE );
+              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                      iter_call_info->call_id,
+                      iter_media_id,
+                      TRUE,
+                      QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NONE );
               if ( call_info_entry )
               {
                 call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PHANTOM_CALL;
-                qcril_qmi_voice_set_ps_cs_call_elab_vcl(iter_call_info, call_info_entry);
-
-                if ( qcril_qmi_voice_info.jbims && (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN) )
-                {
-                   call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
-                }
+                qcril_qmi_voice_set_domain_elab_from_call_type(iter_call_info->call_type, call_info_entry);
 
                 if ( !( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN ) &&
                      ( QCRIL_QMI_VOICE_IMS_CONF_REQ_STATE_ORIGINATING_CALL_PENDING == qcril_qmi_voice_get_ims_conf_call_req_txn_state_vcl() ) )
                 {
-                    call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
+                    //ims conference call
+                    if(ims_conf_status == QCRIL_QMI_IMS_VOICE_CONF_NO_CONF)
+                    {
+                       ims_conf_status = QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
+                    }
+                    else
+                    {
+                       ims_conf_status &= QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
+                    }
+
                     qcril_qmi_voice_set_ims_conf_call_req_txn_state_to_next_vcl();
                     if (iter_call_info->is_mpty)
                     {
@@ -3558,12 +4177,6 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             else
             {
                qcril_qmi_voice_voip_change_call_elab_when_first_call_ind_received(call_info_entry);
-               qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
-
-               if ( qcril_qmi_voice_info.jbims && (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN) )
-               {
-                  call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
-               }
             }
 
             if ( call_info_entry )
@@ -3597,6 +4210,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -3612,8 +4227,15 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
+              qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
 
               qcril_qmi_voice_consider_shadow_remote_number_cpy_creation( call_info_entry );
 
@@ -3687,7 +4309,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                        ( QMI_RIL_ZERO != qmi_voice_voip_overview.auto_answer_timer_id ) )
                   {
                     QCRIL_LOG_INFO("Cancel Auto Answer timed callback");
-                    qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.auto_answer_timer_id );
+                    qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.auto_answer_timer_id );
                     qmi_voice_voip_overview.auto_answer_timer_id = QMI_RIL_ZERO;
                   }
                   break;
@@ -3700,7 +4322,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
               if ( CALL_STATE_SETUP_V02 == call_info_entry->voice_scv_info.call_state &&
                    call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_RINING_TIME_ID_VALID )
               {
-                qcril_cancel_timed_callback((void *) call_info_entry->ringing_time_id);
+                qcril_cancel_timed_callback((void *)(uintptr_t) call_info_entry->ringing_time_id);
                 call_info_entry->ringing_time_id = QMI_RIL_ZERO;
                 call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NEED_FOR_RING_PENDING;
                 call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_RINING_TIME_ID_VALID;
@@ -3735,6 +4357,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -3750,37 +4374,61 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
             }
             qcril_qmi_voice_invalid_last_call_failure_cause();
 
             /* Ringback tone handling */
-            if( call_status_ind_ptr->alerting_type_valid )
+            if( alerting_type_valid )
             {
-              for(j=0; j<call_status_ind_ptr->alerting_type_len; j++)
+              if(qcril_qmi_voice_info.last_call_is_local_ringback &&
+                 (alerting_type->alerting_type == ALERTING_LOCAL_V02) &&
+                 qcril_qmi_voice_info.last_local_ringback_call_id == iter_call_id)
               {
-                if(qcril_qmi_voice_info.last_call_is_local_ringback &&
-                        (call_status_ind_ptr->alerting_type[j].alerting_type == ALERTING_LOCAL_V02))
+                QCRIL_LOG_INFO("Stop Ringback Tone for QMI id %d", iter_call_id);
+                local_ringback_payload = FALSE;
+                qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
+                qcril_qmi_voice_info.last_local_ringback_call_id = VOICE_INVALID_CALL_ID;
+                if (!qcril_qmi_voice_call_to_ims(call_info_entry))
                 {
-                  QCRIL_LOG_INFO("Stop Ringback Tone");
-                  local_ringback_payload = FALSE;
-                  qcril_qmi_voice_info.last_call_is_local_ringback = FALSE;
-                  if (!qcril_qmi_voice_call_to_ims(call_info_entry))
-                  {
 
-                    qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
-                    unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
-                    unsol_resp.resp_len = sizeof( local_ringback_payload );
-                    qcril_send_unsol_response( &unsol_resp );
-                  }
-                  else
-                  {
-                    qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
-                  }
+                  qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_RINGBACK_TONE, &unsol_resp );
+                  unsol_resp.resp_pkt = ( void * ) &local_ringback_payload;
+                  unsol_resp.resp_len = sizeof( local_ringback_payload );
+                  qcril_send_unsol_response( &unsol_resp );
+                }
+                else
+                {
+                  qcril_qmi_voice_ims_send_unsol_ringback_tone(local_ringback_payload);
                 }
               }
             }
+            //TODO: check the race condition in real time and uncomment the commented code if needed
+
+            /*Race condition(example, could be many other): window betwee {HOLD, END, CONVERSATION}
+             *  and {END, Conversation} if we get a disconnecting status for the second call like
+             * {DISCONNECTING, CONVERSATION} we shouldnt report the indication back to atel.
+             * This should be considered as conference in progress.
+             * Uncomment the code below if such race condition exisits in real time.*/
+
+            //if(NULL != call_info_entry &&
+               //call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN &&
+               //call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MEMBER_OF_MPTY_VOIP_CALL )
+            //{
+              // /* This call id will be ended and
+                  //the call will be added to an ims conference*/
+               //if(ims_conf_status == QCRIL_QMI_IMS_VOICE_CONF_NO_CONF)
+                  //ims_conf_status = QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
+               //else
+                  //ims_conf_status &= QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
+            //}
 
             break; // end of case CALL_STATE_DISCONNECTING_V02
 
@@ -3792,7 +4440,11 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_qmi_id( iter_call_info->call_id );
             if ( NULL == call_info_entry )
             { // fresh
-              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( iter_call_info->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING );
+              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                      iter_call_info->call_id,
+                      iter_media_id,
+                      TRUE,
+                      QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING );
             }
             else
             {
@@ -3804,7 +4456,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
               if ( CALL_STATE_SETUP_V02 == call_info_entry->voice_scv_info.call_state &&
                    call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_RINING_TIME_ID_VALID )
               {
-                qcril_cancel_timed_callback((void *) call_info_entry->ringing_time_id);
+                qcril_cancel_timed_callback((void *)(uintptr_t) call_info_entry->ringing_time_id);
                 call_info_entry->ringing_time_id = QMI_RIL_ZERO;
                 call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_RINING_TIME_ID_VALID;
                 call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NEED_FOR_RING_PENDING;
@@ -3839,6 +4491,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -3854,17 +4508,18 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
               qcril_qmi_voice_consider_shadow_remote_number_cpy_creation( call_info_entry );
 
               qcril_qmi_voice_set_ps_cs_call_elab_vcl(iter_call_info, call_info_entry);
               qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
-
-              if ( (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN) && qcril_qmi_voice_info.jbims)
-              {
-                 call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
-              }
             }
 
             qcril_event_queue( QCRIL_DEFAULT_INSTANCE_ID,
@@ -3889,7 +4544,11 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             {
               // This is the case of conference call SRVCC
               // Create call_info_entry with new call_id.
-              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( srvcc_parent_call_info->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID );
+              call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                      srvcc_parent_call_info->call_id,
+                      INVALID_MEDIA_ID,
+                      TRUE,
+                      QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID );
 
               if( (NULL != call_info_entry) && (srvcc_parent_call_info->is_parent_id_cleared == TRUE) )
               {
@@ -3925,7 +4584,6 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                 {
                   QCRIL_LOG_INFO( "Call info with parent_call_id doesn't exist... " );
                 }
-                call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
               }
             }
 
@@ -3960,6 +4618,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -3975,11 +4635,32 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
               qcril_qmi_voice_set_ps_cs_call_elab_vcl(iter_call_info, call_info_entry);
               qcril_qmi_voice_set_audio_call_type(iter_call_info, call_info_entry);
+
+              qcril_qmi_voice_check_and_update_srvcc_no_mid_call_support(call_info_entry, iter_call_info);
             }
+
+            if(NULL != call_info_entry &&
+               call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN &&
+               call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MEMBER_OF_MPTY_VOIP_CALL )
+            {
+              /* This call id will be ended and
+                  the call will be added to an ims conference*/
+               if(ims_conf_status == QCRIL_QMI_IMS_VOICE_CONF_NO_CONF)
+                  ims_conf_status = QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
+               else
+                  ims_conf_status &= QCRIL_QMI_IMS_VOICE_CONF_IN_PROGRESS; //conference establishment is in progress
+            }
+
             break; // end of case CALL_STATE_HOLD_V02
 
           case CALL_STATE_CC_IN_PROGRESS_V02:
@@ -3992,6 +4673,12 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             if (call_info_entry)
             {
                 call_info_entry->qmi_call_id = iter_call_info->call_id;
+                call_info_entry->media_id = iter_media_id;
+
+                QCRIL_LOG_INFO("Call qmi id is %d, Call media id is %d",
+                               call_info_entry->qmi_call_id,
+                               call_info_entry->media_id);
+
                 if (QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_HANGUP_AFTER_VALID_QMI_ID &
                                                      call_info_entry->elaboration)
                 {
@@ -4038,6 +4725,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   audio_attrib,
                                                   video_attrib_valid,
                                                   video_attrib,
+                                                  call_attrib_status_valid,
+                                                  call_attrib_status,
                                                   is_srvcc_valid,
                                                   is_srvcc,
                                                   srvcc_parent_call_info_valid,
@@ -4053,7 +4742,13 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                   ip_num_info_valid,
                                                   ip_num_info,
                                                   conn_ip_num_info_valid,
-                                                  conn_ip_num_info
+                                                  conn_ip_num_info,
+                                                  is_add_info_present_valid,
+                                                  is_add_info_present,
+                                                  ip_caller_name_valid,
+                                                  ip_caller_name,
+                                                  end_reason_text_valid,
+                                                  end_reason_text
                                                   );
             }
 
@@ -4067,7 +4762,11 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
               call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_qmi_id( iter_call_info->call_id );
               if ( NULL == call_info_entry )
               { // fresh
-                call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( iter_call_info->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NONE );
+                call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                        iter_call_info->call_id,
+                        iter_media_id,
+                        TRUE,
+                        QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NONE );
               }
               else
               { // what we got?
@@ -4075,7 +4774,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
               }
               if ( call_info_entry )
               {
-                qcril_qmi_voice_set_ps_cs_call_elab_vcl(iter_call_info, call_info_entry);
+                qcril_qmi_voice_set_domain_elab_from_call_type(iter_call_info->call_type, call_info_entry);
 
                 qcril_qmi_voice_voip_update_call_info_entry_mainstream(
                                                     call_info_entry,
@@ -4106,6 +4805,8 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                     audio_attrib,
                                                     video_attrib_valid,
                                                     video_attrib,
+                                                    call_attrib_status_valid,
+                                                    call_attrib_status,
                                                     is_srvcc_valid,
                                                     is_srvcc,
                                                     srvcc_parent_call_info_valid,
@@ -4121,7 +4822,13 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
                                                     ip_num_info_valid,
                                                     ip_num_info,
                                                     conn_ip_num_info_valid,
-                                                    conn_ip_num_info
+                                                    conn_ip_num_info,
+                                                    is_add_info_present_valid,
+                                                    is_add_info_present,
+                                                    ip_caller_name_valid,
+                                                    ip_caller_name,
+                                                    end_reason_text_valid,
+                                                    end_reason_text
                                                     );
 
                 if ( !( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NEED_FOR_RING_PENDING ) )
@@ -4154,6 +4861,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
             case CALL_STATE_CONVERSATION_V02: // fallthrough
             case CALL_STATE_DISCONNECTING_V02:
             case CALL_STATE_ALERTING_V02:
+            case CALL_STATE_END_V02:
               if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING &&
                    !( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING_ENDING ) )
               {
@@ -4168,7 +4876,10 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
           }
         }
         //Evaluating calls that need to be skipped for now
-        if (iter_call_info->call_type == CALL_TYPE_VOICE_IP_V02 || iter_call_info->call_type == CALL_TYPE_VT_V02 || iter_call_info->call_type == CALL_TYPE_EMERGENCY_IP_V02)
+        if (iter_call_info->call_state == CALL_STATE_CC_IN_PROGRESS_V02 ||
+                (iter_call_info->call_type == CALL_TYPE_VOICE_IP_V02 ||
+                 iter_call_info->call_type == CALL_TYPE_VT_V02 ||
+                 iter_call_info->call_type == CALL_TYPE_EMERGENCY_IP_V02))
         {
            is_deviant_call = FALSE;
         }
@@ -4332,7 +5043,7 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
         {
           cdma_voice_call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_CACHED_RP_NUMBER;
         }
-        QCRIL_LOG_INFO( "flagged cached RP num %x", (int)cdma_voice_call_info_entry );
+        QCRIL_LOG_INFO( "flagged cached RP num %p", cdma_voice_call_info_entry );
       }
 
       // post cleanup
@@ -4349,21 +5060,38 @@ void qcril_qmi_voice_all_call_status_ind_hdlr
          qcril_qmi_voice_hangup_all_non_emergency_calls_vcl();
       }
 
+#ifndef QMI_RIL_UTF
       qcril_am_handle_event(QCRIL_AM_EVENT_CALL_STATE_CHANGED, NULL);
+#endif
 
       qcril_qmi_voice_voip_unlock_overview();
 
       if ( nof_atel_calls && !qmi_ril_voice_is_voice_calls_supressed )
       {
+        // send SRVCC ind to RILD if IMS dial request if silent redialed
+        if (is_silent_redialed)
+        {
+          QCRIL_LOG_ERROR("modem silent redialed, sending SRVCC IND");
+          // send HANDOVER STARTED and COMPLETED
+          qcril_default_unsol_resp_params(instance_id, RIL_UNSOL_SRVCC_STATE_NOTIFY ,&unsol_resp);
+          RIL_SrvccState ril_srvccstate;
+          unsol_resp.resp_pkt = &ril_srvccstate;
+          unsol_resp.resp_len = sizeof(RIL_SrvccState);
+
+          ril_srvccstate = HANDOVER_STARTED;
+          qcril_send_unsol_response(&unsol_resp);
+
+          ril_srvccstate = HANDOVER_COMPLETED;
+          qcril_send_unsol_response(&unsol_resp);
+        }
         qcril_qmi_voice_send_unsol_call_state_changed( instance_id );
       }
 
       if ( nof_ims_calls && !qmi_ril_voice_is_voice_calls_supressed )
       {
-#ifndef QMI_RIL_UTF
-        qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
-#endif
+        qcril_qmi_voice_send_ims_unsol_call_state_changed();
       }
+
 
       if ( calls_summary_end.nof_voice_calls != calls_summary_beginning.nof_voice_calls )
       {
@@ -4464,7 +5192,7 @@ void qmi_ril_voice_ended_call_obj_phase_out(void * param)
 
     QCRIL_LOG_FUNC_ENTRY();
 
-    timer_id = ( uint32 )param;
+    timer_id = ( uint32 )(uintptr_t)param;
 
     qcril_qmi_voice_voip_lock_overview();
 
@@ -4474,7 +5202,7 @@ void qmi_ril_voice_ended_call_obj_phase_out(void * param)
       if ( VOICE_INVALID_CALL_ID != call_info->android_call_id &&
            CALL_STATE_END_V02 == call_info->voice_scv_info.call_state &&
            timer_id == call_info->call_obj_phase_out_timer_id &&
-           ! ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MEMBER_OF_MPTY_VOIP_CALL )
+          ! ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MEMBER_OF_MPTY_VOIP_CALL )
          )
       { // timeout on keeping call obj, delete it now
         qcril_qmi_voice_voip_destroy_call_info_entry( call_info );
@@ -4501,7 +5229,7 @@ void qmi_ril_voice_extended_dialing_over( void )
 
   qcril_qmi_voice_voip_lock_overview();
   call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration( QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING, TRUE );
-  QCRIL_LOG_INFO( ".. call obj %d", (int)call_info_entry );
+  QCRIL_LOG_INFO( ".. call obj %p", call_info_entry );
   if ( NULL != call_info_entry )
   {
     call_info_entry->elaboration &= ~( QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING_ENDING | QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING );
@@ -4522,9 +5250,7 @@ void qmi_ril_voice_extended_dialing_over( void )
 
   if ( need_update_ims )
   {
-#ifndef QMI_RIL_UTF
-    qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
-#endif
+    qcril_qmi_voice_send_ims_unsol_call_state_changed();
   }
 
   QCRIL_LOG_FUNC_RETURN();
@@ -4544,7 +5270,7 @@ void qmi_ril_voice_revoke_kill_immunity_priveledge( void )
   do
   {
     call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration( QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EME_KILL_IMMUNITY, TRUE );
-    QCRIL_LOG_INFO( ".. call obj %d", (int)call_info_entry );
+    QCRIL_LOG_INFO( ".. call obj %p", call_info_entry );
     if ( NULL != call_info_entry )
     {
       call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EME_KILL_IMMUNITY;
@@ -4603,8 +5329,10 @@ void qcril_qmi_voice_modified_ind_hdlr
   qcril_unsol_resp_params_type    unsol_resp;
   voice_call_attributes_type_v02  audio_attrib;
   voice_call_attributes_type_v02  video_attrib;
+  voice_call_attrib_status_type_v02 call_attrib_status;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(data_len);
 
   if ( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) || qcril_qmi_voice_info.jbims )
   {
@@ -4636,6 +5364,11 @@ void qcril_qmi_voice_modified_ind_hdlr
               video_attrib.call_id = modify_ind_ptr->call_id;
            }
 
+           if( modify_ind_ptr->call_attrib_status_valid )
+           {
+              call_attrib_status.call_attrib_status = modify_ind_ptr->call_attrib_status;
+              call_attrib_status.call_id = modify_ind_ptr->call_id;
+           }
            /* update the audio/video parameters */
            qcril_qmi_voice_voip_update_call_info_entry_mainstream (
                                                call_info,
@@ -4666,6 +5399,8 @@ void qcril_qmi_voice_modified_ind_hdlr
                                                &audio_attrib,
                                                modify_ind_ptr->video_attrib_valid,
                                                &video_attrib,
+                                               modify_ind_ptr->call_attrib_status_valid,
+                                               &call_attrib_status,
                                                FALSE,
                                                NULL,
                                                FALSE,
@@ -4681,8 +5416,16 @@ void qcril_qmi_voice_modified_ind_hdlr
                                                FALSE,
                                                NULL,
                                                FALSE,
-                                               NULL );
+                                               NULL,
+                                               FALSE,
+                                               NULL,
+                                               FALSE,
+                                               NULL,
+                                               FALSE,
+                                               NULL);
 
+           // Reset the answered_call_type flag
+           qcril_qmi_voice_voip_reset_answered_call_type(call_info, modify_ind_ptr);
 
            /* check for modify initiate pending request */
            result  = qcril_reqlist_query_by_event( instance_id,
@@ -4711,7 +5454,6 @@ void qcril_qmi_voice_modified_ind_hdlr
               {
                  if (modify_ind_ptr->failure_cause_valid && modify_ind_ptr->failure_cause)
                  {
-#ifndef QMI_RIL_UTF
                     Ims__CallModify ims_unsol_modify_data = IMS__CALL_MODIFY__INIT;
 
                     ims_unsol_modify_data.has_callindex = TRUE;
@@ -4725,7 +5467,8 @@ void qcril_qmi_voice_modified_ind_hdlr
                        ims_call_details.calltype = call_info->to_modify_call_type;
                        ims_call_details.has_calldomain = TRUE;
                        ims_call_details.calldomain = call_info->to_modify_call_domain;
-
+                       ims_call_details.has_mediaid = TRUE;
+                       ims_call_details.mediaid = call_info->media_id;
                        call_info->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_MODIFY_CONFIRM_PENDING;
                     }
                     else
@@ -4737,7 +5480,6 @@ void qcril_qmi_voice_modified_ind_hdlr
                     ims_unsol_modify_data.error = IMS__ERROR__E_CANCELLED; // E_CANCELLED is the only valid value to IMS
 
                     qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_MODIFY_CALL, IMS__ERROR__E_SUCCESS, &ims_unsol_modify_data, sizeof(ims_unsol_modify_data));
-#endif
                  }
                  else
                  {
@@ -4753,10 +5495,8 @@ void qcril_qmi_voice_modified_ind_hdlr
            }
            if (qcril_qmi_voice_call_to_ims(call_info))
            {
-#ifndef QMI_RIL_UTF
               /* send unsol indication to IMS for indicating change in call type*/
-              qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
-#endif
+              qcril_qmi_voice_send_ims_unsol_call_state_changed();
            }
         }
         else
@@ -4801,6 +5541,7 @@ void qcril_qmi_voice_modify_accept_ind_hdlr
   boolean result;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(data_len);
 
   if ( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) || qcril_qmi_voice_info.jbims )
   {
@@ -4821,6 +5562,12 @@ void qcril_qmi_voice_modify_accept_ind_hdlr
              result = !qcril_qmi_voice_get_atel_call_type_info( modify_ind_ptr->call_type,
                                                  modify_ind_ptr->video_attrib_valid,
                                                  modify_ind_ptr->video_attrib,
+                                                 modify_ind_ptr->audio_attrib_valid,
+                                                 modify_ind_ptr->audio_attrib,
+                                                 FALSE,
+                                                 0,
+                                                 FALSE,
+                                                 0,
                                                  FALSE,
                                                  0,
                                                  unsol_modify_data.callDetails );
@@ -4838,7 +5585,6 @@ void qcril_qmi_voice_modify_accept_ind_hdlr
                 }
                 else
                 {
-#ifndef QMI_RIL_UTF
                    /* modify was initiated by network(other party), send indication to ims */
                    Ims__CallModify ims_unsol_modify_data = IMS__CALL_MODIFY__INIT;
                    Ims__CallDetails ims_call_details = IMS__CALL_DETAILS__INIT;
@@ -4848,7 +5594,6 @@ void qcril_qmi_voice_modify_accept_ind_hdlr
                    call_info->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_MODIFY_CONFIRM_PENDING;
                    call_info->to_modify_call_domain = ims_call_details.calldomain;
                    call_info->to_modify_call_type = ims_call_details.calltype;
-#endif
                 }
              }
              else
@@ -4896,6 +5641,8 @@ void qcril_qmi_voice_speech_codec_info_ind_hdlr
   boolean call_to_ims  = FALSE;
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED(data_len);
+
   if( data_ptr )
   {
      speech_codec_ptr = (voice_speech_codec_info_ind_msg_v02*) data_ptr;
@@ -4941,9 +5688,7 @@ void qcril_qmi_voice_speech_codec_info_ind_hdlr
         }
         if (call_to_ims)
         {
-#ifndef QMI_RIL_UTF
-          qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
-#endif
+          qcril_qmi_voice_send_ims_unsol_call_state_changed();
         }
      }
   }
@@ -5180,9 +5925,7 @@ void qcril_qmi_voice_nas_control_process_calls_pending_for_right_voice_rte()
      }
      if (call_to_ims)
      {
-#ifndef QMI_RIL_UTF
-       qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
-#endif
+       qcril_qmi_voice_send_ims_unsol_call_state_changed();
      }
   }
 
@@ -5215,6 +5958,9 @@ void qcril_qmi_voice_sups_notification_ind_hdlr
   qcril_unsol_resp_params_type unsol_resp;
   char number[ 2 * QCRIL_QMI_VOICE_CALLED_PARTY_BCD_NO_LENGTH ];
   qcril_qmi_voice_voip_call_info_entry_type * call_info_entry = NULL;
+  char ip_hist_info_utf8_str[QCRIL_QMI_VOICE_MAX_IP_HISTORY_INFO_LEN*2];
+  int  utf8_len = 0;
+  int  i = 0;
 
   if( ind_data_ptr != NULL )
   {
@@ -5391,7 +6137,6 @@ void qcril_qmi_voice_sups_notification_ind_hdlr
       }
       else
       {
-#ifndef QMI_RIL_UTF
         Ims__SuppSvcNotification ims_unsol_supp_svc_notification = IMS__SUPP_SVC_NOTIFICATION__INIT;
         qcril_qmi_ims_translate_ril_suppsvcnotification_to_ims_suppsvcnotification(&response, &ims_unsol_supp_svc_notification);
 
@@ -5401,8 +6146,33 @@ void qcril_qmi_voice_sups_notification_ind_hdlr
             ims_unsol_supp_svc_notification.connid = call_info_entry->android_call_id;
         }
 
+        if(sups_notify_ind->ip_forward_hist_info_valid)
+        {
+            //Convert UTF16 to UTF8 string
+            utf8_len = qcril_cm_ss_convert_ucs2_to_utf8(
+                                 (char *) sups_notify_ind->ip_forward_hist_info,
+                                 sups_notify_ind->ip_forward_hist_info_len * 2,
+                                 ip_hist_info_utf8_str );
+
+            QCRIL_LOG_DEBUG ("ip_hist_info (utf8 data) : %s", ip_hist_info_utf8_str);
+            if ( utf8_len > ( QCRIL_QMI_VOICE_MAX_IP_HISTORY_INFO_LEN * 2 ) )
+            {
+              QCRIL_LOG_ERROR ("ascii_len exceeds QCRIL_QMI_VOICE_MAX_IP_HISTORY_INFO_LEN");
+              utf8_len = (int) (QCRIL_QMI_VOICE_MAX_IP_HISTORY_INFO_LEN*2);
+              ip_hist_info_utf8_str[ utf8_len - 1] = '\0';
+            }
+            ims_unsol_supp_svc_notification.history_info = qmi_ril_util_str_clone(ip_hist_info_utf8_str);
+        }
+
         qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_SUPP_SVC_NOTIFICATION, IMS__ERROR__E_SUCCESS, &ims_unsol_supp_svc_notification, sizeof(ims_unsol_supp_svc_notification));
-#endif
+        if (ims_unsol_supp_svc_notification.number)
+        {
+          qcril_free( ims_unsol_supp_svc_notification.number );
+        }
+        if (ims_unsol_supp_svc_notification.history_info)
+        {
+          qcril_free( ims_unsol_supp_svc_notification.history_info );
+        }
       }
     }
   }
@@ -5841,7 +6611,11 @@ void qcril_qmi_voice_info_rec_ind_hdlr
         if ( NULL == call_info_entry && info_rec_ind->call_id != 254 )
         { // fresh, this should be an incoming call and the info_rec_ind comes before all_call_status_ind
           // Create a call entry only if call_id is not 254 which is used by modem to indicate a unknown call type.
-          call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( info_rec_ind->call_id, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING );
+          call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+                  info_rec_ind->call_id,
+                  INVALID_MEDIA_ID,
+                  TRUE,
+                  QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING );
           call_info_entry->ril_call_state = RIL_CALL_INCOMING;
           call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_RIL_CALL_STATE_VALID;
         }
@@ -5988,7 +6762,7 @@ void qcril_qmi_voice_info_rec_ind_hdlr
       { // expecting call obj in coming state
         call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_andoid_call_state( RIL_CALL_INCOMING );
       }
-      QCRIL_LOG_INFO(".. call obj %d", (int)call_info_entry );
+      QCRIL_LOG_INFO(".. call obj %p", call_info_entry );
       if ( call_info_entry )
       {
         qcril_qmi_voice_voip_call_info_dump( call_info_entry );
@@ -6053,7 +6827,7 @@ void qcril_qmi_voice_info_rec_ind_hdlr
       qcril_qmi_voice_voip_lock_overview();
       if ( QMI_RIL_ZERO != qmi_voice_voip_overview.num_1x_wait_timer_id )
       {
-        qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.num_1x_wait_timer_id );
+        qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.num_1x_wait_timer_id );
         qmi_voice_voip_overview.num_1x_wait_timer_id = QMI_RIL_ZERO;
       }
       qcril_qmi_voice_voip_unlock_overview();
@@ -6099,7 +6873,7 @@ void qcril_qmi_voice_dial_call_resp_hdlr
 
   call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration( QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_MO_CALL_BEING_SETUP, TRUE );
 
-  QCRIL_LOG_INFO( "call_info_entry %d", (int)call_info_entry );
+  QCRIL_LOG_INFO( "call_info_entry %p", call_info_entry );
 
   if( NULL != params_ptr->data && NULL != call_info_entry )
   {
@@ -6122,11 +6896,20 @@ void qcril_qmi_voice_dial_call_resp_hdlr
                    (int)dial_call_resp->cc_result_type
                    );
 
-    switch ( ril_err )
+    switch ( (int)ril_err )
     {
       case RIL_E_SUCCESS:
       case RIL_E_DIAL_MODIFIED_TO_DIAL:
         call_info_entry->qmi_call_id = dial_call_resp->call_id;
+
+        if(dial_call_resp->media_id_valid)
+        {
+          call_info_entry->media_id = dial_call_resp->media_id;
+        }
+        else
+        {
+          call_info_entry->media_id = INVALID_MEDIA_ID;
+        }
         QCRIL_LOG_INFO( "call qmi id recorded %d", (int)call_info_entry->qmi_call_id );
         break;
 
@@ -6136,6 +6919,14 @@ void qcril_qmi_voice_dial_call_resp_hdlr
         break;
     }
 
+    if (!qmi_ril_is_feature_supported(QMI_RIL_FEATURE_ATEL_STKCC))
+    {
+      if (RIL_E_DIAL_MODIFIED_TO_DIAL == ril_err)
+      {
+        ril_err = RIL_E_SUCCESS;
+      }
+    }
+
     if( RIL_E_SUCCESS != ril_err && dial_call_resp->cc_sups_result_valid )
     {
       QCRIL_LOG_INFO("Error Details : cc_sups_result_reason=%d, cc_sups_result_service=%d",
@@ -6143,7 +6934,7 @@ void qcril_qmi_voice_dial_call_resp_hdlr
                       dial_call_resp->cc_sups_result.service_type);
 
     }
-    switch ( ril_err )
+    switch ( (int)ril_err )
     {
       case RIL_E_DIAL_MODIFIED_TO_DIAL:
         last_call_fail_cause = CALL_FAIL_DIAL_MODIFIED_TO_DIAL;
@@ -6170,7 +6961,6 @@ void qcril_qmi_voice_dial_call_resp_hdlr
     { // STK CC session started
       qcril_qmi_voice_reset_stk_cc();
 
-      qcril_qmi_voice_handle_new_last_call_failure_cause(last_call_fail_cause, FALSE);
       stk_cc_info.modification                      = stk_cc_modification;
       stk_cc_info.is_alpha_relayed                  = FALSE;
 
@@ -6186,7 +6976,14 @@ void qcril_qmi_voice_dial_call_resp_hdlr
 
       if ( dial_call_resp->alpha_ident_valid )
       {
-        stk_cc_info.alpha_ident = dial_call_resp->alpha_ident;
+        if ( ALPHA_DCS_UCS2_V02 == dial_call_resp->alpha_ident.alpha_dcs )
+        {
+          qcril_qmi_voice_transfer_sim_ucs2_alpha_to_std_ucs2_alpha(&dial_call_resp->alpha_ident, &stk_cc_info.alpha_ident);
+        }
+        else
+        {
+          stk_cc_info.alpha_ident = dial_call_resp->alpha_ident;
+        }
       }
       else
       {
@@ -6209,21 +7006,41 @@ void qcril_qmi_voice_dial_call_resp_hdlr
 
   if ( RIL_E_FDN_CHECK_FAILURE == ril_err )
   {
-    qcril_qmi_voice_handle_new_last_call_failure_cause(CALL_FAIL_FDN_BLOCKED, FALSE);
+    qcril_qmi_voice_handle_new_last_call_failure_cause(CALL_FAIL_FDN_BLOCKED, FALSE, call_info_entry);
+  }
+  else
+  {
+    qcril_qmi_voice_handle_new_last_call_failure_cause(last_call_fail_cause, FALSE, call_info_entry);
   }
 
   memset( &oversight_exec_event, 0, sizeof( oversight_exec_event ) );
   oversight_exec_event.locator.elaboration_pattern = QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_MO_CALL_BEING_SETUP;
 
-  if ( RIL_E_SUCCESS != ril_err )
+  if ( RIL_E_SUCCESS != ril_err &&
+          RIL_E_DIAL_MODIFIED_TO_DIAL != ril_err )
   {
+    if (call_info_entry &&
+        (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING))
+    {
+        call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING;
+    }
     qcril_send_empty_payload_request_response(instance_id, params_ptr->t, params_ptr->event_id, ril_err);
+    if (call_info_entry && qcril_qmi_voice_call_to_ims(call_info_entry))
+    {
+        call_info_entry->voice_scv_info.call_state = CALL_STATE_END_V02;
+        qcril_qmi_voice_send_ims_unsol_call_state_changed();
+    }
     qmi_ril_voice_ims_command_oversight_handle_event( QMI_RIL_VOICE_IMS_EXEC_INTERMED_EVENT_ABANDON,
                                                       QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_ELABORATION_PATTERN,
                                                       &oversight_exec_event );
   }
   else
   {
+    if (RIL_E_DIAL_MODIFIED_TO_DIAL == ril_err)
+    {
+      oversight_exec_event.successful_response_payload = ril_err;
+      oversight_exec_event.successful_response_payload_len = sizeof(ril_err);
+    }
     qmi_ril_voice_ims_command_oversight_handle_event( QMI_RIL_VOICE_IMS_EXEC_INTERMED_EVENT_RECEIVED_RESP_SUCCESS,
                                                       QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_ELABORATION_PATTERN,
                                                       &oversight_exec_event );
@@ -6255,7 +7072,6 @@ void qcril_qmi_voice_answer_call_resp_hdlr
   qmi_error_type_v01  qmi_error;
 
   qcril_qmi_voice_voip_call_info_entry_type*  call_info_entry = NULL;
-
   qmi_ril_voice_ims_command_exec_oversight_handle_event_params_type oversight_event_params;
   qmi_ril_voice_ims_command_exec_oversight_type *command_oversight;
   int covered_by_oversight_handling;
@@ -6270,7 +7086,7 @@ void qcril_qmi_voice_answer_call_resp_hdlr
     QCRIL_LOG_INFO( ".. call id valid %d, call id %d", (int)ans_call_resp->call_id_valid, (int)ans_call_resp->call_id );
 
     call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration( QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING, TRUE );
-    QCRIL_LOG_INFO( ".. call info entry %d", (int) call_info_entry );
+    QCRIL_LOG_INFO( ".. call info entry %p", call_info_entry );
 
     qmi_result = ans_call_resp->resp.result;
     qmi_error = ans_call_resp->resp.error;
@@ -6299,7 +7115,7 @@ void qcril_qmi_voice_answer_call_resp_hdlr
             call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_ANSWERING_CALL;
             if (RIL_E_SUCCESS == ril_err)
             {
-                call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING;
+               call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING;
             }
         }
 
@@ -6314,6 +7130,7 @@ void qcril_qmi_voice_answer_call_resp_hdlr
                 qcril_am_event_type(QCRIL_AM_EVENT_VOICE_ANSWER_FAIL);
             }
         }
+
         qcril_send_empty_payload_request_response( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, ril_err);
     }
   }
@@ -6444,6 +7261,22 @@ void qcril_qmi_voice_burst_dtmf_resp_hdlr
   }
 } /* qcril_qmi_voice_burst_dtmf_resp_hdlr */
 
+static void qcril_qmi_voice_ims_req_dtmf_stop_tmr_handler (qcril_timed_callback_handler_params_type *handler_params)
+{
+  qcril_instance_id_e_type instance_id;
+  RIL_Token t;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+  t = (RIL_Token)handler_params->custom_param;
+
+  qcril_event_queue( instance_id, QCRIL_DEFAULT_MODEM_ID,
+                     QCRIL_DATA_ON_STACK, QCRIL_EVT_IMS_SOCKET_REQ_STOP_CONT_DTMF, NULL,
+                     VOICE_NIL, t );
+
+  QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_nas_ims_req_dtmf_stop_tmr_handler
 
 /*=========================================================================
   FUNCTION:  qcril_qmi_voice_start_cont_dtmf_resp_hdlr
@@ -6471,6 +7304,11 @@ void qcril_qmi_voice_start_cont_dtmf_resp_hdlr
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
+  struct timeval  tmr_delay_ims_req_dtmf_stop;
+
+  tmr_delay_ims_req_dtmf_stop.tv_sec = QMI_RIL_ZERO;
+  tmr_delay_ims_req_dtmf_stop.tv_usec = dtmf_rtp_event_interval * 1000; /* default: 85ms * 1000 */
+
 
   qcril_qmi_voice_info_lock();
   qcril_qmi_voice_info.pending_dtmf_req_id = QMI_RIL_ZERO;
@@ -6497,9 +7335,12 @@ void qcril_qmi_voice_start_cont_dtmf_resp_hdlr
         }
         else
         {
-          qcril_event_queue( instance_id, QCRIL_DEFAULT_MODEM_ID,
-                             QCRIL_DATA_ON_STACK, QCRIL_EVT_IMS_SOCKET_REQ_STOP_CONT_DTMF, NULL,
-                             VOICE_NIL, params_ptr->t );
+          qcril_setup_timed_callback_ex_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                                QCRIL_DEFAULT_MODEM_ID,
+                                                qcril_qmi_voice_ims_req_dtmf_stop_tmr_handler,
+                                                params_ptr->t,
+                                                &tmr_delay_ims_req_dtmf_stop,
+                                                NULL );
         }
       }
       else
@@ -6760,8 +7601,11 @@ uint32 ind_data_len
         switch(ussd_ind->uss_info.uss_dcs)
         {
           case USS_DCS_ASCII_V02 :
-            qcril_cm_ss_ascii_to_utf8((unsigned char *)ussd_ind->uss_info.uss_data, ussd_ind->uss_info.uss_data_len,
+            if( ussd_ind->uss_info.uss_data_len < QMI_VOICE_USS_DATA_MAX_V02 )
+            {
+              qcril_cm_ss_ascii_to_utf8((unsigned char *)ussd_ind->uss_info.uss_data, ussd_ind->uss_info.uss_data_len,
                                       ussd_utf8_str, sizeof(ussd_utf8_str));
+            }
             break;
           case USS_DCS_8BIT_V02 :
             uss_dcs = QCRIL_QMI_VOICE_USSD_DCS_8_BIT;
@@ -6868,7 +7712,7 @@ uint32 ind_data_len
   qcril_qmi_voice_info.ussd_user_action_required = FALSE;
 
   memset( type_code, '\0', sizeof( type_code ) );
-  memset( response_buff, (int) NULL, sizeof( response_buff ) );
+  memset( response_buff, 0, sizeof( response_buff ) );
   memset( &unsol_resp, 0 , sizeof(unsol_resp) );
 
   QCRIL_LOG_DEBUG ("USSD Release triggered, Sending ABORT in case if any pending transaction exists");
@@ -6899,10 +7743,10 @@ uint32 ind_data_len
 void qcril_qmi_voice_command_cb
 (
   qmi_client_type              user_handle,
-  unsigned long                msg_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 msg_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
@@ -6957,14 +7801,14 @@ void qcril_qmi_voice_command_cb_helper
   qmi_resp_callback_type * qmi_resp_callback;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   qmi_resp_callback = (qmi_resp_callback_type *) params_ptr->data;
   if( qmi_resp_callback )
   {
     /*-----------------------------------------------------------------------*/
-    QCRIL_ASSERT( qmi_resp_callback->cb_data != NULL );
     QCRIL_ASSERT( qmi_resp_callback->data_buf != NULL );
-    user_data = ( uint32 ) qmi_resp_callback->cb_data;
+    user_data = ( uint32 )(uintptr_t) qmi_resp_callback->cb_data;
     instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( user_data );
     req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( user_data );
     req_data.modem_id = QCRIL_DEFAULT_MODEM_ID;
@@ -7094,6 +7938,14 @@ void qcril_qmi_voice_command_cb_helper
 
         case QMI_VOICE_MANAGE_IP_CALLS_RESP_V02:
           qcril_qmi_voice_voip_manage_ip_calls_resp_hdlr( &req_data );
+          break;
+
+        case QMI_VOICE_SETUP_ANSWER_RESP_V02:
+          qcril_qmi_voice_setup_answer_resp_hdlr( &req_data );
+          break;
+
+        case QMI_VOICE_GET_COLR_RESP_V02:
+          qcril_qmi_voice_get_colr_resp_hdlr( &req_data );
           break;
 
         default:
@@ -7297,6 +8149,65 @@ void qcril_qmi_voice_ext_brst_intl_ind_hdlr
 } //qcril_qmi_voice_ext_brst_intl_ind_hdlr
 
 //===========================================================================
+// qcril_qmi_voice_mark_calls_srvcc_in_progress
+//===========================================================================
+void qcril_qmi_voice_mark_calls_srvcc_in_progress()
+{
+    qcril_qmi_voice_voip_call_info_entry_type* iter = NULL;
+
+    qcril_qmi_voice_voip_lock_overview();
+    iter = qmi_voice_voip_overview.call_info_root;
+    while ( iter != NULL  )
+    {
+        if ( !(iter->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN) )
+        {
+            iter->srvcc_in_progress = TRUE;
+        }
+        iter = iter->next;
+    }
+    qcril_qmi_voice_voip_unlock_overview();
+} // qcril_qmi_voice_mark_calls_srvcc_in_progress
+
+//===========================================================================
+// qcril_qmi_voice_unmark_calls_srvcc_in_progress
+//===========================================================================
+void qcril_qmi_voice_unmark_calls_srvcc_in_progress()
+{
+    qcril_qmi_voice_voip_call_info_entry_type* iter = NULL;
+
+    qcril_qmi_voice_voip_lock_overview();
+    iter = qmi_voice_voip_overview.call_info_root;
+    while ( iter != NULL  )
+    {
+        iter->srvcc_in_progress = FALSE;
+        iter = iter->next;
+    }
+    qcril_qmi_voice_voip_unlock_overview();
+} // qcril_qmi_voice_unmark_calls_srvcc_in_progress
+
+//===========================================================================
+// qcril_qmi_voice_reset_all_calls_from_auto_to_cs_domain_elab
+//===========================================================================
+void qcril_qmi_voice_reset_all_calls_from_auto_to_cs_domain_elab()
+{
+    qcril_qmi_voice_voip_call_info_entry_type* call_info_entry = NULL;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    qcril_qmi_voice_voip_lock_overview();
+    call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_first();
+    while ( call_info_entry != NULL  )
+    {
+        call_info_entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUTO_DOMAIN;
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
+        call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_next();
+    }
+    qcril_qmi_voice_voip_unlock_overview();
+
+    QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_reset_all_calls_from_auto_to_cs_domain_elab
+
+//===========================================================================
 // qcril_qmi_voice_handover_info_ind_hdlr
 //===========================================================================
 void qcril_qmi_voice_handover_info_ind_hdlr
@@ -7305,7 +8216,10 @@ void qcril_qmi_voice_handover_info_ind_hdlr
   uint32 ind_data_len
 )
 {
-  voice_handover_ind_msg_v02* qmi_handover_ind_msg_ptr;
+  voice_handover_ind_msg_v02*    qmi_handover_ind_msg_ptr;
+  RIL_Errno                      ret_val = RIL_E_GENERIC_FAILURE;
+  qcril_unsol_resp_params_type   unsol_resp_params;
+  RIL_SrvccState                 ril_srvccstate = HANDOVER_STARTED;
 
   QCRIL_LOG_FUNC_ENTRY();
 
@@ -7313,39 +8227,74 @@ void qcril_qmi_voice_handover_info_ind_hdlr
   {
     if (qcril_qmi_voice_info.jbims)
     {
-#ifndef QMI_RIL_UTF
        qmi_handover_ind_msg_ptr = (voice_handover_ind_msg_v02*) ind_data_ptr;
-       Ims__Handover ims_handover = IMS__HANDOVER__INIT;
 
-       QCRIL_LOG_INFO("qmi handover ind ho_state: %d", qmi_handover_ind_msg_ptr->ho_state);
-       switch (qmi_handover_ind_msg_ptr->ho_state)
+       QCRIL_LOG_INFO("qmi handover ind ho_type_valid: %d, ho_type: %d",
+               qmi_handover_ind_msg_ptr->ho_type_valid, qmi_handover_ind_msg_ptr->ho_type);
+
+       // Need to send the UNSOL_SRVCC_STATE_NOTIFY only
+       // in case of handover type is SRVCC L_2_G/L_2_W
+       if (qmi_handover_ind_msg_ptr->ho_type_valid)
        {
-       case VOICE_HANDOVER_START_V02:
-         ims_handover.has_type = TRUE;
-         ims_handover.type = IMS__HANDOVER__MSG__TYPE__START;
-         qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_START, NULL);
-         break;
-       case VOICE_HANDOVER_FAIL_V02:
-         ims_handover.has_type = TRUE;
-         ims_handover.type = IMS__HANDOVER__MSG__TYPE__COMPLETE_FAIL;
-         qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_FAIL, NULL);
-         break;
-       case VOICE_HANDOVER_COMPLETE_V02:
-         ims_handover.has_type = TRUE;
-         ims_handover.type = IMS__HANDOVER__MSG__TYPE__COMPLETE_SUCCESS;
-         qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_COMPLETE, NULL);
-         break;
-       case VOICE_HANDOVER_CANCEL_V02:
-         ims_handover.has_type = TRUE;
-         ims_handover.type = IMS__HANDOVER__MSG__TYPE__CANCEL;
-         qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_CANCEL, NULL);
-         break;
-       default:
-         break;
+         switch (qmi_handover_ind_msg_ptr->ho_type)
+         {
+           case VOICE_HO_SRVCC_L_2_G_V02:
+           case VOICE_HO_SRVCC_L_2_W_V02:
+             ret_val = RIL_E_SUCCESS;
+             break;
+
+           default:
+             break;
+         }
        }
-       qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_RESPONSE_HANDOVER, IMS__ERROR__E_SUCCESS, &ims_handover, sizeof(ims_handover));
+
+       if (ret_val == RIL_E_SUCCESS)
+       {
+         QCRIL_LOG_INFO("qmi handover ind ho_state: %d", qmi_handover_ind_msg_ptr->ho_state);
+         switch (qmi_handover_ind_msg_ptr->ho_state)
+         {
+           case VOICE_HANDOVER_START_V02:
+             ril_srvccstate = HANDOVER_STARTED;
+             qcril_qmi_voice_mark_calls_srvcc_in_progress();
+#ifndef QMI_RIL_UTF
+             qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_START, NULL);
 #endif
-    }
+             break;
+           case VOICE_HANDOVER_FAIL_V02:
+             ril_srvccstate = HANDOVER_FAILED;
+             qcril_qmi_voice_unmark_calls_srvcc_in_progress();
+#ifndef QMI_RIL_UTF
+             qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_FAIL, NULL);
+#endif
+             break;
+           case VOICE_HANDOVER_COMPLETE_V02:
+             ril_srvccstate = HANDOVER_COMPLETED;
+             qcril_qmi_voice_reset_all_calls_from_auto_to_cs_domain_elab();
+#ifndef QMI_RIL_UTF
+             qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_COMPLETE, NULL);
+#endif
+             break;
+           case VOICE_HANDOVER_CANCEL_V02:
+             ril_srvccstate = HANDOVER_CANCELED;
+             qcril_qmi_voice_unmark_calls_srvcc_in_progress();
+#ifndef QMI_RIL_UTF
+             qcril_am_handle_event(QCRIL_AM_EVENT_SRVCC_CANCEL, NULL);
+#endif
+             break;
+           default:
+             ret_val = RIL_E_GENERIC_FAILURE;
+             break;
+         }/* switch */
+         if (RIL_E_SUCCESS == ret_val)
+         {
+           qcril_default_unsol_resp_params(QCRIL_DEFAULT_INSTANCE_ID,
+                   RIL_UNSOL_SRVCC_STATE_NOTIFY, &unsol_resp_params);
+           unsol_resp_params.resp_pkt = &ril_srvccstate;
+           unsol_resp_params.resp_len = sizeof(RIL_SrvccState);
+           qcril_send_unsol_response(&unsol_resp_params);
+         }
+       }
+    }/* if (qcril_qmi_voice_info.jbims) */
   }
   else
   {
@@ -7370,6 +8319,8 @@ void qcril_qmi_voice_reset_conf_info_xml()
       qcril_free(qcril_qmi_voice_info.conf_xml.buffer);
       qcril_qmi_voice_info.conf_xml.buffer = NULL;
    }
+
+   qcril_qmi_voice_info.conf_xml.call_id_valid = FALSE;
    QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_voice_reset_conf_info_xml
 
@@ -7409,13 +8360,8 @@ void qcril_qmi_voice_conference_info_ind_hdlr
       {
          if (qmi_ind_msg_ptr->total_size_valid)
          {
+            qcril_qmi_voice_reset_conf_info_xml();
             qcril_qmi_voice_info.conf_xml.total_size = qmi_ind_msg_ptr->total_size;
-            qcril_qmi_voice_info.conf_xml.filled_size = 0;
-            if (qcril_qmi_voice_info.conf_xml.buffer)
-            {
-               QCRIL_LOG_DEBUG("qcril_qmi_voice_info.conf_xml.buffer is not freed unexpectedly");
-               qcril_free(qcril_qmi_voice_info.conf_xml.buffer);
-            }
             qcril_qmi_voice_info.conf_xml.buffer = qcril_malloc(qcril_qmi_voice_info.conf_xml.total_size);
             if (NULL == qcril_qmi_voice_info.conf_xml.buffer)
             {
@@ -7439,7 +8385,8 @@ void qcril_qmi_voice_conference_info_ind_hdlr
          break;
       }
 
-      if (qmi_ind_msg_ptr->sequence != 0 && qmi_ind_msg_ptr->sequence != qcril_qmi_voice_info.conf_xml.last_sequence_number+1)
+      if (qmi_ind_msg_ptr->sequence !=
+             qcril_qmi_voice_info.conf_xml.last_sequence_number + (unsigned int)1)
       {
          QCRIL_LOG_ERROR("sequence out of order! new msg seq#: %d, last_seq#: %d",
                          qmi_ind_msg_ptr->sequence, qcril_qmi_voice_info.conf_xml.last_sequence_number);
@@ -7458,18 +8405,38 @@ void qcril_qmi_voice_conference_info_ind_hdlr
       qcril_qmi_voice_info.conf_xml.filled_size += qmi_ind_msg_ptr->conference_xml_len;
       qcril_qmi_voice_info.conf_xml.last_sequence_number = qmi_ind_msg_ptr->sequence;
 
+      if (qmi_ind_msg_ptr->call_id_valid)
+      {
+        qcril_qmi_voice_info.conf_xml.call_id_valid = TRUE;
+        qcril_qmi_voice_info.conf_xml.call_id = qmi_ind_msg_ptr->call_id;
+      }
+
       if (qcril_qmi_voice_info.conf_xml.filled_size == qcril_qmi_voice_info.conf_xml.total_size)
       {
-#ifndef QMI_RIL_UTF
          Ims__ConfInfo conf_info = IMS__CONF_INFO__INIT;
          conf_info.has_conf_info_uri = TRUE;
          conf_info.conf_info_uri.len = qcril_qmi_voice_info.conf_xml.total_size;
          conf_info.conf_info_uri.data = qcril_qmi_voice_info.conf_xml.buffer;
 
+         if (qcril_qmi_voice_info.conf_xml.call_id_valid)
+         {
+           qcril_qmi_voice_voip_call_info_entry_type *call_info_entry =
+             qcril_qmi_voice_voip_find_call_info_entry_by_call_qmi_id(qcril_qmi_voice_info.conf_xml.call_id);
+
+           if (call_info_entry)
+           {
+             Ims__ConfCallState ims_state;
+             if (qcril_qmi_ims_map_qmi_call_state_to_ims_conf_call_state(call_info_entry->voice_scv_info.call_state, &ims_state))
+             {
+               conf_info.has_confcallstate = TRUE;
+               conf_info.confcallstate = ims_state;
+             }
+           }
+         }
+
          qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_REFRESH_CONF_INFO, IMS__ERROR__E_SUCCESS, &conf_info, sizeof(conf_info));
-         qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
+         qcril_qmi_voice_send_ims_unsol_call_state_changed();
          qcril_qmi_voice_reset_conf_info_xml();
-#endif
       }
 
    } while (FALSE);
@@ -7511,7 +8478,6 @@ void qcril_qmi_voice_tty_ind_hdlr
       qmi_ind_msg_ptr = (voice_tty_ind_msg_v02*) ind_data_ptr;
       QCRIL_LOG_INFO("tty_mode: %d", qmi_ind_msg_ptr->tty_mode);
 
-#ifndef QMI_RIL_UTF
       Ims__TtyNotify ims_tty_info = IMS__TTY_NOTIFY__INIT;
       ims_tty_info.has_mode = TRUE;
       switch(qmi_ind_msg_ptr->tty_mode)
@@ -7538,7 +8504,6 @@ void qcril_qmi_voice_tty_ind_hdlr
       }
 
       qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_TTY_NOTIFICATION, IMS__ERROR__E_SUCCESS, &ims_tty_info, sizeof(ims_tty_info));
-#endif
 
    } while (FALSE);
 
@@ -7546,6 +8511,271 @@ void qcril_qmi_voice_tty_ind_hdlr
 
    QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_voice_tty_ind_hdlr
+
+/*=========================================================================
+  FUNCTION: qcril_qmi_voice_call_control_result_info_ind_hdlr
+
+    @brief
+    Handle QMI_VOICE_CALL_CONTROL_RESULT_INFO_IND_V02.
+
+    @return
+    None.
+=========================================================================*/
+void qcril_qmi_voice_call_control_result_info_ind_hdlr
+(
+  void *ind_data_ptr,
+  uint32 ind_data_len
+)
+{
+   voice_call_control_result_info_ind_msg_v02* qmi_ind_msg_ptr;
+   qcril_unsol_resp_params_type unsol_resp;
+   qcril_instance_id_e_type instance_id;
+   char buf_str[QMI_VOICE_CC_ALPHA_TEXT_MAX_V02 + 2];
+
+   QCRIL_LOG_FUNC_ENTRY();
+   instance_id = qmi_ril_get_process_instance_id();
+   memset(buf_str, 0 , QMI_VOICE_CC_ALPHA_TEXT_MAX_V02 + 2);
+
+   if( ind_data_ptr != NULL && ind_data_len != 0 )
+   {
+       qmi_ind_msg_ptr = (voice_call_control_result_info_ind_msg_v02*) ind_data_ptr;
+
+        if( ( VOICE_CC_ALPHA_NOT_PRESENT_V02 == qmi_ind_msg_ptr->alpha_presence ) ||
+            ( VOICE_CC_ALPHA_NULL_V02 == qmi_ind_msg_ptr->alpha_presence )
+          )
+        {
+            QCRIL_LOG_INFO("Either Alhpa is absent in cc result or Alpha is present but length is zero");
+        }
+        else
+        {
+            if( TRUE == qmi_ind_msg_ptr->alpha_text_gsm8_valid )
+            {
+                QCRIL_LOG_INFO("Alpha text message is present in gsm8 bit format");
+                if(qmi_ind_msg_ptr->alpha_text_gsm8_len < QMI_VOICE_CC_ALPHA_TEXT_MAX_V02 )
+                    qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (char*) qmi_ind_msg_ptr->alpha_text_gsm8,
+                                                                qmi_ind_msg_ptr->alpha_text_gsm8_len,
+                                                                buf_str );
+            }
+            else
+            {
+                QCRIL_LOG_INFO("Alpha text message is present in UTF16 format");
+                qcril_cm_ss_convert_ucs2_to_utf8( (char *) qmi_ind_msg_ptr->alpha_text_utf16,
+                                                             qmi_ind_msg_ptr->alpha_text_utf16_len * 2, buf_str );
+            }
+        }
+   }
+   else
+   {
+       QCRIL_LOG_ERROR("ind_data_ptr is NULL");
+   }
+
+   if ( *buf_str )
+   {
+       qcril_default_unsol_resp_params( instance_id, (int) RIL_UNSOL_STK_CC_ALPHA_NOTIFY, &unsol_resp );
+       unsol_resp.resp_pkt    = (void*)buf_str;
+       unsol_resp.resp_len    = sizeof( buf_str );
+
+       qcril_send_unsol_response( &unsol_resp );
+   }
+
+    QCRIL_LOG_FUNC_RETURN();
+} //qcril_qmi_voice_call_control_result_info_ind_hdlr
+
+//===========================================================================
+// qcril_qmi_voice_reset_additional_call_info
+//===========================================================================
+void qcril_qmi_voice_reset_additional_call_info
+(
+    qcril_qmi_voice_voip_call_info_entry_type *entry
+)
+{
+   QCRIL_LOG_FUNC_ENTRY();
+
+   if (entry)
+   {
+      entry->additional_call_info.last_sequence_number = -1;
+      entry->additional_call_info.total_size = 0;
+      entry->additional_call_info.filled_size = 0;
+
+      if (entry->additional_call_info.buffer)
+      {
+         qcril_free(entry->additional_call_info.buffer);
+         entry->additional_call_info.buffer = NULL;
+      }
+   }
+
+   QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_reset_additional_call_info
+
+//===========================================================================
+// qcril_qmi_voice_is_additional_call_info_available
+//===========================================================================
+boolean qcril_qmi_voice_is_additional_call_info_available
+(
+    qcril_qmi_voice_voip_call_info_entry_type *entry
+)
+{
+   boolean add_info_present = FALSE;
+
+   QCRIL_LOG_FUNC_ENTRY();
+
+   if (entry)
+   {
+      if (entry->additional_call_info.is_add_info_present &&
+          (entry->additional_call_info.total_size > 0)&&
+          (entry->additional_call_info.filled_size ==
+           entry->additional_call_info.total_size))
+      {
+         add_info_present = TRUE;
+      }
+   }
+
+   QCRIL_LOG_FUNC_RETURN_WITH_RET(add_info_present);
+
+   return add_info_present;
+} // qcril_qmi_voice_is_additional_call_info_available
+
+
+//===========================================================================
+// qcril_qmi_voice_additional_call_info_ind_hdlr
+//===========================================================================
+void qcril_qmi_voice_additional_call_info_ind_hdlr
+(
+   void *ind_data_ptr,
+   uint32 ind_data_len
+)
+{
+   voice_additional_call_info_ind_msg_v02    *qmi_ind_msg_ptr = NULL;
+   voice_additional_call_info_type_v02       *add_call_info   = NULL;
+   qcril_qmi_voice_voip_call_info_entry_type *call_info_entry = NULL;
+
+   QCRIL_LOG_FUNC_ENTRY();
+
+   qcril_qmi_voice_info_lock();
+
+   do
+   {
+      if (!qcril_qmi_voice_info.jbims)
+      {
+         QCRIL_LOG_ERROR("jbims is not set");
+         break;
+      }
+
+      if (NULL == ind_data_ptr || 0 == ind_data_len)
+      {
+         QCRIL_LOG_ERROR("ind_data_ptr is NULL or ind_data_len is 0");
+         break;
+      }
+      qmi_ind_msg_ptr = (voice_additional_call_info_ind_msg_v02*) ind_data_ptr;
+      if (qmi_ind_msg_ptr->extension_header_info_valid)
+      {
+         add_call_info   = &(qmi_ind_msg_ptr->extension_header_info);
+      }
+      else
+      {
+         QCRIL_LOG_ERROR("extension_header_info is not valid");
+         break;
+      }
+      QCRIL_LOG_INFO("call_id: %d, sequence: %d, total_size: %d, additional_call_info_len: %d",
+              qmi_ind_msg_ptr->call_id, add_call_info->sequence,
+              add_call_info->total_size, add_call_info->additional_call_info_len);
+
+      call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_qmi_id(
+              qmi_ind_msg_ptr->call_id);
+      if (NULL == call_info_entry)
+      {
+         QCRIL_LOG_ERROR("Unable to find call info entry for call_id: %d",
+                 qmi_ind_msg_ptr->call_id);
+         break;
+      }
+
+      if (0 == add_call_info->sequence)
+      {
+         qcril_qmi_voice_reset_additional_call_info(call_info_entry);
+         call_info_entry->additional_call_info.total_size = add_call_info->total_size;
+         call_info_entry->additional_call_info.buffer     =
+               qcril_malloc(call_info_entry->additional_call_info.total_size);
+         if (NULL == call_info_entry->additional_call_info.buffer)
+         {
+            QCRIL_LOG_ERROR("malloc failed");
+            qcril_qmi_voice_reset_additional_call_info(call_info_entry);
+            break;
+         }
+      }
+
+      if ((call_info_entry->additional_call_info.filled_size +
+            add_call_info->additional_call_info_len) >
+          call_info_entry->additional_call_info.total_size)
+      {
+         QCRIL_LOG_ERROR("filled_size (%d) + new additional_call_info_len (%d) > total_size (%d)",
+                         call_info_entry->additional_call_info.filled_size,
+                         add_call_info->additional_call_info_len,
+                         call_info_entry->additional_call_info.total_size);
+         qcril_qmi_voice_reset_additional_call_info(call_info_entry);
+         break;
+      }
+
+      if (add_call_info->sequence !=
+          call_info_entry->additional_call_info.last_sequence_number+1)
+      {
+         QCRIL_LOG_ERROR("sequence out of order! new msg seq#: %d, last_seq#: %d",
+                         add_call_info->sequence,
+                         call_info_entry->additional_call_info.last_sequence_number);
+         qcril_qmi_voice_reset_additional_call_info(call_info_entry);
+         break;
+      }
+
+      if (NULL == call_info_entry->additional_call_info.buffer)
+      {
+         QCRIL_LOG_ERROR("call_info_entry->additional_call_info.buffer is NULL");
+         break;
+      }
+
+      memcpy(&(call_info_entry->additional_call_info.buffer[
+                    call_info_entry->additional_call_info.filled_size]),
+              add_call_info->additional_call_info, add_call_info->additional_call_info_len);
+      call_info_entry->additional_call_info.filled_size += add_call_info->additional_call_info_len;
+      call_info_entry->additional_call_info.last_sequence_number = add_call_info->sequence;
+      if (call_info_entry->additional_call_info.filled_size ==
+          call_info_entry->additional_call_info.total_size)
+      {
+        qcril_qmi_voice_send_ims_unsol_call_state_changed();
+      }
+   } while (FALSE);
+
+   qcril_qmi_voice_info_unlock();
+
+   QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_additional_call_info_ind_hdlr
+
+//===========================================================================
+// qcril_qmi_voice_audio_rat_change_info_ind_hdlr
+//===========================================================================
+void qcril_qmi_voice_audio_rat_change_info_ind_hdlr
+(
+  void *ind_data_ptr,
+  uint32 ind_data_len
+)
+{
+  voice_audio_rat_change_info_ind_msg_v02 *qmi_ind_msg_ptr = NULL;
+  QCRIL_LOG_FUNC_ENTRY();
+
+  do
+  {
+    if ( NULL == ind_data_ptr || 0 == ind_data_len )
+    {
+      QCRIL_LOG_ERROR("ind_data_ptr is NULL or ind_data_len is 0");
+      break;
+    }
+    qmi_ind_msg_ptr = (voice_audio_rat_change_info_ind_msg_v02*)ind_data_ptr;
+
+#ifndef QMI_RIL_UTF
+    qcril_am_handle_event(QCRIL_AM_EVENT_AUDIO_RAT_CHANGED, qmi_ind_msg_ptr);
+#endif
+  } while (0);
+
+  QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_audio_rat_change_info_ind_hdlr
 
 /*=========================================================================
   FUNCTION:  qcril_qmi_voice_unsol_ind_cb
@@ -7562,10 +8792,10 @@ void qcril_qmi_voice_tty_ind_hdlr
 void qcril_qmi_voice_unsol_ind_cb
 (
   qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  unsigned int                   msg_id,
+  void                          *ind_buf,
+  unsigned int                   ind_buf_len,
+  void                          *ind_cb_data
 )
 {
   qmi_ind_callback_type qmi_callback;
@@ -7627,6 +8857,7 @@ void qcril_qmi_voice_unsol_ind_cb_helper
   qcril_qmi_voice_voip_call_info_entry_type* call_info_entry = NULL;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   if( qmi_callback )
   {
@@ -7737,6 +8968,18 @@ void qcril_qmi_voice_unsol_ind_cb_helper
                 qcril_qmi_voice_tty_ind_hdlr( decoded_payload, decoded_payload_len );
                 break;
 
+              case QMI_VOICE_CALL_CONTROL_RESULT_INFO_IND_V02:
+                qcril_qmi_voice_call_control_result_info_ind_hdlr( decoded_payload, decoded_payload_len );
+                break;
+
+              case QMI_VOICE_ADDITIONAL_CALL_INFO_IND_V02:
+                qcril_qmi_voice_additional_call_info_ind_hdlr( decoded_payload, decoded_payload_len );
+                break;
+
+              case QMI_VOICE_AUDIO_RAT_CHANGE_INFO_IND_V02:
+                qcril_qmi_voice_audio_rat_change_info_ind_hdlr( decoded_payload, decoded_payload_len );
+                break;
+
               default:
                 QCRIL_LOG_INFO("Unknown QMI VOICE indication %d", qmi_callback->msg_id);
                 break;
@@ -7824,39 +9067,41 @@ void qcril_qmi_voice_sups_cmd_mng_calls_resp_hdlr
 
     if ( !covered_by_oversight_handling )
     {
-        if(qmi_result == QMI_RESULT_SUCCESS_V01)
+      if(qmi_result == QMI_RESULT_SUCCESS_V01)
+      {
+        QCRIL_LOG_INFO("QCRIL QMI VOICE MNG CALLS RESP: SUCCESS");
+        qcril_send_empty_payload_request_response( instance_id, params_ptr->t, params_ptr->event_id, ril_err);
+      }
+      else
+      {
+        QCRIL_LOG_INFO("QCRIL QMI VOICE MNG CALLS RESP: FAILURE");
+        if(mng_calls_resp->failure_cause_valid == TRUE)
         {
-            QCRIL_LOG_INFO("QCRIL QMI VOICE MNG CALLS RESP: SUCCESS");
-            qcril_send_empty_payload_request_response( instance_id, params_ptr->t, params_ptr->event_id, RIL_E_SUCCESS);
+          QCRIL_LOG_ERROR("QCRIL QMI VOICE MNG CALLS RESP sups_failure_cause=%d, for Token ID= %d",
+              mng_calls_resp->failure_cause, qcril_log_get_token_id( params_ptr->t ));
+          /* Send UNSOL msg with SS error code first */
+          qcril_qmi_send_ss_failure_cause_oem_hook_unsol_resp ( mng_calls_resp->failure_cause,
+              VOICE_INVALID_CALL_ID );
         }
-        else
-        {
-            QCRIL_LOG_INFO("QCRIL QMI VOICE MNG CALLS RESP: FAILURE");
-
-            if(mng_calls_resp->failure_cause_valid == TRUE)
-            {
-              QCRIL_LOG_ERROR("QCRIL QMI VOICE MNG CALLS RESP sups_failure_cause=%d, for Token ID= %d",
-                  mng_calls_resp->failure_cause, qcril_log_get_token_id( params_ptr->t ));
-              /* Send UNSOL msg with SS error code first */
-              qcril_qmi_send_ss_failure_cause_oem_hook_unsol_resp ( mng_calls_resp->failure_cause,
-                  VOICE_INVALID_CALL_ID );
-            }
-
-            ril_err = qcril_qmi_client_map_qmi_err_to_ril_err(qmi_error);
-            /* Send FAILURE response */
-            qcril_send_empty_payload_request_response( instance_id, params_ptr->t,params_ptr->event_id, ril_err );
-        }
+        ril_err = qcril_qmi_client_map_qmi_err_to_ril_err(qmi_error);
+        /* Send FAILURE response */
+        qcril_send_empty_payload_request_response( instance_id, params_ptr->t,params_ptr->event_id, ril_err );
+      } // if(qmi_result == QMI_RESULT_SUCCESS_V01)
     } // if ( !covered_by_oversight_handling )
+
     if ( QCRIL_EVT_IMS_SOCKET_REQ_HANGUP_FOREGROUND_RESUME_BACKGROUND == params_ptr->event_id ||
-                QCRIL_EVT_IMS_SOCKET_REQ_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id ||
-                RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND == params_ptr->event_id ||
-                RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id )
+         QCRIL_EVT_IMS_SOCKET_REQ_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id ||
+         RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND == params_ptr->event_id ||
+         RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id ||
+         QCRIL_EVT_IMS_SOCKET_REQ_RESUME == params_ptr->event_id )
     {
-        qcril_qmi_voice_voip_unmark_all_with(QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_SWITCHING_CALL_TO_ACTIVE);
-        if (RIL_E_SUCCESS != ril_err)
-        {
-            qcril_am_handle_event(QCRIL_AM_EVENT_SWITCH_CALL_FAIL, NULL);
-        }
+      qcril_qmi_voice_voip_unmark_all_with(QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_SWITCHING_CALL_TO_ACTIVE);
+      if (RIL_E_SUCCESS != ril_err)
+      {
+#ifndef QMI_RIL_UTF
+        qcril_am_handle_event(QCRIL_AM_EVENT_SWITCH_CALL_FAIL, NULL);
+#endif
+      }
     }
   }
   else
@@ -8027,7 +9272,6 @@ void qcril_qmi_voice_get_clip_resp_hdlr
   RIL_Errno ril_err;
   RIL_Errno ril_result;
   qcril_request_resp_params_type resp;
-  qmi_result_type_v01 qmi_result;
   qmi_error_type_v01  qmi_error;
   int response[ 1 ];
 
@@ -8041,11 +9285,10 @@ void qcril_qmi_voice_get_clip_resp_hdlr
 
     QCRIL_LOG_INFO("params_ptr->data is not NULL");
     get_clip_resp = (voice_get_clip_resp_msg_v02 *)params_ptr->data;
-    qmi_result = get_clip_resp->resp.result;
     qmi_error = get_clip_resp->resp.error;
     ril_result = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(
                    QMI_NO_ERR,
-                   &qmi_result);
+                   &get_clip_resp->resp);
 
     if ( !qcril_qmi_voice_stk_ss_resp_handle(params_ptr,
                                              QCRIL_DEFAULT_INSTANCE_ID,
@@ -8062,10 +9305,13 @@ void qcril_qmi_voice_get_clip_resp_hdlr
                                              )
          )
     { // not stk cc case
-      response[0]=2;
+      response[0] = QCRIL_QMI_VOICE_CLIR_SRV_NO_NETWORK;
       if( get_clip_resp->clip_response_valid == TRUE )
       {
-        response[0] = get_clip_resp->clip_response.provision_status;
+       qcril_qmi_voice_map_qmi_status_to_ims_provision_status(
+                get_clip_resp->clip_response.provision_status,
+                get_clip_resp->clip_response.active_status,
+                &response[0]);
       }
       QCRIL_LOG_DEBUG("QCRIL QMI VOICE GET CLIP RESP response[0]=%d, for Token ID= %d", response[0],qcril_log_get_token_id( params_ptr->t ));
 
@@ -8150,23 +9396,22 @@ void qcril_qmi_voice_get_colp_resp_hdlr
   RIL_Errno ril_err;
   RIL_Errno ril_result;
   qcril_request_resp_params_type resp;
-  qmi_result_type_v01 qmi_result;
   qmi_error_type_v01  qmi_error;
   qmi_sups_errors_enum_v02 sups_failure_cause;
   int response[ 1 ];
 
   memset( response, 0, sizeof ( response ) );
+  instance_id = QCRIL_DEFAULT_INSTANCE_ID;
 
   if( params_ptr->data != NULL )
   {
     QCRIL_LOG_INFO("params_ptr->data is not NULL");
 
     get_colp_resp = (voice_get_colp_resp_msg_v02 *)params_ptr->data;
-    qmi_result = get_colp_resp->resp.result;
     qmi_error = get_colp_resp->resp.error;
     ril_result = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(
                    QMI_NO_ERR,
-                   &qmi_result);
+                   &get_colp_resp->resp);
 
     if(get_colp_resp->failure_cause_valid == TRUE)
     {
@@ -8176,10 +9421,13 @@ void qcril_qmi_voice_get_colp_resp_hdlr
                       qcril_log_get_token_id( params_ptr->t ));
     }
 
-    response[0]=2;
+    response[0] = QCRIL_QMI_VOICE_CLIR_SRV_NO_NETWORK;
     if( get_colp_resp->colp_response_valid == TRUE )
     {
-      response[0] = get_colp_resp->colp_response.provision_status;
+      qcril_qmi_voice_map_qmi_status_to_ims_provision_status(
+              get_colp_resp->colp_response.provision_status,
+              get_colp_resp->colp_response.active_status,
+              &response[0]);
     }
     QCRIL_LOG_DEBUG("QCRIL QMI VOICE GET COLP RESP response[0]=%d, for Token ID= %d",
                     response[0],
@@ -8294,47 +9542,27 @@ void qcril_qmi_voice_get_clir_resp_hdlr
              (get_clir_resp->failure_cause_valid == TRUE) &&
              (get_clir_resp->failure_cause == QMI_FAILURE_CAUSE_FACILITY_NOT_SUPPORTED_V02) )
         {
+            success = TRUE;
             //In case get_clir not supported by IMS at modem, then return cached value.
-            if ( qcril_qmi_voice_info.ims_clir == QCRIL_QMI_VOICE_SS_CLIR_INVOCATION_OPTION )
+            if ( qcril_qmi_voice_info.clir == QCRIL_QMI_VOICE_SS_CLIR_INVOCATION_OPTION )
             {
               response[1] = (int)QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_ALLOWED;
-              success = TRUE;
             }
-            else if ( qcril_qmi_voice_info.ims_clir == QCRIL_QMI_VOICE_SS_CLIR_SUPPRESSION_OPTION )
+            else if ( qcril_qmi_voice_info.clir == QCRIL_QMI_VOICE_SS_CLIR_SUPPRESSION_OPTION )
             {
               response[1] = (int)QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_RESTRICTED;
-              success = TRUE;
             }
             else
             {
-              success = FALSE;
+              response[1] = (int)QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_ALLOWED;
             }
         }
         else if ((get_clir_resp->clir_response_valid == TRUE) && (qmi_error == QMI_ERR_NONE_V01))
         {
           response[0] = qcril_qmi_voice_info.clir;
-          switch(get_clir_resp->clir_response.provision_status)
-          {
-            case PROVISION_STATUS_NOT_PROVISIONED_V02 :
-              response[1] = (int)QCRIL_QMI_VOICE_CLIR_SRV_NOT_PROVISIONED;
-              success = TRUE;
-              break;
-            case PROVISION_STATUS_PRESENTATION_ALLOWED_V02 :
-              response[1] = (int)QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_ALLOWED;
-              success = TRUE;
-              break;
-            case PROVISION_STATUS_PROVISIONED_PERMANENT_V02 :
-              response[1] = (int)QCRIL_QMI_VOICE_CLIR_SRV_PROVISIONED_PERMANENT;
-              success = TRUE;
-              break;
-            case PROVISION_STATUS_PRESENTATION_RESTRICTED_V02:
-              response[1] = (int)QCRIL_QMI_VOICE_CLIR_SRV_PRESENTATION_RESTRICTED;
-              success = TRUE;
-              break;
-            default :
-              success = FALSE;
-              break;
-          }
+          success = qcril_qmi_voice_map_qmi_to_ril_provision_status(
+                  get_clir_resp->clir_response.provision_status,
+                  &response[1]);
           QCRIL_LOG_DEBUG("QCRIL QMI VOICE GET CLIR RESP response[0]=%d, response[1]= %d", response[0],response[1]);
         }
         else
@@ -8356,14 +9584,12 @@ void qcril_qmi_voice_get_clir_resp_hdlr
         }
         else
         {
-#ifndef QMI_RIL_UTF
            Ims__Clir clir = IMS__CLIR__INIT;
            clir.has_param_m = TRUE;
            clir.param_m = response[1];
            clir.has_param_n = TRUE;
-           clir.param_n = qcril_qmi_voice_info.ims_clir;
+           clir.param_n = qcril_qmi_voice_info.clir;
            qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_GET_CLIR, IMS__ERROR__E_SUCCESS, (void *)&clir, sizeof(clir));
-#endif
         }
       }
       else
@@ -8412,9 +9638,7 @@ void qcril_qmi_voice_query_call_waiting_resp_hdlr
   voice_get_call_waiting_resp_msg_v02 *get_cw_resp;
   qcril_instance_id_e_type instance_id;
   RIL_Errno ril_err;
-#ifndef QMI_RIL_UTF
   Ims__CallWaitingInfo ims_resp;
-#endif
   qcril_request_resp_params_type resp;
   qmi_result_type_v01 qmi_result;
   qmi_error_type_v01  qmi_error;
@@ -8472,7 +9696,6 @@ void qcril_qmi_voice_query_call_waiting_resp_hdlr
             }
             else
             {
-#ifndef QMI_RIL_UTF
                qcril_qmi_ims_translate_ril_service_status_class_to_ims_callwaitinginfo(response[0], response[1], &ims_resp);
                qcril_qmi_ims_socket_send( params_ptr->t,
                                           IMS__MSG_TYPE__RESPONSE,
@@ -8481,7 +9704,6 @@ void qcril_qmi_voice_query_call_waiting_resp_hdlr
                                           (void *)&ims_resp,
                                           sizeof(ims_resp)
                                          );
-#endif
             }
           }
           else
@@ -8811,22 +10033,13 @@ void qcril_qmi_voice_query_facility_lock_resp_hdlr
               qcril_qmi_send_ss_failure_cause_oem_hook_unsol_resp ( get_cb_resp->failure_cause,
                 (get_cb_resp->call_id_valid ? get_cb_resp->call_id : VOICE_INVALID_CALL_ID) );
             }
-
-            ril_err = qcril_qmi_client_map_qmi_err_to_ril_err(qmi_error);
-            /* Send FAILURE response */
-            qcril_send_empty_payload_request_response( instance_id,
-                                                       params_ptr->t,
-                                                       params_ptr->event_id,
-                                                       ril_err );
           }
-          else /* QCRIL_EVT_IMS_SOCKET_REQ_SUPP_SVC_STATUS */
-          {
-            qcril_send_empty_payload_request_response( instance_id,
-                                                       params_ptr->t,
-                                                       params_ptr->event_id,
-                                                       RIL_E_GENERIC_FAILURE );
-          }
-
+          ril_err = qcril_qmi_client_map_qmi_err_to_ril_err(qmi_error);
+          /* Send FAILURE response */
+          qcril_send_empty_payload_request_response( instance_id,
+                                                     params_ptr->t,
+                                                     params_ptr->event_id,
+                                                     ril_err );
         }
     }
   }
@@ -8875,9 +10088,7 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
   qmi_error_type_v01  qmi_error;
   qcril_qmi_voice_callforwd_info_param_u_type response_buffer[ QCRIL_QMI_VOICE_CFW_RESPONSE_BUF_SZ ];
   qcril_qmi_voice_callforwd_info_param_u_type *response[ QCRIL_QMI_VOICE_CFW_RESPONSE_BUF_SZ ];
-#ifndef QMI_RIL_UTF
-  Ims__CallForwardInfoList ims_resp;
-#endif
+  Ims__CallForwardInfoList ims_resp = IMS__CALL_FORWARD_INFO_LIST__INIT;
   uint32_t call_forwarding_info_len = 0;
   voice_get_call_forwarding_info_type_v02 *call_fwd_info_ptr;
   uint8_t service_class;
@@ -8886,11 +10097,13 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
   uint32 interm_num_len;
   voice_get_call_forwarding_info_type_v02 *cur_fwd_info_slot;
   qcril_qmi_voice_callforwd_info_param_u_type* resp_buf_slot;
+  voice_time_type_v02 *call_fwd_start_time = NULL;;
+  voice_time_type_v02 *call_fwd_end_time = NULL;;
 
   QCRIL_LOG_FUNC_ENTRY()
 
   memset( (void*) response_buffer, 0, sizeof( response_buffer ) );
-  memset( (void*) response, (int) NULL, sizeof( response ) );
+  memset( (void*) response, 0, sizeof( response ) );
 
 
   if( params_ptr->data != NULL )
@@ -8951,12 +10164,17 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
                           interm_num_len = QMI_RIL_ZERO;
                         }
                         if ( ( interm_num_len == cur_fwd_info_slot->number_len ) &&
-                             ( QMI_RIL_ZERO == cur_fwd_info_slot->number_len || strncmp( cur_fwd_info_slot->number, resp_buf_slot->number, cur_fwd_info_slot->number_len ) == 0) &&
-                             ( cur_fwd_info_slot->service_status == resp_buf_slot->status ) )
+                             ( QMI_RIL_ZERO == cur_fwd_info_slot->number_len ||
+                                   strncmp( cur_fwd_info_slot->number, resp_buf_slot->number,
+                                            cur_fwd_info_slot->number_len ) == 0) &&
+                             ( cur_fwd_info_slot->service_status == resp_buf_slot->status ) &&
+                             ( cur_fwd_info_slot->no_reply_timer == resp_buf_slot->no_reply_timer ) )
                         {
-                          // same number and same status, merge the service_class
+                          // Number, status and timer are same, merge the service_class
                           resp_buf_slot->service_class |= cur_fwd_info_slot->service_class;
                           instance_merged = TRUE;
+                          QCRIL_LOG_INFO( "service class 0x%x is merged with %d",
+                                          cur_fwd_info_slot-->service_class, j );
                         }
                       }
 
@@ -9027,6 +10245,16 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
                     }
                     QCRIL_LOG_INFO("num_of_instances: %d", num_of_instances);
 
+                    if (get_cf_resp->call_fwd_start_time_valid)
+                    {
+                       call_fwd_start_time = &(get_cf_resp->call_fwd_start_time);
+                    }
+
+                    if (get_cf_resp->call_fwd_end_time_valid)
+                    {
+                       call_fwd_end_time = &(get_cf_resp->call_fwd_end_time);
+                    }
+
                     if ( num_of_instances > 0 )
                     {
                       if (RIL_REQUEST_QUERY_CALL_FORWARD_STATUS == params_ptr->event_id)
@@ -9038,8 +10266,10 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
                       }
                       else
                       {
-#ifndef QMI_RIL_UTF
-                        qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo(response_buffer, num_of_instances, &ims_resp);
+                        qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo(
+                                response_buffer, num_of_instances,
+                                call_fwd_start_time, call_fwd_end_time,
+                                &ims_resp);
                         qcril_qmi_ims_socket_send( params_ptr->t,
                                                    IMS__MSG_TYPE__RESPONSE,
                                                    IMS__MSG_ID__REQUEST_QUERY_CALL_FORWARD_STATUS,
@@ -9047,7 +10277,6 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
                                                    (void *)&ims_resp,
                                                    sizeof(ims_resp)
                                                   );
-#endif
 
                       }
 
@@ -9084,8 +10313,10 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
                       }
                       else
                       {
-#ifndef QMI_RIL_UTF
-                        qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo(response_buffer, num_of_instances, &ims_resp);
+                        qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo(
+                                response_buffer, num_of_instances,
+                                call_fwd_start_time, call_fwd_end_time,
+                                &ims_resp);
                         qcril_qmi_ims_socket_send( params_ptr->t,
                                                    IMS__MSG_TYPE__RESPONSE,
                                                    IMS__MSG_ID__REQUEST_QUERY_CALL_FORWARD_STATUS,
@@ -9093,7 +10324,6 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
                                                    (void *)&ims_resp,
                                                    sizeof(ims_resp)
                                                   );
-#endif
                       }
                     }
             }
@@ -9118,6 +10348,23 @@ void qcril_qmi_voice_query_call_forward_status_resp_hdlr
   else
   {
     qcril_send_empty_payload_request_response( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, RIL_E_GENERIC_FAILURE );
+  }
+
+  if (ims_resp.info)
+  {
+    uint8 i = 0;
+    for (i = 0; i < ims_resp.n_info; i++)
+    {
+      if (ims_resp.info[i] && ims_resp.info[i]->callfwdtimerstart)
+      {
+        qcril_free(ims_resp.info[i]->callfwdtimerstart);
+      }
+      if (ims_resp.info[i] && ims_resp.info[i]->callfwdtimerend)
+      {
+        qcril_free(ims_resp.info[i]->callfwdtimerend);
+      }
+    }
+    qcril_free(ims_resp.info);
   }
 
   QCRIL_LOG_FUNC_RETURN();
@@ -9171,7 +10418,7 @@ void qcril_qmi_voice_orig_ussd_resp_hdlr
 
       memset( ussd_utf8_str, '\0', sizeof( ussd_utf8_str ) );
       memset( type_code, '\0', sizeof( type_code ) );
-      memset( response_buff, (int) NULL, sizeof( response_buff ) );
+      memset( response_buff, 0, sizeof( response_buff ) );
 
       orig_ussd_resp = (voice_orig_ussd_resp_msg_v02 *)params_ptr->data;
       qmi_result = orig_ussd_resp->resp.result;
@@ -9196,7 +10443,7 @@ void qcril_qmi_voice_orig_ussd_resp_hdlr
         QCRIL_LOG_INFO("Error Details : cc_sups_result_reason=%d, cc_sups_result_service=%d",orig_ussd_resp->cc_sups_result.reason,
                        orig_ussd_resp->cc_sups_result.service_type);
       }
-      switch ( ril_err )
+      switch ( (int)ril_err )
       {
         case RIL_E_USSD_MODIFIED_TO_DIAL:
           stk_cc_modification  = QCRIL_QMI_VOICE_STK_CC_MODIFICATION_USSD_TO_DIAL;
@@ -9565,9 +10812,7 @@ void qcril_qmi_voice_request_dial
   qcril_instance_id_e_type instance_id;
   uint32 user_data;
   RIL_Dial *in_data_ptr = NULL;
-#ifndef QMI_RIL_UTF
   Ims__Dial *ims_in_data_ptr = NULL;
-#endif
   qcril_reqlist_public_type reqlist_entry;
   qcril_request_resp_params_type resp;
   voice_dial_call_req_msg_v02  dial_call_req_msg;
@@ -9588,7 +10833,7 @@ void qcril_qmi_voice_request_dial
   char * subaddr = NULL;
   int subaddr_len = 0;
   int addr_len = 0;
-  int clir;
+  int clir = QCRIL_QMI_VOICE_SS_CLIR_PRESENTATION_INDICATOR;
   RIL_UUS_Info *  uusInfo = NULL;    /* NULL or Pointer to User-User Signaling Information */
   RIL_Call_Details *callDetails = NULL;
   char *extras_str = NULL;
@@ -9629,12 +10874,14 @@ void qcril_qmi_voice_request_dial
       callDetails = VT_VOLTE_CALL_DETAILS( in_data_ptr->callDetails );
     }
   }
-#ifndef QMI_RIL_UTF
   else
   {
     ims_in_data_ptr = (Ims__Dial *)params_ptr->data;
     memcpy(voice_dial_address, ims_in_data_ptr->address, strlen(ims_in_data_ptr->address));
-    clir = ims_in_data_ptr->clir;
+    if ( ims_in_data_ptr->has_clir )
+    {
+      clir = ims_in_data_ptr->clir;
+    }
     if ( ims_in_data_ptr->calldetails )
     {
       callDetails = qcril_malloc(sizeof(*callDetails));
@@ -9649,7 +10896,7 @@ void qcril_qmi_voice_request_dial
 
         for(i=0; i<callDetails->n_extras; i++)
         {
-          extras_str = callDetails->extras[i];
+          extras_str = (char*)callDetails->extras[i];
           token = strtok_r(extras_str, "=", &lastPtr);
           if (token == NULL)
               continue;
@@ -9671,7 +10918,6 @@ void qcril_qmi_voice_request_dial
     }
     QCRIL_LOG_INFO("is_conf_uri: %d", is_conf_uri);
   }
-#endif
 
   QCRIL_NOTUSED( ret_ptr );
 
@@ -9709,56 +10955,42 @@ void qcril_qmi_voice_request_dial
   QCRIL_LOG_ESSENTIAL(".. need_enforce_emergency_directly %d", need_enforce_emergency_directly );
   QCRIL_LOG_ESSENTIAL(".. is_emer_num_to_ims_addr %d", is_emer_num_to_ims_addr );
 
-  //Checking whether PRL is already loaded or not in case of emergency call in 3GPP2 mode
-  if( TRUE == is_emergency_call &&
-      FALSE == qcril_qmi_dms_is_prl_info_available(NULL) &&
-      TRUE ==  qcril_qmi_nas_is_using_rte_helper(QMI_RIL_RTE_1x, QMI_RIL_RTE_KIND_VOICE) &&
-      FALSE == qmi_ril_is_feature_supported(QMI_RIL_FEATURE_MSM) )
+  qcril_qmi_voice_voip_lock_overview();
+  nw_reg_status_overview = qmi_ril_nw_reg_get_status_overview();
+  QCRIL_LOG_INFO(".. nw reg status overview %d", (int)nw_reg_status_overview);
+  call_info_entry        = NULL;
+  call_setup_result      = RIL_E_GENERIC_FAILURE;
+  command_oversight      = NULL;
+  do
   {
-    qcril_qmi_voice_set_emergency_call_pending(TRUE);
-    qcril_qmi_pending_emergency_call_info.emergency_params_ptr.t = params_ptr->t;
-    qcril_qmi_pending_emergency_call_info.emergency_params_ptr.modem_id = params_ptr->modem_id;
-    qcril_qmi_pending_emergency_call_info.emergency_params_ptr.event_id = params_ptr->event_id;
-    qcril_qmi_pending_emergency_call_info.emergency_params_ptr.instance_id = params_ptr->instance_id;
-    qcril_qmi_pending_emergency_call_info.emergency_params_ptr.datalen = params_ptr->datalen;
-    strlcpy(((RIL_Dial*) qcril_qmi_pending_emergency_call_info.emergency_params_ptr.data)->address, voice_dial_address, QCRIL_QMI_VOICE_DIAL_NUMBER_MAX_LEN);
-  }
-  else
-  {
-    qcril_qmi_voice_voip_lock_overview();
-    nw_reg_status_overview = qmi_ril_nw_reg_get_status_overview();
-    QCRIL_LOG_INFO(".. nw reg status overview %d", (int)nw_reg_status_overview);
-    call_info_entry        = NULL;
-    call_setup_result      = RIL_E_GENERIC_FAILURE;
-    command_oversight      = NULL;
-    do
-    {
-        if( TRUE == is_emergency_call )
+      if( TRUE == is_emergency_call )
+      {
+        call_setup_result = qcril_qmi_nas_voice_move_device_to_online_for_emer_call_conditionally();
+        if( RIL_E_SUCCESS != call_setup_result )
         {
-          call_setup_result = qcril_qmi_nas_voice_move_device_to_online_for_emer_call_conditionally();
-          if( RIL_E_SUCCESS != call_setup_result )
-          {
-            break;
-          }
-        }
-
-        if ( qmi_ril_voice_is_voice_calls_supressed ||
-             ( qmi_ril_voice_is_calls_supressed_by_pil_vcl() && !is_emergency_call )
-           )
-        {
-          call_setup_result = RIL_E_GENERIC_FAILURE;
           break;
         }
+      }
 
-        if ( params_ptr->datalen == 0 || params_ptr->data == NULL )
-        {
-          call_setup_result = RIL_E_GENERIC_FAILURE;
-          break;
-        }
+      if ( qmi_ril_voice_is_voice_calls_supressed ||
+           ( qmi_ril_voice_is_calls_supressed_by_pil_vcl() && !is_emergency_call )
+         )
+      {
+        call_setup_result = RIL_E_GENERIC_FAILURE;
+        break;
+      }
 
-        // check address/subaddress length overflow
-        addr_len = strlen( voice_dial_address );
+      if ( params_ptr->datalen == 0 || params_ptr->data == NULL )
+      {
+        call_setup_result = RIL_E_GENERIC_FAILURE;
+        break;
+      }
 
+      // check address/subaddress length overflow
+      addr_len = strlen( voice_dial_address );
+
+      if( addr_len > 0 )
+      {
         if ( feature_subaddress_support_amp )
         {
           subaddr = strchr(voice_dial_address,'&');
@@ -9775,8 +11007,9 @@ void qcril_qmi_voice_request_dial
            subaddr_len = addr_len - (subaddr - voice_dial_address);
            if (subaddr_len > 0)
            {
+
               const uint SUBADDR_LEN_MAX = QMI_VOICE_SUBADDRESS_LEN_MAX_V02 - 2; // by the limitation on QMI VOICE, need to reserve two bytes for them to add padding 0x50 and the NULL terminator
-              if ( subaddr_len > SUBADDR_LEN_MAX )
+              if ( ((unsigned int)subaddr_len) > SUBADDR_LEN_MAX )
               {
                  QCRIL_LOG_ERROR("subaddr_len: %d is greater than SUBADDRESS_LEN_MAX(%d)",
                                  subaddr_len, SUBADDR_LEN_MAX );
@@ -9789,433 +11022,443 @@ void qcril_qmi_voice_request_dial
               }
            }
         }
+      }
 
-        if ( addr_len == 0 )
+      if ( addr_len == 0  && !is_conf_uri )
+      {
+        QCRIL_LOG_ERROR("Calling number is null");
+        call_setup_result = RIL_E_GENERIC_FAILURE;
+        break;
+      }
+
+
+      if (is_conf_uri)
+      {
+        if ( addr_len > QMI_VOICE_CONF_URI_LIST_MAX_LEN_V02 )
         {
-          QCRIL_LOG_ERROR("Calling number is null");
           call_setup_result = RIL_E_GENERIC_FAILURE;
           break;
         }
+      }
+      else if( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) )
+      {
+         /* In case of VoIP/VT, number(URI) can be larger than QMI_VOICE_NUMBER_MAX_V02 */
+         if ( addr_len > ( QMI_VOICE_NUMBER_MAX_V02 + QMI_VOICE_SIP_URI_OVERFLOW_MAX_V02 ) )
+         {
+           call_setup_result = RIL_E_GENERIC_FAILURE;
+           break;
+         }
+      }
+      else
+      {
+         if ( addr_len > QMI_VOICE_NUMBER_MAX_V02 )
+         {
+           call_setup_result = RIL_E_GENERIC_FAILURE;
+           break;
+         }
+      }
+
+      qcril_reqlist_default_entry( params_ptr->t, params_ptr->event_id, QCRIL_DEFAULT_MODEM_ID, QCRIL_REQ_AWAITING_CALLBACK,
+                                   QCRIL_EVT_NONE, NULL, &reqlist_entry );
+      if ( qcril_reqlist_new( instance_id, &reqlist_entry ) != E_SUCCESS )
+      {
+        call_setup_result = RIL_E_GENERIC_FAILURE;
+        break;
+      }
+
+      call_info_entry = qcril_qmi_voice_voip_create_call_info_entry(
+              VOICE_INVALID_CALL_ID,
+              INVALID_MEDIA_ID,
+              TRUE,
+              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_MO_CALL_BEING_SETUP );
+      if ( NULL == call_info_entry )
+      {
+        call_setup_result = RIL_E_GENERIC_FAILURE;
+        break;
+      }
+
+      call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NO_QMI_ID_RECEIVED;
+
+      call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_RIL_CALL_STATE_VALID;
+      call_info_entry->ril_call_state = RIL_CALL_DIALING;
+
+      if (!is_conf_uri)
+      {
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NUMBER_VALID;
+        call_info_entry->voice_svc_remote_party_number.number_pi = PRESENTATION_NUM_ALLOWED_V02;
+        call_info_entry->voice_svc_remote_party_number.number_len = (addr_len < QMI_VOICE_NUMBER_MAX_V02) ? addr_len : QMI_VOICE_NUMBER_MAX_V02;
+        memcpy(call_info_entry->voice_svc_remote_party_number.number, voice_dial_address, call_info_entry->voice_svc_remote_party_number.number_len);
+
+        call_info_entry->voice_scv_info.is_mpty = FALSE;
+      }
+      else
+      {
+        call_info_entry->voice_scv_info.is_mpty = TRUE;
+      }
+
+      call_info_entry->voice_scv_info.direction = CALL_DIRECTION_MO_V02;
+
+      call_info_entry->voice_scv_info.als = ALS_LINE1_V02;
+
+      if( TRUE == is_emer_num_to_ims_addr )
+      {
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMER_NUM_TO_IMS_ADDR;
+        memcpy(&call_info_entry->emer_num_ims_addr_info,
+               &emer_num_ims_addr_info,
+               sizeof(call_info_entry->emer_num_ims_addr_info));
+      }
+
+      if ( RIL_REQUEST_DIAL == params_ptr->event_id ||
+           QCRIL_EVT_IMS_SOCKET_REQ_DIAL == params_ptr->event_id )
+      {
+        command_oversight = qmi_ril_voice_ims_create_command_oversight( params_ptr->t, RIL_REQUEST_DIAL, TRUE );
+        if ( NULL != command_oversight )
+        {
+          qmi_ril_voice_ims_command_oversight_add_call_link( command_oversight,
+                                                             QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_ELABORATION_PATTERN,
+                                                             QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_MO_CALL_BEING_SETUP,
+                                                             VOICE_INVALID_CALL_ID,
+                                                             CALL_STATE_ORIGINATING_V02 );
+
+          memset( &oversight_cmd_params, 0, sizeof( oversight_cmd_params ) );
+          oversight_cmd_params.locator.command_oversight = command_oversight;
+
+          qmi_ril_voice_ims_command_oversight_handle_event( QMI_RIL_VOICE_IMS_EXEC_INTERMED_EVENT_COMMENCE_AWAIT_RESP_IND,
+                                                            QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_SPECIFIC_OVERSIGHT_OBJ,
+                                                            &oversight_cmd_params );
+        } // if ( NULL != command_oversight )
+        else
+          break;
+      } // if ( RIL_REQUEST_DIAL == params_ptr->event_id )
 
 
-        if (is_conf_uri)
+      if ( is_emergency_call &&
+           ( ( nw_reg_status_overview & QMI_RIL_NW_REG_VOICE_CALLS_AVAILABLE ) &&
+           !(nw_reg_status_overview & QMI_RIL_NW_REG_FULL_SERVICE) )
+          )
+      {
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EME_FROM_OOS |
+                                        QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING;
+      }
+
+      if ( is_emergency_call )
+      {
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMERGENCY_CALL;
+      }
+
+      if ( !is_emergency_call && !(nw_reg_status_overview & QMI_RIL_NW_REG_FULL_SERVICE) )
+      { // non emergency ialed from OOS (specific to certain customer extensions)
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_DIAL_FROM_OOS |
+                                        QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING;
+      }
+
+      unsigned int old_call_radio_tech = qcril_qmi_voice_nas_control_get_reported_voice_radio_tech();;
+      unsigned int old_call_radio_tech_family = qcril_qmi_voice_nas_control_convert_radio_tech_to_radio_tech_family(old_call_radio_tech);
+
+      is_non_std_otasp = qmi_ril_phone_number_is_non_std_otasp( voice_dial_address ) && (RADIO_TECH_3GPP2 == old_call_radio_tech_family);
+      QCRIL_LOG_INFO(".. is_non_std_otasp %d", is_non_std_otasp);
+
+      memset(&dial_call_req_msg, 0, sizeof(dial_call_req_msg));
+
+
+      QCRIL_LOG_INFO(".. Number sent %s",voice_dial_address);
+
+      if (!is_conf_uri)
+      {
+        /* Copy the Calling address and subaddress*/
+        if ( NULL == subaddr || 0 == subaddr_len )
         {
-          if ( addr_len > QMI_VOICE_CONF_URI_LIST_MAX_LEN_V02 )
-          {
-            call_setup_result = RIL_E_GENERIC_FAILURE;
-            break;
-          }
-        }
-        else if( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) )
-        {
-           /* In case of VoIP/VT, number(URI) can be larger than QMI_VOICE_NUMBER_MAX_V02 */
-           if ( addr_len > ( QMI_VOICE_NUMBER_MAX_V02 + QMI_VOICE_SIP_URI_OVERFLOW_MAX_V02 ) )
-           {
-             call_setup_result = RIL_E_GENERIC_FAILURE;
-             break;
-           }
+          memcpy(dial_call_req_msg.calling_number, voice_dial_address, addr_len);
         }
         else
         {
-           if ( addr_len > QMI_VOICE_NUMBER_MAX_V02 )
-           {
-             call_setup_result = RIL_E_GENERIC_FAILURE;
-             break;
-           }
-        }
+          // address
+          memcpy(dial_call_req_msg.calling_number, voice_dial_address, addr_len);
 
-        qcril_reqlist_default_entry( params_ptr->t, params_ptr->event_id, QCRIL_DEFAULT_MODEM_ID, QCRIL_REQ_AWAITING_CALLBACK,
-                                     QCRIL_EVT_NONE, NULL, &reqlist_entry );
-        if ( qcril_reqlist_new( instance_id, &reqlist_entry ) != E_SUCCESS )
-        {
-          call_setup_result = RIL_E_GENERIC_FAILURE;
-          break;
-        }
-
-        call_info_entry = qcril_qmi_voice_voip_create_call_info_entry( VOICE_INVALID_CALL_ID, TRUE, QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_MO_CALL_BEING_SETUP );
-        if ( NULL == call_info_entry )
-        {
-          call_setup_result = RIL_E_GENERIC_FAILURE;
-          break;
-        }
-
-        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NO_QMI_ID_RECEIVED;
-
-        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_RIL_CALL_STATE_VALID;
-        call_info_entry->ril_call_state = RIL_CALL_DIALING;
-
-        if (!is_conf_uri)
-        {
-          call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NUMBER_VALID;
-          call_info_entry->voice_svc_remote_party_number.number_pi = PRESENTATION_NUM_ALLOWED_V02;
-          call_info_entry->voice_svc_remote_party_number.number_len = (addr_len < QMI_VOICE_NUMBER_MAX_V02) ? addr_len : QMI_VOICE_NUMBER_MAX_V02;
-          memcpy(call_info_entry->voice_svc_remote_party_number.number, voice_dial_address, call_info_entry->voice_svc_remote_party_number.number_len);
-
-          call_info_entry->voice_scv_info.is_mpty = FALSE;
-        }
-        else
-        {
-          call_info_entry->voice_scv_info.is_mpty = TRUE;
-        }
-
-        call_info_entry->voice_scv_info.direction = CALL_DIRECTION_MO_V02;
-
-        call_info_entry->voice_scv_info.als = ALS_LINE1_V02;
-
-        if( TRUE == is_emer_num_to_ims_addr )
-        {
-          call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMER_NUM_TO_IMS_ADDR;
-          memcpy(&call_info_entry->emer_num_ims_addr_info,
-                 &emer_num_ims_addr_info,
-                 sizeof(call_info_entry->emer_num_ims_addr_info));
-        }
-
-        if ( RIL_REQUEST_DIAL == params_ptr->event_id ||
-             QCRIL_EVT_IMS_SOCKET_REQ_DIAL == params_ptr->event_id )
-        {
-          command_oversight = qmi_ril_voice_ims_create_command_oversight( params_ptr->t, RIL_REQUEST_DIAL, TRUE );
-          if ( NULL != command_oversight )
+          // subaddress
+          dial_call_req_msg.called_party_subaddress_valid = TRUE;
+          dial_call_req_msg.called_party_subaddress.extension_bit = 1; // Always set to 1 according to spec Table 10.5.119/3GPP TS 24.008
+          dial_call_req_msg.called_party_subaddress.subaddress_type = SUBADDRESS_TYPE_NSAP_V02;
+          dial_call_req_msg.called_party_subaddress.odd_even_ind = subaddr_len % 2;
+          if(feature_subaddress_ia5_id_support)
           {
-            qmi_ril_voice_ims_command_oversight_add_call_link( command_oversight,
-                                                               QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_ELABORATION_PATTERN,
-                                                               QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_MO_CALL_BEING_SETUP,
-                                                               VOICE_INVALID_CALL_ID,
-                                                               CALL_STATE_ORIGINATING_V02 );
-
-            memset( &oversight_cmd_params, 0, sizeof( oversight_cmd_params ) );
-            oversight_cmd_params.locator.command_oversight = command_oversight;
-
-            qmi_ril_voice_ims_command_oversight_handle_event( QMI_RIL_VOICE_IMS_EXEC_INTERMED_EVENT_COMMENCE_AWAIT_RESP_IND,
-                                                              QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_SPECIFIC_OVERSIGHT_OBJ,
-                                                              &oversight_cmd_params );
-          } // if ( NULL != command_oversight )
-          else
-            break;
-        } // if ( RIL_REQUEST_DIAL == params_ptr->event_id )
-
-
-        if ( is_emergency_call &&
-             ( ( nw_reg_status_overview & QMI_RIL_NW_REG_VOICE_CALLS_AVAILABLE ) &&
-             !(nw_reg_status_overview & QMI_RIL_NW_REG_FULL_SERVICE) )
-            )
-        {
-          call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EME_FROM_OOS |
-                                          QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING;
-        }
-
-        if ( is_emergency_call )
-        {
-          call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMERGENCY_CALL;
-        }
-
-        if ( !is_emergency_call && !(nw_reg_status_overview & QMI_RIL_NW_REG_FULL_SERVICE) )
-        { // non emergency ialed from OOS (specific to certain customer extensions)
-          call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_DIAL_FROM_OOS |
-                                          QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING;
-        }
-
-        unsigned int old_call_radio_tech = qcril_qmi_voice_nas_control_get_reported_voice_radio_tech();;
-        unsigned int old_call_radio_tech_family = qcril_qmi_voice_nas_control_convert_radio_tech_to_radio_tech_family(old_call_radio_tech);
-
-        is_non_std_otasp = qmi_ril_phone_number_is_non_std_otasp( voice_dial_address ) && (RADIO_TECH_3GPP2 == old_call_radio_tech_family);
-        QCRIL_LOG_INFO(".. is_non_std_otasp %d", is_non_std_otasp);
-
-        memset(&dial_call_req_msg, 0, sizeof(dial_call_req_msg));
-
-
-        QCRIL_LOG_INFO(".. Number sent %s",voice_dial_address);
-
-        if (!is_conf_uri)
-        {
-          /* Copy the Calling address and subaddress*/
-          if ( NULL == subaddr || 0 == subaddr_len )
-          {
-            memcpy(dial_call_req_msg.calling_number, voice_dial_address, addr_len);
+            dial_call_req_msg.called_party_subaddress.subaddress_len = subaddr_len + 1;
+            memset(&dial_call_req_msg.called_party_subaddress.subaddress[0],'\0',QMI_VOICE_SUBADDRESS_LEN_MAX_V02);
+            dial_call_req_msg.called_party_subaddress.subaddress[0] = QCRIL_QMI_VOICE_SUBADDRESS_IA5_IDENTIFIER;
+            memcpy(&dial_call_req_msg.called_party_subaddress.subaddress[1], subaddr, subaddr_len);
           }
           else
           {
-            // address
-            memcpy(dial_call_req_msg.calling_number, voice_dial_address, addr_len);
-
-            // subaddress
-            dial_call_req_msg.called_party_subaddress_valid = TRUE;
-
-            dial_call_req_msg.called_party_subaddress.extension_bit = 1; // Always set to 1 according to spec Table 10.5.119/3GPP TS 24.008
-            dial_call_req_msg.called_party_subaddress.subaddress_type = SUBADDRESS_TYPE_NSAP_V02;
-            dial_call_req_msg.called_party_subaddress.odd_even_ind = subaddr_len % 2;
             memcpy( dial_call_req_msg.called_party_subaddress.subaddress, subaddr, subaddr_len);
             dial_call_req_msg.called_party_subaddress.subaddress_len = subaddr_len;
           }
         }
+      }
+      else
+      {
+        memcpy(dial_call_req_msg.calling_number, "Conference Call", strlen("Conference Call"));
+        /* Copy the conf_uri_list */
+        dial_call_req_msg.conf_uri_list_valid = TRUE;
+        memcpy(dial_call_req_msg.conf_uri_list, voice_dial_address, addr_len);
+      }
+
+      if( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) )
+      {
+         /* In case of VoIP/VT, number(URI) can be greater than QMI_VOICE_NUMBER_MAX_V02,
+              in which copy the remaining to URI tlv */
+         if( addr_len > QMI_VOICE_NUMBER_MAX_V02 )
+         {
+            memcpy(dial_call_req_msg.sip_uri_overflow, voice_dial_address + QMI_VOICE_NUMBER_MAX_V02, addr_len - QMI_VOICE_NUMBER_MAX_V02 );
+            dial_call_req_msg.sip_uri_overflow_valid = TRUE;
+         }
+      }
+
+      if ( is_non_std_otasp )
+      {
+        dial_call_req_msg.call_type_valid = TRUE;
+        dial_call_req_msg.call_type       = CALL_TYPE_NON_STD_OTASP_V02;
+
+        call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
+      }
+      else
+      {
+
+        /* Set the clir type */
+        /* Use CLIR setting specified in DIAL request */
+        if ( clir == QCRIL_QMI_VOICE_SS_CLIR_INVOCATION_OPTION )
+        {
+            dial_call_req_msg.clir_type_valid = TRUE;
+            dial_call_req_msg.clir_type = CLIR_INVOCATION_V02;
+        }
+        /* Use CLIR setting specified in DIAL request */
+        else if ( clir == QCRIL_QMI_VOICE_SS_CLIR_SUPPRESSION_OPTION )
+        {
+            dial_call_req_msg.clir_type_valid = TRUE;
+            dial_call_req_msg.clir_type = CLIR_SUPPRESSION_V02;
+        }
+        /* Use the default CLIR setting */
         else
         {
-          memcpy(dial_call_req_msg.calling_number, "Conference Call", strlen("Conference Call"));
-          /* Copy the conf_uri_list */
-          dial_call_req_msg.conf_uri_list_valid = TRUE;
-          memcpy(dial_call_req_msg.conf_uri_list, voice_dial_address, addr_len);
-        }
+          clir = qcril_qmi_voice_info.clir;
 
-        if( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) )
-        {
-           /* In case of VoIP/VT, number(URI) can be greater than QMI_VOICE_NUMBER_MAX_V02,
-                in which copy the remaining to URI tlv */
-           if( addr_len > QMI_VOICE_NUMBER_MAX_V02 )
-           {
-              memcpy(dial_call_req_msg.sip_uri_overflow, voice_dial_address + QMI_VOICE_NUMBER_MAX_V02, addr_len - QMI_VOICE_NUMBER_MAX_V02 );
-              dial_call_req_msg.sip_uri_overflow_valid = TRUE;
-           }
-        }
-
-        if ( is_non_std_otasp )
-        {
-          dial_call_req_msg.call_type_valid = TRUE;
-          dial_call_req_msg.call_type       = CALL_TYPE_NON_STD_OTASP_V02;
-
-          call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
-        }
-        else
-        {
-
-          /* Set the clir type */
-          /* Use CLIR setting specified in DIAL request */
           if ( clir == QCRIL_QMI_VOICE_SS_CLIR_INVOCATION_OPTION )
           {
-              dial_call_req_msg.clir_type_valid = TRUE;
-              dial_call_req_msg.clir_type = CLIR_INVOCATION_V02;
+            dial_call_req_msg.clir_type_valid = TRUE;
+            dial_call_req_msg.clir_type = CLIR_INVOCATION_V02;
           }
-          /* Use CLIR setting specified in DIAL request */
           else if ( clir == QCRIL_QMI_VOICE_SS_CLIR_SUPPRESSION_OPTION )
           {
-              dial_call_req_msg.clir_type_valid = TRUE;
-              dial_call_req_msg.clir_type = CLIR_SUPPRESSION_V02;
-          }
-          /* Use the default CLIR setting */
-          else
-          {
-            if ( QCRIL_EVT_IMS_SOCKET_REQ_DIAL == params_ptr->event_id )
-            {
-              clir = qcril_qmi_voice_info.ims_clir;
-            }
-            else
-            {
-              clir = qcril_qmi_voice_info.clir;
-            }
-
-            if ( clir == QCRIL_QMI_VOICE_SS_CLIR_INVOCATION_OPTION )
-            {
-              dial_call_req_msg.clir_type_valid = TRUE;
-              dial_call_req_msg.clir_type = CLIR_INVOCATION_V02;
-            }
-            else if ( clir == QCRIL_QMI_VOICE_SS_CLIR_SUPPRESSION_OPTION )
-            {
-              dial_call_req_msg.clir_type_valid = TRUE;
-              dial_call_req_msg.clir_type = CLIR_SUPPRESSION_V02;
-            }
-            else
-            {
-              dial_call_req_msg.clir_type_valid = FALSE;
-            }
-          }
-
-          QCRIL_LOG_INFO(".. Clir type sent %d",dial_call_req_msg.clir_type);
-
-          if ( ( QCRIL_EVT_IMS_SOCKET_REQ_DIAL == params_ptr->event_id )  && dial_call_req_msg.clir_type_valid )
-          {
-             dial_call_req_msg.pi_valid = TRUE;
-             dial_call_req_msg.pi = ( dial_call_req_msg.clir_type == CLIR_INVOCATION_V02 ) ? IP_PRESENTATION_NUM_RESTRICTED_V02 : IP_PRESENTATION_NUM_ALLOWED_V02;
-          }
-
-          /* If not set call type will be assumed to be VOICE ---- but we set it anyway */
-          dial_call_req_msg.call_type_valid = TRUE;
-
-          if( callDetails )
-          {
-             qcril_qmi_voice_get_modem_call_type_info( callDetails,
-                                                 &dial_call_req_msg.call_type,
-                                                 &dial_call_req_msg.audio_attrib_valid,
-                                                 &dial_call_req_msg.audio_attrib,
-                                                 &dial_call_req_msg.video_attrib_valid,
-                                                 &dial_call_req_msg.video_attrib );
-
-             if (RIL_CALL_DOMAIN_AUTOMATIC == callDetails->callDomain && RIL_CALL_TYPE_VOICE == callDetails->callType)
-             {
-               call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUTO_DOMAIN;
-             }
-             else if ( ( CALL_TYPE_VOICE_IP_V02 == dial_call_req_msg.call_type ) ||
-                       ( CALL_TYPE_VT_V02 == dial_call_req_msg.call_type ) ||
-                       ( CALL_TYPE_EMERGENCY_IP_V02 == dial_call_req_msg.call_type ) )
-             {
-               call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN;
-               if (CALL_TYPE_VT_V02 == dial_call_req_msg.call_type)
-               {
-                  call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUDIO_ATTR_VALID;
-                  call_info_entry->voice_audio_attrib.call_attributes = VOICE_CALL_ATTRIB_TX_V02 | VOICE_CALL_ATTRIB_RX_V02;
-                  call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_VIDEO_ATTR_VALID;
-                  call_info_entry->voice_video_attrib.call_attributes = VOICE_CALL_ATTRIB_TX_V02 | VOICE_CALL_ATTRIB_RX_V02;
-               }
-             }
-             else
-             {
-               call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
-             }
+            dial_call_req_msg.clir_type_valid = TRUE;
+            dial_call_req_msg.clir_type = CLIR_SUPPRESSION_V02;
           }
           else
           {
-             dial_call_req_msg.call_type   = CALL_TYPE_VOICE_V02;
-             call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
-          }
-
-          if (qcril_qmi_voice_info.jbims)
-          {
-             /* set service type for dial request */
-             dial_call_req_msg.service_type_valid = TRUE;
-             dial_call_req_msg.service_type =
-                qcril_qmi_nas_setting_srv_type_based_on_elaboration_and_rat(call_info_entry->elaboration);
-          }
-
-          /* Set the UUS Info if present */
-          if ( uusInfo != NULL )
-          {
-            dial_call_req_msg.uus_valid = TRUE;
-
-            if( uusInfo->uusData != NULL )
-            {
-               dial_call_req_msg.uus.uus_data_len = uusInfo->uusLength;
-               memcpy(dial_call_req_msg.uus.uus_data, uusInfo->uusData, uusInfo->uusLength);
-            }
-
-            switch ( uusInfo->uusType )
-            {
-              case RIL_UUS_TYPE1_IMPLICIT:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE1_IMPLICIT_V02;
-                break;
-
-              case RIL_UUS_TYPE1_REQUIRED:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE1_REQUIRED_V02;
-                break;
-
-              case RIL_UUS_TYPE1_NOT_REQUIRED:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE1_NOT_REQUIRED_V02;
-                break;
-
-              case RIL_UUS_TYPE2_REQUIRED:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE2_REQUIRED_V02;
-                break;
-
-              case RIL_UUS_TYPE2_NOT_REQUIRED:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE2_NOT_REQUIRED_V02;
-                break;
-
-              case RIL_UUS_TYPE3_REQUIRED:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE3_REQUIRED_V02;
-                break;
-
-              case RIL_UUS_TYPE3_NOT_REQUIRED:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE3_NOT_REQUIRED_V02;
-                break;
-
-              default:
-                dial_call_req_msg.uus.uus_type = UUS_TYPE_DATA_V02;
-                break;
-            }
-            switch ( uusInfo->uusDcs )
-            {
-              case RIL_UUS_DCS_USP:
-                dial_call_req_msg.uus.uus_dcs  = UUS_DCS_USP_V02;
-                break;
-
-              case RIL_UUS_DCS_OSIHLP:
-                dial_call_req_msg.uus.uus_dcs  = UUS_DCS_OHLP_V02;
-                break;
-
-              case RIL_UUS_DCS_X244:
-                dial_call_req_msg.uus.uus_dcs  = UUS_DCS_X244_V02;
-                break;
-
-              case RIL_UUS_DCS_IA5c:
-                dial_call_req_msg.uus.uus_dcs  = UUS_DCS_IA5_V02;
-                break;
-
-              case RIL_UUS_DCS_RMCF:  // todo: mapping
-              default:
-                break;
-            }
-
-          QCRIL_LOG_INFO("..  UUS info sent type %d, dcs %d, length %d",
-                               dial_call_req_msg.uus.uus_type, dial_call_req_msg.uus.uus_dcs,
-                               dial_call_req_msg.uus.uus_data_len);
+            dial_call_req_msg.clir_type_valid = FALSE;
           }
         }
 
-        if (QCRIL_EVT_IMS_SOCKET_REQ_DIAL == params_ptr->event_id)
+        QCRIL_LOG_INFO(".. Clir type sent %d",dial_call_req_msg.clir_type);
+
+        if ( ( QCRIL_EVT_IMS_SOCKET_REQ_DIAL == params_ptr->event_id )  && dial_call_req_msg.clir_type_valid )
         {
-           call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_REPORT_TO_IMS_PIPE;
+           dial_call_req_msg.pi_valid = TRUE;
+           dial_call_req_msg.pi = ( dial_call_req_msg.clir_type == CLIR_INVOCATION_V02 ) ? IP_PRESENTATION_NUM_RESTRICTED_V02 : IP_PRESENTATION_NUM_ALLOWED_V02;
         }
 
-        if ( need_enforce_emergency_directly )
+        /* If not set call type will be assumed to be VOICE ---- but we set it anyway */
+        dial_call_req_msg.call_type_valid = TRUE;
+
+        if( callDetails )
         {
-           dial_call_req_msg.call_type_valid = TRUE;
-           dial_call_req_msg.call_type   = CALL_TYPE_EMERGENCY_V02;
-           escv_type = qcril_qmi_nas_get_escv_type(voice_dial_address);
-           if (escv_type > 0)
+           qcril_qmi_voice_get_modem_call_type_info( callDetails,
+                                               &dial_call_req_msg.call_type,
+                                               &dial_call_req_msg.audio_attrib_valid,
+                                               &dial_call_req_msg.audio_attrib,
+                                               &dial_call_req_msg.video_attrib_valid,
+                                               &dial_call_req_msg.video_attrib );
+
+           if (RIL_CALL_DOMAIN_AUTOMATIC == callDetails->callDomain &&
+               (RIL_CALL_TYPE_VOICE == callDetails->callType || CALL_TYPE_VT_V02 == dial_call_req_msg.call_type) )
            {
-               dial_call_req_msg.emer_cat_valid = TRUE;
-               dial_call_req_msg.emer_cat = escv_type;
+             call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUTO_DOMAIN;
+           }
+           else if ( ( CALL_TYPE_VOICE_IP_V02 == dial_call_req_msg.call_type ) ||
+                     ( CALL_TYPE_VT_V02 == dial_call_req_msg.call_type ) ||
+                     ( CALL_TYPE_EMERGENCY_IP_V02 == dial_call_req_msg.call_type ) )
+           {
+             call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN;
+           }
+           else
+           {
+             call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
+           }
+
+           if (CALL_TYPE_VT_V02 == dial_call_req_msg.call_type)
+           {
+              call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUDIO_ATTR_VALID;
+              call_info_entry->voice_audio_attrib.call_attributes = VOICE_CALL_ATTRIB_TX_V02 | VOICE_CALL_ATTRIB_RX_V02;
+              call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_VIDEO_ATTR_VALID;
+              call_info_entry->voice_video_attrib.call_attributes = VOICE_CALL_ATTRIB_TX_V02 | VOICE_CALL_ATTRIB_RX_V02;
+           }
+        }
+        else
+        {
+           dial_call_req_msg.call_type   = CALL_TYPE_VOICE_V02;
+           call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CS_DOMAIN;
+        }
+
+        if (qcril_qmi_voice_info.jbims)
+        {
+           /* set service type for dial request only if domain is other than PS (CS/AUTO)*/
+           if (!(call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN))
+           {
+              dial_call_req_msg.service_type_valid = TRUE;
+              dial_call_req_msg.service_type =
+                qcril_qmi_nas_setting_srv_type_based_on_elaboration_and_rat(call_info_entry->elaboration);
            }
         }
 
-        if ( ( qcril_qmi_voice_info.jbims ) && ( NULL != displayText) )
+        /* Set the UUS Info if present */
+        if ( uusInfo != NULL )
         {
-          dial_call_req_msg.display_text_valid = TRUE;
-          dial_call_req_msg.display_text_len = (strlen(displayText)>QMI_VOICE_DISPLAY_TEXT_MAX_LEN_V02)?QMI_VOICE_DISPLAY_TEXT_MAX_LEN_V02:strlen(displayText);
-          memcpy(dial_call_req_msg.display_text, displayText, dial_call_req_msg.display_text_len);
-          QCRIL_LOG_ESSENTIAL(".. display text len: %d str: %s ", dial_call_req_msg.display_text_len, dial_call_req_msg.display_text);
+          dial_call_req_msg.uus_valid = TRUE;
+
+          if( uusInfo->uusData != NULL )
+          {
+             dial_call_req_msg.uus.uus_data_len = uusInfo->uusLength;
+             memcpy(dial_call_req_msg.uus.uus_data, uusInfo->uusData, uusInfo->uusLength);
+          }
+
+          switch ( uusInfo->uusType )
+          {
+            case RIL_UUS_TYPE1_IMPLICIT:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE1_IMPLICIT_V02;
+              break;
+
+            case RIL_UUS_TYPE1_REQUIRED:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE1_REQUIRED_V02;
+              break;
+
+            case RIL_UUS_TYPE1_NOT_REQUIRED:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE1_NOT_REQUIRED_V02;
+              break;
+
+            case RIL_UUS_TYPE2_REQUIRED:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE2_REQUIRED_V02;
+              break;
+
+            case RIL_UUS_TYPE2_NOT_REQUIRED:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE2_NOT_REQUIRED_V02;
+              break;
+
+            case RIL_UUS_TYPE3_REQUIRED:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE3_REQUIRED_V02;
+              break;
+
+            case RIL_UUS_TYPE3_NOT_REQUIRED:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE3_NOT_REQUIRED_V02;
+              break;
+
+            default:
+              dial_call_req_msg.uus.uus_type = UUS_TYPE_DATA_V02;
+              break;
+          }
+          switch ( uusInfo->uusDcs )
+          {
+            case RIL_UUS_DCS_USP:
+              dial_call_req_msg.uus.uus_dcs  = UUS_DCS_USP_V02;
+              break;
+
+            case RIL_UUS_DCS_OSIHLP:
+              dial_call_req_msg.uus.uus_dcs  = UUS_DCS_OHLP_V02;
+              break;
+
+            case RIL_UUS_DCS_X244:
+              dial_call_req_msg.uus.uus_dcs  = UUS_DCS_X244_V02;
+              break;
+
+            case RIL_UUS_DCS_IA5c:
+              dial_call_req_msg.uus.uus_dcs  = UUS_DCS_IA5_V02;
+              break;
+
+            case RIL_UUS_DCS_RMCF:  // todo: mapping
+            default:
+              break;
+          }
+
+        QCRIL_LOG_INFO("..  UUS info sent type %d, dcs %d, length %d",
+                             dial_call_req_msg.uus.uus_type, dial_call_req_msg.uus.uus_dcs,
+                             dial_call_req_msg.uus.uus_data_len);
         }
-
-        QCRIL_LOG_ESSENTIAL(".. final elaboration %x, %x hex", (uint32)(call_info_entry->elaboration >> 32),(uint32)call_info_entry->elaboration );
-        QCRIL_LOG_ESSENTIAL(".. call type set %d emer cat %x", (int)dial_call_req_msg.call_type, dial_call_req_msg.emer_cat);
-
-        user_data = QCRIL_COMPOSE_USER_DATA( instance_id, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
-        memset(&dial_call_resp_msg, 0, sizeof(dial_call_resp_msg));
-
-        last_call_fail_cause = CALL_END_CAUSE_REL_NORMAL_V02;
-        /* Send QMI VOICE DIAL CALL REQ */
-
-        qmi_client_error = qmi_client_send_msg_async ( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_VOICE ),
-                                                QMI_VOICE_DIAL_CALL_REQ_V02,
-                                                &dial_call_req_msg,
-                                                sizeof(dial_call_req_msg),
-                                                &dial_call_resp_msg,
-                                                sizeof(dial_call_resp_msg),
-                                                qcril_qmi_voice_command_cb,
-                                                (void*)user_data,
-                                                &txn_handle );
-
-        QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error );
-        call_setup_result = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, NULL );
-    } while (FALSE);
-
-    if ( RIL_E_SUCCESS != call_setup_result )
-    { // rollback
-      QCRIL_LOG_INFO(".. rolling back with %d", (int) call_setup_result);
-      qcril_send_empty_payload_request_response(instance_id, params_ptr->t, params_ptr->event_id, call_setup_result);
-      last_call_fail_cause = CALL_END_CAUSE_CLIENT_END_V02;
-
-      if ( call_info_entry )
-      {
-        qcril_qmi_voice_voip_destroy_call_info_entry( call_info_entry );
       }
-      if ( NULL != command_oversight )
+
+      if ( need_enforce_emergency_directly )
       {
-        qmi_ril_voice_ims_destroy_command_oversight( command_oversight );
+         dial_call_req_msg.call_type_valid = TRUE;
+         dial_call_req_msg.call_type   = CALL_TYPE_EMERGENCY_V02;
+         escv_type = qcril_qmi_nas_get_escv_type(voice_dial_address);
+         if (escv_type > 0)
+         {
+             dial_call_req_msg.emer_cat_valid = TRUE;
+             dial_call_req_msg.emer_cat = escv_type;
+         }
       }
+
+      if ( ( qcril_qmi_voice_info.jbims ) && ( NULL != displayText) )
+      {
+        dial_call_req_msg.display_text_valid = TRUE;
+        qcril_cm_ss_convert_utf8_to_ucs2(displayText, dial_call_req_msg.display_text,
+                &dial_call_req_msg.display_text_len);
+        if (dial_call_req_msg.display_text_len)
+        {
+          dial_call_req_msg.display_text_len /= 2;
+        }
+        QCRIL_LOG_ESSENTIAL(".. display text len: %d str: %s ",
+                dial_call_req_msg.display_text_len, dial_call_req_msg.display_text);
+      }
+
+      QCRIL_LOG_DEBUG(".. final elaboration %x, %x hex", (uint32)(call_info_entry->elaboration >> 32),(uint32)call_info_entry->elaboration );
+      QCRIL_LOG_DEBUG(".. call type set %d emer cat %x", (int)dial_call_req_msg.call_type, dial_call_req_msg.emer_cat);
+
+      user_data = QCRIL_COMPOSE_USER_DATA( instance_id, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
+      memset(&dial_call_resp_msg, 0, sizeof(dial_call_resp_msg));
+
+      last_call_fail_cause = CALL_END_CAUSE_REL_NORMAL_V02;
+      /* Send QMI VOICE DIAL CALL REQ */
+
+      qmi_client_error = qmi_client_send_msg_async ( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_VOICE ),
+                                              QMI_VOICE_DIAL_CALL_REQ_V02,
+                                              &dial_call_req_msg,
+                                              sizeof(dial_call_req_msg),
+                                              &dial_call_resp_msg,
+                                              sizeof(dial_call_resp_msg),
+                                              qcril_qmi_voice_command_cb,
+                                              (void*)(uintptr_t)user_data,
+                                              &txn_handle );
+
+      QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error );
+      call_setup_result = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, NULL );
+  } while (FALSE);
+
+  if ( RIL_E_SUCCESS != call_setup_result )
+  { // rollback
+    QCRIL_LOG_INFO(".. rolling back with %d", (int) call_setup_result);
+    qcril_send_empty_payload_request_response(instance_id, params_ptr->t, params_ptr->event_id, call_setup_result);
+    last_call_fail_cause = CALL_END_CAUSE_CLIENT_END_V02;
+
+    if ( call_info_entry )
+    {
+      qcril_qmi_voice_voip_destroy_call_info_entry( call_info_entry );
     }
-    qcril_qmi_voice_voip_unlock_overview();
-    qcril_qmi_voice_handle_new_last_call_failure_cause( last_call_fail_cause , TRUE);
-    QCRIL_LOG_INFO(".. last_call_fail_cause %d", (int) last_call_fail_cause);
+    if ( NULL != command_oversight )
+    {
+      qmi_ril_voice_ims_destroy_command_oversight( command_oversight );
+    }
   }
+  qcril_qmi_voice_voip_unlock_overview();
+  qcril_qmi_voice_handle_new_last_call_failure_cause( last_call_fail_cause , TRUE, call_info_entry);
+  QCRIL_LOG_INFO(".. last_call_fail_cause %d", (int) last_call_fail_cause);
 
-#ifndef QMI_RIL_UTF
   if ( QCRIL_EVT_IMS_SOCKET_REQ_DIAL == params_ptr->event_id )
   {
     qcril_qmi_ims__dial__free_unpacked(ims_in_data_ptr, NULL);
@@ -10224,7 +11467,6 @@ void qcril_qmi_voice_request_dial
       qcril_free(callDetails);
     }
   }
-#endif
   QCRIL_LOG_FUNC_RETURN();
 
 } /* qcril_cm_callsvc_request_dial() */
@@ -10239,7 +11481,8 @@ void qcril_qmi_voice_emergency_call_pending_handler
 )
 {
   QCRIL_LOG_FUNC_ENTRY();
-  QCRIL_NOTUSED( ret_ptr );
+  QCRIL_NOTUSED(ret_ptr);
+  QCRIL_NOTUSED(params_ptr);
 
   qcril_qmi_voice_request_dial(&qcril_qmi_pending_emergency_call_info.emergency_params_ptr, NULL);
 
@@ -10259,6 +11502,417 @@ void qcril_qmi_voice_set_emergency_call_pending(int emergency_call_pending)
 }
 
 //===========================================================================
+// qcril_qmi_voice_gather_current_call_information
+//===========================================================================
+RIL_Errno qcril_qmi_voice_gather_current_call_information
+(
+   unsigned int iter,
+   const qcril_request_params_type *const params_ptr,
+   qcril_qmi_voice_current_calls_type *payload_ptr,
+   const qcril_qmi_voice_voip_call_info_entry_type *const call_info_entry
+)
+{
+    uint32_t   number_len;
+    RIL_Errno result = RIL_E_SUCCESS;
+    do
+    {
+        if (NULL == params_ptr ||
+            NULL == payload_ptr ||
+            NULL == call_info_entry)
+        {
+            result = RIL_E_GENERIC_FAILURE;
+            QCRIL_LOG_ERROR("Null pointer: params_ptr %p,"
+                            " payload_ptr %p,"
+                            " call_info_entry %p",
+                            params_ptr,
+                            payload_ptr,
+                            call_info_entry);
+            break;
+        }
+        if (CM_CALL_ID_MAX <= iter)
+        {
+            result = RIL_E_GENERIC_FAILURE;
+            QCRIL_LOG_ERROR("out of range: iter %u, max %u", iter, CM_CALL_ID_MAX);
+            break;
+        }
+        // call state
+        if( CALL_STATE_END_V02 == call_info_entry->voice_scv_info.call_state &&
+                 qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id) )
+        {
+            payload_ptr->info[ iter ].state = IMS__CALL_STATE__CALL_END;
+        }
+        else if ( call_info_entry->elaboration &
+                  QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING )
+        {
+            payload_ptr->info[iter].state = RIL_CALL_DIALING;
+        }
+        else
+        {
+            payload_ptr->info[iter].state = call_info_entry->ril_call_state;
+        }
+
+        // call id
+        payload_ptr->info[iter].index = call_info_entry->android_call_id;
+
+        //Media id
+        payload_ptr->media_id[iter] = call_info_entry->media_id;
+
+        // remote party number and number
+        if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONN_PARTY_NUM_VALID ||
+           call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONN_PARTY_IP_NUM_VALID )
+        {
+            if( RIL_REQUEST_GET_CURRENT_CALLS == params_ptr->event_id )
+            {
+                if ( call_info_entry->voice_svc_conn_party_num.conn_num[0] == QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER_PREFIX )
+                {
+                    payload_ptr->info[iter].toa = QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER;
+                }
+                else
+                {
+                    payload_ptr->info[iter].toa = QCRIL_QMI_VOICE_DOMESTIC_NUMBER;
+                }
+
+                payload_ptr->info[iter].number = qcril_malloc( call_info_entry->voice_svc_conn_party_num.conn_num_len + 1 );
+                if ( payload_ptr->info[iter].number )
+                {
+                    memcpy( payload_ptr->info[iter].number, call_info_entry->voice_svc_conn_party_num.conn_num,
+                        call_info_entry->voice_svc_conn_party_num.conn_num_len + 1 );
+                    payload_ptr->info[iter].numberPresentation = qcril_qmi_voice_map_qmi_to_ril_num_pi( call_info_entry->voice_svc_conn_party_num.conn_num_pi );
+                    payload_ptr->info[iter].namePresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
+                }
+            }
+            else
+            {
+                if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONN_PARTY_IP_NUM_VALID)
+                {
+                    payload_ptr->info[iter].name = qcril_malloc(strlen(call_info_entry->voice_svc_conn_party_ip_num.conn_ip_num) + 1);
+                    if ( payload_ptr->info[iter].name )
+                    {
+                        memcpy( payload_ptr->info[iter].name, call_info_entry->voice_svc_conn_party_ip_num.conn_ip_num,
+                              strlen(call_info_entry->voice_svc_conn_party_ip_num.conn_ip_num) + 1 );
+                        payload_ptr->info[iter].namePresentation = qcril_qmi_voice_map_qmi_to_ril_name_pi(call_info_entry->voice_svc_conn_party_ip_num.conn_ip_num_pi);
+                        payload_ptr->info[iter].numberPresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
+                    }
+                }
+                else
+                {
+                    payload_ptr->info[iter].name = qcril_malloc(call_info_entry->voice_svc_conn_party_num.conn_num_len + 1);
+                    if ( payload_ptr->info[iter].name )
+                    {
+                        memcpy( payload_ptr->info[iter].name, call_info_entry->voice_svc_conn_party_num.conn_num,
+                              call_info_entry->voice_svc_conn_party_num.conn_num_len + 1 );
+                        payload_ptr->info[iter].namePresentation = qcril_qmi_voice_map_qmi_to_ril_name_pi(call_info_entry->voice_svc_conn_party_num.conn_num_pi);
+                        payload_ptr->info[iter].numberPresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // remote party number
+            if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NUMBER_VALID ||
+               call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_IP_NUMBER_VALID )
+            {
+                pi_num_enum_v02 rp_number_pi;
+                uint32_t rp_number_len;
+                char rp_number[QMI_VOICE_SIP_URI_MAX_V02];
+                memset(rp_number, 0, sizeof(rp_number));
+
+                if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_IP_NUMBER_VALID)
+                {
+                    rp_number_pi = call_info_entry->voice_svc_remote_party_ip_number.ip_num_pi;
+                    rp_number_len = strlen(call_info_entry->voice_svc_remote_party_ip_number.ip_num);
+                    memcpy(rp_number, call_info_entry->voice_svc_remote_party_ip_number.ip_num, rp_number_len);
+                }
+                else
+                {
+                    rp_number_pi = call_info_entry->voice_svc_remote_party_number.number_pi;
+                    rp_number_len = call_info_entry->voice_svc_remote_party_number.number_len;
+                    strlcpy(rp_number,
+                            call_info_entry->voice_svc_remote_party_number.number,
+                            sizeof(rp_number));
+                }
+
+                if( qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id) &&
+                    (QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMER_NUM_TO_IMS_ADDR & call_info_entry->elaboration) &&
+                    (CALL_TYPE_EMERGENCY_V02 == call_info_entry->voice_scv_info.call_type ||
+                     CALL_TYPE_EMERGENCY_IP_V02 == call_info_entry->voice_scv_info.call_type)
+                  )
+                {//convert the ims emergency address back to corresponding emergency number If needed
+                    if(!strcmp(call_info_entry->emer_num_ims_addr_info.ims_address,
+                             rp_number))
+                    {
+                        strlcpy(rp_number,
+                                call_info_entry->emer_num_ims_addr_info.emergency_number,
+                                sizeof(rp_number));
+                        rp_number_len = strlen(rp_number);
+                        rp_number_pi = PRESENTATION_NUM_ALLOWED_V02;
+                    }
+                }
+
+                if ( rp_number[0] == QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER_PREFIX )
+                {
+                    payload_ptr->info[iter].toa = QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER;
+                }
+                else
+                {
+                    payload_ptr->info[iter].toa = QCRIL_QMI_VOICE_DOMESTIC_NUMBER;
+                }
+                    number_len = rp_number_len + 1;
+                if (feature_redir_party_num_support)
+                {
+                    number_len += (call_info_entry->voice_svc_redirecting_party_num.num_len + 1);
+                }
+                else
+                {
+                    QCRIL_LOG_INFO("feature_redir_party_num_support not enabled");
+                }
+                    payload_ptr->info[iter].number = qcril_malloc( number_len );
+                if ( payload_ptr->info[iter].number )
+                {
+                    memcpy( payload_ptr->info[iter].number,
+                    rp_number,
+                    rp_number_len + 1 );
+                    if ( feature_redir_party_num_support &&
+                         call_info_entry->voice_svc_redirecting_party_num.num_len > 0 )
+                    {
+                        payload_ptr->info[iter].number[rp_number_len] = '&';
+                        memcpy( &payload_ptr->info[iter].number[rp_number_len + 1],
+                        call_info_entry->voice_svc_redirecting_party_num.num,
+                        call_info_entry->voice_svc_redirecting_party_num.num_len + 1 );
+                    }
+                    payload_ptr->info[iter].numberPresentation = qcril_qmi_voice_map_qmi_to_ril_num_pi(
+                    rp_number_pi );
+                }
+                else
+                {
+                    result = RIL_E_GENERIC_FAILURE;
+                    break;
+                }
+            }
+            else
+            {
+                payload_ptr->info[iter].numberPresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
+            }
+
+            // remote party name
+            if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NAME_VALID )
+            {
+                QCRIL_LOG_INFO("remote name len %d, str %s", call_info_entry->voice_svc_remote_party_name.name_len,
+                               call_info_entry->voice_svc_remote_party_name.name);
+                if ( *(call_info_entry->voice_svc_remote_party_name.name) &&
+                     call_info_entry->voice_svc_remote_party_name.name_len < QCRIL_QMI_VOICE_INTERCODING_BUF_LEN )
+                {
+                    payload_ptr->info[iter].name = qcril_malloc( call_info_entry->voice_svc_remote_party_name.name_len + 1 );
+                    if ( payload_ptr->info[iter].name )
+                    {
+                        memcpy( payload_ptr->info[iter].name, call_info_entry->voice_svc_remote_party_name.name,
+                                call_info_entry->voice_svc_remote_party_name.name_len + 1 );
+                    }
+                }
+                else
+                {
+                    QCRIL_LOG_ERROR("remote party name is null, or remote party name len >= QCRIL_QMI_VOICE_INTERCODING_BUF_LEN");
+                }
+                payload_ptr->info[iter].namePresentation = qcril_qmi_voice_map_qmi_to_ril_name_pi(call_info_entry->voice_svc_remote_party_name.name_pi);
+            }
+            else
+            {
+                payload_ptr->info[iter].namePresentation = payload_ptr->info[iter].numberPresentation;
+            }
+        }
+
+        // If IP call and ip_caller_name valid, then set the caller name in 'name' field
+        if ((call_info_entry->voice_scv_info.call_type == CALL_TYPE_VOICE_IP_V02 ||
+             call_info_entry->voice_scv_info.call_type == CALL_TYPE_VT_V02 ||
+             call_info_entry->voice_scv_info.call_type == CALL_TYPE_EMERGENCY_IP_V02) &&
+            (call_info_entry->ip_caller_name_valid))
+        {
+            uint8 caller_name_len = 0;
+            char  caller_name[(QMI_VOICE_IP_CALLER_NAME_MAX_LEN_V02 * 2)] = "\0";
+
+            QCRIL_LOG_INFO("ip caller name len: %d, caller name:",
+                           call_info_entry->ip_caller_name.ip_caller_name_len);
+            qcril_qmi_print_hex((unsigned char *)call_info_entry->ip_caller_name.ip_caller_name,
+                                call_info_entry->ip_caller_name.ip_caller_name_len*2);
+
+            // ip caller name TLV is valid. Set the name field
+            caller_name_len = qcril_cm_ss_convert_ucs2_to_utf8(
+                                             call_info_entry->ip_caller_name.ip_caller_name,
+                                             call_info_entry->ip_caller_name.ip_caller_name_len*2,
+                                             caller_name);
+
+            if (caller_name_len > 0)
+            {
+                if (payload_ptr->info[iter].name)
+                {
+                    qcril_free(payload_ptr->info[iter].name);
+                }
+                payload_ptr->info[iter].name = qcril_malloc(caller_name_len + 1);
+                if (payload_ptr->info[iter].name)
+                {
+                    strlcpy(payload_ptr->info[iter].name, caller_name, caller_name_len + 1);
+                    payload_ptr->info[iter].namePresentation = QCRIL_QMI_VOICE_RIL_PI_ALLOWED;
+                }
+            }
+        }
+
+        // is multiparty
+        payload_ptr->info[iter].isMpty = (call_info_entry->voice_scv_info.is_mpty) ? TRUE : FALSE;
+
+        // is mobile terminated
+        payload_ptr->info[iter].isMT = ( call_info_entry->voice_scv_info.direction == CALL_DIRECTION_MT_V02 ) ? TRUE : FALSE;
+        QCRIL_LOG_INFO("Call state %d, IsMT=%d", call_info_entry->ril_call_state, call_info_entry->voice_scv_info.is_mpty );
+
+        // ALS
+        payload_ptr->info[iter].als = ( call_info_entry->voice_scv_info.als == ALS_LINE2_V02 ) ? TRUE : FALSE;
+
+        // privacy
+        if ( call_info_entry->voice_scv_info.call_type != CALL_TYPE_SUPS_V02)
+        {
+            payload_ptr->info[iter].isVoice = TRUE;
+            if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_VOICE_PRIVACY_VALID )
+            {
+                payload_ptr->info[iter].isVoicePrivacy = ( call_info_entry->voice_svc_voice_privacy == VOICE_PRIVACY_ENHANCED_V02) ? TRUE : FALSE;
+            }
+        }
+        else
+        {
+            payload_ptr->info[iter].isVoice = FALSE;
+        }
+
+        // codec and call capabilities
+        if ( qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id) )
+        {
+            if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CODEC_VALID)
+            {
+                payload_ptr->codec_valid[iter] = TRUE;
+                payload_ptr->codec[iter] = call_info_entry->codec;
+            }
+
+            if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_LOCAL_CALL_CAPBILITIES_VALID)
+            {
+                payload_ptr->local_call_capabilities_info_valid[iter] = TRUE;
+                payload_ptr->local_call_capabilities_info[iter] = call_info_entry->local_call_capabilities_info;
+            }
+
+            if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PEER_CALL_CAPBILITIES_VALID)
+            {
+                payload_ptr->peer_call_capabilities_info_valid[iter] = TRUE;
+                payload_ptr->peer_call_capabilities_info[iter] = call_info_entry->peer_call_capabilities_info;
+            }
+
+            if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_CHILD_NUMBER_VALID)
+            {
+                char  child_number[QMI_VOICE_SIP_URI_MAX_V02+25] = "\0"; //Extra len 25 - to put the string "ChildNum="
+
+                payload_ptr->child_number_valid[iter] = TRUE;
+                snprintf(child_number, sizeof(child_number), "ChildNum=%s", call_info_entry->child_number.number);
+
+                payload_ptr->child_number[iter] = qcril_malloc( strlen(child_number)+1 );
+                strlcpy(payload_ptr->child_number[iter], child_number, strlen(child_number)+1);
+            }
+
+            if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_DISPLAY_TEXT_VALID)
+            {
+                char  display_text[(QMI_VOICE_DISPLAY_TEXT_MAX_LEN_V02 * 2)+25] = "\0"; //Extra len 25 - to put the string "DisplayText="
+
+                payload_ptr->display_text_valid[iter] = TRUE;
+                snprintf(display_text, sizeof(display_text), QCRIL_DISPLAY_TEXT_STR);
+
+                qcril_cm_ss_convert_ucs2_to_utf8(call_info_entry->display_text.display_text,
+                        call_info_entry->display_text.display_text_len*2,
+                        display_text + strlen(QCRIL_DISPLAY_TEXT_STR));
+
+                payload_ptr->display_text[iter] = qcril_malloc( strlen(display_text)+1 );
+                strlcpy(payload_ptr->display_text[iter], display_text, strlen(display_text)+1);
+            }
+            if (qcril_qmi_voice_is_additional_call_info_available(call_info_entry))
+            {
+                int total_size = strlen(QCRIL_ADD_CALL_INFO_STR) +
+                                 call_info_entry->additional_call_info.total_size + 1;
+                payload_ptr->additional_call_info_valid[iter] = TRUE;
+                payload_ptr->additional_call_info[iter]       = qcril_malloc(total_size);
+                snprintf(payload_ptr->additional_call_info[iter],  total_size, "%s%s",
+                         QCRIL_ADD_CALL_INFO_STR,
+                         call_info_entry->additional_call_info.buffer);
+            }
+        }
+
+        //parentCallID
+        if( ( call_info_entry->srvcc_parent_call_info_valid ) &&
+               ( call_info_entry->android_call_id != call_info_entry->srvcc_parent_call_info.parent_call_id ) )
+        {
+            if(strlen(call_info_entry->parent_call_id) > 0)
+            {
+                payload_ptr->parentCallID[iter] = qcril_malloc( strlen(call_info_entry->parent_call_id)+1 );
+                if( NULL != payload_ptr->parentCallID[iter] )
+                {
+                    payload_ptr->parentCallID_valid[iter] = TRUE;
+                    strlcpy(payload_ptr->parentCallID[iter], call_info_entry->parent_call_id, strlen(call_info_entry->parent_call_id)+1);
+                    QCRIL_LOG_INFO("payload_ptr->parentCallID[%d]: %s", iter, payload_ptr->parentCallID[iter]);
+                }
+            }
+        }
+
+        // lcf
+        if (call_info_entry->lcf_valid && qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id))
+        {
+            payload_ptr->lcf_valid[iter] = TRUE;
+            payload_ptr->lcf[iter] = call_info_entry->lcf;
+            memcpy(payload_ptr->lcf_extended_codes[iter], call_info_entry->lcf_extended_codes, MAX_DEC_INT_STR);
+        }
+
+        // end_reason_text
+        QCRIL_LOG_INFO("call_info_entry->end_reason_text_valid = %d\n", call_info_entry->end_reason_text_valid);
+        if (call_info_entry->end_reason_text_valid &&
+                qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id))
+        {
+            uint8 end_reason_text_len = 0;
+            char end_reason_text[QMI_VOICE_END_REASON_TEXT_MAX_LEN_V02*2];
+
+            QCRIL_LOG_INFO("end_reason_text_len: %d, end_reason_text (UTF-16):",
+                    call_info_entry->end_reason_text.end_reason_text_len);
+            qcril_qmi_print_hex((unsigned char *)call_info_entry->end_reason_text.end_reason_text,
+                    call_info_entry->end_reason_text.end_reason_text_len*2);
+
+            end_reason_text_len = qcril_cm_ss_convert_ucs2_to_utf8(
+                    call_info_entry->end_reason_text.end_reason_text,
+                    call_info_entry->end_reason_text.end_reason_text_len*2,
+                    end_reason_text);
+
+            if (end_reason_text_len > 0)
+            {
+                QCRIL_LOG_INFO("end_reason_text (UTF-8): %s", end_reason_text);
+                payload_ptr->end_reason_text[iter] = qcril_malloc(end_reason_text_len + 1);
+                if (payload_ptr->end_reason_text[iter])
+                {
+                    strlcpy(payload_ptr->end_reason_text[iter], end_reason_text,
+                            end_reason_text_len + 1);
+                    payload_ptr->end_reason_text_valid[iter] = TRUE;
+                }
+            }
+        }
+
+        // uus
+        payload_ptr->info[iter].uusInfo = NULL;
+        if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_UUS_VALID )
+        {
+            payload_ptr->uus_info[iter].uusType    = call_info_entry->voice_svc_uus.uus_type;
+            payload_ptr->uus_info[iter].uusDcs     = call_info_entry->voice_svc_uus.uus_dcs;
+            payload_ptr->uus_info[iter].uusLength  = call_info_entry->voice_svc_uus.uus_data_len;
+            payload_ptr->uus_info[iter].uusData    =  (char*)call_info_entry->voice_svc_uus.uus_data;
+            payload_ptr->info[iter].uusInfo        = &payload_ptr->uus_info[iter];
+        }
+
+        // Call mode
+        payload_ptr->mode[iter] = call_info_entry->voice_scv_info.mode;
+    } while (FALSE);
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(result);
+    return result;
+} // qcril_qmi_voice_gather_current_call_information
+
+//===========================================================================
 // qcril_qmi_get_call_list_to_send
 //===========================================================================
 void qcril_qmi_get_call_list_to_send
@@ -10273,8 +11927,6 @@ void qcril_qmi_get_call_list_to_send
    unsigned int k;
    int need_consider_voice_call_obj_cleanup = FALSE;
    qcril_qmi_voice_voip_call_info_entry_type* call_info_entry = NULL;
-   qcril_qmi_voice_voip_call_info_entry_type* call_info = NULL;
-   qcril_qmi_voice_voip_call_info_entry_type* mpty_call_info = NULL;
 
    unsigned int call_radio_tech = RADIO_TECH_UNKNOWN;
    unsigned int call_radio_tech_family = RADIO_TECH_UNKNOWN;
@@ -10288,8 +11940,6 @@ void qcril_qmi_get_call_list_to_send
    int   log_nof_call_objects = 0;
    char  log_essence[ QCRIL_MAX_LOG_MSG_SIZE ];
    char  log_addon[ QCRIL_MAX_LOG_MSG_SIZE ];
-
-   uint32_t   number_len;
 
    QCRIL_LOG_FUNC_ENTRY();
 
@@ -10320,7 +11970,7 @@ void qcril_qmi_get_call_list_to_send
       }
 
       memset(payload_ptr, 0, sizeof(qcril_qmi_voice_current_calls_type));
-      memset(call_details_copy, 0, sizeof(call_details_copy));
+      memset(call_details_copy, 0, sizeof(*call_details_copy) * CM_CALL_ID_MAX);
       QCRIL_LOG_INFO( "iteration through call objects start" );
       k = 0;
       call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_first();
@@ -10328,325 +11978,58 @@ void qcril_qmi_get_call_list_to_send
       {
         log_nof_call_objects++;
 
-        qcril_qmi_voice_voip_call_info_dump( call_info_entry );
-
-        call_info = call_info_entry;
-
-        /* In case of VoiIP conference(mpty) call, a new call is created and previous calls are associated to this new call */
+        /* In case of VoiIP conference(mpty) call, only the conference call is considered  */
         /* Telephony is only aware of the associated call */
-        do
-        {
-          /* point to the memebers of the multiparty VoIP call */
-          if(call_info->mpty_voip_call_list != NULL )
+        if (VOICE_INVALID_CALL_ID != call_info_entry->android_call_id &&        // not a shadow call
+            ((VOICE_INVALID_CALL_ID != call_info_entry->qmi_call_id) ||
+             (call_info_entry->elaboration &
+              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NO_QMI_ID_RECEIVED) ||
+             (CALL_STATE_END_V02 == call_info_entry->voice_scv_info.call_state &&
+              qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id))) &&      // not a call without a valid qmi call ID
+            CALL_STATE_SETUP_V02 != call_info_entry->voice_scv_info.call_state && // not a setup call
+            CALL_TYPE_OTAPA_V02 != call_info_entry->voice_scv_info.call_type && // notan OTAPA call
+            (CALL_STATE_END_V02 != call_info_entry->voice_scv_info.call_state ||
+             qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id)) &&        // not an ended CS call
+            (!(call_info_entry->elaboration &
+               QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_WAITING_FOR_MATCHING_VOICE_RTE) || // call mode matches with reported voice radio tech
+             (call_info_entry->elaboration &
+              (QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EME_FROM_OOS |
+               QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMERGENCY_CALL |
+               QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_1x_CSFB_CALL))) &&              // emergency call originated from limited service or emergency call or 1x CSFB call
+            (call_info_entry->elaboration &
+             QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_RIL_CALL_STATE_VALID) &&
+            !(call_info_entry->elaboration &
+              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_1X_REMOTE_NUM_PENDING) &&
+            (qcril_qmi_voice_is_qmi_call_emergency(&call_info_entry->voice_scv_info) ||
+             !qmi_ril_voice_is_calls_supressed_by_pil_vcl() ||
+             (CALL_STATE_END_V02 == call_info_entry->voice_scv_info.call_state &&
+              qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id))) &&
+            !((call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PHANTOM_CALL) &&
+              (call_info_entry->voice_scv_info.call_state == CALL_STATE_ORIGINATING_V02 ||
+               call_info_entry->voice_scv_info.call_state == CALL_STATE_ALERTING_V02) &&
+              (qcril_qmi_voice_voip_find_call_info_entry_by_andoid_call_state(RIL_CALL_ACTIVE) != NULL)))
           {
-             call_info = call_info->mpty_voip_call_list;
-          }
-
-          if ( VOICE_INVALID_CALL_ID != call_info_entry->android_call_id &&             // not a shadow call
-             ( (VOICE_INVALID_CALL_ID != call_info_entry->qmi_call_id) || (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NO_QMI_ID_RECEIVED) ) && // not a call without a valid qmi call ID
-             CALL_STATE_SETUP_V02 != call_info_entry->voice_scv_info.call_state &&    // not a setup call
-             CALL_TYPE_OTAPA_V02 != call_info_entry->voice_scv_info.call_type &&      // notan OTAPA call
-             CALL_STATE_END_V02 != call_info_entry->voice_scv_info.call_state && // not an ended call
-             ( !( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_WAITING_FOR_MATCHING_VOICE_RTE )  // call mode matches with reported voice radio tech
-               ||
-               ( call_info_entry->elaboration & (QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EME_FROM_OOS | QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMERGENCY_CALL | QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_1x_CSFB_CALL ) ) // emergency call originated from limited service or emergency call or 1x CSFB call
-             ) &&
-             call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_RIL_CALL_STATE_VALID &&
-             !( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_1X_REMOTE_NUM_PENDING ) &&
-             !(call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MPTY_VOIP_CALL) && // not a call will became mpty call
-             !(call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_MPTY_VOIP_CALL) &&       // not a mpty call
-             (qcril_qmi_voice_is_qmi_call_emergency(&call_info_entry->voice_scv_info) || !qmi_ril_voice_is_calls_supressed_by_pil_vcl()) &&
-             !((call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PHANTOM_CALL) &&
-               (call_info->voice_scv_info.call_state == CALL_STATE_ORIGINATING_V02 ||
-                call_info->voice_scv_info.call_state == CALL_STATE_ALERTING_V02) &&
-               (qcril_qmi_voice_voip_find_call_info_entry_by_andoid_call_state(RIL_CALL_ACTIVE) != NULL) )
-            )
-          {
-            if ( (QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS == params_ptr->event_id && qcril_qmi_voice_call_to_ims(call_info)) ||
-                 (RIL_REQUEST_GET_CURRENT_CALLS == params_ptr->event_id && qcril_qmi_voice_call_to_atel(call_info))
+            if ( (qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id) && qcril_qmi_voice_call_to_ims(call_info_entry)) ||
+                 (RIL_REQUEST_GET_CURRENT_CALLS == params_ptr->event_id && qcril_qmi_voice_call_to_atel(call_info_entry))
                )
             {
               num_of_calls++;
               snprintf( log_addon, QCRIL_MAX_LOG_MSG_SIZE,
                       "[qmi call id %d, android call id %d, qmi call state %d]",
                       call_info_entry->qmi_call_id,
-                      call_info->android_call_id,
+                      call_info_entry->android_call_id,
                       call_info_entry->voice_scv_info.call_state
                       );
               strlcat( log_essence, log_addon, sizeof( log_essence ) );
-
-              // call state
-              if ( call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EXTENDED_DIALING )
-              {
-                payload_ptr->info[ k ].state = RIL_CALL_DIALING;
-              }
-              else
-              {
-                payload_ptr->info[ k ].state = call_info_entry->ril_call_state;
-              }
-
               log_nof_reported_calls++;
-
-              // call id
-              payload_ptr->info[ k ].index = call_info->android_call_id;
-
-              // remote party number and number
-              if ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONN_PARTY_NUM_VALID ||
-                   call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONN_PARTY_IP_NUM_VALID )
+              if (RIL_E_SUCCESS != qcril_qmi_voice_gather_current_call_information
+                                                        (k,
+                                                         params_ptr,
+                                                         payload_ptr,
+                                                         call_info_entry))
               {
-                if( RIL_REQUEST_GET_CURRENT_CALLS == params_ptr->event_id )
-                {
-                    if ( call_info->voice_svc_conn_party_num.conn_num[0] == QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER_PREFIX )
-                    {
-                        payload_ptr->info[ k ].toa = QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER;
-                    }
-                    else
-                    {
-                        payload_ptr->info[ k ].toa = QCRIL_QMI_VOICE_DOMESTIC_NUMBER;
-                    }
-
-                    payload_ptr->info[ k ].number = qcril_malloc( call_info->voice_svc_conn_party_num.conn_num_len + 1 );
-                    if ( payload_ptr->info[ k ].number )
-                    {
-                        memcpy( payload_ptr->info[ k ].number, call_info->voice_svc_conn_party_num.conn_num,
-                            call_info->voice_svc_conn_party_num.conn_num_len + 1 );
-                        payload_ptr->info[ k ].numberPresentation = qcril_qmi_voice_map_qmi_to_ril_num_pi( call_info->voice_svc_conn_party_num.conn_num_pi );
-                        payload_ptr->info[ k ].namePresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
-                    }
-                }
-                else
-                {
-                  if (call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONN_PARTY_IP_NUM_VALID)
-                  {
-                    payload_ptr->info[k].name = qcril_malloc(strlen(call_info->voice_svc_conn_party_ip_num.conn_ip_num) + 1);
-                    if ( payload_ptr->info[ k ].name )
-                    {
-                      memcpy( payload_ptr->info[ k ].name, call_info->voice_svc_conn_party_ip_num.conn_ip_num,
-                              strlen(call_info->voice_svc_conn_party_ip_num.conn_ip_num) + 1 );
-                      payload_ptr->info[ k ].namePresentation = qcril_qmi_voice_map_qmi_to_ril_name_pi(call_info->voice_svc_conn_party_ip_num.conn_ip_num_pi);
-                      payload_ptr->info[ k ].numberPresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
-                    }
-                  }
-                  else
-                  {
-                    payload_ptr->info[k].name = qcril_malloc(call_info->voice_svc_conn_party_num.conn_num_len + 1);
-                    if ( payload_ptr->info[ k ].name )
-                    {
-                      memcpy( payload_ptr->info[ k ].name, call_info->voice_svc_conn_party_num.conn_num,
-                              call_info->voice_svc_conn_party_num.conn_num_len + 1 );
-                      payload_ptr->info[ k ].namePresentation = qcril_qmi_voice_map_qmi_to_ril_name_pi(call_info->voice_svc_conn_party_num.conn_num_pi);
-                      payload_ptr->info[ k ].numberPresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
-                    }
-                  }
-                }
+                  break;
               }
-              else
-              {
-                  // remote party number
-                  if ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NUMBER_VALID ||
-                       call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_IP_NUMBER_VALID )
-                  {
-                      pi_num_enum_v02 rp_number_pi;
-                      uint32_t rp_number_len;
-                      char rp_number[QMI_VOICE_SIP_URI_MAX_V02];
-                      memset(rp_number, 0, sizeof(rp_number));
-
-                      if (call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_IP_NUMBER_VALID)
-                      {
-                        rp_number_pi = call_info->voice_svc_remote_party_ip_number.ip_num_pi;
-                        rp_number_len = strlen(call_info->voice_svc_remote_party_ip_number.ip_num);
-                        memcpy(rp_number, call_info->voice_svc_remote_party_ip_number.ip_num, rp_number_len);
-                      }
-                      else
-                      {
-                        rp_number_pi = call_info->voice_svc_remote_party_number.number_pi;
-                        rp_number_len = call_info->voice_svc_remote_party_number.number_len;
-                        memcpy(rp_number, call_info->voice_svc_remote_party_number.number, rp_number_len);
-                      }
-
-                      if( QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS == params_ptr->event_id &&
-                          (QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_EMER_NUM_TO_IMS_ADDR & call_info->elaboration) &&
-                          (CALL_TYPE_EMERGENCY_V02 == call_info->voice_scv_info.call_type ||
-                           CALL_TYPE_EMERGENCY_IP_V02 == call_info->voice_scv_info.call_type)
-                        )
-                      {//convert the ims emergency address back to corresponding emergency number If needed
-                          if(!strcmp(call_info->emer_num_ims_addr_info.ims_address,
-                                     rp_number))
-                          {
-                            strlcpy(rp_number,
-                                    call_info->emer_num_ims_addr_info.emergency_number,
-                                    sizeof(rp_number));
-                            rp_number_len = strlen(rp_number);
-                            rp_number_pi = PRESENTATION_NUM_ALLOWED_V02;
-                          }
-                      }
-
-                      if ( rp_number[0] == QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER_PREFIX )
-                      {
-                          payload_ptr->info[ k ].toa = QCRIL_QMI_VOICE_INTERNATIONAL_NUMBER;
-                      }
-                      else
-                      {
-                          payload_ptr->info[ k ].toa = QCRIL_QMI_VOICE_DOMESTIC_NUMBER;
-                      }
-                      number_len = rp_number_len + 1;
-                      if (feature_redir_party_num_support)
-                      {
-                          number_len += (call_info->voice_svc_redirecting_party_num.num_len + 1);
-                      }
-                      else
-                      {
-                          QCRIL_LOG_INFO("feature_redir_party_num_support not enabled");
-                      }
-                      payload_ptr->info[ k ].number = qcril_malloc( number_len );
-                      if ( payload_ptr->info[ k ].number )
-                      {
-                          memcpy( payload_ptr->info[ k ].number,
-                                  rp_number,
-                                  rp_number_len + 1 );
-                          if ( feature_redir_party_num_support &&
-                               call_info->voice_svc_redirecting_party_num.num_len > 0 )
-                          {
-                              payload_ptr->info[ k ].number[rp_number_len] = '&';
-                              memcpy( &payload_ptr->info[ k ].number[rp_number_len + 1],
-                                      call_info->voice_svc_redirecting_party_num.num,
-                                      call_info->voice_svc_redirecting_party_num.num_len + 1 );
-                          }
-                          payload_ptr->info[ k ].numberPresentation = qcril_qmi_voice_map_qmi_to_ril_num_pi(
-                              rp_number_pi );
-                      }
-                      else
-                      {
-                          break;
-                      }
-                  }
-                  else
-                  {
-                      payload_ptr->info[ k ].numberPresentation = QCRIL_QMI_VOICE_RIL_PI_UNKNOWN;
-                  }
-
-                  // remote party name
-                  if ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NAME_VALID )
-                  {
-                      QCRIL_LOG_INFO("remote name len %d, str %s", call_info->voice_svc_remote_party_name.name_len,
-                                  call_info->voice_svc_remote_party_name.name);
-                      if ( *(call_info->voice_svc_remote_party_name.name) &&
-                          call_info->voice_svc_remote_party_name.name_len < QCRIL_QMI_VOICE_INTERCODING_BUF_LEN )
-                      {
-                          payload_ptr->info[ k ].name = qcril_malloc( call_info->voice_svc_remote_party_name.name_len + 1 );
-                          if ( payload_ptr->info[ k ].name )
-                          {
-                              memcpy( payload_ptr->info[ k ].name, call_info->voice_svc_remote_party_name.name,
-                                  call_info->voice_svc_remote_party_name.name_len + 1 );
-                          }
-                      }
-                      else
-                      {
-                          QCRIL_LOG_ERROR("remote party name is null, or remote party name len >= QCRIL_QMI_VOICE_INTERCODING_BUF_LEN");
-                      }
-                      payload_ptr->info[ k ].namePresentation = qcril_qmi_voice_map_qmi_to_ril_name_pi(call_info->voice_svc_remote_party_name.name_pi);
-                  }
-                  else
-                  {
-                      payload_ptr->info[ k ].namePresentation = payload_ptr->info[ k ].numberPresentation;
-                  }
-              }
-
-              // is multiparty
-              payload_ptr->info[ k ].isMpty = (call_info_entry->voice_scv_info.is_mpty) ? TRUE : FALSE;
-
-              // is mobile terminated
-              payload_ptr->info[ k ].isMT = ( call_info->voice_scv_info.direction == CALL_DIRECTION_MT_V02 ) ? TRUE : FALSE;
-              QCRIL_LOG_INFO("Call state %d, IsMT=%d", payload_ptr->info[ k ].state, payload_ptr->info[ k ].isMT );
-
-              // ALS
-              payload_ptr->info[ k ].als = ( call_info->voice_scv_info.als == ALS_LINE2_V02 ) ? TRUE : FALSE;
-
-              // privacy
-              if ( call_info->voice_scv_info.call_type != CALL_TYPE_SUPS_V02)
-              {
-                payload_ptr->info[ k ].isVoice = TRUE;
-                if ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_VOICE_PRIVACY_VALID )
-                {
-                  payload_ptr->info[ k ].isVoicePrivacy = ( call_info->voice_svc_voice_privacy == VOICE_PRIVACY_ENHANCED_V02) ? TRUE : FALSE;
-                }
-              }
-              else
-              {
-                payload_ptr->info[ k ].isVoice = FALSE;
-              }
-
-              // codec and call capabilities
-              if ( QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS == params_ptr->event_id )
-              {
-                if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CODEC_VALID)
-                {
-                   payload_ptr->codec_valid[k] = TRUE;
-                   payload_ptr->codec[k] = call_info_entry->codec;
-                }
-
-                if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_LOCAL_CALL_CAPBILITIES_VALID)
-                {
-                  payload_ptr->local_call_capabilities_info_valid[k] = TRUE;
-                  payload_ptr->local_call_capabilities_info[k] = call_info_entry->local_call_capabilities_info;
-                }
-
-                if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PEER_CALL_CAPBILITIES_VALID)
-                {
-                  payload_ptr->peer_call_capabilities_info_valid[k] = TRUE;
-                  payload_ptr->peer_call_capabilities_info[k] = call_info_entry->peer_call_capabilities_info;
-                }
-
-                if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_CHILD_NUMBER_VALID)
-                {
-                  char  child_number[QMI_VOICE_SIP_URI_MAX_V02+25] = "\0"; //Extra len 25 - to put the string "ChildNum="
-
-                  payload_ptr->child_number_valid[k] = TRUE;
-                  snprintf(child_number, sizeof(child_number), "ChildNum=%s", call_info->child_number.number);
-
-                  payload_ptr->child_number[k] = qcril_malloc( strlen(child_number)+1 );
-                  strlcpy(payload_ptr->child_number[k], child_number, strlen(child_number)+1);
-                }
-
-                if (call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_DISPLAY_TEXT_VALID)
-                {
-                  char  display_text[QMI_VOICE_DISPLAY_TEXT_MAX_LEN_V02+25] = "\0"; //Extra len 25 - to put the string "DisplayText="
-
-                  payload_ptr->display_text_valid[k] = TRUE;
-                  snprintf(display_text, sizeof(display_text), "DisplayText=%s", call_info->display_text.display_text);
-
-                  payload_ptr->display_text[k] = qcril_malloc( strlen(display_text)+1 );
-                  strlcpy(payload_ptr->display_text[k], display_text, strlen(display_text)+1);
-                }
-              }
-
-              //parentCallID
-              if( ( call_info_entry->srvcc_parent_call_info_valid ) &&
-                       ( call_info_entry->android_call_id != call_info_entry->srvcc_parent_call_info.parent_call_id ) )
-              {
-                if(strlen(call_info_entry->parent_call_id) > 0)
-                {
-                  payload_ptr->parentCallID[k] = qcril_malloc( strlen(call_info_entry->parent_call_id)+1 );
-                  if( NULL != payload_ptr->parentCallID[k] )
-                  {
-                    payload_ptr->parentCallID_valid[k] = TRUE;
-                    strlcpy(payload_ptr->parentCallID[k], call_info_entry->parent_call_id, strlen(call_info_entry->parent_call_id)+1);
-                    QCRIL_LOG_INFO("payload_ptr->parentCallID[%d]: %s", k, payload_ptr->parentCallID[k]);
-                  }
-                }
-              }
-
-              // uus
-              payload_ptr->info[ k ].uusInfo = NULL;
-              if ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_UUS_VALID )
-              {
-                payload_ptr->uus_info[ k ].uusType    = call_info->voice_svc_uus.uus_type;
-                payload_ptr->uus_info[ k ].uusDcs     = call_info->voice_svc_uus.uus_dcs;
-                payload_ptr->uus_info[ k ].uusLength  = call_info->voice_svc_uus.uus_data_len;
-                payload_ptr->uus_info[ k ].uusData    =  (char*)call_info->voice_svc_uus.uus_data;
-                payload_ptr->info[ k ].uusInfo        = &payload_ptr->uus_info[ k ];
-              }
-
               // call type
               if( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) )
               {
@@ -10658,7 +12041,7 @@ void qcril_qmi_get_call_list_to_send
                 }
               }
 
-              if ( QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS == params_ptr->event_id )
+              if ( qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id) )
               {
                 qcril_qmi_voice_get_atel_call_type_info_by_call_info( call_info_entry, &call_details_copy[k] );
               }
@@ -10673,20 +12056,43 @@ void qcril_qmi_get_call_list_to_send
             log_nof_skipped_calls++;
           }
 
-          if ( CALL_STATE_END_V02 == call_info_entry->voice_scv_info.call_state && VOICE_INVALID_CALL_ID != call_info_entry->android_call_id )
+          if ( CALL_STATE_END_V02 == call_info_entry->voice_scv_info.call_state &&
+                  VOICE_INVALID_CALL_ID != call_info_entry->android_call_id )
           {
-            call_info->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_ENDED_REPORTED;
-            call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_ENDED_REPORTED;
-            need_consider_voice_call_obj_cleanup = TRUE;
+             if ((qcril_qmi_voice_call_to_ims(call_info_entry) &&
+                         qcril_qmi_voice_is_ims_send_calls(params_ptr->event_id)) ||
+                     (qcril_qmi_voice_call_to_atel(call_info_entry) &&
+                      params_ptr->event_id == RIL_REQUEST_GET_CURRENT_CALLS))
+             {
+                // Need to add this to destroy the call object.
+                // Temporary until the mpty_call_list is removed
+                // TODO: remove this loop when mpty_call_list is removed.
+                qcril_qmi_voice_voip_call_info_entry_type* call_info = NULL;
+                call_info = call_info_entry;
+                do
+                {
+                   call_info->elaboration |=  QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_ENDED_REPORTED;
+                } while (call_info = call_info->mpty_voip_call_list);
+
+                // - For IMS call, failure is sent along with
+                //   UNSOL_RESPONSE_CALL_STATE_CHANGED. so set the elab here.
+                // - For CS call, call is cleared after LAST_CALL_FAILURE
+                //   req is handled, elab is set by then
+                if (qcril_qmi_voice_call_to_ims(call_info_entry) &&
+                        params_ptr->event_id == QCRIL_EVT_IMS_SOCKET_SEND_UNSOL_CURRENT_CALLS)
+                {
+                   call_info_entry->elaboration |=
+                       QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_LAST_CALL_FAILURE_REPORTED;
+                }
+                need_consider_voice_call_obj_cleanup = TRUE;
+             }
           }
-
-        } while( call_info->mpty_voip_call_list );
-        call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_next();
+          call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_next();
       }
-
       *ril_req_res_ptr = RIL_E_SUCCESS;
 
   } while ( FALSE );
+
 
   if ( NULL != payload_ptr && 1 == payload_ptr->num_of_calls )
   {
@@ -10753,13 +12159,21 @@ void qcril_qmi_voice_get_current_calls_cleanup
       {
         qcril_free(payload_ptr->parentCallID[i]);
       }
+      if( NULL != payload_ptr->child_number[i])
+      {
+        qcril_free(payload_ptr->child_number[i]);
+      }
       if( NULL != payload_ptr->display_text[i])
       {
         qcril_free(payload_ptr->display_text[i]);
       }
-      if( NULL != payload_ptr->child_number[i])
+      if( NULL != payload_ptr->additional_call_info[i])
       {
-        qcril_free(payload_ptr->child_number[i]);
+        qcril_free(payload_ptr->additional_call_info[i]);
+      }
+      if( NULL != payload_ptr->end_reason_text[i])
+      {
+        qcril_free(payload_ptr->end_reason_text[i]);
       }
     }
     qcril_free( payload_ptr );
@@ -10832,288 +12246,351 @@ void qcril_qmi_voice_request_get_current_atel_calls
 } // qcril_qmi_voice_request_get_current_atel_calls
 
 //===========================================================================
-// QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS
+// qcril_qmi_voice_send_current_ims_calls
 //===========================================================================
-void qcril_qmi_voice_request_get_current_ims_calls
+void qcril_qmi_voice_send_current_ims_calls
 (
   const qcril_request_params_type *const params_ptr,
   qcril_request_return_type *const ret_ptr /*!< Output parameter */
 )
 {
-#ifndef QMI_RIL_UTF
-  qcril_qmi_voice_current_calls_type *payload_ptr;
-  qcril_request_resp_params_type resp;
-  unsigned int i,j;
-  char *call_state[ 6 ] = { "Active", "Holding", "Dialing", "Alerting", "Incoming", "Waiting" };
-  RIL_Errno ril_req_res;
-  int is_ril_number_already_freed;
-  RIL_Call_Details call_details_copy[CM_CALL_ID_MAX];
+   qcril_qmi_voice_current_calls_type *payload_ptr;
+   qcril_request_resp_params_type resp;
+   unsigned int i,j;
+   char *call_state[ 7 ] = { "Active", "Holding", "Dialing", "Alerting", "Incoming", "Waiting", "END" };
+   RIL_Errno ril_req_res;
+   int is_ril_number_already_freed;
+   RIL_Call_Details call_details_copy[CM_CALL_ID_MAX];
 
-  QCRIL_NOTUSED( ret_ptr );
+   QCRIL_NOTUSED( ret_ptr );
 
-  QCRIL_LOG_FUNC_ENTRY();
+   QCRIL_LOG_FUNC_ENTRY();
 
-  qcril_qmi_get_call_list_to_send(params_ptr, &payload_ptr, call_details_copy, &ril_req_res, &is_ril_number_already_freed);
+   qcril_qmi_get_call_list_to_send(params_ptr, &payload_ptr, call_details_copy, &ril_req_res, &is_ril_number_already_freed);
 
-  char *codec_str[] = { "Codec=NONE",
-                        "Codec=QCELP13K",
-                        "Codec=EVRC",
-                        "Codec=EVRC_B",
-                        "Codec=EVRC_WB",
-                        "Codec=EVRC_NW",
-                        "Codec=AMR_NB",
-                        "Codec=AMR_WB",
-                        "Codec=GSM_EFR",
-                        "Codec=GSM_FR",
-                        "Codec=GSM_HR"
-                      };
+   char *codec_str[] = { "Codec=NONE",
+                         "Codec=QCELP13K",
+                         "Codec=EVRC",
+                         "Codec=EVRC_B",
+                         "Codec=EVRC_WB",
+                         "Codec=EVRC_NW",
+                         "Codec=AMR_NB",
+                         "Codec=AMR_WB",
+                         "Codec=GSM_EFR",
+                         "Codec=GSM_FR",
+                         "Codec=GSM_HR"
+                       };
 
-  // respond
-  if ( RIL_E_SUCCESS == ril_req_res )
-  {
-    QCRIL_LOG_INFO( "Reply to RIL --> Number of calls : %ld", payload_ptr->num_of_calls );
 
-    Ims__CallList call_list = IMS__CALL_LIST__INIT;
-    call_list.n_callattributes = payload_ptr->num_of_calls;
-    call_list.callattributes =  qcril_malloc(sizeof (Ims__CallList__Call*) * payload_ptr->num_of_calls);
-    Ims__CallList__Call *calls = qcril_malloc(sizeof(Ims__CallList__Call) * payload_ptr->num_of_calls);
-    Ims__CallDetails *call_details = qcril_malloc(sizeof(Ims__CallDetails) * payload_ptr->num_of_calls);
-    const uint8 MAX_EXTRAS_PER_CALL = 4;
-    char** call_details_extras = qcril_malloc(sizeof(char*) * payload_ptr->num_of_calls * MAX_EXTRAS_PER_CALL);
-    Ims__SrvStatusList *localAbility = qcril_malloc(sizeof(Ims__SrvStatusList) * payload_ptr->num_of_calls);
-    Ims__SrvStatusList *peerAbility = qcril_malloc(sizeof(Ims__SrvStatusList) * payload_ptr->num_of_calls);
+   // respond
+   if ( RIL_E_SUCCESS == ril_req_res )
+   {
+      QCRIL_LOG_INFO( "Reply to RIL --> Number of calls : %ld", payload_ptr->num_of_calls );
 
-    if ( NULL == call_list.callattributes || NULL == calls || NULL == call_details || NULL == call_details_extras || NULL == localAbility || NULL == peerAbility )
-    {
-      QCRIL_LOG_FATAL("malloc failed");
-      if ( call_list.callattributes )
+      Ims__CallList call_list = IMS__CALL_LIST__INIT;
+      call_list.n_callattributes = payload_ptr->num_of_calls;
+      call_list.callattributes =  qcril_malloc(sizeof (Ims__CallList__Call*) * payload_ptr->num_of_calls);
+      Ims__CallList__Call *calls = qcril_malloc(sizeof(Ims__CallList__Call) * payload_ptr->num_of_calls);
+      Ims__CallDetails *call_details = qcril_malloc(sizeof(Ims__CallDetails) * payload_ptr->num_of_calls);
+      const uint8 MAX_EXTRAS_PER_CALL = 5;
+      char** call_details_extras = qcril_malloc(sizeof(char*) * payload_ptr->num_of_calls * MAX_EXTRAS_PER_CALL);
+      Ims__SrvStatusList *localAbility = qcril_malloc(sizeof(Ims__SrvStatusList) * payload_ptr->num_of_calls);
+      Ims__SrvStatusList *peerAbility = qcril_malloc(sizeof(Ims__SrvStatusList) * payload_ptr->num_of_calls);
+      Ims__CallFailCauseResponse *failcause = qcril_malloc(sizeof(Ims__CallFailCauseResponse) * payload_ptr->num_of_calls);
+
+      if ( NULL == call_list.callattributes || NULL == calls || NULL == call_details || NULL == call_details_extras || NULL == localAbility || NULL == peerAbility || NULL == failcause )
       {
-        qcril_free(call_list.callattributes);
-      }
-      if ( calls )
-      {
-        qcril_free(calls);
-      }
-      if ( call_details )
-      {
-        qcril_free(call_details);
-      }
-      if ( call_details_extras )
-      {
-        qcril_free(call_details_extras);
-      }
-      if ( localAbility )
-      {
-        qcril_free(localAbility);
-      }
-      if ( peerAbility )
-      {
-        qcril_free(peerAbility);
-      }
-
-      ril_req_res = RIL_E_GENERIC_FAILURE;
-    }
-    else
-    {
-      for ( i = 0; i < payload_ptr->num_of_calls; i++ )
-      {
-        call_list.callattributes[i] = &calls[i];
-        QCRIL_LOG_INFO( "Reply to RIL --> call[%ld] :state %s index %d, toa %d, isMpty %d, isMT %d, als %d, isVoice %d, isVoicePrivacy %d",
-                         i,call_state[ payload_ptr->info_ptr[ i ]->state ], payload_ptr->info_ptr[ i ]->index,
-                         payload_ptr->info_ptr[ i ]->toa,
-                         payload_ptr->info_ptr[ i ]->isMpty,
-                         payload_ptr->info_ptr[ i ]->isMT,
-                         payload_ptr->info_ptr[ i ]->als,
-                         payload_ptr->info_ptr[ i ]->isVoice,
-                         payload_ptr->info_ptr[ i ]->isVoicePrivacy );
-
-        QCRIL_LOG_INFO( "...num %s, num presentation %d, name %s, name presentation %d",
-                         payload_ptr->info_ptr[ i ]->number,
-                         payload_ptr->info_ptr[ i ]->numberPresentation,
-                         payload_ptr->info_ptr[ i ]->name,
-                         payload_ptr->info_ptr[ i ]->namePresentation);
-
-        Ims__CallList__Call call_tmp = IMS__CALL_LIST__CALL__INIT;
-        memcpy(&(calls[i]), &call_tmp, sizeof(Ims__CallList__Call));
-
-        calls[i].has_state = TRUE;
-        calls[i].state     = payload_ptr->info_ptr[ i ]->state;
-        calls[i].has_index = TRUE;
-        calls[i].index     = payload_ptr->info_ptr[ i ]->index;
-        calls[i].has_toa   = TRUE;
-        calls[i].toa       = payload_ptr->info_ptr[ i ]->toa;
-        calls[i].has_ismpty = TRUE;
-        calls[i].ismpty    = payload_ptr->info_ptr[ i ]->isMpty;
-        calls[i].has_ismt  = TRUE;
-        calls[i].ismt      = payload_ptr->info_ptr[ i ]->isMT;
-        calls[i].has_als   = TRUE;
-        calls[i].als       = payload_ptr->info_ptr[ i ]->als;
-        calls[i].has_isvoice = TRUE;
-        calls[i].isvoice     = payload_ptr->info_ptr[ i ]->isVoice;
-        calls[i].has_isvoiceprivacy = TRUE;
-        calls[i].isvoiceprivacy     = payload_ptr->info_ptr[ i ]->isVoicePrivacy;
-        calls[i].number   = payload_ptr->info_ptr[ i ]->number;
-        calls[i].has_numberpresentation = TRUE;
-        calls[i].numberpresentation     = payload_ptr->info_ptr[ i ]->numberPresentation;
-        calls[i].name   = payload_ptr->info_ptr[ i ]->name;
-        calls[i].has_namepresentation = TRUE;
-        calls[i].namepresentation     = payload_ptr->info_ptr[ i ]->namePresentation;
-        calls[i].calldetails = &(call_details[i]);
-
-        Ims__CallDetails call_details_tmp = IMS__CALL_DETAILS__INIT;
-        memcpy(&(call_details[i]), &call_details_tmp, sizeof(Ims__CallDetails));
-        call_details[i].has_calltype = TRUE;
-        call_details[i].calltype = qcril_qmi_ims_map_ril_call_type_to_ims_call_type(call_details_copy[i].callType);
-        call_details[i].has_calldomain = TRUE;
-        call_details[i].calldomain = qcril_qmi_ims_map_ril_call_domain_to_ims_call_domain(call_details_copy[i].callDomain);
-
-        //Fill CallDetails extras
-        unsigned int call_details_extras_idx = i * MAX_EXTRAS_PER_CALL;
-        call_details[i].n_extras = 0;
-        call_details[i].extras = &(call_details_extras[call_details_extras_idx]);
-        if (payload_ptr->codec_valid[i])
+        QCRIL_LOG_FATAL("malloc failed");
+        if ( call_list.callattributes )
         {
-           if (payload_ptr->codec[i] >= 0 && payload_ptr->codec[i] < sizeof(codec_str)/sizeof(codec_str[0]))
-           {
-              if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
-              {
-                call_details_extras[call_details_extras_idx] = codec_str[payload_ptr->codec[i]];
+          qcril_free(call_list.callattributes);
+        }
+        if ( calls )
+        {
+          qcril_free(calls);
+        }
+        if ( call_details )
+        {
+          qcril_free(call_details);
+        }
+        if ( call_details_extras )
+        {
+          qcril_free(call_details_extras);
+        }
+        if ( localAbility )
+        {
+          qcril_free(localAbility);
+        }
+        if ( peerAbility )
+        {
+          qcril_free(peerAbility);
+        }
+        if ( failcause )
+        {
+          qcril_free(failcause);
+        }
+
+        ril_req_res = RIL_E_GENERIC_FAILURE;
+      }
+      else
+      {
+        for ( i = 0; i < payload_ptr->num_of_calls; i++ )
+        {
+          call_list.callattributes[i] = &calls[i];
+          QCRIL_LOG_INFO( "Reply to RIL --> call[%ld] :state %s index %d, toa %d, isMpty %d, isMT %d, als %d, isVoice %d, isVoicePrivacy %d",
+                           i,call_state[ payload_ptr->info_ptr[ i ]->state ], payload_ptr->info_ptr[ i ]->index,
+                           payload_ptr->info_ptr[ i ]->toa,
+                           payload_ptr->info_ptr[ i ]->isMpty,
+                           payload_ptr->info_ptr[ i ]->isMT,
+                           payload_ptr->info_ptr[ i ]->als,
+                           payload_ptr->info_ptr[ i ]->isVoice,
+                           payload_ptr->info_ptr[ i ]->isVoicePrivacy );
+
+          QCRIL_LOG_INFO( "...num %s, num presentation %d, name %s, name presentation %d",
+                           payload_ptr->info_ptr[ i ]->number,
+                           payload_ptr->info_ptr[ i ]->numberPresentation,
+                           payload_ptr->info_ptr[ i ]->name,
+                           payload_ptr->info_ptr[ i ]->namePresentation);
+
+          Ims__CallList__Call call_tmp = IMS__CALL_LIST__CALL__INIT;
+          memcpy(&(calls[i]), &call_tmp, sizeof(Ims__CallList__Call));
+
+          calls[i].has_state = TRUE;
+          calls[i].state     = payload_ptr->info_ptr[ i ]->state;
+          calls[i].has_index = TRUE;
+          calls[i].index     = payload_ptr->info_ptr[ i ]->index;
+          calls[i].has_toa   = TRUE;
+          calls[i].toa       = payload_ptr->info_ptr[ i ]->toa;
+          calls[i].has_ismpty = TRUE;
+          calls[i].ismpty    = payload_ptr->info_ptr[ i ]->isMpty;
+          calls[i].has_ismt  = TRUE;
+          calls[i].ismt      = payload_ptr->info_ptr[ i ]->isMT;
+          calls[i].has_als   = TRUE;
+          calls[i].als       = payload_ptr->info_ptr[ i ]->als;
+          calls[i].has_isvoice = TRUE;
+          calls[i].isvoice     = payload_ptr->info_ptr[ i ]->isVoice;
+          calls[i].has_isvoiceprivacy = TRUE;
+          calls[i].isvoiceprivacy     = payload_ptr->info_ptr[ i ]->isVoicePrivacy;
+          calls[i].number   = payload_ptr->info_ptr[ i ]->number;
+          calls[i].has_numberpresentation = TRUE;
+          calls[i].numberpresentation     = payload_ptr->info_ptr[ i ]->numberPresentation;
+          calls[i].name   = payload_ptr->info_ptr[ i ]->name;
+          calls[i].has_namepresentation = TRUE;
+          calls[i].namepresentation     = payload_ptr->info_ptr[ i ]->namePresentation;
+          calls[i].calldetails = &(call_details[i]);
+
+          Ims__CallDetails call_details_tmp = IMS__CALL_DETAILS__INIT;
+          memcpy(&(call_details[i]), &call_details_tmp, sizeof(Ims__CallDetails));
+          call_details[i].has_calltype = TRUE;
+          call_details[i].calltype = qcril_qmi_ims_map_ril_call_type_to_ims_call_type(call_details_copy[i].callType);
+          call_details[i].has_calldomain = TRUE;
+          call_details[i].calldomain = qcril_qmi_ims_map_ril_call_domain_to_ims_call_domain(call_details_copy[i].callDomain);
+          // Set call sub state
+          call_details[i].has_callsubstate = TRUE;
+          call_details[i].callsubstate = qcril_qmi_ims_map_ril_call_substate_to_ims_call_substate(
+                call_details_copy[i].callSubState);
+          call_details[i].has_mediaid = TRUE;
+          call_details[i].mediaid = payload_ptr->media_id[i];
+          QCRIL_LOG_INFO("Media id = %d", call_details[i].mediaid);
+
+          if (payload_ptr->lcf_valid[i])
+          {
+             calls[i].failcause = &failcause[i];
+             qcril_qmi_ims__call_fail_cause_response__init(&failcause[i]);
+             failcause[i].has_failcause = TRUE;
+             failcause[i].failcause = payload_ptr->lcf[i];
+             if (strlen(payload_ptr->lcf_extended_codes[i]) > 0)
+             {
+                failcause[i].failcause = qcril_qmi_ims_map_ril_failcause_to_ims_failcause ( payload_ptr->lcf[i], atoi(payload_ptr->lcf_extended_codes[i]) );
+                failcause[i].has_errorinfo = TRUE;
+                failcause[i].errorinfo.len = strlen(payload_ptr->lcf_extended_codes[i]);
+                failcause[i].errorinfo.data = payload_ptr->lcf_extended_codes[i];
+             }
+
+             if (payload_ptr->end_reason_text_valid[i])
+             {
+                failcause[i].networkerrorstring = payload_ptr->end_reason_text[i];
+             }
+          }
+
+
+          //Fill CallDetails extras
+          unsigned int call_details_extras_idx = i * MAX_EXTRAS_PER_CALL;
+          call_details[i].n_extras = 0;
+          call_details[i].extras = &(call_details_extras[call_details_extras_idx]);
+          if (payload_ptr->codec_valid[i])
+          {
+             if (payload_ptr->codec[i] >= 0 &&
+                ((unsigned int)payload_ptr->codec[i] < sizeof(codec_str)/sizeof(codec_str[0])))
+             {
+                if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
+                {
+                   call_details_extras[call_details_extras_idx] = codec_str[payload_ptr->codec[i]];
+                   call_details[i].n_extras++;
+                   call_details_extras_idx++;
+                }
+             }
+             else
+             {
+                QCRIL_LOG_ERROR( "invalid payload_ptr->codec[i]: %d", payload_ptr->codec[i]);
+             }
+          }
+
+          if( TRUE == payload_ptr->parentCallID_valid[i] )
+          {
+             if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
+             {
+                call_details_extras[call_details_extras_idx] = payload_ptr->parentCallID[i];
                 call_details[i].n_extras++;
                 call_details_extras_idx++;
-              }
-           }
-           else
-           {
-              QCRIL_LOG_ERROR( "invalid payload_ptr->codec[i]: %d", payload_ptr->codec[i]);
-           }
-        }
-
-        if( TRUE == payload_ptr->parentCallID_valid[i] )
-        {
-          if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
-          {
-            call_details_extras[call_details_extras_idx] = payload_ptr->parentCallID[i];
-            call_details[i].n_extras++;
-            call_details_extras_idx++;
+             }
           }
-        }
 
-        if( TRUE == payload_ptr->child_number_valid[i] )
-        {
-          if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
+          if( TRUE == payload_ptr->child_number_valid[i] )
           {
-            call_details_extras[call_details_extras_idx] = payload_ptr->child_number[i];
-            call_details[i].n_extras++;
-            call_details_extras_idx++;
+             if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
+             {
+                call_details_extras[call_details_extras_idx] = payload_ptr->child_number[i];
+                call_details[i].n_extras++;
+                call_details_extras_idx++;
+             }
           }
-        }
 
-        if( TRUE == payload_ptr->display_text_valid[i] )
-        {
-          if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
+          if( TRUE == payload_ptr->display_text_valid[i] )
           {
-            call_details_extras[call_details_extras_idx] = payload_ptr->display_text[i];
-            call_details[i].n_extras++;
-            call_details_extras_idx++;
-          }
-        }
-
-        QCRIL_LOG_INFO( "...No. of call_details extras %d ", call_details[i].n_extras);
-        QCRIL_LOG_INFO( "...%s, %s, %s, %s",
-                         call_details_extras[ i*MAX_EXTRAS_PER_CALL ],
-                         call_details_extras[ (i*MAX_EXTRAS_PER_CALL)+1 ],
-                         call_details_extras[ (i*MAX_EXTRAS_PER_CALL)+2 ],
-                         call_details_extras[ (i*MAX_EXTRAS_PER_CALL)+3 ]);
-
-        if (payload_ptr->local_call_capabilities_info_valid[i])
-        {
-           call_details[i].localability = &(localAbility[i]);
-
-           Ims__SrvStatusList tmp_localAbility = IMS__SRV_STATUS_LIST__INIT;
-           memcpy(&(localAbility[i]), &tmp_localAbility, sizeof(Ims__SrvStatusList));
-
-           qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(&payload_ptr->local_call_capabilities_info[i], &localAbility[i]);
-        }
-
-        if (payload_ptr->peer_call_capabilities_info_valid[i])
-        {
-           call_details[i].peerability = &(peerAbility[i]);
-
-           Ims__SrvStatusList tmp_peerAbility = IMS__SRV_STATUS_LIST__INIT;
-           memcpy(&(peerAbility[i]), &tmp_peerAbility, sizeof(Ims__SrvStatusList));
-
-           qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(&payload_ptr->peer_call_capabilities_info[i], &peerAbility[i]);
-        }
-      }
-      qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_GET_CURRENT_CALLS, qcril_qmi_ims_map_ril_error_to_ims_error(ril_req_res), &call_list, sizeof(call_list));
-
-      if ( NULL != call_list.callattributes )
-      {
-        qcril_free(call_list.callattributes);
-      }
-      if ( NULL != calls )
-      {
-        qcril_free(calls);
-      }
-      if ( NULL != call_details )
-      {
-        qcril_free(call_details);
-      }
-      if ( NULL != call_details_extras )
-      {
-        qcril_free(call_details_extras);
-      }
-      if ( NULL != localAbility )
-      {
-        for(i=0; i<payload_ptr->num_of_calls; i++)
-        {
-          if( NULL != localAbility[i].srvstatusinfo )
-          {
-            for(j=0; j<localAbility[i].n_srvstatusinfo; j++)
+            if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
             {
-              if( NULL != localAbility[i].srvstatusinfo[j])
-              {
-                qcril_free(localAbility[i].srvstatusinfo[j]);
-              }
+              call_details_extras[call_details_extras_idx] = payload_ptr->display_text[i];
+              call_details[i].n_extras++;
+              call_details_extras_idx++;
             }
-            qcril_free(localAbility[i].srvstatusinfo);
           }
-        }
 
-        qcril_free(localAbility);
-      }
-      if ( NULL != peerAbility )
-      {
-        for(i=0; i<payload_ptr->num_of_calls; i++)
-        {
-          if( NULL != peerAbility[i].srvstatusinfo )
+          if( TRUE == payload_ptr->additional_call_info_valid[i] )
           {
-            for(j=0; j<peerAbility[i].n_srvstatusinfo; j++)
+            if( call_details[i].n_extras < MAX_EXTRAS_PER_CALL )
             {
-              if( NULL != peerAbility[i].srvstatusinfo[j])
-              {
-                qcril_free(peerAbility[i].srvstatusinfo[j]);
-              }
+              call_details_extras[call_details_extras_idx] = payload_ptr->additional_call_info[i];
+              call_details[i].n_extras++;
+              call_details_extras_idx++;
             }
-            qcril_free(peerAbility[i].srvstatusinfo);
+          }
+
+          QCRIL_LOG_INFO( "...No. of call_details extras %d ", call_details[i].n_extras);
+          QCRIL_LOG_INFO( "...%s, %s, %s, %s, %s",
+                           call_details_extras[ i*MAX_EXTRAS_PER_CALL ],
+                           call_details_extras[ (i*MAX_EXTRAS_PER_CALL)+1 ],
+                           call_details_extras[ (i*MAX_EXTRAS_PER_CALL)+2 ],
+                           call_details_extras[ (i*MAX_EXTRAS_PER_CALL)+3 ],
+                           call_details_extras[ (i*MAX_EXTRAS_PER_CALL)+4 ]);
+
+          if (payload_ptr->local_call_capabilities_info_valid[i])
+          {
+             call_details[i].localability = &(localAbility[i]);
+
+             Ims__SrvStatusList tmp_localAbility = IMS__SRV_STATUS_LIST__INIT;
+             memcpy(&(localAbility[i]), &tmp_localAbility, sizeof(Ims__SrvStatusList));
+
+             qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(
+                     &payload_ptr->local_call_capabilities_info[i],
+                     &localAbility[i],
+                     call_details[i].calltype,
+                     payload_ptr->mode[i]);
+          }
+
+          if (payload_ptr->peer_call_capabilities_info_valid[i])
+          {
+             call_details[i].peerability = &(peerAbility[i]);
+
+             Ims__SrvStatusList tmp_peerAbility = IMS__SRV_STATUS_LIST__INIT;
+             memcpy(&(peerAbility[i]), &tmp_peerAbility, sizeof(Ims__SrvStatusList));
+
+             qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(
+                     &payload_ptr->peer_call_capabilities_info[i],
+                     &peerAbility[i],
+                     IMS__CALL_TYPE__CALL_TYPE_UNKNOWN,
+                     CALL_MODE_NO_SRV_V02);
           }
         }
+        if (QCRIL_EVT_IMS_SOCKET_SEND_UNSOL_CURRENT_CALLS == params_ptr->event_id)
+        {
+            qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED, IMS__ERROR__E_SUCCESS, &call_list, sizeof(call_list));
+        }
+        else
+        {
+            qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_GET_CURRENT_CALLS, qcril_qmi_ims_map_ril_error_to_ims_error(ril_req_res), &call_list, sizeof(call_list));
+        }
 
-        qcril_free(peerAbility);
+        if ( NULL != call_list.callattributes )
+        {
+          qcril_free(call_list.callattributes);
+        }
+        if ( NULL != calls )
+        {
+          qcril_free(calls);
+        }
+        if ( NULL != call_details )
+        {
+          qcril_free(call_details);
+        }
+        if ( NULL != call_details_extras )
+        {
+          qcril_free(call_details_extras);
+        }
+        if ( NULL != localAbility )
+        {
+          for(i=0; i<payload_ptr->num_of_calls; i++)
+          {
+            if( NULL != localAbility[i].srvstatusinfo )
+            {
+              for(j=0; j<localAbility[i].n_srvstatusinfo; j++)
+              {
+                if( NULL != localAbility[i].srvstatusinfo[j])
+                {
+                  qcril_free(localAbility[i].srvstatusinfo[j]);
+                }
+              }
+              qcril_free(localAbility[i].srvstatusinfo);
+            }
+          }
+
+          qcril_free(localAbility);
+        }
+        if ( NULL != peerAbility )
+        {
+          for(i=0; i<payload_ptr->num_of_calls; i++)
+          {
+            if( NULL != peerAbility[i].srvstatusinfo )
+            {
+              for(j=0; j<peerAbility[i].n_srvstatusinfo; j++)
+              {
+                if( NULL != peerAbility[i].srvstatusinfo[j])
+                {
+                  qcril_free(peerAbility[i].srvstatusinfo[j]);
+                }
+              }
+              qcril_free(peerAbility[i].srvstatusinfo);
+            }
+          }
+
+          qcril_free(peerAbility);
+        }
+        if ( failcause )
+        {
+          qcril_free(failcause);
+        }
       }
-    }
-  }
+   }
 
-  if ( RIL_E_SUCCESS != ril_req_res )
-  {
-     qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_GET_CURRENT_CALLS, qcril_qmi_ims_map_ril_error_to_ims_error(ril_req_res), NULL, 0);
-  }
+   if (RIL_E_SUCCESS != ril_req_res && QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS == params_ptr->event_id)
+   {
+      qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_GET_CURRENT_CALLS, qcril_qmi_ims_map_ril_error_to_ims_error(ril_req_res), NULL, 0);
+   }
 
-  qcril_qmi_voice_get_current_calls_cleanup(payload_ptr, is_ril_number_already_freed);
+   qcril_qmi_voice_get_current_calls_cleanup(payload_ptr, is_ril_number_already_freed);
 
-  QCRIL_LOG_FUNC_RETURN();
-#endif
-} // qcril_qmi_voice_request_get_current_ims_calls
+   QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_send_current_ims_calls
 
 //===========================================================================
 //qcril_qmi_voice_create_emer_voice_entry
@@ -11368,7 +12845,7 @@ void qcril_qmi_voice_auto_answer_timeout_handler( void * param )
                                       sizeof(ans_call_req_msg),
                                       ans_call_resp_msg_ptr,
                                       sizeof(*ans_call_resp_msg_ptr),
-                                      (void*)user_data);
+                                      (void*)(uintptr_t)user_data);
     if ( client_err )
     {
       QCRIL_LOG_INFO(".. failed to post qmi answer message");
@@ -11381,7 +12858,9 @@ void qcril_qmi_voice_auto_answer_timeout_handler( void * param )
     else
     {
         call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_ANSWERING_CALL;
+#ifndef QMI_RIL_UTF
         qcril_am_handle_event(qcril_qmi_voice_get_answer_am_event(call_info_entry), NULL);
+#endif
     }
   } while (FALSE);
 
@@ -11444,7 +12923,7 @@ RIL_Errno qcril_qmi_process_hangup_on_call_being_setup
     call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration(
                                 QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_MO_CALL_BEING_SETUP,
                                 TRUE );
-    QCRIL_LOG_INFO( "call_info_entry %d", (int)call_info_entry );
+    QCRIL_LOG_INFO( "call_info_entry %p", call_info_entry );
 
     if (call_info_entry)
     {
@@ -11488,18 +12967,17 @@ void qcril_qmi_voice_send_hangup_on_call
     int conn_index
 )
 {
-    qcril_instance_id_e_type   instance_id = 0;
     qcril_request_params_type  req_data = {0};
     qcril_reqlist_public_type  req_info;
 
     QCRIL_LOG_FUNC_ENTRY();
 
     /* Lookup the hangup request */
-    if (qcril_reqlist_query_by_req_id(RIL_REQUEST_HANGUP, &instance_id, &req_info)
-                                                                     == E_SUCCESS)
+    if (qcril_reqlist_query_by_request(QCRIL_DEFAULT_INSTANCE_ID, RIL_REQUEST_HANGUP,
+                &req_info) == E_SUCCESS)
     {
         req_data.modem_id       = QCRIL_DEFAULT_MODEM_ID;
-        req_data.instance_id    = instance_id;
+        req_data.instance_id    = QCRIL_DEFAULT_INSTANCE_ID;
         req_data.datalen        = sizeof(conn_index);
         req_data.data           = &conn_index;
         req_data.t              = req_info.t;
@@ -11537,14 +13015,14 @@ void qcril_qmi_voice_request_hangup
   qcril_qmi_voice_voip_current_call_summary_type  calls_summary;
   RIL_Errno                                       ril_err = RIL_E_GENERIC_FAILURE;
   qmi_client_error_type                           client_error;
-  boolean                                         ims_call_end_reason_is_specified = FALSE;
-  uint8_t                                         ims_call_end_reason = 0;
+  boolean                                         need_to_reject_incoming_call = FALSE;
+  int32_t                                         ims_call_end_reason = 0;
+  const char*                                     temp_buf = NULL;
 
-#ifndef QMI_RIL_UTF
   Ims__Hangup* ims_hangup_ptr = NULL;
-#endif
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   if ( qmi_ril_voice_check_eme_oos_handover_in_progress_and_immunity_animate() )
   {
@@ -11570,7 +13048,6 @@ void qcril_qmi_voice_request_hangup
       }
       else
       {
-#ifndef QMI_RIL_UTF
         ims_hangup_ptr = (Ims__Hangup*) params_ptr->data;
         if (ims_hangup_ptr->has_conn_index)
         {
@@ -11592,17 +13069,46 @@ void qcril_qmi_voice_request_hangup
         }
         if (NULL != ims_hangup_ptr->failcauseresponse)
         {
-          if (TRUE == ims_hangup_ptr->failcauseresponse->has_failcause &&
-              IMS__CALL_FAIL_CAUSE__CALL_FAIL_MISC == ims_hangup_ptr->failcauseresponse->failcause &&
-              TRUE == ims_hangup_ptr->failcauseresponse->has_errorinfo &&
-              1 == ims_hangup_ptr->failcauseresponse->errorinfo.len)
+          if (TRUE == ims_hangup_ptr->failcauseresponse->has_failcause)
           {
-            ims_call_end_reason_is_specified = TRUE;
-            ims_call_end_reason = *(ims_hangup_ptr->failcauseresponse->errorinfo.data);
-            QCRIL_LOG_INFO ("call end reason is %d", (int) ims_call_end_reason);
+            if(IMS__CALL_FAIL_CAUSE__CALL_FAIL_MISC !=
+               ims_hangup_ptr->failcauseresponse->failcause)
+            {
+              ims_call_end_reason =
+              qcril_qmi_ims_map_ims_failcause_qmi_reject_cause(
+              ims_hangup_ptr->failcauseresponse->failcause);
+
+              if(INVALID_NEGATIVE_ONE != ims_call_end_reason)
+              {
+                need_to_reject_incoming_call = TRUE;
+                QCRIL_LOG_INFO ("call end reason is %d", (int) ims_call_end_reason);
+              }
+            }
+            else if (IMS__CALL_FAIL_CAUSE__CALL_FAIL_MISC ==
+                ims_hangup_ptr->failcauseresponse->failcause &&
+                TRUE == ims_hangup_ptr->failcauseresponse->has_errorinfo &&
+                ims_hangup_ptr->failcauseresponse->errorinfo.len > 0)
+            {
+              temp_buf = (const char*) qcril_malloc(
+                      ims_hangup_ptr->failcauseresponse->errorinfo.len + 1);
+              if (temp_buf != NULL)
+              {
+                memcpy(temp_buf, ims_hangup_ptr->failcauseresponse->errorinfo.data,
+                        ims_hangup_ptr->failcauseresponse->errorinfo.len);
+                // Here no need for appending last byte of temp_buf with null
+                // since qcril_malloc internally does the memset to 0.
+                need_to_reject_incoming_call = TRUE;
+                ims_call_end_reason = atoi(temp_buf);
+                QCRIL_LOG_INFO ("call end reason is %d", (int) ims_call_end_reason);
+              }
+              else
+              {
+               QCRIL_LOG_ERROR ("qcril malloc failed");
+               break;
+              }
+            }
           }
         }
-#endif
       }
 
       QCRIL_LOG_INFO( "conn_index_valid: %d, conn_index: %d", conn_index_valid, conn_index );
@@ -11646,7 +13152,27 @@ void qcril_qmi_voice_request_hangup
       // preparation
       user_data = QCRIL_COMPOSE_USER_DATA( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
 
-      if (ims_call_end_reason_is_specified)
+      qcril_qmi_voice_voip_generate_summary( &calls_summary );
+
+      // find call info
+      if (conn_index_valid)
+      {
+        call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id( conn_index );
+        if (NULL == call_info_entry)
+        {
+           QCRIL_LOG_ERROR("Failed to find call entry, aborting!");
+           break;
+        }
+
+        if (need_to_reject_incoming_call &&
+              !(call_info_entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING))
+        {
+          QCRIL_LOG_ERROR("incoming call not found");
+          need_to_reject_incoming_call = FALSE;
+        }
+      }
+
+      if (call_info_entry && need_to_reject_incoming_call)
       {
         ans_call_resp_msg_ptr = qcril_malloc (sizeof (*ans_call_resp_msg_ptr));
         if (NULL == ans_call_resp_msg_ptr)
@@ -11654,25 +13180,7 @@ void qcril_qmi_voice_request_hangup
           QCRIL_LOG_ERROR ("qcril malloc failed");
           break;
         }
-        // find call info
-        if (conn_index_valid)
-        {
-          call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id( conn_index );
-          if (NULL == call_info_entry)
-          {
-             QCRIL_LOG_ERROR("Failed to find call entry, aborting!");
-             break;
-          }
-        }
-        else
-        {
-          call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration( QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING, TRUE );
-            if ( NULL == call_info_entry )
-            {
-              QCRIL_LOG_INFO("pending incoming call record entry not found, aborting!");
-              break;
-            }
-        }
+
         memset (&ans_call_req_msg, 0, sizeof (ans_call_req_msg));
         ans_call_req_msg.call_id = call_info_entry->qmi_call_id;
         ans_call_req_msg.reject_call_valid = TRUE;
@@ -11685,24 +13193,15 @@ void qcril_qmi_voice_request_hangup
                                           sizeof(ans_call_req_msg),
                                           ans_call_resp_msg_ptr,
                                           sizeof(*ans_call_resp_msg_ptr),
-                                          (void*)user_data);
+                                          (void*)(uintptr_t)user_data);
       }
-      else if ( conn_index_valid && !conn_uri_valid )
+      else if (call_info_entry &&  conn_index_valid && !conn_uri_valid )
       {
         end_call_resp_msg_ptr = qcril_malloc( sizeof(*end_call_resp_msg_ptr) );
         if( NULL == end_call_resp_msg_ptr )
         {
           QCRIL_LOG_ERROR("qcril_malloc failed");
           break;
-        }
-
-        // find call info
-        qcril_qmi_voice_voip_generate_summary( &calls_summary );
-        call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id( conn_index );
-        if (!call_info_entry)
-        {
-           QCRIL_LOG_ERROR("Failed to find call entry, aborting!");
-           break;
         }
 
         memset( &call_end_req_msg, 0, sizeof(call_end_req_msg) );
@@ -11714,7 +13213,7 @@ void qcril_qmi_voice_request_hangup
                                                        sizeof(call_end_req_msg),
                                                        end_call_resp_msg_ptr,
                                                        sizeof(*end_call_resp_msg_ptr),
-                                                       (void*)user_data  );
+                                                       (void*)(uintptr_t)user_data  );
       }
       else if (conn_uri_valid && NULL != conn_uri)
       {
@@ -11731,16 +13230,8 @@ void qcril_qmi_voice_request_hangup
           break;
         }
 
-        // find call info
-        qcril_qmi_voice_voip_generate_summary( &calls_summary );
-        if( conn_index_valid )
+        if (call_info_entry)
         {
-            call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id( conn_index );
-            if (!call_info_entry)
-            {
-                QCRIL_LOG_ERROR("... failed to find call entry, aborting!");
-                break;
-            }
             call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONF_PATICIAPNT_CALL_END_REPORTED;
         }
 
@@ -11754,7 +13245,7 @@ void qcril_qmi_voice_request_hangup
                                                        sizeof(manage_ip_calls_req_msg),
                                                        manage_ip_calls_resp_msg_ptr,
                                                        sizeof(*manage_ip_calls_resp_msg_ptr),
-                                                       (void*)user_data );
+                                                       (void*)(uintptr_t)user_data );
         ril_err = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(client_error, NULL);
 
       }
@@ -11789,12 +13280,14 @@ void qcril_qmi_voice_request_hangup
         }
     }
   }
-#ifndef QMI_RIL_UTF
   if ( ims_hangup_ptr )
   {
     qcril_qmi_ims__hangup__free_unpacked(ims_hangup_ptr, NULL);
   }
-#endif
+  if (temp_buf)
+  {
+    qcril_free( temp_buf );
+  }
   QCRIL_LOG_FUNC_RETURN();
 
 } // qcril_qmi_voice_request_hangup
@@ -11825,6 +13318,7 @@ static void qcril_qmi_voice_send_start_cont_dtmf_request
   voice_start_cont_dtmf_resp_msg_v02* start_cont_dtmf_resp_msg_ptr = NULL;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(datalen);
 
   do
   {
@@ -11856,7 +13350,7 @@ static void qcril_qmi_voice_send_start_cont_dtmf_request
                                       sizeof(*start_cont_dtmf_req_msg_ptr),
                                       start_cont_dtmf_resp_msg_ptr,
                                       sizeof(*start_cont_dtmf_resp_msg_ptr),
-                                      (void*)user_data) != E_SUCCESS )
+                                      (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       qcril_qmi_voice_info_lock();
       qcril_qmi_voice_info.pending_dtmf_req_id = QMI_RIL_ZERO; // reset
@@ -11900,9 +13394,7 @@ void qcril_qmi_voice_request_dtmf
   char * in_data_ptr;
   qcril_reqlist_public_type reqlist_entry;
   voice_start_cont_dtmf_req_msg_v02 start_cont_dtmf_req_msg;
-#ifndef QMI_RIL_UTF
   Ims__Dtmf *ims_in_data_ptr = NULL;
-#endif
 
   /*-----------------------------------------------------------------------*/
 
@@ -11937,7 +13429,6 @@ void qcril_qmi_voice_request_dtmf
         }
         else
         {
-#ifndef QMI_RIL_UTF
             ims_in_data_ptr = (Ims__Dtmf *)params_ptr->data;
             if (NULL != ims_in_data_ptr->dtmf)
             {
@@ -11950,7 +13441,6 @@ void qcril_qmi_voice_request_dtmf
                qcril_send_empty_payload_request_response( instance_id, params_ptr->t, params_ptr->event_id, RIL_E_GENERIC_FAILURE );
                break;
             }
-#endif
         }
 
         /* Add entry to ReqList */
@@ -11986,12 +13476,10 @@ void qcril_qmi_voice_request_dtmf
         }
 
   } while ( FALSE );
-#ifndef QMI_RIL_UTF
   if ( NULL != ims_in_data_ptr )
   {
     qcril_qmi_ims__dtmf__free_unpacked(ims_in_data_ptr, NULL);
   }
-#endif
   QCRIL_LOG_FUNC_RETURN();
 } /* qcril_qmi_voice_request_dtmf() */
 
@@ -12019,9 +13507,7 @@ void qcril_qmi_voice_request_dtmf_start
   char *in_data_ptr;
   qcril_reqlist_public_type reqlist_entry;
   voice_start_cont_dtmf_req_msg_v02 start_cont_dtmf_req_msg;
-#ifndef QMI_RIL_UTF
   Ims__Dtmf *ims_in_data_ptr = NULL;
-#endif
 
   /*-----------------------------------------------------------------------*/
 
@@ -12053,7 +13539,6 @@ void qcril_qmi_voice_request_dtmf_start
     }
     else
     {
-#ifndef QMI_RIL_UTF
       ims_in_data_ptr = (Ims__Dtmf *)params_ptr->data;
       if (NULL != ims_in_data_ptr->dtmf)
       {
@@ -12066,7 +13551,6 @@ void qcril_qmi_voice_request_dtmf_start
          qcril_send_empty_payload_request_response( instance_id, params_ptr->t, params_ptr->event_id, RIL_E_GENERIC_FAILURE );
          break;
       }
-#endif
     }
 
     /* Add entry to ReqList */
@@ -12101,12 +13585,10 @@ void qcril_qmi_voice_request_dtmf_start
     }
   }while(0);
 
-#ifndef QMI_RIL_UTF
   if ( NULL != ims_in_data_ptr )
   {
       qcril_qmi_ims__dtmf__free_unpacked(ims_in_data_ptr, NULL);
   }
-#endif
 } /* qcril_qmi_voice_request_dtmf_start() */
 
 static void qcril_qmi_voice_send_stop_cont_dtmf_request
@@ -12122,6 +13604,7 @@ static void qcril_qmi_voice_send_stop_cont_dtmf_request
   voice_stop_cont_dtmf_resp_msg_v02* stop_cont_dtmf_resp_msg_ptr = NULL;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(datalen);
 
   do
   {
@@ -12150,7 +13633,7 @@ static void qcril_qmi_voice_send_stop_cont_dtmf_request
                                       sizeof(*stop_cont_dtmf_req_msg_ptr),
                                       stop_cont_dtmf_resp_msg_ptr,
                                       sizeof(*stop_cont_dtmf_resp_msg_ptr),
-                                      (void*)user_data) != E_SUCCESS )
+                                      (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       qcril_qmi_voice_info_lock();
       qcril_qmi_voice_info.pending_dtmf_req_id = QMI_RIL_ZERO;
@@ -12412,7 +13895,7 @@ void qcril_qmi_voice_request_cdma_burst_dtmf
                                     sizeof(cdma_burst_dtmf_req_msg),
                                     dtmf_resp_msg_ptr,
                                     sizeof(*dtmf_resp_msg_ptr),
-                                    (void*)user_data) != E_SUCCESS )
+                                    (void*)(uintptr_t)user_data) != E_SUCCESS )
   {
     /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -12441,7 +13924,6 @@ boolean qcril_qmi_voice_parse_call_modify_param(int event_id, const void* data_p
     }
     else if (QCRIL_EVT_IMS_SOCKET_REQ_MODIFY_CALL_INITIATE == event_id || QCRIL_EVT_IMS_SOCKET_REQ_MODIFY_CALL_CONFIRM == event_id)
     {
-#ifndef QMI_RIL_UTF
        const Ims__CallModify *ims_modify_input_ptr = data_ptr;
        *callIndex = ims_modify_input_ptr->callindex;
        *callDetails = qcril_malloc(sizeof(RIL_Call_Details));
@@ -12454,7 +13936,6 @@ boolean qcril_qmi_voice_parse_call_modify_param(int event_id, const void* data_p
           QCRIL_LOG_ERROR("callDetails malloc failed");
           ret = 1;
        }
-#endif
     }
     else
     {
@@ -12502,6 +13983,7 @@ void qcril_qmi_voice_request_modify_call_initiate
    qcril_qmi_voice_voip_call_info_entry_type  *call_info = NULL;
 
    QCRIL_LOG_FUNC_ENTRY();
+   QCRIL_NOTUSED(ret_ptr);
 
    if( params_ptr->data == NULL || params_ptr->datalen <= 0 || !(qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) || qcril_qmi_voice_info.jbims) )
    {
@@ -12516,9 +13998,7 @@ void qcril_qmi_voice_request_modify_call_initiate
 
       if (QCRIL_EVT_IMS_SOCKET_REQ_MODIFY_CALL_INITIATE == params_ptr->event_id)
       {
-#ifndef QMI_RIL_UTF
          qcril_qmi_ims__call_modify__free_unpacked((Ims__CallModify *)params_ptr->data, NULL);
-#endif
       }
 
       qcril_reqlist_default_entry( params_ptr->t,
@@ -12567,7 +14047,7 @@ void qcril_qmi_voice_request_modify_call_initiate
                                                     sizeof(modify_req),
                                                     modify_resp,
                                                     sizeof(*modify_resp),
-                                                    (void*)user_data );
+                                                    (void*)(uintptr_t)user_data );
 
             QCRIL_LOG_INFO(".. qmi send async res %d", (int) client_error );
 
@@ -12631,6 +14111,7 @@ void qcril_qmi_voice_request_modify_call_confirm
    boolean is_audio_attrib_valid, is_video_attrib_valid, accept;
 
    QCRIL_LOG_FUNC_ENTRY();
+   QCRIL_NOTUSED(ret_ptr);
 
    if( params_ptr->data == NULL || params_ptr->datalen <= 0 || !(qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) || qcril_qmi_voice_info.jbims) )
    {
@@ -12645,9 +14126,7 @@ void qcril_qmi_voice_request_modify_call_confirm
 
       if (QCRIL_EVT_IMS_SOCKET_REQ_MODIFY_CALL_CONFIRM == params_ptr->event_id)
       {
-#ifndef QMI_RIL_UTF
          qcril_qmi_ims__call_modify__free_unpacked((Ims__CallModify *)params_ptr->data, NULL);
-#endif
       }
 
       qcril_reqlist_default_entry( params_ptr->t,
@@ -12719,7 +14198,7 @@ void qcril_qmi_voice_request_modify_call_confirm
                                                     sizeof(modify_confirm_req),
                                                     modify_confirm_resp,
                                                     sizeof(*modify_confirm_resp),
-                                                    (void*)user_data );
+                                                    (void*)(uintptr_t)user_data );
 
             QCRIL_LOG_INFO(".. qmi send async res %d", (int) client_error );
 
@@ -12846,7 +14325,7 @@ void qcril_qmi_voice_request_cdma_flash
                                     sizeof(send_flash_req_msg),
                                     send_flash_resp_msg_ptr,
                                     sizeof(*send_flash_resp_msg_ptr),
-                                    (void*)user_data) != E_SUCCESS )
+                                    (void*)(uintptr_t)user_data) != E_SUCCESS )
   {
     /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -12975,7 +14454,8 @@ void qcril_qmi_voice_request_query_preferred_voice_privacy_mode
   int privacy_preference=0;
   RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
   voice_get_config_req_msg_v02 qmi_request;
-  voice_get_config_resp_msg_v02 qmi_response = {0};
+  voice_get_config_resp_msg_v02 qmi_response;
+
   /*-----------------------------------------------------------------------*/
 
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
@@ -12984,6 +14464,7 @@ void qcril_qmi_voice_request_query_preferred_voice_privacy_mode
   /*-----------------------------------------------------------------------*/
 
   memset( &qmi_request, 0, sizeof( qmi_request ) );
+  memset( &qmi_response, 0, sizeof(qmi_response) );
   qmi_request.voice_privacy_valid= TRUE;
   qmi_request.voice_privacy= 0x01; // as per QMI Voice - 0x01
 
@@ -13045,6 +14526,8 @@ static void qcril_qmi_voice_send_management_call_request
 
   QCRIL_LOG_FUNC_ENTRY();
 
+  QCRIL_NOTUSED(datalen);
+
   do
   {
     if( NULL == mng_call_req_msg_ptr )
@@ -13070,7 +14553,7 @@ static void qcril_qmi_voice_send_management_call_request
                                       sizeof(*mng_call_req_msg_ptr),
                                       mng_call_resp_msg_ptr,
                                       sizeof(*mng_call_resp_msg_ptr),
-                                      (void*)user_data);
+                                      (void*)(uintptr_t)user_data);
     QCRIL_LOG_DEBUG("send_msg_async completed with error code: %d", error);
     if ( E_SUCCESS != error )
     {
@@ -13164,8 +14647,22 @@ void qcril_qmi_voice_request_manage_calls_hangup_waiting_or_background
                                         params_ptr,
                                         TRUE);
       }
-      else if ( QMI_RIL_ZERO == calls_summary.nof_voip_calls && 1 == calls_summary.nof_3gpp2_calls )
+      else if ( QMI_RIL_ZERO == calls_summary.nof_voip_calls && calls_summary.nof_3gpp2_calls )
       { // CDMA forever
+
+        // More than one CDMA calls - possibly Dialing and Incoming states
+        // Need to disconnect Incoming call
+        if (calls_summary.nof_3gpp2_calls > 1)
+        {
+          call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration(
+                                QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PENDING_INCOMING, TRUE );
+          if( NULL == call_info_entry )
+          {
+            QCRIL_LOG_ERROR( ".. 3gpp2 incoming call not found" );
+            break;
+          }
+        }
+
         memset( &call_end_req_msg, 0, sizeof(call_end_req_msg) );
         end_call_resp_msg_ptr = qcril_malloc( sizeof(*end_call_resp_msg_ptr) );
         if( NULL == end_call_resp_msg_ptr )
@@ -13198,7 +14695,7 @@ void qcril_qmi_voice_request_manage_calls_hangup_waiting_or_background
                                                     sizeof(call_end_req_msg),
                                                     end_call_resp_msg_ptr,
                                                     sizeof(*end_call_resp_msg_ptr),
-                                                    (void*)user_data  );
+                                                    (void*)(uintptr_t)user_data  );
         if ( RIL_E_SUCCESS != ril_err )
         {
           break;
@@ -13382,6 +14879,7 @@ void qcril_qmi_voice_request_manage_calls_hangup_foreground_resume_background
         break;
       }
 
+     //TODO: mpty voip list replaced with is_mpty in summary also need to add is_mpty check here
       if ( 1 == calls_summary.nof_calls_overall )
       { // one call
         memset( &call_end_req_msg, 0, sizeof(call_end_req_msg) );
@@ -13418,7 +14916,7 @@ void qcril_qmi_voice_request_manage_calls_hangup_foreground_resume_background
                                                     sizeof(call_end_req_msg),
                                                     end_call_resp_msg_ptr,
                                                     sizeof(*end_call_resp_msg_ptr),
-                                                    (void*)user_data  );
+                                                    (void*)(uintptr_t)user_data  );
         if ( RIL_E_SUCCESS != ril_err )
           break;
       }
@@ -13505,7 +15003,9 @@ void qcril_qmi_voice_request_manage_calls_hangup_foreground_resume_background
       qcril_qmi_voice_voip_mark_with_specified_call_state(
          QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_SWITCHING_CALL_TO_ACTIVE,
          CALL_STATE_HOLD_V02 );
+#ifndef QMI_RIL_UTF
       qcril_am_handle_event(QCRIL_AM_EVENT_SWITCH_CALL, NULL);
+#endif
     }
   }
 
@@ -13539,7 +15039,7 @@ RIL_Errno qcril_qmi_voice_post_manage_voip_calls_request( voip_sups_type_enum_v0
                                                          sizeof( manage_voip_calls_req ),
                                                          (void*) manage_voip_calls_resp,
                                                          sizeof( *manage_voip_calls_resp ),
-                                                         (void*)user_data );
+                                                         (void*)(uintptr_t)user_data );
       res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, NULL );
 
       if ( RIL_E_SUCCESS != res )
@@ -13584,7 +15084,7 @@ void qcril_qmi_voice_voip_manage_ip_calls_resp_hdlr
 #ifndef QMI_RIL_UTF
              if (QCRIL_EVT_IMS_SOCKET_REQ_CONFERENCE == params_ptr->event_id)
              {
-               qcril_qmi_ims_socket_send_empty_payload_unsol_resp(IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED);
+               qcril_qmi_voice_send_ims_unsol_call_state_changed();
              }
              else
              {
@@ -13616,10 +15116,21 @@ void qcril_qmi_voice_voip_manage_ip_calls_resp_hdlr
                                        params_ptr->t,
                                        QCRIL_REQ_AWAITING_MORE_AMSS_EVENTS );
         }
+        else if((QCRIL_EVT_IMS_SOCKET_REQ_MODIFY_CALL_INITIATE == params_ptr->event_id)
+                 && (qmi_response->failure_cause_valid == TRUE)
+                 && (qmi_response->failure_cause == QMI_FAILURE_CAUSE_UPGRADE_DOWNGRADE_REJ_V02))
+        {
+              qcril_qmi_ims_socket_send(params_ptr->t,
+                                        IMS__MSG_TYPE__RESPONSE,
+                                        qcril_qmi_ims_map_event_to_request(params_ptr->event_id),
+                                        IMS__ERROR__E_REJECTED_BY_REMOTE,
+                                        NULL,
+                                        0);
+        }
         else
         {
-#ifndef QMI_RIL_UTF
-           if ((QCRIL_EVT_IMS_SOCKET_REQ_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id) &&
+           if ((QCRIL_EVT_IMS_SOCKET_REQ_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE ==
+                 params_ptr->event_id) &&
                QMI_ERR_OP_NETWORK_UNSUPPORTED_V01 == qmi_response->resp.error)
            {
               qcril_qmi_ims_socket_send(params_ptr->t,
@@ -13631,11 +15142,12 @@ void qcril_qmi_voice_voip_manage_ip_calls_resp_hdlr
            }
            else if (QCRIL_EVT_IMS_SOCKET_REQ_HANGUP == params_ptr->event_id)
            {
+               //TODO: Remove all this when the mpty voip structure is removed.
               call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_elaboration(
                   QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CONF_PATICIAPNT_CALL_END_REPORTED, TRUE);
               if( QMI_ERR_NONE_V01 == qmi_response->resp.error )
               {
-                 if( NULL != call_info_entry )
+                 if( NULL != call_info_entry && call_info_entry->voice_scv_info.is_mpty != 1 )
                  {
                     qcril_qmi_voice_voip_destroy_mpty_call_info_entry( call_info_entry );
                     call_info_entry = NULL;
@@ -13658,18 +15170,20 @@ void qcril_qmi_voice_voip_manage_ip_calls_resp_hdlr
                                                         params_ptr->event_id,
                                                         ril_req_res );
            }
-#endif
         }
 
         if (QCRIL_EVT_IMS_SOCKET_REQ_HANGUP_FOREGROUND_RESUME_BACKGROUND == params_ptr->event_id ||
             QCRIL_EVT_IMS_SOCKET_REQ_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id ||
             RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND == params_ptr->event_id ||
-            RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id)
+            RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE == params_ptr->event_id ||
+            QCRIL_EVT_IMS_SOCKET_REQ_RESUME == params_ptr->event_id )
         {
             qcril_qmi_voice_voip_unmark_all_with(QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_SWITCHING_CALL_TO_ACTIVE);
             if (RIL_E_SUCCESS != ril_req_res)
             {
+#ifndef QMI_RIL_UTF
                 qcril_am_handle_event(QCRIL_AM_EVENT_SWITCH_CALL_FAIL, NULL);
+#endif
             }
         }
     }
@@ -13772,6 +15286,10 @@ void qcril_qmi_voice_request_manage_calls_switch_waiting_or_holding_and_active
             qmi_client_error_type qmi_client_error = QMI_NO_ERR;
             uint32                user_data;
 
+            // Cache the user specified call type in answer.
+            call_info->answered_call_type_valid = TRUE;
+            call_info->answered_call_type = call_type;
+
             user_data = QCRIL_COMPOSE_USER_DATA( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
 
             memset( &manage_voip_calls_req, 0, sizeof(manage_voip_calls_req) );
@@ -13809,6 +15327,7 @@ void qcril_qmi_voice_request_manage_calls_switch_waiting_or_holding_and_active
             {
                QCRIL_LOG_DEBUG("Received unexpected call type. Ignore the type specified.");
                manage_voip_calls_req.call_id_valid = FALSE;
+               call_info->answered_call_type_valid = FALSE;
             }
 
             qmi_client_error =  qcril_qmi_client_send_msg_async( QCRIL_QMI_CLIENT_VOICE,
@@ -13817,7 +15336,7 @@ void qcril_qmi_voice_request_manage_calls_switch_waiting_or_holding_and_active
                                                            sizeof( manage_voip_calls_req ),
                                                            (void*) manage_voip_calls_resp,
                                                            sizeof( *manage_voip_calls_resp ),
-                                                           (void*)user_data );
+                                                           (void*)(uintptr_t)user_data );
 
             ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, NULL );
             if ( RIL_E_SUCCESS != ril_req_res )
@@ -13889,7 +15408,9 @@ void qcril_qmi_voice_request_manage_calls_switch_waiting_or_holding_and_active
     qcril_qmi_voice_voip_mark_with_specified_call_state(
        QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_SWITCHING_CALL_TO_ACTIVE,
        CALL_STATE_HOLD_V02 );
+#ifndef QMI_RIL_UTF
     qcril_am_handle_event(QCRIL_AM_EVENT_SWITCH_CALL, NULL);
+#endif
   }
 
   qcril_qmi_voice_voip_unlock_overview();
@@ -13897,6 +15418,192 @@ void qcril_qmi_voice_request_manage_calls_switch_waiting_or_holding_and_active
   QCRIL_LOG_FUNC_RETURN();
 
 } // qcril_qmi_voice_request_manage_calls_switch_waiting_or_holding_and_active
+
+/*===========================================================================
+  FUNCTION:  qcril_qmi_voice_request_manage_calls_hold_resume
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_IMS_SOCKET_REQ_HOLD and
+            QCRIL_EVT_IMS_SOCKET_REQ_RESUME.
+
+    @return:
+    None
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_request_manage_calls_hold_resume
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+  qcril_evt_e_type event = params_ptr->event_id;
+  qcril_reqlist_public_type reqlist_entry;
+  qcril_request_resp_params_type resp;
+  voice_manage_calls_req_msg_v02  manage_calls_req;
+  RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
+  qcril_instance_id_e_type instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+  qcril_qmi_voice_voip_current_call_summary_type call_summary;
+  Ims__Hold *ims_in_data_ptr_hold = NULL;
+  Ims__Resume *ims_in_data_ptr_resume = NULL;
+  voip_sups_type_enum_v02 supsType;
+  uint8_t call_id;
+  qcril_qmi_voice_voip_call_info_entry_type *call_info = NULL;
+  Ims__CallType call_type;
+
+  QCRIL_NOTUSED( ret_ptr );
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  qcril_qmi_voice_voip_lock_overview();
+
+  do
+  {
+    qcril_qmi_voice_voip_generate_summary( &call_summary );
+
+    QCRIL_LOG_ESSENTIAL("Number of voip calls : %d", call_summary.nof_voip_calls );
+
+    if ( QMI_RIL_ZERO == call_summary.nof_voip_calls )
+    {
+      break;
+    }
+
+    qcril_reqlist_default_entry( params_ptr->t,
+                                 params_ptr->event_id,
+                                 QCRIL_DEFAULT_MODEM_ID,
+                                 QCRIL_REQ_AWAITING_CALLBACK,
+                                 QCRIL_EVT_NONE,
+                                 NULL,
+                                 &reqlist_entry );
+    if ( qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &reqlist_entry ) != E_SUCCESS )
+    {
+        // Fail to add entry to ReqList
+        QCRIL_LOG_ERROR(".. failed to Add into Req list");
+        break;
+    }
+
+    if ( QCRIL_EVT_IMS_SOCKET_REQ_HOLD == event )
+    {
+      ims_in_data_ptr_hold = (Ims__Hold *)params_ptr->data;
+      supsType = VOIP_SUPS_TYPE_CALL_HOLD_V02;
+
+      if (ims_in_data_ptr_hold)
+      {
+        QCRIL_LOG_DEBUG("Has callid? %d", ims_in_data_ptr_hold->has_callid);
+        if (TRUE == ims_in_data_ptr_hold->has_callid)
+        {
+          call_id = ims_in_data_ptr_hold->callid;
+          call_info = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id(call_id);
+        }
+        else
+        {
+          //Call id is mandatory
+          QCRIL_LOG_ERROR("Invalid call id");
+        }
+        if ( !call_info )
+        {
+          QCRIL_LOG_ERROR("Do not have any voip active calls or invalid call id in request");
+        }
+        qcril_qmi_ims__hold__free_unpacked(ims_in_data_ptr_hold, NULL);
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("Hold request data is NULL");
+      }
+    }
+
+    if ( QCRIL_EVT_IMS_SOCKET_REQ_RESUME == event )
+    {
+      ims_in_data_ptr_resume = (Ims__Resume *)params_ptr->data;
+      supsType = VOIP_SUPS_TYPE_CALL_RESUME_V02;
+
+      if (ims_in_data_ptr_resume)
+      {
+        if (TRUE == ims_in_data_ptr_resume->has_callid)
+        {
+          call_id = ims_in_data_ptr_resume->callid;
+          call_info = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id(call_id);
+        }
+        else
+        {
+          QCRIL_LOG_ERROR("Invalid call id");
+        }
+
+        if ( !call_info )
+        {
+          QCRIL_LOG_ERROR("Do not have any voip held calls or invalid call id in request");
+        }
+
+        qcril_qmi_ims__resume__free_unpacked(ims_in_data_ptr_resume, NULL);
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("Resume request data is NULL");
+      }
+    }
+
+    if ( call_info )
+    {
+      voice_manage_ip_calls_req_msg_v02   manage_voip_calls_req;
+      voice_manage_ip_calls_resp_msg_v02 *manage_voip_calls_resp;
+
+      manage_voip_calls_resp = qcril_malloc( sizeof( *manage_voip_calls_resp ) );
+      if ( NULL != manage_voip_calls_resp )
+      {
+        qmi_client_error_type qmi_client_error = QMI_NO_ERR;
+        uint32                user_data;
+
+        user_data = QCRIL_COMPOSE_USER_DATA( QCRIL_DEFAULT_INSTANCE_ID,
+                                             QCRIL_DEFAULT_MODEM_ID,
+                                             reqlist_entry.req_id );
+
+        memset( &manage_voip_calls_req, 0, sizeof(manage_voip_calls_req) );
+        manage_voip_calls_req.sups_type = supsType;
+        manage_voip_calls_req.call_id_valid = TRUE;
+        manage_voip_calls_req.call_id = call_info->voice_scv_info.call_id;
+
+        qmi_client_error =  qcril_qmi_client_send_msg_async( QCRIL_QMI_CLIENT_VOICE,
+                                                             QMI_VOICE_MANAGE_IP_CALLS_REQ_V02,
+                                                             &manage_voip_calls_req,
+                                                             sizeof( manage_voip_calls_req ),
+                                                             manage_voip_calls_resp,
+                                                             sizeof( *manage_voip_calls_resp ),
+                                                             (void*)(uintptr_t)user_data );
+
+        ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error,
+                                                                               NULL );
+        if ( RIL_E_SUCCESS != ril_req_res )
+        {
+          qcril_free( manage_voip_calls_resp );
+        }
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("malloc manage_voip_calls_resp failed.");
+      }
+    }
+  } while (FALSE);
+
+  if ( RIL_E_SUCCESS != ril_req_res )
+  { // Failure
+    qcril_send_empty_payload_request_response( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t,
+                                               params_ptr->event_id, ril_req_res );
+  }
+  else
+  {
+    if( QCRIL_EVT_IMS_SOCKET_REQ_RESUME == event )
+    {
+      call_info->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_SWITCHING_CALL_TO_ACTIVE;
+
+#ifndef QMI_RIL_UTF
+      qcril_am_handle_event(QCRIL_AM_EVENT_SWITCH_CALL, NULL);
+#endif
+    }
+  }
+
+  qcril_qmi_voice_voip_unlock_overview();
+  QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_manage_calls_request_hold_resume
 
 //===========================================================================
 // qcril_qmi_voice_request_add_participant
@@ -13914,6 +15621,8 @@ void qcril_qmi_voice_request_add_participant
   qcril_qmi_voice_voip_current_call_summary_type call_summary;
   Ims__Dial *ims_in_data_ptr = (Ims__Dial *)params_ptr->data;
   uint8 call_id = VOICE_INVALID_CALL_ID;
+  qcril_qmi_voice_voip_current_call_summary_type calls_summary;
+  qcril_qmi_voice_voip_call_info_entry_type *call_info_entry = NULL;
 
   QCRIL_NOTUSED( ret_ptr );
 
@@ -13936,38 +15645,40 @@ void qcril_qmi_voice_request_add_participant
                                  &reqlist_entry );
     if ( qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &reqlist_entry ) != E_SUCCESS )
     {
-        // Fail to add entry to ReqList
-        QCRIL_LOG_ERROR(".. failed to Add into Req list");
-        break;
-    }
-
-    qcril_qmi_voice_voip_lock_overview();
-
-    qcril_qmi_voice_voip_call_info_entry_type * call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_first();
-    while ( NULL != call_info_entry )
-    {
-      if ( VOICE_INVALID_CALL_ID != call_info_entry->qmi_call_id &&
-           CALL_STATE_CONVERSATION_V02 == call_info_entry->voice_scv_info.call_state &&
-           ( CALL_TYPE_VOICE_IP_V02 == call_info_entry->voice_scv_info.call_type ||
-             CALL_TYPE_VT_V02 == call_info_entry->voice_scv_info.call_type ) )
-      {
-        break;
-      }
-      call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_next();
-    }
-
-    QCRIL_LOG_INFO(".. call_info_entry %p", call_info_entry );
-    if ( NULL != call_info_entry )
-    {
-      call_id = call_info_entry->voice_scv_info.call_id;
-    }
-
-    qcril_qmi_voice_voip_unlock_overview();
-
-    if (VOICE_INVALID_CALL_ID == call_id)
-    {
+      // Fail to add entry to ReqList
+      QCRIL_LOG_ERROR(".. failed to Add into Req list");
       break;
     }
+
+    qcril_qmi_voice_voip_generate_summary(&calls_summary);
+    QCRIL_LOG_DEBUG("number of calls = %d", calls_summary.nof_calls_overall);
+
+    if (calls_summary.nof_calls_overall == 1)
+    {
+      call_info_entry = calls_summary.active_or_single_call;
+    }
+    else
+    {
+      // Get the call in conversation state if more than one call
+      call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_qmi_call_state(
+                                CALL_STATE_CONVERSATION_V02);
+    }
+
+    QCRIL_LOG_INFO(".. call_info_entry %p", call_info_entry);
+
+    if (!call_info_entry ||
+            (VOICE_INVALID_CALL_ID == call_info_entry->qmi_call_id) ||
+            !(CALL_STATE_CONVERSATION_V02 == call_info_entry->voice_scv_info.call_state ||
+                CALL_STATE_HOLD_V02 == call_info_entry->voice_scv_info.call_state) ||
+            !(CALL_TYPE_VOICE_IP_V02 == call_info_entry->voice_scv_info.call_type ||
+                CALL_TYPE_VT_V02 == call_info_entry->voice_scv_info.call_type))
+    {
+      QCRIL_LOG_ERROR("No valid call info entry");
+      qcril_qmi_voice_voip_call_info_dump(call_info_entry);
+      break;
+    }
+
+    call_id = call_info_entry->voice_scv_info.call_id;
 
     voice_manage_ip_calls_req_msg_v02   manage_voip_calls_req;
     voice_manage_ip_calls_resp_msg_v02 *manage_voip_calls_resp = qcril_malloc( sizeof( *manage_voip_calls_resp ) );
@@ -13991,7 +15702,7 @@ void qcril_qmi_voice_request_add_participant
                                                      sizeof( manage_voip_calls_req ),
                                                      (void*) manage_voip_calls_resp,
                                                      sizeof( *manage_voip_calls_resp ),
-                                                     (void*)user_data );
+                                                     (void*)(uintptr_t)user_data );
 
       ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( qmi_client_error, NULL );
       if ( RIL_E_SUCCESS != ril_req_res )
@@ -14475,9 +16186,7 @@ void qcril_qmi_voice_request_set_supp_svc_notification
 {
   qcril_instance_id_e_type instance_id;
   int *in_data_ptr;
-#ifndef QMI_RIL_UTF
   Ims__SuppSvcStatus *ims_in_data_ptr;
-#endif
   uint32 user_data;
   int supps_notification;
   qcril_request_resp_params_type resp;
@@ -14504,10 +16213,8 @@ void qcril_qmi_voice_request_set_supp_svc_notification
   }
   else
   {
-#ifndef QMI_RIL_UTF
     ims_in_data_ptr = (Ims__SuppSvcStatus *)params_ptr->data;
     supps_notification = (int)ims_in_data_ptr->status;
-#endif
   }
   QCRIL_NOTUSED( ret_ptr );
 
@@ -14560,7 +16267,7 @@ void qcril_qmi_voice_request_set_supp_svc_notification
                                         sizeof(indication_req),
                                         indication_resp_msg_ptr,
                                         sizeof(*indication_resp_msg_ptr),
-                                        (void*)user_data) != E_SUCCESS )
+                                        (void*)(uintptr_t)user_data) != E_SUCCESS )
       {
         /* In case of modem reset, the command callback will never be executed. So, need to
            delete the entry from the ReqList, and call OnRequestComplete() */
@@ -14575,13 +16282,13 @@ void qcril_qmi_voice_request_set_supp_svc_notification
       /* Send QMI VOICE INDICATION REQ */
       indication_req.supps_notification_events_valid = TRUE;
       indication_req.supps_notification_events = 0x00;
-      if ( res = qcril_qmi_client_send_msg_async ( QCRIL_QMI_CLIENT_VOICE,
+      if ( qcril_qmi_client_send_msg_async ( QCRIL_QMI_CLIENT_VOICE,
                                         QMI_VOICE_INDICATION_REGISTER_REQ_V02,
                                         &indication_req,
                                         sizeof(indication_req),
                                         indication_resp_msg_ptr,
                                         sizeof(*indication_resp_msg_ptr),
-                                        (void*)user_data) != E_SUCCESS )
+                                        (void*)(uintptr_t)user_data) != E_SUCCESS )
       {
         /* In case of modem reset, the command callback will never be executed. So, need to
            delete the entry from the ReqList, and call OnRequestComplete() */
@@ -14605,9 +16312,7 @@ void qcril_qmi_voice_request_set_supp_svc_notification
 
   if (QCRIL_EVT_IMS_SOCKET_REQ_SET_SUPP_SVC_NOTIFICATION == params_ptr->event_id)
   {
-#ifndef QMI_RIL_UTF
     qcril_qmi_ims__supp_svc_status__free_unpacked(ims_in_data_ptr, NULL);
-#endif
   }
 
 
@@ -14667,9 +16372,7 @@ void qcril_qmi_voice_request_set_call_forward
   qcril_instance_id_e_type instance_id;
   uint32 user_data;
   qcril_qmi_voice_callforwd_info_param_u_type *in_data_ptr;
-#ifndef QMI_RIL_UTF
   Ims__CallForwardInfoList *ims_in_data_ptr;
-#endif
   qcril_reqlist_public_type reqlist_entry;
   voice_set_sups_service_req_msg_v02 set_sups_cfw_req;
   voice_set_sups_service_resp_msg_v02* set_sups_cfw_resp_ptr = NULL;
@@ -14708,7 +16411,6 @@ void qcril_qmi_voice_request_set_call_forward
     }
     else
     {
-#ifndef QMI_RIL_UTF
         ims_in_data_ptr = (Ims__CallForwardInfoList *)params_ptr->data;
         if( ( NULL == ims_in_data_ptr->info ) || ( NULL == ims_in_data_ptr->info[0] ) )
         {
@@ -14723,7 +16425,6 @@ void qcril_qmi_voice_request_set_call_forward
         toa = ims_in_data_ptr->info[0]->toa;
         number = ims_in_data_ptr->info[0]->number;
         no_reply_timer = ims_in_data_ptr->info[0]->time_seconds;
-#endif
     }
 
     QCRIL_LOG_DEBUG( "SET_CALL_FORWARD status = %d, reason = %d, serviceClass = %d",
@@ -14860,6 +16561,28 @@ void qcril_qmi_voice_request_set_call_forward
       set_sups_cfw_req.timer_value_valid = FALSE;
     }
 
+    if ((params_ptr->event_id == QCRIL_EVT_IMS_SOCKET_REQ_SET_CALL_FORWARD_STATUS) &&
+         (reason == (int) QCRIL_QMI_VOICE_CCFC_REASON_UNCOND))
+    {
+      if (ims_in_data_ptr->info[0]->callfwdtimerstart)
+      {
+        QCRIL_LOG_DEBUG("Valid callFwdTimerStart");
+        set_sups_cfw_req.call_fwd_start_time_valid = TRUE;
+        qcril_qmi_ims_translate_ims_callfwdtimerinfo_to_voice_time_type(
+                ims_in_data_ptr->info[0]->callfwdtimerstart,
+                &(set_sups_cfw_req.call_fwd_start_time));
+      }
+
+      if (ims_in_data_ptr->info[0]->callfwdtimerend)
+      {
+        QCRIL_LOG_DEBUG("Valid callFwdTimerEnd");
+        set_sups_cfw_req.call_fwd_end_time_valid = TRUE;
+        qcril_qmi_ims_translate_ims_callfwdtimerinfo_to_voice_time_type(
+                ims_in_data_ptr->info[0]->callfwdtimerend,
+                &(set_sups_cfw_req.call_fwd_end_time));
+      }
+    }
+
     user_data = QCRIL_COMPOSE_USER_DATA( instance_id, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
     set_sups_cfw_resp_ptr = qcril_malloc( sizeof(*set_sups_cfw_resp_ptr) );
     if( NULL == set_sups_cfw_resp_ptr )
@@ -14875,7 +16598,7 @@ void qcril_qmi_voice_request_set_call_forward
                                       sizeof(set_sups_cfw_req),
                                       set_sups_cfw_resp_ptr,
                                       sizeof(*set_sups_cfw_resp_ptr),
-                                      (void*)user_data) != E_SUCCESS )
+                                      (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
          delete the entry from the ReqList, and call OnRequestComplete() */
@@ -14885,9 +16608,7 @@ void qcril_qmi_voice_request_set_call_forward
 
     if (QCRIL_EVT_IMS_SOCKET_REQ_SET_CALL_FORWARD_STATUS == params_ptr->event_id)
     {
-#ifndef QMI_RIL_UTF
       qcril_qmi_ims__call_forward_info_list__free_unpacked(ims_in_data_ptr, NULL);
-#endif
     }
   }while(0);
 } /* qcril_qmi_voice_request_set_call_forward() */
@@ -15064,7 +16785,7 @@ static void qcril_qmi_voice_request_set_supp_svc
                                           sizeof(set_sups_cb_req),
                                           set_sups_cb_resp_ptr,
                                           sizeof(*set_sups_cb_resp_ptr),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of modem reset, the command callback will never be executed. So, need to
       delete the entry from the ReqList, and call OnRequestComplete() */
@@ -15288,7 +17009,7 @@ void qcril_qmi_voice_request_set_facility_lock
                                         sizeof(set_sups_cb_req),
                                         set_sups_cb_resp_ptr,
                                         sizeof(*set_sups_cb_resp_ptr),
-                                        (void*)user_data) != E_SUCCESS )
+                                        (void*)(uintptr_t)user_data) != E_SUCCESS )
 {
   /* In case of ARM9 reset, the command callback will never be executed. So, need to
    delete the entry from the ReqList, and call OnRequestComplete() */
@@ -15323,9 +17044,7 @@ void qcril_qmi_voice_request_set_call_waiting
   qcril_instance_id_e_type instance_id;
   uint32 user_data;
   int *in_data_ptr;
-#ifndef QMI_RIL_UTF
   Ims__CallWaitingInfo *ims_in_data_ptr;
-#endif
   unsigned int in_data_len;
   int  status, service_class, return_back = 0;
   qcril_reqlist_public_type reqlist_entry;
@@ -15358,7 +17077,6 @@ void qcril_qmi_voice_request_set_call_waiting
     }
     else
     {
-#ifndef QMI_RIL_UTF
       ims_in_data_ptr = (Ims__CallWaitingInfo *)params_ptr->data;
       status = ims_in_data_ptr->service_status;
       if (ims_in_data_ptr->service_class)
@@ -15373,7 +17091,6 @@ void qcril_qmi_voice_request_set_call_waiting
       QCRIL_LOG_INFO( "IMS_REQUEST_SET_CALL_WAITING status = %d, service_class = %d", status, service_class );
 
       qcril_qmi_ims__call_waiting_info__free_unpacked(ims_in_data_ptr, NULL);
-#endif
     }
 
     memset(&set_sups_cw_req, 0, sizeof(set_sups_cw_req));
@@ -15439,7 +17156,7 @@ void qcril_qmi_voice_request_set_call_waiting
                                           sizeof(set_sups_cw_req),
                                           set_sups_cw_resp_ptr,
                                           sizeof(*set_sups_cw_resp_ptr),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -15511,7 +17228,7 @@ void qcril_qmi_voice_request_query_clip
                                           0,
                                           get_clip_resp_ptr,
                                           sizeof(*get_clip_resp_ptr),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -15593,7 +17310,7 @@ static void qcril_qmi_voice_request_query_colp
                                           0,
                                           get_colp_resp_ptr,
                                           sizeof(*get_colp_resp_ptr),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of modem reset, command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -15673,7 +17390,7 @@ void qcril_qmi_voice_request_get_clir
                                            0,
                                            get_clir_resp_ptr,
                                            sizeof(*get_clir_resp_ptr),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
           delete the entry from the ReqList, and call OnRequestComplete() */
@@ -15716,9 +17433,7 @@ void qcril_qmi_voice_request_query_call_waiting
   qcril_instance_id_e_type instance_id;
   uint32 user_data;
   int service_class;
-#ifndef QMI_RIL_UTF
   Ims__ServiceClass *ims_data_ptr;
-#endif
   qcril_reqlist_public_type reqlist_entry;
   voice_get_call_waiting_req_msg_v02 get_cw_req;
   voice_get_call_waiting_resp_msg_v02* get_cw_resp_ptr = NULL;
@@ -15738,11 +17453,9 @@ void qcril_qmi_voice_request_query_call_waiting
     }
     else
     {
-#ifndef QMI_RIL_UTF
       ims_data_ptr = (Ims__ServiceClass*) params_ptr->data;
       service_class = ims_data_ptr->service_class;
       qcril_qmi_ims__service_class__free_unpacked(ims_data_ptr, NULL);
-#endif
     }
     /* Though we are checking for service class it is ignored in case of invalid
        class here as service class is not required for interrogation, only if
@@ -15787,7 +17500,7 @@ void qcril_qmi_voice_request_query_call_waiting
                                           sizeof(get_cw_req),
                                           get_cw_resp_ptr,
                                           sizeof(*get_cw_resp_ptr),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -15911,7 +17624,7 @@ void qcril_qmi_voice_request_change_barring_password
                                            sizeof(change_cb_pwd_req),
                                            change_cb_pwd_resp_ptr,
                                            sizeof(*change_cb_pwd_resp_ptr),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
           delete the entry from the ReqList, and call OnRequestComplete() */
@@ -16168,7 +17881,7 @@ void qcril_qmi_voice_request_query_facility_lock
                                            sizeof(get_cb_req),
                                            get_cb_resp_ptr,
                                            sizeof(*get_cb_resp_ptr),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -16210,11 +17923,10 @@ void qcril_qmi_voice_request_set_clir
 {
   qcril_instance_id_e_type instance_id;
   int *in_data_ptr;
-#ifndef QMI_RIL_UTF
   Ims__Clir *ims_in_data_ptr;
-#endif
   uint8  clir_n_param;
   char args[ PROPERTY_VALUE_MAX ];
+  char property_name[ 40 ];
 
   /*-----------------------------------------------------------------------*/
   instance_id = QCRIL_DEFAULT_INSTANCE_ID;
@@ -16238,11 +17950,9 @@ void qcril_qmi_voice_request_set_clir
     }
     else
     {
-#ifndef QMI_RIL_UTF
       ims_in_data_ptr = (Ims__Clir *)params_ptr->data;
       clir_n_param = (uint8) ims_in_data_ptr->param_n; /* 27.007, section 7.8 */
       qcril_qmi_ims__clir__free_unpacked(ims_in_data_ptr, NULL);
-#endif
     }
 
     QCRIL_LOG_DEBUG( "RIL_REQUEST_SET_CLIR input = %d", clir_n_param);
@@ -16251,30 +17961,18 @@ void qcril_qmi_voice_request_set_clir
          ( clir_n_param == (uint8) QCRIL_QMI_VOICE_SS_CLIR_INVOCATION_OPTION ) ||
          ( clir_n_param == (uint8) QCRIL_QMI_VOICE_SS_CLIR_SUPPRESSION_OPTION ) )
     {
-      if (RIL_REQUEST_SET_CLIR == params_ptr->event_id)
-      {
-        qcril_qmi_voice_info.clir = clir_n_param;
+      qcril_qmi_voice_info.clir = clir_n_param;
 
-        /* Save CLIR setting to system property */
-        QCRIL_SNPRINTF( args, sizeof(args), "%d", (int) qcril_qmi_voice_info.clir);
-        if ( property_set( QCRIL_QMI_VOICE_CLIR, args ) != E_SUCCESS )
-        {
-          QCRIL_LOG_ERROR( "Fail to save %s to system property", QCRIL_QMI_VOICE_CLIR );
-        }
-        QCRIL_LOG_DEBUG( "SET CLIR=%d", qcril_qmi_voice_info.clir );
-      }
-      else
-      {
-        qcril_qmi_voice_info.ims_clir = clir_n_param;
+      /* Save CLIR setting to system property */
+      QCRIL_SNPRINTF( args, sizeof(args), "%d", (int) qcril_qmi_voice_info.clir );
 
-        /* Save CLIR setting to system property */
-        QCRIL_SNPRINTF( args, sizeof(args), "%d", (int) qcril_qmi_voice_info.ims_clir);
-        if ( property_set( QCRIL_QMI_VOICE_IMS_CLIR, args ) != E_SUCCESS )
-        {
-          QCRIL_LOG_ERROR( "Fail to save %s to system property", QCRIL_QMI_VOICE_IMS_CLIR );
-        }
-        QCRIL_LOG_DEBUG( "SET IMS CLIR=%d", qcril_qmi_voice_info.ims_clir );
+      QCRIL_SNPRINTF( property_name, sizeof(property_name), "%s%d",
+                      QCRIL_QMI_VOICE_CLIR, qmi_ril_get_process_instance_id() );
+      if ( property_set( property_name, args ) != E_SUCCESS )
+      {
+        QCRIL_LOG_ERROR( "Fail to save %s to system property", property_name );
       }
+      QCRIL_LOG_DEBUG( "SET CLIR=%d", qcril_qmi_voice_info.clir );
 
       /* sending confirmation as we just need to store the request,
          and use it only when call is initiated */
@@ -16320,9 +18018,7 @@ void qcril_qmi_voice_request_query_call_forward_status
   qcril_instance_id_e_type instance_id;
   uint32 user_data;
   RIL_CallForwardInfo *info = NULL;
-#ifndef QMI_RIL_UTF
   Ims__CallForwardInfoList* ims_info = NULL;
-#endif
   int reason;
   int service_class;
   qcril_reqlist_public_type reqlist_entry;
@@ -16352,7 +18048,6 @@ void qcril_qmi_voice_request_query_call_forward_status
       }
       else
       {
-#ifndef QMI_RIL_UTF
          // translate
          ims_info = ( Ims__CallForwardInfoList * )( params_ptr->data );
          if( ( NULL == ims_info->info ) || ( NULL == ims_info->info[0] ) )
@@ -16364,7 +18059,6 @@ void qcril_qmi_voice_request_query_call_forward_status
          reason = ims_info->info[0]->reason;
          service_class = ims_info->info[0]->service_class;
          qcril_qmi_ims__call_forward_info_list__free_unpacked(ims_info, NULL);
-#endif
       }
 
       memset(&query_cf_req,0,sizeof(query_cf_req));
@@ -16457,7 +18151,7 @@ void qcril_qmi_voice_request_query_call_forward_status
                                               sizeof(query_cf_req),
                                               query_cf_resp_ptr,
                                               sizeof(*query_cf_resp_ptr),
-                                              (void*)user_data) != E_SUCCESS )
+                                              (void*)(uintptr_t)user_data) != E_SUCCESS )
       {
         /* In case of ARM9 reset, the command callback will never be executed. So, need to
          delete the entry from the ReqList, and call OnRequestComplete() */
@@ -16605,7 +18299,7 @@ void qcril_qmi_voice_supsvc_request_send_ussd
                                            sizeof(orig_ussd_req),
                                            orig_ussd_resp_ptr,
                                            sizeof(*orig_ussd_resp_ptr),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -16632,7 +18326,7 @@ void qcril_qmi_voice_supsvc_request_send_ussd
                                            sizeof(answer_ussd_req),
                                            answer_ussd_resp_ptr,
                                            sizeof(*answer_ussd_resp_ptr),
-                                           (void*)user_data) != E_SUCCESS )
+                                           (void*)(uintptr_t)user_data) != E_SUCCESS )
     {
       /* In case of ARM9 reset, the command callback will never be executed. So, need to
        delete the entry from the ReqList, and call OnRequestComplete() */
@@ -16713,7 +18407,7 @@ void qcril_qmi_voice_supsvc_request_cancel_ussd
                                         0,
                                         cancel_ussd_resp_ptr,
                                         sizeof(*cancel_ussd_resp_ptr),
-                                        (void*)user_data) != E_SUCCESS )
+                                        (void*)(uintptr_t)user_data) != E_SUCCESS )
   {
     /* In case of ARM9 reset, the command callback will never be executed. So, need to
      delete the entry from the ReqList, and call OnRequestComplete() */
@@ -16767,9 +18461,10 @@ void qcril_qmi_voice_stk_cc_relay_alpha_if_necessary(qcril_instance_id_e_type in
       switch ( stk_cc_info.alpha_ident.alpha_dcs )
       {
         case ALPHA_DCS_GSM_V02:
-          qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (char*) stk_cc_info.alpha_ident.alpha_text,
-                                                            stk_cc_info.alpha_ident.alpha_text_len,
-                                                            buf_str );
+           if(stk_cc_info.alpha_ident.alpha_text_len < QMI_VOICE_ALPHA_TEXT_MAX_V02)
+               qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8( (char*) stk_cc_info.alpha_ident.alpha_text,
+                                                                stk_cc_info.alpha_ident.alpha_text_len,
+                                                                buf_str );
           break;
 
         case ALPHA_DCS_UCS2_V02:
@@ -16908,11 +18603,14 @@ void qcril_qmi_voice_stk_cc_handle_voice_sups_ind(voice_sups_ind_msg_v02* sups_i
 
          memset( ussd_utf8_str, '\0', sizeof( ussd_utf8_str ) );
          memset( type_code, '\0', sizeof( type_code ) );
-         memset( response_buff, (int) NULL, sizeof( response_buff ) );
+         memset( response_buff, 0, sizeof( response_buff ) );
 
          success = FALSE;
 
-         if ( sups_ind_msg->uss_info_valid || sups_ind_msg->uss_info_utf16_valid )
+         if ( ( sups_ind_msg->uss_info_valid || sups_ind_msg->uss_info_utf16_valid ) &&
+              !( sups_ind_msg->alpha_ident_valid &&
+              ( QCRIL_QMI_VOICE_ALPHA_LENGTH_IN_NULL_CASE == sups_ind_msg->alpha_ident.alpha_text_len ) )
+            )
          {
             if ( sups_ind_msg->uss_info_utf16_valid ) // using uss_info_utf16 instead of uss_info if it is available
             {
@@ -17036,157 +18734,161 @@ void qcril_qmi_voice_stk_cc_handle_voice_sups_ind(voice_sups_ind_msg_v02* sups_i
        }
        else
        {  // -- SS case -- start
-         QCRIL_LOG_INFO( ".. ss case" );
-         QCRIL_LOG_INFO( ".. ss reason %d, %d", (int) sups_ind_msg->reason_valid, (int) sups_ind_msg->reason );
-         QCRIL_LOG_INFO( ".. ss service class %d, %d", (int) sups_ind_msg->service_class_valid, (int) sups_ind_msg->service_class );
-
-         // service type
-         ss_request_type_available = TRUE;
-         switch (sups_ind_msg->supplementary_service_info.service_type)
+         if( !( sups_ind_msg->alpha_ident_valid &&
+            ( QCRIL_QMI_VOICE_ALPHA_LENGTH_IN_NULL_CASE == sups_ind_msg->alpha_ident.alpha_text_len ) )
+           )
          {
-           case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_ACTIVATE_V02:
-             ss_request_type = SS_ACTIVATION;
-             break;
+           QCRIL_LOG_INFO( ".. ss case" );
+           QCRIL_LOG_INFO( ".. ss reason %d, %d", (int) sups_ind_msg->reason_valid, (int) sups_ind_msg->reason );
+           QCRIL_LOG_INFO( ".. ss service class %d, %d", (int) sups_ind_msg->service_class_valid, (int) sups_ind_msg->service_class );
 
-           case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_DEACTIVATE_V02:
-             ss_request_type = SS_DEACTIVATION;
-             break;
-
-           case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_REGISTER_V02:
-             ss_request_type = SS_REGISTRATION;
-             break;
-
-           case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_ERASE_V02:
-             ss_request_type = SS_ERASURE;
-             break;
-
-           case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_INTERROGATE_V02:
-             ss_request_type = SS_INTERROGATION;
-             break;
-
-           // qmi_todo: why VOICE_CC_SUPS_RESULT_SERVICE_TYPE_REGISTER_PASSWORD_V02 ??
-
-           default:
-             ss_request_type_available = FALSE;
-             ss_request_type = SS_ERASURE; // some default value as we may refer to this value for logging
-             break;
-         }
-         QCRIL_LOG_INFO( ".. ss_request_type %d, %d", (int) ss_request_type_available, (int) ss_request_type );
-
-         // request type
-         if ( sups_ind_msg->reason_valid )
-         {
-           ss_service_type_available = TRUE;
-           switch ( sups_ind_msg->reason )
+           // service type
+           ss_request_type_available = TRUE;
+           switch (sups_ind_msg->supplementary_service_info.service_type)
            {
-             case VOICE_SUPS_IND_REASON_FWD_UNCONDITIONAL_V02:
-               ss_service_type = SS_CFU;
-               break;
+            case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_ACTIVATE_V02:
+              ss_request_type = SS_ACTIVATION;
+              break;
 
-             case VOICE_SUPS_IND_REASON_FWD_MOBILEBUSY_V02:
-               ss_service_type = SS_CF_BUSY;
-               break;
+            case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_DEACTIVATE_V02:
+              ss_request_type = SS_DEACTIVATION;
+              break;
 
-             case VOICE_SUPS_IND_REASON_FWD_NOREPLY_V02:
-               ss_service_type = SS_CF_NO_REPLY;
-               break;
+            case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_REGISTER_V02:
+              ss_request_type = SS_REGISTRATION;
+              break;
 
-             case VOICE_SUPS_IND_REASON_FWD_UNREACHABLE_V02:
-               ss_service_type = SS_CF_NOT_REACHABLE;
-               break;
+            case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_ERASE_V02:
+              ss_request_type = SS_ERASURE;
+              break;
 
-             case VOICE_SUPS_IND_REASON_FWD_ALLFORWARDING_V02:
-               ss_service_type = SS_CF_ALL;
-               break;
+            case VOICE_CC_SUPS_RESULT_SERVICE_TYPE_INTERROGATE_V02:
+              ss_request_type = SS_INTERROGATION;
+              break;
 
-             case VOICE_SUPS_IND_REASON_FWD_ALLCONDITIONAL_V02:
-               ss_service_type = SS_CF_ALL_CONDITIONAL;
-               break;
+            // qmi_todo: why VOICE_CC_SUPS_RESULT_SERVICE_TYPE_REGISTER_PASSWORD_V02 ??
 
-             case VOICE_SUPS_IND_REASON_BARR_ALLOUTGOING_V02:
-               ss_service_type = SS_BAOC;
-               break;
-
-             case VOICE_SUPS_IND_REASON_BARR_OUTGOINGINT_V02:
-               ss_service_type = SS_BAOIC;
-               break;
-
-             case VOICE_SUPS_IND_REASON_BARR_OUTGOINGINTEXTOHOME_V02:
-               ss_service_type = SS_BAOIC_EXC_HOME;
-               break;
-
-             case VOICE_SUPS_IND_REASON_BARR_ALLINCOMING_V02:
-               ss_service_type = SS_BAIC;
-               break;
-
-             case VOICE_SUPS_IND_REASON_BARR_INCOMINGROAMING_V02:
-               ss_service_type = SS_BAIC_ROAMING;
-               break;
-
-             case VOICE_SUPS_IND_REASON_BARR_ALLBARRING_V02:
-               ss_service_type = SS_ALL_BARRING;
-               break;
-
-             case VOICE_SUPS_IND_REASON_BARR_ALLOUTGOINGBARRING_V02:
-               ss_service_type = SS_OUTGOING_BARRING;
-               break;
-
-             case VOICE_SUPS_IND_REASON_BARR_ALLINCOMINGBARRING_V02:
-               ss_service_type = SS_INCOMING_BARRING;
-               break;
-
-             case VOICE_SUPS_IND_REASON_CALLWAITING_V02:
-               ss_service_type = SS_WAIT;
-               break;
-
-             case VOICE_SUPS_IND_REASON_CLIP_V02:
-               ss_service_type = SS_CLIP;
-               break;
-
-             case VOICE_SUPS_IND_REASON_CLIR_V02:
-               ss_service_type = SS_CLIR;
-               break;
-
-             // qmi_todo: missing COLP and COLR in QMI Voice
-
-             default:
-               ss_service_type_available = FALSE;
-               ss_service_type = SS_CFU; // some default value as we may refer to this value for logging
-               break;
+            default:
+              ss_request_type_available = FALSE;
+              ss_request_type = SS_ERASURE; // some default value as we may refer to this value for logging
+              break;
            }
-         }
-         else
-         {
-           ss_service_type_available = FALSE;
-           ss_service_type = SS_CFU; // some default value as we may refer to this value for logging
-         }
-         QCRIL_LOG_INFO( ".. ss_service_type %d, %d", (int) ss_service_type_available, (int) ss_service_type );
+           QCRIL_LOG_INFO( ".. ss_request_type %d, %d", (int) ss_request_type_available, (int) ss_request_type );
 
-         // teleservice type
-         ss_service_class_available = TRUE;
-         if ( sups_ind_msg->service_class_valid )
-         {
-           ss_service_class_available = TRUE;
-           ss_service_class = sups_ind_msg->service_class;
-         }
-         else
-         {
-           ss_service_class_available = FALSE;
-           ss_service_class           = 0; // per ril.h - 0 means user doesn't input class
-         }
-         QCRIL_LOG_INFO( ".. ss_service_class %d, %d", (int) ss_service_class_available, (int) ss_service_class );
-
-         // build response
-         success = FALSE;
-         memset( &ril_ss_response, 0, sizeof( ril_ss_response ) );
-         ril_ss_response.serviceType = ss_service_type;
-         ril_ss_response.requestType = ss_request_type;
-         ril_ss_response.serviceClass = ss_service_class;
-
-         if ( ss_request_type_available )
-         {
-           switch ( ss_request_type )
+           // request type
+           if ( sups_ind_msg->reason_valid )
            {
+            ss_service_type_available = TRUE;
+            switch ( sups_ind_msg->reason )
+            {
+                case VOICE_SUPS_IND_REASON_FWD_UNCONDITIONAL_V02:
+                  ss_service_type = SS_CFU;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_FWD_MOBILEBUSY_V02:
+                  ss_service_type = SS_CF_BUSY;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_FWD_NOREPLY_V02:
+                  ss_service_type = SS_CF_NO_REPLY;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_FWD_UNREACHABLE_V02:
+                  ss_service_type = SS_CF_NOT_REACHABLE;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_FWD_ALLFORWARDING_V02:
+                  ss_service_type = SS_CF_ALL;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_FWD_ALLCONDITIONAL_V02:
+                  ss_service_type = SS_CF_ALL_CONDITIONAL;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_ALLOUTGOING_V02:
+                  ss_service_type = SS_BAOC;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_OUTGOINGINT_V02:
+                  ss_service_type = SS_BAOIC;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_OUTGOINGINTEXTOHOME_V02:
+                  ss_service_type = SS_BAOIC_EXC_HOME;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_ALLINCOMING_V02:
+                  ss_service_type = SS_BAIC;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_INCOMINGROAMING_V02:
+                  ss_service_type = SS_BAIC_ROAMING;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_ALLBARRING_V02:
+                  ss_service_type = SS_ALL_BARRING;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_ALLOUTGOINGBARRING_V02:
+                  ss_service_type = SS_OUTGOING_BARRING;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_BARR_ALLINCOMINGBARRING_V02:
+                  ss_service_type = SS_INCOMING_BARRING;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_CALLWAITING_V02:
+                  ss_service_type = SS_WAIT;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_CLIP_V02:
+                  ss_service_type = SS_CLIP;
+                  break;
+
+                case VOICE_SUPS_IND_REASON_CLIR_V02:
+                  ss_service_type = SS_CLIR;
+                  break;
+
+                // qmi_todo: missing COLP and COLR in QMI Voice
+
+                default:
+                  ss_service_type_available = FALSE;
+                  ss_service_type = SS_CFU; // some default value as we may refer to this value for logging
+                  break;
+            }
+          }
+          else
+          {
+            ss_service_type_available = FALSE;
+            ss_service_type = SS_CFU; // some default value as we may refer to this value for logging
+          }
+          QCRIL_LOG_INFO( ".. ss_service_type %d, %d", (int) ss_service_type_available, (int) ss_service_type );
+
+          // teleservice type
+          ss_service_class_available = TRUE;
+          if ( sups_ind_msg->service_class_valid )
+          {
+            ss_service_class_available = TRUE;
+            ss_service_class = sups_ind_msg->service_class;
+          }
+          else
+          {
+            ss_service_class_available = FALSE;
+            ss_service_class           = 0; // per ril.h - 0 means user doesn't input class
+          }
+          QCRIL_LOG_INFO( ".. ss_service_class %d, %d", (int) ss_service_class_available, (int) ss_service_class );
+
+          // build response
+          success = FALSE;
+          memset( &ril_ss_response, 0, sizeof( ril_ss_response ) );
+          ril_ss_response.serviceType = ss_service_type;
+          ril_ss_response.requestType = ss_request_type;
+          ril_ss_response.serviceClass = ss_service_class;
+
+          if ( ss_request_type_available )
+          {
+            switch ( ss_request_type )
+            {
              case SS_ACTIVATION:
              case SS_DEACTIVATION:
              case SS_REGISTRATION:
@@ -17374,21 +19076,21 @@ void qcril_qmi_voice_stk_cc_handle_voice_sups_ind(voice_sups_ind_msg_v02* sups_i
                // -- INTERROGATION - end
                break;
 
-             default:
-               break;
+               default:
+                 break;
+             }
+           }
+           else
+           {  // unknown request type
+             // qmi_todo: handle
            }
          }
-         else
-         {  // unknown request type
-            // qmi_todo: handle
-         }
-
-         qcril_default_unsol_resp_params( QCRIL_DEFAULT_INSTANCE_ID, (int) RIL_UNSOL_ON_SS, &unsol_resp );
-         unsol_resp.resp_pkt = (void *) &ril_ss_response;
-         unsol_resp.resp_len = sizeof( ril_ss_response );
-         qcril_send_unsol_response( &unsol_resp );
-         // -- SS case -- end
-       }
+           qcril_default_unsol_resp_params( QCRIL_DEFAULT_INSTANCE_ID, (int) RIL_UNSOL_ON_SS, &unsol_resp );
+           unsol_resp.resp_pkt = (void *) &ril_ss_response;
+           unsol_resp.resp_len = sizeof( ril_ss_response );
+           qcril_send_unsol_response( &unsol_resp );
+           // -- SS case -- end
+        }
      }
 
      if ( ( ( sups_ind_msg->data_source_valid  && sups_ind_msg->data_source == VOICE_SUPS_DATA_SOURCE_MS_V02) || !sups_ind_msg->data_source_valid ) &&
@@ -17594,7 +19296,8 @@ int qcril_qmi_voice_stk_ss_resp_handle( const qcril_request_params_type *const p
 
   qmi_ril_err_ctx_ss_resp_data_type ss_op_info;
 
-  QCRIL_LOG_INFO( "cidv %d, ccrv %d, ccr %d", (int)call_id_valid, (int)cc_sups_result_valid, (int)cc_sups_result );
+  QCRIL_LOG_INFO( "cidv %d, ccrv %d, ccr %p", (int)call_id_valid, (int)cc_sups_result_valid, cc_sups_result );
+  QCRIL_NOTUSED(extra_info);
 
   memset( &ss_op_info, 0, sizeof( ss_op_info ));
   ss_op_info.cc_sups_result_valid = cc_sups_result_valid;
@@ -17609,7 +19312,7 @@ int qcril_qmi_voice_stk_ss_resp_handle( const qcril_request_params_type *const p
   QCRIL_LOG_INFO("STK SS RESP : ril_err=%d, result=%d, error=%d", ril_err,resp->result, resp->error);
 
 
-  switch ( ril_err )
+  switch ( (int)ril_err )
   {
     case RIL_E_SS_MODIFIED_TO_DIAL:
       stk_cc_modification  = QCRIL_QMI_VOICE_STK_CC_MODIFICATION_SS_TO_DIAL;
@@ -17751,51 +19454,79 @@ void qcril_qmi_voice_request_set_tty_mode
 )
 {
   uint8 i;
-  int *tty_mode_ptr;
+  int *tty_mode_ptr = NULL;
   RIL_Errno   ril_req_res = RIL_E_GENERIC_FAILURE;
 
   tty_mode_enum_v02 qmi_tty_val;
 
   voice_set_config_req_msg_v02  qmi_request;
-  voice_set_config_resp_msg_v02 qmi_response = {0};
+  voice_set_config_resp_msg_v02 qmi_response;
 
   qcril_request_resp_params_type resp;
+  Ims__TtyNotify *ims_tty_notify = NULL;
+  uint8_t outcome_valid = 0;
+  uint8_t outcome = 0;
 
   QCRIL_LOG_FUNC_ENTRY();
 
-
-
-  tty_mode_ptr = ( int * )params_ptr->data;
-
   QCRIL_NOTUSED( ret_ptr );
 
-  if ( params_ptr->datalen > 0 && tty_mode_ptr != NULL && (*tty_mode_ptr) >= QCRIL_CM_TTY_MODE_MIN && (*tty_mode_ptr) <= QCRIL_CM_TTY_MODE_MAX )
+  do
   {
-    switch ( *tty_mode_ptr )
+    if ( params_ptr->datalen <= 0 || params_ptr->data == NULL )
     {
-      case QCRIL_CM_TTY_MODE_FULL:
-        qmi_tty_val = TTY_MODE_FULL_V02;
-        break;
-
-      case QCRIL_CM_TTY_MODE_HCO:
-        qmi_tty_val = TTY_MODE_HCO_V02;
-        break;
-
-      case QCRIL_CM_TTY_MODE_VCO:
-        qmi_tty_val = TTY_MODE_VCO_V02;
-        break;
-
-      case QCRIL_CM_TTY_MODE_OFF:   // fallthrough
-      default:
-        qmi_tty_val = TTY_MODE_OFF_V02;
-        break;
+      QCRIL_LOG_INFO("Invalid data received\n");
+      break;
     }
 
-    QCRIL_LOG_INFO(".. tty val  %d", (int)qmi_tty_val );
-
+    memset(&qmi_response, 0, sizeof(qmi_response));
     memset( &qmi_request, 0, sizeof( qmi_request ) );
-    qmi_request.tty_mode_valid = TRUE;
-    qmi_request.tty_mode = qmi_tty_val;
+
+    if ( RIL_REQUEST_SET_TTY_MODE == params_ptr->event_id )
+    {
+      tty_mode_ptr = ( int * )params_ptr->data;
+      if ((*tty_mode_ptr) < QCRIL_CM_TTY_MODE_MIN || (*tty_mode_ptr) > QCRIL_CM_TTY_MODE_MAX )
+      {
+        QCRIL_LOG_INFO("Invalid tty mode (%d) received\n", *tty_mode_ptr);
+        break;
+      }
+      switch ( *tty_mode_ptr )
+      {
+        case QCRIL_CM_TTY_MODE_FULL:
+          qmi_tty_val = TTY_MODE_FULL_V02;
+          break;
+
+        case QCRIL_CM_TTY_MODE_HCO:
+          qmi_tty_val = TTY_MODE_HCO_V02;
+          break;
+
+        case QCRIL_CM_TTY_MODE_VCO:
+          qmi_tty_val = TTY_MODE_VCO_V02;
+          break;
+
+        case QCRIL_CM_TTY_MODE_OFF:   // fallthrough
+        default:
+          qmi_tty_val = TTY_MODE_OFF_V02;
+          break;
+      }
+      QCRIL_LOG_INFO(".. tty val  %d", (int)qmi_tty_val);
+
+      qmi_request.tty_mode_valid = TRUE;
+      qmi_request.tty_mode = qmi_tty_val;
+    }
+    else
+    {
+      ims_tty_notify = (Ims__TtyNotify *)params_ptr->data;
+      if (!qcril_qmi_ims_translate_ims_ttymodetype_to_qmi_tty_mode(ims_tty_notify->mode,
+                  &qmi_tty_val))
+      {
+        QCRIL_LOG_INFO("Invalid ui tty mode(%d) received\n", ims_tty_notify->mode);
+         break;
+      }
+      QCRIL_LOG_INFO(".. tty setting  %d", (int)qmi_tty_val);
+      qmi_request.ui_tty_setting_valid = TRUE;
+      qmi_request.ui_tty_setting = qmi_tty_val;
+    }
 
     ril_req_res =  qcril_qmi_client_send_msg_sync_ex( QCRIL_QMI_CLIENT_VOICE,
                                                        QMI_VOICE_SET_CONFIG_REQ_V02,
@@ -17810,16 +19541,26 @@ void qcril_qmi_voice_request_set_tty_mode
 
     if ( RIL_E_SUCCESS == ril_req_res )
     {
-      QCRIL_LOG_INFO(".. outcome  %d, %d", (int)qmi_response.tty_mode_outcome_valid, (int)qmi_response.tty_mode_outcome );
-      if ( qmi_response.tty_mode_outcome_valid && 0x00 != qmi_response.tty_mode_outcome ) // 0x00: Information written successfully per QMI Voice
+      if ( qmi_request.tty_mode_valid )
+      {
+        outcome_valid = qmi_response.tty_mode_outcome_valid;
+        outcome = qmi_response.tty_mode_outcome;
+      }
+      else if ( qmi_request.ui_tty_setting_valid )
+      {
+        outcome_valid = qmi_response.ui_tty_setting_outcome_valid;
+        outcome = qmi_response.ui_tty_setting_outcome;
+      }
+      QCRIL_LOG_INFO(".. outcome  %d, %d", (int)outcome_valid, (int)outcome );
+      if ( outcome_valid && 0x00 != outcome )// 0x00: Information written successfully per QMI Voice
       {
         ril_req_res = RIL_E_GENERIC_FAILURE;
       }
     }
-  }
+  } while (FALSE);
 
-  qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, ril_req_res, &resp );
-  qcril_send_request_response( &resp );
+  qcril_send_empty_payload_request_response(QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t,
+          params_ptr->event_id, ril_req_res);
 
   QCRIL_LOG_FUNC_RETURN_WITH_RET(ril_req_res);
 
@@ -17942,7 +19683,11 @@ void qcril_qmi_voice_waiting_call_handler
 //===========================================================================
 // qcril_qmi_voice_voip_call_info_entry_type
 //===========================================================================
-qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_create_call_info_entry( uint8_t call_qmi_id, int need_allocate_call_android_id, qcril_qmi_voice_voip_call_info_elaboration_type initial_elaboration )
+qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_create_call_info_entry(
+        uint8_t call_qmi_id,
+        int32_t call_media_id,
+        int need_allocate_call_android_id,
+        qcril_qmi_voice_voip_call_info_elaboration_type initial_elaboration )
 {
   uint8_t call_android_id = VOICE_INVALID_CALL_ID;
   qcril_qmi_voice_voip_call_info_entry_type* res = qcril_malloc( sizeof( *res ) );
@@ -17969,6 +19714,8 @@ qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_create_call_info
 
       res->qmi_call_id = call_qmi_id;
 
+      res->media_id = call_media_id;
+
       res->next = qmi_voice_voip_overview.call_info_root;
       qmi_voice_voip_overview.call_info_root = res;
 
@@ -17982,7 +19729,8 @@ qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_create_call_info
     }
   }
 
-  QCRIL_LOG_INFO( "returning entry %d, call android id %d", (int)res, (int) call_android_id );
+  QCRIL_LOG_ESSENTIAL("Created call info entry %p with call android id %d, qmi id %d, media id %d",
+                        res, (int) call_android_id, call_qmi_id, call_media_id);
 
   return res;
 } // qcril_qmi_voice_voip_call_info_entry_type
@@ -17999,7 +19747,7 @@ void qcril_qmi_voice_voip_destroy_call_info_entry( qcril_qmi_voice_voip_call_inf
 
   QCRIL_LOG_FUNC_ENTRY();
 
-  QCRIL_LOG_INFO(  ".. entry %d", (int)entry );
+  QCRIL_LOG_INFO(  ".. entry %p", entry );
 
   if ( entry )
   {
@@ -18040,13 +19788,14 @@ void qcril_qmi_voice_voip_destroy_call_info_entry( qcril_qmi_voice_voip_call_inf
       // destroy
       if ( !(entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_GOLDEN) )
       {
+        //TODO: need to remove this when the call list is removed.
         // release the VoIP mpty calls
         iter = entry->mpty_voip_call_list;
         while( iter != NULL )
         {
            temp = iter;
            iter = iter->mpty_voip_call_list;
-           QCRIL_LOG_INFO("free mpty_voip_call_list entry: %d", (int)temp);
+           QCRIL_LOG_INFO("free mpty_voip_call_list entry: %p", temp);
            qcril_free(temp);
         }
 
@@ -18059,7 +19808,13 @@ void qcril_qmi_voice_voip_destroy_call_info_entry( qcril_qmi_voice_voip_call_inf
         // detroy phaseout timer if needed
         if ( QMI_RIL_ZERO != entry->call_obj_phase_out_timer_id )
         {
-          qcril_cancel_timed_callback( (void*)entry->call_obj_phase_out_timer_id );
+          qcril_cancel_timed_callback( (void*)(uintptr_t)entry->call_obj_phase_out_timer_id );
+        }
+
+        // destroy additional call info buffer
+        if( entry->additional_call_info.buffer )
+        {
+          qcril_free(entry->additional_call_info.buffer);
         }
 
         qcril_free( entry );
@@ -18073,6 +19828,7 @@ void qcril_qmi_voice_voip_destroy_call_info_entry( qcril_qmi_voice_voip_call_inf
 //===========================================================================
 // qcril_qmi_voice_voip_destroy_mpty_call_info_entry
 //===========================================================================
+//TODO: Remove the function when call list is removed.
 void qcril_qmi_voice_voip_destroy_mpty_call_info_entry( qcril_qmi_voice_voip_call_info_entry_type* entry )
 {
   qcril_qmi_voice_voip_call_info_entry_type* iter = NULL;
@@ -18082,7 +19838,7 @@ void qcril_qmi_voice_voip_destroy_mpty_call_info_entry( qcril_qmi_voice_voip_cal
 
   QCRIL_LOG_FUNC_ENTRY();
 
-  QCRIL_LOG_INFO(  ".. entry %d", (int)entry );
+  QCRIL_LOG_INFO(  ".. entry %p", entry );
 
   if ( entry )
   {
@@ -18116,7 +19872,7 @@ void qcril_qmi_voice_voip_destroy_mpty_call_info_entry( qcril_qmi_voice_voip_cal
         // detroy phaseout timer if needed
         if ( QMI_RIL_ZERO != entry->call_obj_phase_out_timer_id )
         {
-          qcril_cancel_timed_callback( (void*)entry->call_obj_phase_out_timer_id );
+          qcril_cancel_timed_callback( (void*)(uintptr_t)entry->call_obj_phase_out_timer_id );
         }
 
         qcril_free( entry );
@@ -18309,10 +20065,10 @@ qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_find_call_info_e
 
   if ( NULL != res )
   {
-    QCRIL_LOG_INFO( ".. found %d - with call android id %d, call qmi id %d", (int)res, (int)res->android_call_id, (int)res->qmi_call_id );
+    QCRIL_LOG_INFO( ".. found %p - with call android id %d, call qmi id %d", res, (int)res->android_call_id, (int)res->qmi_call_id );
   }
 
-  QCRIL_LOG_FUNC_RETURN_WITH_RET((int)res);
+  QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
   return res;
 } // qcril_qmi_voice_voip_find_call_info_entry_by_elaboration
 //===========================================================================
@@ -18341,10 +20097,10 @@ qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_find_call_info_e
 
   if ( NULL != res )
   {
-    QCRIL_LOG_INFO( ".. found %d - with call android id %d, call qmi id %d", (int)res, (int)res->android_call_id, (int)res->qmi_call_id );
+    QCRIL_LOG_INFO( ".. found %p - with call android id %d, call qmi id %d", res, (int)res->android_call_id, (int)res->qmi_call_id );
   }
 
-  QCRIL_LOG_FUNC_RETURN_WITH_RET((int)res);
+  QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
   return res;
 } // qcril_qmi_voice_voip_find_call_info_entry_by_elaboration_any_subset
 
@@ -18379,11 +20135,36 @@ qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_find_call_info_e
 } // qcril_qmi_voice_voip_find_call_info_entry_by_conn_uri
 
 //===========================================================================
+// qcril_qmi_voice_voip_find_call_info_entry_by_qmi_call_state
+//===========================================================================
+qcril_qmi_voice_voip_call_info_entry_type* qcril_qmi_voice_voip_find_call_info_entry_by_qmi_call_state( call_state_enum_v02 qmi_call_state )
+{
+  qcril_qmi_voice_voip_call_info_entry_type* res = NULL;
+  qcril_qmi_voice_voip_call_info_entry_type* iter;
+
+  QCRIL_LOG_INFO( "seeking entry with qmi call state %d", (int)qmi_call_state );
+  iter = qmi_voice_voip_overview.call_info_root;
+  while ( iter != NULL && NULL == res )
+  {
+    if ( qmi_call_state == iter->voice_scv_info.call_state )
+    {
+        res = iter;
+    }
+    else
+    {
+        iter = iter->next;
+    }
+  }
+  QCRIL_LOG_FUNC_RETURN_WITH_RET(res);
+  return res;
+} // qcril_qmi_voice_voip_find_call_info_entry_by_qmi_call_state
+
+//===========================================================================
 // qcril_qmi_voice_consider_shadow_remote_number_cpy_creation
 //===========================================================================
 void qcril_qmi_voice_consider_shadow_remote_number_cpy_creation( qcril_qmi_voice_voip_call_info_entry_type* entry )
 {
-  QCRIL_LOG_INFO( "param %d", (int)entry );
+  QCRIL_LOG_INFO( "param %p", entry );
 
   if ( NULL != entry )
   {
@@ -18431,6 +20212,8 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
                                                  voice_call_attributes_type_v02 *audio_attrib,
                                                  uint8_t video_attrib_valid,
                                                  voice_call_attributes_type_v02 *video_attrib,
+                                                 uint8_t call_attrib_status_valid,
+                                                 voice_call_attrib_status_type_v02 *call_attrib_status,
                                                  uint8_t is_srvcc_valid,
                                                  voice_is_srvcc_call_with_id_type_v02 *is_srvcc,
                                                  uint8_t srvcc_parent_call_info_valid,
@@ -18446,10 +20229,19 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
                                                  uint8_t ip_num_info_valid,
                                                  voice_ip_num_id_type_v02 *ip_num_info,
                                                  uint8_t conn_ip_num_info_valid,
-                                                 voice_conn_ip_num_with_id_type_v02 *conn_ip_num_info
+                                                 voice_conn_ip_num_with_id_type_v02 *conn_ip_num_info,
+                                                 uint8_t is_add_info_present_valid,
+                                                 voice_is_add_info_present_with_id_type_v02 *is_add_info_present,
+                                                 uint8_t ip_caller_name_valid,
+                                                 voice_ip_caller_name_info_type_v02 *ip_caller_name,
+                                                 uint8_t end_reason_text_valid,
+                                                 voice_ip_end_reason_text_type_v02 *end_reason_text
                                                  )
 {
-  QCRIL_LOG_INFO( "param %d", (int)entry );
+  char alpha_remote_name[QMI_VOICE_CALLER_NAME_MAX_V02+1] = {0};
+  int alpha_remote_name_len = 0;
+
+  QCRIL_LOG_INFO( "param %p", entry );
   if ( entry )
   {
     QCRIL_LOG_INFO( "call android id %d, call qmi id %d", (int)entry->android_call_id, (int)entry->qmi_call_id );
@@ -18458,16 +20250,6 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
     {
       entry->voice_scv_info = *call_info;
       QCRIL_LOG_INFO( ".. call state %d, call type %d, call mode %d", (int)entry->voice_scv_info.call_state, (int)entry->voice_scv_info.call_type, (int)entry->voice_scv_info.mode );
-    }
-
-    /* In case of SRVCC as call type get modified to voice, reset voip mask */
-    if( entry->voice_scv_info.call_type == CALL_TYPE_VOICE_V02 )
-    {
-       if( entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN )
-       {
-          entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN;
-          QCRIL_LOG_DEBUG("resetting the voip mask as call got modified to voice");
-       }
     }
 
     /* If the alpha identifier is provided by the UICC, this is an indication that the terminal should not give any information
@@ -18511,6 +20293,7 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
                                                                                             (byte *)remote_party_name->name,
                                                                                             entry->voice_svc_remote_party_name.name );
 
+
       if ( (! *entry->voice_svc_remote_party_name.name)
            || ( entry->voice_svc_remote_party_name.name_len >= sizeof(entry->voice_svc_remote_party_name.name) ) )
       {
@@ -18521,6 +20304,7 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
          entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NAME_VALID;
       }
     }
+
     if ( alerting_type_valid && NULL != alerting_type )
     {
       entry->voice_svc_alerting_type = *alerting_type;
@@ -18538,8 +20322,38 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
     }
     if ( alpha_id_valid && NULL != alpha_id )
     {
+      alpha_id->alpha_text_len = (alpha_id->alpha_text_len>QMI_VOICE_ALPHA_TEXT_MAX_V02)?
+                                 QMI_VOICE_ALPHA_TEXT_MAX_V02:alpha_id->alpha_text_len;
       entry->voice_svc_alpha_id = *alpha_id;
       entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_ALPHA_ID_VALID;
+
+      if((!remote_party_name_valid || (NULL == remote_party_name)) &&
+          !qmi_ril_is_feature_supported(QMI_RIL_FEATURE_ATEL_STKCC))
+      {
+        if(ALPHA_DCS_GSM_V02 == alpha_id->alpha_dcs)
+        {
+          alpha_remote_name_len = qcril_cm_ss_convert_gsm8bit_alpha_string_to_utf8(
+                                                           alpha_id->alpha_text,
+                                                           alpha_id->alpha_text_len,
+                                                           alpha_remote_name);
+        }
+        else
+        {
+          alpha_remote_name_len = qcril_cm_ss_convert_ucs2_to_utf8(alpha_id->alpha_text,
+                                                               alpha_id->alpha_text_len * 2,
+                                                               alpha_remote_name);
+        }
+
+        entry->voice_svc_remote_party_name.call_id  = entry->qmi_call_id;
+        entry->voice_svc_remote_party_name.name_pi  = PRESENTATION_NAME_PRESENTATION_ALLOWED_V02;
+        entry->voice_svc_remote_party_name.name_len = alpha_remote_name_len;
+        strlcpy(entry->voice_svc_remote_party_name.name,
+                alpha_remote_name,
+                sizeof(entry->voice_svc_remote_party_name.name));
+        entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_R_PARTY_NAME_VALID;
+
+        QCRIL_LOG_ESSENTIAL("Alpha string %s", entry->voice_svc_remote_party_name.name);
+      }
     }
     if ( conn_ip_num_info_valid && NULL != conn_ip_num_info )
     {
@@ -18581,12 +20395,18 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
        entry->elaboration |=  QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_VIDEO_ATTR_VALID;
        entry->voice_video_attrib = *video_attrib;
     }
+    if( call_attrib_status_valid )
+    {
+       entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_ATTR_VALID;
+       entry->call_attrib_status = *call_attrib_status;
+    }
     if ( is_srvcc_valid && NULL != is_srvcc )
     {
       if( TRUE == is_srvcc->is_srvcc_call)
       {
         entry->is_srvcc = *is_srvcc;
         entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID;
+        entry->srvcc_in_progress = FALSE;
       }
     }
 
@@ -18596,6 +20416,18 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
       entry->srvcc_parent_call_info = *srvcc_parent_call_info;
       entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID;
     }
+
+    /* In case of SRVCC as call type get modified to voice, reset voip mask */
+    if( (entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_SRVCC_VALID) &&
+        (entry->voice_scv_info.call_type == CALL_TYPE_VOICE_V02) )
+    {
+       if( entry->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN )
+       {
+          entry->elaboration &= ~QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_PS_DOMAIN;
+          QCRIL_LOG_DEBUG("resetting the voip mask as call got modified to voice");
+       }
+    }
+
     if ( local_call_capabilities_info_valid && NULL != local_call_capabilities_info )
     {
       entry->local_call_capabilities_info = *local_call_capabilities_info;
@@ -18616,6 +20448,20 @@ void qcril_qmi_voice_voip_update_call_info_entry_mainstream(qcril_qmi_voice_voip
       entry->display_text = *display_text;
       entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_IS_DISPLAY_TEXT_VALID;
     }
+    if ( is_add_info_present_valid && NULL != is_add_info_present )
+    {
+      entry->additional_call_info.is_add_info_present = is_add_info_present->is_add_info_present;
+    }
+    if ( ip_caller_name_valid && NULL != ip_caller_name )
+    {
+      entry->ip_caller_name_valid = TRUE;
+      entry->ip_caller_name = *ip_caller_name;
+    }
+    if ( end_reason_text_valid && NULL != end_reason_text )
+    {
+      entry->end_reason_text_valid = TRUE;
+      entry->end_reason_text = *end_reason_text;
+    }
   }
   QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_voice_voip_update_call_info_entry_mainstream
@@ -18629,7 +20475,7 @@ void qcril_qmi_voice_voip_update_call_info_uus(qcril_qmi_voice_voip_call_info_en
                                                uint8_t *uus_data
                                                  )
 {
-  QCRIL_LOG_INFO( "param %d", (int)entry );
+  QCRIL_LOG_INFO( "param %p", entry );
   if ( entry )
   {
     entry->voice_svc_uus.uus_type = uus_type;
@@ -18842,16 +20688,16 @@ void qcril_qmi_voice_voip_generate_summary( qcril_qmi_voice_voip_current_call_su
 //===========================================================================
 void qcril_qmi_voice_voip_call_info_dump(qcril_qmi_voice_voip_call_info_entry_type* call_info_entry)
 {
-  QCRIL_LOG_INFO( "param %d", (int)call_info_entry );
+  QCRIL_LOG_INFO( "param %p", call_info_entry );
   if ( call_info_entry )
   {
      do
      {
-        QCRIL_LOG_ESSENTIAL( ".. call android id %d, call qmi id %d, elaboration %x, %x hex",
+        QCRIL_LOG_DEBUG( ".. call android id %d, call qmi id %d, elaboration %x, %x hex",
                         (int)call_info_entry->android_call_id,
                         (int)call_info_entry->qmi_call_id,
                         (uint32) (call_info_entry->elaboration >> 32), (uint32)call_info_entry->elaboration);
-        QCRIL_LOG_ESSENTIAL( ".. call state %d, call type %d, call mode %d",
+        QCRIL_LOG_DEBUG( ".. call state %d, call type %d, call mode %d",
                         (int)call_info_entry->voice_scv_info.call_state,
                         (int)call_info_entry->voice_scv_info.call_type,
                         (int)call_info_entry->voice_scv_info.mode );
@@ -18932,7 +20778,7 @@ qcril_request_return_type *const ret_ptr
                                       sizeof(manage_calls_req),
                                       mng_call_resp_msg_ptr,
                                       sizeof(*mng_call_resp_msg_ptr),
-                                      (void*)user_data);
+                                      (void*)(uintptr_t)user_data);
       if ( E_SUCCESS != error )
       {
         QCRIL_LOG_DEBUG("send_msg_async failed with error code: %d", error);
@@ -18954,7 +20800,9 @@ qcril_request_return_type *const ret_ptr
   }
   else
   {
+#ifndef QMI_RIL_UTF
     qcril_am_handle_event(lch ? QCRIL_AM_EVENT_LCH : QCRIL_AM_EVENT_UNLCH, NULL);
+#endif
   }
 
   QCRIL_LOG_FUNC_RETURN();
@@ -19110,7 +20958,7 @@ void qmi_ril_voice_cleanup_reqs_after_call_completion_main_threaded(void * param
     QCRIL_LOG_FUNC_ENTRY();
     QCRIL_NOTUSED( param );
 
-    qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( TRUE );
+    qmi_ril_fw_android_request_flow_control_drop_legacy_book_records( TRUE, FALSE );
     qmi_ril_fw_android_request_flow_control_abandon_requests_family_main_thrd( RIL_REQUEST_DTMF, RIL_E_CANCELLED );
     qmi_ril_fw_android_request_flow_control_abandon_requests_family_main_thrd( RIL_REQUEST_CONFERENCE, RIL_E_CANCELLED );
 
@@ -19237,6 +21085,7 @@ boolean qcril_qmi_voice_create_mpty_voip_call_vcl(call_state_enum_v02 *current_c
 //===========================================================================
 // qcril_qmi_voice_add_call_to_existing_mpty_voip_call_vcl
 //===========================================================================
+//TODO: need to remove the logic for adding mpty call (remove the entire function)
 boolean qcril_qmi_voice_add_call_to_existing_mpty_voip_call_vcl(qcril_qmi_voice_voip_call_info_entry_type* call_entry_ptr)
 {
   qcril_qmi_voice_voip_call_info_entry_type *iter = NULL;
@@ -19545,6 +21394,10 @@ boolean qcril_qmi_voice_get_atel_call_type_info_by_call_info
    call_type_enum_v02 call_type;
    boolean video_attrib_valid;
    voice_call_attribute_type_mask_v02 video_attrib;
+   boolean audio_attrib_valid;
+   voice_call_attribute_type_mask_v02 audio_attrib;
+   boolean attrib_status_valid;
+   voice_call_attrib_status_enum_v02 attrib_status;
    qcril_qmi_voice_voip_call_info_elaboration_type call_info_elab;
 
    if ( NULL == call_info )
@@ -19555,10 +21408,22 @@ boolean qcril_qmi_voice_get_atel_call_type_info_by_call_info
    else
    {
       call_type = call_info->voice_scv_info.call_type;
-      video_attrib_valid = (call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_VIDEO_ATTR_VALID) ? TRUE : FALSE;
+      video_attrib_valid = (call_info->elaboration &
+              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_VIDEO_ATTR_VALID) ? TRUE : FALSE;
       video_attrib = call_info->voice_video_attrib.call_attributes;
+      audio_attrib_valid = (call_info->elaboration &
+              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_AUDIO_ATTR_VALID) ? TRUE : FALSE;
+      audio_attrib = call_info->voice_audio_attrib.call_attributes;
+      attrib_status_valid = (call_info->elaboration &
+              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_ATTR_VALID) ? TRUE: FALSE;
+      attrib_status = call_info->call_attrib_status.call_attrib_status;
       call_info_elab = call_info->elaboration;
-      ret = qcril_qmi_voice_get_atel_call_type_info(call_type, video_attrib_valid, video_attrib, TRUE, call_info_elab, call_details);
+      ret = qcril_qmi_voice_get_atel_call_type_info(call_type, video_attrib_valid, video_attrib,
+          audio_attrib_valid, audio_attrib,
+          attrib_status_valid, attrib_status,
+          TRUE, call_info_elab,
+          call_info->answered_call_type_valid, call_info->answered_call_type,
+          call_details);
    }
 
    return ret;
@@ -19572,7 +21437,7 @@ boolean qcril_qmi_voice_get_atel_call_type_info_by_call_info
 /*!
     @brief
     fetch RIL call type information from call type, video attribute (if available)
-    and call elaboration (if available).
+    audio attribute (if available) and call elaboration (if available).
 
     @return
     TRUE, if call type can be derived.
@@ -19584,8 +21449,14 @@ boolean qcril_qmi_voice_get_atel_call_type_info
    call_type_enum_v02 call_type,
    boolean video_attrib_valid,
    voice_call_attribute_type_mask_v02 video_attrib,
+   boolean audio_attrib_valid,
+   voice_call_attribute_type_mask_v02 audio_attrib,
+   boolean attrib_status_valid,
+   voice_call_attrib_status_enum_v02 attrib_status,
    boolean call_info_elab_valid,
    qcril_qmi_voice_voip_call_info_elaboration_type call_info_elab,
+   boolean cached_call_type_valid,
+   Ims__CallType cached_call_type,
    RIL_Call_Details *call_details
 )
 {
@@ -19601,8 +21472,17 @@ boolean qcril_qmi_voice_get_atel_call_type_info
       }
       else
       {
-         QCRIL_LOG_INFO( "QMI call_type: %d, video_attrib_valid: %d, video_attrib: %d, call_info_elab_valid: %d, elaboration %x, %x hex",
-                         call_type, video_attrib_valid, (int)video_attrib, call_info_elab_valid, (uint32)(call_info_elab >> 32), (uint32)call_info_elab );
+         QCRIL_LOG_INFO( "QMI call_type: %d, video_attrib_valid: %d, video_attrib: %d, "
+                         "audio_attrib_valid: %d, audio_attrib: %d, "
+                         "call_attrib_valid: %d, call_attrib:%d, "
+                         "call_info_elab_valid: %d, elaboration %x, %x hex",
+                         call_type, video_attrib_valid, (int)video_attrib,
+                         audio_attrib_valid, audio_attrib,
+                         attrib_status_valid, attrib_status,
+                         call_info_elab_valid,
+                         (uint32)(call_info_elab >> 32), (uint32)call_info_elab );
+
+         call_details->callSubState = RIL_CALL_SUB_STATE_UNDEFINED;
 
          if ( CALL_TYPE_VT_V02 == call_type )
          {
@@ -19629,12 +21509,30 @@ boolean qcril_qmi_voice_get_atel_call_type_info
                   call_details->callType = RIL_CALL_TYPE_VT;
                   call_details->callDomain = RIL_CALL_DOMAIN_PS;
                }
-               else if ( 0 == video_attrib )
+               else if ( TRUE == audio_attrib_valid && 0 == audio_attrib && 0 == video_attrib )
                {
-#ifndef QMI_RIL_UTF
+                  call_details->callSubState = (RIL_CALL_SUB_STATE_AUDIO_CONNECTED_SUSPENDED |
+                                                RIL_CALL_SUB_STATE_VIDEO_CONNECTED_SUSPENDED);
+                  call_details->callType = cached_call_type_valid ?
+                                           cached_call_type : RIL_CALL_TYPE_VT;
+                  call_details->callDomain = RIL_CALL_DOMAIN_PS;
+               }
+               else if ( 0 == video_attrib && attrib_status_valid == TRUE )
+               {
                   call_details->callType = RIL_CALL_TYPE_VT_NODIR;
                   call_details->callDomain = RIL_CALL_DOMAIN_PS;
-#endif
+                  switch (attrib_status)
+                  {
+                     case VOICE_CALL_ATTRIB_STATUS_RETRY_NEEDED_V02:
+                        call_details->callSubState = RIL_CALL_SUB_STATE_AVP_RETRY;
+                        break;
+                     case VOICE_CALL_ATTRIB_STATUS_MEDIA_PAUSED_V02:
+                        call_details->callSubState = RIL_CALL_SUB_STATE_MEDIA_PAUSED;
+                        break;
+                     case VOICE_CALL_ATTRIB_STATUS_OK_V02:
+                        call_details->callSubState = RIL_CALL_SUB_STATE_UNDEFINED;
+                        break;
+                  }
                }
                else
                {
@@ -19645,6 +21543,10 @@ boolean qcril_qmi_voice_get_atel_call_type_info
          else // not a VT call
          {
             call_details->callType = RIL_CALL_TYPE_VOICE;
+            if ( TRUE == audio_attrib_valid && 0 == audio_attrib )
+            {
+               call_details->callSubState = RIL_CALL_SUB_STATE_AUDIO_CONNECTED_SUSPENDED;
+            }
 
             boolean call_domain_set = FALSE;
             if ( call_info_elab_valid )
@@ -19684,7 +21586,9 @@ boolean qcril_qmi_voice_get_atel_call_type_info
                }
             }
          } // end of "not a VT call"
-         QCRIL_LOG_DEBUG( "ril call type = %d, ril call domain = %d", call_details->callType, call_details->callDomain );
+         QCRIL_LOG_DEBUG( "ril call type = %d, ril call domain = %d, call sub state = %d",
+                          call_details->callType, call_details->callDomain,
+                          call_details->callSubState );
       }
    }
    else
@@ -19770,7 +21674,6 @@ boolean qcril_qmi_voice_match_modem_call_type
 void qcril_qmi_voice_ims_send_unsol_ringback_tone(boolean local_ringback_payload)
 {
   QCRIL_LOG_FUNC_ENTRY();
-#ifndef QMI_RIL_UTF
   Ims__RingBackTone ring_tone = IMS__RING_BACK_TONE__INIT;
   ring_tone.has_flag = TRUE;
   if ( local_ringback_payload )
@@ -19783,7 +21686,6 @@ void qcril_qmi_voice_ims_send_unsol_ringback_tone(boolean local_ringback_payload
   }
 
   qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_RINGBACK_TONE, IMS__ERROR__E_SUCCESS, (void *)&ring_tone, sizeof(ring_tone));
-#endif
   QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_voice_ims_send_unsol_ringback_tone
 
@@ -19802,8 +21704,7 @@ void qmi_ril_voice_evaluate_voice_call_obj_cleanup_vcl( void )
       if ( VOICE_INVALID_CALL_ID != call_info->android_call_id &&
            CALL_STATE_END_V02 == call_info->voice_scv_info.call_state &&
            call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_CALL_ENDED_REPORTED &&
-           call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_LAST_CALL_FAILURE_REPORTED &&
-           ! ( call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_TO_BE_MEMBER_OF_MPTY_VOIP_CALL )
+           call_info->elaboration & QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_LAST_CALL_FAILURE_REPORTED
          )
       {
         qcril_qmi_voice_voip_destroy_call_info_entry( call_info);
@@ -19894,16 +21795,22 @@ void qcril_qmi_voice_handle_pil_state_changed(const qcril_qmi_pil_state* cur_sta
 void qcril_qmi_voice_end_call_internally
 (
   qmi_client_type              user_handle,
-  unsigned long                message_id,
-  void                         *resp_c_struct,
-  int                          resp_c_struct_len,
-  void                         *resp_cb_data,
+  unsigned int                 message_id,
+  void                        *resp_c_struct,
+  unsigned int                 resp_c_struct_len,
+  void                        *resp_cb_data,
   qmi_client_error_type        transp_err
 )
 {
     QCRIL_LOG_FUNC_ENTRY();
+
     voice_end_call_resp_msg_v02 * qmi_response = (voice_end_call_resp_msg_v02 *) resp_c_struct;
     RIL_Errno ril_req_res;
+
+    QCRIL_NOTUSED(resp_cb_data);
+    QCRIL_NOTUSED(resp_c_struct_len);
+    QCRIL_NOTUSED(message_id);
+    QCRIL_NOTUSED(user_handle);
 
     QCRIL_LOG_INFO("transp_err: %d", (int) transp_err);
     ril_req_res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result( transp_err, &qmi_response->resp );
@@ -20049,6 +21956,7 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
    RIL_Call_Details                            answer_call_details;
    qmi_ril_voice_ims_command_exec_oversight_type*                      command_oversight;
    qmi_ril_voice_ims_command_exec_oversight_handle_event_params_type   oversight_cmd_params;
+   call_state_enum_v02                         target_call_state;
 
    QCRIL_LOG_FUNC_ENTRY();
 
@@ -20067,7 +21975,7 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
       if ( QMI_RIL_ZERO != qmi_voice_voip_overview.auto_answer_timer_id )
       {
          QCRIL_LOG_INFO(".. Cancel Auto answer timed callback");
-         qcril_cancel_timed_callback( (void*) qmi_voice_voip_overview.auto_answer_timer_id );
+         qcril_cancel_timed_callback( (void*)(uintptr_t) qmi_voice_voip_overview.auto_answer_timer_id );
          qmi_voice_voip_overview.auto_answer_timer_id = QMI_RIL_ZERO;
       }
       qcril_reqlist_default_entry( params_ptr->t,
@@ -20098,7 +22006,6 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
 
       if ( QCRIL_EVT_IMS_SOCKET_REQ_ANSWER == params_ptr->event_id )
       {
-#ifndef QMI_RIL_UTF
           Ims__Answer* msg_ptr = (Ims__Answer*) params_ptr->data;
           if (NULL == msg_ptr)
           {
@@ -20151,6 +22058,9 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
                        ans_call_req_msg.call_type_valid = TRUE;
                        ans_call_req_msg.call_type = CALL_TYPE_VOICE_IP_V02;
                     }
+                    // Cache the user specified call type in answer.
+                    call_info_entry->answered_call_type_valid = TRUE;
+                    call_info_entry->answered_call_type = msg_ptr->call_type;
                  }
                  QCRIL_LOG_DEBUG("atel ims call type = %d, modem call type = %d", msg_ptr->call_type, ans_call_req_msg.call_type);
               }
@@ -20161,7 +22071,6 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
               }
               qcril_qmi_ims__answer__free_unpacked(msg_ptr, NULL);
           }
-#endif
       }
       else if( qmi_ril_is_feature_supported( QMI_RIL_FEATURE_VOIP_VT ) )
       {
@@ -20199,16 +22108,23 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
           ans_call_req_msg.reject_call = TRUE;
       }
 
-      if ( RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND == params_ptr->event_id )
+      if ( RIL_REQUEST_ANSWER == params_ptr->event_id ||
+              QCRIL_EVT_IMS_SOCKET_REQ_ANSWER == params_ptr->event_id ||
+              RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND == params_ptr->event_id )
       {
-          command_oversight = qmi_ril_voice_ims_create_command_oversight( params_ptr->t, RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND, TRUE );
+          command_oversight = qmi_ril_voice_ims_create_command_oversight( params_ptr->t, params_ptr->event_id , TRUE );
           if ( NULL != command_oversight )
           {
+              target_call_state = CALL_STATE_CONVERSATION_V02;
+              if ( RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND == params_ptr->event_id )
+              {
+                 target_call_state = CALL_STATE_END_V02;
+              }
               qmi_ril_voice_ims_command_oversight_add_call_link( command_oversight,
                                                              QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_QMI_CALL_ID,
                                                              QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NONE,
                                                              call_info_entry->qmi_call_id,
-                                                             CALL_STATE_END_V02 );
+                                                             target_call_state );
 
               memset( &oversight_cmd_params, 0, sizeof( oversight_cmd_params ) );
               oversight_cmd_params.locator.command_oversight = command_oversight;
@@ -20217,7 +22133,7 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
                                                             QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_SPECIFIC_OVERSIGHT_OBJ,
                                                             &oversight_cmd_params );
           } // if ( NULL != command_oversight )
-      } // if ( RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND == params_ptr->event_id )
+      }
 
       // Send QMI VOICE ANSWER CALL REQ
       if ( qcril_qmi_client_send_msg_async ( QCRIL_QMI_CLIENT_VOICE,
@@ -20226,7 +22142,7 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
                                           sizeof(ans_call_req_msg),
                                           ans_call_resp_msg_ptr,
                                           sizeof(*ans_call_resp_msg_ptr),
-                                          (void*)user_data) != E_SUCCESS )
+                                          (void*)(uintptr_t)user_data) != E_SUCCESS )
       {
           QCRIL_LOG_INFO(".. failed to post qmi answer message");
           break;
@@ -20235,7 +22151,9 @@ RIL_Errno qcril_qmi_voice_send_request_answer(
       if (FALSE == reject_this_call)
       {
           call_info_entry->elaboration |= QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_ANSWERING_CALL;
+#ifndef QMI_RIL_UTF
           qcril_am_handle_event(qcril_qmi_voice_get_answer_am_event(call_info_entry), NULL);
+#endif
       }
 
       res = RIL_E_SUCCESS;
@@ -20281,31 +22199,6 @@ void qcril_qmi_voice_oem_hook_reject_incoming_call_cause_21
     QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_voice_oem_hook_reject_incoming_call_cause_21
 
-boolean qcril_qmi_voice_has_specific_call(qcril_qmi_voice_call_filter filter)
-{
-    boolean ret = FALSE;
-
-    if (filter)
-    {
-        qcril_qmi_voice_voip_lock_overview();
-        qcril_qmi_voice_voip_call_info_entry_type *call_info_entry =
-            qcril_qmi_voice_voip_call_info_entries_enum_first();
-
-        while ( NULL != call_info_entry )
-        {
-            if (filter(call_info_entry))
-            {
-                ret = TRUE;
-                break;
-            }
-            call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_next();
-        }
-        qcril_qmi_voice_voip_unlock_overview();
-    }
-
-    return ret;
-}
-
 //===========================================================================
 // qmi_ril_voice_ims_command_oversight_timeout_handler
 //===========================================================================
@@ -20319,7 +22212,7 @@ void qmi_ril_voice_ims_command_oversight_timeout_handler(void * param)
 
   QCRIL_LOG_FUNC_ENTRY();
 
-  cause_tmr = (uint32)param;
+  cause_tmr = (uint32)(uintptr_t)param;
 
   qcril_qmi_voice_voip_lock_overview();
 
@@ -20385,6 +22278,10 @@ qmi_ril_voice_ims_command_exec_oversight_type* qmi_ril_voice_ims_create_command_
           timeout_delay.tv_sec = 72;
           break;
 
+        case QCRIL_EVT_HOOK_REQUEST_SETUP_ANSWER:
+          timeout_delay.tv_sec = 90;
+          break;
+
         default:
           timeout_delay.tv_sec = 1; // 1 second by default
           break;
@@ -20396,8 +22293,8 @@ qmi_ril_voice_ims_command_exec_oversight_type* qmi_ril_voice_ims_create_command_
                                     &command_oversight->timeout_control_timer_id );
 
     }
-    QCRIL_LOG_DEBUG( "cmd oversight created obj %p android req %d, token %d, under timeout ctrl %d",
-                     command_oversight, android_request_id, (int)token, command_oversight->timeout_control_timer_id );
+    QCRIL_LOG_DEBUG( "cmd oversight created obj %p android req %d, token %"PRIdPTR", under timeout ctrl %d",
+                     command_oversight, android_request_id, token, command_oversight->timeout_control_timer_id );
 
     command_oversight->next                           = qmi_voice_voip_overview.command_exec_oversight_root;
     qmi_voice_voip_overview.command_exec_oversight_root = command_oversight;
@@ -20422,7 +22319,7 @@ void qmi_ril_voice_ims_destroy_command_oversight( qmi_ril_voice_ims_command_exec
   {
     if ( QMI_RIL_ZERO != command_oversight->timeout_control_timer_id )
     {
-      qcril_cancel_timed_callback( (void*) command_oversight->timeout_control_timer_id );
+      qcril_cancel_timed_callback( (void*)(uintptr_t) command_oversight->timeout_control_timer_id );
       command_oversight->timeout_control_timer_id = QMI_RIL_ZERO;
     }
 
@@ -20842,7 +22739,14 @@ int qmi_ril_voice_ims_command_oversight_handle_event(   qmi_ril_voice_ims_comman
             case QMI_RIL_VOICE_IMS_EXEC_INTERMED_STATE_CALL_ENDED_READY_FOR_COMPLETION:
             case QMI_RIL_VOICE_IMS_EXEC_INTERMED_STATE_RECEIVED_IND_AND_RESP_READY_FOR_COMPLETION:
             default:
-              ril_req_res = RIL_E_SUCCESS;
+              if (iter->successful_response_payload_len > 0)
+              {
+                ril_req_res = iter->successful_response_payload;
+              }
+              else
+              {
+                ril_req_res = RIL_E_SUCCESS;
+              }
               break;
           }
 
@@ -20945,132 +22849,62 @@ void qmi_ril_voice_ims_command_oversight_dump( qmi_ril_voice_ims_command_exec_ov
   }
 } // qmi_ril_voice_ims_command_oversight_dump
 
-/*=========================================================================
+void qcril_qmi_voice_ims_dial_call_handler (qcril_timed_callback_handler_params_type *param)
+{
+   qcril_qmi_voice_request_dial (param->custom_param, NULL);
+   if (NULL != param->custom_param)
+   {
+       qcril_free (param->custom_param);
+   }
+}
 
-  FUNCTION:  qcril_qmi_voice_request_call_deflection
-
-===========================================================================*/
-/*!
-    @brief
-    Handles QCRIL_EVT_IMS_SOCKET_REQ_CALL_DEFLECTION.
-
-    @return
-    None.
-*/
-/*=========================================================================*/
-void qcril_qmi_voice_request_call_deflection
+void qcril_qmi_voice_process_for_ims_dial
 (
-  const qcril_request_params_type *const params_ptr,
-  qcril_request_return_type *const ret_ptr /*!< Output parameter */
+   void *data,
+   size_t datalen,
+   RIL_Token t
 )
 {
-  Ims__DeflectCall                          *ims_deflect_call_ptr = NULL;
-  const char*                               conn_uri = NULL;
-  qcril_reqlist_public_type                 reqlist_entry;
-  voice_manage_ip_calls_req_msg_v02         manage_ip_calls_req_msg;
-  voice_manage_ip_calls_resp_msg_v02        *manage_ip_calls_resp_msg_ptr = NULL;
-  qcril_qmi_voice_voip_call_info_entry_type *call_info_entry = NULL;
-  qmi_client_error_type                     client_error;
-  uint32_t                                  conn_index;
-  uint32                                    user_data;
-  RIL_Errno                                 ril_err = RIL_E_GENERIC_FAILURE;
-
-  QCRIL_LOG_FUNC_ENTRY();
-
-  if(NULL == params_ptr)
-  {
-    QCRIL_LOG_ERROR("params_ptr is NULL");
-    return;
-  }
-
-  do
-  {
-    if(NULL == params_ptr->data)
-    {
-      QCRIL_LOG_ERROR("params_ptr->data is NULL");
-      break;
-    }
-
-    ims_deflect_call_ptr = (Ims__DeflectCall *)params_ptr->data;
-    if((ims_deflect_call_ptr->has_conn_index) && (ims_deflect_call_ptr->number))
-    {
-      conn_index = ims_deflect_call_ptr->conn_index;
-      QCRIL_LOG_INFO("conn_index recieved: %d", conn_index);
-
-      conn_uri = ims_deflect_call_ptr->number;
-      QCRIL_LOG_INFO("Deflect to conn_uri: %s", conn_uri);
-    }
-    else
-    {
-      QCRIL_LOG_ERROR("Request has no valid conn_index or conn_uri");
-      break;
-    }
-
-    call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id(conn_index);
-    if(NULL == call_info_entry)
-    {
-       QCRIL_LOG_ERROR("Failed to find call entry, aborting!");
-       break;
-    }
-
-    qcril_reqlist_default_entry( params_ptr->t,
-                                 params_ptr->event_id,
-                                 QCRIL_DEFAULT_MODEM_ID,
-                                 QCRIL_REQ_AWAITING_CALLBACK,
-                                 QCRIL_EVT_NONE,
-                                 NULL,
-                                 &reqlist_entry );
-
-    reqlist_entry.valid_sub_id = TRUE;
-    reqlist_entry.sub_id = call_info_entry->qmi_call_id;
-    if ( qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &reqlist_entry ) != E_SUCCESS )
-    {
-      QCRIL_LOG_INFO(".. failed to add requrd to req list");
-      break;
-    }
-
-    manage_ip_calls_resp_msg_ptr = qcril_malloc(sizeof(*manage_ip_calls_resp_msg_ptr));
-    if(NULL == manage_ip_calls_resp_msg_ptr)
-    {
-      QCRIL_LOG_ERROR("qcril_malloc failed");
-      break;
-    }
-
-    memset( &manage_ip_calls_req_msg, 0, sizeof(manage_ip_calls_req_msg) );
-    manage_ip_calls_req_msg.sups_type = VOIP_SUPS_TYPE_CALL_DEFLECTION_V02;
-    manage_ip_calls_req_msg.call_id_valid = TRUE;
-    manage_ip_calls_req_msg.call_id = call_info_entry->qmi_call_id;
-    manage_ip_calls_req_msg.sip_uri_valid = TRUE;
-    memcpy( manage_ip_calls_req_msg.sip_uri, conn_uri, strlen(conn_uri) );
-
-    user_data = QCRIL_COMPOSE_USER_DATA( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
-    client_error = qcril_qmi_client_send_msg_async ( QCRIL_QMI_CLIENT_VOICE,
-                                                   QMI_VOICE_MANAGE_IP_CALLS_REQ_V02,
-                                                   &manage_ip_calls_req_msg,
-                                                   sizeof(manage_ip_calls_req_msg),
-                                                   manage_ip_calls_resp_msg_ptr,
-                                                   sizeof(*manage_ip_calls_resp_msg_ptr),
-                                                   (void*)user_data );
-
-    ril_err = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(client_error, NULL);
-  } while ( FALSE );
-
-  if(ril_err != RIL_E_SUCCESS)
-  {
-    qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_DEFLECT_CALL, qcril_qmi_ims_map_ril_error_to_ims_error(ril_err), NULL, 0);
-    if(manage_ip_calls_resp_msg_ptr)
-    {
-      qcril_free(manage_ip_calls_resp_msg_ptr);
-    }
-  }
-
-  if(ims_deflect_call_ptr)
-  {
-    qcril_qmi_ims__deflect_call__free_unpacked(ims_deflect_call_ptr, NULL);
-  }
-
-  QCRIL_LOG_FUNC_RETURN();
-  return;
+   int res = 0;
+   qcril_request_params_type *params_ptr = NULL;
+   do
+   {
+      params_ptr = qcril_malloc (sizeof (*params_ptr));
+      if (NULL == params_ptr)
+      {
+         QCRIL_LOG_ERROR ("qcril_malloc failed");
+         if (NULL != data)
+         {
+             qcril_qmi_ims__dial__free_unpacked(data, NULL);
+         }
+         break;
+      }
+      params_ptr->instance_id = QCRIL_DEFAULT_INSTANCE_ID;
+      params_ptr->modem_id = QCRIL_DEFAULT_MODEM_ID;
+      params_ptr->event_id = (int) QCRIL_EVT_IMS_SOCKET_REQ_DIAL;
+      params_ptr->data = data;
+      params_ptr->datalen = datalen;
+      params_ptr->t = t;
+      res = qcril_setup_timed_callback_ex_params (QCRIL_DEFAULT_INSTANCE_ID,
+                                            QCRIL_DEFAULT_MODEM_ID,
+                                            qcril_qmi_voice_ims_dial_call_handler,
+                                            (void *) params_ptr,
+                                            NULL,
+                                            NULL);
+      if (RIL_E_SUCCESS != res)
+      {
+          QCRIL_LOG_ERROR ("could not post ims dial request to timed callback. res = %d", res);
+          qcril_send_empty_payload_request_response(QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, res);
+          if (NULL != data)
+          {
+             qcril_qmi_ims__dial__free_unpacked(data, NULL);
+          }
+          if (NULL != params_ptr)
+          {
+              qcril_free(params_ptr);
+          }
+      }
+   } while (FALSE);
 }
 
 /*===========================================================================
@@ -21214,6 +23048,177 @@ void qcril_qmi_voice_request_ims_set_supp_srv_status
   QCRIL_LOG_FUNC_RETURN();
 }
 
+boolean qcril_qmi_voice_has_specific_call(qcril_qmi_voice_call_filter filter)
+{
+    boolean ret = FALSE;
+
+    if (filter)
+    {
+        qcril_qmi_voice_voip_lock_overview();
+        qcril_qmi_voice_voip_call_info_entry_type *call_info_entry =
+            qcril_qmi_voice_voip_call_info_entries_enum_first();
+
+        while ( NULL != call_info_entry )
+        {
+            if (filter(call_info_entry))
+            {
+                ret = TRUE;
+                break;
+            }
+            call_info_entry = qcril_qmi_voice_voip_call_info_entries_enum_next();
+        }
+        qcril_qmi_voice_voip_unlock_overview();
+    }
+
+    return ret;
+}
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_reboot_cleanup
+
+===========================================================================*/
+/*!
+    @brief
+    Cleans up globals for reboot
+*/
+/*=========================================================================*/
+int qcril_qmi_voice_reboot_cleanup()
+{
+  qmi_ril_voice_is_voice_calls_supressed  = FALSE;
+
+  feature_subaddress_support = 1;
+  reject_cause_21_supported = FALSE;
+
+  return 0;
+}
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_request_call_deflection
+
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_IMS_SOCKET_REQ_CALL_DEFLECTION.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_request_call_deflection
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr /*!< Output parameter */
+)
+{
+  Ims__DeflectCall                          *ims_deflect_call_ptr = NULL;
+  const char*                               conn_uri = NULL;
+  qcril_reqlist_public_type                 reqlist_entry;
+  voice_manage_ip_calls_req_msg_v02         manage_ip_calls_req_msg;
+  voice_manage_ip_calls_resp_msg_v02        *manage_ip_calls_resp_msg_ptr = NULL;
+  qcril_qmi_voice_voip_call_info_entry_type *call_info_entry = NULL;
+  qmi_client_error_type                     client_error;
+  uint32_t                                  conn_index;
+  uint32                                    user_data;
+  RIL_Errno                                 ril_err = RIL_E_GENERIC_FAILURE;
+
+  QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
+
+  if(NULL == params_ptr)
+  {
+    QCRIL_LOG_ERROR("params_ptr is NULL");
+    return;
+  }
+
+  do
+  {
+    if(NULL == params_ptr->data)
+    {
+      QCRIL_LOG_ERROR("params_ptr->data is NULL");
+      break;
+    }
+
+    ims_deflect_call_ptr = (Ims__DeflectCall *)params_ptr->data;
+    if((ims_deflect_call_ptr->has_conn_index) && (ims_deflect_call_ptr->number))
+    {
+      conn_index = ims_deflect_call_ptr->conn_index;
+      QCRIL_LOG_INFO("conn_index recieved: %d", conn_index);
+
+      conn_uri = ims_deflect_call_ptr->number;
+      QCRIL_LOG_INFO("Deflect to conn_uri: %s", conn_uri);
+    }
+    else
+    {
+      QCRIL_LOG_ERROR("Request has no valid conn_index or conn_uri");
+      break;
+    }
+
+    call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_call_android_id(conn_index);
+    if(NULL == call_info_entry)
+    {
+       QCRIL_LOG_ERROR("Failed to find call entry, aborting!");
+       break;
+    }
+
+    qcril_reqlist_default_entry( params_ptr->t,
+                                 params_ptr->event_id,
+                                 QCRIL_DEFAULT_MODEM_ID,
+                                 QCRIL_REQ_AWAITING_CALLBACK,
+                                 QCRIL_EVT_NONE,
+                                 NULL,
+                                 &reqlist_entry );
+
+    reqlist_entry.valid_sub_id = TRUE;
+    reqlist_entry.sub_id = call_info_entry->qmi_call_id;
+    if ( qcril_reqlist_new( QCRIL_DEFAULT_INSTANCE_ID, &reqlist_entry ) != E_SUCCESS )
+    {
+      QCRIL_LOG_INFO(".. failed to add requrd to req list");
+      break;
+    }
+
+    manage_ip_calls_resp_msg_ptr = qcril_malloc(sizeof(*manage_ip_calls_resp_msg_ptr));
+    if(NULL == manage_ip_calls_resp_msg_ptr)
+    {
+      QCRIL_LOG_ERROR("qcril_malloc failed");
+      break;
+    }
+
+    memset( &manage_ip_calls_req_msg, 0, sizeof(manage_ip_calls_req_msg) );
+    manage_ip_calls_req_msg.sups_type = VOIP_SUPS_TYPE_CALL_DEFLECTION_V02;
+    manage_ip_calls_req_msg.call_id_valid = TRUE;
+    manage_ip_calls_req_msg.call_id = call_info_entry->qmi_call_id;
+    manage_ip_calls_req_msg.sip_uri_valid = TRUE;
+    memcpy( manage_ip_calls_req_msg.sip_uri, conn_uri, strlen(conn_uri) );
+
+    user_data = QCRIL_COMPOSE_USER_DATA( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, reqlist_entry.req_id );
+    client_error = qcril_qmi_client_send_msg_async ( QCRIL_QMI_CLIENT_VOICE,
+                                                   QMI_VOICE_MANAGE_IP_CALLS_REQ_V02,
+                                                   &manage_ip_calls_req_msg,
+                                                   sizeof(manage_ip_calls_req_msg),
+                                                   manage_ip_calls_resp_msg_ptr,
+                                                   sizeof(*manage_ip_calls_resp_msg_ptr),
+                                                   (void*)(uintptr_t)user_data );
+
+    ril_err = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(client_error, NULL);
+  } while ( FALSE );
+
+  if(ril_err != RIL_E_SUCCESS)
+  {
+    qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_DEFLECT_CALL, qcril_qmi_ims_map_ril_error_to_ims_error(ril_err), NULL, 0);
+    if(manage_ip_calls_resp_msg_ptr)
+    {
+      qcril_free(manage_ip_calls_resp_msg_ptr);
+    }
+  }
+
+  if(ims_deflect_call_ptr)
+  {
+    qcril_qmi_ims__deflect_call__free_unpacked(ims_deflect_call_ptr, NULL);
+  }
+
+  QCRIL_LOG_FUNC_RETURN();
+  return;
+}
+
 //===========================================================================
 // qcril_qmi_voice_set_audio_call_type
 //===========================================================================
@@ -21246,6 +23251,7 @@ void qcril_qmi_voice_set_audio_call_type(const voice_call_info2_type_v02* iter_c
           switch(call_type)
           {
             case CALL_TYPE_VOICE_IP_V02:
+            case CALL_TYPE_VT_V02:
             case CALL_TYPE_EMERGENCY_IP_V02:
               QCRIL_LOG_INFO("Set audio call_type as IMS");
               call_info_entry->audio_call_type = QMI_RIL_VOICE_IMS_AUDIO_CALL_TYPE_IMS;
@@ -21271,3 +23277,630 @@ void qcril_qmi_voice_set_audio_call_type(const voice_call_info2_type_v02* iter_c
       }
    }
 }
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_get_current_setup_calls
+
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_HOOK_GET_CURRENT_SETUP_CALLS
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_get_current_setup_calls
+(
+   const qcril_request_params_type *const params_ptr,
+   qcril_request_return_type *const ret_ptr
+)
+{
+    qcril_qmi_voice_setup_call_info *payload_ptr = NULL;
+    qcril_qmi_voice_voip_call_info_entry_type* call_info_entry = NULL;
+    qcril_qmi_voice_current_calls_type *current_calls_type_ptr;
+    qcril_request_resp_params_type resp;
+    boolean is_call_present = FALSE;
+    RIL_Errno result = RIL_E_GENERIC_FAILURE;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    qcril_qmi_voice_voip_lock_overview();
+    call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_qmi_call_state(CALL_STATE_SETUP_V02);
+    do
+    {
+        if (NULL == call_info_entry)
+        {
+            result = RIL_E_SUCCESS;
+            break;
+        }
+        is_call_present = TRUE;
+        payload_ptr = (qcril_qmi_voice_setup_call_info *) qcril_malloc (sizeof (*payload_ptr));
+        if (NULL == payload_ptr)
+        {
+            break;
+        }
+        memset (payload_ptr, 0, sizeof (*payload_ptr));
+        current_calls_type_ptr = (qcril_qmi_voice_current_calls_type *) qcril_malloc (sizeof (*current_calls_type_ptr));
+        if (NULL == current_calls_type_ptr)
+        {
+            break;
+        }
+        memset (current_calls_type_ptr, 0, sizeof (*current_calls_type_ptr));
+        if (RIL_E_SUCCESS != qcril_qmi_voice_gather_current_call_information(
+                                0, params_ptr, current_calls_type_ptr, call_info_entry))
+        {
+            break;
+        }
+
+        payload_ptr->index = current_calls_type_ptr->info[0].index;
+        payload_ptr->toa = current_calls_type_ptr->info[0].toa;
+        payload_ptr->als = current_calls_type_ptr->info[0].als;
+        payload_ptr->isVoice = current_calls_type_ptr->info[0].isVoice;
+        if (NULL != current_calls_type_ptr->info[0].number)
+            strlcpy (payload_ptr->number, current_calls_type_ptr->info[0].number, QCRIL_QMI_VOICE_DIAL_NUMBER_MAX_LEN);
+        payload_ptr->numberPresentation = current_calls_type_ptr->info[0].numberPresentation;
+        if (NULL != current_calls_type_ptr->info[0].name)
+            strlcpy (payload_ptr->name, current_calls_type_ptr->info[0].name, QCRIL_QMI_VOICE_DIAL_NUMBER_MAX_LEN);
+        payload_ptr->namePresentation = current_calls_type_ptr->info[0].namePresentation;
+
+        result = RIL_E_SUCCESS;
+    } while (FALSE);
+
+    qcril_qmi_voice_voip_unlock_overview();
+
+    if (RIL_E_SUCCESS == result)
+    {
+        QCRIL_LOG_INFO ("Reply to OEM --> is_call_present %d", is_call_present);
+        qcril_default_request_resp_params (QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, RIL_E_SUCCESS, &resp);
+        if (is_call_present)
+        {
+            QCRIL_LOG_INFO ("Reply to OEM --> index %d, toa %d, als %d, isVoice %d",
+                           payload_ptr->index,
+                           payload_ptr->toa,
+                           payload_ptr->als,
+                           payload_ptr->isVoice);
+
+            QCRIL_LOG_INFO ("...num %s, num presentation %d, name %s, name presentation %d",
+                           payload_ptr->number,
+                           payload_ptr->numberPresentation,
+                           payload_ptr->name,
+                           payload_ptr->namePresentation);
+            resp.resp_pkt = (void *) payload_ptr;
+            resp.resp_len = sizeof (*payload_ptr);
+        }
+    }
+    else
+    {
+        qcril_default_request_resp_params (QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, RIL_E_GENERIC_FAILURE, &resp);
+    }
+    qcril_send_request_response (&resp );
+    if (current_calls_type_ptr)
+        qcril_free (current_calls_type_ptr);
+    if (payload_ptr)
+        qcril_free (payload_ptr);
+    QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_get_current_setup_calls
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_request_setup_answer
+
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_HOOK_REQUEST_SETUP_ANSWER
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_request_setup_answer
+(
+   const qcril_request_params_type *const params_ptr,
+   qcril_request_return_type *const ret_ptr
+)
+{
+    qcril_qmi_voice_voip_call_info_entry_type*                          call_info_entry = NULL;
+    voice_setup_answer_req_msg_v02                                      setup_answer_req_msg;
+    voice_setup_answer_resp_msg_v02*                                    setup_answer_resp_msg_ptr = NULL;
+    qcril_qmi_voice_setup_answer_data_type*                             data = NULL;
+    uint32_t                                                            user_data;
+    qcril_reqlist_public_type                                           reqlist_entry;
+    qmi_ril_voice_ims_command_exec_oversight_type*                      command_oversight = NULL;;
+    qmi_ril_voice_ims_command_exec_oversight_handle_event_params_type   oversight_cmd_params;
+    RIL_Errno                                                           result = RIL_E_GENERIC_FAILURE;
+
+    QCRIL_LOG_FUNC_ENTRY();
+    qcril_qmi_voice_voip_lock_overview();
+    call_info_entry = qcril_qmi_voice_voip_find_call_info_entry_by_qmi_call_state (CALL_STATE_SETUP_V02);
+    do
+    {
+        if (RIL_E_SUCCESS != qcril_qmi_voice_perform_null_check_and_reqlist_entry
+                             (params_ptr, &user_data, &reqlist_entry) ||
+            !call_info_entry)
+        {
+            QCRIL_LOG_ERROR("Failure. call_info_entry %p", call_info_entry);
+            break;
+        }
+        setup_answer_resp_msg_ptr = qcril_malloc (sizeof (*setup_answer_resp_msg_ptr));
+        if (!setup_answer_resp_msg_ptr)
+        {
+            break;
+        }
+
+        command_oversight = qmi_ril_voice_ims_create_command_oversight (params_ptr->t, params_ptr->event_id, TRUE);
+        if ( NULL == command_oversight )
+        {
+            break;
+        }
+        data = (qcril_qmi_voice_setup_answer_data_type *) params_ptr->data;
+        qmi_ril_voice_ims_command_oversight_add_call_link (command_oversight,
+                                                     QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_QMI_CALL_ID,
+                                                     QCRIL_QMI_VOICE_VOIP_CALLINFO_ELA_NONE,
+                                                     call_info_entry->qmi_call_id,
+                                                     data->rejection ? CALL_STATE_END_V02 : CALL_STATE_INCOMING_V02);
+
+        memset (&oversight_cmd_params, 0, sizeof (oversight_cmd_params));
+        oversight_cmd_params.locator.command_oversight = command_oversight;
+
+        qmi_ril_voice_ims_command_oversight_handle_event (QMI_RIL_VOICE_IMS_EXEC_INTERMED_EVENT_COMMENCE_AWAIT_RESP_IND,
+                                                        QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_SPECIFIC_OVERSIGHT_OBJ,
+                                                        &oversight_cmd_params);
+
+        memset (&setup_answer_req_msg, 0, sizeof (setup_answer_req_msg));
+        setup_answer_req_msg.call_id = call_info_entry->qmi_call_id;
+        setup_answer_req_msg.reject_setup_valid = TRUE;
+        setup_answer_req_msg.reject_setup = data->rejection;
+        if (E_SUCCESS != qcril_qmi_client_send_msg_async (
+                                QCRIL_QMI_CLIENT_VOICE,
+                                QMI_VOICE_SETUP_ANSWER_REQ_V02,
+                                &setup_answer_req_msg,
+                                sizeof (setup_answer_req_msg),
+                                setup_answer_resp_msg_ptr,
+                                sizeof (*setup_answer_resp_msg_ptr),
+                                (void *)(intptr_t) user_data))
+        {
+            QCRIL_LOG_ERROR("failed to send setup answer request: qmi call id %d, rejection %d",
+                       setup_answer_req_msg.call_id, setup_answer_req_msg.reject_setup);
+            break;
+        }
+        QCRIL_LOG_INFO("successfully sent setup answer request: qmi call id %d, rejection %d",
+                       setup_answer_req_msg.call_id, setup_answer_req_msg.reject_setup);
+        result = RIL_E_SUCCESS;
+    } while (FALSE);
+
+    if (RIL_E_SUCCESS != result)
+    {
+        if (setup_answer_resp_msg_ptr)
+            qcril_free (setup_answer_resp_msg_ptr);
+        if (NULL != command_oversight)
+            qmi_ril_voice_ims_destroy_command_oversight( command_oversight );
+        qcril_send_empty_payload_request_response (QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, result);
+    }
+
+    qcril_qmi_voice_voip_unlock_overview();
+    QCRIL_LOG_FUNC_RETURN();
+} // qcril_qmi_voice_request_setup_answer
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_setup_answer_resp_hdlr
+
+===========================================================================*/
+/*!
+    @brief
+    Handles response QMI_VOICE_SETUP_ANSWER_RESP_V02
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_setup_answer_resp_hdlr
+(
+   const qcril_request_params_type *const params_ptr
+)
+{
+    voice_setup_answer_resp_msg_v02*                                    setup_answer_resp_ptr = NULL;
+    qmi_ril_voice_ims_command_exec_oversight_handle_event_params_type   oversight_event_params;
+    qmi_ril_voice_ims_command_exec_oversight_type*                      command_oversight = NULL;
+    int                                                                 covered_by_oversight_handling = FALSE;
+    RIL_Errno                                                           result = RIL_E_GENERIC_FAILURE;
+
+    QCRIL_LOG_FUNC_ENTRY();
+    setup_answer_resp_ptr = (voice_setup_answer_resp_msg_v02 *) params_ptr->data;
+    qcril_qmi_voice_voip_lock_overview();
+    if (setup_answer_resp_ptr)
+    {
+        result = qcril_qmi_util_convert_qmi_response_codes_to_ril_result (QMI_NO_ERR, &setup_answer_resp_ptr->resp);
+        QCRIL_LOG_INFO("QMI result %d, QMI error %d, RIL result %d",
+                       setup_answer_resp_ptr->resp.result, setup_answer_resp_ptr->resp.error, result);
+        command_oversight = qmi_ril_voice_ims_find_command_oversight_by_token (params_ptr->t);
+        if (NULL != command_oversight)
+        {
+            memset (&oversight_event_params, 0, sizeof (oversight_event_params));
+            oversight_event_params.locator.command_oversight = command_oversight;
+            covered_by_oversight_handling = qmi_ril_voice_ims_command_oversight_handle_event
+                                            (
+                                               (RIL_E_SUCCESS == result)?
+                                               QMI_RIL_VOICE_IMS_EXEC_INTERMED_EVENT_RECEIVED_RESP_SUCCESS :
+                                               QMI_RIL_VOICE_IMS_EXEC_INTERMED_EVENT_RECEIVED_RESP_FAILURE,
+                                               QMI_RIL_VOICE_IMS_EXEC_OVERSIGHT_LINKAGE_SPECIFIC_OVERSIGHT_OBJ,
+                                               &oversight_event_params
+                                            );
+        }
+    }
+    qcril_qmi_voice_voip_unlock_overview();
+    if (NULL == command_oversight || !covered_by_oversight_handling)
+    {
+        qcril_send_empty_payload_request_response (QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t, params_ptr->event_id, result);
+    }
+    QCRIL_LOG_FUNC_RETURN();
+}
+
+/*=========================================================================
+  FUNCTION: qcril_qmi_voice_perform_null_check_and_reqlist_entry
+
+===========================================================================*/
+RIL_Errno qcril_qmi_voice_perform_null_check_and_reqlist_entry
+(
+   const qcril_request_params_type *const params_ptr,
+   uint32_t *user_data_ptr,
+   qcril_reqlist_public_type *reqlist_entry_ptr
+)
+{
+    RIL_Errno result = RIL_E_GENERIC_FAILURE;
+    do
+    {
+        if (NULL == params_ptr || NULL == user_data_ptr)
+        {
+            QCRIL_LOG_ERROR("failure: NULL pointer. params_ptr %p, user_data_ptr %p",
+                            params_ptr, user_data_ptr);
+            break;
+        }
+        if (NULL == params_ptr->data || 0 == params_ptr->datalen)
+        {
+            QCRIL_LOG_ERROR("failure: params_ptr->data %p, params_ptr->datalen %d",
+                           params_ptr->data, (int) params_ptr->datalen);
+            break;
+        }
+        qcril_reqlist_default_entry (params_ptr->t,
+                                     params_ptr->event_id,
+                                     QCRIL_DEFAULT_MODEM_ID,
+                                     QCRIL_REQ_AWAITING_CALLBACK,
+                                     QCRIL_EVT_NONE,
+                                     NULL,
+                                     reqlist_entry_ptr);
+        if (E_SUCCESS != qcril_reqlist_new (QCRIL_DEFAULT_INSTANCE_ID, reqlist_entry_ptr))
+        {
+            QCRIL_LOG_ERROR("failure: could not add entry to reqlist");
+            break;
+        }
+        *user_data_ptr = QCRIL_COMPOSE_USER_DATA(QCRIL_DEFAULT_INSTANCE_ID, QCRIL_DEFAULT_MODEM_ID, reqlist_entry_ptr->req_id);
+        result = RIL_E_SUCCESS;
+    } while (FALSE);
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(result);
+    return result;
+}
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_request_get_colr
+
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_IMS_SOCKET_REQ_GET_COLR.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_request_get_colr
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr /*!< Output parameter */
+)
+{
+  qcril_reqlist_public_type    reqlist_entry;
+  uint32                       user_data;
+  RIL_Errno                    res = RIL_E_GENERIC_FAILURE;
+  IxErrnoType                  qmi_client_error;
+  voice_get_colr_resp_msg_v02 *get_colr_resp_ptr = NULL;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  do
+  {
+    /* Add entry to ReqList */
+    qcril_reqlist_default_entry(params_ptr->t,
+            params_ptr->event_id,
+            QCRIL_DEFAULT_MODEM_ID,
+            QCRIL_REQ_AWAITING_CALLBACK,
+            QCRIL_EVT_NONE,
+            NULL,
+            &reqlist_entry);
+
+    if (qcril_reqlist_new(QCRIL_DEFAULT_INSTANCE_ID, &reqlist_entry) != E_SUCCESS)
+    {
+      /* Fail to add entry to ReqList */
+      QCRIL_LOG_ERROR("Failed to Add into Req list");
+      break;
+    }
+
+    get_colr_resp_ptr = qcril_malloc(sizeof(*get_colr_resp_ptr));
+    if (get_colr_resp_ptr == NULL)
+    {
+      QCRIL_LOG_ERROR("qcril_malloc failed");
+      break;
+    }
+
+    user_data = QCRIL_COMPOSE_USER_DATA(QCRIL_DEFAULT_INSTANCE_ID,
+            QCRIL_DEFAULT_MODEM_ID,
+            reqlist_entry.req_id);
+
+    /* Send QMI VOICE DIAL CALL REQ */
+    qmi_client_error = qcril_qmi_client_send_msg_async (QCRIL_QMI_CLIENT_VOICE,
+                                         QMI_VOICE_GET_COLR_REQ_V02,
+                                         NULL,
+                                         0,
+                                         get_colr_resp_ptr,
+                                         sizeof(*get_colr_resp_ptr),
+                                         (void*)(uintptr_t)user_data);
+    QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error );
+    res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_client_error, NULL);
+  } while(FALSE);
+
+  if (res != RIL_E_SUCCESS)
+  {
+    qcril_send_empty_payload_request_response(QCRIL_DEFAULT_INSTANCE_ID,
+            params_ptr->t,
+            params_ptr->event_id,
+            res);
+    qcril_free(get_colr_resp_ptr);
+  }
+
+  QCRIL_LOG_FUNC_RETURN();
+} /* qcril_qmi_voice_request_get_colr */
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_get_colr_resp_hdlr
+
+===========================================================================*/
+/*!
+    @brief
+    Handle QMI VOICE GET COLR RESP.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_get_colr_resp_hdlr
+(
+  const qcril_request_params_type *const params_ptr
+)
+{
+  voice_get_colr_resp_msg_v02 *get_colr_resp = NULL;
+  RIL_Errno                    ril_result    = RIL_E_GENERIC_FAILURE;
+
+  if( params_ptr->data != NULL )
+  {
+    get_colr_resp = (voice_get_colr_resp_msg_v02 *)params_ptr->data;
+
+    ril_result = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(
+                   QMI_NO_ERR,
+                   &get_colr_resp->resp);
+
+    if (ril_result == RIL_E_SUCCESS)
+    {
+      QCRIL_LOG_INFO("QCRIL QMI VOICE GET COLR RESP: SUCCESS");
+      if (params_ptr->event_id == QCRIL_EVT_IMS_SOCKET_REQ_GET_COLR)
+      {
+        Ims__Colr colr = IMS__COLR__INIT;
+
+        QCRIL_LOG_INFO( "colr_pi_valid: %d, colr_pi: %d",
+            get_colr_resp->colr_pi_valid, get_colr_resp->colr_pi);
+
+        if (get_colr_resp->colr_pi_valid)
+        {
+          if (get_colr_resp->colr_pi == COLR_PRESENTATION_NOT_RESTRICTED_V02)
+          {
+            colr.has_presentation = TRUE;
+            colr.presentation = IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_ALLOWED;
+          }
+          else if (get_colr_resp->colr_pi == COLR_PRESENTATION_RESTRICTED_V02)
+          {
+            colr.has_presentation = TRUE;
+            colr.presentation = IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_RESTRICTED;
+          }
+          else
+          {
+            ril_result = RIL_E_GENERIC_FAILURE;
+            QCRIL_LOG_ERROR("Unexpected value from modem\n");
+          }
+
+          if (ril_result == RIL_E_SUCCESS)
+          {
+            qcril_qmi_ims_socket_send(params_ptr->t,
+                    IMS__MSG_TYPE__RESPONSE,
+                    IMS__MSG_ID__REQUEST_GET_COLR,
+                    IMS__ERROR__E_SUCCESS,
+                    (void *)&colr,
+                    sizeof(colr));
+          }
+        }
+      }
+    }
+    else
+    {
+      QCRIL_LOG_INFO("QCRIL QMI VOICE GET COLR RESP: FAILURE");
+    }
+  }
+
+  if (ril_result != RIL_E_SUCCESS)
+  {
+    qcril_send_empty_payload_request_response(QCRIL_DEFAULT_INSTANCE_ID,
+            params_ptr->t,
+            params_ptr->event_id,
+            ril_result);
+  }
+}/* qcril_qmi_voice_get_colr_resp_hdlr */
+
+/*=========================================================================
+  FUNCTION:  qcril_qmi_voice_request_set_colr
+
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_IMS_SOCKET_REQ_SET_COLR.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_voice_request_set_colr
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr /*!< Output parameter */
+)
+{
+  qcril_reqlist_public_type  reqlist_entry;
+  RIL_Errno                  res = RIL_E_GENERIC_FAILURE;
+  IxErrnoType                qmi_client_error;
+  uint32                     user_data;
+  Ims__Colr                 *ims_colr_ptr = NULL;
+
+  voice_set_sups_service_req_msg_v02   set_sups_req;
+  voice_set_sups_service_resp_msg_v02 *set_sups_resp_ptr = NULL;
+
+  QCRIL_LOG_FUNC_ENTRY();
+
+  do
+  {
+    if ( params_ptr->datalen == 0  || params_ptr->data == NULL )
+    {
+      QCRIL_LOG_INFO( "params_ptr->datalen == 0 or params_ptr is NULL" );
+      break;
+    }
+
+    ims_colr_ptr = (Ims__Colr *) params_ptr->data;
+
+    /* Add entry to ReqList */
+    qcril_reqlist_default_entry(params_ptr->t,
+            params_ptr->event_id,
+            QCRIL_DEFAULT_MODEM_ID,
+            QCRIL_REQ_AWAITING_CALLBACK,
+            QCRIL_EVT_NONE,
+            NULL,
+            &reqlist_entry );
+    if (qcril_reqlist_new(QCRIL_DEFAULT_INSTANCE_ID, &reqlist_entry) != E_SUCCESS)
+    {
+      /* Fail to add entry to ReqList */
+      QCRIL_LOG_ERROR("Failed to Add into Req list");
+      break;
+    }
+
+    set_sups_resp_ptr = qcril_malloc( sizeof(*set_sups_resp_ptr) );
+    if( NULL == set_sups_resp_ptr )
+    {
+      QCRIL_LOG_ERROR("qcril_malloc failed");
+      break;
+    }
+
+    memset(&set_sups_req, 0, sizeof(set_sups_req));
+
+    QCRIL_LOG_INFO( "has_presentation: %d, presentation: %d",
+          ims_colr_ptr->has_presentation,
+          ims_colr_ptr->presentation);
+
+    if (ims_colr_ptr->has_presentation)
+    {
+      set_sups_req.supplementary_service_info.reason = QMI_VOICE_REASON_COLR_V02;
+
+      set_sups_req.colr_pi_valid = TRUE;
+      if (ims_colr_ptr->presentation == IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_RESTRICTED)
+      {
+        set_sups_req.supplementary_service_info.voice_service = VOICE_SERVICE_ACTIVATE_V02;
+        set_sups_req.colr_pi = COLR_PRESENTATION_RESTRICTED_V02;
+      }
+      else if (ims_colr_ptr->presentation == IMS__IP_PRESENTATION__IP_PRESENTATION_NUM_ALLOWED)
+      {
+        set_sups_req.supplementary_service_info.voice_service = VOICE_SERVICE_DEACTIVATE_V02;
+        set_sups_req.colr_pi = COLR_PRESENTATION_NOT_RESTRICTED_V02;
+      }
+      else
+      {
+        QCRIL_LOG_ERROR("requested colr is not a valid value");
+        break;
+      }
+    }
+    else
+    {
+      QCRIL_LOG_ERROR("request misses some necessary information");
+      break;
+    }
+
+    user_data = QCRIL_COMPOSE_USER_DATA(QCRIL_DEFAULT_INSTANCE_ID,
+            QCRIL_DEFAULT_MODEM_ID,
+            reqlist_entry.req_id);
+
+    /* Send QMI VOICE SET SUPS SERVICE REQ */
+    qmi_client_error = qcril_qmi_client_send_msg_async (QCRIL_QMI_CLIENT_VOICE,
+                                          QMI_VOICE_SET_SUPS_SERVICE_REQ_V02,
+                                          &set_sups_req,
+                                          sizeof(set_sups_req),
+                                          set_sups_resp_ptr,
+                                          sizeof(*set_sups_resp_ptr),
+                                          (void*)(uintptr_t)user_data);
+    QCRIL_LOG_INFO(".. qmi send async res %d", (int) qmi_client_error );
+    res = qcril_qmi_util_convert_qmi_response_codes_to_ril_result(qmi_client_error, NULL);
+  } while(FALSE);
+
+  if (res != RIL_E_SUCCESS)
+  {
+    qcril_send_empty_payload_request_response(QCRIL_DEFAULT_INSTANCE_ID,
+            params_ptr->t,
+            params_ptr->event_id,
+            res);
+    qcril_free(set_sups_resp_ptr);
+  }
+
+  if(ims_colr_ptr)
+  {
+    qcril_qmi_ims__colr__free_unpacked(ims_colr_ptr, NULL);
+  }
+  QCRIL_LOG_FUNC_RETURN();
+} /* qcril_qmi_voice_request_set_colr */
+
+void qcril_qmi_voice_voip_reset_answered_call_type
+(
+ qcril_qmi_voice_voip_call_info_entry_type *call_info,
+ voice_modified_ind_msg_v02                *modify_ind_ptr
+)
+{
+  if(call_info != NULL && call_info->answered_call_type_valid)
+  {
+    if (call_info->voice_scv_info.call_type == CALL_TYPE_VT_V02)
+    {
+      if ((modify_ind_ptr->audio_attrib_valid && 0 != modify_ind_ptr->audio_attrib) &&
+          (modify_ind_ptr->video_attrib_valid && 0 != modify_ind_ptr->video_attrib))
+      {
+        call_info->answered_call_type_valid = FALSE;
+      }
+    }
+    else if (call_info->voice_scv_info.call_type == CALL_TYPE_VOICE_IP_V02)
+    {
+      if (modify_ind_ptr->audio_attrib_valid && 0 != modify_ind_ptr->audio_attrib)
+      {
+        call_info->answered_call_type_valid = FALSE;
+      }
+    }
+  }
+}
+
+//===========================================================================
+// qcril_qmi_ims_socket_send_unsol_call_state_changed
+//===========================================================================
+void qcril_qmi_voice_send_ims_unsol_call_state_changed()
+{
+    qcril_request_params_type params = {{{0}}};
+    params.event_id = QCRIL_EVT_IMS_SOCKET_SEND_UNSOL_CURRENT_CALLS;
+    qcril_qmi_voice_send_current_ims_calls(&params, NULL);
+} // qcril_qmi_ims_socket_send_unsol_call_state_changed
+
+//===========================================================================
+// qcril_qmi_voice_is_ims_send_calls
+//===========================================================================
+boolean qcril_qmi_voice_is_ims_send_calls(int event_id)
+{
+    return event_id == QCRIL_EVT_IMS_SOCKET_REQ_GET_CURRENT_CALLS ||
+           event_id == QCRIL_EVT_IMS_SOCKET_SEND_UNSOL_CURRENT_CALLS;
+} // qcril_qmi_voice_is_ims_send_calls

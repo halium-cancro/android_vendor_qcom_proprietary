@@ -36,8 +36,6 @@ LOCAL_SHARED_LIBRARIES += libqmi_client_qmux
 LOCAL_SHARED_LIBRARIES += libqmi
 LOCAL_SHARED_LIBRARIES += liblog
 
-#LOCAL_LDLIBS += -lpthread
-
 LOCAL_MODULE := libqcci_legacy
 
 LOCAL_MODULE_TAGS := optional
@@ -85,7 +83,6 @@ LOCAL_SHARED_LIBRARIES += libqmiservices
 LOCAL_SHARED_LIBRARIES += libqcci_legacy
 LOCAL_SHARED_LIBRARIES += libqmi_client_qmux
 LOCAL_SHARED_LIBRARIES += liblog
-
 
 LOCAL_MODULE := libqmi_csvt_srvc
 

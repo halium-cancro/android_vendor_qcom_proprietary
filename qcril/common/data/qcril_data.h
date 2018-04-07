@@ -9,7 +9,7 @@
   N/A
 
   ---------------------------------------------------------------------------
-  Copyright (C) 2009 - 2010, 2013 Qualcomm Technologies, Inc.
+  Copyright (C) 2009 - 2010, 2013, 2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -82,9 +82,7 @@ typedef enum
   QCRIL_DATA_RIL_RADIO_TECH_LTE     = QCRIL_DATA_CONVERT_RIL_RADIOTECH(RADIO_TECH_LTE),
   QCRIL_DATA_RIL_RADIO_TECH_HSPAP   = QCRIL_DATA_CONVERT_RIL_RADIOTECH(RADIO_TECH_HSPAP),
   QCRIL_DATA_RIL_RADIO_TECH_GSM     = QCRIL_DATA_CONVERT_RIL_RADIOTECH(RADIO_TECH_GSM),
-//#if (RIL_QCOM_VERSION >= 3)
   QCRIL_DATA_RIL_RADIO_TECH_TDSCDMA = QCRIL_DATA_CONVERT_RIL_RADIOTECH(RADIO_TECH_TD_SCDMA),
-//#endif /* (RIL_QCOM_VERSION >= 3) */
 
   /* This should be the last entry */
   QCRIL_DATA_RIL_RADIO_TECH_LAST
@@ -104,10 +102,10 @@ typedef enum
 ===========================================================================*/
 
 #define QCRIL_DS_LOG_DBG_MEM( msg, val )  \
-  QCRIL_LOG_DEBUG( ">>>Mem debug>>> %s [%#x]", msg, (unsigned int)val );
+  QCRIL_LOG_DEBUG( ">>>Mem debug>>> %s [%p]", msg, (unsigned int *)val );
 
 #define QCRIL_DS_LOG_DBG_DSI_HNDL( dsi_hndl ) \
-  QCRIL_LOG_DEBUG( "dsi_hndl is [%#x]", (unsigned int) dsi_hndl );
+  QCRIL_LOG_DEBUG( "dsi_hndl is [%p]", (unsigned int *) dsi_hndl );
 
 /*---------------------------------------------------------------------------
    Utility
@@ -301,6 +299,63 @@ RIL_Errno qcril_data_request_set_lte_attach_profile
 void qcril_data_update_mtu
 (
   unsigned int mtu
+);
+/*===========================================================================
+
+  FUNCTION:  qcril_data_set_is_data_enabled
+
+===========================================================================*/
+/*!
+    @brief
+    Sets the data enabled to true or false via DSD indication passed by
+    upper layers
+    @return
+    SUCCESS :- If QMI DSD returns rc = 0
+    FAILURE :- If QMI DSD returns rc = negative value
+*/
+  /*===========================================================================*/
+
+RIL_Errno qcril_data_set_is_data_enabled
+(
+  boolean is_data_enabled
+);
+/*===========================================================================
+
+  FUNCTION:  qcril_data_set_is_data_roaming_enabled
+
+===========================================================================*/
+/*!
+    @brief
+    Sets the data roaming enabled to true or false via DSD indication passed
+    by upper layers
+    @return
+    SUCCESS:- If QMI DSD returns rc = 0
+    FAILURE:- If QMI DSD returns rc = negative value
+*/
+  /*===========================================================================*/
+
+RIL_Errno qcril_data_set_is_data_roaming_enabled
+(
+  boolean is_data_roaming_enabled
+);
+/*===========================================================================
+
+  FUNCTION:  qcril_data_set_apn_info
+
+===========================================================================*/
+/*!
+    @brief
+    Sets the APN type and APN name via DSD indication passed by upper layers
+    @return
+    SUCCESS:- If QMI DSD returns rc = 0
+    FAILURE:- If QMI DSD returns rc = negative value
+*/
+  /*===========================================================================*/
+
+RIL_Errno qcril_data_set_apn_info
+(
+  char *type,
+  char *name
 );
 
 #endif /* QCRIL_DATA_H */

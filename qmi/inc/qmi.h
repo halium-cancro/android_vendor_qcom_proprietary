@@ -39,6 +39,19 @@ extern "C" {
 /* Typedef for client handles */
 typedef int qmi_client_handle_type;
 
+/* qmi-framework also defines these variables in one of its header files
+ * If we include both these header files we will get compiler warnings for
+ * macro redefinitions. To fix this we will undefine and redefine these
+ * values */
+#undef QMI_INTERNAL_ERR
+#undef QMI_SERVICE_ERR
+#undef QMI_TIMEOUT_ERR
+#undef QMI_EXTENDED_ERR
+#undef QMI_PORT_NOT_OPEN_ERR
+#undef QMI_MEMCOPY_ERROR
+#undef QMI_INVALID_TXN
+#undef QMI_CLIENT_ALLOC_FAILURE
+
 /* Error codes returned from QMI interface functions */
 #define QMI_NO_ERR                0       /* No Error */
 #define QMI_INTERNAL_ERR               -1      /* Linux/System Error */
@@ -221,6 +234,7 @@ typedef enum
   QMI_SERVICE_NOT_YET_IMPLEMENTED_16      = 0x2C,
   QMI_FDS_SERVICE                         = 0x2D,
   QMI_ATP_SERVICE                         = 0x2E,
+  QMI_DFS_SERVICE                         = 0x30,
   QMI_FIRST_VS_SERVICE,
   QMI_RF_SAR_SERVICE                      = QMI_FIRST_VS_SERVICE,
   QMI_MAX_SERVICES
@@ -283,7 +297,8 @@ typedef enum
   QMI_SYS_EVENT_SYNC_IND,
   QMI_SYS_EVENT_MODEM_OUT_OF_SERVICE_IND,
   QMI_SYS_EVENT_MODEM_IN_SERVICE_IND,
-  QMI_SYS_EVENT_MODEM_NEW_SRVC_IND
+  QMI_SYS_EVENT_MODEM_NEW_SRVC_IND,
+  QMI_SYS_EVENT_PORT_WRITE_FAIL_IND
 } qmi_sys_event_type;
 
 /* Data associated with system events (to be filled in as required) */
@@ -305,6 +320,12 @@ typedef union
     int conn_id;
     const char *dev_id;
   } qmi_modem_service_ind;
+
+  struct
+  {
+    qmi_connection_id_type conn_id;
+    int write_err_code;
+  } qmi_sys_port_write_failed_ind;
 
 } qmi_sys_event_info_type;
 

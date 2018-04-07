@@ -36,7 +36,9 @@
 #include "IxErrno.h"
 #include "qcrili.h"
 #include "qcril_log.h"
-
+#ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+#include "qcril_uim_remote_client_msg_meta.h"
+#endif
 /*===========================================================================
 
                    INTERNAL DEFINITIONS AND TYPES
@@ -283,14 +285,52 @@ static void *qcril_event_main
       {
         qcril_event_remove_from_list( ev );
 
-        QCRIL_LOG_DEBUG( "RID %d MID %d De-queued event %s (%d)(obj 0x%x)", ev->instance_id, ev->modem_id, qcril_log_lookup_event_name((int) ev->event_id),
-                         ev->event_id, (int)ev );
+
+        QCRIL_LOG_DEBUG( "RID %d MID %d De-queued event %s (%d)(obj 0x%"PRIxPTR")",
+                         ev->instance_id, ev->modem_id,
+                         qcril_log_lookup_event_name((int) ev->event_id),
+                         ev->event_id, (intptr_t) ev );
+
+#ifdef QMI_RIL_UTF
+        // shutdown thread upon request
+        if (ev->event_id == -1)
+        {
+          close(filedes[0]);
+          close(filedes[1]);
+          QCRIL_MUTEX_UNLOCK( &qcril_event.list_mutex, "[Event Thread] qcril_event.list_mutex" );
+          pthread_mutex_unlock( &qcril_event.activity_lock_mutex );
+          pthread_exit(NULL);
+        }
+#endif
 
         QCRIL_MUTEX_UNLOCK( &qcril_event.list_mutex, "[Event Thread] qcril_event.list_mutex" );
         err_no = qcril_process_event( ev->instance_id, ev->modem_id, ev->event_id, ev->data, ev->datalen, ev->t );
         QCRIL_MUTEX_LOCK( &qcril_event.list_mutex, "[Event Thread] qcril_event.list_mutex" );
 
-        if ( ev->data_must_be_freed && ev->data )
+        boolean to_check_ev_data_free = TRUE;
+#ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+        if(ev->event_id > QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_BASE && ev->event_id < QCRIL_EVT_UIM_REMOTE_CLIENT_SOCKET_REQ_MAX)
+        {
+            //uim remote req must free it
+            if(ev->data)
+            {
+                com_qualcomm_uimremoteclient_MessageId msg_id = (com_qualcomm_uimremoteclient_MessageId) qcril_uim_remote_client_map_event_to_request(ev->event_id);
+                QCRIL_LOG_INFO("freeing request message for %s(id: %d)", qcril_uim_remote_client_get_msg_log_str(msg_id, com_qualcomm_uimremoteclient_MessageType_UIM_REMOTE_MSG_REQUEST), msg_id);
+                const pb_field_t* pb_fields = qcril_uim_remote_client_get_msg_pb_fields(msg_id, com_qualcomm_uimremoteclient_MessageType_UIM_REMOTE_MSG_REQUEST);
+                if(pb_fields)
+                {
+                    qcril_qmi_npb_release(pb_fields, ev->data);
+                }
+                else
+                {
+                    QCRIL_LOG_ERROR("missing pb fields");
+                }
+                qcril_free(ev->data);
+            }
+            to_check_ev_data_free = false;
+        }
+#endif
+        if ( to_check_ev_data_free && ev->data_must_be_freed && ev->data )
         {
           qcril_free( ev->data );
         }
@@ -412,7 +452,10 @@ IxErrnoType qcril_event_queue
         ret = write (qcril_event.fdWakeupWrite, " ", 1);
       } while (ret < 0 && errno == EINTR);
     }
-    QCRIL_LOG_DEBUG( "RID %d MID %d Queued event %s (%d bytes)(obj 0x%x)", instance_id, modem_id, qcril_log_lookup_event_name((int) event_id), datalen, (int)ev );
+    QCRIL_LOG_DEBUG( "RID %d MID %d Queued event %s (%d bytes)(obj 0x%"PRIxPTR")",
+                      instance_id, modem_id,
+                      qcril_log_lookup_event_name((int) event_id),
+                      datalen, (intptr_t)ev );
   } while(0);
 
   if(E_SUCCESS != result)
@@ -455,10 +498,16 @@ void qcril_event_init( void )
 
   qcril_event.started = 0;
 
+  #ifdef QMI_RIL_UTF
+  pthread_attr_init (&attr);
+  ret = utf_pthread_create_handler(&qcril_event.tid, &attr, qcril_event_main, NULL);
+  pthread_attr_destroy( &attr );
+  #else
   pthread_attr_init (&attr);
   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   ret = pthread_create(&qcril_event.tid, &attr, qcril_event_main, NULL);
   pthread_attr_destroy( &attr );
+  #endif
   qmi_ril_set_thread_name(qcril_event.tid, QMI_RIL_EVENT_THREAD_NAME);
 
   if (ret < 0)

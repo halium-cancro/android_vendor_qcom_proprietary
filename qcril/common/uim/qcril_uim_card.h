@@ -2,7 +2,7 @@
 #define QCRIL_UIM_CARD_H
 /*===========================================================================
 
-  Copyright (c) 2010-2011 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -31,6 +31,9 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim_card.h#1 $
 
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
+08/20/14   at      Support for graceful UICC Voltage supply deactivation
+06/05/14   tl      Add support for recovery indication
+01/17/14   at      Changed the feature checks for RIL_REQUEST_SIM_GET_ATR
 07/10/13   at      Support for clearing proactive cmd cache on card error
 04/09/12   at      Added support for RIL_REQUEST_SIM_GET_ATR
 01/11/11   at      Removed refresh function declarations, added others
@@ -234,7 +237,7 @@ void qcril_uim_update_prov_session_type
   qcril_uim_prov_session_state_type     session_state
 );
 
-#ifdef FEATURE_QCRIL_UIM_QMI_GET_ATR
+#if defined RIL_REQUEST_SIM_GET_ATR
 /*=========================================================================
 
   FUNCTION:  qcril_uim_get_atr_resp
@@ -252,9 +255,84 @@ void qcril_uim_get_atr_resp
 (
   const qcril_uim_callback_params_type * const params_ptr
 );
-#endif /* FEATURE_QCRIL_UIM_QMI_GET_ATR */
+#endif /* RIL_REQUEST_SIM_GET_ATR */
 
-RIL_Errno qcril_uim_direct_get_card_status( qcril_instance_id_e_type instance_id, RIL_CardStatus_v6 * ril_card_status );
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_process_recovery_ind
+
+===========================================================================*/
+/*!
+    @brief
+    Main function for processing QMI recovery complete indication.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_uim_process_recovery_ind
+(
+  const qcril_uim_indication_params_type  * ind_param_ptr,
+  qcril_request_return_type               * const ret_ptr /*!< Output parameter */
+);
+
+/*=========================================================================
+
+  FUNCTION:  qcril_uim_voltage_supply_resp
+
+===========================================================================*/
+/*!
+    @brief
+    Processes the response for voltage supply command.
+
+    @return
+    None
+*/
+/*=========================================================================*/
+void qcril_uim_voltage_supply_resp
+(
+  const qcril_uim_callback_params_type * const params_ptr
+);
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_process_supply_voltage_ind
+
+===========================================================================*/
+/*!
+    @brief
+    Main function for processing QMI supply voltage indication.
+    Note that the data type for QCRIL_EVT_HOOK_UNSOL_UICC_VOLTAGE_STATUS is
+    RIL_UiccVoltageStatus
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_uim_process_supply_voltage_ind
+(
+  const qcril_uim_indication_params_type  * ind_param_ptr,
+  qcril_request_return_type               * const ret_ptr /*!< Output parameter */
+);
+
+/*===========================================================================
+
+  FUNCTION:  qcril_uim_direct_get_card_status
+
+===========================================================================*/
+/*!
+    @brief
+    Returns card status from UIM RIL cache
+
+    @return
+    None
+*/
+/*=========================================================================*/
+RIL_Errno qcril_uim_direct_get_card_status
+(
+  qcril_instance_id_e_type instance_id,
+  RIL_CardStatus_v6 * ril_card_status
+);
 
 #endif /* QCRIL_UIM_CARD_H */
 

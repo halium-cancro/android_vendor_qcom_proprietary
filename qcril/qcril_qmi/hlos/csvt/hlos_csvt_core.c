@@ -48,6 +48,43 @@ static Ims__CallState hlos_csvt_convert_csvt_call_state_to_ims_call_state(
 );
 
 
+/***************************************************************************************************
+    @function
+    hlos_csvt_create_ims_calllist
+
+    @brief
+    Create ims call list
+
+    @param[in]
+        none
+
+    @param[out]
+        none
+
+    @retval
+    HLOS IMS call list
+***************************************************************************************************/
+static Ims__CallList *hlos_csvt_create_ims_calllist(
+        cri_csvt_utils_hlos_call_object_type *cri_csvt_utils_hlos_ongoing_call_objects,
+        int number_of_csvt_calls);
+
+/***************************************************************************************************
+    @function
+    hlos_csvt_free_ims_calllist
+
+    @brief
+    Frees IMS Call List object
+
+    @param[in]
+        Pointer to IMS Call List object
+
+    @param[out]
+        none
+
+    @retval
+        none
+***************************************************************************************************/
+static void hlos_csvt_free_ims_calllist(Ims__CallList *call_list);
 
 
 
@@ -159,11 +196,34 @@ void hlos_csvt_unsol_ind_handler(unsigned long message_id,
                                  void *ind_data,
                                  int ind_data_len)
 {
+    Ims__CallList *call_list = NULL;
+    int number_of_csvt_calls = 0;
+    cri_csvt_utils_hlos_call_object_type *cri_csvt_utils_hlos_ongoing_call_objects = NULL;
+
     UTIL_LOG_MSG("entry");
 
-    qcril_qmi_ims_socket_send_empty_payload_unsol_resp(
-        IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED
-    );
+    number_of_csvt_calls = cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls(FALSE);
+    cri_csvt_utils_hlos_ongoing_call_objects =
+            cri_csvt_utils_retrieve_hlos_ongoing_call_objects(FALSE);
+
+    call_list = hlos_csvt_create_ims_calllist(cri_csvt_utils_hlos_ongoing_call_objects,
+            number_of_csvt_calls);
+
+    if(NULL == call_list)
+    {
+        UTIL_LOG_MSG("no hlos call objects to be reported");
+    }
+
+    qcril_qmi_ims_socket_send(0,
+            IMS__MSG_TYPE__UNSOL_RESPONSE,
+            IMS__MSG_ID__UNSOL_RESPONSE_CALL_STATE_CHANGED,
+            IMS__ERROR__E_SUCCESS,
+            call_list,
+            sizeof(Ims__CallList));
+
+    hlos_csvt_free_ims_calllist(call_list);
+
+    util_memory_free((void**) &cri_csvt_utils_hlos_ongoing_call_objects);
 
     UTIL_LOG_MSG("exit");
 }
@@ -290,6 +350,10 @@ Ims__CallState hlos_csvt_convert_csvt_call_state_to_ims_call_state(
             ims_call_state = IMS__CALL_STATE__CALL_INCOMING;
             break;
 
+        case CSVT_EVENT_TYPE_END_V01:
+            ims_call_state = IMS__CALL_STATE__CALL_END;
+            break;
+
         default:
             ims_call_state = IMS__CALL_STATE__CALL_DIALING;
             break;
@@ -344,7 +408,7 @@ void hlos_csvt_dial_request_handler(void *event_data)
                                                          event_data,
                                                          hlos_csvt_dial_response_handler);
 
-            if(QMI_ERR_NONE_V01 != ret_val)
+            if(CRI_ERR_NONE_V01 != ret_val)
             {
                 hlos_core_send_response(IMS_PIPE,
                                         ret_val,
@@ -449,7 +513,7 @@ void hlos_csvt_answer_request_handler(void *event_data)
                                                                hlos_csvt_answer_response_handler);
             }
 
-            if(QMI_ERR_NONE_V01 != ret_val)
+            if(CRI_ERR_NONE_V01 != ret_val)
             {
                 hlos_core_send_response(IMS_PIPE,
                                         ret_val,
@@ -566,7 +630,7 @@ void hlos_csvt_hangup_request_handler(void *event_data)
                                                             hlos_csvt_hangup_response_handler);
             }
 
-            if(QMI_ERR_NONE_V01 != ret_val)
+            if(CRI_ERR_NONE_V01 != ret_val)
             {
                 hlos_core_send_response(IMS_PIPE,
                                         ret_val,
@@ -632,107 +696,24 @@ void hlos_csvt_hangup_response_handler(cri_core_context_type context,
 void hlos_csvt_get_current_calls_request_handler(void *event_data)
 {
     cri_core_error_type ret_val;
-    int number_of_csvt_calls;
-    int iter_resp_object;
-    cri_csvt_utils_hlos_call_object_type *cri_csvt_utils_hlos_ongoing_call_objects;
-    void *get_current_calls_payload;
-    size_t get_current_calls_payload_len;
+    Ims__CallList *call_list = NULL;
+    int number_of_csvt_calls = 0;
+    cri_csvt_utils_hlos_call_object_type *cri_csvt_utils_hlos_ongoing_call_objects = NULL;
 
     UTIL_LOG_MSG("entry");
 
     ret_val = QMI_ERR_NONE_V01;
-    number_of_csvt_calls = NIL;
-    iter_resp_object = NIL;
-    get_current_calls_payload = NULL;
-    get_current_calls_payload_len = NIL;
 
     if(event_data)
     {
-        number_of_csvt_calls = cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls();
+        number_of_csvt_calls = cri_csvt_utils_retrieve_number_of_ongoing_csvt_calls(TRUE);
+        cri_csvt_utils_hlos_ongoing_call_objects =
+                cri_csvt_utils_retrieve_hlos_ongoing_call_objects(TRUE);
 
-        Ims__CallList call_list = IMS__CALL_LIST__INIT;
-        call_list.n_callattributes = number_of_csvt_calls;
-        call_list.callattributes =
-                            util_memory_alloc(sizeof (Ims__CallList__Call*) * number_of_csvt_calls);
-        Ims__CallList__Call *calls =
-                            util_memory_alloc(sizeof(Ims__CallList__Call) * number_of_csvt_calls);
-        Ims__CallDetails *call_details =
-                            util_memory_alloc(sizeof(Ims__CallDetails) * number_of_csvt_calls);
+        call_list = hlos_csvt_create_ims_calllist(cri_csvt_utils_hlos_ongoing_call_objects,
+                number_of_csvt_calls);
 
-        if ( call_list.callattributes && calls && call_details)
-        {
-            cri_csvt_utils_hlos_ongoing_call_objects =
-                                                cri_csvt_utils_retrieve_hlos_ongoing_call_objects();
-
-            if(NULL != cri_csvt_utils_hlos_ongoing_call_objects)
-            {
-                for ( iter_resp_object = 0;
-                      iter_resp_object < number_of_csvt_calls;
-                      iter_resp_object++ )
-                {
-                    call_list.callattributes[iter_resp_object] = &calls[iter_resp_object];
-
-                    Ims__CallList__Call callTemp = IMS__CALL_LIST__CALL__INIT;
-                    memcpy(&(calls[iter_resp_object]), &callTemp, sizeof(Ims__CallList__Call));
-
-                    calls[iter_resp_object].has_state = TRUE;
-                    calls[iter_resp_object].state     =
-                        hlos_csvt_convert_csvt_call_state_to_ims_call_state(
-                         cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].csvt_call_state
-                        );
-                    calls[iter_resp_object].has_index = TRUE;
-                    calls[iter_resp_object].index     =
-                        cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].hlos_call_id;
-                    calls[iter_resp_object].has_ismpty = TRUE;
-                    calls[iter_resp_object].ismpty    = FALSE;
-                    calls[iter_resp_object].isvoice   = FALSE;
-                    calls[iter_resp_object].name   = NULL;
-                    calls[iter_resp_object].number   =
-                     cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].remote_party_number;
-                    calls[iter_resp_object].numberpresentation = QCRIL_QMI_VOICE_RIL_PI_ALLOWED;
-                    calls[iter_resp_object].has_ismt  = TRUE;
-                    calls[iter_resp_object].ismt      =
-                        cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].is_mt;
-                    calls[iter_resp_object].has_toa   = TRUE;
-                    if ( calls[iter_resp_object].number[0] == QCRIl_QMI_VOICE_SS_TA_INTER_PREFIX )
-                    {
-                      calls[iter_resp_object].toa = QCRIL_QMI_VOICE_SS_TA_INTERNATIONAL;
-                    }
-                    else
-                    {
-                      calls[iter_resp_object].toa = QCRIL_QMI_VOICE_SS_TA_UNKNOWN;
-                    }
-
-                    calls[iter_resp_object].calldetails = &(call_details[iter_resp_object]);
-                    Ims__CallDetails call_detailsTemp = IMS__CALL_DETAILS__INIT;
-                    memcpy(&(call_details[iter_resp_object]),
-                           &call_detailsTemp,
-                           sizeof(Ims__CallDetails));
-                    call_details[iter_resp_object].has_calltype = TRUE;
-                    call_details[iter_resp_object].calltype = IMS__CALL_TYPE__CALL_TYPE_VT;
-                    call_details[iter_resp_object].has_calldomain = TRUE;
-                    call_details[iter_resp_object].calldomain = IMS__CALL_DOMAIN__CALL_DOMAIN_CS;
-                }
-                util_memory_free((void**) &cri_csvt_utils_hlos_ongoing_call_objects);
-            }
-
-            for ( iter_resp_object = 0;
-                  iter_resp_object < number_of_csvt_calls;
-                  iter_resp_object++ )
-            {
-                UTIL_LOG_MSG("hlos call object id %d, call id %d, state %d, is mt %d, number %s",
-                             (iter_resp_object + 1),
-                             calls[iter_resp_object].index,
-                             calls[iter_resp_object].state,
-                             calls[iter_resp_object].ismt,
-                             calls[iter_resp_object].number);
-            }
-
-            get_current_calls_payload = &call_list;
-            get_current_calls_payload_len = sizeof(call_list);
-        }
-
-        if(NULL == get_current_calls_payload)
+        if(NULL == call_list)
         {
             UTIL_LOG_MSG("no hlos call objects to be reported");
         }
@@ -740,24 +721,209 @@ void hlos_csvt_get_current_calls_request_handler(void *event_data)
         hlos_core_send_response(IMS_PIPE,
                                 ret_val,
                                 event_data,
-                                get_current_calls_payload,
-                                get_current_calls_payload_len);
+                                call_list,
+                                sizeof (Ims__CallList));
 
-        if (call_list.callattributes)
+    }
+
+    util_memory_free((void**) &cri_csvt_utils_hlos_ongoing_call_objects);
+    hlos_csvt_free_ims_calllist(call_list);
+
+    UTIL_LOG_MSG("exit");
+}
+
+
+/***************************************************************************************************
+    @function
+    hlos_csvt_create_ims_calllist
+
+    @implementation detail
+    None.
+***************************************************************************************************/
+Ims__CallList *hlos_csvt_create_ims_calllist(
+        cri_csvt_utils_hlos_call_object_type *cri_csvt_utils_hlos_ongoing_call_objects,
+        int number_of_csvt_calls
+)
+{
+    Ims__CallList       *call_list    = NULL;
+    Ims__CallList__Call *calls        = NULL;
+    Ims__CallDetails    *call_details = NULL;
+    Ims__CallFailCauseResponse *failcause = NULL;
+    boolean is_failed            = FALSE;
+    char    *error_info_data     = NULL;
+    int     iter_resp_object     = 0;
+
+    UTIL_LOG_MSG("entry");
+
+    do
+    {
+        UTIL_LOG_MSG("number_of_csvt_calls = %d, cri_csvt_utils_hlos_ongoing_call_objects = %p",
+                number_of_csvt_calls, cri_csvt_utils_hlos_ongoing_call_objects);
+        if (cri_csvt_utils_hlos_ongoing_call_objects == NULL || number_of_csvt_calls == 0)
         {
-          util_memory_free((void**) &call_list.callattributes);
+            break;
         }
-        if (calls)
+
+        call_list = util_memory_alloc(sizeof (Ims__CallList));
+        if (call_list == NULL)
         {
-          util_memory_free((void**) &calls);
+            is_failed = TRUE;
+            break;
         }
-        if (call_details)
+        qcril_qmi_ims__call_list__init(call_list);
+
+        call_list->n_callattributes = number_of_csvt_calls;
+        call_list->callattributes = util_memory_alloc(sizeof (Ims__CallList__Call*) *
+                                                      number_of_csvt_calls);
+        if (call_list->callattributes == NULL)
         {
-          util_memory_free((void**) &call_details);
+            is_failed = TRUE;
+            break;
         }
+
+        for ( iter_resp_object = 0;
+              iter_resp_object < number_of_csvt_calls;
+              iter_resp_object++ )
+        {
+            calls = util_memory_alloc(sizeof(Ims__CallList__Call));
+            call_details = util_memory_alloc(sizeof(Ims__CallDetails));
+            if (calls == NULL || call_details == NULL)
+            {
+                is_failed = TRUE;
+                break;
+            }
+            qcril_qmi_ims__call_list__call__init(calls);
+            qcril_qmi_ims__call_details__init(call_details);
+
+            call_list->callattributes[iter_resp_object] = calls;
+            calls->has_state = TRUE;
+            calls->state     =
+                hlos_csvt_convert_csvt_call_state_to_ims_call_state(
+                 cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].csvt_call_state
+                );
+            calls->has_index = TRUE;
+            calls->index     =
+                cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].hlos_call_id;
+            calls->has_ismpty = TRUE;
+            calls->ismpty    = FALSE;
+            calls->isvoice   = FALSE;
+            calls->name     = NULL;
+            calls->number   =
+             cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].remote_party_number;
+            calls->numberpresentation = QCRIL_QMI_VOICE_RIL_PI_ALLOWED;
+            calls->has_ismt  = TRUE;
+            calls->ismt      =
+                cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].is_mt;
+            calls->has_toa   = TRUE;
+            if ( calls->number[0] == QCRIl_QMI_VOICE_SS_TA_INTER_PREFIX )
+            {
+              calls->toa = QCRIL_QMI_VOICE_SS_TA_INTERNATIONAL;
+            }
+            else
+            {
+              calls->toa = QCRIL_QMI_VOICE_SS_TA_UNKNOWN;
+            }
+
+            calls->calldetails = call_details;
+            call_details->has_calltype = TRUE;
+            call_details->calltype = IMS__CALL_TYPE__CALL_TYPE_VT;
+            call_details->has_calldomain = TRUE;
+            call_details->calldomain = IMS__CALL_DOMAIN__CALL_DOMAIN_CS;
+
+            if (calls->state == IMS__CALL_STATE__CALL_END)
+            {
+                failcause = util_memory_alloc(sizeof(Ims__CallFailCauseResponse));
+                error_info_data = util_memory_alloc(sizeof(char) * HLOS_CSVT_EXTENDED_CODE_MAX_LEN);
+                if (failcause == NULL || error_info_data == NULL)
+                {
+                    is_failed = TRUE;
+                    break;
+                }
+                qcril_qmi_ims__call_fail_cause_response__init(failcause);
+                calls->failcause = failcause;
+                failcause->has_failcause = TRUE;
+                failcause->failcause = IMS__CALL_FAIL_CAUSE__CALL_FAIL_MISC;
+                snprintf(error_info_data, HLOS_CSVT_EXTENDED_CODE_MAX_LEN,
+                         "%d",
+                         cri_csvt_utils_hlos_ongoing_call_objects[iter_resp_object].call_fail_cause);
+                failcause->has_errorinfo = TRUE;
+                failcause->errorinfo.len =  strlen(error_info_data);
+                failcause->errorinfo.data =  (uint8_t*) error_info_data;
+
+            }
+        }
+
+        if (is_failed)
+        {
+            break;
+        }
+
+        for ( iter_resp_object = 0;
+              iter_resp_object < number_of_csvt_calls;
+              iter_resp_object++ )
+        {
+            UTIL_LOG_MSG("hlos call object id %d, call id %d, state %d, is mt %d, number %s",
+                         (iter_resp_object + 1),
+                         call_list->callattributes[iter_resp_object]->index,
+                         call_list->callattributes[iter_resp_object]->state,
+                         call_list->callattributes[iter_resp_object]->ismt,
+                         call_list->callattributes[iter_resp_object]->number);
+        }
+    } while (FALSE);
+
+    if (is_failed)
+    {
+        UTIL_LOG_MSG("failed to create call list");
+        hlos_csvt_free_ims_calllist(call_list);
+        call_list = NULL;
     }
 
     UTIL_LOG_MSG("exit");
+
+    return call_list;
+}
+
+/***************************************************************************************************
+    @function
+    hlos_csvt_free_ims_calllist
+
+    @implementation detail
+    None.
+***************************************************************************************************/
+void hlos_csvt_free_ims_calllist(Ims__CallList *call_list)
+{
+    int i = 0;
+
+    if (call_list)
+    {
+        if (call_list->callattributes)
+        {
+            for ( i = 0; i < call_list->n_callattributes; i++ )
+            {
+                if (call_list->callattributes[i])
+                {
+                    if (call_list->callattributes[i]->calldetails)
+                    {
+                        util_memory_free((void**)
+                          &call_list->callattributes[i]->calldetails);
+                    }
+                    if (call_list->callattributes[i]->failcause)
+                    {
+                        if (call_list->callattributes[i]->failcause->errorinfo.data)
+                        {
+                            util_memory_free((void**)
+                              &call_list->callattributes[i]->failcause->errorinfo.data);
+                        }
+                        util_memory_free((void**)
+                          &call_list->callattributes[i]->failcause);
+                    }
+                    util_memory_free((void**) &call_list->callattributes[i]);
+                }
+            }
+            util_memory_free((void**) &call_list->callattributes);
+        }
+        util_memory_free((void**) &call_list);
+    }
 }
 
 /***************************************************************************************************

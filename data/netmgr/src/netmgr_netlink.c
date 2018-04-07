@@ -15,7 +15,7 @@
 ******************************************************************************/
 /*===========================================================================
 
-  Copyright (c) 2010, 2013 Qualcomm Technologies, Inc. All Rights Reserved
+  Copyright (c) 2010, 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved
 
   Qualcomm Technologies Proprietary
 
@@ -83,18 +83,18 @@ uint32                   nl_seqno = 0;
 
 #define NETMGR_NL_REPORT_ADDR( level, prefix, addr )                              \
         if( AF_INET6 == (addr).ss_family ) {                                      \
-          NETMGR_LOG_IPV6_ADDR( level, prefix, addr.__data );                     \
+          NETMGR_LOG_IPV6_ADDR( level, prefix, addr.__data);       \
         } else {                                                                  \
-          NETMGR_LOG_IPV4_ADDR( level, prefix, addr.__data );                     \
+          NETMGR_LOG_IPV4_ADDR( level, prefix, addr.__data);\
         }
 
 #else/*(!defined(NETMGR_OFFTARGET) && defined(FEATURE_DS_LINUX_ANDROID))*/
 
 #define NETMGR_NL_REPORT_ADDR( level, prefix, addr )                                    \
         if( AF_INET6 == (addr).ss_family ) {                                            \
-          NETMGR_LOG_IPV6_ADDR( level, prefix, addr.__ss_padding );                     \
+          NETMGR_LOG_IPV6_ADDR( level, prefix, addr.__ss_padding);       \
         } else {                                                                        \
-          NETMGR_LOG_IPV4_ADDR( level, prefix, addr.__ss_padding );                     \
+          NETMGR_LOG_IPV4_ADDR( level, prefix, addr.__ss_padding);\
         }
 
 #endif/*(!defined(NETMGR_OFFTARGET) && defined(FEATURE_DS_LINUX_ANDROID))*/
@@ -617,14 +617,16 @@ int netmgr_nl_encode_netmgr_event
    * processed here; the NetLink msg header is added in later send
    * routine. */
   size = NETMGR_RTASIZE_EVENT;
-  size+= (NETMGR_EVT_PARAM_LINK     & event_info->param_mask)? NETMGR_RTASIZE_LINK : 0;
-  size+= (NETMGR_EVT_PARAM_FLOWINFO & event_info->param_mask)? NETMGR_RTASIZE_FLOWINFO : 0;
-  size+= (NETMGR_EVT_PARAM_ADDRINFO & event_info->param_mask)? NETMGR_RTASIZE_ADDRINFO : 0;
-  size+= (NETMGR_EVT_PARAM_GTWYINFO & event_info->param_mask)? NETMGR_RTASIZE_GTWYINFO : 0;
-  size+= (NETMGR_EVT_PARAM_DNSPADDR & event_info->param_mask)? NETMGR_RTASIZE_DNSPADDR : 0;
-  size+= (NETMGR_EVT_PARAM_DNSSADDR & event_info->param_mask)? NETMGR_RTASIZE_DNSSADDR : 0;
-  size+= (NETMGR_EVT_PARAM_DEVNAME  & event_info->param_mask)? NETMGR_RTASIZE_DEVNAME : 0;
-  size+= (NETMGR_EVT_PARAM_USER_CMD & event_info->param_mask)? NETMGR_RTASIZE_USER_CMD : 0;
+  size+= (NETMGR_EVT_PARAM_LINK     & event_info->param_mask)? (int)NETMGR_RTASIZE_LINK : 0;
+  size+= (NETMGR_EVT_PARAM_FLOWINFO & event_info->param_mask)? (int)NETMGR_RTASIZE_FLOWINFO : 0;
+  size+= (NETMGR_EVT_PARAM_ADDRINFO & event_info->param_mask)? (int)NETMGR_RTASIZE_ADDRINFO : 0;
+  size+= (NETMGR_EVT_PARAM_GTWYINFO & event_info->param_mask)? (int)NETMGR_RTASIZE_GTWYINFO : 0;
+  size+= (NETMGR_EVT_PARAM_DNSPADDR & event_info->param_mask)? (int)NETMGR_RTASIZE_DNSPADDR : 0;
+  size+= (NETMGR_EVT_PARAM_DNSSADDR & event_info->param_mask)? (int)NETMGR_RTASIZE_DNSSADDR : 0;
+  size+= (NETMGR_EVT_PARAM_DEVNAME  & event_info->param_mask)? (int)NETMGR_RTASIZE_DEVNAME : 0;
+  size+= (NETMGR_EVT_PARAM_MTU      & event_info->param_mask)? (int)NETMGR_RTASIZE_MTU : 0;
+  size+= (NETMGR_EVT_PARAM_USER_CMD & event_info->param_mask)? (int)NETMGR_RTASIZE_USER_CMD : 0;
+  size+= (NETMGR_EVT_PARAM_CMD_DATA & event_info->param_mask)? (int)NETMGR_RTASIZE_CMD_DATA : 0;
 
   switch( event_info->event ) {
     case NET_PLATFORM_UP_EV:
@@ -639,6 +641,7 @@ int netmgr_nl_encode_netmgr_event
     case NET_PLATFORM_RESET_EV:
     case NET_PLATFORM_NEWADDR_EV:
     case NET_PLATFORM_DELADDR_EV:
+    case NET_PLATFORM_MTU_UPDATE_EV:
     case NETMGR_READY_REQ:
     case NETMGR_READY_RESP:
     case NETMGR_USER_CMD:
@@ -698,10 +701,22 @@ int netmgr_nl_encode_netmgr_event
         memcpy( rtad, &event_info->dev_name, sizeof(event_info->dev_name) );
       }
 
+      if(NETMGR_EVT_PARAM_MTU & event_info->param_mask) {
+        rtah = RTA_NEXT(rtah, size);
+        NETMGR_NL_RTA_NEXT( NETMGR_RTATYPE_MTU, NETMGR_RTASIZE_MTU );
+        memcpy( rtad, &event_info->mtu, sizeof(event_info->mtu) );
+      }
+
       if(NETMGR_EVT_PARAM_USER_CMD & event_info->param_mask) {
         rtah = RTA_NEXT(rtah, size);
         NETMGR_NL_RTA_NEXT(NETMGR_RTATYPE_USER_CMD, NETMGR_RTASIZE_USER_CMD);
         memcpy( rtad, &event_info->user_cmd, sizeof(event_info->user_cmd) );
+      }
+
+      if(NETMGR_EVT_PARAM_CMD_DATA & event_info->param_mask) {
+        rtah = RTA_NEXT(rtah, size);
+        NETMGR_NL_RTA_NEXT(NETMGR_RTATYPE_CMD_DATA, NETMGR_RTASIZE_CMD_DATA);
+        memcpy( rtad, &event_info->cmd_data, sizeof(event_info->cmd_data) );
       }
 
       netmgr_log_med( "Event=[%d] link=[%d] devname=[%s]\n",
@@ -781,7 +796,7 @@ int netmgr_nl_decode_netmgr_event
         event_info->param_mask |= NETMGR_EVT_PARAM_IPADDR;
         NETMGR_NL_REPORT_ADDR( med, "Attribute: IfaceAddress", event_info->addr_info.addr.ip_addr );
         if( AF_INET == event_info->addr_info.addr.ip_addr.ss_family ) {
-          DS_LOG_IPV4_ADDR( med, "Attribute: IfaceAddressMask", event_info->addr_info.addr.mask );
+          NETMGR_LOG_IPV4_ADDR( med, "Attribute: IfaceAddressMask", (event_info->addr_info.addr.mask) );
         } else {
           netmgr_log_med( "Attribute: IfaceAddressMask=%d", event_info->addr_info.addr.mask );
         }
@@ -823,10 +838,26 @@ int netmgr_nl_decode_netmgr_event
         netmgr_log_med( "Attribute: DeviceName=%s", event_info->dev_name );
         break;
 
+      case NETMGR_RTATYPE_MTU:
+        memcpy( &event_info->mtu, RTA_DATA(rtah), sizeof(event_info->mtu ) );
+        event_info->param_mask |= NETMGR_EVT_PARAM_MTU;
+        netmgr_log_med( "Attribute: MTU=%d", event_info->mtu );
+        break;
+
       case NETMGR_RTATYPE_USER_CMD:
         memcpy( &event_info->user_cmd, RTA_DATA(rtah), sizeof(event_info->user_cmd) );
         event_info->param_mask |= NETMGR_EVT_PARAM_USER_CMD;
         netmgr_log_med( "Attribute: User command=%d", event_info->user_cmd);
+        break;
+
+      case NETMGR_RTATYPE_CMD_DATA:
+        memcpy( &event_info->cmd_data, RTA_DATA(rtah), sizeof(event_info->cmd_data) );
+        event_info->param_mask |= NETMGR_EVT_PARAM_CMD_DATA;
+        netmgr_log_med( "Attribute: cmd_data cmd_id[%d] pid[%d] txn_id[%d] txn_status[%d]",
+                        event_info->cmd_data.cmd_id,
+                        event_info->cmd_data.txn.pid,
+                        event_info->cmd_data.txn.txn_id,
+                        event_info->cmd_data.txn.txn_status);
         break;
 
       default:
@@ -1154,7 +1185,7 @@ LOCAL int netmgr_nl_decode_rtm_prefix
                         prefix_info->prefixinfo.autoconf,
                         prefix_info->prefixinfo.onlink,
                         prefix_info->prefixinfo.prefered );
-        NETMGR_LOG_IPV6_ADDR( med, "Attribute: Prefix", (prefix_info->prefixinfo.prefix.s6_addr) );
+        NETMGR_LOG_IPV6_ADDR( med, "Attribute: Prefix", (prefix_info->prefixinfo.prefix.s6_addr));
         break;
 
       case PREFIX_CACHEINFO:

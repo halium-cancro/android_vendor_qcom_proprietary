@@ -40,6 +40,7 @@
 #include "qcril_qmi_client.h"
 #include "radio_frequency_radiated_performance_enhancement_v01.h"
 #include "qcril_data.h"
+#include "qmi_ril_platform_dep.h"
 
 /*===========================================================================
 
@@ -1709,14 +1710,20 @@ static const qcril_qmi_ons_memory_entry_type qcril_qmi_ons_memory_list[] =
 #define SID_NID_WILD_NUMBER 0x10000
 static const qcril_qmi_ons_3gpp2_memory_entry_type qcril_qmi_ons_3gpp2_memory_list[] =  //3gpp2 static operator table - arranged in ascending order of MCC,
 {                                                                                       //then MNC, then SID, then NID
-  /***********************
-   **** Test PLMN 1-1 ****
-   ***********************/
+  { "",      "",   4107,  1, "Sprint", "Sprint" }, // atoi("") value is 0
   { "001",   "01", 1,   1,  "Test1-1", "Test PLMN 1-1" },
+  { "302",   "86", 16384, 1, "Telus", "Telus" },
+  { "310",   "00", 4,   1,  "Verizon", "Verizon" },
   { "310",   "00", 331,   1,  "Test1-2", "Test PLMN 1-2" },
   { "310",   "099", 331,   1,  "Test1-3", "Test PLMN 1-3" },
-  { "454",   "29", SID_NID_WILD_NUMBER, SID_NID_WILD_NUMBER, "PCCW Mobile", "PCCW Mobile" },
+  { "404",   "00", 14655, 1, "Reliance", "Reliance" },
+  { "440",   "07", 12288, 1, "KDDI", "KDDI" },
+  { "450",   "05", 2176, 1, "SK", "SK" },
+  { "454",   "29", 10640,1, "PCCW", "PCCW" },
+  { "455",   "02", 11296, 1, "CT Macao", "CT Macao" },
   { "460",   "03", SID_NID_WILD_NUMBER, SID_NID_WILD_NUMBER, "China Telecom", "China Telecom" },
+  { "466",   "05", 13504, 1, "APBW", "APBW" },
+
 }; // qcril_qmi_ons_3gpp2_memory_list
 
 
@@ -1788,6 +1795,7 @@ static nas_radio_if_enum_v01 acq_order_map_table[][NAS_ACQ_ORDER_LIST_MAX_V01] =
     [QCRIL_QMI_ACQ_ORDER_NONE] = {0},
     [QCRIL_QMI_ACQ_ORDER_LTE_TDS_GSM] = {NAS_RADIO_IF_LTE_V01, NAS_RADIO_IF_TDSCDMA_V01, NAS_RADIO_IF_GSM_V01},
     [QCRIL_QMI_ACQ_ORDER_TDS_GSM_LTE] = {NAS_RADIO_IF_TDSCDMA_V01, NAS_RADIO_IF_GSM_V01, NAS_RADIO_IF_LTE_V01},
+    [QCRIL_QMI_ACQ_ORDER_LTE_UMTS_GSM] = {NAS_RADIO_IF_LTE_V01, NAS_RADIO_IF_UMTS_V01, NAS_RADIO_IF_GSM_V01},
 }; //acq_order_map_table
 
 struct sar_rf_state
@@ -1874,6 +1882,137 @@ void qcril_qmi_nas_request_set_preferred_network_type
 
 /*===========================================================================
 
+  FUNCTION:  qcril_qmi_nas_request_get_preferred_network_band_pref
+
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_HOOK_GET_PREFERRED_NETWORK_BAND_PREF
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_request_get_preferred_network_band_pref
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr /*!< Output parameter */
+)
+{
+  qcril_request_resp_params_type resp;
+  qcril_qmi_band_pref_e_type     deferred_band_pref_map = QCRIL_QMI_BAND_PREF_NONE;
+  qcril_qmi_rat_band_e_type      band_type = QCRIL_QMI_RAT_BAND_NONE;
+  uint8_t                        band_pref_valid = FALSE;
+  uint8_t                        band_pref_map = QCRIL_QMI_BAND_PREF_NONE;
+
+  QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
+
+  do {
+    if ( params_ptr->datalen == 0 || params_ptr->data == NULL  )
+    {
+        QCRIL_LOG_DEBUG("must specify band type");
+        qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t,
+                                  params_ptr->event_id, RIL_E_GENERIC_FAILURE, &resp );
+        qcril_send_request_response( &resp );
+        break;
+    }
+
+    band_type = *((qcril_qmi_band_pref_e_type*)params_ptr->data);
+    band_pref_valid = qcril_qmi_nas_get_band_pref_map( band_type, &deferred_band_pref_map);
+    QCRIL_LOG_DEBUG("band_pref_valid: %d band_pref_map:%d band_type: %d",
+        band_pref_valid, deferred_band_pref_map, band_type);
+
+    qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID,
+                                         params_ptr->t,
+                                         params_ptr->event_id,
+                                         RIL_E_SUCCESS,
+                                         &resp );
+
+    if ( band_pref_valid ) {
+        band_pref_map = (uint8_t)deferred_band_pref_map;
+    }
+    resp.resp_pkt = (void *)&band_pref_map;
+    resp.resp_len = sizeof(band_pref_map);
+    qcril_send_request_response( &resp );
+  } while ( FALSE );
+
+  QCRIL_LOG_FUNC_RETURN();
+
+} /* qcril_qmi_nas_request_get_preferred_network_band_pref() */
+
+//===========================================================================
+/*===========================================================================
+
+  FUNCTION:  qcril_qmi_nas_request_set_preferred_network_band_pref
+
+===========================================================================*/
+/*!
+    @brief
+    Handles QCRIL_EVT_HOOK_SET_PREFERRED_NETWORK_BAND_PREF.
+
+    @return
+    None.
+*/
+/*=========================================================================*/
+void qcril_qmi_nas_request_set_preferred_network_band_pref
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type *const ret_ptr
+)
+{
+  uint8_t                        deferred_band_pref_valid = FALSE;
+  qcril_request_resp_params_type resp;
+  qcril_qmi_band_pref_e_type     band_pref_map = QCRIL_QMI_BAND_PREF_NONE;
+  RIL_Errno                      ril_req_res = RIL_E_GENERIC_FAILURE;
+  int                            res = FALSE;
+
+  QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED( ret_ptr );
+  do
+  {
+      if ( params_ptr->datalen == 0 || params_ptr->data == NULL  )
+      {
+          QCRIL_LOG_ERROR("must specify band_pref_map");
+          qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t,
+                                    params_ptr->event_id, RIL_E_GENERIC_FAILURE, &resp );
+          qcril_send_request_response( &resp );
+          break;
+      }
+
+      band_pref_map = *((qcril_qmi_band_pref_e_type*)params_ptr->data);
+
+      switch ( band_pref_map )
+      {
+          case QCRIL_QMI_BAND_PREF_LTE_FULL:
+          case QCRIL_QMI_BAND_PREF_TDD_LTE:
+          case QCRIL_QMI_BAND_PREF_FDD_LTE:
+                res = qmi_ril_nas_cache_deferred_band_pref(QCRIL_QMI_LTE_BAND, band_pref_map);
+            break;
+
+          default:
+            res = FALSE;
+            break;
+      }
+
+      if ( res == TRUE)
+      {
+          ril_req_res = RIL_E_SUCCESS;
+      } else {
+          ril_req_res = RIL_E_GENERIC_FAILURE;
+      }
+
+      QCRIL_LOG_DEBUG("band_pref_map:%d res:%d", band_pref_map, res);
+      qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t,
+                                params_ptr->event_id, ril_req_res, &resp );
+      qcril_send_request_response( &resp );
+
+  } while ( FALSE );
+}
+
+
+/*===========================================================================
+
   FUNCTION:  qcril_qmi_nas_request_set_preferred_network_acq_order
 
 ===========================================================================*/
@@ -1914,6 +2053,7 @@ void qcril_qmi_nas_request_set_preferred_network_acq_order
   {
       if ( params_ptr->datalen == 0 || params_ptr->data == NULL  )
       {
+          QCRIL_LOG_ERROR("data is NULL or datalen is 0");
           qcril_default_request_resp_params( QCRIL_DEFAULT_INSTANCE_ID, params_ptr->t,
                                     params_ptr->event_id, RIL_E_GENERIC_FAILURE, &resp );
           qcril_send_request_response( &resp );
@@ -1936,21 +2076,10 @@ void qcril_qmi_nas_request_set_preferred_network_acq_order
       switch ( acq_order_map )
       {
           case QCRIL_QMI_ACQ_ORDER_LTE_TDS_GSM:
-            for ( i = 0; i < NAS_ACQ_ORDER_LIST_MAX_V01; i++ ) {
-                if ( acq_order_map_table[QCRIL_QMI_ACQ_ORDER_LTE_TDS_GSM][i] != 0 ) {
-                    deferred_acq_order_len++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            break;
-
           case QCRIL_QMI_ACQ_ORDER_TDS_GSM_LTE:
+          case QCRIL_QMI_ACQ_ORDER_LTE_UMTS_GSM:
             for ( i = 0; i < NAS_ACQ_ORDER_LIST_MAX_V01; i++ ) {
-                if ( acq_order_map_table[QCRIL_QMI_ACQ_ORDER_TDS_GSM_LTE][i] != 0 )
-                {
+                if ( acq_order_map_table[acq_order_map][i] != 0 ) {
                     deferred_acq_order_len++;
                 }
                 else
@@ -2084,6 +2213,7 @@ void qcril_qmi_nas_request_get_preferred_network_acq_order
   uint8_t                        acq_order_map = QCRIL_QMI_ACQ_ORDER_NONE;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   deferred_acq_order_valid = qmi_ril_nas_get_deferred_acq_order_map( &deferred_acq_order_map );
 
@@ -2123,9 +2253,6 @@ RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_chan
     uint16_t mode_pref;
     uint8_t gw_acq_order_pref_valid = FALSE;
     uint16_t gw_acq_order_pref;
-    uint8_t lte_disable_cause_valid = FALSE;
-    nas_lte_disable_cause_enum_type_v01 lte_disable_cause;
-
     uint8_t deferred_acq_order_valid = FALSE;
     nas_radio_if_enum_v01 deferred_acq_order[NAS_ACQ_ORDER_LIST_MAX_V01];
     qcril_qmi_acq_order_e_type deferred_acq_order_map = QCRIL_QMI_ACQ_ORDER_NONE;
@@ -2135,6 +2262,12 @@ RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_chan
     uint32_t cached_acq_order_len = 0;
     uint8_t set_acq_order_flag = FALSE;
     uint32_t i = 0;
+    uint8_t lte_disable_cause_valid = FALSE;
+    nas_lte_disable_cause_enum_type_v01 lte_disable_cause;
+    uint8_t lte_band_pref_valid = FALSE;
+    uint64_t lte_band_pref = 0;
+    qcril_qmi_band_pref_e_type lte_band_pref_map = QCRIL_QMI_BAND_PREF_NONE;
+
 
     QCRIL_LOG_FUNC_ENTRY();
 
@@ -2262,6 +2395,7 @@ RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_chan
                   break;
           }
 
+
           QCRIL_LOG_INFO("network preference ril pref = %d, qmi mode pref = %d, gw ack ord vld = %d, gw ack ord vld = %d",
                                                              (int)android_mode_pref,
                                                              (int)set_system_selection_preference_req_msg.mode_pref,
@@ -2309,6 +2443,8 @@ RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_chan
           }
 
           lte_disable_cause_valid = qcril_qmi_nas_get_lte_disable_cause(&lte_disable_cause);
+          lte_band_pref_valid = qcril_qmi_nas_get_band_pref(QCRIL_QMI_LTE_BAND, &lte_band_pref);
+          QCRIL_LOG_DEBUG("lte_band_pref_valid:%d, lte_band_pref:0x%llx", lte_band_pref_valid, lte_band_pref);
 
           if( !mode_pref_valid || (mode_pref != set_system_selection_preference_req_msg.mode_pref) ||
               set_acq_order_flag == TRUE ||
@@ -2317,7 +2453,8 @@ RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_chan
               ( gw_acq_order_pref != set_system_selection_preference_req_msg.gw_acq_order_pref )) ) ||
               (lte_disable_cause_valid &&
                       (NAS_LTE_DISABLE_CAUSE_DOM_SEL_V01 == lte_disable_cause ||
-                       NAS_LTE_DISABLE_CAUSE_DAM_V01 == lte_disable_cause))
+                       NAS_LTE_DISABLE_CAUSE_DAM_V01 == lte_disable_cause)) ||
+              (lte_band_pref_valid)
             )
           {
               qcril_qmi_nas_initialize_is_indication_received();
@@ -2325,7 +2462,21 @@ RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_chan
               {
                   *is_change = TRUE;
               }
-              qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
+
+              if( ( !mode_pref_valid || ( qcril_qmi_nas_get_radio_tech(mode_pref) != RADIO_TECH_3GPP2 ) ) &&
+                  ( qcril_qmi_nas_get_radio_tech(set_system_selection_preference_req_msg.mode_pref) == RADIO_TECH_3GPP2 ) )
+              {
+                  //Mode changing from 3gpp to 3gpp2
+                  set_system_selection_preference_req_msg.net_sel_pref_valid = TRUE;
+                  set_system_selection_preference_req_msg.net_sel_pref.net_sel_pref = NAS_NET_SEL_PREF_AUTOMATIC_V01;
+              }
+
+              if ( lte_band_pref_valid ) {
+                  set_system_selection_preference_req_msg.lte_band_pref_valid = TRUE;
+                  set_system_selection_preference_req_msg.lte_band_pref = lte_band_pref;
+              }
+
+              qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_NAS ),
                                                                  QMI_NAS_SET_SYSTEM_SELECTION_PREFERENCE_REQ_MSG_V01,
                                                                  (void*) &set_system_selection_preference_req_msg,
                                                                  sizeof(set_system_selection_preference_req_msg),
@@ -2344,9 +2495,10 @@ RIL_Errno qmi_ril_nwreg_request_mode_pref( int android_mode_pref, uint8 *is_chan
 
       if( ( RIL_E_SUCCESS == res ) && !same_mode_pref )
       {
-        qcril_qmi_nas_initiate_voice_rte_change_propagation();
         qcril_qmi_arb_reset_pref_data_snapshot();
+#ifndef QMI_RIL_UTF
         qmi_ril_nw_reg_initiate_post_cfg_ban_for_data_reg_extrapolation_ncl();
+#endif
       }
 
     QCRIL_LOG_FUNC_RETURN_WITH_RET( res );
@@ -3097,6 +3249,68 @@ mode_pref_mask_type_v01 qcril_qmi_nas2_convert_rat_to_mode_pref(int rat)
 } //qcril_qmi_nas2_convert_rat_to_mode_pref
 
 //===========================================================================
+// qcril_qmi_nas2_convert_qcril_rat_to_qmi_rat
+//===========================================================================
+nas_radio_if_enum_v01
+    qcril_qmi_nas2_convert_qcril_rat_to_qmi_rat(RIL_RadioTechnology qcril_rat)
+{
+    nas_radio_if_enum_v01 qmi_rat;
+
+    QCRIL_LOG_FUNC_ENTRY();
+
+    switch(qcril_rat)
+    {
+        case RADIO_TECH_GSM:
+        case RADIO_TECH_GPRS:
+        case RADIO_TECH_EDGE:
+            qmi_rat = NAS_RADIO_IF_GSM_V01;
+            break;
+
+        case RADIO_TECH_UMTS:
+        case RADIO_TECH_HSDPA:
+        case RADIO_TECH_HSUPA:
+        case RADIO_TECH_HSPAP:
+        case RADIO_TECH_HSPA:
+            qmi_rat = NAS_RADIO_IF_UMTS_V01;
+            break;
+
+        case RADIO_TECH_TD_SCDMA:
+            qmi_rat = NAS_RADIO_IF_TDSCDMA_V01;
+            break;
+
+        case RADIO_TECH_LTE:
+            qmi_rat = NAS_RADIO_IF_LTE_V01;
+            break;
+
+        case RADIO_TECH_1xRTT:
+        case RADIO_TECH_IS95A:
+        case RADIO_TECH_IS95B:
+            qmi_rat = NAS_RADIO_IF_CDMA_1X_V01;
+            break;
+
+
+       case RADIO_TECH_EHRPD:
+       case RADIO_TECH_EVDO_0:
+       case RADIO_TECH_EVDO_A:
+       case RADIO_TECH_EVDO_B:
+            qmi_rat = NAS_RADIO_IF_CDMA_1XEVDO_V01;
+            break;
+
+        case RADIO_TECH_IWLAN:
+            qmi_rat = NAS_RADIO_IF_WLAN_V01;
+            break;
+
+        default:
+            qmi_rat = NAS_RADIO_IF_NO_CHANGE_V01;
+            break;
+    }
+
+    QCRIL_LOG_FUNC_RETURN_WITH_RET(qmi_rat);
+    return qmi_rat;
+} //qcril_qmi_nas2_convert_qcril_rat_to_qmi_rat
+
+
+//===========================================================================
 //QCRIL_EVT_HOOK_SET_TRANSMIT_POWER
 //===========================================================================
 void qcril_qmi_nas2_set_max_transmit_power
@@ -3122,7 +3336,7 @@ void qcril_qmi_nas2_set_max_transmit_power
   QCRIL_NOTUSED( ret_ptr );
 
   rf_sar_client = qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_RF_SAR );
-  QCRIL_LOG_DEBUG( ".. rf sar client obj %d", (int) rf_sar_client );
+  QCRIL_LOG_DEBUG( ".. rf sar client obj %"PRIdPTR, (intptr_t)rf_sar_client );
 
   if ( NULL != params_ptr->data && params_ptr->datalen > QMI_RIL_ZERO && NULL != rf_sar_client )
   {
@@ -3176,7 +3390,7 @@ void qcril_qmi_nas2_set_max_transmit_power
       QCRIL_LOG_INFO(".. params compatibility_key %ld / qmi request compatibility_key %ld",
                       (uint32_t)ril_param->compatibility_key, (uint32_t)qmi_request.compatibility_key );
 
-      qmi_client_error = qmi_client_send_msg_sync( rf_sar_client,
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( rf_sar_client,
                                                      QMI_SAR_RF_SET_STATE_REQ_MSG_V01,
                                                      (void*) &qmi_request ,
                                                      sizeof( qmi_request ),
@@ -3214,6 +3428,8 @@ void qcril_qmi_nas2_get_sar_rev_key
     QCRIL_LOG_DEBUG("qcril_qmi_nas2_get_sar_rev_key entry");
 
     QCRIL_ASSERT( params_ptr != NULL );
+    QCRIL_NOTUSED(ret_ptr);
+
     if(NULL != params_ptr)
     {
       instance_id = params_ptr->instance_id;
@@ -3222,7 +3438,7 @@ void qcril_qmi_nas2_get_sar_rev_key
       QCRIL_ASSERT( modem_id < QCRIL_MAX_MODEM_ID );
 
       memset(&qmi_response, 0, sizeof(qmi_response));
-      qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_RF_SAR),
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle ( QCRIL_QMI_CLIENT_RF_SAR),
                                                     QMI_SAR_GET_COMPATIBILITY_KEY_REQ_MSG_V01,
                                                     NULL,
                                                     QMI_RIL_ZERO,
@@ -3289,11 +3505,11 @@ void qcril_qmi_nas_get_rfm_scenario_req
   memset(&qmi_response,0,sizeof(qmi_response));
 
   rfpe_client_handle = qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_RFPE );
-  QCRIL_LOG_INFO("rfpe_client_handle %d", (int) rfpe_client_handle);
+  QCRIL_LOG_INFO("rfpe_client_handle %"PRIdPTR, (intptr_t) rfpe_client_handle);
 
   if ( NULL != rfpe_client_handle )
   {
-      qmi_client_error = qmi_client_send_msg_sync( rfpe_client_handle,
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( rfpe_client_handle,
                                 QMI_RFRPE_GET_RFM_SCENARIO_REQ_V01,
                                 NULL,
                                 QMI_RIL_ZERO,
@@ -3369,11 +3585,11 @@ void qcril_qmi_nas_get_provisioned_table_revision_req
   memset(&qmi_response,0,sizeof(qmi_response));
 
   rfpe_client_handle = qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_RFPE );
-  QCRIL_LOG_INFO("rfpe_client_handle %d", (int) rfpe_client_handle);
+  QCRIL_LOG_INFO("rfpe_client_handle %"PRIdPTR, (intptr_t) rfpe_client_handle);
 
   if ( NULL != rfpe_client_handle )
   {
-      qmi_client_error = qmi_client_send_msg_sync( rfpe_client_handle,
+      qmi_client_error = qmi_client_send_msg_sync_with_shm( rfpe_client_handle,
                                 QMI_RFRPE_GET_PROVISIONED_TABLE_REVISION_REQ_V01,
                                 NULL,
                                 QMI_RIL_ZERO,
@@ -3479,11 +3695,11 @@ void qcril_qmi_nas_set_rfm_scenario_req
       }
 
       rfpe_client_handle = qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_RFPE );
-      QCRIL_LOG_INFO("rfpe_client_handle %d", (int) rfpe_client_handle);
+      QCRIL_LOG_INFO("rfpe_client_handle %"PRIdPTR, (intptr_t) rfpe_client_handle);
 
       if ( NULL != rfpe_client_handle )
       {
-          qmi_client_error = qmi_client_send_msg_sync( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_RFPE ),
+          qmi_client_error = qmi_client_send_msg_sync_with_shm( qcril_qmi_client_get_user_handle( QCRIL_QMI_CLIENT_RFPE ),
                                     QMI_RFRPE_SET_RFM_SCENARIO_REQ_V01,
                                     &qmi_request,
                                     sizeof( qmi_request ),
@@ -3505,8 +3721,41 @@ void qcril_qmi_nas_set_rfm_scenario_req
 }
 // ** Qtuner
 
+//===========================================================================
+// qcril_qmi_nas_get_radio_tech
+//===========================================================================
+unsigned int qcril_qmi_nas_get_radio_tech(uint16_t mode_pref)
+{
+    unsigned int radio_tech_family = RADIO_TECH_UNKNOWN;
 
+    switch( mode_pref )
+    {
+        case QMI_NAS_RAT_MODE_PREF_GSM_UMTS:
+        case QMI_NAS_RAT_MODE_PREF_GSM:
+        case QMI_NAS_RAT_MODE_PREF_UMTS:
+        case QMI_NAS_RAT_MODE_PREF_GSM_UMTS_LTE:
+        case QMI_NAS_RAT_MODE_PREF_LTE:
+        case QMI_NAS_RAT_MODE_PREF_UMTS_LTE:
+        case QMI_NAS_RAT_MODE_PREF_TDSCDMA:
+        case QMI_NAS_RAT_MODE_PREF_UMTS_TDSCDMA:
+        case QMI_NAS_RAT_MODE_PREF_TDSCDMA_LTE:
+        case QMI_NAS_RAT_MODE_PREF_GSM_TDSCDMA:
+        case QMI_NAS_RAT_MODE_PREF_UMTS_TDSCDMA_LTE:
+        case QMI_NAS_RAT_MODE_PREF_GSM_TDSCDMA_LTE:
+        case QMI_NAS_RAT_MODE_PREF_GSM_UMTS_TDSCDMA:
+        case QMI_NAS_RAT_MODE_PREF_GSM_UMTS_TDSCDMA_LTE:
+            radio_tech_family = RADIO_TECH_3GPP;
+            break;
 
+        case QMI_NAS_RAT_MODE_PREF_CDMA_HRPD:
+        case QMI_NAS_RAT_MODE_PREF_CDMA:
+        case QMI_NAS_RAT_MODE_PREF_HRPD:
+            radio_tech_family = RADIO_TECH_3GPP2;
+            break;
+    }
+
+    return radio_tech_family;
+}
 
 /*===========================================================================
   qcril_qmi_nas2_create_reqlist_setup_timer_helper

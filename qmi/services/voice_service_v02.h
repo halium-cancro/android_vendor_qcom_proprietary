@@ -32,19 +32,18 @@
 
 */
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
-  Copyright (c) 2010-2014 Qualcomm Technologies, Inc.
-  All rights reserved.
-  Confidential and Proprietary - Qualcomm Technologies, Inc.
+  Copyright (c) 2010-2014 Qualcomm Technologies, Inc. All rights reserved.
+  Qualcomm Technologies Proprietary and Confidential.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/voice/main/latest/api/voice_service_v02.h#51 $
+  $Header: //source/qcom/qct/interfaces/qmi/voice/main/latest/api/voice_service_v02.h#70 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.7 
-   It was generated on: Wed Mar 19 2014 (Spin 0)
+/* This file was generated with Tool version 6.14.2 
+   It was generated on: Tue Dec 16 2014 (Spin 0)
    From IDL File: voice_service_v02.idl */
 
 /** @defgroup voice_qmi_consts Constant values defined in the IDL */
@@ -71,11 +70,11 @@ extern "C" {
 /** Major Version Number of the IDL used to generate this file */
 #define VOICE_V02_IDL_MAJOR_VERS 0x02
 /** Revision Number of the IDL used to generate this file */
-#define VOICE_V02_IDL_MINOR_VERS 0x2A
+#define VOICE_V02_IDL_MINOR_VERS 0x39
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define VOICE_V02_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define VOICE_V02_MAX_MESSAGE_ID 0x0061
+#define VOICE_V02_MAX_MESSAGE_ID 0x0067
 /**
     @}
   */
@@ -98,10 +97,14 @@ extern "C" {
 #define QMI_VOICE_SIP_URI_OVERFLOW_MAX_V02 47
 #define QMI_VOICE_SIP_URI_MAX_V02 128
 #define QMI_VOICE_DISPLAY_TEXT_MAX_LEN_V02 98
+#define QMI_VOICE_IP_CALLER_NAME_MAX_LEN_V02 128
 #define QMI_VOICE_FAILURE_CAUSE_DESC_MAX_LEN_V02 256
+#define QMI_VOICE_END_REASON_TEXT_MAX_LEN_V02 128
+#define QMI_VOICE_IP_FORWARD_HIST_INFO_MAX_LEN_V02 512
 #define QMI_VOICE_CONF_URI_MAX_LEN_V02 128
 #define QMI_VOICE_CONF_DISPLAY_TEXT_MAX_LEN_V02 64
 #define QMI_VOICE_CONF_XML_MAX_LEN_V02 2048
+#define QMI_VOICE_ADDITIONAL_INFO_MAX_LEN_V02 2048
 #define QMI_VOICE_CONF_URI_LIST_MAX_LEN_V02 1024
 #define QMI_VOICE_VS_FILE_ATTRIBUTES_MAX_V02 500
 #define QMI_VOICE_CC_ALPHA_TEXT_MAX_V02 255
@@ -162,6 +165,8 @@ extern "C" {
 #define QMI_VOICE_CALL_CAPABILITIES_ARRAY_MAX_V02 7
 #define QMI_VOICE_CHILD_NUMBER_ARRAY_MAX_V02 7
 #define QMI_VOICE_DISPLAY_TEXT_ARRAY_MAX_V02 7
+#define QMI_VOICE_IP_CALLER_NAME_ARRAY_MAX_V02 7
+#define QMI_VOICE_IP_END_REASON_TEXT_ARRAY_MAX_V02 7
 #define QMI_VOICE_MAX_BARRED_NUMBERS_LIST_V02 50
 #define GET_CALL_FORWARDING_INFO_MAX_V02 13
 #define QMI_VOICE_USS_DATA_MAX_V02 182
@@ -331,9 +336,36 @@ typedef struct {
   */
 
   /* Optional */
-  /*  E911 Call Original Failure Events */
+  /*  E911 Call Origination Failure Events */
   uint8_t orig_fail_events_valid;  /**< Must be set to true if orig_fail_events is being passed */
   uint8_t orig_fail_events;
+  /**<   Values: \n
+       - 0x00 -- Disable (default) \n
+       - 0x01 -- Enable 
+  */
+
+  /* Optional */
+  /*  Videoshare Status Events */
+  uint8_t vs_status_events_valid;  /**< Must be set to true if vs_status_events is being passed */
+  uint8_t vs_status_events;
+  /**<   Values: \n
+       - 0x00 -- Disable (default) \n
+       - 0x01 -- Enable 
+  */
+
+  /* Optional */
+  /*  Audio RAT Change Events */
+  uint8_t audio_rat_change_events_valid;  /**< Must be set to true if audio_rat_change_events is being passed */
+  uint8_t audio_rat_change_events;
+  /**<   Values: \n
+       - 0x00 -- Disable (default) \n
+       - 0x01 -- Enable 
+  */
+
+  /* Optional */
+  /*  Additional Call Information Events */
+  uint8_t additional_call_info_events_valid;  /**< Must be set to true if additional_call_info_events is being passed */
+  uint8_t additional_call_info_events;
   /**<   Values: \n
        - 0x00 -- Disable (default) \n
        - 0x01 -- Enable 
@@ -933,7 +965,7 @@ typedef struct {
   /*  Media ID  */
   uint8_t media_id_valid;  /**< Must be set to true if media_id is being passed */
   uint8_t media_id;
-  /**<   Media ID; 
+  /**<   Media ID. 
   */
 }voice_dial_call_resp_msg_v02;  /* Message */
 /**
@@ -947,7 +979,8 @@ typedef enum {
   VOICE_REJECT_CAUSE_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
   VOICE_REJECT_CAUSE_USER_BUSY_V02 = 0x01, /**<  User is busy \n  */
   VOICE_REJECT_CAUSE_USER_REJECT_V02 = 0x02, /**<  User has rejected the call \n  */
-  VOICE_REJECT_CAUSE_LOW_BATTERY_V02 = 0x03, /**<  Call was rejected due to a low battery  */
+  VOICE_REJECT_CAUSE_LOW_BATTERY_V02 = 0x03, /**<  Call was rejected due to a low battery \n  */
+  VOICE_REJECT_CAUSE_BLACKLISTED_CALL_ID_V02 = 0x04, /**<  Call was rejected because the number was blacklisted  */
   VOICE_REJECT_CAUSE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }voice_reject_cause_enum_v02;
 /**
@@ -973,7 +1006,8 @@ typedef struct {
   /**<   Cause for ending the call. Values: \n
       - VOICE_REJECT_CAUSE_USER_BUSY (0x01) --  User is busy \n 
       - VOICE_REJECT_CAUSE_USER_REJECT (0x02) --  User has rejected the call \n 
-      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery  
+      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery \n 
+      - VOICE_REJECT_CAUSE_BLACKLISTED_CALL_ID (0x04) --  Call was rejected because the number was blacklisted  
  */
 }voice_end_call_req_msg_v02;  /* Message */
 /**
@@ -1072,8 +1106,17 @@ typedef struct {
   /**<   Cause for rejecting the incoming call. Values: \n
       - VOICE_REJECT_CAUSE_USER_BUSY (0x01) --  User is busy \n 
       - VOICE_REJECT_CAUSE_USER_REJECT (0x02) --  User has rejected the call \n 
-      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery  
+      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery \n 
+      - VOICE_REJECT_CAUSE_BLACKLISTED_CALL_ID (0x04) --  Call was rejected because the number was blacklisted  
  */
+
+  /* Optional */
+  /*  SIP Reject Cause */
+  uint8_t sip_reject_cause_valid;  /**< Must be set to true if sip_reject_cause is being passed */
+  uint16_t sip_reject_cause;
+  /**<   Cause for rejecting the incoming call.
+       The SIP error code is as defined in RFC3261 \hyperref[S28]{[S28]}.
+  */
 }voice_answer_call_req_msg_v02;  /* Message */
 /**
     @}
@@ -1200,11 +1243,11 @@ typedef struct {
   */
 typedef enum {
   PI_NUM_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  PRESENTATION_NUM_ALLOWED_V02 = 0x00, 
-  PRESENTATION_NUM_RESTRICTED_V02 = 0x01, 
-  PRESENTATION_NUM_NUM_UNAVAILABLE_V02 = 0x02, 
-  PRESENTATION_NUM_RESERVED_V02 = 0x03, 
-  PRESENTATION_NUM_PAYPHONE_V02 = 0x04, 
+  PRESENTATION_NUM_ALLOWED_V02 = 0x00, /**<  Allowed presentation \n  */
+  PRESENTATION_NUM_RESTRICTED_V02 = 0x01, /**<  Restricted presentation \n  */
+  PRESENTATION_NUM_NUM_UNAVAILABLE_V02 = 0x02, /**<  Unavailable presentation \n  */
+  PRESENTATION_NUM_RESERVED_V02 = 0x03, /**<  Reserved presentation \n  */
+  PRESENTATION_NUM_PAYPHONE_V02 = 0x04, /**<  Payphone presentation (GSM/UMTS specific)  */
   PI_NUM_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }pi_num_enum_v02;
 /**
@@ -1396,28 +1439,15 @@ typedef enum {
     @{
   */
 typedef enum {
-  ALERTING_TYPE_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  ALERTING_LOCAL_V02 = 0x00, 
-  ALERTING_REMOTE_V02 = 0x01, 
-  ALERTING_TYPE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
-}alerting_type_enum_v02;
-/**
-    @}
-  */
-
-/** @addtogroup voice_qmi_enums
-    @{
-  */
-typedef enum {
   VOICE_NUM_TYPE_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  QMI_VOICE_NUM_TYPE_UNKNOWN_V02 = 0x00, 
-  QMI_VOICE_NUM_TYPE_INTERNATIONAL_V02 = 0x01, 
-  QMI_VOICE_NUM_TYPE_NATIONAL_V02 = 0x02, 
-  QMI_VOICE_NUM_TYPE_NETWORK_SPECIFIC_V02 = 0x03, 
-  QMI_VOICE_NUM_TYPE_SUBSCRIBER_V02 = 0x04, 
-  QMI_VOICE_NUM_TYPE_RESERVED_V02 = 0x05, 
-  QMI_VOICE_NUM_TYPE_ABBREVIATED_V02 = 0x06, 
-  QMI_VOICE_NUM_TYPE_RESERVED_EXTENSION_V02 = 0x07, 
+  QMI_VOICE_NUM_TYPE_UNKNOWN_V02 = 0x00, /**<  Unknown \n  */
+  QMI_VOICE_NUM_TYPE_INTERNATIONAL_V02 = 0x01, /**<  International \n  */
+  QMI_VOICE_NUM_TYPE_NATIONAL_V02 = 0x02, /**<  National \n  */
+  QMI_VOICE_NUM_TYPE_NETWORK_SPECIFIC_V02 = 0x03, /**<  Network-specific \n  */
+  QMI_VOICE_NUM_TYPE_SUBSCRIBER_V02 = 0x04, /**<  Subscriber \n  */
+  QMI_VOICE_NUM_TYPE_RESERVED_V02 = 0x05, /**<  Reserved \n  */
+  QMI_VOICE_NUM_TYPE_ABBREVIATED_V02 = 0x06, /**<  Abbreviated \n  */
+  QMI_VOICE_NUM_TYPE_RESERVED_EXTENSION_V02 = 0x07, /**<  Reserved extension  */
   VOICE_NUM_TYPE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }voice_num_type_enum_v02;
 /**
@@ -1429,14 +1459,14 @@ typedef enum {
   */
 typedef enum {
   VOICE_NUM_PLAN_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  QMI_VOICE_NUM_PLAN_UNKNOWN_V02 = 0x00, 
-  QMI_VOICE_NUM_PLAN_ISDN_V02 = 0x01, 
-  QMI_VOICE_NUM_PLAN_DATA_V02 = 0x03, 
-  QMI_VOICE_NUM_PLAN_TELEX_V02 = 0x04, 
-  QMI_VOICE_NUM_PLAN_NATIONAL_V02 = 0x08, 
-  QMI_VOICE_NUM_PLAN_PRIVATE_V02 = 0x09, 
-  QMI_VOICE_NUM_PLAN_RESERVED_CTS_V02 = 0x0B, 
-  QMI_VOICE_NUM_PLAN_RESERVED_EXTENSION_V02 = 0x0F, 
+  QMI_VOICE_NUM_PLAN_UNKNOWN_V02 = 0x00, /**<  Unknown \n  */
+  QMI_VOICE_NUM_PLAN_ISDN_V02 = 0x01, /**<  ISDN \n  */
+  QMI_VOICE_NUM_PLAN_DATA_V02 = 0x03, /**<  Data \n  */
+  QMI_VOICE_NUM_PLAN_TELEX_V02 = 0x04, /**<  Telex \n  */
+  QMI_VOICE_NUM_PLAN_NATIONAL_V02 = 0x08, /**<  National \n  */
+  QMI_VOICE_NUM_PLAN_PRIVATE_V02 = 0x09, /**<  Private \n  */
+  QMI_VOICE_NUM_PLAN_RESERVED_CTS_V02 = 0x0B, /**<  Reserved cordless telephony system \n  */
+  QMI_VOICE_NUM_PLAN_RESERVED_EXTENSION_V02 = 0x0F, /**<  Reserved extension  */
   VOICE_NUM_PLAN_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }voice_num_plan_enum_v02;
 /**
@@ -1448,10 +1478,10 @@ typedef enum {
   */
 typedef enum {
   VOICE_SI_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  QMI_VOICE_SI_USER_PROVIDED_NOT_SCREENED_V02 = 0x00, 
-  QMI_VOICE_SI_USER_PROVIDED_VERIFIED_PASSED_V02 = 0x01, 
-  QMI_VOICE_SI_USER_PROVIDED_VERIFIED_FAILED_V02 = 0x02, 
-  QMI_VOICE_SI_NETWORK_PROVIDED_V02 = 0x03, 
+  QMI_VOICE_SI_USER_PROVIDED_NOT_SCREENED_V02 = 0x00, /**<  Provided user is not screened \n  */
+  QMI_VOICE_SI_USER_PROVIDED_VERIFIED_PASSED_V02 = 0x01, /**<  Provided user passed verification \n  */
+  QMI_VOICE_SI_USER_PROVIDED_VERIFIED_FAILED_V02 = 0x02, /**<  Provided user failed verification \n  */
+  QMI_VOICE_SI_NETWORK_PROVIDED_V02 = 0x03, /**<  Provided network  */
   VOICE_SI_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }voice_si_enum_v02;
 /**
@@ -1541,6 +1571,99 @@ typedef struct {
   /**<   Caller ID in ASCII string.
   */
 }voice_num_info_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  pi_num_enum_v02 num_pi;
+  /**<   Presentation indicator. Values: \n
+      - PRESENTATION_NUM_ALLOWED (0x00) --  Allowed presentation \n 
+      - PRESENTATION_NUM_RESTRICTED (0x01) --  Restricted presentation \n 
+      - PRESENTATION_NUM_NUM_UNAVAILABLE (0x02) --  Unavailable presentation \n 
+      - PRESENTATION_NUM_RESERVED (0x03) --  Reserved presentation \n 
+      - PRESENTATION_NUM_PAYPHONE (0x04) --  Payphone presentation (GSM/UMTS specific) 
+ */
+
+  voice_si_enum_v02 num_si;
+  /**<   Screening indicator. Values: \n
+      - QMI_VOICE_SI_USER_PROVIDED_NOT_SCREENED (0x00) --  Provided user is not screened \n 
+      - QMI_VOICE_SI_USER_PROVIDED_VERIFIED_PASSED (0x01) --  Provided user passed verification \n 
+      - QMI_VOICE_SI_USER_PROVIDED_VERIFIED_FAILED (0x02) --  Provided user failed verification \n 
+      - QMI_VOICE_SI_NETWORK_PROVIDED (0x03) --  Provided network 
+ */
+
+  voice_num_type_enum_v02 num_type;
+  /**<   Number type. Values: \n
+      - QMI_VOICE_NUM_TYPE_UNKNOWN (0x00) --  Unknown \n 
+      - QMI_VOICE_NUM_TYPE_INTERNATIONAL (0x01) --  International \n 
+      - QMI_VOICE_NUM_TYPE_NATIONAL (0x02) --  National \n 
+      - QMI_VOICE_NUM_TYPE_NETWORK_SPECIFIC (0x03) --  Network-specific \n 
+      - QMI_VOICE_NUM_TYPE_SUBSCRIBER (0x04) --  Subscriber \n 
+      - QMI_VOICE_NUM_TYPE_RESERVED (0x05) --  Reserved \n 
+      - QMI_VOICE_NUM_TYPE_ABBREVIATED (0x06) --  Abbreviated \n 
+      - QMI_VOICE_NUM_TYPE_RESERVED_EXTENSION (0x07) --  Reserved extension 
+ */
+
+  voice_num_plan_enum_v02 num_plan;
+  /**<   Number plan. Values: \n
+      - QMI_VOICE_NUM_PLAN_UNKNOWN (0x00) --  Unknown \n 
+      - QMI_VOICE_NUM_PLAN_ISDN (0x01) --  ISDN \n 
+      - QMI_VOICE_NUM_PLAN_DATA (0x03) --  Data \n 
+      - QMI_VOICE_NUM_PLAN_TELEX (0x04) --  Telex \n 
+      - QMI_VOICE_NUM_PLAN_NATIONAL (0x08) --  National \n 
+      - QMI_VOICE_NUM_PLAN_PRIVATE (0x09) --  Private \n 
+      - QMI_VOICE_NUM_PLAN_RESERVED_CTS (0x0B) --  Reserved cordless telephony system \n 
+      - QMI_VOICE_NUM_PLAN_RESERVED_EXTENSION (0x0F) --  Reserved extension 
+ */
+
+  char num[QMI_VOICE_SIP_URI_MAX_V02 + 1];
+  /**<   Number in ASCII characters.
+  */
+}voice_remote_party_number_ext_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t call_id;
+  /**<   Unique call identifier for the call.
+  */
+
+  uint32_t ip_caller_name_len;  /**< Must be set to # of elements in ip_caller_name */
+  uint16_t ip_caller_name[QMI_VOICE_IP_CALLER_NAME_MAX_LEN_V02];
+  /**<   Caller Name. This text can contain up to 128 UTF-16 characters
+       and it is not guaranteed to be NULL terminated.
+       Length range: 0 to 128.
+  */
+}voice_ip_caller_name_info_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t call_id;
+  /**<   Unique call identifier for the call.
+  */
+
+  uint32_t end_reason_text_len;  /**< Must be set to # of elements in end_reason_text */
+  uint16_t end_reason_text[QMI_VOICE_END_REASON_TEXT_MAX_LEN_V02];
+  /**<   End reason text. This text can contain up to 128 UTF-16 
+       characters and it is not guaranteed to be NULL terminated.
+  */
+}voice_ip_end_reason_text_type_v02;  /* Type */
 /**
     @}
   */
@@ -1710,6 +1833,35 @@ typedef struct {
        (SRVCC). Values: \n
        - 0x00 -- Not an SRVCC call \n
        - 0x01 -- SRVCC call
+  */
+
+  /* Optional */
+  /*  Remote Party Number Extension */
+  uint8_t remote_party_number_ext_valid;  /**< Must be set to true if remote_party_number_ext is being passed */
+  voice_remote_party_number_ext_type_v02 remote_party_number_ext;
+
+  /* Optional */
+  /*  Second Alpha Identifier** */
+  uint8_t second_alpha_ident_valid;  /**< Must be set to true if second_alpha_ident is being passed */
+  voice_alpha_ident_type_v02 second_alpha_ident;
+
+  /* Optional */
+  /*  Caller Name for IP call */
+  uint8_t ip_caller_name_valid;  /**< Must be set to true if ip_caller_name is being passed */
+  uint32_t ip_caller_name_len;  /**< Must be set to # of elements in ip_caller_name */
+  uint16_t ip_caller_name[QMI_VOICE_IP_CALLER_NAME_MAX_LEN_V02];
+  /**<   Caller Name. This text can contain up to 128 UTF-16 characters
+       and it is not guaranteed to be NULL terminated.
+       Length range: 0 to 128.
+  */
+
+  /* Optional */
+  /*  End Reason Text for IP call */
+  uint8_t end_reason_text_valid;  /**< Must be set to true if end_reason_text is being passed */
+  uint32_t end_reason_text_len;  /**< Must be set to # of elements in end_reason_text */
+  uint16_t end_reason_text[QMI_VOICE_END_REASON_TEXT_MAX_LEN_V02];
+  /**<   End reason text. This text can contain up to 128 UTF-16 
+       characters and it is not guaranteed to be NULL terminated.
   */
 }voice_get_call_info_resp_msg_v02;  /* Message */
 /**
@@ -2007,6 +2159,23 @@ typedef struct {
     @}
   */
 
+/** @addtogroup voice_qmi_enums
+    @{
+  */
+typedef enum {
+  VOICE_NETWORK_MESSAGE_TYPE_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  VOICE_NETWORK_MSG_TYPE_FNM_V02 = 0, /**<  Feature Notification Message \n  */
+  VOICE_NETWORK_MSG_TYPE_AWIM_V02 = 1, /**<  Alert With Information Message \n  */
+  VOICE_NETWORK_MSG_TYPE_EAWIM_V02 = 2, /**<  Extended Alert With Information Message \n  */
+  VOICE_NETWORK_MSG_TYPE_FWIM_V02 = 3, /**<  Forward Flash With Information Message \n  */
+  VOICE_NETWORK_MSG_TYPE_EFWIM_V02 = 4, /**<  Extended Flash With Information Message \n  */
+  VOICE_NETWORK_MSG_TYPE_OTHER_V02 = 0xFF, /**<  Other than above Message types \n  */
+  VOICE_NETWORK_MESSAGE_TYPE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}voice_network_message_type_enum_v02;
+/**
+    @}
+  */
+
 /** @addtogroup voice_qmi_messages
     @{
   */
@@ -2116,6 +2285,19 @@ typedef struct {
   /*  Extended Display Record Information */
   uint8_t ext_display_record_valid;  /**< Must be set to true if ext_display_record is being passed */
   voice_ext_display_info_type_v02 ext_display_record;
+
+  /* Optional */
+  /*  Network Message Type */
+  uint8_t network_message_type_valid;  /**< Must be set to true if network_message_type is being passed */
+  voice_network_message_type_enum_v02 network_message_type;
+  /**<   Network Message Type. Values: \n
+      - VOICE_NETWORK_MSG_TYPE_FNM (0) --  Feature Notification Message \n 
+      - VOICE_NETWORK_MSG_TYPE_AWIM (1) --  Alert With Information Message \n 
+      - VOICE_NETWORK_MSG_TYPE_EAWIM (2) --  Extended Alert With Information Message \n 
+      - VOICE_NETWORK_MSG_TYPE_FWIM (3) --  Forward Flash With Information Message \n 
+      - VOICE_NETWORK_MSG_TYPE_EFWIM (4) --  Extended Flash With Information Message \n 
+      - VOICE_NETWORK_MSG_TYPE_OTHER (0xFF) --  Other than above Message types \n  
+ */
 }voice_info_rec_ind_msg_v02;  /* Message */
 /**
     @}
@@ -2404,12 +2586,14 @@ typedef struct {
   */
 typedef enum {
   DTMF_EVENT_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  DTMF_EVENT_REV_BURST_V02 = 0x00, 
-  DTMF_EVENT_REV_START_CONT_V02 = 0x01, 
-  DTMF_EVENT_REV_STOP_CONT_V02 = 0x03, 
-  DTMF_EVENT_FWD_BURST_V02 = 0x05, 
-  DTMF_EVENT_FWD_START_CONT_V02 = 0x06, 
-  DTMF_EVENT_FWD_STOP_CONT_V02 = 0x07, 
+  DTMF_EVENT_REV_BURST_V02 = 0x00, /**<  Sends a CDMA-burst DTMF \n  */
+  DTMF_EVENT_REV_START_CONT_V02 = 0x01, /**<  Starts a continuous DTMF tone \n  */
+  DTMF_EVENT_REV_STOP_CONT_V02 = 0x03, /**<  Stops a continuous DTMF tone \n  */
+  DTMF_EVENT_FWD_BURST_V02 = 0x05, /**<  Received a CDMA-burst DTMF message \n  */
+  DTMF_EVENT_FWD_START_CONT_V02 = 0x06, /**<  Received a start-continuous DTMF tone order \n  */
+  DTMF_EVENT_FWD_STOP_CONT_V02 = 0x07, /**<  Received a stop-continuous DTMF tone order \n  */
+  DTMF_EVENT_IP_INCOMING_DTMF_START_V02 = 0x08, /**<  Received an IP-start continuous DTMF message \n  */
+  DTMF_EVENT_IP_INCOMING_DTMF_STOP_V02 = 0x09, /**<  Received an IP-stop continuous DTMF message \n  */
   DTMF_EVENT_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }dtmf_event_enum_v02;
 /**
@@ -2427,15 +2611,15 @@ typedef struct {
 
   dtmf_event_enum_v02 dtmf_event;
   /**<   DTMF event. Values: \n
-       - 0x00 -- DTMF_EVENT_REV_BURST      -- Sends a CDMA-burst DTMF \n
-       - 0x01 -- DTMF_EVENT_REV_START_CONT -- Starts a continuous DTMF tone \n
-       - 0x03 -- DTMF_EVENT_REV_STOP_CONT  -- Stops a continuous DTMF tone \n
-       - 0x05 -- DTMF_EVENT_FWD_BURST      -- Received a CDMA-burst DTMF message \n
-       - 0x06 -- DTMF_EVENT_FWD_START_CONT -- Received a start-continuous DTMF 
-                                              tone order \n
-       - 0x07 -- DTMF_EVENT_FWD_STOP_CONT  -- Received a stop-continuous DTMF 
-                                              tone order 
-  */
+      - DTMF_EVENT_REV_BURST (0x00) --  Sends a CDMA-burst DTMF \n 
+      - DTMF_EVENT_REV_START_CONT (0x01) --  Starts a continuous DTMF tone \n 
+      - DTMF_EVENT_REV_STOP_CONT (0x03) --  Stops a continuous DTMF tone \n 
+      - DTMF_EVENT_FWD_BURST (0x05) --  Received a CDMA-burst DTMF message \n 
+      - DTMF_EVENT_FWD_START_CONT (0x06) --  Received a start-continuous DTMF tone order \n 
+      - DTMF_EVENT_FWD_STOP_CONT (0x07) --  Received a stop-continuous DTMF tone order \n 
+      - DTMF_EVENT_IP_INCOMING_DTMF_START (0x08) --  Received an IP-start continuous DTMF message \n 
+      - DTMF_EVENT_IP_INCOMING_DTMF_STOP (0x09) --  Received an IP-stop continuous DTMF message \n  
+ */
 
   uint32_t digit_buffer_len;  /**< Must be set to # of elements in digit_buffer */
   char digit_buffer[QMI_VOICE_DIALED_DIGIT_BUFFER_MAX_V02];
@@ -2479,6 +2663,13 @@ typedef struct {
        - 0x01 -- DTMF_OFFLENGTH_100MS -- \n 100 ms \n
        - 0x02 -- DTMF_OFFLENGTH_150MS -- \n 150 ms \n
        - 0x03 -- DTMF_OFFLENGTH_200MS -- \n 200 ms
+  */
+
+  /* Optional */
+  /*  IP Incoming DTMF Tone volume */
+  uint8_t volume_valid;  /**< Must be set to true if volume is being passed */
+  uint16_t volume;
+  /**<   DTMF tone power level as described in RFC 4733.
   */
 }voice_dtmf_ind_msg_v02;  /* Message */
 /**
@@ -3131,6 +3322,64 @@ typedef struct {
   /**<   Unique call identifier for the call.
   */
 
+  uint8_t is_add_info_present;
+  /**<   Whether the call has additional information; boolean value.
+  */
+
+  uint16_t num_indications;
+  /**<   Number of indications in which the additional call information 
+       is sent.
+  */
+}voice_is_add_info_present_with_id_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_enums
+    @{
+  */
+typedef enum {
+  VOICE_CALL_ATTRIB_STATUS_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  VOICE_CALL_ATTRIB_STATUS_OK_V02 = 0, /**<  No additional information \n  */
+  VOICE_CALL_ATTRIB_STATUS_RETRY_NEEDED_V02 = 1, /**<  Retry for the media is needed \n  */
+  VOICE_CALL_ATTRIB_STATUS_MEDIA_PAUSED_V02 = 2, /**<  Media is paused \n  */
+  VOICE_CALL_ATTRIB_STATUS_MEDIA_NOT_READY_V02 = 3, /**<  Media is not ready due to the quality of service  */
+  VOICE_CALL_ATTRIB_STATUS_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}voice_call_attrib_status_enum_v02;
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t call_id;
+  /**<   Unique call identifier for the call
+  */
+
+  voice_call_attrib_status_enum_v02 call_attrib_status;
+  /**<   Call attribute status. Values: \n
+      - VOICE_CALL_ATTRIB_STATUS_OK (0) --  No additional information \n 
+      - VOICE_CALL_ATTRIB_STATUS_RETRY_NEEDED (1) --  Retry for the media is needed \n 
+      - VOICE_CALL_ATTRIB_STATUS_MEDIA_PAUSED (2) --  Media is paused \n 
+      - VOICE_CALL_ATTRIB_STATUS_MEDIA_NOT_READY (3) --  Media is not ready due to the quality of service 
+ */
+}voice_call_attrib_status_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t call_id;
+  /**<   Unique call identifier for the call.
+  */
+
   uint8_t parent_call_id;
   /**<   Unique identifier of the call that was transitioned (SRVCC) into 
        the new call (call_id).
@@ -3204,6 +3453,42 @@ typedef struct {
   /**<   Media ID.
   */
 }voice_media_id_with_id_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t call_id;
+  /**<   Unique call identifier for the call.
+  */
+
+  call_end_reason_enum_v02 orig_fail_reason;
+  /**<   Call origination failure reason; 
+       see @latexonly Table~\ref{tbl:endReasons}@endlatexonly for a list of 
+       valid voice-related call end reasons.  
+  */
+}voice_orig_fail_reason_with_id_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint8_t call_id;
+  /**<   Unique call identifier for the call.
+  */
+
+  voice_remote_party_number_ext_type_v02 rp_num_info;
+  /**<   Remote party number information for the call.
+  */
+}voice_remote_party_number_ext_with_id_type_v02;  /* Type */
 /**
     @}
   */
@@ -3362,16 +3647,67 @@ typedef struct {
   uint8_t media_id_valid;  /**< Must be set to true if media_id is being passed */
   uint32_t media_id_len;  /**< Must be set to # of elements in media_id */
   voice_media_id_with_id_type_v02 media_id[QMI_VOICE_CALL_INFO_MAX_V02];
+
+  /* Optional */
+  /*  Additional Call Information */
+  uint8_t is_add_info_present_valid;  /**< Must be set to true if is_add_info_present is being passed */
+  uint32_t is_add_info_present_len;  /**< Must be set to # of elements in is_add_info_present */
+  voice_is_add_info_present_with_id_type_v02 is_add_info_present[QMI_VOICE_CALL_INFO_MAX_V02];
+
+  /* Optional */
+  /*  Call Attribute Status */
+  uint8_t call_attrib_status_valid;  /**< Must be set to true if call_attrib_status is being passed */
+  uint32_t call_attrib_status_len;  /**< Must be set to # of elements in call_attrib_status */
+  voice_call_attrib_status_type_v02 call_attrib_status[QMI_VOICE_CALL_INFO_MAX_V02];
+
+  /* Optional */
+  /*  Origination Failure Reason */
+  uint8_t orig_fail_reason_valid;  /**< Must be set to true if orig_fail_reason is being passed */
+  uint32_t orig_fail_reason_len;  /**< Must be set to # of elements in orig_fail_reason */
+  voice_orig_fail_reason_with_id_type_v02 orig_fail_reason[QMI_VOICE_CALL_INFO_MAX_V02];
+
+  /* Optional */
+  /*  Remote Party Number Extension 2 */
+  uint8_t remote_party_number_ext2_valid;  /**< Must be set to true if remote_party_number_ext2 is being passed */
+  uint32_t remote_party_number_ext2_len;  /**< Must be set to # of elements in remote_party_number_ext2 */
+  voice_remote_party_number_ext_with_id_type_v02 remote_party_number_ext2[QMI_VOICE_REMOTE_PARTY_NUMBER_ARRAY_MAX_V02];
+
+  /* Optional */
+  /*  Array of Second Alpha Identifier** */
+  uint8_t second_alpha_ident_valid;  /**< Must be set to true if second_alpha_ident is being passed */
+  uint32_t second_alpha_ident_len;  /**< Must be set to # of elements in second_alpha_ident */
+  voice_alpha_ident_with_id_type_v02 second_alpha_ident[QMI_VOICE_ALPHA_IDENT_ARRAY_MAX_V02];
+
+  /* Optional */
+  /*  Caller Name for IP call */
+  uint8_t ip_caller_name_valid;  /**< Must be set to true if ip_caller_name is being passed */
+  uint32_t ip_caller_name_len;  /**< Must be set to # of elements in ip_caller_name */
+  voice_ip_caller_name_info_type_v02 ip_caller_name[QMI_VOICE_IP_CALLER_NAME_ARRAY_MAX_V02];
+
+  /* Optional */
+  /*  End Reason Text for IP call */
+  uint8_t end_reason_text_valid;  /**< Must be set to true if end_reason_text is being passed */
+  uint32_t end_reason_text_len;  /**< Must be set to # of elements in end_reason_text */
+  voice_ip_end_reason_text_type_v02 end_reason_text[QMI_VOICE_IP_END_REASON_TEXT_ARRAY_MAX_V02];
 }voice_all_call_status_ind_msg_v02;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Queries the information of all the calls. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_get_all_call_info_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -3532,6 +3868,36 @@ typedef struct {
   uint8_t is_srvcc_valid;  /**< Must be set to true if is_srvcc is being passed */
   uint32_t is_srvcc_len;  /**< Must be set to # of elements in is_srvcc */
   voice_is_srvcc_call_with_id_type_v02 is_srvcc[QMI_VOICE_IS_SRVCC_CALL_ARRAY_MAX_V02];
+
+  /* Optional */
+  /*  Call Attribute Status */
+  uint8_t call_attrib_status_valid;  /**< Must be set to true if call_attrib_status is being passed */
+  uint32_t call_attrib_status_len;  /**< Must be set to # of elements in call_attrib_status */
+  voice_call_attrib_status_type_v02 call_attrib_status[QMI_VOICE_CALL_INFO_MAX_V02];
+
+  /* Optional */
+  /*  Remote Party Number Extension */
+  uint8_t remote_party_number_ext_valid;  /**< Must be set to true if remote_party_number_ext is being passed */
+  uint32_t remote_party_number_ext_len;  /**< Must be set to # of elements in remote_party_number_ext */
+  voice_remote_party_number_ext_with_id_type_v02 remote_party_number_ext[QMI_VOICE_REMOTE_PARTY_NUMBER_ARRAY_MAX_V02];
+
+  /* Optional */
+  /*  Array of Second Alpha Identifier** */
+  uint8_t second_alpha_ident_valid;  /**< Must be set to true if second_alpha_ident is being passed */
+  uint32_t second_alpha_ident_len;  /**< Must be set to # of elements in second_alpha_ident */
+  voice_alpha_ident_with_id_type_v02 second_alpha_ident[QMI_VOICE_ALPHA_IDENT_ARRAY_MAX_V02];
+
+  /* Optional */
+  /*  Caller Name for IP call */
+  uint8_t ip_caller_name_valid;  /**< Must be set to true if ip_caller_name is being passed */
+  uint32_t ip_caller_name_len;  /**< Must be set to # of elements in ip_caller_name */
+  voice_ip_caller_name_info_type_v02 ip_caller_name[QMI_VOICE_IP_CALLER_NAME_ARRAY_MAX_V02];
+
+  /* Optional */
+  /*  End Reason Text for IP call */
+  uint8_t end_reason_text_valid;  /**< Must be set to true if end_reason_text is being passed */
+  uint32_t end_reason_text_len;  /**< Must be set to # of elements in end_reason_text */
+  voice_ip_end_reason_text_type_v02 end_reason_text[QMI_VOICE_IP_END_REASON_TEXT_ARRAY_MAX_V02];
 }voice_get_all_call_info_resp_msg_v02;  /* Message */
 /**
     @}
@@ -3608,7 +3974,8 @@ typedef struct {
   /**<   Cause for rejecting the call. Values: \n
       - VOICE_REJECT_CAUSE_USER_BUSY (0x01) --  User is busy \n 
       - VOICE_REJECT_CAUSE_USER_REJECT (0x02) --  User has rejected the call \n 
-      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery  
+      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery \n 
+      - VOICE_REJECT_CAUSE_BLACKLISTED_CALL_ID (0x04) --  Call was rejected because the number was blacklisted  
  */
 }voice_manage_calls_req_msg_v02;  /* Message */
 /**
@@ -3800,6 +4167,9 @@ typedef enum {
   QMI_FAILURE_CAUSE_ACCESS_STRATUM_REJ_LOW_LEVEL_IMMED_RETRY_V02 = 0xEB, 
   QMI_FAILURE_CAUSE_ACCESS_STRATUM_REJ_ABORT_RADIO_UNAVAILABLE_V02 = 0xEC, 
   QMI_FAILURE_CAUSE_SERVICE_OPTION_NOT_SUPPORTED_V02 = 0xED, 
+  QMI_FAILURE_CAUSE_ACCESS_STRATUM_REJ_CONN_EST_FAILURE_ACCESS_BARRED_V02 = 0xEE, 
+  QMI_FAILURE_CAUSE_ACCESS_STRATUM_REJ_CONN_REL_NORMAL_V02 = 0xEF, 
+  QMI_FAILURE_CAUSE_ACCESS_STRATUM_REJ_UL_DATA_CNF_FAILURE_CONN_REL_V02 = 0xF0, 
   QMI_FAILURE_CAUSE_BAD_REQ_WAIT_INVITE_V02 = 0x12C, 
   QMI_FAILURE_CAUSE_BAD_REQ_WAIT_REINVITE_V02 = 0x12D, 
   QMI_FAILURE_CAUSE_INVALID_REMOTE_URI_V02 = 0x12E, 
@@ -3830,6 +4200,52 @@ typedef enum {
   QMI_FAILURE_CAUSE_MERGED_TO_CONFERENCE_V02 = 0x147, 
   QMI_FAILURE_CAUSE_LOW_BATTERY_V02 = 0x148, 
   QMI_FAILURE_CAUSE_CALL_DEFLECTED_V02 = 0x149, 
+  QMI_FAILURE_CAUSE_RTP_RTCP_TIMEOUT_V02 = 0x14A, 
+  QMI_FAILURE_CAUSE_RINGING_RINGBACK_TIMEOUT_V02 = 0x14B, 
+  QMI_FAILURE_CAUSE_REG_RESTORATION_V02 = 0x14C, 
+  QMI_FAILURE_CAUSE_CODEC_ERROR_V02 = 0x14D, 
+  QMI_FAILURE_CAUSE_UNSUPPORTED_SDP_V02 = 0x14E, 
+  QMI_FAILURE_CAUSE_RTP_FAILURE_V02 = 0x14F, 
+  QMI_FAILURE_CAUSE_QoS_FAILURE_V02 = 0x150, 
+  QMI_FAILURE_CAUSE_MULTIPLE_CHOICES_V02 = 0x151, 
+  QMI_FAILURE_CAUSE_MOVED_PERMANENTLY_V02 = 0x152, 
+  QMI_FAILURE_CAUSE_MOVED_TEMPORARILY_V02 = 0x153, 
+  QMI_FAILURE_CAUSE_USE_PROXY_V02 = 0x154, 
+  QMI_FAILURE_CAUSE_ALTERNATE_SERVICE_V02 = 0x155, 
+  QMI_FAILURE_CAUSE_ALTERNATE_EMERGENCY_CALL_V02 = 0x156, 
+  QMI_FAILURE_CAUSE_UNAUTHORIZED_V02 = 0x157, 
+  QMI_FAILURE_CAUSE_PAYMENT_REQUIRED_V02 = 0x158, 
+  QMI_FAILURE_CAUSE_METHOD_NOT_ALLOWED_V02 = 0x159, 
+  QMI_FAILURE_CAUSE_NOT_ACCEPTABLE_V02 = 0x15A, 
+  QMI_FAILURE_CAUSE_PROXY_AUTHENTICATION_REQUIRED_V02 = 0x15B, 
+  QMI_FAILURE_CAUSE_GONE_V02 = 0x15C, 
+  QMI_FAILURE_CAUSE_REQUEST_ENTITY_TOO_LARGE_V02 = 0x15D, 
+  QMI_FAILURE_CAUSE_REQUEST_URI_TOO_LARGE_V02 = 0x15E, 
+  QMI_FAILURE_CAUSE_UNSUPPORTED_URI_SCHEME_V02 = 0x15F, 
+  QMI_FAILURE_CAUSE_BAD_EXTENSION_V02 = 0x160, 
+  QMI_FAILURE_CAUSE_EXTENSION_REQUIRED_V02 = 0x161, 
+  QMI_FAILURE_CAUSE_INTERVAL_TOO_BRIEF_V02 = 0x162, 
+  QMI_FAILURE_CAUSE_CALL_OR_TRANS_DOES_NOT_EXIST_V02 = 0x163, 
+  QMI_FAILURE_CAUSE_LOOP_DETECTED_V02 = 0x164, 
+  QMI_FAILURE_CAUSE_TOO_MANY_HOPS_V02 = 0x165, 
+  QMI_FAILURE_CAUSE_ADDRESS_INCOMPLETE_V02 = 0x166, 
+  QMI_FAILURE_CAUSE_AMBIGUOUS_V02 = 0x167, 
+  QMI_FAILURE_CAUSE_REQUEST_TERMINATED_V02 = 0x168, 
+  QMI_FAILURE_CAUSE_NOT_ACCEPTABLE_HERE_V02 = 0x169, 
+  QMI_FAILURE_CAUSE_REQUEST_PENDING_V02 = 0x16A, 
+  QMI_FAILURE_CAUSE_UNDECIPHERABLE_V02 = 0x16B, 
+  QMI_FAILURE_CAUSE_SERVER_INTERNAL_ERROR_V02 = 0x16C, 
+  QMI_FAILURE_CAUSE_NOT_IMPLEMENTED_V02 = 0x16D, 
+  QMI_FAILURE_CAUSE_BAD_GATEWAY_V02 = 0x16E, 
+  QMI_FAILURE_CAUSE_SERVER_TIME_OUT_V02 = 0x16F, 
+  QMI_FAILURE_CAUSE_VERSION_NOT_SUPPORTED_V02 = 0x170, 
+  QMI_FAILURE_CAUSE_MESSAGE_TOO_LARGE_V02 = 0x171, 
+  QMI_FAILURE_CAUSE_DOES_NOT_EXIST_ANYWHERE_V02 = 0x172, 
+  QMI_FAILURE_CAUSE_SESS_DESCR_NOT_ACCEPTABLE_V02 = 0x173, 
+  QMI_FAILURE_CAUSE_SRVCC_END_CALL_V02 = 0x174, 
+  QMI_FAILURE_CAUSE_INTERNAL_ERROR_V02 = 0x175, 
+  QMI_FAILURE_CAUSE_SERVER_UNAVAILABLE_V02 = 0x176, 
+  QMI_FAILURE_CAUSE_PRECONDITION_FAILURE_V02 = 0x177, 
   QMI_SUPS_ERRORS_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }qmi_sups_errors_enum_v02;
 /**
@@ -4021,6 +4437,15 @@ typedef struct {
       - VOICE_SUPS_NOTIFY_REASON_FWD_ALLFORWARDING (0x05) --  All forwarding \n 
       - VOICE_SUPS_NOTIFY_REASON_FWD_ALLCONDITIONAL (0x06) --  All conditional 
  */
+
+  /* Optional */
+  /*  IP Forward History Info */
+  uint8_t ip_forward_hist_info_valid;  /**< Must be set to true if ip_forward_hist_info is being passed */
+  uint32_t ip_forward_hist_info_len;  /**< Must be set to # of elements in ip_forward_hist_info */
+  uint16_t ip_forward_hist_info[QMI_VOICE_IP_FORWARD_HIST_INFO_MAX_LEN_V02];
+  /**<   IP forward history info. This text can contain up to 512 UTF-16 
+       characters and it is not guaranteed to be NULL terminated.
+  */
 }voice_sups_notification_ind_msg_v02;  /* Message */
 /**
     @}
@@ -4134,44 +4559,46 @@ typedef struct {
 
   voice_reason_enum_v02 reason;
   /**<   Reason. Values: \n
-       - 0x01 -- QMI_VOICE_REASON_FWD_ UNCONDITIONAL -- 
+       - 0x01 -- VOICE_REASON_FWD_ UNCONDITIONAL -- 
                  Unconditional call forwarding \n
-       - 0x02 -- QMI_VOICE_REASON_FWD_ MOBILEBUSY -- 
+       - 0x02 -- VOICE_REASON_FWD_ MOBILEBUSY -- 
                  Forward when the mobile is busy \n
-       - 0x03 -- QMI_VOICE_REASON_FWD_ NOREPLY -- 
+       - 0x03 -- VOICE_REASON_FWD_NOREPLY -- 
                  Forward when there is no reply \n
-       - 0x04 -- QMI_VOICE_REASON_FWD_ UNREACHABLE -- 
+       - 0x04 -- VOICE_REASON_FWD_ UNREACHABLE -- 
                  Forward when the call is unreachable \n
-       - 0x05 -- QMI_VOICE_REASON_FWD_ ALLFORWARDING -- 
+       - 0x05 -- VOICE_REASON_FWD_ ALLFORWARDING -- 
                  All forwarding \n
-       - 0x06 -- QMI_VOICE_REASON_FWD_ ALLCONDITIONAL -- 
+       - 0x06 -- VOICE_REASON_FWD_ ALLCONDITIONAL -- 
                  All conditional forwarding \n
-       - 0x07 -- QMI_VOICE_REASON_BARR_ ALLOUTGOING -- 
+       - 0x07 -- VOICE_REASON_BARR_ ALLOUTGOING -- 
                  All outgoing \n
-       - 0x08 -- QMI_VOICE_REASON_BARR_ OUTGOINGINT -- 
+       - 0x08 -- VOICE_REASON_BARR_ OUTGOINGINT -- 
                  Outgoing internal \n
-       - 0x09 -- QMI_VOICE_REASON_BARR_ OUTGOINGINTEXTOHOME -- 
+       - 0x09 -- VOICE_REASON_BARR_ OUTGOINGINTEXTOHOME -- 
                  Outgoing external to home \n
-       - 0x0A -- QMI_VOICE_REASON_BARR_ ALLINCOMING -- 
+       - 0x0A -- VOICE_REASON_BARR_ ALLINCOMING -- 
                  All incoming \n
-       - 0x0B -- QMI_VOICE_REASON_BARR_ INCOMINGROAMING -- 
+       - 0x0B -- VOICE_REASON_BARR_ INCOMINGROAMING -- 
                  Roaming incoming \n
-       - 0x0C -- QMI_VOICE_REASON_BARR_ ALLBARRING -- 
+       - 0x0C -- VOICE_REASON_BARR_ ALLBARRING -- 
                  All calls are barred \n
-       - 0x0D -- QMI_VOICE_REASON_BARR_ ALLOUTGOINGBARRING -- 
+       - 0x0D -- VOICE_REASON_BARR_ ALLOUTGOINGBARRING -- 
                  All outgoing calls are barred \n
-       - 0x0E -- QMI_VOICE_REASON_BARR_ ALLINCOMINGBARRING -- 
+       - 0x0E -- VOICE_REASON_BARR_ ALLINCOMINGBARRING -- 
                  All incoming calls are barred \n
-       - 0x0F -- QMI_VOICE_REASON_ CALLWAITING -- Call waiting \n
-       - 0x10 -- QMI_VOICE_REASON_ CLIP -- 
+       - 0x0F -- VOICE_REASON_CALLWAITING -- Call waiting \n
+       - 0x10 -- VOICE_REASON_CLIP -- 
                  Calling line identification presentation \n
-       - 0x12 -- QMI_VOICE_REASON_ COLP -- 
+       - 0x12 -- VOICE_REASON_COLP -- 
                  Connected line identification presentation \n
-       - 0x13 -- QMI_VOICE_REASON_ COLR --
-	         Connected line identification restriction \n
-       - 0x15 -- QMI_VOICE_REASON_BARR_ INCOMINGNUMBER -- 
+       - 0x13 -- VOICE_REASON_COLR --
+                 Connected line identification restriction \n
+       - 0x14 -- VOICE_REASON_CNAP -- 
+                 Calling name presentation \n
+       - 0x15 -- VOICE_REASON_BARR_ INCOMINGNUMBER -- 
                  Incoming calls from registered and activated numbers are barred \n
-       - 0x16 -- QMI_VOICE_REASON_BARR_ INCOMINGANONYMOUS -- 
+       - 0x16 -- VOICE_REASON_BARR_ INCOMINGANONYMOUS -- 
                  Incoming calls from anonymous numbers are barred
   */
 }voice_supplementary_service_info_type_v02;  /* Type */
@@ -4217,8 +4644,8 @@ typedef struct {
   */
 typedef enum {
   ACTIVE_STATUS_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  ACTIVE_STATUS_INACTIVE_V02 = 0x00, 
-  ACTIVE_STATUS_ACTIVE_V02 = 0x01, 
+  ACTIVE_STATUS_INACTIVE_V02 = 0x00, /**<  Inactive \n  */
+  ACTIVE_STATUS_ACTIVE_V02 = 0x01, /**<  Active  */
   ACTIVE_STATUS_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }active_status_enum_v02;
 /**
@@ -4266,8 +4693,8 @@ typedef struct {
   */
 typedef enum {
   PI_COLR_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  COLR_PRESENTATION_NOT_RESTRICTED_V02 = 0x00, 
-  COLR_PRESENTATION_RESTRICTED_V02 = 0x01, 
+  COLR_PRESENTATION_NOT_RESTRICTED_V02 = 0x00, /**<  COLR presentation is not restricted  */
+  COLR_PRESENTATION_RESTRICTED_V02 = 0x01, /**<  COLR presentation is restricted  */
   PI_COLR_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }pi_colr_enum_v02;
 /**
@@ -4293,10 +4720,53 @@ typedef struct {
   */
 typedef struct {
 
+  uint16_t year;
+  /**<   Year.
+  */
+
+  uint8_t month;
+  /**<   Month.
+       Range: 1 to 12. 1 is January and 12 is December.
+  */
+
+  uint8_t day;
+  /**<   Day. 
+       Range: 1 to 31.
+  */
+
+  uint8_t hour;
+  /**<   Hour.
+       Range: 0 to 23.
+  */
+
+  uint8_t minute;
+  /**<   Minute.
+       Range: 0 to 59.
+  */
+
+  uint8_t second;
+  /**<   Second.
+       Range: 0 to 59.
+  */
+
+  int8_t time_zone;
+  /**<   Time zone. Offset from Universal time, i.e., the difference between 
+       local time and Universal time, in increments of 15 min (signed value).
+  */
+}voice_time_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
   active_status_enum_v02 active_status;
   /**<   Active status. Values: \n
-      - ACTIVE_STATUS_INACTIVE (0x00) -- 
-      - ACTIVE_STATUS_ACTIVE (0x01) --  
+      - ACTIVE_STATUS_INACTIVE (0x00) --  Inactive \n 
+      - ACTIVE_STATUS_ACTIVE (0x01) --  Active  
  */
 
   char barred_number[QMI_VOICE_NUMBER_MAX_V02 + 1];
@@ -4312,7 +4782,7 @@ typedef struct {
     @{
   */
 /** Request Message; Manages all call-independent supplementary services, such as 
-             activation, deactivation, registration, and erasure . */
+             activation, deactivation, registration, and erasure. */
 typedef struct {
 
   /* Mandatory */
@@ -4367,8 +4837,9 @@ typedef struct {
   uint8_t call_barring_numbers_list_valid;  /**< Must be set to true if call_barring_numbers_list is being passed */
   uint32_t call_barring_numbers_list_len;  /**< Must be set to # of elements in call_barring_numbers_list */
   voice_barred_number_type_v02 call_barring_numbers_list[QMI_VOICE_MAX_BARRED_NUMBERS_LIST_V02];
-  /**<   List of call barring numbers to be activated/deactivated on or registered 
-       with or erased from the network.
+  /**<   \n
+       List of call barring numbers to be activated/deactivated 
+       or registered with/erased from the network.
   */
 
   /* Optional */
@@ -4376,9 +4847,19 @@ typedef struct {
   uint8_t colr_pi_valid;  /**< Must be set to true if colr_pi is being passed */
   pi_colr_enum_v02 colr_pi;
   /**<   COLR presentation information. Values: \n
-      - COLR_PRESENTATION_NOT_RESTRICTED (0x00) -- 
-      - COLR_PRESENTATION_RESTRICTED (0x01) --  
+      - COLR_PRESENTATION_NOT_RESTRICTED (0x00) --  COLR presentation is not restricted 
+      - COLR_PRESENTATION_RESTRICTED (0x01) --  COLR presentation is restricted  
  */
+
+  /* Optional */
+  /*  Call Forwarding Start Time */
+  uint8_t call_fwd_start_time_valid;  /**< Must be set to true if call_fwd_start_time is being passed */
+  voice_time_type_v02 call_fwd_start_time;
+
+  /* Optional */
+  /*  Call Forwarding End Time */
+  uint8_t call_fwd_end_time_valid;  /**< Must be set to true if call_fwd_end_time is being passed */
+  voice_time_type_v02 call_fwd_end_time;
 }voice_set_sups_service_req_msg_v02;  /* Message */
 /**
     @}
@@ -4388,7 +4869,7 @@ typedef struct {
     @{
   */
 /** Response Message; Manages all call-independent supplementary services, such as 
-             activation, deactivation, registration, and erasure . */
+             activation, deactivation, registration, and erasure. */
 typedef struct {
 
   /* Mandatory */
@@ -4447,6 +4928,13 @@ typedef struct {
   /**<   Failure cause description received from the network. This text can contain 
        up to 256 UTF-16 characters and it is not guaranteed to be NULL terminated.
        Length range: 0 to 256.
+  */
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
   */
 }voice_set_sups_service_resp_msg_v02;  /* Message */
 /**
@@ -4550,6 +5038,13 @@ typedef struct {
   /**<   Extended service class; see Table @latexonly\ref{tbl:extServiceClass}@endlatexonly 
        for more information.
   */
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
+  */
 }voice_get_call_waiting_resp_msg_v02;  /* Message */
 /**
     @}
@@ -4567,8 +5062,6 @@ typedef struct {
 
   uint32_t call_barring_numbers_list_len;  /**< Must be set to # of elements in call_barring_numbers_list */
   voice_barred_number_status_type_v02 call_barring_numbers_list[QMI_VOICE_MAX_BARRED_NUMBERS_LIST_V02];
-  /**<   List of barred numbers 
-  */
 }voice_serviceclass_barred_number_list_type_v02;  /* Type */
 /**
     @}
@@ -4703,18 +5196,36 @@ typedef struct {
   uint8_t sc_barred_numbers_status_list_valid;  /**< Must be set to true if sc_barred_numbers_status_list is being passed */
   uint32_t sc_barred_numbers_status_list_len;  /**< Must be set to # of elements in sc_barred_numbers_status_list */
   voice_serviceclass_barred_number_list_type_v02 sc_barred_numbers_status_list[QMI_VOICE_SERVICE_CLASS_LIST_MAX_V02];
-  /**<   List of barred numbers with service class and activation status.
+  /**<   \n
+       List of barred numbers with the service class and activation status.
+  */
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
   */
 }voice_get_call_barring_resp_msg_v02;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Queries the status of the Calling Line Identification
+             Presentation (CLIP) supplementary service.               */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_get_clip_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_aggregates
     @{
@@ -4791,16 +5302,34 @@ typedef struct {
   /**<   (Supplementary service data that resulted from call control;
        data is present when cc_result_type is present and is other than Voice.)
   */
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
+  */
 }voice_get_clip_resp_msg_v02;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Queries the status of the Calling Line Identification
+             Restriction (CLIR) supplementary service 
+             (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_get_clir_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_aggregates
     @{
@@ -4879,6 +5408,13 @@ typedef struct {
   voice_cc_sups_result_type_v02 cc_sups_result;
   /**<   (Supplementary service data that resulted from call control;
        data is present when cc_result_type is present and is other than Voice.)
+  */
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
   */
 }voice_get_clir_resp_msg_v02;  /* Message */
 /**
@@ -5096,6 +5632,32 @@ typedef struct {
   uint8_t get_call_forwarding_exten2_info_valid;  /**< Must be set to true if get_call_forwarding_exten2_info is being passed */
   uint32_t get_call_forwarding_exten2_info_len;  /**< Must be set to # of elements in get_call_forwarding_exten2_info */
   voice_get_call_forwarding_info_exten2_type_v02 get_call_forwarding_exten2_info[GET_CALL_FORWARDING_INFO_MAX_V02];
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
+  */
+
+  /* Optional */
+  /*  Provision Status */
+  uint8_t provision_status_valid;  /**< Must be set to true if provision_status is being passed */
+  provision_status_enum_v02 provision_status;
+  /**<   Values: \n
+       - 0x00 -- PROVISION_STATUS_NOT_ PROVISIONED -- Not provisioned \n
+       - 0x01 -- PROVISION_STATUS_ PROVISIONED -- Provisioned
+  */
+
+  /* Optional */
+  /*  Call Forwarding Start Time */
+  uint8_t call_fwd_start_time_valid;  /**< Must be set to true if call_fwd_start_time is being passed */
+  voice_time_type_v02 call_fwd_start_time;
+
+  /* Optional */
+  /*  Call Forwarding End Time */
+  uint8_t call_fwd_end_time_valid;  /**< Must be set to true if call_fwd_end_time is being passed */
+  voice_time_type_v02 call_fwd_end_time;
 }voice_get_call_forwarding_resp_msg_v02;  /* Message */
 /**
     @}
@@ -5108,25 +5670,25 @@ typedef struct {
 
   voice_reason_enum_v02 reason;
   /**<   Reason. Values: \n
-       - 0x07 -- QMI_VOICE_REASON_BARR_ ALLOUTGOING -- 
+       - 0x07 -- VOICE_REASON_BARR_ ALLOUTGOING -- 
                  All outgoing \n
-       - 0x08 -- QMI_VOICE_REASON_BARR_ OUTGOINGINT -- 
+       - 0x08 -- VOICE_REASON_BARR_ OUTGOINGINT -- 
                  Outgoing internal \n
-       - 0x09 -- QMI_VOICE_REASON_BARR_ OUTGOINGINTEXTOHOME -- 
+       - 0x09 -- VOICE_REASON_BARR_ OUTGOINGINTEXTOHOME -- 
                  Outgoing external to home \n
-       - 0x0A -- QMI_VOICE_REASON_BARR_ ALLINCOMING -- 
+       - 0x0A -- VOICE_REASON_BARR_ ALLINCOMING -- 
                  All incoming \n
-       - 0x0B -- QMI_VOICE_REASON_BARR_ INCOMINGROAMING -- 
+       - 0x0B -- VOICE_REASON_BARR_ INCOMINGROAMING -- 
                  Roaming incoming \n
-       - 0x0C -- QMI_VOICE_REASON_BARR_ ALLBARRING -- 
+       - 0x0C -- VOICE_REASON_BARR_ ALLBARRING -- 
                  All calls are barred \n
-       - 0x0D -- QMI_VOICE_REASON_BARR_ ALLOUTGOINGBARRING -- 
+       - 0x0D -- VOICE_REASON_BARR_ ALLOUTGOINGBARRING -- 
                  All outgoing calls are barred \n
-       - 0x0E -- QMI_VOICE_REASON_BARR_ ALLINCOMINGBARRING -- 
+       - 0x0E -- VOICE_REASON_BARR_ ALLINCOMINGBARRING -- 
                  All incoming calls are barred \n
-       - 0x15 -- QMI_VOICE_REASON_BARR_ INCOMINGNUMBER -- 
+       - 0x15 -- VOICE_REASON_BARR_ INCOMINGNUMBER -- 
                  Incoming calls from registered and activated numbers are barred \n
-       - 0x16 -- QMI_VOICE_REASON_BARR_ INCOMINGANONYMOUS -- 
+       - 0x16 -- VOICE_REASON_BARR_ INCOMINGANONYMOUS -- 
                  Incoming calls from anonymous numbers are barred
   */
 
@@ -5208,6 +5770,13 @@ typedef struct {
   voice_cc_sups_result_type_v02 cc_sups_result;
   /**<   (Supplementary service data that resulted from call control;
        data is present when cc_result_type is present and is other than Voice.)
+  */
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
   */
 }voice_set_call_barring_password_resp_msg_v02;  /* Message */
 /**
@@ -5361,11 +5930,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Aborts an ongoing USSD operation (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_cancel_ussd_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -5381,11 +5959,21 @@ typedef struct {
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Indication Message; Notifies clients that the USSD session is terminated by the
+             network (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_ussd_release_ind_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_enums
     @{
@@ -5654,6 +6242,17 @@ typedef struct {
        - 0x02 -- VOICE_DOMAIN_PREF_CS_PREF  -- CS is preferred; PS is secondary \n
        - 0x03 -- VOICE_DOMAIN_PREF_PS_PREF  -- PS is preferred; CS is secondary
   */
+
+  /* Optional */
+  /*  UI TTY Setting */
+  uint8_t ui_tty_setting_valid;  /**< Must be set to true if ui_tty_setting is being passed */
+  tty_mode_enum_v02 ui_tty_setting;
+  /**<   Values: \n
+       - 0x00 -- TTY_MODE_FULL -- Full \n
+       - 0x01 -- TTY_MODE_VCO  -- Voice carry over \n
+       - 0x02 -- TTY_MODE_HCO  -- Hearing carry over \n
+       - 0x03 -- TTY_MODE_OFF  -- Off (default)
+  */
 }voice_set_config_req_msg_v02;  /* Message */
 /**
     @}
@@ -5719,6 +6318,15 @@ typedef struct {
   /*  Voice Domain Preference Status */
   uint8_t voice_domain_pref_outcome_valid;  /**< Must be set to true if voice_domain_pref_outcome is being passed */
   uint8_t voice_domain_pref_outcome;
+  /**<   Values: \n
+       - 0x00 -- Information was written successfully \n
+       - 0x01 -- Information write failed
+  */
+
+  /* Optional */
+  /*  UI TTY Config Status */
+  uint8_t ui_tty_setting_outcome_valid;  /**< Must be set to true if ui_tty_setting_outcome is being passed */
+  uint8_t ui_tty_setting_outcome;
   /**<   Values: \n
        - 0x00 -- Information was written successfully \n
        - 0x01 -- Information write failed
@@ -5808,6 +6416,15 @@ typedef struct {
   uint8_t voice_domain_pref;
   /**<   Value: \n 
        - 0x01 -- Include voice domain preference information in the response
+                 message
+  */
+
+  /* Optional */
+  /*  UI TTY Setting */
+  uint8_t ui_tty_setting_valid;  /**< Must be set to true if ui_tty_setting is being passed */
+  uint8_t ui_tty_setting;
+  /**<   Value: \n 
+       - 0x01 -- Include UI TTY configuration status information in the response 
                  message
   */
 }voice_get_config_req_msg_v02;  /* Message */
@@ -5914,6 +6531,17 @@ typedef struct {
        - 0x02 -- VOICE_DOMAIN_PREF_CS_PREF  -- CS is preferred; PS is secondary \n
        - 0x03 -- VOICE_DOMAIN_PREF_PS_PREF  -- PS is preferred; CS is secondary
   */
+
+  /* Optional */
+  /*  Current UI TTY Setting */
+  uint8_t current_ui_tty_setting_valid;  /**< Must be set to true if current_ui_tty_setting is being passed */
+  tty_mode_enum_v02 current_ui_tty_setting;
+  /**<   Values: \n
+       - 0x00 -- TTY_MODE_FULL -- Full \n
+       - 0x01 -- TTY_MODE_VCO  -- Voice carry over \n
+       - 0x02 -- TTY_MODE_HCO  -- Hearing carry over \n
+       - 0x03 -- TTY_MODE_OFF  -- Off
+  */
 }voice_get_config_resp_msg_v02;  /* Message */
 /**
     @}
@@ -5942,28 +6570,28 @@ typedef enum {
   */
 typedef enum {
   VOICE_SUPS_IND_REASON_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  VOICE_SUPS_IND_REASON_FWD_UNCONDITIONAL_V02 = 0x01, 
-  VOICE_SUPS_IND_REASON_FWD_MOBILEBUSY_V02 = 0x02, 
-  VOICE_SUPS_IND_REASON_FWD_NOREPLY_V02 = 0x03, 
-  VOICE_SUPS_IND_REASON_FWD_UNREACHABLE_V02 = 0x04, 
-  VOICE_SUPS_IND_REASON_FWD_ALLFORWARDING_V02 = 0x05, 
-  VOICE_SUPS_IND_REASON_FWD_ALLCONDITIONAL_V02 = 0x06, 
-  VOICE_SUPS_IND_REASON_BARR_ALLOUTGOING_V02 = 0x07, 
-  VOICE_SUPS_IND_REASON_BARR_OUTGOINGINT_V02 = 0x08, 
-  VOICE_SUPS_IND_REASON_BARR_OUTGOINGINTEXTOHOME_V02 = 0x09, 
-  VOICE_SUPS_IND_REASON_BARR_ALLINCOMING_V02 = 0x0A, 
-  VOICE_SUPS_IND_REASON_BARR_INCOMINGROAMING_V02 = 0x0B, 
-  VOICE_SUPS_IND_REASON_BARR_ALLBARRING_V02 = 0x0C, 
-  VOICE_SUPS_IND_REASON_BARR_ALLOUTGOINGBARRING_V02 = 0x0D, 
-  VOICE_SUPS_IND_REASON_BARR_ALLINCOMINGBARRING_V02 = 0x0E, 
-  VOICE_SUPS_IND_REASON_CALLWAITING_V02 = 0x0F, 
-  VOICE_SUPS_IND_REASON_CLIP_V02 = 0x10, 
-  VOICE_SUPS_IND_REASON_CLIR_V02 = 0x11, 
-  VOICE_SUPS_IND_REASON_COLP_V02 = 0x12, 
-  VOICE_SUPS_IND_REASON_COLR_V02 = 0x13, 
-  VOICE_SUPS_IND_REASON_CNAP_V02 = 0x14, 
-  VOICE_SUPS_IND_REASON_BARR_INCOMINGNUMBER_V02 = 0x15, 
-  VOICE_SUPS_IND_REASON_BARR_INCOMINGANONYMOUS_V02 = 0x16, 
+  VOICE_SUPS_IND_REASON_FWD_UNCONDITIONAL_V02 = 0x01, /**<  Unconditional call forwarding \n  */
+  VOICE_SUPS_IND_REASON_FWD_MOBILEBUSY_V02 = 0x02, /**<  Forward when the mobile is busy \n  */
+  VOICE_SUPS_IND_REASON_FWD_NOREPLY_V02 = 0x03, /**<  Forward when there is no reply \n  */
+  VOICE_SUPS_IND_REASON_FWD_UNREACHABLE_V02 = 0x04, /**<  Forward when the call is unreachable \n  */
+  VOICE_SUPS_IND_REASON_FWD_ALLFORWARDING_V02 = 0x05, /**<  All forwarding \n  */
+  VOICE_SUPS_IND_REASON_FWD_ALLCONDITIONAL_V02 = 0x06, /**<  All conditional forwarding \n  */
+  VOICE_SUPS_IND_REASON_BARR_ALLOUTGOING_V02 = 0x07, /**<  All outgoing \n  */
+  VOICE_SUPS_IND_REASON_BARR_OUTGOINGINT_V02 = 0x08, /**<  Outgoing internal \n  */
+  VOICE_SUPS_IND_REASON_BARR_OUTGOINGINTEXTOHOME_V02 = 0x09, /**<  Outgoing external to home \n  */
+  VOICE_SUPS_IND_REASON_BARR_ALLINCOMING_V02 = 0x0A, /**<  All incoming \n  */
+  VOICE_SUPS_IND_REASON_BARR_INCOMINGROAMING_V02 = 0x0B, /**<  Roaming incoming \n  */
+  VOICE_SUPS_IND_REASON_BARR_ALLBARRING_V02 = 0x0C, /**<  All calls are barred \n  */
+  VOICE_SUPS_IND_REASON_BARR_ALLOUTGOINGBARRING_V02 = 0x0D, /**<  All outgoing calls are barred \n  */
+  VOICE_SUPS_IND_REASON_BARR_ALLINCOMINGBARRING_V02 = 0x0E, /**<  All incoming calls are barred \n  */
+  VOICE_SUPS_IND_REASON_CALLWAITING_V02 = 0x0F, /**<  Call waiting \n  */
+  VOICE_SUPS_IND_REASON_CLIP_V02 = 0x10, /**<  Calling line identification presentation \n  */
+  VOICE_SUPS_IND_REASON_CLIR_V02 = 0x11, /**<  Calling line identification restriction \n  */
+  VOICE_SUPS_IND_REASON_COLP_V02 = 0x12, /**<  Connected line identification presentation \n  */
+  VOICE_SUPS_IND_REASON_COLR_V02 = 0x13, /**<  Connected line identification restriction \n  */
+  VOICE_SUPS_IND_REASON_CNAP_V02 = 0x14, /**<  Calling name presentation \n  */
+  VOICE_SUPS_IND_REASON_BARR_INCOMINGNUMBER_V02 = 0x15, /**<  Incoming calls from registered and activated numbers are barred \n  */
+  VOICE_SUPS_IND_REASON_BARR_INCOMINGANONYMOUS_V02 = 0x16, /**<  All incoming anonymous calls are barred  */
   VOICE_SUPS_IND_REASON_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }voice_sups_ind_reason_enum_v02;
 /**
@@ -6055,28 +6683,28 @@ typedef struct {
   uint8_t reason_valid;  /**< Must be set to true if reason is being passed */
   voice_sups_ind_reason_enum_v02 reason;
   /**<   Reason. Values: \n
-      - VOICE_SUPS_IND_REASON_FWD_UNCONDITIONAL (0x01) -- 
-      - VOICE_SUPS_IND_REASON_FWD_MOBILEBUSY (0x02) -- 
-      - VOICE_SUPS_IND_REASON_FWD_NOREPLY (0x03) -- 
-      - VOICE_SUPS_IND_REASON_FWD_UNREACHABLE (0x04) -- 
-      - VOICE_SUPS_IND_REASON_FWD_ALLFORWARDING (0x05) -- 
-      - VOICE_SUPS_IND_REASON_FWD_ALLCONDITIONAL (0x06) -- 
-      - VOICE_SUPS_IND_REASON_BARR_ALLOUTGOING (0x07) -- 
-      - VOICE_SUPS_IND_REASON_BARR_OUTGOINGINT (0x08) -- 
-      - VOICE_SUPS_IND_REASON_BARR_OUTGOINGINTEXTOHOME (0x09) -- 
-      - VOICE_SUPS_IND_REASON_BARR_ALLINCOMING (0x0A) -- 
-      - VOICE_SUPS_IND_REASON_BARR_INCOMINGROAMING (0x0B) -- 
-      - VOICE_SUPS_IND_REASON_BARR_ALLBARRING (0x0C) -- 
-      - VOICE_SUPS_IND_REASON_BARR_ALLOUTGOINGBARRING (0x0D) -- 
-      - VOICE_SUPS_IND_REASON_BARR_ALLINCOMINGBARRING (0x0E) -- 
-      - VOICE_SUPS_IND_REASON_CALLWAITING (0x0F) -- 
-      - VOICE_SUPS_IND_REASON_CLIP (0x10) -- 
-      - VOICE_SUPS_IND_REASON_CLIR (0x11) -- 
-      - VOICE_SUPS_IND_REASON_COLP (0x12) -- 
-      - VOICE_SUPS_IND_REASON_COLR (0x13) -- 
-      - VOICE_SUPS_IND_REASON_CNAP (0x14) -- 
-      - VOICE_SUPS_IND_REASON_BARR_INCOMINGNUMBER (0x15) -- 
-      - VOICE_SUPS_IND_REASON_BARR_INCOMINGANONYMOUS (0x16) --  
+      - VOICE_SUPS_IND_REASON_FWD_UNCONDITIONAL (0x01) --  Unconditional call forwarding \n 
+      - VOICE_SUPS_IND_REASON_FWD_MOBILEBUSY (0x02) --  Forward when the mobile is busy \n 
+      - VOICE_SUPS_IND_REASON_FWD_NOREPLY (0x03) --  Forward when there is no reply \n 
+      - VOICE_SUPS_IND_REASON_FWD_UNREACHABLE (0x04) --  Forward when the call is unreachable \n 
+      - VOICE_SUPS_IND_REASON_FWD_ALLFORWARDING (0x05) --  All forwarding \n 
+      - VOICE_SUPS_IND_REASON_FWD_ALLCONDITIONAL (0x06) --  All conditional forwarding \n 
+      - VOICE_SUPS_IND_REASON_BARR_ALLOUTGOING (0x07) --  All outgoing \n 
+      - VOICE_SUPS_IND_REASON_BARR_OUTGOINGINT (0x08) --  Outgoing internal \n 
+      - VOICE_SUPS_IND_REASON_BARR_OUTGOINGINTEXTOHOME (0x09) --  Outgoing external to home \n 
+      - VOICE_SUPS_IND_REASON_BARR_ALLINCOMING (0x0A) --  All incoming \n 
+      - VOICE_SUPS_IND_REASON_BARR_INCOMINGROAMING (0x0B) --  Roaming incoming \n 
+      - VOICE_SUPS_IND_REASON_BARR_ALLBARRING (0x0C) --  All calls are barred \n 
+      - VOICE_SUPS_IND_REASON_BARR_ALLOUTGOINGBARRING (0x0D) --  All outgoing calls are barred \n 
+      - VOICE_SUPS_IND_REASON_BARR_ALLINCOMINGBARRING (0x0E) --  All incoming calls are barred \n 
+      - VOICE_SUPS_IND_REASON_CALLWAITING (0x0F) --  Call waiting \n 
+      - VOICE_SUPS_IND_REASON_CLIP (0x10) --  Calling line identification presentation \n 
+      - VOICE_SUPS_IND_REASON_CLIR (0x11) --  Calling line identification restriction \n 
+      - VOICE_SUPS_IND_REASON_COLP (0x12) --  Connected line identification presentation \n 
+      - VOICE_SUPS_IND_REASON_COLR (0x13) --  Connected line identification restriction \n 
+      - VOICE_SUPS_IND_REASON_CNAP (0x14) --  Calling name presentation \n 
+      - VOICE_SUPS_IND_REASON_BARR_INCOMINGNUMBER (0x15) --  Incoming calls from registered and activated numbers are barred \n 
+      - VOICE_SUPS_IND_REASON_BARR_INCOMINGANONYMOUS (0x16) --  All incoming anonymous calls are barred  
  */
 
   /* Optional */
@@ -6195,8 +6823,9 @@ typedef struct {
   uint8_t barred_numbers_list_valid;  /**< Must be set to true if barred_numbers_list is being passed */
   uint32_t barred_numbers_list_len;  /**< Must be set to # of elements in barred_numbers_list */
   voice_barred_number_type_v02 barred_numbers_list[QMI_VOICE_MAX_BARRED_NUMBERS_LIST_V02];
-  /**<   List of barred numbers activated/deactivated on or registered with or 
-       erased from the network.
+  /**<   \n
+       List of barred numbers activated/deactivated 
+       or registered with/erased from the network.
   */
 }voice_sups_ind_msg_v02;  /* Message */
 /**
@@ -6407,11 +7036,21 @@ typedef struct {
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Resets the Accumulated Call Meter (ACM) value to 0
+             (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_aoc_reset_acm_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -6519,17 +7158,36 @@ typedef struct {
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates that the phone is out of funds. */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_aoc_low_funds_ind_msg_v02;
 
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Queries the status of the Connected Line identification 
+             Presentation (COLP) supplementary service.               */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_get_colp_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -6581,16 +7239,34 @@ typedef struct {
   /*  Call Control Supplementary Service Type */
   uint8_t cc_sups_result_valid;  /**< Must be set to true if cc_sups_result is being passed */
   voice_cc_sups_result_type_v02 cc_sups_result;
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
+  */
 }voice_get_colp_resp_msg_v02;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Queries the status of the Connected Line identification 
+             Restriction (COLR) supplementary service
+             (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_get_colr_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -6649,19 +7325,36 @@ typedef struct {
   uint8_t colr_pi_valid;  /**< Must be set to true if colr_pi is being passed */
   pi_colr_enum_v02 colr_pi;
   /**<   COLR presentation information. Values: \n
-      - COLR_PRESENTATION_NOT_RESTRICTED (0x00) -- 
-      - COLR_PRESENTATION_RESTRICTED (0x01) --  
+      - COLR_PRESENTATION_NOT_RESTRICTED (0x00) --  COLR presentation is not restricted 
+      - COLR_PRESENTATION_RESTRICTED (0x01) --  COLR presentation is restricted  
  */
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
+  */
 }voice_get_colr_resp_msg_v02;  /* Message */
 /**
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Queries the status of the Calling Name Presentation (CNAP) 
+             supplementary service (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_get_cnap_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -6713,6 +7406,13 @@ typedef struct {
   /*  Call Control Supplementary Service Type */
   uint8_t cc_sups_result_valid;  /**< Must be set to true if cc_sups_result is being passed */
   voice_cc_sups_result_type_v02 cc_sups_result;
+
+  /* Optional */
+  /*  Retry Duration */
+  uint8_t retry_duration_valid;  /**< Must be set to true if retry_duration is being passed */
+  uint16_t retry_duration;
+  /**<   Retry duration in seconds.
+  */
 }voice_get_cnap_resp_msg_v02;  /* Message */
 /**
     @}
@@ -6722,18 +7422,49 @@ typedef struct {
     @{
   */
 typedef enum {
+  VOICE_SPEECH_CODEC_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  VOICE_SPEECH_CODEC_NONE_V02 = 0x0000, /**<  None  */
+  VOICE_SPEECH_CODEC_QCELP13K_V02 = 0x0001, /**<  QCELP-13K  */
+  VOICE_SPEECH_CODEC_EVRC_V02 = 0x0002, /**<  EVRC  */
+  VOICE_SPEECH_CODEC_EVRC_B_V02 = 0x0003, /**<  EVRC-B  */
+  VOICE_SPEECH_CODEC_EVRC_WB_V02 = 0x0004, /**<  EVRC Wideband  */
+  VOICE_SPEECH_CODEC_EVRC_NW_V02 = 0x0005, /**<  EVRC Narrowband-Wideband  */
+  VOICE_SPEECH_CODEC_AMR_NB_V02 = 0x0006, /**<  AMR Narrowband  */
+  VOICE_SPEECH_CODEC_AMR_WB_V02 = 0x0007, /**<  AMR Wideband  */
+  VOICE_SPEECH_CODEC_GSM_EFR_V02 = 0x0008, /**<  GSM Enhanced Full Rate  */
+  VOICE_SPEECH_CODEC_GSM_FR_V02 = 0x0009, /**<  GSM Full Rate  */
+  VOICE_SPEECH_CODEC_GSM_HR_V02 = 0x000A, /**<  GSM Half Rate  */
+  VOICE_SPEECH_CODEC_G711U_V02 = 0x000B, /**<  G711U  */
+  VOICE_SPEECH_CODEC_G723_V02 = 0x000C, /**<  G723  */
+  VOICE_SPEECH_CODEC_G711A_V02 = 0x000D, /**<  G711A  */
+  VOICE_SPEECH_CODEC_G722_V02 = 0x000E, /**<  G722  */
+  VOICE_SPEECH_CODEC_G711AB_V02 = 0x000F, /**<  G711AB  */
+  VOICE_SPEECH_CODEC_G729_V02 = 0x0010, /**<  G729  */
+  VOICE_SPEECH_CODEC_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}voice_speech_codec_enum_v02;
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_enums
+    @{
+  */
+typedef enum {
   VOIP_SUPS_TYPE_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  VOIP_SUPS_TYPE_RELEASE_HELD_OR_WAITING_V02 = 0x01, 
-  VOIP_SUPS_TYPE_RELEASE_ACTIVE_ACCEPT_HELD_OR_WAITING_V02 = 0x02, 
-  VOIP_SUPS_TYPE_HOLD_ACTIVE_ACCEPT_WAITING_OR_HELD_V02 = 0x03, 
-  VOIP_SUPS_TYPE_MAKE_CONFERENCE_CALL_V02 = 0x04, 
-  VOIP_SUPS_TYPE_END_ALL_CALLS_V02 = 0x05, 
-  VOIP_SUPS_TYPE_MODIFY_CALL_V02 = 0x06, 
-  VOIP_SUPS_TYPE_MODIFY_ACCEPT_V02 = 0x07, 
-  VOIP_SUPS_TYPE_MODIFY_REJECT_V02 = 0x08, 
-  VOIP_SUPS_TYPE_RELEASE_SPECIFIED_CALL_FROM_CONFERENCE_V02 = 0x09, 
-  VOIP_SUPS_TYPE_ADD_PARTICIPANT_V02 = 0x0A, 
-  VOIP_SUPS_TYPE_CALL_DEFLECTION_V02 = 0x0B, 
+  VOIP_SUPS_TYPE_RELEASE_HELD_OR_WAITING_V02 = 0x01, /**<  Release the held or waiting call \n  */
+  VOIP_SUPS_TYPE_RELEASE_ACTIVE_ACCEPT_HELD_OR_WAITING_V02 = 0x02, /**<  Release the active call and accept the held or waiting call \n  */
+  VOIP_SUPS_TYPE_HOLD_ACTIVE_ACCEPT_WAITING_OR_HELD_V02 = 0x03, /**<  Hold the active call and accept the waiting or held call \n  */
+  VOIP_SUPS_TYPE_MAKE_CONFERENCE_CALL_V02 = 0x04, /**<  Make a conference call \n  */
+  VOIP_SUPS_TYPE_END_ALL_CALLS_V02 = 0x05, /**<  End all existing calls \n  */
+  VOIP_SUPS_TYPE_MODIFY_CALL_V02 = 0x06, /**<  Downgrade/upgrade of existing VT/IP calls \n  */
+  VOIP_SUPS_TYPE_MODIFY_ACCEPT_V02 = 0x07, /**<  Accept the call upgrade of existing IP calls \n  */
+  VOIP_SUPS_TYPE_MODIFY_REJECT_V02 = 0x08, /**<  Reject the call upgrade of existing IP calls \n  */
+  VOIP_SUPS_TYPE_RELEASE_SPECIFIED_CALL_FROM_CONFERENCE_V02 = 0x09, /**<  Release a party from a conference call \n  */
+  VOIP_SUPS_TYPE_ADD_PARTICIPANT_V02 = 0x0A, /**<  Add a participant to a call \n  */
+  VOIP_SUPS_TYPE_CALL_DEFLECTION_V02 = 0x0B, /**<  Deflect the call \n  */
+  VOIP_SUPS_TYPE_CALL_HOLD_V02 = 0x0C, /**<  Hold the call with a specific call ID \n  */
+  VOIP_SUPS_TYPE_CALL_RESUME_V02 = 0x0D, /**<  Resume the call with a specific call ID  */
+  VOIP_SUPS_TYPE_MODIFY_SPEECH_CODEC_V02 = 0x0E, /**<  Modify the speech codec with a specific call ID  */
   VOIP_SUPS_TYPE_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }voip_sups_type_enum_v02;
 /**
@@ -6774,24 +7505,28 @@ typedef struct {
   /*  Manage IP Calls Information */
   voip_sups_type_enum_v02 sups_type;
   /**<   Supplementary service type during the call. Values: \n
-      - VOIP_SUPS_TYPE_RELEASE_HELD_OR_WAITING (0x01) -- 
-      - VOIP_SUPS_TYPE_RELEASE_ACTIVE_ACCEPT_HELD_OR_WAITING (0x02) -- 
-      - VOIP_SUPS_TYPE_HOLD_ACTIVE_ACCEPT_WAITING_OR_HELD (0x03) -- 
-      - VOIP_SUPS_TYPE_MAKE_CONFERENCE_CALL (0x04) -- 
-      - VOIP_SUPS_TYPE_END_ALL_CALLS (0x05) -- 
-      - VOIP_SUPS_TYPE_MODIFY_CALL (0x06) -- 
-      - VOIP_SUPS_TYPE_MODIFY_ACCEPT (0x07) -- 
-      - VOIP_SUPS_TYPE_MODIFY_REJECT (0x08) -- 
-      - VOIP_SUPS_TYPE_RELEASE_SPECIFIED_CALL_FROM_CONFERENCE (0x09) -- 
-      - VOIP_SUPS_TYPE_ADD_PARTICIPANT (0x0A) -- 
-      - VOIP_SUPS_TYPE_CALL_DEFLECTION (0x0B) --  
+      - VOIP_SUPS_TYPE_RELEASE_HELD_OR_WAITING (0x01) --  Release the held or waiting call \n 
+      - VOIP_SUPS_TYPE_RELEASE_ACTIVE_ACCEPT_HELD_OR_WAITING (0x02) --  Release the active call and accept the held or waiting call \n 
+      - VOIP_SUPS_TYPE_HOLD_ACTIVE_ACCEPT_WAITING_OR_HELD (0x03) --  Hold the active call and accept the waiting or held call \n 
+      - VOIP_SUPS_TYPE_MAKE_CONFERENCE_CALL (0x04) --  Make a conference call \n 
+      - VOIP_SUPS_TYPE_END_ALL_CALLS (0x05) --  End all existing calls \n 
+      - VOIP_SUPS_TYPE_MODIFY_CALL (0x06) --  Downgrade/upgrade of existing VT/IP calls \n 
+      - VOIP_SUPS_TYPE_MODIFY_ACCEPT (0x07) --  Accept the call upgrade of existing IP calls \n 
+      - VOIP_SUPS_TYPE_MODIFY_REJECT (0x08) --  Reject the call upgrade of existing IP calls \n 
+      - VOIP_SUPS_TYPE_RELEASE_SPECIFIED_CALL_FROM_CONFERENCE (0x09) --  Release a party from a conference call \n 
+      - VOIP_SUPS_TYPE_ADD_PARTICIPANT (0x0A) --  Add a participant to a call \n 
+      - VOIP_SUPS_TYPE_CALL_DEFLECTION (0x0B) --  Deflect the call \n 
+      - VOIP_SUPS_TYPE_CALL_HOLD (0x0C) --  Hold the call with a specific call ID \n 
+      - VOIP_SUPS_TYPE_CALL_RESUME (0x0D) --  Resume the call with a specific call ID 
+      - VOIP_SUPS_TYPE_MODIFY_SPEECH_CODEC (0x0E) --  Modify the speech codec with a specific call ID  
  */
 
   /* Optional */
   /*  Call ID  */
   uint8_t call_id_valid;  /**< Must be set to true if call_id is being passed */
   uint8_t call_id;
-  /**<   Call ID of the VoIP or VT call.
+  /**<   Call ID of the VoIP or VT call. This TLV is mandatory for 
+       sups_type = HOLD or RESUME.
   */
 
   /* Optional */
@@ -6835,7 +7570,40 @@ typedef struct {
   /**<   Cause for rejecting the call. Values: \n
       - VOICE_REJECT_CAUSE_USER_BUSY (0x01) --  User is busy \n 
       - VOICE_REJECT_CAUSE_USER_REJECT (0x02) --  User has rejected the call \n 
-      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery  
+      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery \n 
+      - VOICE_REJECT_CAUSE_BLACKLISTED_CALL_ID (0x04) --  Call was rejected because the number was blacklisted  
+ */
+
+  /* Optional */
+  /*  SIP Reject Cause */
+  uint8_t sip_reject_cause_valid;  /**< Must be set to true if sip_reject_cause is being passed */
+  uint16_t sip_reject_cause;
+  /**<   Cause for rejecting the incoming call.
+       The SIP error code is as defined in RFC3261 \hyperref[S28]{[S28]}.
+  */
+
+  /* Optional */
+  /*  Speech Codec Type */
+  uint8_t speech_codec_valid;  /**< Must be set to true if speech_codec is being passed */
+  voice_speech_codec_enum_v02 speech_codec;
+  /**<   Speech codec type. Values: \n
+      - VOICE_SPEECH_CODEC_NONE (0x0000) --  None 
+      - VOICE_SPEECH_CODEC_QCELP13K (0x0001) --  QCELP-13K 
+      - VOICE_SPEECH_CODEC_EVRC (0x0002) --  EVRC 
+      - VOICE_SPEECH_CODEC_EVRC_B (0x0003) --  EVRC-B 
+      - VOICE_SPEECH_CODEC_EVRC_WB (0x0004) --  EVRC Wideband 
+      - VOICE_SPEECH_CODEC_EVRC_NW (0x0005) --  EVRC Narrowband-Wideband 
+      - VOICE_SPEECH_CODEC_AMR_NB (0x0006) --  AMR Narrowband 
+      - VOICE_SPEECH_CODEC_AMR_WB (0x0007) --  AMR Wideband 
+      - VOICE_SPEECH_CODEC_GSM_EFR (0x0008) --  GSM Enhanced Full Rate 
+      - VOICE_SPEECH_CODEC_GSM_FR (0x0009) --  GSM Full Rate 
+      - VOICE_SPEECH_CODEC_GSM_HR (0x000A) --  GSM Half Rate 
+      - VOICE_SPEECH_CODEC_G711U (0x000B) --  G711U 
+      - VOICE_SPEECH_CODEC_G723 (0x000C) --  G723 
+      - VOICE_SPEECH_CODEC_G711A (0x000D) --  G711A 
+      - VOICE_SPEECH_CODEC_G722 (0x000E) --  G722 
+      - VOICE_SPEECH_CODEC_G711AB (0x000F) --  G711AB 
+      - VOICE_SPEECH_CODEC_G729 (0x0010) --  G729 
  */
 }voice_manage_ip_calls_req_msg_v02;  /* Message */
 /**
@@ -6879,11 +7647,21 @@ typedef struct {
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Retrieves the line switch setting on the card 
+             (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_als_get_line_switching_status_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -6909,11 +7687,21 @@ typedef struct {
     @}
   */
 
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Allows the user to get the line preference 
+             (applicable only for 3GPP). */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of 
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }voice_als_get_selected_line_req_msg_v02;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup voice_qmi_messages
     @{
@@ -6985,6 +7773,24 @@ typedef struct {
   /**<   Call modification failure cause; 
        see @latexonly Table~\ref{tbl:endReasons}@endlatexonly for more information. 
   */
+
+  /* Optional */
+  /*  Media ID  */
+  uint8_t media_id_valid;  /**< Must be set to true if media_id is being passed */
+  uint8_t media_id;
+  /**<   Media ID. 
+  */
+
+  /* Optional */
+  /*  Call Attribute Status */
+  uint8_t call_attrib_status_valid;  /**< Must be set to true if call_attrib_status is being passed */
+  voice_call_attrib_status_enum_v02 call_attrib_status;
+  /**<   Call attribute status. Values: \n
+      - VOICE_CALL_ATTRIB_STATUS_OK (0) --  No additional information \n 
+      - VOICE_CALL_ATTRIB_STATUS_RETRY_NEEDED (1) --  Retry for the media is needed \n 
+      - VOICE_CALL_ATTRIB_STATUS_MEDIA_PAUSED (2) --  Media is paused \n 
+      - VOICE_CALL_ATTRIB_STATUS_MEDIA_NOT_READY (3) --  Media is not ready due to the quality of service 
+ */
 }voice_modified_ind_msg_v02;  /* Message */
 /**
     @}
@@ -7051,28 +7857,6 @@ typedef enum {
     @}
   */
 
-/** @addtogroup voice_qmi_enums
-    @{
-  */
-typedef enum {
-  VOICE_SPEECH_CODEC_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
-  VOICE_SPEECH_CODEC_NONE_V02 = 0x0000, 
-  VOICE_SPEECH_CODEC_QCELP13K_V02 = 0x0001, 
-  VOICE_SPEECH_CODEC_EVRC_V02 = 0x0002, 
-  VOICE_SPEECH_CODEC_EVRC_B_V02 = 0x0003, 
-  VOICE_SPEECH_CODEC_EVRC_WB_V02 = 0x0004, 
-  VOICE_SPEECH_CODEC_EVRC_NW_V02 = 0x0005, 
-  VOICE_SPEECH_CODEC_AMR_NB_V02 = 0x0006, 
-  VOICE_SPEECH_CODEC_AMR_WB_V02 = 0x0007, 
-  VOICE_SPEECH_CODEC_GSM_EFR_V02 = 0x0008, 
-  VOICE_SPEECH_CODEC_GSM_FR_V02 = 0x0009, 
-  VOICE_SPEECH_CODEC_GSM_HR_V02 = 0x000A, 
-  VOICE_SPEECH_CODEC_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
-}voice_speech_codec_enum_v02;
-/**
-    @}
-  */
-
 /** @addtogroup voice_qmi_messages
     @{
   */
@@ -7097,18 +7881,24 @@ typedef struct {
   uint8_t speech_codec_valid;  /**< Must be set to true if speech_codec is being passed */
   voice_speech_codec_enum_v02 speech_codec;
   /**<   Speech codec type. Values: \n
-	   - 0x00 -- VOICE_SPEECH_CODEC_NONE      -- None \n
-	   - 0x01 -- VOICE_SPEECH_CODEC_ QCELP13K -- QCELP-13K \n
-	   - 0x02 -- VOICE_SPEECH_CODEC_EVRC      -- EVRC \n
-	   - 0x03 -- VOICE_SPEECH_CODEC_EVRC_B    -- EVRC-B \n
-	   - 0x04 -- VOICE_SPEECH_CODEC_EVRC_ WB  -- EVRC wideband \n
-	   - 0x05 -- VOICE_SPEECH_CODEC_EVRC_ NW  -- EVRC narrowband-wideband \n
-	   - 0x06 -- VOICE_SPEECH_CODEC_AMR_NB    -- AMR narrowband \n
-	   - 0x07 -- VOICE_SPEECH_CODEC_AMR_WB    -- AMR wideband \n
-	   - 0x08 -- VOICE_SPEECH_CODEC_GSM_ EFR  -- GSM enhanced full rate \n
-	   - 0x09 -- VOICE_SPEECH_CODEC_GSM_FR    -- GSM full rate \n
-	   - 0x0A -- VOICE_SPEECH_CODEC_GSM_HR    -- GSM half rate
-  */
+      - VOICE_SPEECH_CODEC_NONE (0x0000) --  None 
+      - VOICE_SPEECH_CODEC_QCELP13K (0x0001) --  QCELP-13K 
+      - VOICE_SPEECH_CODEC_EVRC (0x0002) --  EVRC 
+      - VOICE_SPEECH_CODEC_EVRC_B (0x0003) --  EVRC-B 
+      - VOICE_SPEECH_CODEC_EVRC_WB (0x0004) --  EVRC Wideband 
+      - VOICE_SPEECH_CODEC_EVRC_NW (0x0005) --  EVRC Narrowband-Wideband 
+      - VOICE_SPEECH_CODEC_AMR_NB (0x0006) --  AMR Narrowband 
+      - VOICE_SPEECH_CODEC_AMR_WB (0x0007) --  AMR Wideband 
+      - VOICE_SPEECH_CODEC_GSM_EFR (0x0008) --  GSM Enhanced Full Rate 
+      - VOICE_SPEECH_CODEC_GSM_FR (0x0009) --  GSM Full Rate 
+      - VOICE_SPEECH_CODEC_GSM_HR (0x000A) --  GSM Half Rate 
+      - VOICE_SPEECH_CODEC_G711U (0x000B) --  G711U 
+      - VOICE_SPEECH_CODEC_G723 (0x000C) --  G723 
+      - VOICE_SPEECH_CODEC_G711A (0x000D) --  G711A 
+      - VOICE_SPEECH_CODEC_G722 (0x000E) --  G722 
+      - VOICE_SPEECH_CODEC_G711AB (0x000F) --  G711AB 
+      - VOICE_SPEECH_CODEC_G729 (0x0010) --  G729 
+ */
 
   /* Optional */
   /*  Speech Encoder Sampling Rate */
@@ -7584,7 +8374,8 @@ typedef struct {
   /**<   Cause for rejecting the call setup. Values: \n
       - VOICE_REJECT_CAUSE_USER_BUSY (0x01) --  User is busy \n 
       - VOICE_REJECT_CAUSE_USER_REJECT (0x02) --  User has rejected the call \n 
-      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery  
+      - VOICE_REJECT_CAUSE_LOW_BATTERY (0x03) --  Call was rejected due to a low battery \n 
+      - VOICE_REJECT_CAUSE_BLACKLISTED_CALL_ID (0x04) --  Call was rejected because the number was blacklisted  
  */
 }voice_setup_answer_req_msg_v02;  /* Message */
 /**
@@ -7635,7 +8426,7 @@ typedef struct {
 /** @addtogroup voice_qmi_messages
     @{
   */
-/** Request Message; Allows the client to start videosharing */
+/** Request Message; Allows the client to start videosharing. */
 typedef struct {
 
   /* Mandatory */
@@ -7651,7 +8442,7 @@ typedef struct {
 /** @addtogroup voice_qmi_messages
     @{
   */
-/** Response Message; Allows the client to start videosharing */
+/** Response Message; Allows the client to start videosharing. */
 typedef struct {
 
   /* Mandatory */
@@ -7672,13 +8463,14 @@ typedef struct {
 /** @addtogroup voice_qmi_messages
     @{
   */
-/** Request Message; Allows the client to answer to videosharing request */
+/** Request Message; Allows the client to answer a videosharing request. */
 typedef struct {
 
   /* Mandatory */
   /*  Call ID */
   uint8_t call_id;
-  /**<   Unique call identifier of the call for which videosharing is being answered.
+  /**<   Unique call identifier of the call for which videosharing is to be 
+       answered (accepted).
   */
 }voice_vs_answer_req_msg_v02;  /* Message */
 /**
@@ -7688,7 +8480,7 @@ typedef struct {
 /** @addtogroup voice_qmi_messages
     @{
   */
-/** Response Message; Allows the client to answer to videosharing request */
+/** Response Message; Allows the client to answer a videosharing request. */
 typedef struct {
 
   /* Mandatory */
@@ -7709,13 +8501,13 @@ typedef struct {
 /** @addtogroup voice_qmi_messages
     @{
   */
-/** Request Message; Allows the client to end videosharing for a call */
+/** Request Message; Allows the client to end videosharing for a call. */
 typedef struct {
 
   /* Mandatory */
   /*  Call ID */
   uint8_t call_id;
-  /**<   Unique call identifier of the call for which videosharing is being ended.
+  /**<   Unique call identifier of the call for which videosharing is ending.
   */
 }voice_vs_end_req_msg_v02;  /* Message */
 /**
@@ -7725,7 +8517,7 @@ typedef struct {
 /** @addtogroup voice_qmi_messages
     @{
   */
-/** Response Message; Allows the client to end videosharing for a call */
+/** Response Message; Allows the client to end videosharing for a call. */
 typedef struct {
 
   /* Mandatory */
@@ -7736,7 +8528,7 @@ typedef struct {
   /*  Call ID */
   uint8_t call_id_valid;  /**< Must be set to true if call_id is being passed */
   uint8_t call_id;
-  /**<   Unique call identifier for the call for which videosharing was ended.
+  /**<   Unique call identifier for the call for which videosharing ended.
   */
 }voice_vs_end_resp_msg_v02;  /* Message */
 /**
@@ -7752,8 +8544,8 @@ typedef enum {
   VOICE_VS_ACTIVE_V02 = 0x01, /**<  Active \n  */
   VOICE_VS_DIALING_V02 = 0x02, /**<  Dialing \n  */
   VOICE_VS_ALERTING_V02 = 0x03, /**<  Alerting \n  */
-  VOICE_VS_INCOMING_V02 = 0x04, /**<  Incoming \ */
-  VOICE_VS_DISCONNECTING_V02 = 0x05, /**<  Disconnecting  */
+  VOICE_VS_INCOMING_V02 = 0x04, /**<  Incoming \n  */
+  VOICE_VS_DISCONNECTING_V02 = 0x05, /**<  Disconnecting \n  */
   VOICE_VS_DISCONNECTED_V02 = 0x06, /**<  Disconnected  */
   VIDEOSHARE_STATUS_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }videoshare_status_enum_v02;
@@ -7764,25 +8556,296 @@ typedef enum {
 /** @addtogroup voice_qmi_messages
     @{
   */
-/** Indication Message; Informs clients about information related to TTY. */
+/** Indication Message; Informs clients about information related to videosharing. */
 typedef struct {
 
   /* Mandatory */
   /*  Call ID */
   uint8_t call_id;
-  /**<   Unique identifier for the call for which videosharing status is sent.
+  /**<   Unique identifier for the call for which the videosharing status is sent.
   */
 
   /* Mandatory */
   /*  Videoshare Status */
   videoshare_status_enum_v02 status;
   /**<   Videosharing status. Values: \n
-       @enum()
-  */
+      - VOICE_VS_IDLE (0x00) --  Idle \n 
+      - VOICE_VS_ACTIVE (0x01) --  Active \n 
+      - VOICE_VS_DIALING (0x02) --  Dialing \n 
+      - VOICE_VS_ALERTING (0x03) --  Alerting \n 
+      - VOICE_VS_INCOMING (0x04) --  Incoming \n 
+      - VOICE_VS_DISCONNECTING (0x05) --  Disconnecting \n 
+      - VOICE_VS_DISCONNECTED (0x06) --  Disconnected 
+ */
 }voice_videoshare_status_ind_msg_v02;  /* Message */
 /**
     @}
   */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  uint16_t sequence;
+  /**<   Sequence number of this indication. Sequence number 0 indicates that 
+       this indication is the start of a new update. The sequence number 
+       increments for each successive indication of an update.
+  */
+
+  uint32_t additional_call_info_len;  /**< Must be set to # of elements in additional_call_info */
+  uint8_t additional_call_info[QMI_VOICE_ADDITIONAL_INFO_MAX_LEN_V02];
+  /**<   Additional call information is a part of the complete update and is 
+       passed as a UTF-8 string. The additional information consists of
+       up to 2048 UTF-8 characters. Length range: 1 to 2048.
+  */
+
+  uint32_t total_size;
+  /**<   Total size of the update to be passed. The client has received the 
+       last indication of an update when the received size is equal to the 
+       total size.
+  */
+}voice_additional_call_info_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Indication Message; Informs clients about additional information related to calls. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Call ID */
+  uint8_t call_id;
+  /**<   Unique identifier for the call.
+  */
+
+  /* Optional */
+  /*  Extension Header Info */
+  uint8_t extension_header_info_valid;  /**< Must be set to true if extension_header_info is being passed */
+  voice_additional_call_info_type_v02 extension_header_info;
+}voice_additional_call_info_ind_msg_v02;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_enums
+    @{
+  */
+typedef enum {
+  AUDIO_SESSION_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  VOICE_AUDIO_PASSIVE_SESSION_START_V02 = 0x00, /**<  Start \n  */
+  VOICE_AUDIO_PASSIVE_SESSION_STOP_V02 = 0x01, /**<  Stop  */
+  AUDIO_SESSION_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}audio_session_enum_v02;
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Indication Message; Informs clients about audio RAT changes. */
+typedef struct {
+
+  /* Optional */
+  /*  Audio Session Information */
+  uint8_t audio_session_info_valid;  /**< Must be set to true if audio_session_info is being passed */
+  audio_session_enum_v02 audio_session_info;
+  /**<   Audio passive session information. Values: \n
+      - VOICE_AUDIO_PASSIVE_SESSION_START (0x00) --  Start \n 
+      - VOICE_AUDIO_PASSIVE_SESSION_STOP (0x01) --  Stop  
+ */
+
+  /* Optional */
+  /*  RAT Information */
+  uint8_t rat_info_valid;  /**< Must be set to true if rat_info is being passed */
+  call_mode_enum_v02 rat_info;
+  /**<   Rat information. Values: \n
+       - 0x04 -- CALL_MODE_LTE -- LTE \n
+       - 0x07 -- CALL_MODE_WLAN -- WLAN
+  */
+}voice_audio_rat_change_info_ind_msg_v02;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_enums
+    @{
+  */
+typedef enum {
+  CONF_PARTICIPANT_OPERATION_ENUM_MIN_ENUM_VAL_V02 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  VOICE_CONF_PARTICIPANT_ADD_V02 = 0x00, /**<  Add \n  */
+  VOICE_CONF_PARTICIPANT_REMOVE_V02 = 0x01, /**<  Remove  */
+  CONF_PARTICIPANT_OPERATION_ENUM_MAX_ENUM_VAL_V02 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}conf_participant_operation_enum_v02;
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  conf_participant_operation_enum_v02 operation;
+  /**<   Operation on the participant. Values: \n
+      - VOICE_CONF_PARTICIPANT_ADD (0x00) --  Add \n 
+      - VOICE_CONF_PARTICIPANT_REMOVE (0x01) --  Remove 
+ */
+
+  uint16_t sip_status;
+  /**<   SIP Code indicating status of the participant.
+  The SIP code is as defined in RFC3261 \hyperref[S28]{[S28]}.
+  */
+}voice_participant_operation_info_type_v02;  /* Type */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Indication Message; Informs clients about status of operations on a participant in a conference call. */
+typedef struct {
+
+  /* Mandatory */
+  /*  Call ID */
+  uint8_t call_id;
+  /**<   Call ID of the conference call
+  */
+
+  /* Mandatory */
+  /*  Participant URI */
+  char participant_uri[QMI_VOICE_SIP_URI_MAX_V02 + 1];
+  /**<   SIP URI number in ASCII string. 
+  Length range: 1 to 128.
+  */
+
+  /* Optional */
+  /*  Participant Operation Status Information */
+  uint8_t op_status_valid;  /**< Must be set to true if op_status is being passed */
+  voice_participant_operation_info_type_v02 op_status;
+}voice_conf_participant_status_info_ind_msg_v02;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Request Message; Allows the client to modify the secure call mode */
+typedef struct {
+
+  /* Mandatory */
+  /*  Secure call mode */
+  uint8_t enable;
+  /**<   Values: \n
+       - 0x00 -- Disable \n
+       - 0x01 -- Enable
+  */
+
+  /* Mandatory */
+  /*  Call direction */
+  call_direction_enum_v02 direction;
+  /**<   Direction. Values: \n
+       - 0x01 -- CALL_DIRECTION_MO -- MO call \n
+       - 0x02 -- CALL_DIRECTION_MT -- MT call
+  */
+}voice_secure_call_mode_req_msg_v02;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup voice_qmi_messages
+    @{
+  */
+/** Response Message; Allows the client to modify the secure call mode */
+typedef struct {
+
+  /* Mandatory */
+  /*  Result Code */
+  qmi_response_type_v01 resp;
+}voice_secure_call_mode_resp_msg_v02;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */ 
+//#define REMOVE_QMI_VOICE_ADDITIONAL_CALL_INFO_IND_V02 
+//#define REMOVE_QMI_VOICE_ALL_CALL_STATUS_IND_V02 
+//#define REMOVE_QMI_VOICE_ALS_GET_LINE_SWITCHING_STATUS_V02 
+//#define REMOVE_QMI_VOICE_ALS_GET_SELECTED_LINE_V02 
+//#define REMOVE_QMI_VOICE_ALS_SELECT_LINE_V02 
+//#define REMOVE_QMI_VOICE_ALS_SET_LINE_SWITCHING_V02 
+//#define REMOVE_QMI_VOICE_ANSWER_CALL_V02 
+//#define REMOVE_QMI_VOICE_ANSWER_USSD_V02 
+//#define REMOVE_QMI_VOICE_AOC_GET_CALL_METER_INFO_V02 
+//#define REMOVE_QMI_VOICE_AOC_LOW_FUNDS_IND_V02 
+//#define REMOVE_QMI_VOICE_AOC_RESET_ACM_V02 
+//#define REMOVE_QMI_VOICE_AOC_SET_ACMMAX_V02 
+//#define REMOVE_QMI_VOICE_AUDIO_RAT_CHANGE_INFO_IND_V02 
+//#define REMOVE_QMI_VOICE_BIND_SUBSCRIPTION_V02 
+//#define REMOVE_QMI_VOICE_BURST_DTMF_V02 
+//#define REMOVE_QMI_VOICE_CALL_CONTROL_RESULT_INFO_IND_V02 
+//#define REMOVE_QMI_VOICE_CANCEL_USSD_V02 
+//#define REMOVE_QMI_VOICE_CONFERENCE_INFO_IND_V02 
+//#define REMOVE_QMI_VOICE_CONFERENCE_JOIN_IND_V02 
+//#define REMOVE_QMI_VOICE_CONFERENCE_PARTICIPANTS_INFO_IND_V02 
+//#define REMOVE_QMI_VOICE_CONFERENCE_PARTICIPANT_UPDATE_IND_V02 
+//#define REMOVE_QMI_VOICE_CONF_PARTICIPANT_STATUS_INFO_IND_V02 
+//#define REMOVE_QMI_VOICE_DIAL_CALL_V02 
+//#define REMOVE_QMI_VOICE_DTMF_IND_V02 
+//#define REMOVE_QMI_VOICE_END_CALL_V02 
+//#define REMOVE_QMI_VOICE_EXT_BRST_INTL_IND_V02 
+//#define REMOVE_QMI_VOICE_GET_ALL_CALL_INFO_V02 
+//#define REMOVE_QMI_VOICE_GET_CALL_BARRING_V02 
+//#define REMOVE_QMI_VOICE_GET_CALL_FORWARDING_V02 
+//#define REMOVE_QMI_VOICE_GET_CALL_INFO_V02 
+//#define REMOVE_QMI_VOICE_GET_CALL_WAITING_V02 
+//#define REMOVE_QMI_VOICE_GET_CLIP_V02 
+//#define REMOVE_QMI_VOICE_GET_CLIR_V02 
+//#define REMOVE_QMI_VOICE_GET_CNAP_V02 
+//#define REMOVE_QMI_VOICE_GET_COLP_V02 
+//#define REMOVE_QMI_VOICE_GET_COLR_V02 
+//#define REMOVE_QMI_VOICE_GET_CONFIG_V02 
+//#define REMOVE_QMI_VOICE_GET_SUPPORTED_FIELDS_V02 
+//#define REMOVE_QMI_VOICE_GET_SUPPORTED_MSGS_V02 
+//#define REMOVE_QMI_VOICE_HANDOVER_IND_V02 
+//#define REMOVE_QMI_VOICE_INDICATION_REGISTER_V02 
+//#define REMOVE_QMI_VOICE_INFO_REC_IND_V02 
+//#define REMOVE_QMI_VOICE_MANAGE_CALLS_V02 
+//#define REMOVE_QMI_VOICE_MANAGE_IP_CALLS_V02 
+//#define REMOVE_QMI_VOICE_MODIFIED_IND_V02 
+//#define REMOVE_QMI_VOICE_MODIFY_ACCEPT_IND_V02 
+//#define REMOVE_QMI_VOICE_MT_PAGE_MISS_IND_V02 
+//#define REMOVE_QMI_VOICE_ORIG_USSD_V02 
+//#define REMOVE_QMI_VOICE_ORIG_USSD_NO_WAIT_V02 
+//#define REMOVE_QMI_VOICE_ORIG_USSD_NO_WAIT_IND_V02 
+//#define REMOVE_QMI_VOICE_OTASP_STATUS_IND_V02 
+//#define REMOVE_QMI_VOICE_PRIVACY_IND_V02 
+//#define REMOVE_QMI_VOICE_SECURE_CALL_MODE_V02 
+//#define REMOVE_QMI_VOICE_SEND_FLASH_V02 
+//#define REMOVE_QMI_VOICE_SETUP_ANSWER_V02 
+//#define REMOVE_QMI_VOICE_SET_CALL_BARRING_PASSWORD_V02 
+//#define REMOVE_QMI_VOICE_SET_CONFIG_V02 
+//#define REMOVE_QMI_VOICE_SET_PREFERRED_PRIVACY_V02 
+//#define REMOVE_QMI_VOICE_SET_SUPS_SERVICE_V02 
+//#define REMOVE_QMI_VOICE_SPEECH_CODEC_INFO_IND_V02 
+//#define REMOVE_QMI_VOICE_START_CONT_DTMF_V02 
+//#define REMOVE_QMI_VOICE_STOP_CONT_DTMF_V02 
+//#define REMOVE_QMI_VOICE_SUPS_IND_V02 
+//#define REMOVE_QMI_VOICE_SUPS_NOTIFICATION_IND_V02 
+//#define REMOVE_QMI_VOICE_TTY_IND_V02 
+//#define REMOVE_QMI_VOICE_USSD_IND_V02 
+//#define REMOVE_QMI_VOICE_USSD_RELEASE_IND_V02 
+//#define REMOVE_QMI_VOICE_UUS_IND_V02 
+//#define REMOVE_QMI_VOICE_VIDEOSHARE_ANSWER_V02 
+//#define REMOVE_QMI_VOICE_VIDEOSHARE_END_V02 
+//#define REMOVE_QMI_VOICE_VIDEOSHARE_START_V02 
+//#define REMOVE_QMI_VOICE_VIDEOSHARE_STATUS_IND_V02 
 
 /*Service Message Definition*/
 /** @addtogroup voice_qmi_msg_ids
@@ -7899,6 +8962,11 @@ typedef struct {
 #define QMI_VOICE_VIDEOSHARE_END_REQ_V02 0x0060
 #define QMI_VOICE_VIDEOSHARE_END_RESP_V02 0x0060
 #define QMI_VOICE_VIDEOSHARE_STATUS_IND_V02 0x0061
+#define QMI_VOICE_ADDITIONAL_CALL_INFO_IND_V02 0x0062
+#define QMI_VOICE_AUDIO_RAT_CHANGE_INFO_IND_V02 0x0063
+#define QMI_VOICE_CONF_PARTICIPANT_STATUS_INFO_IND_V02 0x0066
+#define QMI_VOICE_SECURE_CALL_MODE_REQ_V02 0x0067
+#define QMI_VOICE_SECURE_CALL_MODE_RESP_V02 0x0067
 /**
     @}
   */

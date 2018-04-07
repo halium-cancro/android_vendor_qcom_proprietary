@@ -50,6 +50,7 @@ NEEDLIB =\
 #libqmi_client_qmux
 #libqcci_legacy
 
+LIBS = -lpthread
 
 CFLAGS += -m32
 

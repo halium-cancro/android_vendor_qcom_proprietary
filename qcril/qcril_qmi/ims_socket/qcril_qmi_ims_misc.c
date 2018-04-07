@@ -16,6 +16,8 @@
 #include "qcril_log.h"
 #include "qcrili.h"
 
+#define WLAN_HANDOVER_NO_LTE_FAILURE_CODE_STRING "CD-04"
+
 //===========================================================================
 // qcril_qmi_ims_map_event_to_request
 //===========================================================================
@@ -146,12 +148,32 @@ Ims__MsgId qcril_qmi_ims_map_event_to_request(int event)
       ret = IMS__MSG_ID__REQUEST_DEFLECT_CALL;
       break;
 
+    case QCRIL_EVT_IMS_SOCKET_REQ_GET_COLR:
+      ret = IMS__MSG_ID__REQUEST_GET_COLR;
+      break;
+
+    case QCRIL_EVT_IMS_SOCKET_REQ_SET_COLR:
+      ret = IMS__MSG_ID__REQUEST_SET_COLR;
+      break;
+
     case QCRIL_EVT_IMS_SOCKET_REQ_QUERY_VT_CALL_QUALITY:
       ret = IMS__MSG_ID__REQUEST_QUERY_VT_CALL_QUALITY;
       break;
 
     case QCRIL_EVT_IMS_SOCKET_REQ_SET_VT_CALL_QUALITY:
       ret = IMS__MSG_ID__REQUEST_SET_VT_CALL_QUALITY;
+      break;
+
+    case QCRIL_EVT_IMS_SOCKET_REQ_HOLD:
+      ret = IMS__MSG_ID__REQUEST_HOLD;
+      break;
+
+    case QCRIL_EVT_IMS_SOCKET_REQ_RESUME:
+      ret = IMS__MSG_ID__REQUEST_RESUME;
+      break;
+
+    case QCRIL_EVT_IMS_SOCKET_REQ_SET_TTY_MODE:
+      ret = IMS__MSG_ID__REQUEST_SEND_UI_TTY_MODE;
       break;
 
     default:
@@ -493,9 +515,18 @@ void qcril_qmi_ims_translate_ril_calldetails_to_ims_calldetails(const RIL_Call_D
 //===========================================================================
 // qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo
 //===========================================================================
-void qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo(const qcril_qmi_voice_callforwd_info_param_u_type* ril_data, int num, Ims__CallForwardInfoList* ims_data)
+void qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo
+(
+ const qcril_qmi_voice_callforwd_info_param_u_type* ril_data,
+ int num,
+ voice_time_type_v02 *call_fwd_start_time,
+ voice_time_type_v02 *call_fwd_end_time,
+ Ims__CallForwardInfoList* ims_data
+)
 {
   int i;
+  boolean failed = FALSE;
+  Ims__CallForwardInfoList__CallForwardInfo* cfi_array = NULL;
 
   if (NULL == ril_data || NULL == ims_data || num < 0)
   {
@@ -503,60 +534,115 @@ void qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo(const qcril_
   }
   else
   {
-    Ims__CallForwardInfoList tmp_cfil = IMS__CALL_FORWARD_INFO_LIST__INIT;
-    memcpy(ims_data, &tmp_cfil, sizeof(Ims__CallForwardInfoList));
-    ims_data->n_info = num;
-
-    if (num > 0)
+    do
     {
-      ims_data->info = qcril_malloc(sizeof(Ims__CallForwardInfoList__CallForwardInfo*) * num);
-      if (ims_data->info)
+      Ims__CallForwardInfoList tmp_cfil = IMS__CALL_FORWARD_INFO_LIST__INIT;
+      memcpy(ims_data, &tmp_cfil, sizeof(Ims__CallForwardInfoList));
+      ims_data->n_info = num;
+
+      if (num > 0)
       {
-        Ims__CallForwardInfoList__CallForwardInfo* cfi_array = qcril_malloc(sizeof(Ims__CallForwardInfoList__CallForwardInfo) * num);
-        if (cfi_array)
-        {
-          Ims__CallForwardInfoList__CallForwardInfo tmp_cfil_cfi = IMS__CALL_FORWARD_INFO_LIST__CALL_FORWARD_INFO__INIT;
-          for (i = 0; i < num; i++)
-          {
-            memcpy(&(cfi_array[i]), &tmp_cfil_cfi, sizeof(Ims__CallForwardInfoList__CallForwardInfo));
-
-            cfi_array[i].has_status = TRUE;
-            cfi_array[i].status = ril_data[i].status;
-
-            cfi_array[i].has_reason = TRUE;
-            cfi_array[i].reason = ril_data[i].reason;
-
-            cfi_array[i].has_service_class = TRUE;
-            cfi_array[i].service_class = ril_data[i].service_class;
-
-            cfi_array[i].has_toa = TRUE;
-            cfi_array[i].toa = ril_data[i].toa;
-
-            if (ril_data[i].number)
-            {
-              cfi_array[i].number = qmi_ril_util_str_clone(ril_data[i].number);
-            }
-
-            cfi_array[i].has_time_seconds = TRUE;
-            cfi_array[i].time_seconds = ril_data[i].no_reply_timer;
-
-            ims_data->info[i] = &(cfi_array[i]);
-          }
-        }
-        else
+        ims_data->info = qcril_malloc(sizeof(Ims__CallForwardInfoList__CallForwardInfo*) * num);
+        if (NULL == ims_data->info)
         {
           QCRIL_LOG_FATAL("malloc failed");
-          qcril_free(ims_data->info);
-          ims_data->n_info = 0;
+          failed = TRUE;
+          break;
+        }
+
+        cfi_array = qcril_malloc(sizeof(Ims__CallForwardInfoList__CallForwardInfo) * num);
+        if (NULL == cfi_array)
+        {
+          QCRIL_LOG_FATAL("malloc failed");
+          failed = TRUE;
+          break;
+        }
+
+        Ims__CallForwardInfoList__CallForwardInfo tmp_cfil_cfi = IMS__CALL_FORWARD_INFO_LIST__CALL_FORWARD_INFO__INIT;
+        for (i = 0; i < num; i++)
+        {
+          memcpy(&(cfi_array[i]), &tmp_cfil_cfi, sizeof(Ims__CallForwardInfoList__CallForwardInfo));
+
+          cfi_array[i].has_status = TRUE;
+          cfi_array[i].status = ril_data[i].status;
+
+          cfi_array[i].has_reason = TRUE;
+          cfi_array[i].reason = ril_data[i].reason;
+
+          cfi_array[i].has_service_class = TRUE;
+          cfi_array[i].service_class = ril_data[i].service_class;
+
+          cfi_array[i].has_toa = TRUE;
+          cfi_array[i].toa = ril_data[i].toa;
+
+          if (ril_data[i].number)
+          {
+            cfi_array[i].number = qmi_ril_util_str_clone(ril_data[i].number);
+          }
+
+          cfi_array[i].has_time_seconds = TRUE;
+          cfi_array[i].time_seconds = ril_data[i].no_reply_timer;
+
+          ims_data->info[i] = &(cfi_array[i]);
+
+          if (ims_data->info[i]->reason == QCRIL_QMI_VOICE_CCFC_REASON_UNCOND)
+          {
+            if (call_fwd_start_time)
+            {
+              ims_data->info[i]->callfwdtimerstart = qcril_malloc(sizeof(Ims__CallFwdTimerInfo));
+              if (NULL == ims_data->info[i]->callfwdtimerstart)
+              {
+                QCRIL_LOG_FATAL("malloc failed");
+                failed = TRUE;
+                break;
+              }
+              qcril_qmi_ims__call_fwd_timer_info__init(ims_data->info[i]->callfwdtimerstart);
+              qcril_qmi_ims_translate_voice_time_type_to_ims_callfwdtimerinfo(call_fwd_start_time,
+                      ims_data->info[i]->callfwdtimerstart);
+            }
+            if (call_fwd_end_time)
+            {
+              ims_data->info[i]->callfwdtimerend = qcril_malloc(sizeof(Ims__CallFwdTimerInfo));
+              if (NULL == ims_data->info[i]->callfwdtimerend)
+              {
+                QCRIL_LOG_FATAL("malloc failed");
+                failed = TRUE;
+                break;
+              }
+              qcril_qmi_ims__call_fwd_timer_info__init(ims_data->info[i]->callfwdtimerend);
+              qcril_qmi_ims_translate_voice_time_type_to_ims_callfwdtimerinfo(call_fwd_end_time,
+                      ims_data->info[i]->callfwdtimerend);
+            }
+          }
         }
       }
-      else
+    } while (FALSE);
+  }
+
+  if (failed)
+  {
+    if (ims_data && ims_data->info)
+    {
+      for (i = 0; i < num; i++)
       {
-        QCRIL_LOG_FATAL("malloc failed");
+        if (ims_data->info[i] && ims_data->info[i]->callfwdtimerstart)
+        {
+          qcril_free(ims_data->info[i]->callfwdtimerstart);
+        }
+        if (ims_data->info[i] && ims_data->info[i]->callfwdtimerend)
+        {
+          qcril_free(ims_data->info[i]->callfwdtimerend);
+        }
       }
+      qcril_free(ims_data->info);
+    }
+    qcril_free(cfi_array);
+    if (ims_data)
+    {
+      qcril_qmi_ims__call_forward_info_list__init(ims_data);
     }
   }
-} // qcril_qmi_ims_translate_ril_calldetails_to_ims_calldetails
+} // qcril_qmi_ims_translate_ril_callforwdinfo_to_ims_callforwdinfo
 
 //===========================================================================
 // qcril_qmi_ims_translate_ril_service_status_class_to_ims_callwaitinginfo
@@ -602,14 +688,22 @@ Ims__Registration__RegState qcril_qmi_ims_map_qmi_ims_reg_state_to_ims_reg_state
 {
    Ims__Registration__RegState ret;
 
-   if (ims_registered)
+   switch(ims_registered)
    {
-      ret = IMS__REGISTRATION__REG_STATE__REGISTERED;
+   case IMSA_STATUS_NOT_REGISTERED_V01:
+       ret = IMS__REGISTRATION__REG_STATE__NOT_REGISTERED;
+       break;
+   case IMSA_STATUS_REGISTERING_V01:
+       ret = IMS__REGISTRATION__REG_STATE__REGISTERING;
+       break;
+   case IMSA_STATUS_REGISTERED_V01:
+       ret = IMS__REGISTRATION__REG_STATE__REGISTERED;
+       break;
+   default:
+       ret = IMS__REGISTRATION__REG_STATE__NOT_REGISTERED;
+       break;
    }
-   else
-   {
-      ret = IMS__REGISTRATION__REG_STATE__NOT_REGISTERED;
-   }
+
    QCRIL_LOG_INFO("qmi ims_reg_state %d mapped to ims ims_reg_state %d", ims_registered, ret);
 
    return ret;
@@ -652,11 +746,108 @@ void qcril_qmi_ims_translate_ril_suppsvcnotification_to_ims_suppsvcnotification(
 }
 
 //===========================================================================
+// qcril_qmi_ims_map_call_mode_to_ims_radiotechtype
+//===========================================================================
+Ims__RadioTechType qcril_qmi_ims_map_call_mode_to_ims_radiotechtype(call_mode_enum_v02 call_mode)
+{
+  Ims__RadioTechType ims_rat;
+
+  switch(call_mode)
+  {
+    case CALL_MODE_LTE_V02:
+      ims_rat = IMS__RADIO_TECH_TYPE__RADIO_TECH_LTE;
+      break;
+
+    case CALL_MODE_WLAN_V02:
+      ims_rat = IMS__RADIO_TECH_TYPE__RADIO_TECH_IWLAN;
+      break;
+
+    default:
+      ims_rat = IMS__RADIO_TECH_TYPE__RADIO_TECH_UNKNOWN;
+      break;
+  }
+
+  return ims_rat;
+}
+
+//===========================================================================
+// qcril_qmi_ims_make_ims_info
+//===========================================================================
+Ims__Info *qcril_qmi_ims_make_ims_info
+(
+ Ims__CallType calltype,
+ Ims__StatusType status,
+ uint32_t restrictcause,
+ boolean networkmode_valid,
+ Ims__RadioTechType networkmode
+)
+{
+  Ims__Info *ims_info = NULL;
+
+  ims_info = qcril_malloc(sizeof(Ims__Info));
+
+  if (ims_info)
+  {
+    qcril_qmi_ims__info__init(ims_info);
+
+    QCRIL_LOG_INFO("calltype = %d, status = %d, restrictcause = %d, "
+                   "networkmode_valid = %d, networkmode = %d\n",
+                   calltype, status, restrictcause, networkmode_valid, networkmode);
+
+    ims_info->has_isvalid = TRUE;
+    ims_info->isvalid = TRUE;
+
+    ims_info->has_calltype = TRUE;
+    ims_info->calltype = calltype;
+
+    ims_info->has_status = TRUE;
+    ims_info->status = status;
+
+    ims_info->has_restrictcause = TRUE;
+    ims_info->restrictcause = restrictcause;
+
+    if (networkmode_valid)
+    {
+      ims_info->acctechstatus = qcril_malloc(1 * sizeof(Ims__StatusForAccessTech *));
+
+      if (ims_info->acctechstatus)
+      {
+        ims_info->acctechstatus[0] = qcril_malloc(sizeof(Ims__StatusForAccessTech));
+
+        if (ims_info->acctechstatus[0])
+        {
+          qcril_qmi_ims__status_for_access_tech__init(ims_info->acctechstatus[0]);
+          ims_info->n_acctechstatus = 1;
+
+          ims_info->acctechstatus[0]->has_networkmode = TRUE;
+          ims_info->acctechstatus[0]->networkmode = networkmode;
+          ims_info->acctechstatus[0]->has_status = TRUE;
+          ims_info->acctechstatus[0]->status = status;
+          ims_info->acctechstatus[0]->has_restrictioncause = TRUE;
+          ims_info->acctechstatus[0]->restrictioncause = restrictcause;
+        }
+      }
+    }
+  }
+  return ims_info;
+}
+
+//===========================================================================
 // qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo
 //===========================================================================
-void qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(const voice_ip_call_capabilities_info_type_v02* ril_data, Ims__SrvStatusList* ims_data)
+void qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo
+(
+ const voice_ip_call_capabilities_info_type_v02* ril_data,
+ Ims__SrvStatusList* ims_data,
+ Ims__CallType current_call_type,
+ call_mode_enum_v02 call_mode
+)
 {
-  Ims__Info tmp_ims_info = IMS__INFO__INIT;
+  int n_srvstatusinfo    = 2; // 2 - one for voip capability and one for VT capability
+  boolean call_type_found = FALSE;
+  Ims__RadioTechType networkmode = qcril_qmi_ims_map_call_mode_to_ims_radiotechtype(call_mode);
+  Ims__CallType calltype;
+  Ims__StatusType status;
 
   if (NULL == ril_data || NULL == ims_data)
   {
@@ -664,36 +855,35 @@ void qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(const voi
   }
   else
   {
-    ims_data->srvstatusinfo = qcril_malloc( 2 * sizeof(Ims__Info*) ); // 2 - one for voip capability and one for VT capability
+    if (current_call_type != IMS__CALL_TYPE__CALL_TYPE_UNKNOWN)
+    {
+      n_srvstatusinfo += 1;
+    }
+
+    ims_data->srvstatusinfo = qcril_malloc( n_srvstatusinfo * sizeof(Ims__Info*) );
 
     if(NULL != ims_data->srvstatusinfo)
     {
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] = qcril_malloc(sizeof(Ims__Info));
-      memcpy(ims_data->srvstatusinfo[ims_data->n_srvstatusinfo], &tmp_ims_info, sizeof(Ims__Info));
-
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_isvalid = TRUE;
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->isvalid = TRUE;
-
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_restrictcause = TRUE;
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->restrictcause = ril_data->audio_cause;
-
       if( ( VOICE_CALL_ATTRIB_TX_V02 == ril_data->audio_attrib ) ||
           ( VOICE_CALL_ATTRIB_RX_V02 == ril_data->audio_attrib ) ||
           ( (VOICE_CALL_ATTRIB_TX_V02 | VOICE_CALL_ATTRIB_RX_V02) == ril_data->audio_attrib ) )
       {
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_calltype = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->calltype = IMS__CALL_TYPE__CALL_TYPE_VOICE;
-
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_status = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->status = IMS__STATUS_TYPE__STATUS_ENABLED;
+        calltype = IMS__CALL_TYPE__CALL_TYPE_VOICE;
+        status = IMS__STATUS_TYPE__STATUS_ENABLED;
       }
       else
       {
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_calltype = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->calltype = IMS__CALL_TYPE__CALL_TYPE_VOICE;
+        calltype = IMS__CALL_TYPE__CALL_TYPE_VOICE;
+        status = IMS__STATUS_TYPE__STATUS_DISABLED;
+      }
 
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_status = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->status = IMS__STATUS_TYPE__STATUS_DISABLED;
+      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] =
+                qcril_qmi_ims_make_ims_info(calltype, status, ril_data->audio_cause,
+                                            (current_call_type == calltype), networkmode);
+
+      if (current_call_type == calltype)
+      {
+        call_type_found = TRUE;
       }
 
       if( NULL != ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] )
@@ -705,46 +895,34 @@ void qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(const voi
       }
       ims_data->n_srvstatusinfo++;
 
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] = qcril_malloc(sizeof(Ims__Info));
-      memcpy(ims_data->srvstatusinfo[ims_data->n_srvstatusinfo], &tmp_ims_info, sizeof(Ims__Info));
-
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_isvalid = TRUE;
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->isvalid = TRUE;
-
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_restrictcause = TRUE;
-      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->restrictcause = ril_data->video_cause;
-
       if( VOICE_CALL_ATTRIB_TX_V02 == ril_data->video_attrib )
       {
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_calltype = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->calltype = IMS__CALL_TYPE__CALL_TYPE_VT_TX;
-
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_status = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->status = IMS__STATUS_TYPE__STATUS_PARTIALLY_ENABLED;
+        calltype = IMS__CALL_TYPE__CALL_TYPE_VT_TX;
+        status = IMS__STATUS_TYPE__STATUS_PARTIALLY_ENABLED;
       }
       else if ( VOICE_CALL_ATTRIB_RX_V02 == ril_data->video_attrib )
       {
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_calltype = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->calltype = IMS__CALL_TYPE__CALL_TYPE_VT_RX;
-
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_status = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->status = IMS__STATUS_TYPE__STATUS_PARTIALLY_ENABLED;
+        calltype = IMS__CALL_TYPE__CALL_TYPE_VT_RX;
+        status = IMS__STATUS_TYPE__STATUS_PARTIALLY_ENABLED;
       }
       else if ( (VOICE_CALL_ATTRIB_TX_V02 | VOICE_CALL_ATTRIB_RX_V02) == ril_data->video_attrib )
       {
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_calltype = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->calltype = IMS__CALL_TYPE__CALL_TYPE_VT;
-
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_status = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->status = IMS__STATUS_TYPE__STATUS_ENABLED;
+        calltype = IMS__CALL_TYPE__CALL_TYPE_VT;
+        status = IMS__STATUS_TYPE__STATUS_ENABLED;
       }
       else
       {
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_calltype = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->calltype = IMS__CALL_TYPE__CALL_TYPE_VT;
+        calltype = IMS__CALL_TYPE__CALL_TYPE_VT;
+        status = IMS__STATUS_TYPE__STATUS_DISABLED;
+      }
 
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->has_status = TRUE;
-        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->status = IMS__STATUS_TYPE__STATUS_DISABLED;
+      ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] =
+                qcril_qmi_ims_make_ims_info(calltype, status, ril_data->video_cause,
+                                            (current_call_type == calltype), networkmode);
+
+      if (current_call_type == calltype)
+      {
+        call_type_found = TRUE;
       }
 
       if( NULL != ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] )
@@ -755,6 +933,23 @@ void qcril_qmi_ims_translate_ril_callcapabilities_to_ims_srvstatusinfo(const voi
                                         ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->restrictcause);
       }
       ims_data->n_srvstatusinfo++;
+
+      if (current_call_type != IMS__CALL_TYPE__CALL_TYPE_UNKNOWN &&
+          !call_type_found)
+      {
+        ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] =
+                  qcril_qmi_ims_make_ims_info(current_call_type,
+                                              IMS__STATUS_TYPE__STATUS_ENABLED, 0,
+                                              TRUE, networkmode);
+        if( NULL != ims_data->srvstatusinfo[ims_data->n_srvstatusinfo] )
+        {
+           QCRIL_LOG_INFO("%d - calltype: %d status: %d restrictcause: %d", ims_data->n_srvstatusinfo,
+                          ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->calltype,
+                          ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->status,
+                          ims_data->srvstatusinfo[ims_data->n_srvstatusinfo]->restrictcause);
+        }
+        ims_data->n_srvstatusinfo++;
+      }
     }
   }
 }
@@ -913,7 +1108,8 @@ Ims__SrvStatusList* qcril_qmi_ims_create_ims_srvstatusinfo(const qcril_qmi_imsa_
 
             ims_srv_status_list_ptr->n_srvstatusinfo = qmi_data->sms_service_status_valid +
                                                        qmi_data->voip_service_status_valid +
-                                                       qmi_data->vt_service_status_valid * 3 ; // we need to fill three types if vt status is valid
+                                                       qmi_data->vt_service_status_valid * 3 + // we need to fill three types if vt status is valid
+                                                       qmi_data->ut_service_status_valid;
 
             if (ims_srv_status_list_ptr->n_srvstatusinfo > 0)
             {
@@ -989,6 +1185,21 @@ Ims__SrvStatusList* qcril_qmi_ims_create_ims_srvstatusinfo(const qcril_qmi_imsa_
                                                                   qmi_data->vt_service_status,
                                                                   qmi_data->vt_service_rat_valid,
                                                                   qmi_data->vt_service_rat );
+                if (NULL == ims_srv_status_list_ptr->srvstatusinfo[idx])
+                {
+                    failure = TRUE;
+                    break;
+                }
+                idx++;
+            }
+
+            if (qmi_data->ut_service_status_valid)
+            {
+                ims_srv_status_list_ptr->srvstatusinfo[idx] = qcril_qmi_ims_create_ims_info(
+                                                                  IMS__CALL_TYPE__CALL_TYPE_UT,
+                                                                  qmi_data->ut_service_status,
+                                                                  qmi_data->ut_service_rat_valid,
+                                                                  qmi_data->ut_service_rat );
                 if (NULL == ims_srv_status_list_ptr->srvstatusinfo[idx])
                 {
                     failure = TRUE;
@@ -1109,12 +1320,24 @@ Ims__Handover* qcril_qmi_ims_create_ims_handover_from_imsa_rat_info(const imsa_r
                 break;
             }
 
-            ims__handover__init(ims_handover_ptr);
+            qcril_qmi_ims__handover__init(ims_handover_ptr);
 
             ims_handover_ptr->has_type = TRUE;
-            ims_handover_ptr->type = (IMSA_STATUS_RAT_HO_SUCCESS_V01 == qmi_data->rat_ho_status) ?
-                                     IMS__HANDOVER__MSG__TYPE__COMPLETE_SUCCESS :
-                                     IMS__HANDOVER__MSG__TYPE__COMPLETE_FAIL;
+            switch(qmi_data->rat_ho_status)
+            {
+            case IMSA_STATUS_RAT_HO_SUCCESS_V01:
+                ims_handover_ptr->type = IMS__HANDOVER__MSG__TYPE__COMPLETE_SUCCESS;
+                break;
+            case IMSA_STATUS_RAT_HO_FAILURE_V01:
+                ims_handover_ptr->type = IMS__HANDOVER__MSG__TYPE__COMPLETE_FAIL;
+                break;
+            case IMSA_STATUS_RAT_HO_NOT_TRIGGERED_V01:
+                ims_handover_ptr->type = IMS__HANDOVER__MSG__TYPE__NOT_TRIGGERED;
+                break;
+            default:
+                ims_handover_ptr->type = IMS__HANDOVER__MSG__TYPE__COMPLETE_FAIL;
+                break;
+            }
 
             ims_handover_ptr->has_srctech = TRUE;
             ims_handover_ptr->srctech = qcril_qmi_ims_map_imsa_rat_to_ims_rat(qmi_data->source_rat);
@@ -1124,29 +1347,81 @@ Ims__Handover* qcril_qmi_ims_create_ims_handover_from_imsa_rat_info(const imsa_r
 
             if (strlen(qmi_data->cause_code))
             {
-                ims_handover_ptr->hoextra = qcril_malloc(sizeof(*ims_handover_ptr->hoextra));
-                if (NULL == ims_handover_ptr->hoextra)
+                /* Error is reported when the handover is NOT_TRIGGERED while the device is on active
+                 * Wifi call and the wifi Rssi is nearing threshold roveout (-85dbm) and there is
+                 * no qualified LTE network to handover to. Modem sends "CD-04:No Available qualified
+                 * mobile network". Here it is decoded and sent as errorcode(CD-04) and errormessage
+                 * to telephony.
+                 */
+                if( (qmi_data->rat_ho_status == IMSA_STATUS_RAT_HO_NOT_TRIGGERED_V01) &&
+                    (strncmp(qmi_data->cause_code, WLAN_HANDOVER_NO_LTE_FAILURE_CODE_STRING,
+                           strlen(WLAN_HANDOVER_NO_LTE_FAILURE_CODE_STRING)) == 0) )
                 {
-                    failure = TRUE;
-                    break;
+                    //Copy the code to errorcode string
+                    ims_handover_ptr->errorcode = qcril_malloc(strlen(WLAN_HANDOVER_NO_LTE_FAILURE_CODE_STRING) + 1);
+                    if(ims_handover_ptr->errorcode != NULL)
+                    {
+                        strlcpy(ims_handover_ptr->errorcode, WLAN_HANDOVER_NO_LTE_FAILURE_CODE_STRING,
+                                strlen(WLAN_HANDOVER_NO_LTE_FAILURE_CODE_STRING) + 1);
+                        QCRIL_LOG_DEBUG("handover error code: %s", ims_handover_ptr->errorcode);
+                    }
+
+                    int errormessage_start = strlen(WLAN_HANDOVER_NO_LTE_FAILURE_CODE_STRING);
+
+                    //Check for the delimeter ":" after the errorcode
+                    // and discard any extra spaces
+                    while(errormessage_start < strlen(qmi_data->cause_code))
+                    {
+                        if(strncmp(&(qmi_data->cause_code)[errormessage_start], ":", strlen(":")) == 0)
+                        {
+                            errormessage_start++;
+                            while((strncmp(&(qmi_data->cause_code)[errormessage_start], " ", strlen(" ")) == 0) &&
+                                  errormessage_start < strlen(qmi_data->cause_code))
+                            {
+                                errormessage_start++;
+                            }
+                            break;
+                        }
+                        errormessage_start++;
+                    }
+                    //The string after the delimeter ":" is the error message
+                    if(errormessage_start < strlen(qmi_data->cause_code))
+                    {
+                        ims_handover_ptr->errormessage = qcril_malloc((strlen(qmi_data->cause_code) + 1)- errormessage_start);
+                        if(ims_handover_ptr->errormessage)
+                        {
+                            strlcpy(ims_handover_ptr->errormessage, &(qmi_data->cause_code)[errormessage_start],
+                                    ((strlen(qmi_data->cause_code) + 1)- errormessage_start));
+                            QCRIL_LOG_DEBUG("handover error message: %s", ims_handover_ptr->errormessage);
+                        }
+                    }
                 }
-
-                ims__extra__init(ims_handover_ptr->hoextra);
-
-                ims_handover_ptr->hoextra->has_type = TRUE;
-                ims_handover_ptr->hoextra->type = IMS__EXTRA__TYPE__LTE_TO_IWLAN_HO_FAIL;
-
-                ims_handover_ptr->hoextra->has_extrainfo = TRUE;
-                ims_handover_ptr->hoextra->extrainfo.len = strlen(qmi_data->cause_code);
-                ims_handover_ptr->hoextra->extrainfo.data = qcril_malloc(ims_handover_ptr->hoextra->extrainfo.len);
-                if (NULL == ims_handover_ptr->hoextra->extrainfo.data)
+                else
                 {
-                    failure = TRUE;
-                    break;
+                    ims_handover_ptr->hoextra = qcril_malloc(sizeof(*ims_handover_ptr->hoextra));
+                    if (NULL == ims_handover_ptr->hoextra)
+                    {
+                        failure = TRUE;
+                        break;
+                    }
+
+                    qcril_qmi_ims__extra__init(ims_handover_ptr->hoextra);
+
+                    ims_handover_ptr->hoextra->has_type = TRUE;
+                    ims_handover_ptr->hoextra->type = IMS__EXTRA__TYPE__LTE_TO_IWLAN_HO_FAIL;
+
+                    ims_handover_ptr->hoextra->has_extrainfo = TRUE;
+                    ims_handover_ptr->hoextra->extrainfo.len = strlen(qmi_data->cause_code);
+                    ims_handover_ptr->hoextra->extrainfo.data = qcril_malloc(ims_handover_ptr->hoextra->extrainfo.len);
+                    if (NULL == ims_handover_ptr->hoextra->extrainfo.data)
+                    {
+                        failure = TRUE;
+                        break;
+                    }
+                    memcpy( ims_handover_ptr->hoextra->extrainfo.data,
+                            qmi_data->cause_code,
+                            ims_handover_ptr->hoextra->extrainfo.len );
                 }
-                memcpy( ims_handover_ptr->hoextra->extrainfo.data,
-                        qmi_data->cause_code,
-                        ims_handover_ptr->hoextra->extrainfo.len );
             }
         } while (FALSE);
 
@@ -1159,7 +1434,6 @@ Ims__Handover* qcril_qmi_ims_create_ims_handover_from_imsa_rat_info(const imsa_r
 
     return ims_handover_ptr;
 } // qcril_qmi_ims_create_ims_handover_from_imsa_rat_info
-
 //===========================================================================
 // qcril_qmi_ims_free_ims_handover
 //===========================================================================
@@ -1175,14 +1449,39 @@ void qcril_qmi_ims_free_ims_handover(Ims__Handover* ims_handover_ptr)
             }
             qcril_free(ims_handover_ptr->hoextra);
         }
+        if(NULL != ims_handover_ptr->errorcode)
+        {
+            qcril_free(ims_handover_ptr->errorcode);
+        }
+        if(NULL != ims_handover_ptr->errormessage)
+        {
+            qcril_free(ims_handover_ptr->errormessage);
+        }
         qcril_free(ims_handover_ptr);
     }
     else
     {
-        QCRIL_LOG_DEBUG("ims_handover_ptr is NULL")   ;
+        QCRIL_LOG_DEBUG("ims_handover_ptr is NULL");
     }
 } // qcril_qmi_ims_free_ims_handover
-
+//===========================================================================
+// qcril_qmi_ims_free_ims_registration
+//===========================================================================
+void qcril_qmi_ims_free_ims_registration(Ims__Registration* ims_reg_ptr)
+{
+    if(NULL != ims_reg_ptr)
+    {
+        if(NULL != ims_reg_ptr->errormessage)
+        {
+            qcril_free(ims_reg_ptr->errormessage);
+        }
+        qcril_free(ims_reg_ptr);
+    }
+    else
+    {
+        QCRIL_LOG_DEBUG("ims_reg_ptr is NULL");
+    }
+}// qcril_qmi_ims_free_ims_registration
 //===========================================================================
 // qcril_qmi_ims_map_ril_failcause_to_ims_failcause
 //===========================================================================
@@ -1194,6 +1493,81 @@ Ims__CallFailCause qcril_qmi_ims_map_ril_failcause_to_ims_failcause(RIL_LastCall
   {
     switch ( ims_extended_error_code )
     {
+      case CALL_END_CAUSE_MULTIPLE_CHOICES_V02:
+      case CALL_END_CAUSE_MOVED_PERMANENTLY_V02:
+      case CALL_END_CAUSE_MOVED_TEMPORARILY_V02:
+      case CALL_END_CAUSE_USE_PROXY_V02:
+      case CALL_END_CAUSE_ALTERNATE_SERVICE_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REDIRECTED;
+        break;
+
+      case CALL_END_CAUSE_BAD_REQ_WAIT_INVITE_V02:
+      case CALL_END_CAUSE_BAD_REQ_WAIT_REINVITE_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_REQUEST;
+        break;
+
+      case CALL_END_CAUSE_SIP_403_FORBIDDEN_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_FORBIDDEN;
+        break;
+
+      case CALL_END_CAUSE_INVALID_REMOTE_URI_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_FOUND;
+        break;
+
+      case CALL_END_CAUSE_UNSUPPORTED_URI_SCHEME_V02:
+      case CALL_END_CAUSE_REMOTE_UNSUPP_MEDIA_TYPE_V02:
+      case CALL_END_CAUSE_BAD_EXTENSION_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_SUPPORTED;
+        break;
+
+      case CALL_END_CAUSE_NETWORK_NO_RESP_TIME_OUT_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_TIMEOUT;
+        break;
+
+      case CALL_END_CAUSE_PEER_NOT_REACHABLE_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_TEMPORARILY_UNAVAILABLE;
+        break;
+
+      case CALL_END_CAUSE_ADDRESS_INCOMPLETE_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BAD_ADDRESS;
+        break;
+
+      case CALL_END_CAUSE_USER_BUSY_V02:
+      case CALL_END_CAUSE_BUSY_EVERYWHERE_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_BUSY;
+        break;
+
+      case CALL_END_CAUSE_REQUEST_TERMINATED_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_REQUEST_CANCELLED;
+        break;
+
+      case CALL_END_CAUSE_NOT_ACCEPTABLE_V02:
+      case CALL_END_CAUSE_NOT_ACCEPTABLE_HERE_V02:
+      case CALL_END_CAUSE_SESS_DESCR_NOT_ACCEPTABLE_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_ACCEPTABLE;
+        break;
+
+      case CALL_END_CAUSE_GONE_V02:
+      case CALL_END_CAUSE_DOES_NOT_EXIST_ANYWHERE_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_NOT_REACHABLE;
+        break;
+
+      case CALL_END_CAUSE_SERVER_INTERNAL_ERROR_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_INTERNAL_ERROR;
+        break;
+
+      case CALL_END_CAUSE_NO_NETWORK_RESP_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVICE_UNAVAILABLE;
+        break;
+
+      case CALL_END_CAUSE_SERVER_TIME_OUT_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_SERVER_TIMEOUT;
+        break;
+
+      case CALL_END_CAUSE_CALL_REJECTED_V02:
+        ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_SIP_USER_REJECTED;
+        break;
+
       case CALL_END_CAUSE_ANSWERED_ELSEWHERE_V02:
       case CALL_END_CAUSE_CALL_DEFLECTED_V02:
         ret = IMS__CALL_FAIL_CAUSE__CALL_FAIL_ANSWERED_ELSEWHERE;
@@ -1207,6 +1581,43 @@ Ims__CallFailCause qcril_qmi_ims_map_ril_failcause_to_ims_failcause(RIL_LastCall
 
   QCRIL_LOG_INFO("RIL_LastCallFailCause %d with extended error code %d mapped to Ims__CallFailCause %d", ril_failcause, ims_extended_error_code, ret);
   return ret;
+}
+
+//===========================================================================
+// qcril_qmi_ims_map_qmi_call_state_to_ims_conf_call_state
+//===========================================================================
+boolean qcril_qmi_ims_map_qmi_call_state_to_ims_conf_call_state(call_state_enum_v02 qmi_state, Ims__ConfCallState *ims_state_ptr)
+{
+    boolean success = TRUE;
+    if (ims_state_ptr)
+    {
+        switch (qmi_state)
+        {
+        case CALL_STATE_ORIGINATING_V02:
+        case CALL_STATE_CC_IN_PROGRESS_V02:
+        case CALL_STATE_ALERTING_V02:
+        case CALL_STATE_CONVERSATION_V02:
+            *ims_state_ptr = IMS__CONF_CALL_STATE__FOREGROUND;
+            break;
+
+        case CALL_STATE_HOLD_V02:
+            *ims_state_ptr = IMS__CONF_CALL_STATE__BACKGROUND;
+            break;
+
+        case CALL_STATE_INCOMING_V02:
+        case CALL_STATE_WAITING_V02:
+            *ims_state_ptr = IMS__CONF_CALL_STATE__RINGING;
+            break;
+
+        default:
+            success = FALSE;
+        }
+    }
+    else
+    {
+        success = FALSE;
+    }
+    return success;
 }
 
 /*===========================================================================
@@ -1279,3 +1690,279 @@ Ims__SuppSvcFacilityType qcril_qmi_voice_map_qmi_reason_to_ims_facility
       return 0;
   }
 } /* qcril_qmi_voice_map_qmi_reason_to_ims_facility */
+
+//===========================================================================
+// qcril_qmi_ims_map_ril_call_substate_to_ims_call_substate
+//===========================================================================
+Ims__CallSubstate qcril_qmi_ims_map_ril_call_substate_to_ims_call_substate
+(
+ RIL_Call_Sub_State  ril_call_substate
+)
+{
+  Ims__CallSubstate ims_call_substate = IMS__CALL_SUBSTATE__CALL_SUBSTATE_NONE;
+  if (ril_call_substate ==
+          (RIL_CALL_SUB_STATE_AUDIO_CONNECTED_SUSPENDED |
+           RIL_CALL_SUB_STATE_VIDEO_CONNECTED_SUSPENDED))
+  {
+    ims_call_substate = (IMS__CALL_SUBSTATE__CALL_SUBSTATE_AUDIO_CONNECTED_SUSPENDED |
+                         IMS__CALL_SUBSTATE__CALL_SUBSTATE_VIDEO_CONNECTED_SUSPENDED);
+  }
+  else
+  {
+    switch (ril_call_substate)
+    {
+      case RIL_CALL_SUB_STATE_AUDIO_CONNECTED_SUSPENDED:
+        ims_call_substate = IMS__CALL_SUBSTATE__CALL_SUBSTATE_AUDIO_CONNECTED_SUSPENDED;
+        break;
+      case RIL_CALL_SUB_STATE_VIDEO_CONNECTED_SUSPENDED:
+        ims_call_substate = IMS__CALL_SUBSTATE__CALL_SUBSTATE_VIDEO_CONNECTED_SUSPENDED;
+        break;
+      case RIL_CALL_SUB_STATE_AVP_RETRY:
+        ims_call_substate = IMS__CALL_SUBSTATE__CALL_SUBSTATE_AVP_RETRY;
+        break;
+      case RIL_CALL_SUB_STATE_MEDIA_PAUSED:
+        ims_call_substate = IMS__CALL_SUBSTATE__CALL_SUBSTATE_MEDIA_PAUSED;
+        break;
+      case RIL_CALL_SUB_STATE_UNDEFINED:
+      default:
+        ims_call_substate = IMS__CALL_SUBSTATE__CALL_SUBSTATE_NONE;
+        break;
+    }
+  }
+  return ims_call_substate;
+} /* qcril_qmi_ims_map_ril_call_substate_to_ims_call_substate */
+
+//============================================================================
+// FUNCTION: qcril_qmi_sms_map_qmi_mwi_msg_type_to_ims_msg_type
+//
+// DESCRIPTION:
+// Convert qmi wms mwi message type to ims mwi message type
+//============================================================================
+Ims__MwiMessageType qcril_qmi_sms_map_qmi_mwi_msg_type_to_ims_msg_type
+(
+ transport_mwi_wms_message_type_enum_v01 mwi_wms_msg_type
+)
+{
+  Ims__MwiMessageType ims_mwi_msg_type;
+  switch(mwi_wms_msg_type)
+  {
+    case TRANSPORT_MWI_MESSAGE_TYPE_VOICEMAIL_V01:
+      ims_mwi_msg_type = IMS__MWI_MESSAGE_TYPE__MWI_MSG_VOICE;
+      break;
+
+    case TRANSPORT_MWI_MESSAGE_TYPE_VIDEOMAIL_V01:
+      ims_mwi_msg_type = IMS__MWI_MESSAGE_TYPE__MWI_MSG_VIDEO;
+      break;
+
+    case TRANSPORT_MWI_MESSAGE_TYPE_FAX_V01:
+      ims_mwi_msg_type = IMS__MWI_MESSAGE_TYPE__MWI_MSG_FAX;
+      break;
+
+    case TRANSPORT_MWI_MESSAGE_TYPE_PAGER_V01:
+      ims_mwi_msg_type = IMS__MWI_MESSAGE_TYPE__MWI_MSG_PAGER;
+      break;
+
+    case TRANSPORT_MWI_MESSAGE_TYPE_MULTIMEDIA_V01:
+      ims_mwi_msg_type = IMS__MWI_MESSAGE_TYPE__MWI_MSG_MULTIMEDIA;
+      break;
+
+    case TRANSPORT_MWI_MESSAGE_TYPE_TEXT_V01:
+      ims_mwi_msg_type = IMS__MWI_MESSAGE_TYPE__MWI_MSG_TEXT;
+      break;
+
+    default:
+      ims_mwi_msg_type = IMS__MWI_MESSAGE_TYPE__MWI_MSG_NONE;
+      break;
+  }
+  QCRIL_LOG_INFO("qmi mwi_wms_msg_type %d mapped to ims mwi_msg_type %d",
+          mwi_wms_msg_type, ims_mwi_msg_type);
+  return ims_mwi_msg_type;
+}
+
+//============================================================================
+// FUNCTION: qcril_qmi_sms_map_qmi_mwi_priority_to_ims_priority
+//
+// DESCRIPTION:
+// Convert qmi wms mwi priority to ims mwi priority
+//============================================================================
+Ims__MwiPriority qcril_qmi_sms_map_qmi_mwi_priority_to_ims_priority
+(
+ wms_mwi_priority_type_enum_v01 wms_mwi_priority
+)
+{
+  Ims__MwiPriority mwi_priority;
+  switch(wms_mwi_priority)
+  {
+    case WMS_LOW_PRIORITY_V01:
+      mwi_priority = IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_LOW;
+      break;
+
+    case WMS_NORMAL_PRIORITY_V01:
+      mwi_priority = IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_NORMAL;
+      break;
+
+    case WMS_URGENT_PRIORITY_V01:
+      mwi_priority = IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_URGENT;
+      break;
+
+    case WMS_UNKNOWN_PRIORITY_V01:
+    default:
+      mwi_priority = IMS__MWI_PRIORITY__MWI_MSG_PRIORITY_UNKNOWN;
+      break;
+  }
+  QCRIL_LOG_INFO("qmi wms_mwi_priority %d mapped to ims mwi_priority %d",
+          wms_mwi_priority, mwi_priority);
+  return mwi_priority;
+}
+
+boolean qcril_qmi_ims_translate_ims_ttymodetype_to_qmi_tty_mode
+(
+ Ims__TtyModeType mode,
+ tty_mode_enum_v02 *tty_mode
+)
+{
+  boolean result = FALSE;
+  if (tty_mode)
+  {
+    result = TRUE;
+    switch(mode)
+    {
+      case IMS__TTY__MODE__TYPE__TTY_MODE_FULL:
+        *tty_mode = TTY_MODE_FULL_V02;
+        break;
+
+      case IMS__TTY__MODE__TYPE__TTY_MODE_VCO:
+        *tty_mode = TTY_MODE_VCO_V02;
+        break;
+
+      case IMS__TTY__MODE__TYPE__TTY_MODE_HCO:
+        *tty_mode = TTY_MODE_HCO_V02;
+        break;
+
+      case IMS__TTY__MODE__TYPE__TTY_MODE_OFF:
+        *tty_mode = TTY_MODE_OFF_V02;
+        break;
+      default:
+        result = FALSE;
+        break;
+    }
+  }
+  return result;
+}
+
+//============================================================================
+// FUNCTION: qcril_qmi_ims_translate_ims_callfwdtimerinfo_to_voice_call_fwd_timer_type
+//
+// DESCRIPTION:
+// Convert ims call fwd timer info to qmi voice call fwd timer
+//============================================================================
+boolean qcril_qmi_ims_translate_ims_callfwdtimerinfo_to_voice_time_type
+(
+ const Ims__CallFwdTimerInfo *callfwdtimerinfo,
+ voice_time_type_v02 *call_fwd_timer
+)
+{
+  boolean result = FALSE;
+
+  if (callfwdtimerinfo && call_fwd_timer)
+  {
+    if (callfwdtimerinfo->has_year)
+    {
+        call_fwd_timer->year = callfwdtimerinfo->year;
+    }
+    if (callfwdtimerinfo->has_month)
+    {
+        call_fwd_timer->month = callfwdtimerinfo->month;
+    }
+    if (callfwdtimerinfo->has_day)
+    {
+        call_fwd_timer->day = callfwdtimerinfo->day;
+    }
+    if (callfwdtimerinfo->has_hour)
+    {
+        call_fwd_timer->hour = callfwdtimerinfo->hour;
+    }
+    if (callfwdtimerinfo->has_minute)
+    {
+        call_fwd_timer->minute = callfwdtimerinfo->minute;
+    }
+    if (callfwdtimerinfo->has_second)
+    {
+        call_fwd_timer->second = callfwdtimerinfo->second;
+    }
+    if (callfwdtimerinfo->has_timezone)
+    {
+        call_fwd_timer->time_zone = callfwdtimerinfo->timezone;
+    }
+    result = TRUE;
+  }
+
+  return result;
+}
+
+boolean qcril_qmi_ims_translate_voice_time_type_to_ims_callfwdtimerinfo
+(
+ const voice_time_type_v02 *call_fwd_timer,
+ Ims__CallFwdTimerInfo *callfwdtimerinfo
+)
+{
+  boolean result = FALSE;
+
+  if (callfwdtimerinfo && call_fwd_timer)
+  {
+    callfwdtimerinfo->has_year = TRUE;
+    callfwdtimerinfo->year     = call_fwd_timer->year;
+    callfwdtimerinfo->has_month = TRUE;
+    callfwdtimerinfo->month     = call_fwd_timer->month;
+    callfwdtimerinfo->has_day = TRUE;
+    callfwdtimerinfo->day     = call_fwd_timer->day;
+    callfwdtimerinfo->has_hour = TRUE;
+    callfwdtimerinfo->hour     = call_fwd_timer->hour;
+    callfwdtimerinfo->has_minute = TRUE;
+    callfwdtimerinfo->minute     = call_fwd_timer->minute;
+    callfwdtimerinfo->has_second = TRUE;
+    callfwdtimerinfo->second     = call_fwd_timer->second;
+    callfwdtimerinfo->has_timezone = TRUE;
+    callfwdtimerinfo->timezone     = call_fwd_timer->time_zone;
+    result = TRUE;
+  }
+
+  return result;
+}
+
+//===========================================================================
+// qcril_qmi_ims_map_ims_failcause_qmi_reject_cause
+//===========================================================================
+int32_t qcril_qmi_ims_map_ims_failcause_qmi_reject_cause
+(
+  Ims__CallFailCause failcause
+)
+{
+  int32_t res = INVALID_NEGATIVE_ONE;
+
+  switch(failcause)
+  {
+    case IMS__CALL_FAIL_CAUSE__CALL_FAIL_BLACKLISTED_CALL_ID:
+      res = VOICE_REJECT_CAUSE_BLACKLISTED_CALL_ID_V02;
+      break;
+
+// Modem expects user busy, when the user rejects the call
+// Reason for inverted mapping.
+
+    case IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_BUSY:
+      res = VOICE_REJECT_CAUSE_USER_REJECT_V02;
+      break;
+
+    case IMS__CALL_FAIL_CAUSE__CALL_FAIL_USER_REJECT:
+      res = VOICE_REJECT_CAUSE_USER_BUSY_V02;
+      break;
+
+    case IMS__CALL_FAIL_CAUSE__CALL_FAIL_LOW_BATTERY:
+      res = VOICE_REJECT_CAUSE_LOW_BATTERY_V02;
+      break;
+
+    default:
+      res = INVALID_NEGATIVE_ONE;
+  }
+  return res;
+}

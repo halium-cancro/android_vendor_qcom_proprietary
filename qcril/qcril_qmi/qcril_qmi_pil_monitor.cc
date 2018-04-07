@@ -3,7 +3,7 @@
   @file    qcril_qmi_pil_monitor.c
 
   DESCRIPTION
-    monitor the state of /sys/bus/msm_subsys/devices/subsys0/state and inform the changes
+    monitor the state of ADSP from PIL ADSP state file and inform the changes
     to the interested clients
 
   ---------------------------------------------------------------------------
@@ -14,6 +14,7 @@
   ---------------------------------------------------------------------------
 ******************************************************************************/
 
+#define __STDC_FORMAT_MACROS 1
 extern "C"
 {
     #include "qcrili.h"

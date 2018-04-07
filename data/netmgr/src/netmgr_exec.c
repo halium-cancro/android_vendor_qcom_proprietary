@@ -82,7 +82,8 @@ when       who        what, where, why
 ---------------------------------------------------------------------------*/
 
 #define NETMGR_EVENT_NAME_SIZ 28
-LOCAL const char netmgr_exec_cmd_names[][NETMGR_EVENT_NAME_SIZ] = {
+#define NETMGR_EVENT_NAME_CNT 30
+LOCAL const char netmgr_exec_cmd_names[NETMGR_EVENT_NAME_CNT][NETMGR_EVENT_NAME_SIZ] = {
   "NETMGR_KIF_MSG_CMD",
   "NETMGR_QMI_MSG_CMD",
   "NETMGR_RESET_MSG_CMD",
@@ -380,14 +381,21 @@ int netmgr_exec_put_cmd ( const netmgr_exec_cmd_t * cmdbuf )
   NETMGR_ASSERT( cmdbuf );
 
   NETMGR_LOG_FUNC_ENTRY;
+  /* Check to verify that command obtained is a valid command*/
+  if (cmdbuf->data.type < NETMGR_INVALID_EV)
+  {
+    netmgr_log_med("Received command: ID=%s, link=%d\n",
+                   netmgr_exec_cmd_names[cmdbuf->data.type],
+                   cmdbuf->data.link);
 
-  netmgr_log_med("Received command: ID=%s, link=%d\n",
-                 netmgr_exec_cmd_names[cmdbuf->data.type],
-                 cmdbuf->data.link);
-
-  /* Append command buffer to the command queue */
-  result = ds_cmdq_enq( &netmgr_exec_state_info.cmdq, &cmdbuf->cmd );
-
+    /* Append command buffer to the command queue */
+    result = ds_cmdq_enq( &netmgr_exec_state_info.cmdq, &cmdbuf->cmd );
+  }
+  else
+  {
+    netmgr_log_err("Invalid command type received.");
+    result = NETMGR_FAILURE;
+  }
   NETMGR_LOG_FUNC_EXIT;
 
   return result;

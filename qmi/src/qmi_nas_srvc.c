@@ -3,14 +3,14 @@
   @brief   The QMI NAS service layer.
 
   DESCRIPTION
-  QMI NAS service routines.  
+  QMI NAS service routines.
 
   INITIALIZATION AND SEQUENCING REQUIREMENTS
-  qmi_nas_srvc_init_client() needs to be called before sending or receiving of any 
+  qmi_nas_srvc_init_client() needs to be called before sending or receiving of any
   NAS service messages
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2008 Qualcomm Technologies, Inc.
+  Copyright (c) 2008,2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
@@ -26,17 +26,17 @@
 #define QMI_NAS_EVENT_REPORT_TLV_MAX_SIZE       7 * sizeof(char)
 
 /*Indication message IDs*/
-#define QMI_NAS_EVENT_REPORT_IND_MSG_ID           0x0002 
-#define QMI_NAS_SERVING_SYSTEM_IND_MSG_ID         0x0024 
+#define QMI_NAS_EVENT_REPORT_IND_MSG_ID           0x0002
+#define QMI_NAS_SERVING_SYSTEM_IND_MSG_ID         0x0024
 
 /*TLV IDs*/
 #define QMI_NAS_SIGNAL_STRENGTH_IND_TLV_ID        0x10
 
 /*Message Ids*/
-#define     QMI_NAS_EVENT_REPORT_MSG_ID               0x0002    
-#define     QMI_NAS_INDICATION_REGISTER_MSG_ID        0x0003   
-#define     QMI_NAS_GET_SERVING_SYSTEM_MSG_ID         0x0024    
-#define     QMI_NAS_INIT_PS_ATTACH_DETACH_MSG_ID      0x0023   
+#define     QMI_NAS_EVENT_REPORT_MSG_ID               0x0002
+#define     QMI_NAS_INDICATION_REGISTER_MSG_ID        0x0003
+#define     QMI_NAS_GET_SERVING_SYSTEM_MSG_ID         0x0024
+#define     QMI_NAS_INIT_PS_ATTACH_DETACH_MSG_ID      0x0023
 
 
 /*req resp tlv ids*/
@@ -60,12 +60,12 @@ static int nas_service_initialized = FALSE;
   FUNCTION  qmi_nas_get_serving_system_info
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function will decode TLV's dealing with serving system info.  It
   is used both by the get serving system info cmd response as well as the
-  serving system indication.   
-  
-@return 
+  serving system indication.
+
+@return
   QMI_INTERNAL_ERR if an error was encountered, QMI_NO_ERR otherwise.
 
 */
@@ -107,11 +107,11 @@ qmi_nas_get_serving_system_info
         READ_8_BIT_VAL(value_ptr,tmp);
         ss_info->reg_state = (qmi_nas_registration_state) tmp;
         READ_8_BIT_VAL(value_ptr,tmp);
-        ss_info->cs_attach_state = (qmi_nas_cs_attach_state) tmp; 
+        ss_info->cs_attach_state = (qmi_nas_cs_attach_state) tmp;
         READ_8_BIT_VAL(value_ptr,tmp);
         ss_info->ps_attach_state = (qmi_nas_ps_attach_state) tmp;
         READ_8_BIT_VAL(value_ptr,tmp);
-        ss_info->network_type = (qmi_nas_reg_network_type) tmp; 
+        ss_info->network_type = (qmi_nas_reg_network_type) tmp;
         READ_8_BIT_VAL(value_ptr,ss_info->num_radio_interfaces);
 
         for (i = 0; (i < ss_info->num_radio_interfaces) && (i < QMI_NAS_MAX_RADIO_IFACES); i++ )
@@ -133,7 +133,7 @@ qmi_nas_get_serving_system_info
 
       case QMI_NAS_CURRENT_PLMN_TLV_ID:
       {
-        int net_desc_len;
+        unsigned int net_desc_len;
         ss_info->param_mask |= QMI_NAS_CURRENT_PLMN_PARAM_TYPE;
         READ_16_BIT_VAL (value_ptr,ss_info->current_plmn.mobile_country_code);
         READ_16_BIT_VAL (value_ptr,ss_info->current_plmn.mobile_network_code);
@@ -141,8 +141,8 @@ qmi_nas_get_serving_system_info
 
         if (net_desc_len > 0)
         {
-          int cpy_len = (net_desc_len < QMI_NAS_MAX_STR_LEN) 
-                        ? net_desc_len : (QMI_NAS_MAX_STR_LEN - 1);
+          size_t cpy_len = (net_desc_len < QMI_NAS_MAX_STR_LEN)
+                           ? net_desc_len : (QMI_NAS_MAX_STR_LEN - 1);
           memcpy (ss_info->current_plmn.network_desc, (void *)value_ptr, cpy_len);
           ss_info->current_plmn.network_desc[cpy_len] = '\0';
         }
@@ -183,13 +183,13 @@ qmi_nas_get_serving_system_info
   FUNCTION  qmi_nas_srvc_indication_cb
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This is the callback function that will be called by the generic
   services layer to report asynchronous indications.  This function will
   process the indication TLV's and then call the user registered
-  functions with the indication data.   
-  
-@return 
+  functions with the indication data.
+
+@return
   None.
 
 @note
@@ -197,7 +197,7 @@ qmi_nas_get_serving_system_info
   - Dependencies
 
   - Side Effects
-*/    
+*/
 /*=========================================================================*/
 
 static void
@@ -229,7 +229,7 @@ qmi_nas_srvc_indication_cb
 
   switch (msg_id)
   {
-    
+
     case QMI_NAS_EVENT_REPORT_IND_MSG_ID:
     {
       ind_id = QMI_NAS_SRVC_EVENT_REPORT_IND_MSG;
@@ -293,11 +293,11 @@ qmi_nas_srvc_indication_cb
   FUNCTION  qmi_nas_srvc_init
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is a callback that will be called once during client
-  initialization  
-  
-@return 
+  initialization
+
+@return
   None.
 
 @note
@@ -307,7 +307,7 @@ qmi_nas_srvc_indication_cb
 
   - Side Effects
     - None.
-*/    
+*/
 /*=========================================================================*/
 int qmi_nas_srvc_init (void)
 {
@@ -339,11 +339,11 @@ int qmi_nas_srvc_init (void)
   FUNCTION  qmi_nas_srvc_release
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is a callback that will be called once during client
-  release  
-  
-@return 
+  release
+
+@return
   None.
 
 @note
@@ -353,7 +353,7 @@ int qmi_nas_srvc_init (void)
 
   - Side Effects
     - None.
-*/    
+*/
 /*=========================================================================*/
 int qmi_nas_srvc_release (void)
 {
@@ -383,17 +383,17 @@ int qmi_nas_srvc_release (void)
   FUNCTION  qmi_nas_srvc_init_client
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is called to initialize the NAS service.  This function
   must be called prior to calling any other NAS service functions.
   For the time being, the indication handler callback and user data
   should be set to NULL until this is implemented.  Also note that this
   function may be called multiple times to allow for multiple, independent
-  clients.   
-  
-@return 
-  0 if abort operation was sucessful, < 0 if not.  If return code is 
-  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will 
+  clients.
+
+@return
+  0 if abort operation was sucessful, < 0 if not.  If return code is
+  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
@@ -403,7 +403,7 @@ int qmi_nas_srvc_release (void)
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 qmi_client_handle_type
 qmi_nas_srvc_init_client
@@ -440,17 +440,17 @@ qmi_nas_srvc_init_client
   FUNCTION  qmi_nas_srvc_release_client
 ===========================================================================*/
 /*!
-@brief 
-  This function is called to release a client created by the 
+@brief
+  This function is called to release a client created by the
   qmi_nas_srvc_init_client() function.  This function should be called
   for any client created when terminating a client process, especially
-  if the modem processor is not reset.  The modem side QMI server has 
+  if the modem processor is not reset.  The modem side QMI server has
   a limited number of clients that it will allocate, and if they are not
-  released, we will run out.  
-  
-@return 
-  0 if abort operation was sucessful, < 0 if not.  If return code is 
-  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will 
+  released, we will run out.
+
+@return
+  0 if abort operation was sucessful, < 0 if not.  If return code is
+  QMI_INTERNAL_ERR, then the qmi_err_code will be valid and will
   indicate which QMI error occurred.
 
 @note
@@ -460,10 +460,10 @@ qmi_nas_srvc_init_client
 
   - Side Effects
     - Talks to modem processor
-*/    
+*/
 /*=========================================================================*/
 
-int 
+int
 qmi_nas_srvc_release_client
 (
   int      user_handle,
@@ -472,7 +472,7 @@ qmi_nas_srvc_release_client
 {
   int rc;
   rc = qmi_service_release (user_handle, qmi_err_code);
-  return rc;     
+  return rc;
 }
 
 
@@ -481,11 +481,11 @@ qmi_nas_srvc_release_client
   FUNCTION  qmi_nas_set_event_report_state
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Set the NAS event reporting state
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -494,7 +494,7 @@ qmi_nas_srvc_release_client
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_nas_set_event_report_state
@@ -507,11 +507,12 @@ qmi_nas_set_event_report_state
 )
 {
   unsigned char     msg[QMI_EAP_STD_MSG_SIZE],*tmp_msg_ptr;
-  int               msg_size, rc,tlv_length = 0;  
+  int               msg_size, rc;
+  unsigned long     tlv_length = 0;
   char              tmp_buff[QMI_NAS_EVENT_REPORT_TLV_MAX_SIZE];
   char              *tmp_buff_ptr = tmp_buff;
- 
-  
+
+
   if (num_of_signal_strength_thresholds > 5 || thresholds_list == NULL)
   {
     QMI_ERR_MSG_0 ("qmi_nas_set_event_report_state::Bad Input\n");
@@ -525,8 +526,8 @@ qmi_nas_set_event_report_state
 
   /*Prepare the TLV*/
   tlv_length = (2 * sizeof(char)) + ((num_of_signal_strength_thresholds) * sizeof(char));
-  
-  
+
+
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
 
   msg_size = QMI_SRVC_PDU_SIZE(QMI_EAP_STD_MSG_SIZE);
@@ -539,13 +540,13 @@ qmi_nas_set_event_report_state
   {
     return QMI_INTERNAL_ERR;
   }
-  
+
   rc = qmi_service_send_msg_sync (client_handle,
                                   QMI_NAS_SERVICE,
                                   QMI_NAS_EVENT_REPORT_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_EAP_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_EAP_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_EAP_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -558,11 +559,11 @@ qmi_nas_set_event_report_state
   FUNCTION  qmi_nas_get_serving_system
 ===========================================================================*/
 /*!
-@brief 
-  This message queries for information on the system that is currently 
+@brief
+  This message queries for information on the system that is currently
   providing service.
-     
-@return 
+
+@return
 
 @note
 
@@ -571,7 +572,7 @@ qmi_nas_set_event_report_state
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_nas_get_serving_system
@@ -596,8 +597,8 @@ qmi_nas_get_serving_system
                                   QMI_NAS_SERVICE,
                                   QMI_NAS_GET_SERVING_SYSTEM_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_EAP_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_EAP_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_EAP_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -610,20 +611,20 @@ qmi_nas_get_serving_system
     {
       QMI_ERR_MSG_0 ("qmi_nas_get_serving_system: qmi_nas_get_serving_system_info returned error");
       rc = QMI_INTERNAL_ERR;
-    } 
+    }
 
   }
-  return rc;     
+  return rc;
 }
 
 /*===========================================================================
   FUNCTION  qmi_nas_initiate_ps_attach_detach
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This function is used to initiate a PS domain attach or detach.
-     
-@return 
+
+@return
 
 @note
 
@@ -632,7 +633,7 @@ qmi_nas_get_serving_system
 
   - Side Effects
     - Attach or Detach is initiated
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_nas_initiate_ps_attach_detach
@@ -673,27 +674,27 @@ qmi_nas_initiate_ps_attach_detach
                                   QMI_NAS_SERVICE,
                                   QMI_NAS_INIT_PS_ATTACH_DETACH_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_EAP_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_EAP_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_EAP_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
                                   qmi_err_code);
 
-  return rc;     
+  return rc;
 }
 
 
- 
+
 /*===========================================================================
   FUNCTION  qmi_nas_indication_register
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Set the NAS indication registration state for specified control point.
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -702,7 +703,7 @@ qmi_nas_initiate_ps_attach_detach
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_nas_indication_register
@@ -713,15 +714,16 @@ qmi_nas_indication_register
 )
 {
   unsigned char     msg[QMI_NAS_STD_MSG_SIZE],*tmp_msg_ptr;
-  int               msg_size, rc,tlv_length = 0;  
+  int               msg_size, rc;
+  unsigned long     tlv_length = 0;
   unsigned char     tmp_tlv_buf[5],*val_ptr;
- 
+
   if(!ind_state)
   {
     return QMI_INTERNAL_ERR;
   }
-  
-  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of 
+
+  /* Set tmp_msg_ptr to beginning of message-specific TLV portion of
   ** message buffer
   */
   tmp_msg_ptr = QMI_SRVC_PDU_PTR(msg);
@@ -773,14 +775,14 @@ qmi_nas_indication_register
       return QMI_INTERNAL_ERR;
     }
   }
-  
+
   /* Synchronously send message to modem processor */
   rc = qmi_service_send_msg_sync (client_handle,
                                   QMI_NAS_SERVICE,
                                   QMI_NAS_INDICATION_REGISTER_MSG_ID,
                                   QMI_SRVC_PDU_PTR(msg),
-                                  QMI_SRVC_PDU_SIZE(QMI_NAS_STD_MSG_SIZE) - msg_size,
-                                  msg,                 
+                                  (int)QMI_SRVC_PDU_SIZE(QMI_NAS_STD_MSG_SIZE) - msg_size,
+                                  msg,
                                   &msg_size,
                                   QMI_NAS_STD_MSG_SIZE,
                                   QMI_SYNC_MSG_DEFAULT_TIMEOUT,
@@ -794,11 +796,11 @@ qmi_nas_indication_register
   FUNCTION  qmi_nas_indication_register_all
 ===========================================================================*/
 /*!
-@brief 
+@brief
   Set the NAS indication registration state for all active control points.
-     
-  
-@return 
+
+
+@return
 
 @note
 
@@ -807,7 +809,7 @@ qmi_nas_indication_register
 
   - Side Effects
     - Starts event reporting
-*/    
+*/
 /*=========================================================================*/
 int
 qmi_nas_indication_register_all
@@ -819,10 +821,10 @@ qmi_nas_indication_register_all
   unsigned int dev_id;
   int rc = 0;
   int qmi_client;
-  
+
   /* List of connections supported in QMI platform layer.  This will
    * migrate to configuration database in near future. */
-  static const char *dev_id_table [] = 
+  static const char *dev_id_table [] =
   {
     QMI_PORT_RMNET_0,
     QMI_PORT_RMNET_1,
@@ -851,7 +853,7 @@ qmi_nas_indication_register_all
   {
     return QMI_INTERNAL_ERR;
   }
-  
+
   /* Iterate over all device connections */
   for( dev_id=0; dev_id<QMI_NAS_DEV_ID_TBL_SIZE; dev_id++)
   {
@@ -873,7 +875,7 @@ qmi_nas_indication_register_all
       }
     }
     qmi_client = rc;
-    
+
     /* Configure indications */
     rc = qmi_nas_indication_register( qmi_client,ind_state, qmi_err_code );
     if( QMI_NO_ERR != rc )

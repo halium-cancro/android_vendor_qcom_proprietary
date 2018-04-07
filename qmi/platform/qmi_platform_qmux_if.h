@@ -11,12 +11,13 @@
   None
 
   ---------------------------------------------------------------------------
-  Copyright (c) 2008-2012 Qualcomm Technologies, Inc.
+  Copyright (c) 2008-2014 Qualcomm Technologies, Inc.
   All Rights Reserved. Qualcomm Technologies Proprietary and Confidential.
   ---------------------------------------------------------------------------
 ******************************************************************************/
 
 #include "qmi_i.h"
+#include <stdint.h>
 
 typedef struct
 {
@@ -27,7 +28,29 @@ typedef struct
 
 #define QMI_QMUX_IF_PLATFORM_SPECIFIC_HDR_SIZE  sizeof (linux_qmi_qmux_if_platform_hdr_type)
 
-#ifdef FEATURE_QMI_ANDROID
+#if defined(FEATURE_QMI_TEST)
+
+#define QMI_QMUX_IF_CONN_SOCKET_PATH              "/tmp/data/qmux_connect_socket"
+#define QMI_QMUX_IF_CLIENT_SOCKET_PATH            "/tmp/data/qmux_client_socket"
+
+#define QMI_QMUX_IF_RADIO_CONN_SOCKET_PATH        QMI_QMUX_IF_CONN_SOCKET_PATH
+#define QMI_QMUX_IF_RADIO_CLIENT_SOCKET_PATH      QMI_QMUX_IF_CLIENT_SOCKET_PATH
+
+/* Server connection and client binding socket paths for clients belonging to audio group */
+#define QMI_QMUX_IF_AUDIO_CONN_SOCKET_PATH        QMI_QMUX_IF_CONN_SOCKET_PATH
+#define QMI_QMUX_IF_AUDIO_CLIENT_SOCKET_PATH      QMI_QMUX_IF_CLIENT_SOCKET_PATH
+
+/* Server connection and client binding socket paths for clients belonging to bluetooth group */
+#define QMI_QMUX_IF_BLUETOOTH_CONN_SOCKET_PATH    QMI_QMUX_IF_CONN_SOCKET_PATH
+#define QMI_QMUX_IF_BLUETOOTH_CLIENT_SOCKET_PATH  QMI_QMUX_IF_CLIENT_SOCKET_PATH
+
+#define QMI_QMUX_IF_GPS_CONN_SOCKET_PATH          QMI_QMUX_IF_CONN_SOCKET_PATH
+#define QMI_QMUX_IF_GPS_CLIENT_SOCKET_PATH        QMI_QMUX_IF_CLIENT_SOCKET_PATH
+
+#define QMI_QMUX_IF_NFC_CONN_SOCKET_PATH          QMI_QMUX_IF_CONN_SOCKET_PATH
+#define QMI_QMUX_IF_NFC_CLIENT_SOCKET_PATH        QMI_QMUX_IF_CLIENT_SOCKET_PATH
+
+#elif defined(FEATURE_QMI_ANDROID)
 
 /* Server connection and client binding socket paths for clients belonging to audio group */
 #define QMI_QMUX_IF_AUDIO_CONN_SOCKET_PATH    "/dev/socket/qmux_audio/qmux_connect_socket"
@@ -45,6 +68,10 @@ typedef struct
 #define QMI_QMUX_IF_GPS_CONN_SOCKET_PATH      "/dev/socket/qmux_gps/qmux_connect_socket"
 #define QMI_QMUX_IF_GPS_CLIENT_SOCKET_PATH    "/dev/socket/qmux_gps/qmux_client_socket"
 
+/* Server connection and client binding socket paths for clients belonging to gps group */
+#define QMI_QMUX_IF_NFC_CONN_SOCKET_PATH      "/dev/socket/qmux_nfc/qmux_connect_socket"
+#define QMI_QMUX_IF_NFC_CLIENT_SOCKET_PATH    "/dev/socket/qmux_nfc/qmux_client_socket"
+
 /* Default to the radio group */
 #define QMI_QMUX_IF_CONN_SOCKET_PATH          QMI_QMUX_IF_RADIO_CONN_SOCKET_PATH
 #define QMI_QMUX_IF_CLIENT_SOCKET_PATH        QMI_QMUX_IF_RADIO_CLIENT_SOCKET_PATH
@@ -58,6 +85,9 @@ typedef struct
 #define QMI_QMUX_IF_RADIO_CLIENT_SOCKET_PATH  QMI_QMUX_IF_CLIENT_SOCKET_PATH
 
 #endif
+
+#define QMI_PLATFORM_MAX_RETRIES      (120)
+#define QMI_PLATFORM_INFINITE_RETRIES (UINT32_MAX)
 
 extern int
 linux_qmi_qmux_if_client_init
@@ -97,11 +127,20 @@ linux_qmi_qmux_if_server_validate_client_msg
   qmi_service_id_type  srvc_id
 );
 
+extern void
+linux_qmi_qmux_if_reinit_connection
+(
+  qmi_connection_id_type  conn_id
+);
+
 #define QMI_QMUX_IF_PLATFORM_CLIENT_INIT(client,rx_buf,buf_siz) \
      linux_qmi_qmux_if_client_init (client,rx_buf,buf_siz)
 
 #define QMI_QMUX_IF_PLATFORM_CLIENT_RELEASE(client) \
      linux_qmi_qmux_if_client_release (client)
+
+#define QMI_QMUX_IF_PLATFORM_REINIT_CONN(conn_id) \
+     linux_qmi_qmux_if_reinit_connection(conn_id)
 
 #define QMI_QMUX_IF_PLATFORM_TX_MSG(client,msg,msg_len) \
      linux_qmi_qmux_if_client_tx_msg (client,msg,msg_len)

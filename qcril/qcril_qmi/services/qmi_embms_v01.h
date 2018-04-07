@@ -43,8 +43,8 @@
  *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2
-   It was generated on: Mon Aug  5 2013 (Spin 0)
+/* This file was generated with Tool version 6.14.1
+   It was generated on: Thu Nov 13 2014 (Spin 0)
    From IDL File: qmi_embms_v01.idl */
 
 /** @defgroup embms_qmi_consts Constant values defined in the IDL */
@@ -74,7 +74,7 @@ extern "C" {
 /** Major Version Number of the qmi_idl_compiler used to generate this file */
 #define EMBMS_V01_IDL_TOOL_VERS 0x06
 /** Maximum Defined Message ID */
-#define EMBMS_V01_MAX_MESSAGE_ID 0x001A;
+#define EMBMS_V01_MAX_MESSAGE_ID 0x001E
 /**
     @}
   */
@@ -94,7 +94,8 @@ extern "C" {
 #define FREQ_MAX_V01 9
 #define SAI_MAX_V01 576
 #define LOG_PACKET_ID_MAX_V01 256
-#define LOG_PACKET_SIZE_MAX_V01 512
+#define LOG_PACKET_SIZE_MAX_V01 2048
+#define CONTENT_PARAM_NUM_MAX_V01 64
 /**
     @}
   */
@@ -111,6 +112,19 @@ typedef struct {
     @}
   */
 
+/** @addtogroup embms_qmi_aggregates
+    @{
+  */
+typedef struct {
+
+  int32_t paramCode;
+
+  int32_t paramValue;
+}embms_content_desc_type_v01;  /* Type */
+/**
+    @}
+  */
+
 /** @addtogroup embms_qmi_enums
     @{
   */
@@ -120,6 +134,19 @@ typedef enum {
   RADIO_STATE_NOT_AVAILABLE_V01 = 0x01,
   RADIO_STATE_ENUM_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
 }radio_state_enum_v01;
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_enums
+    @{
+  */
+typedef enum {
+  EMBMS_E911_MODE_MIN_ENUM_VAL_V01 = -2147483647, /**< To force a 32 bit signed enum.  Do not change or use*/
+  EMBMS_E911_MODE_INACTIVE_V01 = 0x0,
+  EMBMS_E911_MODE_ACTIVE_V01 = 0x1,
+  EMBMS_E911_MODE_MAX_ENUM_VAL_V01 = 2147483647 /**< To force a 32 bit signed enum.  Do not change or use*/
+}embms_e911_mode_v01;
 /**
     @}
   */
@@ -438,29 +465,65 @@ typedef struct {
     @}
   */
 
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Request Message; Enables RSSI */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }embms_enable_rssi_req_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Response Message; Enables RSSI */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }embms_enable_rssi_resp_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Request Message; Disables RSSI */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }embms_disable_rssi_req_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Response Message; Disables RSSI */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }embms_disable_rssi_resp_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup embms_qmi_messages
     @{
@@ -549,11 +612,20 @@ typedef struct {
     @}
   */
 
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Request Message; Get EMBMS Service state */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }embms_get_embms_service_state_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup embms_qmi_messages
     @{
@@ -822,17 +894,35 @@ typedef struct {
     @}
   */
 
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Response Message; Set UTC time using SNTP time */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }embms_set_sntp_time_resp_msg_v01;
 
+  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Request Message; Get sib16 coverage */
 typedef struct {
   /* This element is a placeholder to prevent the declaration of
      an empty struct.  DO NOT USE THIS FIELD UNDER ANY CIRCUMSTANCE */
   char __placeholder;
 }embms_get_sib16_coverage_req_msg_v01;
+
+  /* Message */
+/**
+    @}
+  */
 
 /** @addtogroup embms_qmi_messages
     @{
@@ -904,6 +994,152 @@ typedef struct {
     @}
   */
 
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Request Message; Find whether there's active e911 calls */
+typedef struct {
+
+  /* Mandatory */
+  int32_t dbg_trace_id;
+}embms_get_e911_state_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Response Message; Find whether there's active e911 calls */
+typedef struct {
+
+  /* Mandatory */
+  int32_t dbg_trace_id;
+
+  /* Mandatory */
+  int32_t resp_code;
+
+  /* Optional */
+  uint8_t e911_state_valid;  /**< Must be set to true if e911_state is being passed */
+  embms_e911_mode_v01 e911_state;
+}embms_get_e911_state_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates a change of e911 state */
+typedef struct {
+
+  /* Mandatory */
+  int32_t dbg_trace_id;
+
+  /* Mandatory */
+  embms_e911_mode_v01 e911_state;
+}embms_unsol_e911_state_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Request Message; Update the content description */
+typedef struct {
+
+  /* Mandatory */
+  int32_t dbg_trace_id;
+
+  /* Mandatory */
+  uint8_t call_id;
+
+  /* Mandatory */
+  embms_tmgi_type_v01 tmgi_info;
+
+  /* Optional */
+  uint8_t content_desc_valid;  /**< Must be set to true if content_desc is being passed */
+  uint32_t content_desc_len;  /**< Must be set to # of elements in content_desc */
+  embms_content_desc_type_v01 content_desc[CONTENT_PARAM_NUM_MAX_V01];
+}embms_update_content_desc_req_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Response Message; Update the content description */
+typedef struct {
+
+  /* Mandatory */
+  int32_t dbg_trace_id;
+
+  /* Mandatory */
+  int32_t resp_code;
+}embms_update_content_desc_resp_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/** @addtogroup embms_qmi_messages
+    @{
+  */
+/** Indication Message; Indicates a change in content description */
+typedef struct {
+
+  /* Mandatory */
+  int32_t dbg_trace_id;
+
+  /* Mandatory */
+  embms_tmgi_type_v01 tmgi_info;
+
+  /* Optional */
+  uint8_t per_object_content_ctrl_valid;  /**< Must be set to true if per_object_content_ctrl is being passed */
+  int32_t per_object_content_ctrl;
+
+  /* Optional */
+  uint8_t per_object_status_ctrl_valid;  /**< Must be set to true if per_object_status_ctrl is being passed */
+  int32_t per_object_status_ctrl;
+}embms_unsol_content_desc_update_per_obj_ind_msg_v01;  /* Message */
+/**
+    @}
+  */
+
+/* Conditional compilation tags for message removal */
+//#define REMOVE_QMI_EMBMS_ACTIVATE_DEACTIVATE_TMGI_REQ_V01
+//#define REMOVE_QMI_EMBMS_ACTIVATE_TMGI_REQ_V01
+//#define REMOVE_QMI_EMBMS_ACTIVE_TMGI_IND_V01
+//#define REMOVE_QMI_EMBMS_AVAILABLE_TMGI_IND_V01
+//#define REMOVE_QMI_EMBMS_CELL_INFO_CHANGED_IND_V01
+//#define REMOVE_QMI_EMBMS_DEACTIVATE_TMGI_REQ_V01
+//#define REMOVE_QMI_EMBMS_DELIVER_LOG_PACKET_REQ_V01
+//#define REMOVE_QMI_EMBMS_DISABLE_EMBMS_REQ_V01
+//#define REMOVE_QMI_EMBMS_DISABLE_RSSI_REQ_V01
+//#define REMOVE_QMI_EMBMS_ENABLE_EMBMS_REQ_V01
+//#define REMOVE_QMI_EMBMS_ENABLE_RSSI_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_ACTIVE_LOG_PACKET_IDS_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_ACTIVE_TMGI_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_AVAILABLE_TMGI_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_COVERAGE_STATE_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_E911_STATE_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_EMBMS_SERVICE_STATE_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_RSSI_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_SIB16_COVERAGE_REQ_V01
+//#define REMOVE_QMI_EMBMS_GET_UTC_TIME_REQ_V01
+//#define REMOVE_QMI_EMBMS_OOS_WARNING_IND_V01
+//#define REMOVE_QMI_EMBMS_RADIO_STATE_IND_V01
+//#define REMOVE_QMI_EMBMS_SAI_IND_V01
+//#define REMOVE_QMI_EMBMS_SET_SNTP_TIME_REQ_V01
+//#define REMOVE_QMI_EMBMS_UNSOL_BROADCAST_COVERAGE_IND_V01
+//#define REMOVE_QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND_V01
+//#define REMOVE_QMI_EMBMS_UNSOL_E911_STATE_IND_V01
+//#define REMOVE_QMI_EMBMS_UNSOL_EMBMS_SERVICE_STATE_IND_V01
+//#define REMOVE_QMI_EMBMS_UNSOL_RSSI_IND_V01
+//#define REMOVE_QMI_EMBMS_UNSOL_SIB16_COVERAGE_IND_V01
+//#define REMOVE_QMI_EMBMS_UPDATE_CONTENT_DESC_REQ_V01
+
 /*Service Message Definition*/
 /** @addtogroup embms_qmi_msg_ids
     @{
@@ -952,6 +1188,12 @@ typedef struct {
 #define QMI_EMBMS_UNSOL_SIB16_COVERAGE_IND_V01 0x0019
 #define QMI_EMBMS_GET_UTC_TIME_REQ_V01 0x001A
 #define QMI_EMBMS_GET_UTC_TIME_RESP_V01 0x001A
+#define QMI_EMBMS_GET_E911_STATE_REQ_V01 0x001B
+#define QMI_EMBMS_GET_E911_STATE_RESP_V01 0x001B
+#define QMI_EMBMS_E911_STATE_IND_V01 0x001C
+#define QMI_EMBMS_UPDATE_CONTENT_DESC_REQ_V01 0x001D
+#define QMI_EMBMS_UPDATE_CONTENT_DESC_RESP_V01 0x001D
+#define QMI_EMBMS_UNSOL_CONTENT_DESC_UPDATE_PER_OBJ_IND_V01 0x001E
 /**
     @}
   */

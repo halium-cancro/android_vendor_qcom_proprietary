@@ -29,7 +29,7 @@ $Header: //depot/asic/sandbox/users/micheleb/ril/qcril_uim_security.c#2 $
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
 01/13/14   at      Send remaining retries for PIN APIs with empty PIN string
-11/18/13   yt      Support change in ME Deperso request parameters
+11/06/13   rak     Support change in ME Deperso request params.
 01/29/13   yt      Support for third SIM card slot
 01/14/13   yt      Fix critical KW errors
 10/31/12   at      Explicit query for card status during PIN responses
@@ -1396,15 +1396,9 @@ void qcril_uim_request_enter_perso_key
   int                                    res;
   qmi_uim_depersonalization_params_type  perso_params;
 #ifdef RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE
-#if (RIL_VERSION >= 9)
   const char *                           perso_type = NULL;
+#endif
   const char *                           depersonalization_code = NULL;
-#else
-  const RIL_Depersonalization*           perso_request_ptr = NULL;
-#endif /* RIL_VERSION >= 9 */
-#else
-  const char *                           depersonalization_code = NULL;
-#endif /* RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE */
   qcril_uim_original_request_type      * original_request_ptr = NULL;
 
   QCRIL_LOG_INFO( "%s\n", __FUNCTION__);
@@ -1417,14 +1411,9 @@ void qcril_uim_request_enter_perso_key
   }
 
 #ifdef RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE
-#if (RIL_VERSION >= 9)
   perso_type = ((const char **) params_ptr->data)[0];
   depersonalization_code = ((const char **) params_ptr->data)[1];
-  if(depersonalization_code == NULL || perso_type == NULL)
-#else
-  perso_request_ptr = (const RIL_Depersonalization*)params_ptr->data;
-  if(perso_request_ptr == NULL || perso_request_ptr->depersonalizationCode == NULL)
-#endif /* RIL_VERSION >= 9 */
+  if(perso_type == NULL || depersonalization_code == NULL)
   {
     qcril_uim_response(params_ptr->instance_id, params_ptr->t,
                        RIL_E_GENERIC_FAILURE, NULL, 0,
@@ -1449,11 +1438,7 @@ void qcril_uim_request_enter_perso_key
 
 #ifdef RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE
   /* Perso feature */
-#if (RIL_VERSION >= 9)
   switch (atoi(perso_type))
-#else
-  switch (perso_request_ptr->depersonalizationType)
-#endif /* RIL_VERSION >= 9 */
   {
     case RIL_PERSOSUBSTATE_SIM_NETWORK:
       perso_params.perso_feature = QMI_UIM_PERSO_FEATURE_GW_NW;
@@ -1490,11 +1475,7 @@ void qcril_uim_request_enter_perso_key
       break;
     default:
       /* Invalid feature ID */
-#if (RIL_VERSION >= 9)
       QCRIL_LOG_ERROR( " Invalid perso feature from RIL Request ID %s\n", perso_type);
-#else
-      QCRIL_LOG_ERROR( " Invalid perso feature from RIL Request ID 0x%x\n", perso_request_ptr->depersonalizationType);
-#endif /* (RIL_VERSION >= 9) */
       qcril_uim_response(params_ptr->instance_id, params_ptr->t,
                          RIL_E_REQUEST_NOT_SUPPORTED, NULL, 0, TRUE, NULL);
       return;
@@ -1504,14 +1485,9 @@ void qcril_uim_request_enter_perso_key
 #endif /* RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE */
 
 
-#if defined(RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE) && (RIL_VERSION < 9)
   /* Return the number of remaining retries if perso key is empty */
-  if(strlen(perso_request_ptr->depersonalizationCode) == 0)
-  {
-#else
   if(strlen(depersonalization_code) == 0)
   {
-#endif /* defined(RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE) && (RIL_VERSION < 9) */
     uint8 slot        = 0;
     int   num_retries = 0;
     uint8 i           = 0;
@@ -1551,16 +1527,9 @@ void qcril_uim_request_enter_perso_key
   /* Perso operation */
   perso_params.perso_operation = QMI_UIM_PERSO_OP_DEACTIVATE;
 
-#if defined(RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE) && (RIL_VERSION < 9)
-  /* New PIN value */
-  perso_params.ck_data.data_ptr = (unsigned char*)perso_request_ptr->depersonalizationCode;
-  perso_params.ck_data.data_len = strlen(perso_request_ptr->depersonalizationCode);
-#else
   /* New PIN value */
   perso_params.ck_data.data_ptr = depersonalization_code;
   perso_params.ck_data.data_len = strlen(depersonalization_code);
-#endif /* defined(RIL_REQUEST_ENTER_DEPERSONALIZATION_CODE) && (RIL_VERSION < 9) */
-
 
   /* Allocate original request */
   original_request_ptr = qcril_uim_allocate_orig_request(params_ptr->instance_id,

@@ -46,6 +46,8 @@ when       who     what, where, why
                            INCLUDE FILES
 
 ===========================================================================*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -68,8 +70,8 @@ when       who     what, where, why
 #include "qcril_data_defs.h"
 #include "dsi_netctrl_qos.h"
 
-
 #if (RIL_QCOM_VERSION >= 2)
+
 
 /*===========================================================================
 
@@ -175,7 +177,7 @@ typedef struct parsing_hndlr_s
   if( ptr && ptr->parse_ptr ) {                                     \
     if( (INVALID == ptr->spec_id) ||                                \
         (INVALID == ptr->direction) ||                              \
-        (INVALID == (unsigned int)ptr->parse_ptr) ) {               \
+        (INVALID == ptr->parse_ptr) ) {               \
       QCRIL_LOG_ERROR( "parsing context data invalid - "            \
                        "spec_id[%d] dir[%d] ptr[%p]",               \
                        ptr->spec_id, ptr->direction,                \
@@ -725,7 +727,7 @@ static int qcril_data_process_context
   QCRIL_LOG_ENTRY;
 
   if( !(context_ptr && context_ptr->parse_ptr &&
-        (INVALID != (unsigned int)context_ptr->parse_ptr)) )
+        ( NULL != context_ptr->parse_ptr)) )
   {
     QCRIL_LOG_ERROR( "%s", "parsing context data invalid" );
     goto err_label;
@@ -2319,8 +2321,8 @@ static int qcril_data_parse_qos_spec
          (context_ptr == NULL) )
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%#x], qos_spec_ptr [%#x], "
-                     "context_ptr [%#x]", (unsigned int)params_ptr,
-                     (unsigned int)qos_spec_ptr, (unsigned int)context_ptr);
+                     "context_ptr [%#x]", params_ptr,
+                     qos_spec_ptr, context_ptr);
     return ret;
   }
 
@@ -2431,8 +2433,8 @@ static int qcril_data_generate_qos_flow_string
          (len_ptr == NULL) )
   {
     QCRIL_LOG_ERROR( "BAD input, qos_flow_ptr [%#x], flow_str [%#x], "
-                     "len_ptr [%#x]", (unsigned int)qos_flow_ptr,
-                     (unsigned int)flow_str, (unsigned int)len_ptr);
+                     "len_ptr [%#x]", qos_flow_ptr,
+                     flow_str, len_ptr);
     return ret;
   }
 
@@ -2515,8 +2517,8 @@ static int qcril_data_generate_qos_flow_strings
          (rx_flow_str == NULL) )
   {
     QCRIL_LOG_ERROR( "BAD input, qos_info_ptr [%#x], tx_flow_str [%#x], "
-                     "rx_flow_str [%#x]", (unsigned int)qos_info_ptr,
-                     (unsigned int)tx_flow_str, (unsigned int)rx_flow_str);
+                     "rx_flow_str [%#x]", qos_info_ptr,
+                     tx_flow_str, rx_flow_str);
     return ret;
   }
 
@@ -2737,9 +2739,7 @@ void qcril_data_request_setup_qos
       ( ret_ptr == NULL ) ||
       ( ( params_ptr->datalen % sizeof(char*) ) != 0) )
   {
-    QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
-                     params_ptr ? params_ptr->datalen : 0 );
+    QCRIL_LOG_ERROR( "BAD input");
     goto err_bad_input;
   }
 
@@ -3046,7 +3046,7 @@ void qcril_data_request_release_qos
       ( ( params_ptr->datalen % sizeof(char*) ) != 0) )
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
+                     params_ptr, ret_ptr,
                      params_ptr ? params_ptr->datalen : 0 );
     goto err_bad_input;
   }
@@ -3239,7 +3239,7 @@ void qcril_data_request_modify_qos
       ( ( params_ptr->datalen % sizeof(char*) ) != 0) )
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
+                     params_ptr, ret_ptr,
                      params_ptr ? params_ptr->datalen : 0 );
     goto err_bad_input;
   }
@@ -3514,7 +3514,7 @@ void qcril_data_request_suspend_qos
       ( ( params_ptr->datalen % sizeof(char*) ) != 0) )
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
+                     params_ptr, ret_ptr,
                      params_ptr ? params_ptr->datalen : 0 );
     goto err_bad_input;
   }
@@ -3699,7 +3699,7 @@ void qcril_data_request_resume_qos
       ( ( params_ptr->datalen % sizeof(char*) ) != 0) )
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
+                     params_ptr, ret_ptr,
                      params_ptr ? params_ptr->datalen : 0 );
     goto err_bad_input;
   }
@@ -3889,7 +3889,7 @@ void qcril_data_request_get_qos_status
       ( ( params_ptr->datalen % sizeof(char*) ) != 0) )
   {
     QCRIL_LOG_ERROR( "BAD input, params_ptr [%p], ret_ptr [%p], datalen [%d]",
-                     (unsigned int)params_ptr, (unsigned int)ret_ptr,
+                     params_ptr, ret_ptr,
                      params_ptr ? params_ptr->datalen : 0 );
     goto err_bad_input;
   }
@@ -3979,6 +3979,7 @@ void qcril_data_request_get_qos_status
   memset( &qos_info, 0x0, sizeof(qos_info) );
   if( DSI_SUCCESS != dsi_get_granted_qos( info_tbl_ptr->dsi_hndl,
                                           flowid,
+                                          AF_INET,
                                           &qos_info ) )
   {
     QCRIL_LOG_ERROR( "%s", "failed on dsi_get_granted_qos" );
@@ -4252,5 +4253,4 @@ void qcril_data_qos_init( void )
   QCRIL_LOG_EXIT;
   return;
 } /* qcril_data_qos_init() */
-
-#endif /* RIL_QCOM_VERSION >= 2 */
+#endif

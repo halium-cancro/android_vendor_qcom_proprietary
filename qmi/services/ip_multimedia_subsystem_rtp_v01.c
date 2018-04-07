@@ -5,20 +5,19 @@
 GENERAL DESCRIPTION
   This is the file which defines the imsrtp service Data structures.
 
-  Copyright (c) 2012-2013 Qualcomm Technologies, Inc.
+  Copyright (c) 2012-2014 Qualcomm Technologies, Inc.
   All rights reserved.
   Confidential and Proprietary - Qualcomm Technologies, Inc.
 
 
-  $Header: //source/qcom/qct/interfaces/qmi/imsrtp/main/latest/src/ip_multimedia_subsystem_rtp_v01.c#26 $
+  $Header: //components/rel/qmimsgs.mpss/3.5/imsrtp/src/ip_multimedia_subsystem_rtp_v01.c#5 $
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
-/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====* 
- *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY 
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+ *THIS IS AN AUTO GENERATED FILE. DO NOT ALTER IN ANY WAY
  *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-/* This file was generated with Tool version 6.2 
-   It requires encode/decode library version 5 or later
-   It was generated on: Tue Jun  4 2013 (Spin 0)
+/* This file was generated with Tool version 6.7
+   It was generated on: Fri May  2 2014 (Spin 0)
    From IDL File: ip_multimedia_subsystem_rtp_v01.idl */
 
 #include "stdint.h"
@@ -488,7 +487,7 @@ static const uint8_t imsrtp_initialize_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_initialize_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_initialize_ind_data_v01[] = {
@@ -512,7 +511,7 @@ static const uint8_t imsrtp_uninitialize_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_uninitialize_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_uninitialize_ind_data_v01[] = {
@@ -537,7 +536,7 @@ static const uint8_t imsrtp_session_initialize_req_msg_data_v01[] = {
   0x03,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, ipaddr_type),
-  0, 0,
+  QMI_IDL_TYPE88(0, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, rtp_ob_local_port) - QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, rtp_ob_local_port_valid)),
   0x10,
@@ -548,7 +547,7 @@ static const uint8_t imsrtp_session_initialize_req_msg_data_v01[] = {
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, remote_ip),
-  0, 0,
+  QMI_IDL_TYPE88(0, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, remote_port) - QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, remote_port_valid)),
   0x12,
@@ -559,31 +558,31 @@ static const uint8_t imsrtp_session_initialize_req_msg_data_v01[] = {
   0x13,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, codec_param),
-  2, 0,
+  QMI_IDL_TYPE88(0, 2),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, session_param) - QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, session_param_valid)),
   0x14,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, session_param),
-  5, 0,
+  QMI_IDL_TYPE88(0, 5),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, amr_config_type) - QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, amr_config_type_valid)),
   0x15,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, amr_config_type),
-  3, 0,
+  QMI_IDL_TYPE88(0, 3),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, h264_config_type) - QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, h264_config_type_valid)),
   0x16,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, h264_config_type),
-  4, 0,
+  QMI_IDL_TYPE88(0, 4),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, rtcp_param) - QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, rtcp_param_valid)),
   0x17,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_req_msg_v01, rtcp_param),
-  1, 0,
+  QMI_IDL_TYPE88(0, 1),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, cookie) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, cookie_valid)),
   0x18,
@@ -594,25 +593,25 @@ static const uint8_t imsrtp_session_initialize_req_msg_data_v01[] = {
   0x19,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, video_codec_config),
-  9, 0,
+  QMI_IDL_TYPE88(0, 9),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, h264_specific_config) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, h264_specific_config_valid)),
   0x1A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, h264_specific_config),
-  10, 0,
+  QMI_IDL_TYPE88(0, 10),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, mp4_specific_config) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, mp4_specific_config_valid)),
   0x1B,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, mp4_specific_config),
-  11, 0,
+  QMI_IDL_TYPE88(0, 11),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, h263_specific_config) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, h263_specific_config_valid)),
   0x1C,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, h263_specific_config),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, enable_dtx) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, enable_dtx_valid)),
   0x1D,
@@ -679,13 +678,13 @@ static const uint8_t imsrtp_session_initialize_req_msg_data_v01[] = {
   0x29,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, rtp_txt_params),
-  18, 0,
+  QMI_IDL_TYPE88(0, 18),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, rtp_remote_txt_params) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, rtp_remote_txt_params_valid)),
   0x2A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, rtp_remote_txt_params),
-  18, 0,
+  QMI_IDL_TYPE88(0, 18),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, enable_cvo) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, enable_cvo_valid)),
   0x2B,
@@ -701,13 +700,13 @@ static const uint8_t imsrtp_session_initialize_req_msg_data_v01[] = {
   0x2D,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, tx_srtp_info),
-  19, 0,
+  QMI_IDL_TYPE88(0, 19),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, rx_srtp_info) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, rx_srtp_info_valid)),
   0x2E,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, rx_srtp_info),
-  19, 0,
+  QMI_IDL_TYPE88(0, 19),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, rtcp_tx_fb_enable) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_initialize_req_msg_v01, rtcp_tx_fb_enable_valid)),
   0x2F,
@@ -718,14 +717,14 @@ static const uint8_t imsrtp_session_initialize_req_msg_data_v01[] = {
   0x30,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_initialize_req_msg_v01, fb_messages),
-  20, 0
+  QMI_IDL_TYPE88(0, 20)
 };
 
 static const uint8_t imsrtp_session_initialize_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_initialize_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_sesion_initialize_ind_data_v01[] = {
@@ -763,7 +762,7 @@ static const uint8_t imsrtp_session_uninitialize_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_uninitialize_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_session_uninitialize_ind_data_v01[] = {
@@ -795,7 +794,7 @@ static const uint8_t imsrtp_session_configure_req_msg_data_v01[] = {
   0x12,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, remote_ip),
-  0, 0,
+  QMI_IDL_TYPE88(0, 0),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, remote_port) - QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, remote_port_valid)),
   0x13,
@@ -806,55 +805,55 @@ static const uint8_t imsrtp_session_configure_req_msg_data_v01[] = {
   0x14,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, codec_param),
-  2, 0,
+  QMI_IDL_TYPE88(0, 2),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, session_param) - QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, session_param_valid)),
   0x15,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, session_param),
-  5, 0,
+  QMI_IDL_TYPE88(0, 5),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, amr_config_type) - QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, amr_config_type_valid)),
   0x16,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, amr_config_type),
-  3, 0,
+  QMI_IDL_TYPE88(0, 3),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, h264_config_type) - QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, h264_config_type_valid)),
   0x17,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, h264_config_type),
-  4, 0,
+  QMI_IDL_TYPE88(0, 4),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, rtcp_param) - QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, rtcp_param_valid)),
   0x18,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_configure_req_msg_v01, rtcp_param),
-  1, 0,
+  QMI_IDL_TYPE88(0, 1),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, video_codec_config) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, video_codec_config_valid)),
   0x19,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, video_codec_config),
-  9, 0,
+  QMI_IDL_TYPE88(0, 9),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, h264_specific_config) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, h264_specific_config_valid)),
   0x1A,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, h264_specific_config),
-  10, 0,
+  QMI_IDL_TYPE88(0, 10),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, mp4_specific_config) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, mp4_specific_config_valid)),
   0x1B,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, mp4_specific_config),
-  11, 0,
+  QMI_IDL_TYPE88(0, 11),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, h263_specific_config) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, h263_specific_config_valid)),
   0x1C,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, h263_specific_config),
-  12, 0,
+  QMI_IDL_TYPE88(0, 12),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rs_bandwidth) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rs_bandwidth_valid)),
   0x1D,
@@ -915,13 +914,13 @@ static const uint8_t imsrtp_session_configure_req_msg_data_v01[] = {
   0x28,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, rtp_txt_params),
-  18, 0,
+  QMI_IDL_TYPE88(0, 18),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rtp_remote_txt_params) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rtp_remote_txt_params_valid)),
   0x29,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, rtp_remote_txt_params),
-  18, 0,
+  QMI_IDL_TYPE88(0, 18),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, ui_orientation) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, ui_orientation_valid)),
   0x2A,
@@ -962,13 +961,13 @@ static const uint8_t imsrtp_session_configure_req_msg_data_v01[] = {
   0x31,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, tx_srtp_info),
-  19, 0,
+  QMI_IDL_TYPE88(0, 19),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rx_srtp_info) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rx_srtp_info_valid)),
   0x32,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, rx_srtp_info),
-  19, 0,
+  QMI_IDL_TYPE88(0, 19),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rtcp_tx_fb_enable) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, rtcp_tx_fb_enable_valid)),
   0x33,
@@ -979,7 +978,7 @@ static const uint8_t imsrtp_session_configure_req_msg_data_v01[] = {
   0x34,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_session_configure_req_msg_v01, fb_messages),
-  20, 0,
+  QMI_IDL_TYPE88(0, 20),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, cvo_tag_id) - QMI_IDL_OFFSET16RELATIVE(imsrtp_session_configure_req_msg_v01, cvo_tag_id_valid)),
   0x35,
@@ -996,7 +995,7 @@ static const uint8_t imsrtp_session_configure_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_configure_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_session_configure_ind_data_v01[] = {
@@ -1034,7 +1033,7 @@ static const uint8_t imsrtp_session_start_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_start_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_session_start_ind_data_v01[] = {
@@ -1067,7 +1066,7 @@ static const uint8_t imsrtp_session_stop_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_stop_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_session_stop_ind_data_v01[] = {
@@ -1100,7 +1099,7 @@ static const uint8_t imsrtp_session_pause_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_pause_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_session_resume_req_msg_data_v01[] = {
@@ -1118,7 +1117,7 @@ static const uint8_t imsrtp_session_resume_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_resume_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_configure_rtcp_reports_req_msg_data_v01[] = {
@@ -1130,17 +1129,22 @@ static const uint8_t imsrtp_configure_rtcp_reports_req_msg_data_v01[] = {
    QMI_IDL_GENERIC_1_BYTE,
   QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, enable),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, report_interval) - QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, report_interval_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, report_interval) - QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, report_interval_valid)),
   0x10,
    QMI_IDL_GENERIC_2_BYTE,
-  QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, report_interval)
+  QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, report_interval),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, rtcp_type) - QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, rtcp_type_valid)),
+  0x11,
+   QMI_IDL_GENERIC_8_BYTE,
+  QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_req_msg_v01, rtcp_type)
 };
 
 static const uint8_t imsrtp_configure_rtcp_reports_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_configure_rtcp_reports_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_configure_rtcp_reports_ind_data_v01[] = {
@@ -1172,7 +1176,7 @@ static const uint8_t imsrtp_configure_rtp_link_monitoring_resp_msg_data_v01[] = 
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_configure_rtp_link_monitoring_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_configure_rtp_link_monitoring_ind_data_v01[] = {
@@ -1204,7 +1208,7 @@ static const uint8_t imsrtp_configure_rtcp_link_monitoring_resp_msg_data_v01[] =
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_configure_rtcp_link_monitoring_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_configure_rtcp_link_monitoring_ind_data_v01[] = {
@@ -1239,7 +1243,7 @@ static const uint8_t imsrtp_send_dtmf_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_send_dtmf_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_start_continuous_dtmf_req_msg_data_v01[] = {
@@ -1260,7 +1264,7 @@ static const uint8_t imsrtp_start_continuous_dtmf_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_start_continuous_dtmf_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_stop_continuous_dtmf_req_msg_data_v01[] = {
@@ -1273,7 +1277,7 @@ static const uint8_t imsrtp_stop_continuous_dtmf_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_stop_continuous_dtmf_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_flush_audio_jitterbuffer_req_msg_data_v01[] = {
@@ -1286,7 +1290,7 @@ static const uint8_t imsrtp_flush_audio_jitterbuffer_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_flush_audio_jitterbuffer_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_get_session_status_req_msg_data_v01[] = {
@@ -1299,7 +1303,7 @@ static const uint8_t imsrtp_get_session_status_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_get_session_status_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_get_session_status_ind_data_v01[] = {
@@ -1332,7 +1336,7 @@ static const uint8_t imsrtp_register_rtp_services_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_register_rtp_services_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_error_ind_data_v01[] = {
@@ -1358,19 +1362,19 @@ static const uint8_t imsrtp_rtcp_reports_ind_data_v01[] = {
   0x10,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_rtcp_reports_ind_v01, sr_info),
-  6, 0,
+  QMI_IDL_TYPE88(0, 6),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_rtcp_reports_ind_v01, rr_info) - QMI_IDL_OFFSET8(imsrtp_rtcp_reports_ind_v01, rr_info_valid)),
   0x11,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_rtcp_reports_ind_v01, rr_info),
-  7, 0,
+  QMI_IDL_TYPE88(0, 7),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_rtcp_reports_ind_v01, sdes_info) - QMI_IDL_OFFSET8(imsrtp_rtcp_reports_ind_v01, sdes_info_valid)),
   0x12,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_rtcp_reports_ind_v01, sdes_info),
-  8, 0,
+  QMI_IDL_TYPE88(0, 8),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_receiver_reference_time) - QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_receiver_reference_time_valid)),
   0x13,
@@ -1381,19 +1385,24 @@ static const uint8_t imsrtp_rtcp_reports_ind_data_v01[] = {
   0x14,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_rtcp_reports_ind_v01, xr_statistics_summary_report),
-  16, 0,
+  QMI_IDL_TYPE88(0, 16),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_dllr_report) - QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_dllr_report_valid)),
   0x15,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_rtcp_reports_ind_v01, xr_dllr_report),
-  15, 0,
+  QMI_IDL_TYPE88(0, 15),
 
-  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_voip_metrics_report) - QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_voip_metrics_report_valid)),
+  QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_voip_metrics_report) - QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, xr_voip_metrics_report_valid)),
   0x16,
    QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET16ARRAY(imsrtp_rtcp_reports_ind_v01, xr_voip_metrics_report),
-  14, 0
+  QMI_IDL_TYPE88(0, 14),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, rtcp_type) - QMI_IDL_OFFSET16RELATIVE(imsrtp_rtcp_reports_ind_v01, rtcp_type_valid)),
+  0x17,
+   QMI_IDL_FLAGS_OFFSET_IS_16 | QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET16ARRAY(imsrtp_rtcp_reports_ind_v01, rtcp_type)
 };
 
 static const uint8_t imsrtp_last_audio_play_time_req_msg_data_v01[] = {
@@ -1406,54 +1415,54 @@ static const uint8_t imsrtp_last_audio_play_time_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_last_audio_play_time_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_audio_report_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_audio_report_req_msg_v01, time_info),
-  13, 0
+  QMI_IDL_TYPE88(0, 13)
 };
 
 static const uint8_t imsrtp_audio_report_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_audio_report_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_video_report_req_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_video_report_req_msg_v01, time_info),
-  13, 0
+  QMI_IDL_TYPE88(0, 13)
 };
 
 static const uint8_t imsrtp_video_report_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_video_report_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_gen_h264_sps_pps_req_msg_data_v01[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_gen_h264_sps_pps_req_msg_v01, video_codec_config),
-  9, 0,
+  QMI_IDL_TYPE88(0, 9),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_gen_h264_sps_pps_req_msg_v01, h264_config),
-  10, 0
+  QMI_IDL_TYPE88(0, 10)
 };
 
 static const uint8_t imsrtp_gen_h264_sps_pps_resp_msg_data_v01[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_gen_h264_sps_pps_resp_msg_v01, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_gen_h264_sps_pps_resp_msg_v01, nalheader) - QMI_IDL_OFFSET8(imsrtp_gen_h264_sps_pps_resp_msg_v01, nalheader_valid)),
   0x10,
@@ -1467,19 +1476,19 @@ static const uint8_t imsrtp_gen_mp4_vol_header_req_msg_data_v01[] = {
   0x01,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_gen_mp4_vol_header_req_msg_v01, video_codec_config),
-  9, 0,
+  QMI_IDL_TYPE88(0, 9),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_gen_mp4_vol_header_req_msg_v01, mp4_config),
-  11, 0
+  QMI_IDL_TYPE88(0, 11)
 };
 
 static const uint8_t imsrtp_gen_mp4_vol_header_resp_msg_data_v01[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_gen_mp4_vol_header_resp_msg_v01, resp),
-  0, 1,
+  QMI_IDL_TYPE88(1, 0),
 
   QMI_IDL_TLV_FLAGS_LAST_TLV | QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_gen_mp4_vol_header_resp_msg_v01, volheader) - QMI_IDL_OFFSET8(imsrtp_gen_mp4_vol_header_resp_msg_v01, volheader_valid)),
   0x10,
@@ -1499,20 +1508,20 @@ static const uint8_t imsrtp_video_bitrate_adapt_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_video_bitrate_adapt_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
-/* 
+/*
  * imsrtp_h264_idr_generate_req_msg is empty
  * static const uint8_t imsrtp_h264_idr_generate_req_msg_data_v01[] = {
  * };
  */
-  
+
 static const uint8_t imsrtp_h264_idr_generate_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_h264_idr_generate_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_av_sync_feed_req_msg_data_v01[] = {
@@ -1525,7 +1534,7 @@ static const uint8_t imsrtp_av_sync_feed_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_av_sync_feed_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_video_error_ind_msg_data_v01[] = {
@@ -1544,7 +1553,7 @@ static const uint8_t imsrtp_uninitialize_all_rtp_session_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_uninitialize_all_rtp_session_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_uninitialize_all_rtp_session_ind_data_v01[] = {
@@ -1581,7 +1590,7 @@ static const uint8_t imsrtp_session_video_capability_req_msg_data_v01[] = {
   0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_video_capability_req_msg_v01, video_capability),
-  17, 0,
+  QMI_IDL_TYPE88(0, 17),
 
   QMI_IDL_TLV_FLAGS_OPTIONAL | (QMI_IDL_OFFSET8(imsrtp_session_video_capability_req_msg_v01, preferred_bit_rate) - QMI_IDL_OFFSET8(imsrtp_session_video_capability_req_msg_v01, preferred_bit_rate_valid)),
   0x10,
@@ -1608,7 +1617,7 @@ static const uint8_t imsrtp_session_video_capability_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_session_video_capability_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_configure_nat_over_rtp_req_msg_data_v01[] = {
@@ -1630,7 +1639,7 @@ static const uint8_t imsrtp_configure_nat_over_rtp_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_configure_nat_over_rtp_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
 };
 
 static const uint8_t imsrtp_configure_nat_over_rtcp_req_msg_data_v01[] = {
@@ -1652,7 +1661,38 @@ static const uint8_t imsrtp_configure_nat_over_rtcp_resp_msg_data_v01[] = {
   QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
    QMI_IDL_AGGREGATE,
   QMI_IDL_OFFSET8(imsrtp_configure_nat_over_rtcp_resp_msg_v01, resp),
-  0, 1
+  QMI_IDL_TYPE88(1, 0)
+};
+
+static const uint8_t imsrtp_first_pkt_rcvd_ind_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(imsrtp_first_pkt_rcvd_ind_msg_v01, session_id),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(imsrtp_first_pkt_rcvd_ind_msg_v01, first_pkt_rcvd)
+};
+
+static const uint8_t imsrtp_set_handoff_status_req_msg_data_v01[] = {
+  0x01,
+   QMI_IDL_GENERIC_1_BYTE,
+  QMI_IDL_OFFSET8(imsrtp_set_handoff_status_req_msg_v01, app_id),
+
+  0x02,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(imsrtp_set_handoff_status_req_msg_v01, dcm_rat),
+
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x03,
+   QMI_IDL_GENERIC_4_BYTE,
+  QMI_IDL_OFFSET8(imsrtp_set_handoff_status_req_msg_v01, handoff_status)
+};
+
+static const uint8_t imsrtp_set_handoff_status_resp_msg_data_v01[] = {
+  QMI_IDL_TLV_FLAGS_LAST_TLV | 0x02,
+   QMI_IDL_AGGREGATE,
+  QMI_IDL_OFFSET8(imsrtp_set_handoff_status_resp_msg_v01, resp),
+  QMI_IDL_TYPE88(1, 0)
 };
 
 /* Type Table */
@@ -1743,7 +1783,7 @@ static const qmi_idl_message_table_entry imsrtp_message_table_v01[] = {
   {sizeof(imsrtp_gen_mp4_vol_header_resp_msg_v01), imsrtp_gen_mp4_vol_header_resp_msg_data_v01},
   {sizeof(imsrtp_video_bitrate_adapt_req_msg_v01), imsrtp_video_bitrate_adapt_req_msg_data_v01},
   {sizeof(imsrtp_video_bitrate_adapt_resp_msg_v01), imsrtp_video_bitrate_adapt_resp_msg_data_v01},
-  {0, 0},
+  {sizeof(imsrtp_h264_idr_generate_req_msg_v01), 0},
   {sizeof(imsrtp_h264_idr_generate_resp_msg_v01), imsrtp_h264_idr_generate_resp_msg_data_v01},
   {sizeof(imsrtp_av_sync_feed_req_msg_v01), imsrtp_av_sync_feed_req_msg_data_v01},
   {sizeof(imsrtp_av_sync_feed_resp_msg_v01), imsrtp_av_sync_feed_resp_msg_data_v01},
@@ -1758,8 +1798,14 @@ static const qmi_idl_message_table_entry imsrtp_message_table_v01[] = {
   {sizeof(imsrtp_configure_nat_over_rtp_req_msg_v01), imsrtp_configure_nat_over_rtp_req_msg_data_v01},
   {sizeof(imsrtp_configure_nat_over_rtp_resp_msg_v01), imsrtp_configure_nat_over_rtp_resp_msg_data_v01},
   {sizeof(imsrtp_configure_nat_over_rtcp_req_msg_v01), imsrtp_configure_nat_over_rtcp_req_msg_data_v01},
-  {sizeof(imsrtp_configure_nat_over_rtcp_resp_msg_v01), imsrtp_configure_nat_over_rtcp_resp_msg_data_v01}
+  {sizeof(imsrtp_configure_nat_over_rtcp_resp_msg_v01), imsrtp_configure_nat_over_rtcp_resp_msg_data_v01},
+  {sizeof(imsrtp_first_pkt_rcvd_ind_msg_v01), imsrtp_first_pkt_rcvd_ind_msg_data_v01},
+  {sizeof(imsrtp_set_handoff_status_req_msg_v01), imsrtp_set_handoff_status_req_msg_data_v01},
+  {sizeof(imsrtp_set_handoff_status_resp_msg_v01), imsrtp_set_handoff_status_resp_msg_data_v01}
 };
+
+/* Range Table */
+/* No Ranges Defined in IDL */
 
 /* Predefine the Type Table Object */
 static const qmi_idl_type_table_object imsrtp_qmi_idl_type_table_object_v01;
@@ -1775,21 +1821,24 @@ static const qmi_idl_type_table_object imsrtp_qmi_idl_type_table_object_v01 = {
   1,
   imsrtp_type_table_v01,
   imsrtp_message_table_v01,
-  imsrtp_qmi_idl_type_table_object_referenced_tables_v01
+  imsrtp_qmi_idl_type_table_object_referenced_tables_v01,
+  NULL
 };
 
 /*Arrays of service_message_table_entries for commands, responses and indications*/
 static const qmi_idl_service_message_table_entry imsrtp_service_command_messages_v01[] = {
+  {QMI_IMSRTP_GET_SUPPORTED_MSGS_REQ_V01, QMI_IDL_TYPE16(1, 0), 0},
+  {QMI_IMSRTP_GET_SUPPORTED_FIELDS_REQ_V01, QMI_IDL_TYPE16(1, 2), 5},
   {QMI_IMSRTP_INITIALIZE_REQ_V01, QMI_IDL_TYPE16(0, 0), 7},
   {QMI_IMSRTP_UNINITIALIZE_REQ_V01, QMI_IDL_TYPE16(0, 3), 4},
   {QMI_IMSRTP_SESSION_INITIALIZE_REQ_V01, QMI_IDL_TYPE16(0, 6), 1755},
   {QMI_IMSRTP_SESSION_UNINITIALIZE_REQ_V01, QMI_IDL_TYPE16(0, 9), 4},
-  {QMI_IMSRTP_SESSION_CONFIGURE_REQ_V01, QMI_IDL_TYPE16(0, 12), 1628},
+  {QMI_IMSRTP_SESSION_CONFIGURE_REQ_V01, QMI_IDL_TYPE16(0, 12), 1637},
   {QMI_IMSRTP_SESSION_START_REQ_V01, QMI_IDL_TYPE16(0, 15), 15},
   {QMI_IMSRTP_SESSION_STOP_REQ_V01, QMI_IDL_TYPE16(0, 18), 15},
   {QMI_IMSRTP_SESSION_PAUSE_REQ_V01, QMI_IDL_TYPE16(0, 21), 15},
   {QMI_IMSRTP_SESSION_RESUME_REQ_V01, QMI_IDL_TYPE16(0, 23), 15},
-  {QMI_IMSRTP_CONFIGURE_RTCP_REPORTS_REQ_V01, QMI_IDL_TYPE16(0, 25), 13},
+  {QMI_IMSRTP_CONFIGURE_RTCP_REPORTS_REQ_V01, QMI_IDL_TYPE16(0, 25), 24},
   {QMI_IMSRTP_CONFIGURE_RTP_LINK_MONITOR_REQ_V01, QMI_IDL_TYPE16(0, 28), 13},
   {QMI_IMSRTP_CONFIGURE_RTCP_LINK_MONITOR_REQ_V01, QMI_IDL_TYPE16(0, 31), 13},
   {QMI_IMSRTP_SEND_DTMF_REQ_V01, QMI_IDL_TYPE16(0, 34), 17},
@@ -1809,10 +1858,13 @@ static const qmi_idl_service_message_table_entry imsrtp_service_command_messages
   {QMI_IMSRTP_UNINITIALIZE_ALL_RTP_SESSION_REQ_V01, QMI_IDL_TYPE16(0, 66), 4},
   {QMI_IMSRTP_SESSION_VIDEO_CAPABILITY_REQ_V01, QMI_IDL_TYPE16(0, 71), 46},
   {QMI_IMSRTP_CONFIGURE_NAT_OVER_RTP_REQ_V01, QMI_IDL_TYPE16(0, 73), 13},
-  {QMI_IMSRTP_CONFIGURE_NAT_OVER_RTCP_REQ_V01, QMI_IDL_TYPE16(0, 75), 13}
+  {QMI_IMSRTP_CONFIGURE_NAT_OVER_RTCP_REQ_V01, QMI_IDL_TYPE16(0, 75), 13},
+  {QMI_IMSRTP_SET_HANDOFF_STATUS_REQ_V01, QMI_IDL_TYPE16(0, 78), 18}
 };
 
 static const qmi_idl_service_message_table_entry imsrtp_service_response_messages_v01[] = {
+  {QMI_IMSRTP_GET_SUPPORTED_MSGS_RESP_V01, QMI_IDL_TYPE16(1, 1), 8204},
+  {QMI_IMSRTP_GET_SUPPORTED_FIELDS_RESP_V01, QMI_IDL_TYPE16(1, 3), 115},
   {QMI_IMSRTP_INITIALIZE_RESP_V01, QMI_IDL_TYPE16(0, 1), 7},
   {QMI_IMSRTP_UNINITIALIZE_RESP_V01, QMI_IDL_TYPE16(0, 4), 7},
   {QMI_IMSRTP_SESSION_INITIALIZE_RESP_V01, QMI_IDL_TYPE16(0, 7), 7},
@@ -1842,7 +1894,8 @@ static const qmi_idl_service_message_table_entry imsrtp_service_response_message
   {QMI_IMSRTP_UNINITIALIZE_ALL_RTP_SESSION_RESP_V01, QMI_IDL_TYPE16(0, 67), 7},
   {QMI_IMSRTP_SESSION_VIDEO_CAPABILITY_RESP_V01, QMI_IDL_TYPE16(0, 72), 7},
   {QMI_IMSRTP_CONFIGURE_NAT_OVER_RTP_RESP_V01, QMI_IDL_TYPE16(0, 74), 7},
-  {QMI_IMSRTP_CONFIGURE_NAT_OVER_RTCP_RESP_V01, QMI_IDL_TYPE16(0, 76), 7}
+  {QMI_IMSRTP_CONFIGURE_NAT_OVER_RTCP_RESP_V01, QMI_IDL_TYPE16(0, 76), 7},
+  {QMI_IMSRTP_SET_HANDOFF_STATUS_RESP_V01, QMI_IDL_TYPE16(0, 79), 7}
 };
 
 static const qmi_idl_service_message_table_entry imsrtp_service_indication_messages_v01[] = {
@@ -1858,36 +1911,36 @@ static const qmi_idl_service_message_table_entry imsrtp_service_indication_messa
   {QMI_IMSRTP_CONFIGURE_RTCP_LINK_MONITORING_IND_V01, QMI_IDL_TYPE16(0, 33), 11},
   {QMI_IMSRTP_GET_SESSION_STATUS_IND_V01, QMI_IDL_TYPE16(0, 44), 19},
   {QMI_IMSRTP_ERROR_IND_V01, QMI_IDL_TYPE16(0, 47), 11},
-  {QMI_IMSRTP_RTCP_REPORTS_IND_V01, QMI_IDL_TYPE16(0, 48), 458},
+  {QMI_IMSRTP_RTCP_REPORTS_IND_V01, QMI_IDL_TYPE16(0, 48), 465},
   {QMI_IMS_RTP_VIDEO_ERROR_IND_V01, QMI_IDL_TYPE16(0, 65), 7},
   {QMI_IMSRTP_UNINITIALIZE_ALL_RTP_SESSION_IND_V01, QMI_IDL_TYPE16(0, 68), 11},
   {QMI_IMS_RTP_VIDEO_IDR_GENERATE_IND_V01, QMI_IDL_TYPE16(0, 69), 4},
-  {QMI_IMS_RTP_VIDEO_BIT_RATE_ADAPT_IND_V01, QMI_IDL_TYPE16(0, 70), 11}
+  {QMI_IMS_RTP_VIDEO_BIT_RATE_ADAPT_IND_V01, QMI_IDL_TYPE16(0, 70), 11},
+  {QMI_IMS_RTP_FIRST_PKT_RCVD_IND_V01, QMI_IDL_TYPE16(0, 77), 11}
 };
 
 /*Service Object*/
 struct qmi_idl_service_object imsrtp_qmi_idl_service_object_v01 = {
-  0x05,
+  0x06,
   0x01,
   0x28,
-  1755,
+  8204,
   { sizeof(imsrtp_service_command_messages_v01)/sizeof(qmi_idl_service_message_table_entry),
     sizeof(imsrtp_service_response_messages_v01)/sizeof(qmi_idl_service_message_table_entry),
     sizeof(imsrtp_service_indication_messages_v01)/sizeof(qmi_idl_service_message_table_entry) },
   { imsrtp_service_command_messages_v01, imsrtp_service_response_messages_v01, imsrtp_service_indication_messages_v01},
   &imsrtp_qmi_idl_type_table_object_v01,
-  0x10,
+  0x15,
   NULL
 };
 
 /* Service Object Accessor */
 qmi_idl_service_object_type imsrtp_get_service_object_internal_v01
  ( int32_t idl_maj_version, int32_t idl_min_version, int32_t library_version ){
-  if ( IMSRTP_V01_IDL_MAJOR_VERS != idl_maj_version || IMSRTP_V01_IDL_MINOR_VERS != idl_min_version 
-       || IMSRTP_V01_IDL_TOOL_VERS != library_version) 
+  if ( IMSRTP_V01_IDL_MAJOR_VERS != idl_maj_version || IMSRTP_V01_IDL_MINOR_VERS != idl_min_version
+       || IMSRTP_V01_IDL_TOOL_VERS != library_version)
   {
     return NULL;
-  } 
+  }
   return (qmi_idl_service_object_type)&imsrtp_qmi_idl_service_object_v01;
 }
-

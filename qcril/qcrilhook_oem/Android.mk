@@ -52,8 +52,6 @@ ifeq ($(TARGET_PRODUCT),dream)
   LOCAL_CFLAGS += -DPOLL_CALL_STATE -DUSE_QMI
 endif
 
-#LOCAL_LDLIBS += -lpthread
-
 LOCAL_MODULE:= libril-qcril-hook-oem
 
 LOCAL_MODULE_TAGS := optional debug

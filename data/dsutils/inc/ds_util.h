@@ -130,6 +130,50 @@ typedef enum {
 } ds_dbg_level_t;
 
 /*---------------------------------------------------------------------------
+   Different target types
+---------------------------------------------------------------------------*/
+typedef enum {
+    DS_TARGET_MIN = 0,
+    DS_TARGET_UNDEFINED = DS_TARGET_MIN,
+    DS_TARGET_MSM,
+    DS_TARGET_MSM8994,
+    DS_TARGET_APQ,
+    DS_TARGET_SVLTE1,
+    DS_TARGET_SVLTE2,
+    DS_TARGET_CSFB,
+    DS_TARGET_SGLTE,
+    DS_TARGET_SGLTE2,
+    DS_TARGET_DSDA,
+    DS_TARGET_DSDA2,
+    DS_TARGET_DSDA3,
+    DS_TARGET_MDM,
+    DS_TARGET_FUSION4_5_PCIE,
+    DS_TARGET_LE_MDM9X35,
+    DS_TARGET_LE_MDM9X25,
+    DS_TARGET_LE_MDM9X15,
+    DS_TARGET_LE_LEGACY,
+    DS_TARGET_DPM_2_0,
+    DS_TARGET_JOLOKIA,
+    DS_TARGET_LE_TESLA,
+    DS_TARGET_MAX,
+    DS_TARGET_FORCE_32_BIT = 0x7FFFFFFF
+} ds_target_t;
+
+/*---------------------------------------------------------------------------
+   Different end point types
+---------------------------------------------------------------------------*/
+typedef enum {
+    DS_EP_TYPE_INVALID  = -1,
+    DS_EP_TYPE_MIN      = 0,
+    DS_EP_TYPE_HSIC     = 1,
+    DS_EP_TYPE_HSUSB    = 2,
+    DS_EP_TYPE_PCIE     = 3,
+    DS_EP_TYPE_EMBEDDED = 4,
+    DS_EP_TYPE_MAX,
+    DS_EP_TYPE_FORCE_32_BIT = 0x7FFFFFFF
+} ds_ep_type_t;
+
+/*---------------------------------------------------------------------------
    Type representing program's logging mode
 ---------------------------------------------------------------------------*/
 typedef enum {
@@ -194,11 +238,11 @@ typedef struct {
 
 #endif /* FEATURE_DATA_LOG_SYSLOG */
 
-
-#ifdef FEATURE_DATA_LOG_ADB
 #ifndef DS_LOG_TAG
 #define DS_LOG_TAG "QC-DS-LIB"
 #endif
+
+#ifdef FEATURE_DATA_LOG_ADB
 
 #define ds_log(...) LOG(LOG_INFO, DS_LOG_TAG, __VA_ARGS__)
 
@@ -214,15 +258,7 @@ typedef struct {
 
 #define ds_log_sys_err(a) LOG(LOG_ERROR, DS_LOG_TAG, a " (%d)%s", errno, strerror(errno) )
 
-#else /* FEATURE_DATA_LOG_ADB */
-#undef LOG
-#define LOG(...)
-#define LOG_ERROR
-#undef  DS_LOG_TAG
-#define DS_LOG_TAG
-
 #endif /* FEATURE_DATA_LOG_ADB */
-
 
 #ifdef FEATURE_DATA_LOG_QXDM
 
@@ -254,12 +290,6 @@ typedef struct {
 #define ds_log_low(...) DS_LOG_MSG_DIAG(MSG_LEGACY_LOW, __VA_ARGS__)
 
 #define ds_log_sys_err(a) DS_LOG_MSG_DIAG(MSG_LEGACY_ERROR,  a " (%d)%s", errno, strerror(errno))
-
-#else /* FEATURE_DATA_LOG_QXDM */
-
-#define MSG_SPRINTF_1(...)
-#define MSG_SSID_LINUX_DATA
-#define MSG_LEGACY_LOW
 
 #endif /* FEATURE_DATA_LOG_QXDM */
 
@@ -318,11 +348,10 @@ typedef struct {
         __FUNCTION__               \
     )
 
-#define DS_INET4_NTOP(level,prefix,data)                                              \
+#define DS_INET4_NTOP(level,prefix,data)                                             \
   ds_log_##level(prefix "IPv4 addr [%d.%d.%d.%d]",                                    \
                data[0], data[1], data[2], data[3])
-
-#define DS_INET6_NTOP(level,prefix,data)                                              \
+#define DS_INET6_NTOP(level,prefix,data)                                             \
   ds_log_##level(prefix "IPv6 addr [%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x:"             \
                       "%.2x%.2x:%.2x%.2x:%.2x%.2x:%.2x%.2x]",                         \
                data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],       \
@@ -330,10 +359,10 @@ typedef struct {
 
 
 #define DS_LOG_IPV4_ADDR(level, prefix, ip_addr)                            \
-        DS_INET4_NTOP(level, prefix, ((unsigned char*)&ip_addr))
+        DS_INET4_NTOP(level, prefix, (unsigned char*)&ip_addr)
 
 #define DS_LOG_IPV6_ADDR(level, prefix, ip_addr)                            \
-        DS_INET6_NTOP(level, prefix, ((unsigned char*)&ip_addr))
+        DS_INET6_NTOP(level, prefix, (unsigned char*)&ip_addr)
 
 #define DS_LOG_MULTICAST_LOW(fmt, ...) \
   ds_log_multicast(DS_DBG_LEVEL_LOW, fmt, __VA_ARGS__)
@@ -573,6 +602,39 @@ int  ds_system_call( const char *command, unsigned int cmdlen );
 int ds_system_call2( const char *command, unsigned int cmdlen, boolean logmsg);
 
 /*===========================================================================
+  FUNCTION  ds_system_call3
+===========================================================================*/
+/*!
+@brief
+  Execute a shell command with message logging control capability
+
+@param
+command        - The command string to execute
+cmdlen         - The length of the command string
+cmd_result     - The return status string
+cmd_result_len - Length of return status string
+
+@return
+  int - numeric value 0 on success, -1 otherwise
+
+@note
+  - Dependencies
+    - None
+
+  - Side Effects
+   - None
+*/
+/*=========================================================================*/
+int ds_system_call3
+(
+  const char    *command,
+  unsigned int  cmdlen,
+  char          *cmd_result,
+  unsigned int  cmd_result_len,
+  boolean       logmsg
+);
+
+/*===========================================================================
   FUNCTION  ds_change_user_cap
 ===========================================================================*/
 /*!
@@ -668,6 +730,62 @@ int ds_get_num_bits_set_count
 */
 /*=========================================================================*/
 int ds_hex_to_dec(char ch);
+
+/*===========================================================================
+  FUNCTION  ds_get_target()
+===========================================================================*/
+/*!
+@brief
+ Gets the current target name
+
+@return Enum containing target name.
+
+@details
+  Determines the target-type by using this information:
+  - Featurization to identify LE vs Android targets.
+  - For LE targets
+    - Uses further featurization to figure out MDM9x35 vs MDM9x25.
+  - For Android targets
+    - Uses ro.baseband to identify msm, apq, svlte1, svlte2, csfb, sglte, sglte2, dsda, dsda2, dsda3
+    - Uses ro.baseband (mdm/mdm2) and ESOC to identify  fusion4, fusion4_5_pcie, fusion4_5_hsic
+*/
+/*=========================================================================*/
+ds_target_t ds_get_target(void);
+
+/*===========================================================================
+  FUNCTION  ds_get_target_str()
+===========================================================================*/
+/*!
+@brief
+ Gets the current target name string.
+
+@return
+ Const char pointer to string name.
+*/
+/*=========================================================================*/
+const char *ds_get_target_str(ds_target_t target);
+
+/*===========================================================================
+ FUNCTION:  ds_get_epid
+==========================================================================*/
+/*!
+  @brief
+  This function returns the EPID/EP-TYPE information for a network
+  device.
+
+  @params[in] net_dev: network device name
+  @params[out] ep_type: End point type.
+  @params[out] epid: End point ID obtained through IOCTL.
+
+  @return None (positive epid indicates success)
+*/
+/*=========================================================================*/
+void ds_get_epid
+(
+  char          *net_dev,
+  ds_ep_type_t  *ep_type,
+  int           *epid
+);
 
 #ifdef __cplusplus
 }

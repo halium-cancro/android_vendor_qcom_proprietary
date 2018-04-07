@@ -561,6 +561,22 @@ int netmgr_client_send_ping_msg()
 }
 
 int
+dsi_set_modem_subs_id
+(
+  int subs_id
+)
+{
+  return DSI_SUCCESS;
+}
+
+int
+dsi_get_modem_subs_id(void)
+{
+  return 0;
+}
+
+
+int
 qdi_init (void)
 {
   DSI_NETCTRL_LOG_FUNC_ENTRY;

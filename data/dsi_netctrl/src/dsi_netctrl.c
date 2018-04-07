@@ -45,18 +45,16 @@ when       who     what, where, why
 #include <stdlib.h>
 #include "ds_string.h"
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #ifdef DSI_NETCTRL_OFFTARGET
 #include <string.h>
 #include "ds_sl_list.h"
 #endif
+#include <linux/sockios.h>
+#include <linux/if.h>
 #include <netinet/in.h>
 
 #include <netdb.h> /* struct addrinfo */
-
-#ifdef FEATURE_DNS_RESOLVER
-#include <qc_getaddrinfo.h>
-#include <arpa/inet.h>
-#endif /* FEATURE_DNS_RESOLVER */
 
 #include "dsi_netctrl.h"
 #include "assert.h"
@@ -72,6 +70,14 @@ static int dsi_ril_instance;
 #define DSI_SIZEOF_IPV6_ADDRESS 16
 #define DSI_DNS_PORT 53
 #define DSI_GETADDRINFO_NS_COUNT 2
+
+#define DSI_NETMGR_GET_NEXT_TXN_ID(txn) \
+  do { \
+     pthread_mutex_lock(&dsi_netmgr_txn_mutex); \
+     txn.pid = getpid(); \
+     txn.txn_id = ++dsi_netmgr_txn_cnt; \
+     pthread_mutex_unlock(&dsi_netmgr_txn_mutex); \
+  }while(0)
 
 /*---------------------------------------------------------------------------
                            DECLARATIONS
@@ -1402,7 +1408,7 @@ void dsi_rel_data_srvc_hndl
 {
   int ret = DSI_ERROR;
   dsi_store_t *st_hndl = NULL;
-  int index = 0;
+  short int index = DSI_INVALID_IFACE;
 
   DSI_LOG_DEBUG( "%s", "rel_data_srvc_hndl: ENTRY" );
 
@@ -1476,7 +1482,9 @@ void dsi_rel_data_srvc_hndl
   }
 
   /* clean up the dsi_store_table entry */
-  DSI_LOG_DEBUG( "%s", "try to dealloc dsi obj");
+  DSI_LOG_DEBUG( "Try to de-allocate dsi store table"
+                 " entry at index[%d]",
+                 index);
   dsi_cleanup_store_tbl( index );
 
   if (DSI_SUCCESS == ret)
@@ -2082,208 +2090,6 @@ int dsi_get_ril_instance
 
 } /* dsi_set_ril_instance() */
 
-
-#ifdef FEATURE_DNS_RESOLVER /* Required to prevent build on LE */
-/*===========================================================================
-  FUNCTION:  dsi_sockaddr_ntop
-===========================================================================*/
-/*!
-    @brief
-    Converts a sockaddr_storage to the string representation. Automatically
-    accounts for IPv4 vs IPv6
-
-    @args
-    addr: Address in binary form stored in sockaddr_storate
-    dst: Destination string buffer
-    size: Length of destination string buffer
-
-    @return
-
-*/
-/*=========================================================================*/
-static const char *dsi_sockaddr_ntop(struct sockaddr_storage *addr, char *dst, socklen_t size)
-{
-  if (!addr || !dst)
-  {
-    DSI_LOG_ERROR("%s(): Null parameters", __func__);
-    return 0;
-  }
-
-  switch(addr->ss_family)
-  {
-    memset(dst, 0, size);
-    case AF_INET:
-      return inet_ntop(AF_INET,
-                       &(((struct sockaddr_in *)addr)->sin_addr),
-                       dst, size);
-
-    case AF_INET6:
-      return inet_ntop(AF_INET6,
-                       &(((struct sockaddr_in6 *)addr)->sin6_addr),
-                       dst, size);
-
-    default:
-      snprintf(dst,size,"[UnknownAF:%04X]",addr->ss_family);
-      return 0;
-  }
-}
-/*===========================================================================
-  FUNCTION:  convert_dsi_addr_format
-===========================================================================*/
-/*!
-    @brief
-    Converts the improper usage of sockaddr_storage to the correct usage
-    of sockaddr_storage. Dsi_netctrl stores the address data directly in the
-    __data section of the sockaddr_storage. This is really confusing to
-    unsuspecting people making changes and is incorrect as the system
-    libraries expect there to be fields such as "port" to be filled in
-    before the address. Instead of filling address data in directly,
-    dsi_netctrl should cast the sockaddr_storage to the AF appropriate
-    structure (such as sockaddr_in or sockaddr_in6) and fill in the
-    appropriate fields.
-
-    @args
-    src: incorrectly filled structure
-    dst: correctly filled structure
-
-    @return
-
-*/
-/*=========================================================================*/
-static void convert_dsi_addr_format(struct sockaddr_storage *src, struct sockaddr_storage *dst)
-{
-  if (!src || !dst)
-  {
-    DSI_LOG_ERROR("%s(): Null parameters", __func__);
-    return;
-  }
-
-  memset (dst, 0, sizeof(struct sockaddr_storage));
-  dst->ss_family = src->ss_family;
-
-  switch(src->ss_family)
-  {
-  case AF_INET:
-    memcpy(&((struct sockaddr_in *)dst)->sin_addr, src->__data, DSI_SIZEOF_IPV4_ADDRESS);
-    ((struct sockaddr_in *)dst)->sin_port = htons(DSI_DNS_PORT);
-    break;
-
-  case AF_INET6:
-    memcpy(&((struct sockaddr_in6 *)dst)->sin6_addr, src->__data, DSI_SIZEOF_IPV6_ADDRESS);
-    ((struct sockaddr_in6 *)dst)->sin6_port = htons(DSI_DNS_PORT);
-    break;
-  }
-
-}
-#endif /* FEATURE_DNS_RESOLVER */
-
-/*===========================================================================
-  FUNCTION:  dsi_getaddrinfo
-===========================================================================*/
-/*!
-    @brief
-    Retreive the numerical IPv6/IPv6 address of a given host name. The DNS
-    server and interface specified in the dsi handle will be used to make the
-    request.
-
-    @args
-
-    @return
-
-*/
-/*=========================================================================*/
-int dsi_getaddrinfo(    dsi_hndl_t hndl,
-                        const char *hostname,
-                        const char *servname,
-                        const struct addrinfo *hints,
-                        struct addrinfo **res)
-{
-#ifdef FEATURE_DNS_RESOLVER /* Required to prevent build on LE */
-  int error = -1;
-  dsi_addr_info_t dsi_addr_info;
-  struct sockaddr_storage *ns_address = NULL;
-  int addrcount = 0;
-
-  memset(&dsi_addr_info, 0, sizeof(dsi_addr_info_t));
-
-  char ns_addr1 [INET6_ADDRSTRLEN];
-  char ns_addr2 [INET6_ADDRSTRLEN];
-
-  if (hndl)
-  {
-    addrcount = dsi_get_ip_addr_count(hndl);
-    if (addrcount > 0)
-    {
-      error = dsi_get_ip_addr(hndl, &dsi_addr_info, 1);
-    }
-    else
-    {
-      DSI_LOG_ERROR("%s(): could not determine DNS servers", __func__);
-      error = DSI_ERROR_BAD_HANDLE;
-    }
-    if (error == DSI_SUCCESS)
-    {
-      ns_address = (struct sockaddr_storage *)
-                    dsi_malloc (sizeof(struct sockaddr_storage) * DSI_GETADDRINFO_NS_COUNT);
-      if (!ns_address)
-      {
-        DSI_LOG_ERROR("%s(): Failed to allocate buffers for address", __func__);
-        return DSI_DNS_ERROR;
-      }
-      memset(ns_address, 0, (sizeof(struct sockaddr_storage) * DSI_GETADDRINFO_NS_COUNT));
-
-      convert_dsi_addr_format(&(dsi_addr_info.dnsp_addr_s.addr),&ns_address[0]);
-      convert_dsi_addr_format(&(dsi_addr_info.dnss_addr_s.addr),&ns_address[1]);
-
-      dsi_sockaddr_ntop(&ns_address[0], ns_addr1, INET6_ADDRSTRLEN);
-      dsi_sockaddr_ntop(&ns_address[1], ns_addr2, INET6_ADDRSTRLEN);
-
-      error = qc_getaddrinfo(hostname, servname, hints, res, ns_address, DSI_GETADDRINFO_NS_COUNT);
-
-      DSI_LOG_DEBUG("%s(%p, \"%s\", \"%s\", %p, %p) returns %d using DNS servers %s, %s",
-                   __func__,
-                   hndl,
-                   hostname,
-                   servname,
-                   hints,
-                   res,
-                   error,
-                   ns_addr1,
-                   ns_addr2);
-      dsi_free(ns_address);
-    }
-  }
-  else
-  {
-    DSI_LOG_ERROR("%s(): called with null handle", __func__);
-    error = DSI_ERROR_BAD_HANDLE;
-  }
-
-  return error;
-#else
-  return DSI_NO_DNS_RESOLVER;
-#endif /* FEATURE_DNS_RESOLVER */
-}
-
-
-/*===========================================================================
-  FUNCTION:  dsi_freeaddrinfo
-===========================================================================*/
-/*!
-    @brief
-    Frees all memory allocated by dsi_getaddrinfo()
-
-    @args
-    struct addrinfo *ai - pointer to the head addinfo list node
-*/
-/*=========================================================================*/
-void dsi_freeaddrinfo(struct addrinfo *ai)
-{
-#ifdef FEATURE_DNS_RESOLVER /* Required to prevent build on LE */
-  qc_freeaddrinfo(ai);
-#endif /* FEATURE_DNS_RESOLVER */
-}
-
 /*===========================================================================
   FUNCTION:  dsi_process_screen_state_change
 ===========================================================================*/
@@ -2304,19 +2110,525 @@ void dsi_freeaddrinfo(struct addrinfo *ai)
 int dsi_process_screen_state_change(int screen_state)
 {
   int result = DSI_ERROR;
+
   DSI_LOG_INFO("Screen state changed: %s", screen_state ? "ON" : "OFF");
 
   if (screen_state == 0)
   {
-    result = netmgr_client_send_user_cmd(NETMGR_USER_CMD_SCREEN_OFF);
+    result = netmgr_client_send_user_cmd(NETMGR_USER_CMD_SCREEN_OFF, NULL);
   }
   else if (screen_state == 1)
   {
-    result = netmgr_client_send_user_cmd(NETMGR_USER_CMD_SCREEN_ON);
+    result = netmgr_client_send_user_cmd(NETMGR_USER_CMD_SCREEN_ON, NULL);
   }
 
   return result;
 }
 
+/*===========================================================================
+  FUNCTION:  dsi_enable_port_forwarding
+===========================================================================*/
+/*!
+    @brief
+    This function can be used to enable port forwarding by installing
+    the iptable rules appropriately. If no IWLAN calls are active then
+    the client preference is saved and rules are installed on bring up
+    of the first IWLAN call.
 
+    @param[in] dsi_hndl Handqqle received from dsi_get_data_srvc_hndl().
+    @param[in] ip_family - AF_INET/AF_INET6
 
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+
+    @dependencies
+    There has to be at least one iwlan call up for the specified family
+    for the API to take effect.
+*/
+/*=========================================================================*/
+int dsi_enable_port_forwarding
+(
+   dsi_hndl_t dsi_hndl,
+   int        ip_family
+)
+{
+  dsi_store_t *st = NULL;
+  netmgr_user_cmd_data_t *cmd_data;
+  int ret = DSI_ERROR;
+
+  DSI_LOG_ENTRY;
+  st = (dsi_store_t*)dsi_hndl;
+  if(!DSI_IS_HNDL_VALID(st))
+  {
+    DSI_LOG_ERROR("%s: Invalid dsi handle [%d]",__func__, dsi_hndl);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  if(ip_family != AF_INET && ip_family != AF_INET6 )
+  {
+    DSI_LOG_ERROR("%s: Invalid ip_family value specified[%d]",__func__, ip_family);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  cmd_data = (netmgr_user_cmd_data_t *)malloc(sizeof(netmgr_user_cmd_data_t));
+  if(NULL == cmd_data)
+  {
+    DSI_LOG_ERROR("%s: Insufficient space to allocate cmd_data",__func__);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+  memset(cmd_data, 0x0, sizeof(netmgr_user_cmd_data_t));
+
+  /* update txn info in the cmd_data */
+  DSI_NETMGR_GET_NEXT_TXN_ID(cmd_data->txn);
+  cmd_data->cmd_id = NETMGR_USER_CMD_ENABLE_PORT_FORWARDING;
+  cmd_data->data.port_forwarding_data.ip_family = ip_family;
+
+  /* store command data in dsi store handle for validation later */
+  memcpy(&st->priv.user_cmd_data, cmd_data, sizeof(netmgr_user_cmd_data_t));
+
+  DSI_LOG_DEBUG("%s: Sending user cmd NETMGR_USER_CMD_ENABLE_PORT_FORWARDING "
+                "for pid[%d] using txn_id[%d]",
+                __func__, cmd_data->txn.pid, cmd_data->txn.txn_id);
+  DSI_INIT_SIGNAL_DATA(&st->priv.signal_data);
+  DSI_INIT_SIGNAL_FOR_WAIT(&st->priv.signal_data);
+  netmgr_client_send_user_cmd(NETMGR_USER_CMD_ENABLE_PORT_FORWARDING, cmd_data);
+
+  if(DSI_WAIT_FOR_SIGNAL_WITH_TIMEOUT(&st->priv.signal_data, 5000 ) == DSI_ERROR)
+  {
+    DSI_LOG_ERROR("%s: dsi_enable_port_forwarding: User command processing timedout in netmgr", __func__);
+    st->priv.user_cmd_data.txn.txn_status = DSI_ERROR;
+    ret = DSI_ERROR;
+  }
+  else
+  {
+    ret = DSI_SUCCESS;
+  }
+  DSI_DESTROY_SIGNAL_DATA(&st->priv.signal_data);
+
+  if(st->priv.user_cmd_data.txn.txn_status != DSI_SUCCESS)
+  {
+    ret = DSI_ERROR;
+  }
+
+bail:
+  if(NULL != cmd_data )
+  {
+    free(cmd_data);
+    cmd_data = NULL;
+  }
+
+  DSI_LOG_EXIT;
+  return ret;
+}
+
+/*===========================================================================
+  FUNCTION:  dsi_disable_port_forwarding
+===========================================================================*/
+/*!
+    @brief
+    This function can be used to disable port forwarding by uninstalling
+    the iptable rules appropriately. If no IWLAN calls are active then
+    the client preference is saved and rules will not be installed on
+    bring up of the first IWLAN call.
+
+    @param[in] dsi_hndl Handle received from dsi_get_data_srvc_hndl().
+    @param[in] ip_family - AF_INET/AF_INET6
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+extern int dsi_disable_port_forwarding
+(
+   dsi_hndl_t dsi_hndl,
+   int        ip_family
+)
+{
+  dsi_store_t * st = NULL;
+  netmgr_user_cmd_data_t *cmd_data = NULL;
+  int ret = DSI_ERROR;
+
+  DSI_LOG_ENTRY;
+  st = (dsi_store_t*)dsi_hndl;
+  if(!DSI_IS_HNDL_VALID(st))
+  {
+    DSI_LOG_ERROR("%s: Invalid dsi handle [%d]", __func__, dsi_hndl);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  if( AF_INET != ip_family && AF_INET6 != ip_family)
+  {
+    DSI_LOG_ERROR("%s: Invalid ip_family value specified [%d]",__func__, ip_family);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  cmd_data = (netmgr_user_cmd_data_t *)malloc(sizeof(netmgr_user_cmd_data_t));
+  if(NULL == cmd_data)
+  {
+    DSI_LOG_ERROR("%s: Insufficient space to allocate cmd_data", __func__);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+  memset(cmd_data, 0x0, sizeof(netmgr_user_cmd_data_t));
+
+  /* update txn info in the cmd_data */
+  DSI_NETMGR_GET_NEXT_TXN_ID(cmd_data->txn);
+  cmd_data->cmd_id = NETMGR_USER_CMD_DISABLE_PORT_FORWARDING;
+  cmd_data->data.port_forwarding_data.ip_family = ip_family;
+
+  /* store command data in dsi store handle for validation later */
+  memcpy(&st->priv.user_cmd_data, cmd_data, sizeof(netmgr_user_cmd_data_t));
+
+  DSI_LOG_DEBUG("%s: Sending user cmd NETMGR_USER_CMD_DISABLE_PORT_FORWARDING "
+                "for pid[%d] using txn_id[%d]",
+                __func__,cmd_data->txn.pid, cmd_data->txn.txn_id);
+  DSI_INIT_SIGNAL_DATA(&st->priv.signal_data);
+  DSI_INIT_SIGNAL_FOR_WAIT(&st->priv.signal_data);
+  netmgr_client_send_user_cmd(NETMGR_USER_CMD_DISABLE_PORT_FORWARDING, cmd_data);
+
+  if(DSI_WAIT_FOR_SIGNAL_WITH_TIMEOUT(&st->priv.signal_data, 5000 ) == DSI_ERROR)
+  {
+    DSI_LOG_ERROR("%s: User command processing timedout in netmgr", __func__);
+    st->priv.user_cmd_data.txn.txn_status = DSI_ERROR;
+    ret = DSI_ERROR;
+  }
+  else
+  {
+    ret = DSI_SUCCESS;
+  }
+  DSI_DESTROY_SIGNAL_DATA(&st->priv.signal_data);
+
+  if(st->priv.user_cmd_data.txn.txn_status != DSI_SUCCESS)
+  {
+    ret = DSI_ERROR;
+  }
+
+bail:
+  if(NULL != cmd_data )
+  {
+    free(cmd_data);
+    cmd_data = NULL;
+  }
+
+  DSI_LOG_EXIT;
+  return ret;
+}
+
+/*===========================================================================
+  FUNCTION:  dsi_query_port_forwarding
+===========================================================================*/
+/*!
+    @brief
+    This function can be used to query the current port forwarding preference
+    set by the client.
+
+    @param[in] dsi_hndl Handle received from dsi_get_data_srvc_hndl().
+    @param[in] ip_family - AF_INET/AF_INET6
+    @param[out] forwarding_status return the current port forwarding status.
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+extern int dsi_query_port_forwarding_status
+(
+   dsi_hndl_t                    dsi_hndl,
+   int                           ip_family,
+   dsi_port_forwarding_status_t* forwarding_status
+)
+{
+  dsi_store_t * st = NULL;
+  netmgr_user_cmd_data_t *cmd_data = NULL;
+  int ret = DSI_ERROR;
+
+  DSI_LOG_ENTRY;
+
+  st = (dsi_store_t*)dsi_hndl;
+  if(!DSI_IS_HNDL_VALID(st))
+  {
+    DSI_LOG_ERROR("%s: Invalid dsi handle [%d]", __func__, dsi_hndl);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  if( AF_INET != ip_family && AF_INET6 != ip_family)
+  {
+    DSI_LOG_ERROR("%s: Invalid ip_family [%d]",__func__, ip_family);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+
+  if(NULL == forwarding_status)
+  {
+    DSI_LOG_ERROR("%s: invalid input parameter", __func__);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+  *forwarding_status = DSI_PORT_FORWARDING_INVALID;
+
+  cmd_data = (netmgr_user_cmd_data_t *)malloc(sizeof(netmgr_user_cmd_data_t));
+  if(NULL == cmd_data)
+  {
+    DSI_LOG_ERROR("%s: Insufficient space to allocate cmd_data", __func__);
+    ret = DSI_ERROR;
+    goto bail;
+  }
+  memset(cmd_data, 0x0, sizeof(netmgr_user_cmd_data_t));
+
+  /* update txn info in the cmd_data */
+  DSI_NETMGR_GET_NEXT_TXN_ID(cmd_data->txn);
+  cmd_data->cmd_id = NETMGR_USER_CMD_QUERY_PORT_FORWARDING;
+  cmd_data->data.port_forwarding_data.ip_family = ip_family;
+
+  /* store command data in dsi store handle for validation later */
+  memcpy(&st->priv.user_cmd_data, cmd_data, sizeof(netmgr_user_cmd_data_t));
+
+  /* Clear ip_family for query as we need to get this information from netmgr */
+  st->priv.user_cmd_data.data.port_forwarding_data.ip_family = 0;
+
+  DSI_LOG_DEBUG("%s: Sending user cmd NETMGR_USER_CMD_QUERY_PORT_FORWARDING "
+                "for pid[%d] using txn_id[%d]",
+                __func__,cmd_data->txn.pid, cmd_data->txn.txn_id);
+  DSI_INIT_SIGNAL_DATA(&st->priv.signal_data);
+  DSI_INIT_SIGNAL_FOR_WAIT(&st->priv.signal_data);
+  netmgr_client_send_user_cmd(NETMGR_USER_CMD_QUERY_PORT_FORWARDING, cmd_data);
+
+  if(DSI_WAIT_FOR_SIGNAL_WITH_TIMEOUT(&st->priv.signal_data, 5000 ) == DSI_ERROR)
+  {
+    DSI_LOG_ERROR("%s: User command processing timedout in netmgr", __func__);
+    st->priv.user_cmd_data.txn.txn_status = DSI_ERROR;
+    ret = DSI_ERROR;
+  }
+  else
+  {
+    ret = DSI_SUCCESS;
+  }
+  DSI_DESTROY_SIGNAL_DATA(&st->priv.signal_data);
+
+  if(st->priv.user_cmd_data.txn.txn_status == DSI_SUCCESS)
+  {
+    if( ip_family == st->priv.user_cmd_data.data.port_forwarding_data.ip_family )
+    {
+      *forwarding_status = DSI_PORT_FORWARDING_ENABLED;
+      DSI_LOG_DEBUG("%s: forwarding [ENABLED] for ip_family[%s]",
+                    __func__, ip_family == AF_INET? "AF_INET":"AF_INET6");
+    }
+    else
+    {
+      *forwarding_status = DSI_PORT_FORWARDING_DISABLED;
+      DSI_LOG_DEBUG("%s: forwarding [DISABLED] for ip_family[%s]",
+                    __func__, ip_family == AF_INET? "AF_INET":"AF_INET6");
+    }
+  }
+  else
+  {
+    ret = DSI_ERROR;
+  }
+
+bail:
+  if(NULL != cmd_data )
+  {
+    free(cmd_data);
+    cmd_data = NULL;
+  }
+  DSI_LOG_EXIT;
+  return ret;
+}
+
+/*===========================================================================
+  FUNCTION:  dsi_get_qmi_port_name
+===========================================================================*/
+/*!
+    @brief
+    Used to retrieve the QMI port associated with the data service handle.
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+
+    @note
+    len should be at least DSI_CALL_INFO_DEVICE_NAME_MAX_LEN+1
+    long
+*/
+/*=========================================================================*/
+int dsi_get_qmi_port_name(dsi_hndl_t hndl, char * buf, int len)
+{
+  int ret = DSI_ERROR;
+  dsi_store_t * st = NULL;
+  int i = 0;
+
+  do
+  {
+    ret = DSI_ERROR;
+
+    DSI_LOG_INFO("%s","dsi_get_qmi_port_name: ENTRY");
+
+    st = (dsi_store_t *)hndl;
+
+    if (!DSI_IS_HNDL_VALID(st))
+    {
+      DSI_LOG_ERROR("%s", "dsi_get_qmi_port_name: received invalid hndl");
+      break;
+    }
+
+    i = st->priv.dsi_iface_id;
+
+    if (!DSI_IS_ID_VALID(i))
+    {
+      DSI_LOG_ERROR("%s", "dsi_get_qmi_port_name: received invalid hndl");
+      break;
+    }
+
+    /* a non-NULL buffer with at least DSI_CALL_INFO_DEVICE_NAME_MAX_LEN
+     *  size is required (add 1 for NULL char) */
+    if (NULL == buf || len < DSI_CALL_INFO_DEVICE_NAME_MAX_LEN+1)
+    {
+      DSI_LOG_ERROR("%s", "dsi_get_qmi_port_name: received invalid buf");
+      break;
+    }
+
+    /* copy rmnetxx value into the buffer */
+    DSI_LOG_DEBUG("copying value [%s] at user provided location [%p]",
+                  DSI_GET_WDS_STR(i), buf);
+    strlcpy(buf, DSI_GET_WDS_STR(i), len);
+
+   ret = DSI_SUCCESS;
+  } while (0);
+
+  if (ret == DSI_ERROR)
+  {
+    DSI_LOG_ERROR("%s","dsi_get_qmi_port_name: EXIT with err");
+  }
+  else
+  {
+    DSI_LOG_INFO("%s","dsi_get_qmi_port_name: EXIT with suc");
+  }
+
+  return ret;
+}
+
+/* Stubs for DSDA APIs  */
+int
+dsi_set_modem_subs_id
+(
+  int subs_id
+)
+{
+  DSI_LOG_ERROR("%s","API not supported in PL");
+  return DSI_SUCCESS;
+}
+
+int
+dsi_get_modem_subs_id(void)
+{
+  DSI_LOG_ERROR("%s","API not supported in PL");
+  return 0;
+}
+
+/*===========================================================================
+  FUNCTION:  dsi_get_link_mtu
+===========================================================================*/
+/*!
+    @brief
+    Used to get the MTU of the corresponding link
+
+    @return
+    DSI_ERROR
+    DSI_SUCCESS
+*/
+/*=========================================================================*/
+int dsi_get_link_mtu
+(
+  dsi_hndl_t    hndl,
+  unsigned int  *mtu
+)
+{
+  dsi_store_t * st = NULL;
+  int ret = DSI_ERROR;
+  int fd = -1;
+  struct ifreq if_mtu;
+  const char *ifname = NULL;
+
+  DSI_GLOBAL_LOCK;
+
+  DSI_LOG_DEBUG("%s","dsi_get_link_mtu ENTRY");
+
+  ret = DSI_ERROR;
+  do
+  {
+    st = (dsi_store_t *)hndl;
+
+    if (NULL == mtu || !DSI_IS_HNDL_VALID(st))
+    {
+      DSI_LOG_ERROR("%s","invalid params rcvd");
+      break;
+    }
+
+    if (!DSI_IS_ID_VALID(st->priv.dsi_iface_id))
+    {
+      DSI_LOG_ERROR("invalid dsi_iface_id=%d", st->priv.dsi_iface_id);
+      break;
+    }
+
+    if (DSI_GET_MTU(st->priv.dsi_iface_id) != DSI_INVALID_MTU)
+    {
+      *mtu = DSI_GET_MTU(st->priv.dsi_iface_id);
+    }
+    else
+    {
+      memset(&if_mtu, 0, sizeof(if_mtu));
+
+      ifname = DSI_GET_DEV_STR(st->priv.dsi_iface_id);
+
+      if ( ifname == NULL )
+      {
+        DSI_LOG_ERROR("unable to find device name for iface=%d", st->priv.dsi_iface_id);
+        break;
+      }
+
+      DSI_LOG_DEBUG("invalid cache, querying MTU from iface=%s", ifname);
+
+      fd = socket(AF_INET, SOCK_STREAM, 0);
+      if ( fd < 0 )
+      {
+        DSI_LOG_ERROR("%s", "failed to create socket");
+        break;
+      }
+
+      strlcpy(if_mtu.ifr_name, ifname, IFNAMSIZ);
+      if_mtu.ifr_name[IFNAMSIZ - 1] = '\0';
+
+      if ( ioctl(fd, SIOCGIFMTU, &if_mtu) < 0 )
+      {
+        DSI_LOG_ERROR("%s", "failed to create socket");
+        break;
+      }
+
+      *mtu = if_mtu.ifr_mtu;
+      DSI_SET_MTU(st->priv.dsi_iface_id, if_mtu.ifr_mtu);
+    }
+
+    DSI_LOG_DEBUG("returning mtu=%d", *mtu);
+    ret = DSI_SUCCESS;
+  }
+  while (0);
+
+  if (fd != -1)
+  {
+    close(fd);
+  }
+
+  DSI_GLOBAL_UNLOCK;
+
+  DSI_LOG_DEBUG("%s","dsi_get_link_mtu: EXIT");
+
+  return ret;
+}

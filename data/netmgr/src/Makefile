@@ -39,8 +39,7 @@ LDFLAGS += -Wl,-rpath,../lib
 LIBS := \
   -ldsutils \
   -lqmi \
-  -lnetmgr \
-  -lpthread
+  -lnetmgr
 
 LIBDIRS := \
   -L../../dsutils/lib \

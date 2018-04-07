@@ -39,6 +39,7 @@ NEEDLIB =\
    system/core/libcutils/libcutils\
    system/core/liblog/liblog\
 
+LIBS += -lpthread
 
 CFLAGS += -m32
 CFLAGS += -DFEATURE_RILTEST

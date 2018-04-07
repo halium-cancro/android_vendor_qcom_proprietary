@@ -359,6 +359,7 @@ void cri_csvt_event_report_ind_handler(int qmi_service_client_id,
     int csvt_call_object_id;
     hlos_ind_cb_type hlos_ind_cb;
     int is_send_ind_to_hlos;
+    int bcd_incoming_number_len = 0;
     char bcd_incoming_number[CSVT_MAX_DIAL_STRING_LEN_V01 + 1];
     char incoming_number[CSVT_MAX_DIAL_STRING_LEN_V01 + 1];
 
@@ -420,14 +421,26 @@ void cri_csvt_event_report_ind_handler(int qmi_service_client_id,
                 break;
 
             case CSVT_EVENT_TYPE_INCOMING_V01:
-                if(TRUE == csvt_event_report_ind_msg->incoming_number_valid &&
-                   TRUE == csvt_event_report_ind_msg->incoming_number_length_valid)
+                if(TRUE == csvt_event_report_ind_msg->incoming_number_valid)
                 {
                     UTIL_LOG_MSG("converting bcd incoming number to ascii");
-                    bcd_incoming_number[0] = csvt_event_report_ind_msg->incoming_number_length;
-                    strlcpy(&bcd_incoming_number[1],
+                    if(TRUE == csvt_event_report_ind_msg->incoming_number_length_valid)
+                    {
+                        bcd_incoming_number_len = csvt_event_report_ind_msg->incoming_number_length;
+                    }
+                    else
+                    {
+                        bcd_incoming_number_len = strlen(csvt_event_report_ind_msg->incoming_number);
+                    }
+                    if (bcd_incoming_number_len > CSVT_MAX_INCOM_NUM_LEN_V01)
+                    {
+                        bcd_incoming_number_len = CSVT_MAX_INCOM_NUM_LEN_V01;
+                    }
+                    bcd_incoming_number[0] = bcd_incoming_number_len;
+
+                    memcpy(&bcd_incoming_number[1],
                             csvt_event_report_ind_msg->incoming_number,
-                            sizeof(bcd_incoming_number)-1);
+                            bcd_incoming_number_len);
                     qcril_cm_util_bcd_to_ascii((byte*) bcd_incoming_number,
                                                (byte*) incoming_number);
                 }
@@ -501,10 +514,14 @@ cri_core_error_type cri_csvt_core_dial_request_handler(cri_core_context_type cri
     qmi_error_type_v01 ret_val;
     int csvt_call_object_id;
     cri_csvt_rules_generic_rule_data_type *cri_csvt_rules_generic_rule_data;
+    cri_rule_handler_user_rule_info_type user_rule_info;
 
     ret_val = QMI_ERR_INTERNAL_V01;
     csvt_call_object_id = NIL;
     cri_csvt_rules_generic_rule_data = NULL;
+    memset(&user_rule_info,
+           NIL,
+           sizeof(user_rule_info));
 
     if(req_message)
     {
@@ -527,6 +544,10 @@ cri_core_error_type cri_csvt_core_dial_request_handler(cri_core_context_type cri
                 cri_csvt_rules_generic_rule_data->hlos_call_id =
                     cri_csvt_utils_find_hlos_id_based_on_csvt_call_object_id(csvt_call_object_id);
 
+                user_rule_info.rule_data = cri_csvt_rules_generic_rule_data;
+                user_rule_info.rule_check_handler = cri_csvt_rules_originating_rule_check_handler;
+                user_rule_info.rule_data_free_handler =
+                                            cri_csvt_rules_generic_rule_data_free_handler;
                 ret_val =  cri_core_qmi_send_msg_async(
                                cri_core_context,
                                csvt_client_id,
@@ -537,10 +558,7 @@ cri_core_error_type cri_csvt_core_dial_request_handler(cri_core_context_type cri
                                hlos_cb_data,
                                hlos_resp_cb,
                                CRI_CORE_MAX_TIMEOUT,
-                               cri_csvt_rules_generic_rule_data,
-                               cri_csvt_rules_originating_rule_check_handler,
-                               cri_csvt_rules_generic_rule_data_free_handler
-                           );
+                               &user_rule_info);
             }
 
             if(QMI_ERR_NONE_V01 != ret_val)
@@ -575,11 +593,15 @@ cri_core_error_type cri_csvt_core_answer_request_handler(cri_core_context_type c
     qmi_error_type_v01 ret_val;
     int csvt_call_object_id;
     cri_csvt_rules_generic_rule_data_type *cri_csvt_rules_generic_rule_data;
+    cri_rule_handler_user_rule_info_type user_rule_info;
 
     memset(&csvt_answer_call_req_msg, NIL, sizeof(csvt_answer_call_req_msg));
     ret_val = QMI_ERR_INTERNAL_V01;
     csvt_call_object_id = NIL;
     cri_csvt_rules_generic_rule_data = NULL;
+    memset(&user_rule_info,
+           NIL,
+           sizeof(user_rule_info));
 
     csvt_call_object_id =
                         cri_csvt_utils_find_csvt_call_object_id_based_on_hlos_call_id(hlos_call_id);
@@ -600,6 +622,11 @@ cri_core_error_type cri_csvt_core_answer_request_handler(cri_core_context_type c
         {
             cri_csvt_rules_generic_rule_data->hlos_call_id = hlos_call_id;
 
+            user_rule_info.rule_data = cri_csvt_rules_generic_rule_data;
+            user_rule_info.rule_check_handler = cri_csvt_rules_answering_rule_check_handler;
+            user_rule_info.rule_data_free_handler =
+                                        cri_csvt_rules_generic_rule_data_free_handler;
+
             ret_val =  cri_core_qmi_send_msg_async(cri_core_context,
                                                    csvt_client_id,
                                                    QMI_CSVT_ANSWER_CALL_REQ_V01,
@@ -609,9 +636,7 @@ cri_core_error_type cri_csvt_core_answer_request_handler(cri_core_context_type c
                                                    hlos_cb_data,
                                                    hlos_resp_cb,
                                                    CRI_CORE_MAX_TIMEOUT,
-                                                   cri_csvt_rules_generic_rule_data,
-                                                   cri_csvt_rules_answering_rule_check_handler,
-                                                   cri_csvt_rules_generic_rule_data_free_handler);
+                                                   &user_rule_info);
         }
 
         if(QMI_ERR_NONE_V01 != ret_val)
@@ -642,11 +667,15 @@ cri_core_error_type cri_csvt_core_end_request_handler(cri_core_context_type cri_
     qmi_error_type_v01 ret_val;
     int csvt_call_object_id;
     cri_csvt_rules_generic_rule_data_type *cri_csvt_rules_generic_rule_data;
+    cri_rule_handler_user_rule_info_type user_rule_info;
 
     memset(&csvt_end_call_req_msg, NIL, sizeof(csvt_end_call_req_msg));
     ret_val = QMI_ERR_INTERNAL_V01;
     csvt_call_object_id = NIL;
     cri_csvt_rules_generic_rule_data = NULL;
+    memset(&user_rule_info,
+           NIL,
+           sizeof(user_rule_info));
 
     csvt_call_object_id = cri_csvt_utils_find_csvt_call_object_id_based_on_hlos_call_id(
                               hlos_call_id
@@ -663,6 +692,11 @@ cri_core_error_type cri_csvt_core_end_request_handler(cri_core_context_type cri_
         {
             cri_csvt_rules_generic_rule_data->hlos_call_id = hlos_call_id;
 
+            user_rule_info.rule_data = cri_csvt_rules_generic_rule_data;
+            user_rule_info.rule_check_handler = cri_csvt_rules_ending_rule_check_handler;
+            user_rule_info.rule_data_free_handler =
+                                        cri_csvt_rules_generic_rule_data_free_handler;
+
             ret_val =  cri_core_qmi_send_msg_async(cri_core_context,
                                                    csvt_client_id,
                                                    QMI_CSVT_END_CALL_REQ_V01,
@@ -672,9 +706,7 @@ cri_core_error_type cri_csvt_core_end_request_handler(cri_core_context_type cri_
                                                    hlos_cb_data,
                                                    hlos_resp_cb,
                                                    CRI_CORE_MAX_TIMEOUT,
-                                                   cri_csvt_rules_generic_rule_data,
-                                                   cri_csvt_rules_ending_rule_check_handler,
-                                                   cri_csvt_rules_generic_rule_data_free_handler);
+                                                   &user_rule_info);
         }
 
         if(QMI_ERR_NONE_V01 != ret_val)
@@ -717,8 +749,6 @@ cri_core_error_type cri_csvt_core_confirm_request_handler(
                                                hlos_cb_data,
                                                hlos_resp_cb,
                                                CRI_CORE_MAX_TIMEOUT,
-                                               NULL,
-                                               NULL,
                                                NULL);
 
     }

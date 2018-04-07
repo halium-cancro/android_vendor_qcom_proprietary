@@ -29,6 +29,10 @@ typedef struct
    boolean ims_status_change_registered;
    uint8_t ims_registered_valid;
    uint8_t ims_registered;
+   uint8_t ims_registration_error_code_valid;
+   uint16_t ims_registration_error_code;
+   uint8_t ims_registration_error_string_valid;
+   char *ims_registration_error_string;
    uint8_t ims_srv_status_valid;
    qcril_qmi_imsa_srv_status_type ims_srv_status;
 } qcril_qmi_imsa_info_type;
@@ -47,7 +51,11 @@ static void qcril_qmi_imsa_store_service_status_cl(
     uint8_t voip_service_rat_valid,
     imsa_service_rat_enum_v01 voip_service_rat,
     uint8_t vt_service_rat_valid,
-    imsa_service_rat_enum_v01 vt_service_rat
+    imsa_service_rat_enum_v01 vt_service_rat,
+    uint8_t ut_service_status_valid,
+    imsa_service_status_enum_v01 ut_service_status,
+    uint8_t ut_service_rat_valid,
+    imsa_service_rat_enum_v01 ut_service_rat
 );
 
 //===========================================================================
@@ -138,7 +146,83 @@ void qcril_qmi_imsa_init()
 
    QCRIL_LOG_FUNC_RETURN();
 } // qcril_qmi_imsa_init
+//===========================================================================
+// qcril_qmi_imsa_store_registration_status
+//===========================================================================
+void qcril_qmi_imsa_store_registration_status(
+      uint8_t ims_registered_valid,
+      uint8_t ims_registered,
+      uint8_t ims_registration_error_code_valid,
+      uint16_t ims_registration_error_code,
+      uint8_t ims_registration_error_string_valid,
+      char *ims_registration_error_string )
+{
+      qcril_qmi_imsa_info.ims_registered_valid = ims_registered_valid;
+      qcril_qmi_imsa_info.ims_registered = ims_registered;
 
+      qcril_qmi_imsa_info.ims_registration_error_code_valid = ims_registration_error_code_valid;
+      qcril_qmi_imsa_info.ims_registration_error_code = ims_registration_error_code;
+
+      if(qcril_qmi_imsa_info.ims_registration_error_string != NULL)
+      {
+        qcril_free(qcril_qmi_imsa_info.ims_registration_error_string);
+        qcril_qmi_imsa_info.ims_registration_error_string = NULL;
+      }
+      qcril_qmi_imsa_info.ims_registration_error_string_valid = ims_registration_error_string_valid;
+      qcril_qmi_imsa_info.ims_registration_error_string = qcril_malloc(strlen(ims_registration_error_string) + 1);
+      if(qcril_qmi_imsa_info.ims_registration_error_string != NULL)
+      {
+          strlcpy(qcril_qmi_imsa_info.ims_registration_error_string, ims_registration_error_string,
+                  strlen(ims_registration_error_string) + 1);
+      }
+}
+//===========================================================================
+// qcril_qmi_imsa_get_ims_registration_info
+//===========================================================================
+Ims__Registration* qcril_qmi_imsa_get_ims_registration_info()
+{
+    Ims__Registration* reg_ptr = NULL;
+    reg_ptr = qcril_malloc(sizeof(*reg_ptr));
+    boolean failure = FALSE;
+    if(reg_ptr != NULL)
+    {
+        qcril_qmi_ims__registration__init(reg_ptr);
+        reg_ptr->has_state = FALSE;
+        if(qcril_qmi_imsa_info.ims_registered_valid)
+        {
+            reg_ptr->has_state = TRUE;
+            reg_ptr->state = qcril_qmi_ims_map_qmi_ims_reg_state_to_ims_reg_state(qcril_qmi_imsa_info.ims_registered);
+            QCRIL_LOG_INFO("ims_registered: %d", qcril_qmi_imsa_info.ims_registered);
+        }
+        reg_ptr->has_errorcode = FALSE;
+        if(qcril_qmi_imsa_info.ims_registration_error_code_valid)
+        {
+            reg_ptr->has_errorcode = TRUE;
+            reg_ptr->errorcode = qcril_qmi_imsa_info.ims_registration_error_code;
+            QCRIL_LOG_INFO("ims registration error code: %d", qcril_qmi_imsa_info.ims_registration_error_code);
+        }
+        if(qcril_qmi_imsa_info.ims_registration_error_string_valid && strlen(qcril_qmi_imsa_info.ims_registration_error_string) > 0)
+        {
+            reg_ptr->errormessage = qcril_malloc(strlen(qcril_qmi_imsa_info.ims_registration_error_string) + 1);
+            if(reg_ptr->errormessage != NULL)
+            {
+                strlcpy(reg_ptr->errormessage, qcril_qmi_imsa_info.ims_registration_error_string,
+                        strlen(qcril_qmi_imsa_info.ims_registration_error_string) + 1);
+                QCRIL_LOG_INFO("ims registration error message: %s", qcril_qmi_imsa_info.ims_registration_error_string);
+            }
+            else
+            {
+                failure = TRUE;
+            }
+        }
+    }
+    if(failure)
+    {
+        qcril_qmi_ims_free_ims_registration(reg_ptr);
+        reg_ptr = NULL;
+    }
+  return reg_ptr;
+}
 //===========================================================================
 // qcril_qmi_imsa_reg_status_ind_hdlr
 //===========================================================================
@@ -149,11 +233,34 @@ void qcril_qmi_imsa_reg_status_ind_hdlr(void *ind_data_ptr)
    if (NULL != reg_ind_msg_ptr)
    {
       qcril_qmi_imsa_info_lock();
-      qcril_qmi_imsa_info.ims_registered_valid = TRUE;
-      qcril_qmi_imsa_info.ims_registered = reg_ind_msg_ptr->ims_registered;
+      uint8_t ims_reg_status = reg_ind_msg_ptr->ims_reg_status;
+
+      if (!reg_ind_msg_ptr->ims_reg_status_valid)
+      {
+          ims_reg_status = (reg_ind_msg_ptr->ims_registered ?
+                            IMSA_STATUS_REGISTERED_V01 :
+                            IMSA_STATUS_NOT_REGISTERED_V01);
+      }
+
+      qcril_qmi_imsa_store_registration_status(TRUE,
+                                               ims_reg_status,
+                                               reg_ind_msg_ptr->ims_registration_failure_error_code_valid,
+                                               reg_ind_msg_ptr->ims_registration_failure_error_code,
+                                               reg_ind_msg_ptr->registration_error_string_valid,
+                                               reg_ind_msg_ptr->registration_error_string);
+
+      QCRIL_LOG_INFO("here: string gotten: %s", reg_ind_msg_ptr->registration_error_string);
       QCRIL_LOG_INFO("ims_registered: %d", qcril_qmi_imsa_info.ims_registered);
+
+      Ims__Registration *reg_ptr = qcril_qmi_imsa_get_ims_registration_info();
       qcril_qmi_imsa_info_unlock();
-      qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE, IMS__MSG_ID__UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED, IMS__ERROR__E_SUCCESS, NULL, 0);
+      if(reg_ptr != NULL)
+      {
+          qcril_qmi_ims_socket_send(0, IMS__MSG_TYPE__UNSOL_RESPONSE,
+                                    IMS__MSG_ID__UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED,
+                                    IMS__ERROR__E_SUCCESS, reg_ptr, sizeof(*reg_ptr));
+          qcril_qmi_ims_free_ims_registration(reg_ptr);
+      }
    }
    else
    {
@@ -177,7 +284,11 @@ void qcril_qmi_imsa_store_service_status_cl(
     uint8_t voip_service_rat_valid,
     imsa_service_rat_enum_v01 voip_service_rat,
     uint8_t vt_service_rat_valid,
-    imsa_service_rat_enum_v01 vt_service_rat
+    imsa_service_rat_enum_v01 vt_service_rat,
+    uint8_t ut_service_status_valid,
+    imsa_service_status_enum_v01 ut_service_status,
+    uint8_t ut_service_rat_valid,
+    imsa_service_rat_enum_v01 ut_service_rat
 )
 {
     qcril_qmi_imsa_info.ims_srv_status_valid = TRUE;
@@ -199,6 +310,12 @@ void qcril_qmi_imsa_store_service_status_cl(
 
     qcril_qmi_imsa_info.ims_srv_status.vt_service_rat_valid = vt_service_rat_valid;
     qcril_qmi_imsa_info.ims_srv_status.vt_service_rat = vt_service_rat;
+
+    qcril_qmi_imsa_info.ims_srv_status.ut_service_status_valid = ut_service_status_valid;
+    qcril_qmi_imsa_info.ims_srv_status.ut_service_status = ut_service_status;
+
+    qcril_qmi_imsa_info.ims_srv_status.ut_service_rat_valid = ut_service_rat_valid;
+    qcril_qmi_imsa_info.ims_srv_status.ut_service_rat = ut_service_rat;
 } // qcril_qmi_imsa_store_service_status_cl
 
 //===========================================================================
@@ -224,10 +341,16 @@ void qcril_qmi_imsa_service_status_ind_hdlr(void *ind_data_ptr)
             service_ind_msg_ptr->voip_service_rat_valid,
             service_ind_msg_ptr->voip_service_rat,
             service_ind_msg_ptr->vt_service_rat_valid,
-            service_ind_msg_ptr->vt_service_rat );
+            service_ind_msg_ptr->vt_service_rat,
+            service_ind_msg_ptr->ut_service_status_valid,
+            service_ind_msg_ptr->ut_service_status,
+            service_ind_msg_ptr->ut_service_rat_valid,
+            service_ind_msg_ptr->ut_service_rat );
 
         Ims__SrvStatusList *ims_srv_status_list_ptr = qcril_qmi_ims_create_ims_srvstatusinfo(
                                                           &qcril_qmi_imsa_info.ims_srv_status );
+
+        qcril_qmi_imsa_info_unlock();
 
         if (ims_srv_status_list_ptr)
         {
@@ -240,10 +363,11 @@ void qcril_qmi_imsa_service_status_ind_hdlr(void *ind_data_ptr)
                 sizeof(*ims_srv_status_list_ptr) );
             qcril_qmi_ims_free_srvstatuslist(ims_srv_status_list_ptr);
 
+#ifndef QMI_RIL_UTF
             qcril_am_handle_event(QCRIL_AM_EVENT_IMS_SRV_CHANGED, NULL);
+#endif
         }
 
-        qcril_qmi_imsa_info_unlock();
     }
     else
     {
@@ -275,6 +399,20 @@ static void qcril_qmi_imsa_rat_handover_status_ind_hdlr(void *ind_data_ptr)
                     ims_handover_ptr,
                     sizeof(*ims_handover_ptr) );
                 qcril_qmi_ims_free_ims_handover(ims_handover_ptr);
+
+                QCRIL_LOG_DEBUG("rat_ho_status = %d, source_rat = %d, target_rat = %d\n",
+                        rat_ho_ind_msg_ptr->rat_ho_status_info.rat_ho_status,
+                        rat_ho_ind_msg_ptr->rat_ho_status_info.source_rat,
+                        rat_ho_ind_msg_ptr->rat_ho_status_info.target_rat)
+
+                if (rat_ho_ind_msg_ptr->rat_ho_status_info.rat_ho_status ==
+                        IMSA_STATUS_RAT_HO_SUCCESS_V01)
+                {
+#ifndef QMI_RIL_UTF
+                    qcril_am_handle_event(QCRIL_AM_EVENT_IMS_HANDOVER,
+                            &rat_ho_ind_msg_ptr->rat_ho_status_info.target_rat);
+#endif
+                }
             }
             else
             {
@@ -305,6 +443,7 @@ void qcril_qmi_imsa_unsol_ind_cb_helper
   void* decoded_payload = NULL;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   if( NULL != params_ptr && NULL != params_ptr->data )
   {
@@ -384,11 +523,11 @@ void qcril_qmi_imsa_unsol_ind_cb_helper
 //===========================================================================
 void qcril_qmi_imsa_unsol_ind_cb
 (
-  qmi_client_type                user_handle,
-  unsigned long                  msg_id,
-  unsigned char                  *ind_buf,
-  int                            ind_buf_len,
-  void                           *ind_cb_data
+  qmi_client_type    user_handle,
+  unsigned int       msg_id,
+  void              *ind_buf,
+  unsigned int       ind_buf_len,
+  void              *ind_cb_data
 )
 {
   qmi_ind_callback_type qmi_callback;
@@ -435,26 +574,46 @@ void qcril_qmi_imsa_get_reg_status_resp_hdlr
    if( NULL != params_ptr && NULL != params_ptr->data )
    {
       resp_msg_ptr = (imsa_get_registration_status_resp_msg_v01 *)params_ptr->data;
-      if (QMI_RESULT_SUCCESS_V01 == resp_msg_ptr->resp.result && resp_msg_ptr->ims_registered_valid )
+
+      if (QMI_RESULT_SUCCESS_V01 == resp_msg_ptr->resp.result &&
+          (resp_msg_ptr->ims_reg_status_valid || resp_msg_ptr->ims_registered_valid))
       {
          qcril_qmi_imsa_info_lock();
-         qcril_qmi_imsa_info.ims_registered_valid = TRUE;
-         qcril_qmi_imsa_info.ims_registered = resp_msg_ptr->ims_registered;
-         QCRIL_LOG_INFO("ims_registered: %d", qcril_qmi_imsa_info.ims_registered);
+         uint8_t ims_reg_status = resp_msg_ptr->ims_reg_status;
 
-         Ims__Registration reg = IMS__REGISTRATION__INIT;
-         reg.has_state = TRUE;
-         reg.state = qcril_qmi_ims_map_qmi_ims_reg_state_to_ims_reg_state(qcril_qmi_imsa_info.ims_registered);
-         qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE, IMS__ERROR__E_SUCCESS, &reg, sizeof(reg));
+         if (!resp_msg_ptr->ims_reg_status_valid)
+         {
+             ims_reg_status = (resp_msg_ptr->ims_registered ?
+                               IMSA_STATUS_REGISTERED_V01 :
+                               IMSA_STATUS_NOT_REGISTERED_V01);
+         }
+
+         qcril_qmi_imsa_store_registration_status(TRUE,
+                                                  ims_reg_status,
+                                                  resp_msg_ptr->ims_registration_failure_error_code_valid,
+                                                  resp_msg_ptr->ims_registration_failure_error_code,
+                                                  resp_msg_ptr->registration_error_string_valid,
+                                                  resp_msg_ptr->registration_error_string);
+
+         Ims__Registration *reg_ptr = qcril_qmi_imsa_get_ims_registration_info();
          qcril_qmi_imsa_info_unlock();
+         if(reg_ptr != NULL)
+         {
+             qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE,
+                                       IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE,
+                                       IMS__ERROR__E_SUCCESS, reg_ptr, sizeof(*reg_ptr));
+             qcril_qmi_ims_free_ims_registration(reg_ptr);
+         }
       }
       else
       {
-         QCRIL_LOG_INFO("error: %d", resp_msg_ptr->resp.error);
-         qcril_qmi_imsa_info_lock();
-         qcril_qmi_imsa_info.ims_registered_valid = FALSE;
-         qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE, IMS__ERROR__E_GENERIC_FAILURE, NULL, 0);
-         qcril_qmi_imsa_info_unlock();
+          QCRIL_LOG_INFO("error: %d", resp_msg_ptr->resp.error);
+          qcril_qmi_imsa_info_lock();
+          qcril_qmi_imsa_info.ims_registered_valid = FALSE;
+          qcril_qmi_imsa_info.ims_registration_error_code_valid = FALSE;
+          qcril_qmi_imsa_info.ims_registration_error_string_valid = FALSE;
+          qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE, IMS__ERROR__E_GENERIC_FAILURE, NULL, 0);
+          qcril_qmi_imsa_info_unlock();
       }
    }
    else
@@ -521,10 +680,16 @@ void qcril_qmi_imsa_get_service_status_resp_hdlr
                 resp_msg_ptr->voip_service_rat_valid,
                 resp_msg_ptr->voip_service_rat,
                 resp_msg_ptr->vt_service_rat_valid,
-                resp_msg_ptr->vt_service_rat );
+                resp_msg_ptr->vt_service_rat,
+                resp_msg_ptr->ut_service_status_valid,
+                resp_msg_ptr->ut_service_status,
+                resp_msg_ptr->ut_service_rat_valid,
+                resp_msg_ptr->ut_service_rat );
 
             Ims__SrvStatusList *ims_srv_status_list_ptr = qcril_qmi_ims_create_ims_srvstatusinfo(
                                                               &qcril_qmi_imsa_info.ims_srv_status );
+
+            qcril_qmi_imsa_info_unlock();
 
             if (ims_srv_status_list_ptr)
             {
@@ -537,7 +702,9 @@ void qcril_qmi_imsa_get_service_status_resp_hdlr
                     sizeof(*ims_srv_status_list_ptr) );
                 qcril_qmi_ims_free_srvstatuslist(ims_srv_status_list_ptr);
 
+#ifndef QMI_RIL_UTF
                 qcril_am_handle_event(QCRIL_AM_EVENT_IMS_SRV_CHANGED, NULL);
+#endif
             }
             else
             {
@@ -549,7 +716,6 @@ void qcril_qmi_imsa_get_service_status_resp_hdlr
                     NULL,
                     0 );
             }
-            qcril_qmi_imsa_info_unlock();
         }
         else
         {
@@ -591,6 +757,7 @@ void qcril_qmi_imsa_command_cb_helper
   qmi_resp_callback_type * qmi_resp_callback = NULL;
 
   QCRIL_LOG_FUNC_ENTRY();
+  QCRIL_NOTUSED(ret_ptr);
 
   if( NULL != params_ptr && NULL != params_ptr->data )
   {
@@ -616,55 +783,48 @@ void qcril_qmi_imsa_command_cb_helper
        }
        else
        {
-          if ( qmi_resp_callback->cb_data != NULL )
+          user_data = ( uint32 )(uintptr_t) qmi_resp_callback->cb_data;
+          instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( user_data );
+          req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( user_data );
+          req_data.instance_id = instance_id;
+          req_data.modem_id = QCRIL_DEFAULT_MODEM_ID;
+          /* Lookup the Token ID */
+          if ( qcril_reqlist_query_by_req_id( req_id, &instance_id, &req_info ) == E_SUCCESS )
           {
-             user_data = ( uint32 ) qmi_resp_callback->cb_data;
-             instance_id = QCRIL_EXTRACT_INSTANCE_ID_FROM_USER_DATA( user_data );
-             req_id = QCRIL_EXTRACT_USER_ID_FROM_USER_DATA( user_data );
-             req_data.instance_id = instance_id;
-             req_data.modem_id = QCRIL_DEFAULT_MODEM_ID;
-             /* Lookup the Token ID */
-             if ( qcril_reqlist_query_by_req_id( req_id, &instance_id, &req_info ) == E_SUCCESS )
-             {
-               if( qmi_resp_callback->transp_err != QMI_NO_ERR )
-               {
-                 QCRIL_LOG_INFO("Transp error (%d) recieved from QMI for RIL request %d", qmi_resp_callback->transp_err, req_info.request);
-                 qcril_send_empty_payload_request_response( instance_id, req_info.t, req_info.request, RIL_E_GENERIC_FAILURE ); // Send GENERIC_FAILURE response
-               }
-               else
-               {
-                 req_data.t = req_info.t;
-                 req_data.event_id = req_info.request;
-                 switch(qmi_resp_callback->msg_id)
-                 {
-                 case QMI_IMSA_GET_REGISTRATION_STATUS_RSP_V01:
-                   qcril_qmi_imsa_get_reg_status_resp_hdlr(&req_data);
-                   break;
-                 case QMI_IMSA_GET_SERVICE_STATUS_RSP_V01:
-                   qcril_qmi_imsa_get_service_status_resp_hdlr(&req_data);
-                   break;
+            if( qmi_resp_callback->transp_err != QMI_NO_ERR )
+            {
+              QCRIL_LOG_INFO("Transp error (%d) recieved from QMI for RIL request %d", qmi_resp_callback->transp_err, req_info.request);
+              qcril_send_empty_payload_request_response( instance_id, req_info.t, req_info.request, RIL_E_GENERIC_FAILURE ); // Send GENERIC_FAILURE response
+            }
+            else
+            {
+              req_data.t = req_info.t;
+              req_data.event_id = req_info.request;
+              switch(qmi_resp_callback->msg_id)
+              {
+              case QMI_IMSA_GET_REGISTRATION_STATUS_RSP_V01:
+                qcril_qmi_imsa_get_reg_status_resp_hdlr(&req_data);
+                break;
+              case QMI_IMSA_GET_SERVICE_STATUS_RSP_V01:
+                qcril_qmi_imsa_get_service_status_resp_hdlr(&req_data);
+                break;
 
-                 default:
-                     QCRIL_LOG_INFO("Unsupported QMI IMSA message %d", qmi_resp_callback->msg_id);
-                     break;
-                 }
-               }
-             }
-             else
-             {
-               QCRIL_LOG_ERROR( "Req ID: %d not found", req_id );
-             }
+              default:
+                  QCRIL_LOG_INFO("Unsupported QMI IMSA message %d", qmi_resp_callback->msg_id);
+                  break;
+              }
+            }
           }
           else
           {
-             QCRIL_LOG_ERROR( "qmi_resp_callback->cb_data is NULL" );
+            QCRIL_LOG_ERROR( "Req ID: %d not found", req_id );
           }
        }
        qcril_free( qmi_resp_callback->data_buf );
     }
     else
     {
-       QCRIL_LOG_ERROR("qmi_resp_callback->cb_data is NULL");
+       QCRIL_LOG_ERROR("qmi_resp_callback->data_buf is NULL");
     }
   }
   else
@@ -681,10 +841,10 @@ void qcril_qmi_imsa_command_cb_helper
 void qcril_qmi_imsa_command_cb
 (
    qmi_client_type              user_handle,
-   unsigned long                msg_id,
-   void                         *resp_c_struct,
-   int                          resp_c_struct_len,
-   void                         *resp_cb_data,
+   unsigned int                 msg_id,
+   void                        *resp_c_struct,
+   unsigned int                 resp_c_struct_len,
+   void                        *resp_cb_data,
    qmi_client_error_type        transp_err
 )
 {
@@ -737,13 +897,17 @@ void qcril_qmi_imsa_request_ims_registration_state
   {
     if (qcril_qmi_imsa_info.inited)
     {
-       if (qcril_qmi_imsa_info.ims_registered_valid && qcril_qmi_imsa_info.ims_status_change_registered)
-       {
-          QCRIL_LOG_INFO("ims_registered: %d", qcril_qmi_imsa_info.ims_registered);
-          Ims__Registration reg = IMS__REGISTRATION__INIT;
-          reg.has_state = TRUE;
-          reg.state = qcril_qmi_ims_map_qmi_ims_reg_state_to_ims_reg_state(qcril_qmi_imsa_info.ims_registered);
-          qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE, IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE, RIL_E_SUCCESS, &reg, sizeof(reg));
+        if(qcril_qmi_imsa_info.ims_registered_valid || qcril_qmi_imsa_info.ims_registration_error_code_valid ||
+           qcril_qmi_imsa_info.ims_registration_error_string_valid)
+        {
+            Ims__Registration *reg_ptr = qcril_qmi_imsa_get_ims_registration_info();
+            if(reg_ptr != NULL)
+            {
+                qcril_qmi_ims_socket_send(params_ptr->t, IMS__MSG_TYPE__RESPONSE,
+                                          IMS__MSG_ID__REQUEST_IMS_REGISTRATION_STATE,
+                                          RIL_E_SUCCESS, reg_ptr, sizeof(*reg_ptr));
+                qcril_qmi_ims_free_ims_registration(reg_ptr);
+            }
        }
        else
        {
@@ -781,7 +945,7 @@ void qcril_qmi_imsa_request_ims_registration_state
                                           0,
                                           response_msg,
                                           sizeof(*response_msg),
-                                          (void *) user_data) != QMI_NO_ERR)
+                                          (void *)(uintptr_t) user_data) != QMI_NO_ERR)
             {
               qcril_send_empty_payload_request_response( instance_id, params_ptr->t,
                                   params_ptr->event_id, RIL_E_GENERIC_FAILURE );
@@ -826,10 +990,10 @@ void qcril_qmi_imsa_request_query_ims_srv_status
     QCRIL_NOTUSED( ret_ptr );
 
     QCRIL_LOG_FUNC_ENTRY();
-    qcril_qmi_imsa_info_lock();
 
     if( NULL != params_ptr )
     {
+        qcril_qmi_imsa_info_lock();
         if (qcril_qmi_imsa_info.inited)
         {
             if (qcril_qmi_imsa_info.ims_srv_status_valid && qcril_qmi_imsa_info.ims_status_change_registered)
@@ -879,7 +1043,7 @@ void qcril_qmi_imsa_request_query_ims_srv_status
                              QMI_IMSA_GET_SERVICE_STATUS_REQ_V01,
                              NULL, 0,
                              response_msg, sizeof(*response_msg),
-                             (void *) user_data) != QMI_NO_ERR )
+                             (void *)(uintptr_t) user_data) != QMI_NO_ERR )
                     {
                         failed = TRUE;
                         break;

@@ -102,6 +102,11 @@ void qcrilhook_oem
 )
 {
   /* nothing to do here, has to done by oem */
+    QCRILHOOK_NOTUSED(instance_id);
+    QCRILHOOK_NOTUSED(request);
+    QCRILHOOK_NOTUSED(data);
+    QCRILHOOK_NOTUSED(data_len);
+    QCRILHOOK_NOTUSED(t);
 } /* end of qcrilhook_oem */
 
 

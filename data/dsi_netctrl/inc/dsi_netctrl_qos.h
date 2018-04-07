@@ -62,6 +62,7 @@ typedef qmi_qos_status_info             dsi_qos_status_type;
 typedef qmi_qos_reason_code             dsi_qmi_qos_reason_code_type;
 
 typedef qmi_qos_spec_type               dsi_qos_spec_type;
+typedef qmi_qos_granted_filter_data_type dsi_qos_granted_filter_data_type;
 typedef qmi_qos_flow_req_type           dsi_qos_flow_req_type;
 typedef qmi_qos_filter_req_type         dsi_qos_filter_req_type;
 typedef qmi_qos_umts_traffic_class_type dsi_qos_umts_traffic_class_type;
@@ -323,6 +324,7 @@ extern int dsi_resume_qos
 
     @param[in] hndl Handle received from dsi_get_data_srvc_hndl().
     @param[in] qos_id QoS flow handle.
+    @param[in] ip_family specify ip family - AF_INET or AF_INET6
     @param[out] qos_info QoS information returned from the modem.
 
     @return
@@ -339,6 +341,7 @@ extern int dsi_get_granted_qos
 (
   dsi_hndl_t                 hndl,
   dsi_qos_id_type            qos_id,
+  int                        ip_family,
   dsi_qos_granted_info_type *qos_info
 );
 

@@ -12,8 +12,15 @@
   Qualcomm Technologies Proprietary and Confidential.
 ===========================================================================*/
 
+#ifndef QCRIL_QMI_GENERIC_SOCKET_H
+#define QCRIL_QMI_GENERIC_SOCKET_H
+
 #ifdef  __cplusplus
 extern "C" {
+#endif
+
+#ifdef QMI_RIL_UTF
+#define __STDC_LIMIT_MACROS
 #endif
 
 #include <sys/types.h>
@@ -22,7 +29,7 @@ extern "C" {
 #include "qcril_other.h"
 #include "qcril_arb.h"
 
-#define QCRIL_QMI_GENERIC_SOCKET_MAX_BUF_SIZE    1024
+#define QCRIL_QMI_GENERIC_SOCKET_MAX_BUF_SIZE    (1024*8)
 #define QCRIL_QMI_GENERIC_SOCKET_PATH_SIZE       100
 #define QCRIL_QMI_LENGTH_MESSAGE_LENGTH          4
 
@@ -34,7 +41,8 @@ public:
     boolean is_socket_server_started() { return (listen_sid != 0); }
     boolean is_socket_connected()  { return (conn_sid != 0); }
     qcril_qmi_generic_socket_agent(int max_conn);
-    virtual ~qcril_qmi_generic_socket_agent() {};
+
+    virtual ~qcril_qmi_generic_socket_agent();
 
 private:
 
@@ -53,9 +61,14 @@ protected:
     uint8_t                  recv_buffer[QCRIL_QMI_GENERIC_SOCKET_MAX_BUF_SIZE];
     int                      recv_byte_num;
     int                      max_connections;
+#ifdef QMI_RIL_UTF
+    int shutdown_request;
+#endif
 
 };
 
 #ifdef  __cplusplus
 }
 #endif
+
+#endif // QCRIL_QMI_GENERIC_SOCKET_H

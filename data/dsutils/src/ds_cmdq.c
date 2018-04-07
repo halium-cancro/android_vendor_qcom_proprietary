@@ -59,16 +59,16 @@ when       who        what, where, why
 ===========================================================================*/
 /*!
 @brief
-  The main function of Command Thread. Sits in a forever loop, waiting for 
-  commands to be enqueued, and executes them one by one in a FIFO manner. 
+  The main function of Command Thread. Sits in a forever loop, waiting for
+  commands to be enqueued, and executes them one by one in a FIFO manner.
 
 @return
-  void * - NULL (This function does not return.)
+  void * - 0 on success, -1 on failure
 
 @note
 
   - Dependencies
-    - Requires Command Thread data structures to have been initialized 
+    - Requires Command Thread data structures to have been initialized
 
   - Side Effects
     - None
@@ -79,7 +79,12 @@ static void * ds_cmdthrd_main (void * info)
   ds_cmd_t * cmd;
   struct ds_cmdq_info_s * cmdq = (struct ds_cmdq_info_s *)info;
 
-  ds_assert( cmdq );
+  /* validate input param */
+  if( NULL == cmdq ) {
+    ds_log_err("ds_cmdthrd_main: Bad Param cmdq NULL");
+    return (void*)-1;
+  }
+
   cmdq->running = TRUE;
 
   /* Loop indefinitely, processing commands one by one */
@@ -93,12 +98,12 @@ static void * ds_cmdthrd_main (void * info)
     /* Try to dequeue command */
     if ((cmd = ds_cmdq_deq(cmdq)) == NULL) {
       /* No command in queue. Go to sleep on condition variable */
-      if (pthread_cond_wait(&cmdq->cond, &cmdq->mutx) 
-          != 0) 
+      if (pthread_cond_wait(&cmdq->cond, &cmdq->mutx)
+          != 0)
       {
         ds_log_sys_err("pthread_cond_wait failed:");
         /* Release mutex*/
-        if (pthread_mutex_unlock(&cmdq->mutx) != 0) 
+        if (pthread_mutex_unlock(&cmdq->mutx) != 0)
         {
           ds_log_sys_err("pthread_mutex_unlock failed:");
         }
@@ -112,8 +117,8 @@ static void * ds_cmdthrd_main (void * info)
         return(void*) -1;
       }
     } else {
-      /* Dequeued valid command. Release mutex first before processing 
-      ** command. 
+      /* Dequeued valid command. Release mutex first before processing
+      ** command.
       */
       if (pthread_mutex_unlock(&cmdq->mutx) != 0) {
         ds_log_sys_err("pthread_mutex_unlock failed:");
@@ -121,7 +126,10 @@ static void * ds_cmdthrd_main (void * info)
       }
 
       /* Double check that execute func ptr is set in the cmd object */
-      ds_assert(cmd->execute_f != NULL);
+      if( NULL == cmd->execute_f) {
+        ds_log_err("ds_cmdthrd_main: NULL for cmd->execute_f");
+        return (void*)-1;
+      }
 
       /* Execute command */
       (*(cmd->execute_f))(cmd, cmd->data);
@@ -131,7 +139,7 @@ static void * ds_cmdthrd_main (void * info)
         (*(cmd->free_f))(cmd, cmd->data);
     }
   } /* end of while */
-  
+
   return (void*)0;
 }
 
@@ -140,16 +148,16 @@ static void * ds_cmdthrd_main (void * info)
 ===========================================================================*/
 /*!
 @brief
-  Function for initializing and starting Command Thread. Must be called 
-  before clients can post commands for execution in Command Thread context. 
+  Function for initializing and starting Command Thread. Must be called
+  before clients can post commands for execution in Command Thread context.
 
 @return
-  void 
+  void
 
 @note
 
   - Dependencies
-    - None  
+    - None
 
   - Side Effects
     - None
@@ -157,12 +165,16 @@ static void * ds_cmdthrd_main (void * info)
 /*=========================================================================*/
 static void ds_cmdthrd_init( struct ds_cmdq_info_s * cmdq )
 {
-  ds_assert( cmdq );
-  
+  /* validate input param */
+  if(NULL == cmdq) {
+    ds_log_err("ds_cmdthrd_init: Bad Param cmdq NULL");
+    return;
+  }
+
   /* Start command thread */
-  if( 0 != pthread_create( &cmdq->thrd, 
-                           NULL, 
-                           ds_cmdthrd_main, 
+  if( 0 != pthread_create( &cmdq->thrd,
+                           NULL,
+                           ds_cmdthrd_main,
                            (void*)cmdq ) )
   {
     ds_log_sys_err("Cannot start cmdthrd:");
@@ -178,7 +190,7 @@ static void ds_cmdthrd_init( struct ds_cmdq_info_s * cmdq )
   Set flag to trigger Command Thread to exit.
 
 @return
-  None 
+  None
 
 @note
 
@@ -191,7 +203,11 @@ static void ds_cmdthrd_init( struct ds_cmdq_info_s * cmdq )
 /*=========================================================================*/
 static void ds_cmdthrd_deinit( struct ds_cmdq_info_s * cmdq )
 {
-  ds_assert( cmdq );
+  /* validate input param */
+  if(NULL == cmdq) {
+    ds_log_err("ds_cmdthrd_deinit: Bad Param cmdq NULL");
+    return;
+  }
 
   /* Terminate command thread */
   cmdq->running = FALSE;
@@ -268,16 +284,16 @@ void ds_cmdq_release_cmd
 ===========================================================================*/
 /*!
 @brief
-  Used by clients to enqueue a command to the Command Thread's list of 
-  pending commands and execute it in the Command Thread context.  
+  Used by clients to enqueue a command to the Command Thread's list of
+  pending commands and execute it in the Command Thread context.
 
 @return
-  int - 0 on success, -1 on failure 
+  int - 0 on success, -1 on failure
 
 @note
 
   - Dependencies
-    - Assumes Command Thread has been initialized and is running.  
+    - Assumes Command Thread has been initialized and is running.
 
   - Side Effects
     - None
@@ -292,7 +308,10 @@ int ds_cmdq_enq
   ds_dll_el_t * node;
 
   /* Doesn't make sense to have a null execute function ptr */
-  ds_assert(cmd->execute_f != NULL);
+  if(NULL == cmd->execute_f) {
+    ds_log_err("ds_cmdq_enq: Bad Param cmd->execute_f NULL");
+    return -1;
+  }
 
   /* Make sure we have space for enqueuing the command */
   if (cmdq->nel > cmdq->nmax) {
@@ -308,11 +327,11 @@ int ds_cmdq_enq
   }
 
   /* Enqueue command to the tail of the command list */
-  if ((node = ds_dll_enq(cmdq->tail, NULL, cmd)) == NULL) 
+  if ((node = ds_dll_enq(cmdq->tail, NULL, cmd)) == NULL)
   {
     ds_log_err("Failed to insert into cmdq\n");
     /* Release mutex*/
-    if (pthread_mutex_unlock(&cmdq->mutx) != 0) 
+    if (pthread_mutex_unlock(&cmdq->mutx) != 0)
     {
       ds_log_sys_err("pthread_mutex_unlock failed:");
     }
@@ -324,15 +343,15 @@ int ds_cmdq_enq
   /* Increment number of commands in list */
   ++cmdq->nel;
 
-  /* If list was empty before we enqueued this command, signal the command 
-  ** thread to wake up and process the command. 
+  /* If list was empty before we enqueued this command, signal the command
+  ** thread to wake up and process the command.
   */
   if (cmdq->nel == 1) {
-    if (pthread_cond_signal(&cmdq->cond) != 0) 
+    if (pthread_cond_signal(&cmdq->cond) != 0)
     {
       ds_log_sys_err("pthread_cond_signal failed:");
       /* Release mutex*/
-      if (pthread_mutex_unlock(&cmdq->mutx) != 0) 
+      if (pthread_mutex_unlock(&cmdq->mutx) != 0)
       {
         ds_log_sys_err("pthread_mutex_unlock failed:");
       }
@@ -356,7 +375,7 @@ int ds_cmdq_enq
 ===========================================================================*/
 /*!
 @brief
-  Dequeues the first command from the FIFO list of commands pending 
+  Dequeues the first command from the FIFO list of commands pending
   execution and returns a pointer to it.  Caller must handle NULL return,
   indicating no command buffer was available.
 
@@ -366,8 +385,8 @@ int ds_cmdq_enq
 @note
 
   - Dependencies
-    - Caller must acquire the Command Thread mutex before calling this 
-      function, as this function does not do any locking itself. 
+    - Caller must acquire the Command Thread mutex before calling this
+      function, as this function does not do any locking itself.
 
   - Side Effects
     - None
@@ -378,12 +397,17 @@ ds_cmd_t * ds_cmdq_deq( struct ds_cmdq_info_s * cmdq )
   ds_dll_el_t * node = NULL;
   ds_cmd_t * cmd = NULL;
 
-  ds_assert( cmdq );
-  
+  /* validate input param */
+  if(NULL == cmdq) {
+    ds_log_err("ds_cmdq_deq: Bad Param cmdq NULL");
+    return NULL;
+  }
+
+
   /* Dequeue next command from the head of the list */
   if (NULL !=
-      (node = ds_dll_deq( cmdq->head, 
-                          &cmdq->tail, 
+      (node = ds_dll_deq( cmdq->head,
+                          &cmdq->tail,
                           (void *)&cmd) ) )
   {
     /* Valid command dequeued. Decrement number of cmds in list */
@@ -410,7 +434,7 @@ ds_cmd_t * ds_cmdq_deq( struct ds_cmdq_info_s * cmdq )
   never).
 
 @return
-  int - 0 on success, -1 on failure 
+  int - 0 on success, -1 on failure
 
 @note
 
@@ -426,19 +450,23 @@ int ds_cmdq_join_thread
   const struct ds_cmdq_info_s * cmdq
 )
 {
-  ds_assert( cmdq );
+  /* validate input param */
+  if(NULL == cmdq) {
+    ds_log_err("ds_cmdq_join_thread: Bad Param cmdq NULL\n");
+    return -1;
+  }
 
   if( 0 == cmdq->thrd ) {
     ds_log_err("Command thread not initialized\n");
     return -1;
   }
-  
+
   /* Join on the command thread */
   if( 0 != pthread_join( cmdq->thrd, NULL ) ) {
     ds_log_sys_err("pthread_join failed:");
     return -1;
   }
-  
+
   return 0;
 }
 
@@ -450,7 +478,7 @@ int ds_cmdq_join_thread
   Terminates the Command Thread and purges all pending commands in queue.
 
 @return
-  int - 0 on success, -1 on failure 
+  int - 0 on success, -1 on failure
 
 @note
 
@@ -467,9 +495,13 @@ int ds_cmdq_deinit
 )
 {
   ds_cmd_t * cmd = NULL;
-  
-  ds_assert( cmdq );
-  
+
+  /* validate input param */
+  if(NULL == cmdq) {
+    ds_log_err("ds_cmdq_join_thread: Bad Param cmdq NULL\n");
+    return -1;
+  }
+
   /* Kill command processing thread */
   ds_cmdthrd_deinit( cmdq );
 
@@ -480,7 +512,7 @@ int ds_cmdq_deinit
     /* Invoke free handler if defined */
     if( cmd->free_f )
       cmd->free_f( cmd, cmd->data );
-    
+
     /* Get next command */
     cmd = ds_cmdq_deq( cmdq );
   }
@@ -499,7 +531,7 @@ int ds_cmdq_deinit
   Command Thread.
 
 @return
-  int - 0 on success, -1 on failure 
+  int - 0 on success, -1 on failure
 
 @note
 
@@ -513,13 +545,17 @@ int ds_cmdq_deinit
 int ds_cmdq_init
 (
   struct ds_cmdq_info_s * cmdq,
-  unsigned int            nmax 
+  unsigned int            nmax
 )
 {
-  ds_assert( cmdq );
-  
+  /* validate input param */
+  if(NULL == cmdq) {
+    ds_log_err("ds_cmdq_init: Bad Param cmdq NULL\n");
+    return -1;
+  }
+
   memset((void*)cmdq, 0x0, sizeof(struct ds_cmdq_info_s));
-  
+
   /* Initialize the list of commands */
   if( (cmdq->head = ds_dll_init(NULL)) == NULL) {
     /* Error in initializing list. Abort.. */

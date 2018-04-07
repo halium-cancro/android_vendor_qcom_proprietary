@@ -49,12 +49,17 @@ when       who     what, where, why
                            INCLUDE FILES
 
 ===========================================================================*/
-#include "qmi.h"
-#include "qmi_client.h"
+#include "qmi_client_instance_defs.h"
+
+#ifdef QMI_RIL_UTF
+#include "qmi_cci_target_ext.h"
+#endif
+
+//#include "qmi.h"
+//#include "qmi_client.h"
 #include "common_v01.h"
 #include "voice_service_v02.h"
 #include "qcrili.h"
-
 /*===========================================================================
 
                         DEFINITIONS AND TYPES
@@ -86,20 +91,39 @@ typedef enum
   QCRIL_QMI_CLIENT_RFPE,
   QCRIL_QMI_CLIENT_IMS_SETTING,
   QCRIL_QMI_CLIENT_PDC,
+  QCRIL_QMI_CLIENT_DSD,
   QCRIL_QMI_CLIENT_LAST,
   QCRIL_QMI_CLIENT_MAX = QCRIL_QMI_CLIENT_LAST
 } qcril_qmi_client_e_type;
 
+typedef enum
+{
+    QCRIL_QMI_SERVICE_NOT_CONNECTED,
+    QCRIL_QMI_SERVICE_CONNECTED,
+    QCRIL_QMI_SERVICE_NOT_AVAILABLE,
+    QCRIL_QMI_SERVICE_AVAILABLE,
+    QCRIL_QMI_SERVICE_MAX
+} qcril_qmi_service_conection_state;
 
 typedef struct
 {
   int qmi_init_handle;
-  qmi_idl_service_object_type   service_objects[QCRIL_QMI_CLIENT_MAX];
-  qmi_client_type               qmi_svc_clients[QCRIL_QMI_CLIENT_MAX];
-  qmi_service_version_info      qmi_svc_versions[QCRIL_QMI_CLIENT_MAX];
-  qmi_client_recv_msg_async_cb  client_cbs[QCRIL_QMI_CLIENT_MAX];
+  qmi_idl_service_object_type       service_objects[QCRIL_QMI_CLIENT_MAX];
+  qmi_client_type                   qmi_svc_clients[QCRIL_QMI_CLIENT_MAX];
+  qmi_client_os_params              os_params[QCRIL_QMI_CLIENT_MAX];
+  qmi_service_version_info          qmi_svc_versions[QCRIL_QMI_CLIENT_MAX];
+  qmi_client_recv_msg_async_cb      client_cbs[QCRIL_QMI_CLIENT_MAX];
+  qcril_qmi_service_conection_state client_state[QCRIL_QMI_CLIENT_MAX];
+  int                               num_of_active_clients;
+  int                               max_active_clients;
+  qmi_client_type                   notifier[QCRIL_QMI_CLIENT_MAX];
+  pthread_mutex_t                   cache_lock_mutex;
+  pthread_mutexattr_t               cache_lock_mtx_atr;
 
   int qmi_client_init_complete;
+
+  /* bit array of 32, so that each client can poll for connection state */
+  unsigned long qcril_client_conn_state;
 } qcril_qmi_client_private_info_type;
 
 typedef enum
@@ -220,6 +244,8 @@ RIL_Errno qcril_qmi_util_convert_qmi_response_codes_to_ril_result_ex(qmi_client_
                                                                      void* any);
 
 RIL_Errno qcril_qmi_client_dsds_bind_to_subscription( RIL_SubscriptionType sub_num );
+RIL_Errno qcril_qmi_client_dsds_cri_client_reinit( RIL_SubscriptionType sub_num );
+RIL_Errno qcril_qmi_client_dsds_cri_client_reset();
 
 int qcril_qmi_client_is_available(void);
 
@@ -283,6 +309,18 @@ void qmi_ril_route_uim_suspend_handler
   qcril_request_return_type *const ret_ptr
 );
 
+void qcril_qmi_check_if_service_is_up
+(
+  const qcril_request_params_type *const params_ptr,
+  qcril_request_return_type       *const ret_ptr
+);
+
+void qcril_qmi_handle_event_service_down
+(
+ const qcril_request_params_type *const params_ptr,
+ qcril_request_return_type       *const ret_ptr
+);
+
 void qmi_ril_wave_modem_status(void);
 
 void qmi_ril_qmi_client_log_request(
@@ -296,5 +334,7 @@ void qmi_ril_qmi_client_log_request(
 void qmi_ril_qmi_client_pre_initialization_init();
 void qmi_ril_qmi_client_pre_initialization_acquire();
 void qmi_ril_qmi_client_pre_initialization_release();
+void qcril_qmi_release_services();
+void qcril_qmi_register_for_up_event();
 
 #endif /* QCRIL_QMI_CLIENT_H */

@@ -26,9 +26,12 @@ LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_sms_errors.c
 LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_ims.c
 LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_coex.c
 LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_imss.c
-LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_pdc.c
-LOCAL_SRC_FILES += qcril_qmi/qcril_am.cc
 LOCAL_SRC_FILES += qcril_qmi/qcril_db.c
+LOCAL_SRC_FILES += qcril_qmi/qmi_ril_peripheral_mng.c
+LOCAL_SRC_FILES += qcril_qmi/qcril_am.cc
+LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_pdc.c
+LOCAL_SRC_FILES += qcril_qmi/qmi_ril_platform_dep.c
+LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_mbn_file.c
 
 ifdef PROTOBUF_SUPPORTED
 LOCAL_SRC_FILES += qcril_qmi/ims_socket/imsIF.pb-c.c
@@ -41,6 +44,26 @@ LOCAL_SRC_FILES += qcril_qmi/ims_socket/qcril_qmi_ims_misc.c
 LOCAL_SRC_FILES += qcril_qmi/oem_socket/qcril_qmi_oem_socket.cc
 LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_generic_socket.cc
 LOCAL_SRC_FILES += qcril_qmi/ims_socket/qcril_qmi_ims_if_pb.c
+
+ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/client_socket/qcril_uim_remote_client_socket.cc
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/client_socket/qcril_uim_remote_client_packing.c
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/client_socket/qcril_uim_remote_client_msg_meta.c
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/client_socket/qcril_uim_remote_client_misc.c
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/client_socket/uim_remote_client.pb.c
+endif
+
+ifdef FEATURE_QCRIL_UIM_REMOTE_SERVER
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/server_socket/qcril_uim_remote_server_socket.cc
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/server_socket/qcril_uim_remote_server_packing.c
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/server_socket/qcril_uim_remote_server_msg_meta.c
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/server_socket/qcril_uim_remote_server_misc.c
+LOCAL_SRC_FILES += qcril_qmi/uim_remote_service/server_socket/sap-api.pb.c
+endif
+
+LOCAL_SRC_FILES += qcril_qmi/nanopb_utils/qcril_qmi_npb_utils.c
+LOCAL_SRC_FILES += qcril_qmi/nanopb_utils/qcril_qmi_npb_encode.c
+LOCAL_SRC_FILES += qcril_qmi/nanopb_utils/qcril_qmi_npb_decode.c
 LOCAL_SRC_FILES += qcril_qmi/qcril_qmi_pil_monitor.cc
 LOCAL_SRC_FILES += common/uim/qcril_gstk_qmi.c
 LOCAL_SRC_FILES += common/uim/qcril_uim.c
@@ -54,6 +77,7 @@ LOCAL_SRC_FILES += common/uim/qcril_uim_restart.c
 LOCAL_SRC_FILES += common/uim/qcril_scws.c
 LOCAL_SRC_FILES += common/uim/qcril_scws_opt.c
 LOCAL_SRC_FILES += common/uim/qcril_uim_qcci.c
+LOCAL_SRC_FILES += common/uim/qcril_uim_sap.c
 LOCAL_SRC_FILES += qcril_qmi/services/qmi_embms_v01.c
 LOCAL_SRC_FILES += qcril_qmi/services/qtuner_v01.c
 
@@ -66,6 +90,33 @@ LOCAL_SRC_FILES += qcril_qmi/cri/core/cri_event_lookup.c
 LOCAL_SRC_FILES += qcril_qmi/cri/csvt/cri_csvt_core.c
 LOCAL_SRC_FILES += qcril_qmi/cri/csvt/cri_csvt_rules.c
 LOCAL_SRC_FILES += qcril_qmi/cri/csvt/cri_csvt_utils.c
+LOCAL_SRC_FILES += qcril_qmi/cri/data/cri_data.c
+LOCAL_SRC_FILES += qcril_qmi/cri/data/cri_data_core.c
+LOCAL_SRC_FILES += qcril_qmi/cri/dms/cri_dms_core.c
+LOCAL_SRC_FILES += qcril_qmi/cri/dms/cri_dms_rules.c
+LOCAL_SRC_FILES += qcril_qmi/cri/dms/cri_dms_utils.c
+LOCAL_SRC_FILES += qcril_qmi/cri/nas/cri_nas.c
+LOCAL_SRC_FILES += qcril_qmi/cri/nas/cri_nas_core.c
+LOCAL_SRC_FILES += qcril_qmi/cri/nas/cri_nas_rules.c
+LOCAL_SRC_FILES += qcril_qmi/cri/nas/cri_nas_utils.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_answer.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_cache.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_call_info.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_call_list.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_call_obj.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_call_summary.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_core.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_dial.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_get_calls.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_hangup.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_ind_hdlr.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_multi_calls.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_qmi_client.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_settings.c
+LOCAL_SRC_FILES += qcril_qmi/cri/voice/cri_voice_utils.c
+LOCAL_SRC_FILES += qcril_qmi/cri/wms/cri_wms.c
+LOCAL_SRC_FILES += qcril_qmi/cri/wms/cri_wms_core.c
 LOCAL_SRC_FILES += qcril_qmi/hlos/core/hlos_core.c
 LOCAL_SRC_FILES += qcril_qmi/hlos/core/hlos_event_lookup.c
 LOCAL_SRC_FILES += qcril_qmi/hlos/csvt/hlos_csvt_core.c
@@ -84,7 +135,18 @@ LOCAL_CFLAGS := -D_GNU_SOURCE
 # for embms
 LOCAL_CFLAGS += -DFEATURE_DATA_EMBMS
 
-ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 msm8226 msm7627_surf msm7627a),true)
+#for uim remote client application
+ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+LOCAL_CFLAGS += -DFEATURE_QCRIL_UIM_REMOTE_CLIENT
+endif
+
+#for uim remote server
+ifdef FEATURE_QCRIL_UIM_REMOTE_SERVER
+LOCAL_CFLAGS += -DFEATURE_QCRIL_UIM_REMOTE_SERVER
+endif
+
+ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 apq8084 msm8226 msm8916 msm8994 msm8992 msm8909 msm7627_surf msm7627a),true)
+
 # These targets have route look up available on modem
   LOCAL_SRC_FILES += common/data/qcril_data_netctrl.c
   LOCAL_SRC_FILES += common/data/qcril_data_qos.c
@@ -98,8 +160,10 @@ else
   LOCAL_SRC_FILES += common/data/qcril_datai.c
 endif
 
+#LOCAL_STATIC_LIBRARIES := libnanopb-c-2.8.0
+
 ifdef PROTOBUF_SUPPORTED
-LOCAL_STATIC_LIBRARIES := libprotobuf-c
+LOCAL_STATIC_LIBRARIES += libprotobuf-c
 endif
 
 LOCAL_SHARED_LIBRARIES := libdsutils  # must preceed libcutils in ICS build
@@ -109,19 +173,26 @@ LOCAL_SHARED_LIBRARIES += libril
 LOCAL_SHARED_LIBRARIES += librilutils
 
 LOCAL_SHARED_LIBRARIES += libril-qcril-hook-oem
+LOCAL_SHARED_LIBRARIES += libqmi_cci
 LOCAL_SHARED_LIBRARIES += libqmi
-LOCAL_SHARED_LIBRARIES += libqcci_legacy
+LOCAL_SHARED_LIBRARIES += libqmi_client_qmux
 LOCAL_SHARED_LIBRARIES += libdiag
 LOCAL_SHARED_LIBRARIES += libhardware_legacy
 LOCAL_SHARED_LIBRARIES += libqmiservices
 LOCAL_SHARED_LIBRARIES += libidl
 LOCAL_SHARED_LIBRARIES += libtime_genoff
+LOCAL_SHARED_LIBRARIES += libsqlite
 LOCAL_SHARED_LIBRARIES += libmedia
 LOCAL_SHARED_LIBRARIES += libbinder
-LOCAL_SHARED_LIBRARIES += libsqlite
+LOCAL_SHARED_LIBRARIES += libmdmdetect
+LOCAL_SHARED_LIBRARIES += libperipheral_client
+ifneq ($(SYS_HEALTH_MON_STATUS), false)
+LOCAL_SHARED_LIBRARIES += libsystem_health_mon
+endif
+LOCAL_SHARED_LIBRARIES += libxml2
 
 
-ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 msm8226 msm7627_surf msm7627a),true)
+ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 apq8084 msm8226 msm8916 msm8994 msm8992 msm8909 msm7627_surf msm7627a),true)
 # These targets have route look up available on modem
   LOCAL_SHARED_LIBRARIES += libdsi_netctrl
   LOCAL_SHARED_LIBRARIES += libqdp
@@ -131,14 +202,24 @@ else
 endif
 
 
-ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 msm8226 msm7627_surf msm7627a),true)
+ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 apq8084 msm8226 msm8916 msm8994 msm8992 msm8909 msm7627_surf msm7627a),true)
 # define for the case when modem boots up after apps proc
   LOCAL_CFLAGS += -DFEATURE_QCRIL_USE_QDP
 endif
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/nanopb_utils/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/ims_socket/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/oem_socket/
+
+
+ifdef FEATURE_QCRIL_UIM_REMOTE_CLIENT
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/uim_remote_service/client_socket/
+endif
+ifdef FEATURE_QCRIL_UIM_REMOTE_SERVER
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/uim_remote_service/server_socket/
+endif
+
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/services/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/utilities/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/utilities/control
@@ -151,12 +232,18 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/utilities/timer
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/core/core/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/cri/core/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/cri/csvt/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/cri/data/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/cri/dms/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/cri/nas/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/cri/voice/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/cri/wms/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/hlos/core/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcril_qmi/hlos/csvt/
 LOCAL_C_INCLUDES += bionic/libc/include/
 LOCAL_C_INCLUDES += external/sqlite/dist/
-
-
+LOCAL_C_INCLUDES += external/nanopb-c/
+LOCAL_C_INCLUDES += external/libxml2/include/
+LOCAL_C_INCLUDES += external/icu/icu4c/source/common
 LOCAL_C_INCLUDES += hardware/ril/include/telephony/
 
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/auth/inc/
@@ -166,12 +253,21 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/common/data/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/common/uim/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/qcrilhook_oem/
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/data/inc/
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libmdmdetect/inc/
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/libperipheralclient/inc/
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/diag/include/
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/qmi-framework/inc/
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/qmi/inc/
+ifneq ($(SYS_HEALTH_MON_STATUS), false)
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/system_health_monitor/inc/
+endif
 ifdef PROTOBUF_SUPPORTED
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/protobuf-c/include/
 endif
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/time-services/
+ifdef FEATURE_QCRIL_UIM_SAP_SERVER_MODE
+LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/librilutils
+endif
 
 # For API Definitions and enables
 LOCAL_CFLAGS   += $(remote_api_defines)
@@ -195,6 +291,9 @@ endif
 ifdef PROTOBUF_SUPPORTED
 LOCAL_CFLAGS += -DQCRIL_PROTOBUF_BUILD_ENABLED
 endif
+ifneq ($(SYS_HEALTH_MON_STATUS), false)
+LOCAL_CFLAGS += -DFEATURE_QCRIL_SHM
+endif
 
 ifeq ($(call is-board-platform,msm8960),true)
   LOCAL_CFLAGS += -DFEATURE_QCRIL_8960
@@ -212,6 +311,26 @@ ifeq ($(call is-board-platform,msm8610),true)
   LOCAL_CFLAGS += -DFEATURE_QCRIL_8610
 endif
 
+ifeq ($(call is-board-platform,msm8916),true)
+  LOCAL_CFLAGS += -DFEATURE_QCRIL_8916
+endif
+
+ifeq ($(call is-board-platform,msm8909),true)
+  LOCAL_CFLAGS += -DFEATURE_QCRIL_8909
+endif
+
+ifeq ($(call is-board-platform,msm8994),true)
+  LOCAL_CFLAGS += -DFEATURE_QCRIL_8994
+endif
+
+ifeq ($(call is-board-platform,msm8992),true)
+  LOCAL_CFLAGS += -DFEATURE_QCRIL_8992
+endif
+
+ifeq ($(call is-board-platform,apq8084),true)
+  LOCAL_CFLAGS += -DFEATURE_QCRIL_8084
+endif
+
 ifeq ($(call is-board-platform,msm8226),true)
   LOCAL_CFLAGS += -DFEATURE_QCRIL_8226
 endif
@@ -221,11 +340,11 @@ ifeq ($(call is-chipset-in-board-platform,msm7630),true)
   LOCAL_CFLAGS += -DFEATURE_QCRIL_IMS
 endif
 
-ifeq ($(call is-board-platform-in-list,msm7627a msm7627_surf msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 msm8226),true)
+ifeq ($(call is-board-platform-in-list,msm7627a msm7627_surf msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 apq8084 msm8226 msm8916 msm8994 msm8992 msm8909),true)
   LOCAL_CFLAGS += -DFEATURE_QCRIL_HDR_RELB
 endif
 
-ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 msm8226 msm7627_6x),true)
+ifeq ($(call is-board-platform-in-list,msm7630_surf msm7630_fusion msm8660 msm8960 msm8974 msm8610 apq8084 msm8226 msm8916 msm8994 msm8992 msm8909 msm7627_6x),true)
   LOCAL_CFLAGS += -DFEATURE_QCRIL_NCELL
 endif
 
@@ -246,7 +365,6 @@ endif
 # defines common to all shared libraries
 LOCAL_CFLAGS += \
   -DLOG_NDDEBUG=0 \
-  -D__packed__= \
   -DIMAGE_APPS_PROC \
   -DFEATURE_Q_SINGLE_LINK \
   -DFEATURE_Q_NO_SELF_QPTR \
@@ -271,9 +389,6 @@ endif
 ifeq ($(TARGET_PRODUCT),dream)
   LOCAL_CFLAGS += -DPOLL_CALL_STATE -DUSE_QMI
 endif
-
-#LOCAL_LDLIBS += -lpthread
-#LOCAL_LDLIBS += -lrt
 
 ifndef QCRIL_DSDA_INSTANCE
    LOCAL_MODULE:= libril-qc-qmi-1

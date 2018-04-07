@@ -405,6 +405,15 @@ void qcril_arb_current_data_technology_helper()
 void qcril_arb_set_dsd_sys_status(dsd_system_status_ind_msg_v01 *dsd_system_status)
 {
     uint32_t i;
+    uint8_t is_wwan_available = FALSE;
+    qcril_arb_pref_data_type old_pref_data;
+    qcril_arb_pref_data_type new_pref_data;
+    qcril_instance_id_e_type cur_instance = qmi_ril_get_process_instance_id();
+
+    memset( &old_pref_data, 0, sizeof( old_pref_data ) );
+    memset( &new_pref_data, 0, sizeof( new_pref_data ) );
+
+    qcril_qmi_get_pref_data_tech(&old_pref_data);
 
     if( dsd_system_status )
     {
@@ -414,25 +423,61 @@ void qcril_arb_set_dsd_sys_status(dsd_system_status_ind_msg_v01 *dsd_system_stat
         {
             QCRIL_LOG_DEBUG("dsd_sys_status len=%d", dsd_system_status->avail_sys_len);
 
-            for(i = 0; i < dsd_system_status->avail_sys_len; i++) //The first entry in the list will be the preferred system
-            {
-              QCRIL_LOG_ESSENTIAL("preferred %d - dsd_sys_status nw=0x%x, rat_value=0x%x, so_mask=0x%016llx",
-                              (QMI_RIL_ZERO == i),
-                              dsd_system_status->avail_sys[i].technology,
-                              dsd_system_status->avail_sys[i].rat_value,
-                              dsd_system_status->avail_sys[i].so_mask);
-            }
-
-            qmi_ril_nw_reg_data_sys_update_pre_update_action();
-
             QCRIL_MUTEX_LOCK( &qcril_arb.mutex, "qcril_arb.mutex" );
 
             memcpy(&qcril_arb.dsd_system_status,  dsd_system_status, sizeof(qcril_arb.dsd_system_status));
-            qcril_arb.is_current[ QCRIL_DEFAULT_INSTANCE_ID ] = TRUE;
-            qcril_arb.is_dsd[ QCRIL_DEFAULT_INSTANCE_ID ] = TRUE;
+            qcril_arb.is_current[ cur_instance ] = TRUE;
+            qcril_arb.is_dsd[ cur_instance ] = TRUE;
 
             QCRIL_MUTEX_UNLOCK( &qcril_arb.mutex, "qcril_arb.mutex" );
-            qcril_arb_current_data_technology_helper();
+
+            qcril_qmi_get_pref_data_tech(&new_pref_data);
+
+            QCRIL_LOG_ESSENTIAL("old_pref_data %d - new_data_pref %d", old_pref_data, new_pref_data);
+
+            QCRIL_LOG_ESSENTIAL("preferred dsd_sys_status nw=0x%x, rat_value=0x%x, so_mask=0x%016llx",
+                        dsd_system_status->avail_sys[0].technology,
+                        dsd_system_status->avail_sys[0].rat_value,
+                        dsd_system_status->avail_sys[0].so_mask);
+
+            if( 0 != memcmp( &old_pref_data, &new_pref_data, sizeof(qcril_arb_pref_data_type) ) )
+            {
+
+                for(i = 0; i < dsd_system_status->avail_sys_len; i++) //The first entry in the list will be the preferred system
+                {
+                    QCRIL_LOG_ESSENTIAL("preferred %d - dsd_sys_status nw=0x%x, rat_value=0x%x, so_mask=0x%016llx",
+                                (QMI_RIL_ZERO == i),
+                                dsd_system_status->avail_sys[i].technology,
+                                dsd_system_status->avail_sys[i].rat_value,
+                                dsd_system_status->avail_sys[i].so_mask);
+                }
+
+                if(dsd_system_status->avail_sys_len &&
+                   DSD_SYS_RAT_EX_3GPP_WLAN_V01 == dsd_system_status->avail_sys[0].rat_value)
+                {
+                    for(i = 1; i < dsd_system_status->avail_sys_len; i++)
+                    {
+                        if((DSD_SYS_NETWORK_WLAN_V01 != dsd_system_status->avail_sys[i].technology) &&
+                           (DSD_SYS_RAT_EX_NULL_BEARER_V01 != dsd_system_status->avail_sys[i].rat_value))
+                        {
+                            is_wwan_available = TRUE;
+                            break;
+                        }
+                    }
+                }
+
+                QCRIL_LOG_ESSENTIAL("is_wwan_available %d",is_wwan_available);
+                qcril_hook_unsol_response( QCRIL_DEFAULT_INSTANCE_ID, QCRIL_EVT_HOOK_UNSOL_WWAN_AVAILABLE, (char*) &is_wwan_available, sizeof(    is_wwan_available));
+
+                // Drop sig info cache if not extrapolating in screen off state,
+                if ( qcril_qmi_ril_domestic_service_is_screen_off() && !new_pref_data.is_extrapolation )
+                {
+                  qcril_qmi_drop_sig_info_cache();
+                }
+                qmi_ril_nw_reg_data_sys_update_pre_update_action();
+
+                qcril_arb_current_data_technology_helper();
+            }
         }
     }
     else
@@ -463,6 +508,7 @@ void qcril_arb_set_data_sys_status
 {
     unsigned int i;
     int data_len;
+    qcril_instance_id_e_type cur_instance = qmi_ril_get_process_instance_id();
 
     QCRIL_LOG_INFO( "qcril_arb_set_data_sys_status instance:%d", (int)instance_id);
 
@@ -472,7 +518,7 @@ void qcril_arb_set_data_sys_status
 
     for(i = 0; i < data_sys_status->network_info_len; i++)
     {
-      QCRIL_LOG_DEBUG("recvd data_sys_status nw=0x%x, rat_mask=0x%x, so_mask=0x%x",
+      QCRIL_LOG_ESSENTIAL("recvd data_sys_status nw=0x%x, rat_mask=0x%x, so_mask=0x%x",
                       data_sys_status->network_info[i].network,
                       data_sys_status->network_info[i].rat_mask,
                       data_sys_status->network_info[i].db_so_mask );
@@ -492,8 +538,8 @@ void qcril_arb_set_data_sys_status
         memcpy(qcril_arb.data_sys_status[QCRIL_DEFAULT_INSTANCE_ID].network_info, data_sys_status->network_info,
                sizeof(qmi_wds_data_sys_status_network_info_type) * data_len);
 
-        qcril_arb.is_current[ QCRIL_DEFAULT_INSTANCE_ID ] = TRUE;
-        qcril_arb.is_dsd[ QCRIL_DEFAULT_INSTANCE_ID ] = FALSE;
+        qcril_arb.is_current[ cur_instance ] = TRUE;
+        qcril_arb.is_dsd[ cur_instance ] = FALSE;
 
         QCRIL_MUTEX_UNLOCK( &qcril_arb.mutex, "qcril_arb.mutex" );
         qcril_arb_current_data_technology_helper();
@@ -517,15 +563,17 @@ void qcril_arb_set_pref_data_tech
   qcril_arb_pref_data_tech_e_type pref_data_tech
 )
 {
-  QCRIL_LOG_INFO( "qcril_arb_set_pref_data_tech action new tech %d for instance %d", (int) pref_data_tech, (int) instance_id);
+  qcril_instance_id_e_type cur_instance = qmi_ril_get_process_instance_id();
+
+  QCRIL_LOG_ESSENTIAL( "qcril_arb_set_pref_data_tech action new tech %d for instance %d", (int) pref_data_tech, (int) instance_id);
 
   if ( instance_id < QCRIL_MAX_INSTANCE_ID )
   {
       qmi_ril_nw_reg_data_sys_update_pre_update_action();
 
       QCRIL_MUTEX_LOCK( &qcril_arb.mutex, "qcril_arb.mutex" );
-      qcril_arb.pref_data_tech[ QCRIL_DEFAULT_INSTANCE_ID ] = pref_data_tech;
-      qcril_arb.is_current[ QCRIL_DEFAULT_INSTANCE_ID ] = FALSE;
+      qcril_arb.pref_data_tech[ cur_instance ] = pref_data_tech;
+      qcril_arb.is_current[ cur_instance ] = FALSE;
       QCRIL_MUTEX_UNLOCK( &qcril_arb.mutex, "qcril_arb.mutex" );
       qcril_arb_current_data_technology_helper();
   }
@@ -547,13 +595,13 @@ void qcril_qmi_get_pref_data_tech(qcril_arb_pref_data_type *pref_data)
 
         QCRIL_MUTEX_LOCK( &qcril_arb.mutex, "qcril_arb.mutex" );
 
-        QCRIL_LOG_ESSENTIAL( "is_current %d", qcril_arb.is_current[cur_instance]);
+        QCRIL_LOG_DEBUG( "is_current %d", qcril_arb.is_current[cur_instance]);
 
         if( TRUE == qcril_arb.is_current[cur_instance] )
         {
             pref_data->is_current = TRUE;
             pref_data->pref_data_tech = QCRIL_ARB_PREF_DATA_TECH_UNKNOWN;
-            QCRIL_LOG_ESSENTIAL( "is_dsd %d", qcril_arb.is_dsd[cur_instance]);
+            QCRIL_LOG_DEBUG( "is_dsd %d", qcril_arb.is_dsd[cur_instance]);
             if( TRUE == qcril_arb.is_dsd[cur_instance] )
             {
                 pref_data->is_dsd = TRUE;
@@ -561,7 +609,7 @@ void qcril_qmi_get_pref_data_tech(qcril_arb_pref_data_type *pref_data)
                 pref_data->dsd_sys_status_info.rat_value = qcril_arb.dsd_system_status.avail_sys[QMI_RIL_ZERO].rat_value;
                 pref_data->dsd_sys_status_info.so_mask = qcril_arb.dsd_system_status.avail_sys[QMI_RIL_ZERO].so_mask;
 
-                QCRIL_LOG_ESSENTIAL( "technology %d rat_value %x so_mask 0x%016llx",
+                QCRIL_LOG_DEBUG( "technology %d rat_value %x so_mask 0x%016llx",
                                  pref_data->dsd_sys_status_info.technology,
                                  pref_data->dsd_sys_status_info.rat_value,
                                  pref_data->dsd_sys_status_info.so_mask);
@@ -581,7 +629,7 @@ void qcril_qmi_get_pref_data_tech(qcril_arb_pref_data_type *pref_data)
                         break;
                     }
                 }
-                QCRIL_LOG_ESSENTIAL( "network_type %d rat_mask %x db_so_mask %x",
+                QCRIL_LOG_DEBUG( "network_type %d rat_mask %x db_so_mask %x",
                                  pref_data->data_sys_status_info.network_type,
                                  pref_data->data_sys_status_info.rat_mask,
                                  pref_data->data_sys_status_info.db_so_mask);
@@ -594,7 +642,7 @@ void qcril_qmi_get_pref_data_tech(qcril_arb_pref_data_type *pref_data)
         }
 
 
-        QCRIL_LOG_ESSENTIAL( "before translation : pref_data_tech %s",qcril_qmi_util_retrieve_pref_data_tech_name(pref_data->pref_data_tech));
+        QCRIL_LOG_DEBUG( "before translation : pref_data_tech %s",qcril_qmi_util_retrieve_pref_data_tech_name(pref_data->pref_data_tech));
 
         if( TRUE == pref_data->is_current )
         {
@@ -641,9 +689,11 @@ void qcril_qmi_get_pref_data_tech(qcril_arb_pref_data_type *pref_data)
                     pref_data->pref_data_tech = QCRIL_ARB_PREF_DATA_TECH_UMTS;
                     break;
 
+#ifndef QMI_RIL_UTF
                 case RADIO_TECH_TD_SCDMA:
                     pref_data->pref_data_tech = QCRIL_ARB_PREF_DATA_TECH_TDSCDMA;
                     break;
+#endif
 
                 case RADIO_TECH_GPRS:
                 case RADIO_TECH_EDGE:
@@ -679,7 +729,7 @@ void qcril_qmi_get_pref_data_tech(qcril_arb_pref_data_type *pref_data)
             }
         }
 
-        QCRIL_LOG_ESSENTIAL( "after translation : pref_data_tech %s technology %d", qcril_qmi_util_retrieve_pref_data_tech_name(pref_data->pref_data_tech),
+        QCRIL_LOG_DEBUG( "after translation : pref_data_tech %s technology %d", qcril_qmi_util_retrieve_pref_data_tech_name(pref_data->pref_data_tech),
                                                                                     pref_data->radio_technology);
 
         QCRIL_MUTEX_UNLOCK( &qcril_arb.mutex, "qcril_arb.mutex" );
@@ -710,6 +760,7 @@ int qcril_qmi_convert_rat_mask_to_technology(qcril_arb_pref_data_type *pref_data
                         break;
 
                     case DSD_SYS_RAT_EX_3GPP_WCDMA_V01:
+                    case DSD_SYS_RAT_EX_3GPP_TDSCDMA_V01:
                         if( (pref_data->dsd_sys_status_info.so_mask & QMI_DSD_3GPP_SO_MASK_HSDPAPLUS_V01)
                             || (pref_data->dsd_sys_status_info.so_mask & QMI_DSD_3GPP_SO_MASK_DC_HSDPAPLUS_V01)
                             || (pref_data->dsd_sys_status_info.so_mask & QMI_DSD_3GPP_SO_MASK_64_QAM_V01) )
@@ -734,6 +785,12 @@ int qcril_qmi_convert_rat_mask_to_technology(qcril_arb_pref_data_type *pref_data
                         {
                             technology = RADIO_TECH_UMTS;
                         }
+                        else if ( (pref_data->dsd_sys_status_info.rat_value == DSD_SYS_RAT_EX_3GPP_TDSCDMA_V01) )
+                        {
+#ifndef QMI_RIL_UTF
+                            technology = RADIO_TECH_TD_SCDMA;
+#endif
+                        }
                         break;
 
                     case DSD_SYS_RAT_EX_3GPP_GERAN_V01:
@@ -754,10 +811,6 @@ int qcril_qmi_convert_rat_mask_to_technology(qcril_arb_pref_data_type *pref_data
 
                     case DSD_SYS_RAT_EX_3GPP_WLAN_V01:
                         technology = RADIO_TECH_IWLAN;
-                        break;
-
-                    case DSD_SYS_RAT_EX_3GPP_TDSCDMA_V01:
-                        technology = RADIO_TECH_TD_SCDMA;
                         break;
 
                     case DSD_SYS_RAT_EX_3GPP2_1X_V01:
@@ -834,7 +887,9 @@ int qcril_qmi_convert_rat_mask_to_technology(qcril_arb_pref_data_type *pref_data
                         }
                         else if( (pref_data->data_sys_status_info.rat_mask.umts_rat_mask & UMTS_TDSCDMA) )
                         {
+#ifndef QMI_RIL_UTF
                             technology = RADIO_TECH_TD_SCDMA;
+#endif
                         }
                         else if( (pref_data->data_sys_status_info.rat_mask.umts_rat_mask & UMTS_EDGE) )
                         {

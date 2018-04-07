@@ -22,6 +22,7 @@
   ---------------------------------------------------------------------------
 ******************************************************************************/
 
+#include <stdint.h>
 #include "qmi.h"
 
 #ifdef __cplusplus
@@ -31,6 +32,7 @@ extern "C" {
 #define QMI_WDS_MAX_PROFILE_STR_SIZE  (32)
 #define QMI_WDS_MAX_APN_STR_SIZE              (100 + 1) // Max APN size should be 100
                                                        // terminated by a NULL.
+#define QMI_WDS_MAX_APN_NAME_SIZE (150 + 1)
 #define QMI_WDS_MAX_USERNAME_PASS_STR_SIZE    (127 + 1)
 #define QMI_WDS_MOBILE_IP_PROFILE_MAX_STR_SIZE (127 + 1)
 #define QMI_WDS_UMTS_QOS_SIZE       33
@@ -59,7 +61,7 @@ extern "C" {
 /************************************************************************
 * Definitions associated with ip_addr type declarations
 ************************************************************************/
-typedef unsigned long ipv4_addr_type;
+typedef uint32_t ipv4_addr_type;
 typedef unsigned char ipv6_addr_type[QMI_WDS_IPV6_ADDR_SIZE_IN_BYTES];
 
 /*CE denotes CALL END*/
@@ -170,7 +172,8 @@ typedef enum
   QMI_WDS_PROFILE_TECH_TYPE_MIN = 0x00,
   QMI_WDS_PROFILE_TECH_3GPP  = QMI_WDS_PROFILE_TECH_TYPE_MIN,
   QMI_WDS_PROFILE_TECH_3GPP2 = 0x01,
-  QMI_WDS_PROFILE_TECH_TYPE_MAX = QMI_WDS_PROFILE_TECH_3GPP2
+  QMI_WDS_PROFILE_TECH_EPC = 0x02,
+  QMI_WDS_PROFILE_TECH_TYPE_MAX = QMI_WDS_PROFILE_TECH_EPC
 } qmi_wds_profile_tech_type;
 
 typedef enum
@@ -233,7 +236,15 @@ typedef enum
   QMI_WDS_VERBOSE_CE_ERR_PDN_IPV4_CALL_THROTTLED                   = 209,
   QMI_WDS_VERBOSE_CE_ERR_PDN_IPV6_CALL_DISALLOWED                  = 210,
   QMI_WDS_VERBOSE_CE_ERR_PDN_IPV6_CALL_THROTTLED                   = 211,
-
+  QMI_WDS_VERBOSE_CE_UNPREFERRED_RAT                               = 214,
+  QMI_WDS_VERBOSE_CE_APN_DISABLED                                  = 220,
+  QMI_WDS_VERBOSE_CE_MAX_V4_CONNECTIONS                            = 228,
+  QMI_WDS_VERBOSE_CE_MAX_V6_CONNECTIONS                            = 229,
+  QMI_WDS_VERBOSE_CE_APN_MISMATCH                                  = 230,
+  QMI_WDS_VERBOSE_CE_IP_VERSION_MISMATCH                           = 231,
+  QMI_WDS_VERBOSE_CE_DUN_CALL_DISALLOWED                           = 232,
+  QMI_WDS_VERBOSE_CE_INVALID_PROFILE                               = 233,
+  QMI_WDS_VERBOSE_CE_INTERNAL_EPC_NONEPC_TRANSITION                = 234,
 
   /*CM defined Call End reasons*/
   QMI_WDS_VERBOSE_CE_CDMA_LOCK                                              = 500,
@@ -352,7 +363,8 @@ typedef enum
 
   /*IPV6 defined Call End reasons*/
   QMI_WDS_VERBOSE_CE_PREFIX_UNAVAILABLE                                     = 1,
-  QMI_WDS_VERBOSE_CE_IPV6_ERR_HRPD_IPV6_DISABLED                            = 2
+  QMI_WDS_VERBOSE_CE_IPV6_ERR_HRPD_IPV6_DISABLED                            = 2,
+  QMI_WDS_VERBOSE_CE_IPV6_DISABLED                                          = 3
 
 }qmi_wds_verbose_ce_reason_codes;
 
@@ -393,6 +405,7 @@ typedef enum
 #define QMI_WDS_EMBMS_TMGI_DEACTIVATE_IND_MSG_ID        0x0066
 #define QMI_WDS_EMBMS_TMGI_ACT_DEACT_IND_MSG_ID         0x0088
 #define QMI_WDS_EMBMS_TMGI_LIST_IND_MSG_ID              0x0068
+#define QMI_WDS_EMBMS_CONTENT_DESC_CONTROL_IND_MSG_ID   0x00B6
 #define QMI_WDS_LTE_ATTACH_PDN_LIST_IND_MSG_ID          0x0095
 #define QMI_WDS_REV_IP_TRANSPORT_IND_MSG_ID             0x008E
 #define QMI_WDS_EMBMS_SAI_LIST_IND_MSG_ID               0x00A1
@@ -750,6 +763,42 @@ typedef struct
   unsigned long max_ul_bit_rate;
 }qmi_wds_lte_qos_params_type;
 
+typedef enum {
+  WDS_IP_SUPPORT_TYPE_IPV4 = 0x00, /**<  IPv4 \n  */
+  WDS_IP_SUPPORT_TYPE_IPV6 = 0x01, /**<  IPv6 \n  */
+  WDS_IP_SUPPORT_TYPE_IPV4V6 = 0x02, /**<  IPv4v6  */
+}wds_ip_support_type_enum;
+
+typedef struct
+{
+  /* Optional */
+  /*  APN String */
+  uint8_t apn_string_valid;  /**< Must be set to true if apn_string is being passed */
+  char apn_string[QMI_WDS_MAX_APN_NAME_SIZE];
+  /**<   String representing the APN.
+       Maximum length is 150 bytes.
+  */
+
+  /* Optional */
+  /*  IP Support Type */
+  uint8_t ip_type_valid;  /**< Must be set to true if ip_type is being passed */
+  wds_ip_support_type_enum ip_type;
+  /**<   Values: \n
+       - 0 -- IPv4 \n
+       - 1 -- IPv6 \n
+       - 2 -- IPv4v6
+  */
+
+  /* Optional */
+  /*  Over the Air Attach Performed */
+  uint8_t ota_attach_performed_valid;  /**< Must be set to true if ota_attach_performed is being passed */
+  uint8_t ota_attach_performed;
+  /**<   Values: \n
+       - 0 -- Over-the-air attach not performed \n
+       - 1 -- Over-the-air attach performed
+  */
+}qmi_wds_lte_attach_params;
+
 #define QMI_WDS_APN_BEARER_MASK_GSM                        0x0000000000000001
 #define QMI_WDS_APN_BEARER_MASK_WCDMA                      0x0000000000000002
 #define QMI_WDS_APN_BEARER_MASK_LTE                        0x0000000000000004
@@ -798,6 +847,52 @@ typedef struct
 
 }qmi_wds_internal_iface_event_ind_data_type;
 
+/************************************************************************
+* Definitions associated with qmi_wds_bind_mux_data_port()
+************************************************************************/
+
+typedef enum
+{
+  QMI_WDS_PER_EP_TYPE_MIN      = 0x00,
+  QMI_WDS_PER_EP_TYPE_RESERVED = 0x00,
+  QMI_WDS_PER_EP_TYPE_HSIC     = 0x01,
+  QMI_WDS_PER_EP_TYPE_HSUSB    = 0x02,
+  QMI_WDS_PER_EP_TYPE_PCIE     = 0x03,
+  QMI_WDS_PER_EP_TYPE_EMBEDDED = 0x04,
+  QMI_WDS_PER_EP_TYPE_BAM_DMUX = 0x05,
+  QMI_WDS_PER_EP_TYPE_MAX,
+  QMI_WDS_PER_EP_TYPE_FORCE_32_BIT = 0x7FFFFFFF
+} qmi_wds_per_ep_type;
+
+/** Structure for specifying EP ID information */
+typedef struct
+{
+  qmi_wds_per_ep_type ep_type;          /** Peripheral end point type */
+  unsigned long       iface_id;         /** Data end-point ID */
+} qmi_wds_per_ep_id_type;
+
+#define QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_EP_ID     0x00000001
+#define QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_MUX_ID    0x00000002
+#define QMI_WDS_BIND_MUX_DATA_PORT_PARAMS_REVERSED  0x00000004
+
+/** Parameter structure for binding WDS client to a mux data port */
+typedef struct
+{
+  unsigned long           params_mask;  /** Params mask */
+  qmi_wds_per_ep_id_type  ep_id;        /** EP ID information */
+  unsigned char           mux_id;       /** Mux ID to bind to */
+  unsigned char           reversed;     /** Whether this is a reverse port */
+} qmi_wds_bind_mux_data_port_params_type;
+
+/** Parameter structure for binding WDS client to a subscrption */
+typedef enum
+{
+  QMI_WDS_DEFAULT_SUBS = 0x0000,
+  QMI_WDS_PRIMARY_SUBS = 0x0001,
+  QMI_WDS_SECONDARY_SUBS = 0x0002,
+  QMI_WDS_TERTIARY_SUBS = 0x0003,
+  QMI_WDS_DONT_CARE_SUBS = 0x00FF
+} qmi_wds_bind_subscription_type;
 
 /************************************************************************
 * Definitions associated with qmi_wds_start_nw_if()
@@ -955,7 +1050,8 @@ typedef struct qmi_wds_route_look_up_rsp
   qmi_wds_iface_name_type   tech_name;
   unsigned char             qmi_inst_is_valid; /* TRUE if qmi_inst is valid, FALSE if not */
   unsigned char             qmi_inst;
-
+  unsigned char             mux_id_is_valid; /* TRUE if mux_id is valid, FALSE if not */
+  unsigned char             mux;
 } qmi_wds_route_look_up_rsp_type;
 
 /************************************************************************
@@ -1152,6 +1248,9 @@ typedef struct
 #define QMI_WDS_UMTS_PROFILE_PCO_MCC_PARAM_MASK                       0x0000002000000000
 #define QMI_WDS_UMTS_PROFILE_MNC_PARAM_MASK                           0x0000004000000000
 #define QMI_WDS_UMTS_PROFILE_IS_PERSISTENT_PARAM_MASK                 0x0000008000000000
+#define QMI_WDS_UMTS_MAX_PDN_CONN_PER_BLOCK                           0x0000010000000000
+#define QMI_WDS_UMTS_MAX_PDN_CONN_TIMER                               0x0000020000000000
+#define QMI_WDS_UMTS_PDN_REQ_WAIT_INTERVAL                            0x0000040000000000
 
 /* Profile information */
 typedef struct
@@ -1207,7 +1306,9 @@ typedef struct
   unsigned short                pco_mcc;
   qmi_wds_mnc_type              mnc;
   qmi_wds_bool_type             is_persistent;
-
+  unsigned short                max_pdn_conn_per_block;
+  unsigned short                max_pdn_conn_timer;
+  unsigned short                pdn_req_wait_interval;
 } qmi_wds_umts_profile_params_type;
 
 
@@ -1276,6 +1377,17 @@ typedef enum
 #define QMI_WDS_CDMA_PROFILE_RAT_TYPE_PARAM_MASK                    0x0000000001000000
 #define QMI_WDS_CDMA_PROFILE_IS_PERSISTENT_PARAM_MASK               0x0000000002000000
 
+#define QMI_WDS_CDMA_PROFILE_APN_ENABLED_PARAM_MASK                 0x0000000004000000
+#define QMI_WDS_CDMA_PROFILE_PDN_INACTIVITY_TIMEOUT_PARAM_MASK      0x0000000008000000
+#define QMI_WDS_CDMA_PROFILE_APN_CLASS_PARAM_MASK                   0x0000000010000000
+#define QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK     0x0000000020000000
+#define QMI_WDS_CDMA_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK           0x0000000040000000
+#define QMI_WDS_CDMA_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK          0x0000000080000000
+#define QMI_WDS_CDMA_PROFILE_PDN_LABEL_PARAM_MASK                   0x0000000100000000
+#define QMI_WDS_CDMA_PROFILE_OPERATOR_RESERVED_PCO_ID_PARAM_MASK    0x0000000200000000
+#define QMI_WDS_CDMA_PROFILE_MCC_PARAM_MASK                         0x0000000400000000
+#define QMI_WDS_CDMA_PROFILE_MNC_PARAM_MASK                         0x0000000800000000
+
 typedef struct
 {
   /* bit mask which indicates which of the below parameter fields
@@ -1313,6 +1425,10 @@ typedef struct
   qmi_wds_bool_type             apn_disabled_flag;
   unsigned long                 pdn_inactivity_timeout;
   unsigned char                 apn_class;
+  unsigned char                 pdn_level_auth_protocol;
+  char                          pdn_level_user_id[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+  char                          pdn_level_auth_pwd[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+  char                          pdn_label[QMI_WDS_MAX_APN_STR_SIZE];
   uint64_t                      apn_bearer;
   qmi_wds_bool_type             support_emergency_calls;
   unsigned short                op_pco_id;
@@ -1320,13 +1436,177 @@ typedef struct
   qmi_wds_mnc_type              mnc;
   qmi_wds_cdma_rat_type         rat_type;
   qmi_wds_bool_type             is_persistent;
+
 }qmi_wds_cdma_profile_params_type;
 
+                                                                             /* 64 bit Mask*/
+#define QMI_WDS_EPC_PROFILE_NAME_PARAM_MASK                                 0x0000000000000001 /* profile_name */
+#define QMI_WDS_EPC_PROFILE_APN_NAME_PARAM_MASK                             0x0000000000000002 /* apn_name */
+#define QMI_WDS_EPC_PROFILE_USERNAME_PARAM_MASK                             0x0000000000000004 /* username*/
+#define QMI_WDS_EPC_PROFILE_PASSWORD_PARAM_MASK                             0x0000000000000008 /* password*/
+#define QMI_WDS_EPC_PROFILE_PRIMARY_DNS_IPV6_ADDR_PREF_PARAM_MASK           0x0000000000000010 /* IPV6 Primary DNS address preference*/
+#define QMI_WDS_EPC_PROFILE_SECONDARY_DNS_IPV6_ADDR_PREF_PARAM_MASK         0x0000000000000020 /* IPV6 Secondary DNS address preference*/
+#define QMI_WDS_EPC_PROFILE_IS_PERSISTENT_PARAM_MASK                        0x0000000000000040 /* Profile Persistance preference*/
+
+
+#define QMI_WDS_EPC_UMTS_PROFILE_PDP_TYPE_PARAM_MASK                        0x0000000000000080 /* pdp_type */
+#define QMI_WDS_EPC_UMTS_PROFILE_PRIM_DNS_PARAM_MASK                        0x0000000000000100 /* primary_dns_pref_addr*/
+#define QMI_WDS_EPC_UMTS_PROFILE_SEC_DNS_PARAM_MASK                         0x0000000000000200 /* secondary_dns_pref_addr*/
+#define QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_PARAM_MASK                    0x0000000000000400 /* umts_requested_qos*/
+#define QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_PARAM_MASK                    0x0000000000000800 /* umts_minimum_qos*/
+#define QMI_WDS_EPC_UMTS_PROFILE_GPRS_REQ_QOS_PARAM_MASK                    0x0000000000001000 /* umts_requested_qos*/
+#define QMI_WDS_EPC_UMTS_PROFILE_GPRS_MIN_QOS_PARAM_MASK                    0x0000000000002000 /* umts_minimum_qos*/
+#define QMI_WDS_EPC_UMTS_PROFILE_AUTH_PREF_PARAM_MASK                       0x0000000000004000 /* auth_pref*/
+#define QMI_WDS_EPC_UMTS_PROFILE_IPV4_ADDR_PREF_PARAM_MASK                  0x0000000000008000 /* ipv4_pref_addr*/
+#define QMI_WDS_EPC_UMTS_PROFILE_PCSCF_ADDR_VIA_PCO_PARAM_MASK              0x0000000000010000 /* pcscf_addr_via_pco*/
+#define QMI_WDS_EPC_UMTS_PROFILE_HEADER_COMPRESSION_PARAM_MASK              0x0000000000020000
+#define QMI_WDS_EPC_UMTS_PROFILE_DATA_COMPRESSION_PARAM_MASK                0x0000000000040000
+#define QMI_WDS_EPC_UMTS_PROFILE_PDP_ACCESS_CONTROL_PARAM_MASK              0x0000000000080000
+#define QMI_WDS_EPC_UMTS_PROFILE_PCSCF_VIA_DHCP_PARAM_MASK                  0x0000000000100000
+#define QMI_WDS_EPC_UMTS_PROFILE_IM_CN_FLAG_PARAM_MASK                      0x0000000000200000
+#define QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_1_PARAM_MASK                 0x0000000000400000
+#define QMI_WDS_EPC_UMTS_PROFILE_TFT_FILTER_ID_2_PARAM_MASK                 0x0000000000800000
+#define QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_NUMBER_PARAM_MASK              0x0000000001000000
+#define QMI_WDS_EPC_UMTS_PROFILE_PDP_CONTEXT_SECONDARY_PARAM_MASK           0x0000000002000000
+#define QMI_WDS_EPC_UMTS_PROFILE_PDP_PRIMARY_ID_PARAM_MASK                  0x0000000004000000
+#define QMI_WDS_EPC_UMTS_PROFILE_UMTS_REQ_QOS_EXT_PARAM_MASK                0x0000000008000000
+#define QMI_WDS_EPC_UMTS_PROFILE_UMTS_MIN_QOS_EXT_PARAM_MASK                0x0000000010000000
+#define QMI_WDS_EPC_UMTS_PROFILE_IPV6_ADDR_PREF_PARAM_MASK                  0x0000000020000000
+#define QMI_WDS_EPC_UMTS_PROFILE_SUPPORT_EMERGENCY_CALLS_PARAM_MASK         0x0000000040000000
+
+#define QMI_WDS_EPC_CDMA_PROFILE_DNS_SERVER_PREF_PARAM_MASK                 0x0000000080000000
+#define QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_DO_PARAM_MASK      0x0000000100000000
+#define QMI_WDS_EPC_CDMA_PROFILE_PPP_SESSION_CLOSE_TIMER_1X_PARAM_MASK      0x0000000200000000
+#define QMI_WDS_EPC_CDMA_PROFILE_ALLOW_LINGER_PARAM_MASK                    0x0000000400000000
+#define QMI_WDS_EPC_CDMA_PROFILE_LCP_ACK_TIMEOUT_PARAM_MASK                 0x0000000800000000
+#define QMI_WDS_EPC_CDMA_PROFILE_AUTH_TIMEOUT_PARAM_MASK                    0x0000001000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_LCP_CONFIG_RETRY_RECOUNT_PARAM_MASK        0x0000002000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_AUTH_RETRY_RECOUNT_PARAM_MASK              0x0000004000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_AUTH_PROTOCOL_PARAM_MASK                   0x0000008000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_DATA_RATE_PARAM_MASK                       0x0000010000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_DATA_MODE_PARAM_MASK                       0x0000020000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_APP_TYPE_PARAM_MASK                        0x0000040000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_APP_PRIORITY_PARAM_MASK                    0x0000080000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_PDN_TYPE_PARAM_MASK                        0x0000100000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_IS_PCSCF_ADDR_NEEDED_PARAM_MASK            0x0000200000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_PRIM_V4_DNS_ADDR_PARAM_MASK                0x0000400000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_SEC_V4_DNS_ADDR_PARAM_MASK                 0x0000800000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_IPCP_ACK_TIMEOUT_PARAM_MASK                0x0001000000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_IPCP_CONFIG_RETRY_RECOUNT_PARAM_MASK       0x0002000000000000
+#define QMI_WDS_EPC_CDMA_PROFILE_RAT_TYPE_PARAM_MASK                        0x0004000000000000
+
+#define QMI_WDS_EPC_COMMON_AUTH_PROTOCOL_PARAM_MASK                         0x0008000000000000
+#define QMI_WDS_EPC_COMMON_AUTH_PASSWORD_PARAM_MASK                         0x0010000000000000
+#define QMI_WDS_EPC_COMMON_USER_ID_PARAM_MASK                               0x0020000000000000
+#define QMI_WDS_EPC_COMMON_APN_CLASS_PARAM_MASK                             0x0040000000000000
+#define QMI_WDS_EPC_COMMON_APN_DISABLED_PARAM_MASK                          0x0080000000000000
+#define QMI_WDS_EPC_COMMON_PRIMARY_DNS_IPV4_PARAM_MASK                      0x0100000000000000
+#define QMI_WDS_EPC_COMMON_SECONDARY_DNS_IPV4_PARAM_MASK                    0x0200000000000000
+#define QMI_WDS_EPC_COMMON_PRIMARY_DNS_IPV6_PARAM_MASK                      0x0400000000000000
+#define QMI_WDS_EPC_COMMON_SECONDARY_DNS_IPV6_PARAM_MASK                    0x0800000000000000
+
+#define QMI_WDS_EPC_UMTS_MAX_PDN_CONN_PER_BLOCK                             0x1000000000000000
+#define QMI_WDS_EPC_UMTS_MAX_PDN_CONN_TIMER                                 0x2000000000000000
+#define QMI_WDS_EPC_UMTS_PDN_REQ_WAIT_INTERVAL                              0x4000000000000000
+
+/* Max values reached for a 64 bit mask*/
+
+#define QMI_WDS_EPC_EXTENDED_PARAM_MASK                                     0x8000000000000000
+
+#define QMI_WDS_EPC_PROFILE_PDN_LEVEL_AUTH_PROTOCOL_PARAM_MASK              0x0000000000000001
+#define QMI_WDS_EPC_PROFILE_PDN_LEVEL_USER_ID_PARAM_MASK                    0x0000000000000002
+#define QMI_WDS_EPC_PROFILE_PDN_LEVEL_AUTH_PWD_PARAM_MASK                   0x0000000000000004
+
+/* Profile information */
+typedef struct
+{
+
+  /* bit mask which indicates which of the below parameter fields
+  ** contain valid values
+  */
+  uint64_t                 param_mask;
+  /* Extended bit mask for next 64 params, shall be looked at if
+  ** param_mask is set to QMI_WDS_EPC_EXTENDED_PARAM_MASK(0x8000000000000000)
+  */
+  uint64_t                 extended_param_mask;
+
+  /* All parameters are optional, and their inclusion/validity
+  ** is indicated by set bit in param_mask
+  */
+  char                          profile_name[QMI_WDS_MAX_PROFILE_STR_SIZE];
+  qmi_wds_pdp_type              pdp_type;
+  char                          apn_name[QMI_WDS_MAX_APN_STR_SIZE];
+  unsigned long                 primary_dns_pref_addr;
+  unsigned long                 secondary_dns_pref_addr;
+  char                          common_username[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+  char                          common_password[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+  qmi_wds_auth_pref_type        common_auth_pref;
+  qmi_wds_bool_type             common_apn_disabled_flag;
+  unsigned char                 common_apn_class;
+  qmi_wds_umts_qos_params_type  umts_requested_qos;
+  qmi_wds_umts_qos_params_type  umts_minimum_qos;
+  qmi_wds_gprs_qos_params_type  gprs_requested_qos;
+  qmi_wds_gprs_qos_params_type  gprs_minimum_qos;
+  char                          username[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+  char                          password[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+  qmi_wds_auth_pref_type        auth_pref;
+  unsigned long                 ipv4_pref_addr;
+  qmi_wds_pcscf_via_pco_type    pcscf_addr_via_pco;
+
+  unsigned char                 header_compression;
+  unsigned char                 data_compression;
+  unsigned char                 pdp_access_control;
+  unsigned char                 pcscf_via_dhcp;
+  unsigned char                 im_cn_flag;
+  qmi_wds_tft_params_type       tft_filter_id_1;
+  qmi_wds_tft_params_type       tft_filter_id_2;
+  unsigned char                 pdp_context_number;
+  unsigned char                 pdp_context_secondary;
+  unsigned char                 pdp_context_primary_id_number;
+  ipv6_addr_type                ipv6_addr_pref;
+  qmi_wds_umts_qos_params_type  umts_minimum_qos_sig_ind;
+  qmi_wds_umts_qos_params_type  umts_requested_qos_sig_ind;
+  ipv6_addr_type                primary_dns_ipv6_addr_pref;
+  ipv6_addr_type                secondary_dns_ipv6_addr_pref;
+  qmi_wds_bool_type             is_persistent;
+  qmi_wds_bool_type             support_emergency_calls;
+
+  unsigned char                 pdn_level_auth_protocol;
+  char                          pdn_level_user_id[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+  char                          pdn_level_auth_pwd[QMI_WDS_MAX_USERNAME_PASS_STR_SIZE];
+
+  qmi_wds_bool_type             dns_server_pref;
+  unsigned long                 ppp_session_close_timer_do;
+  unsigned long                 ppp_session_close_timer_1x;
+  unsigned char                 allow_linger;
+  unsigned short                lcp_ack_timeout;
+  unsigned short                ipcp_ack_timeout;
+  unsigned short                auth_timeout;
+  unsigned char                 lcp_config_req_retry_count;
+  unsigned char                 ipcp_config_req_retry_count;
+  unsigned char                 auth_retry_count;
+  qmi_wds_auth_pref_type        auth_protocol;
+  qmi_wds_cdma_data_rate_type   data_rate;
+  qmi_wds_cdma_data_mode_type   data_mode;
+  qmi_wds_cdma_app_type         app_type;   // Cannot be used for modification;
+                                            // Is only used to search profiles with the specified app type.
+  unsigned char                 app_priority; // Cannot be used for modification
+  qmi_wds_cdma_pdn_type         pdn_type;
+  qmi_wds_bool_type             is_pcscf_addr_needed;
+  unsigned long                 primary_dns_ipv4_pref_addr;
+  unsigned long                 secondary_dns_ipv4_pref_addr;
+  qmi_wds_cdma_rat_type         rat_type;
+  unsigned short                max_pdn_conn_per_block;
+  unsigned short                max_pdn_conn_timer;
+  unsigned short                pdn_req_wait_interval;
+
+} qmi_wds_epc_profile_params_type;
 
 typedef union
 {
   qmi_wds_umts_profile_params_type   umts_profile_params;
   qmi_wds_cdma_profile_params_type   cdma_profile_params;
+  qmi_wds_epc_profile_params_type   epc_profile_params;
 } qmi_wds_profile_params_type;
 
 typedef enum
@@ -2006,7 +2286,7 @@ typedef enum
   QMI_WDS_EMBMS_TMGI_ACTIVATE_FAIL_CHANNEL_UNAVAILABLE = 0x00010001,
   QMI_WDS_EMBMS_TMGI_ACTIVATE_FAIL_EMBMS_NOT_ENABLED   = 0x00010002,
   QMI_WDS_EMBMS_TMGI_ACTIVATE_FAIL_OUT_OF_COVERAGE     = 0x00010003,
-  /* End - deprecated from rev 1.49 onwards */ 
+  /* End - deprecated from rev 1.49 onwards */
   QMI_WDS_EMBMS_TMGI_ACTIVATE_FAIL_UNKNOWN             = 0x00010004,
   QMI_WDS_EMBMS_TMGI_ACTIVATE_FAIL_NOT_ALLOWED         = 0x00010005,
   QMI_WDS_EMBMS_TMGI_ACTIVATE_FAIL_MISSING_CTL_INFO    = 0x00010006,
@@ -2112,6 +2392,40 @@ typedef struct
   int                                   dbg_trace_id;
 
 }qmi_wds_embms_tmgi_list_ind_type;
+
+/************************************************************************
+* Definitions associated with EMBMS Content desc control indications
+************************************************************************/
+#define QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_TRANX_ID_PARAM_MASK       0x01
+#define QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_CONTENT_CTRL_PARAM_MASK   0x02
+#define QMI_WDS_EMBMS_CONTENT_DESC_CTRL_IND_STATUS_CTRL_PARAM_MASK    0x04
+
+typedef enum
+{
+  QMI_WDS_EMBMS_CC_DISABLE                  = 0x00000000,
+  QMI_WDS_EMBMS_CC_ENABLE_START_OBJ         = 0x00000001,
+  QMI_WDS_EMBMS_CC_ENABLE_START_VIDEO_OBJ   = 0x00000002,
+}qmi_wds_embms_content_control_type;
+
+typedef enum
+{
+  QMI_WDS_EMBMS_SU_DISABLE                  = 0x00000000,
+  QMI_WDS_EMBMS_SU_ENABLE_OBJ         = 0x00000001,
+  QMI_WDS_EMBMS_SU_ENABLE_VIDEO_OBJ   = 0x00000002,
+}qmi_wds_embms_status_control_type;
+
+
+typedef struct
+{
+  unsigned short                            param_mask;
+
+  qmi_wds_embms_tmgi_info_type              content_desc_tmgi;
+  qmi_wds_embms_content_control_type        content_control;
+  qmi_wds_embms_status_control_type         status_control;
+
+  int                                       dbg_trace_id;
+
+}qmi_wds_embms_content_desc_control_ind_type;
 
 /************************************************************************
 * Definitions associated with reverse adapter indications
@@ -2231,6 +2545,33 @@ typedef struct
 ************************************************************************/
 #define QMI_WDS_EMBMS_LIST_QUERY_REQ_TRANX_ID_PARAM_MASK    0x0001
 #define QMI_WDS_EMBMS_LIST_QUERY_RESP_TMGI_LIST_PARAM_MASK  0x0001
+
+/************************************************************************
+* Definitions associated with EMBMS content desc update req
+************************************************************************/
+#define QMI_WDS_EMBMS_CONTENT_PARAM_NUM_SIZE 64 /* max size of content param array
+                                                 same value as CONTENT_PARAM_NUM_MAX_V01
+                                                 in qmi_embms_v01.h */
+
+typedef struct
+{
+  int                                       param_code;
+  int                                       param_value;
+}embms_content_desc_type;
+
+typedef struct
+{
+  unsigned int                              content_desc_len;
+  embms_content_desc_type                  *content_desc_ptr;
+}embms_content_desc_info_type;
+
+typedef struct
+{
+  unsigned char                             tmgi_list_len;
+  qmi_wds_embms_tmgi_type                  *tmgi_list;
+  embms_content_desc_info_type              content_desc;
+  int                                       dbg_trace_id;
+}qmi_wds_embms_content_desc_update_info_type;
 
 /* The following structure is also used for qmi_wds_get_current_bearer_tech()*/
 
@@ -2418,7 +2759,8 @@ typedef enum
   QMI_WDS_SRVC_REV_IP_TRANSPORT_IND_MSG,
   QMI_WDS_SRVC_HANDOFF_INFORMATION_IND_MSG,
   QMI_WDS_SRVC_EXT_IP_CONFIG_IND_MSG,
-  QMI_WDS_SRVC_DATA_PATH_CHANGE_IND_MSG
+  QMI_WDS_SRVC_DATA_PATH_CHANGE_IND_MSG,
+  QMI_WDS_SRVC_EMBMS_CONTENT_DESC_CONTROL_IND_MSG,
 } qmi_wds_indication_id_type;
 
 /*Mcast Status Related*/
@@ -2633,12 +2975,6 @@ typedef struct
 } qmi_wds_dun_call_info_ind_type;
 
 
-/*************************************************************************
-* FMC related
-*************************************************************************/
-#define QMI_WDS_FMC_TUNNEL_PARAMS_IPV4_SOCKET_ADDR 0x00000001
-#define QMI_WDS_FMC_TUNNEL_PARAMS_IPV6_SOCKET_ADDR 0x00000002
-
 typedef enum
 {
   NAT_ABSENT = 0,
@@ -2670,7 +3006,7 @@ typedef struct
 
 
 /************************************************************************
-* Definitions associated with LTE attach PDN list ind and 
+* Definitions associated with LTE attach PDN list ind and
 * qmi_wds_set/get_lte_attach_pdn_list
 ************************************************************************/
 typedef struct
@@ -2720,6 +3056,7 @@ typedef union
   qmi_wds_embms_tmgi_deactivate_status_ind_type  embms_deactivate_status;
   qmi_wds_embms_tmgi_act_deactivate_status_ind_type embms_act_deact_status;
   qmi_wds_embms_tmgi_list_ind_type               embms_list;
+  qmi_wds_embms_content_desc_control_ind_type    embms_content_desc_control;
   qmi_wds_lte_attach_pdn_list_type               lte_attach_pdn_list;
   qmi_wds_embms_sai_list_ind_type                sai_list;
   qmi_wds_rev_ip_trans_ind_type                  rev_ip_conn_ind;
@@ -2832,12 +3169,13 @@ typedef struct
 /************************************************************************
 * Definitions associated with qmi_wds_indication_register
 ************************************************************************/
-#define QMI_WDS_EMBMS_TMGI_INDICATION_REG_LIST_PARAM_MASK        0x00000001
-#define QMI_WDS_LTE_ATTACH_PDN_LIST_INDICATION_REG_PARAM_MASK    0x00000002
-#define QMI_WDS_EMBMS_SAI_INDICATION_REG_LIST_PARAM_MASK         0x00000004
-#define QMI_WDS_HANDOFF_INDICATION_REG_PARAM_MASK                0x00000008
-#define QMI_WDS_EXT_IP_CONFIG_CHANGE_IND_REG_LIST_PARAM_MASK     0x00000010
-#define QMI_WDS_DATA_PATH_CHANGE_IND_REG_PARAM_MASK              0x00000020
+#define QMI_WDS_EMBMS_TMGI_INDICATION_REG_LIST_PARAM_MASK           0x00000001
+#define QMI_WDS_LTE_ATTACH_PDN_LIST_INDICATION_REG_PARAM_MASK       0x00000002
+#define QMI_WDS_EMBMS_SAI_INDICATION_REG_LIST_PARAM_MASK            0x00000004
+#define QMI_WDS_HANDOFF_INDICATION_REG_PARAM_MASK                   0x00000008
+#define QMI_WDS_EXT_IP_CONFIG_CHANGE_IND_REG_LIST_PARAM_MASK        0x00000010
+#define QMI_WDS_DATA_PATH_CHANGE_IND_REG_PARAM_MASK                 0x00000020
+#define QMI_WDS_EMBMS_CONT_DESC_CTRL_INDICATION_REG_LIST_PARAM_MASK 0x00000040
 
 typedef enum
 {
@@ -2869,6 +3207,12 @@ typedef enum
   QMI_WDS_DATA_PATH_CHANGE_REPORT           = 0x01
 } qmi_wds_data_path_change_pref_type;
 
+typedef enum
+{
+  QMI_WDS_EMBMS_CONT_DESC_CTRL_IND_NO_REPORT= 0x00,
+  QMI_WDS_EMBMS_CONT_DESC_CTRL_IND_REPORT   = 0x01,
+}qmi_wds_embms_cont_desc_ctrl_ind_pref_type;
+
 typedef struct
 {
   /* Bitmask which indicates which of the below
@@ -2892,6 +3236,8 @@ typedef struct
   /* Valid if QMI_WDS_DATA_PATH_CHANGE_IND_REG_PARAM_MASK is set */
   qmi_wds_data_path_change_pref_type  data_path_pref;
 
+  /* Valid if QMI_WDS_EMBMS_CONT_DESC_CTRL_INDICATION_REG_LIST_PARAM_MASK is set */
+  qmi_wds_embms_cont_desc_ctrl_ind_pref_type cont_desc_ctrl_pref;
 } qmi_wds_indication_reg_req_type;
 
 /************************************************************************
@@ -2924,6 +3270,8 @@ typedef enum
 #define QMI_WDS_IPSEC_NAT_REMOTE_ADDR_PARAM_MASK (0x00008000)
 #define QMI_WDS_IPSEC_CFG_ATTR_PARAM_MASK        (0x00010000)
 #define QMI_WDS_IPSEC_TS_LIST_PARAM_MASK         (0x00020000)
+#define QMI_WDS_IPSEC_AES_MODE_PARAM_MASK        (0x00040000)
+#define QMI_WDS_IPSEC_TS_RESP_LIST_PARAM_MASK    (0x00080000)
 
 #define QMI_WDS_IPSEC_MAX_KEY_SIZE         (32)
 #define QMI_WDS_IPSEC_MAX_CRYPTO_KEY_SIZE  (32)
@@ -2977,6 +3325,13 @@ typedef enum
   QMI_WDS_IPSEC_ALGO_ZUC_INTEGRITY  = 0x12, /* UIA3 ZUC Integrity Algorithm */
   QMI_WDS_IPSEC_ALGO_AES256         = 0x13  /* AES Cipher; 256-bit key */
 } qmi_wds_ipsec_hash_crypto_algo_type;
+
+typedef enum
+{
+  QMI_WDS_IPSEC_AES_ALGO_MODE_MIN,
+  QMI_WDS_IPSEC_AES_ALGO_MODE_CBC,
+  QMI_WDS_IPSEC_AES_ALGO_MODE_CTR
+} qmi_wds_ipsec_aes_algo_mode_type;
 
 typedef struct
 {
@@ -3170,6 +3525,12 @@ typedef struct
   /* Valid if QMI_WDS_IPSEC_TS_LIST_PARAM_MASK is set in the param_mask */
   qmi_wds_ipsec_traffic_sel_list_type  ts_list;
 
+  /* Valid if QMI_WDS_IPSEC_TS_RESP_LIST_PARAM_MASK is set in the param_mask */
+  qmi_wds_ipsec_traffic_sel_list_type  ts_list_resp;
+
+  /* Valid if QMI_WDS_IPSEC_AES_MODE_PARAM_MASK is set in the param_mask */
+  qmi_wds_ipsec_aes_algo_mode_type     aes_mode;
+
 } qmi_wds_ipsec_sa_config_type;
 
 /************************************************************************
@@ -3210,6 +3571,15 @@ typedef struct
   qmi_wds_data_path_type  actual_data_path;
 } qmi_wds_get_data_path_type;
 
+
+/************************************************************************
+* Definitions associated with qmi_wds_remove_delegated_ipv6_prefix
+************************************************************************/
+typedef struct
+{
+  ipv6_addr_type  ipv6_addr;
+  unsigned char   prefix_len;
+} qmi_wds_delegated_ipv6_prefix_type;
 
 /************************************************************************
 * Function prototypes
@@ -3285,8 +3655,101 @@ qmi_wds_srvc_release_client
   int      *qmi_err_code
 );
 
+/*===========================================================================
+  FUNCTION  qmi_wds_bind_mux_data_port
+===========================================================================*/
+/*!
+@brief
+  Binds a QMI-WDS client to a MUX data port. In the case of QMAP, we will
+  have a single control channel, so WDS clients need to specify which
+  data port their actions need to be associated with.
 
+@param[in]  user_handle: QMI WDS client handle.
+@param[in]  params: Bind MUX data port specification
+@param[out] qmi_err_code: QMI error code in case of failure.
 
+@see
+  qmi_wds_bind_mux_data_port_params_type
+
+@return
+  0 if operation was successful.
+  < 0 If operation failed.  qmi_err_code will contain the reason.
+
+@dependencies
+  qmi_wds_srvc_init_client() must be called before calling this.
+
+*/
+/*=========================================================================*/
+EXTERN int
+qmi_wds_bind_mux_data_port
+(
+  int                                     user_handle,
+  qmi_wds_bind_mux_data_port_params_type *params,
+  int                                    *qmi_err_code
+);
+
+/*===========================================================================
+  FUNCTION  qmi_wds_bind_subscription
+===========================================================================*/
+/*!
+@brief
+  Binds a QMI-WDS client to Subscription.
+
+@param[in]  user_handle: QMI WDS client handle.
+@param[in]  params: Subscription ID
+@param[out] qmi_err_code: QMI error code in case of failure.
+
+@see
+  qmi_wds_bind_subscription_type
+
+@return
+  0 if operation was successful.
+  < 0 If operation failed.  qmi_err_code will contain the reason.
+
+@dependencies
+  qmi_wds_srvc_init_client() must be called before calling this.
+
+*/
+/*=========================================================================*/
+EXTERN int
+qmi_wds_bind_subscription
+(
+  int                                     user_handle,
+  qmi_wds_bind_subscription_type          subs_id,
+  int                                    *qmi_err_code
+);
+
+/*===========================================================================
+  FUNCTION  qmi_wds_get_bind_subscription
+===========================================================================*/
+/*!
+@brief
+  This message queries the current subscription the client is bound to.
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_wds_get_bind_subscription
+(
+  int                                          user_handle,
+  qmi_wds_bind_subscription_type               *subs_id,
+  int                                          *qmi_err_code
+);
 /*===========================================================================
   FUNCTION  qmi_wds_start_nw_if
 ===========================================================================*/
@@ -3606,6 +4069,35 @@ qmi_wds_embms_tmgi_list_query
   qmi_wds_embms_tmgi_list_type      list_type,
   qmi_wds_embms_tmgi_list_ind_type  *list_query,
   int                               *qmi_err_code
+);
+
+/*===========================================================================
+  FUNCTION qmi_wds_embms_content_desc_update
+===========================================================================*/
+/*!
+@brief
+  Updates embms content desc. It is invoked synchronously.
+
+@return
+  0 if query operation was sucessful, < 0 if not.
+  If return code is QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error.
+
+@note
+
+  - Dependencies
+    - qmi_wds_srvc_init_client() must be called before calling this.
+
+  - Side Effects
+    - None
+*/
+/*=========================================================================*/
+EXTERN int
+qmi_wds_embms_content_desc_update
+(
+  int                                           user_handle,
+  qmi_wds_embms_content_desc_update_info_type  *params,
+  int                                          *qmi_err_code
 );
 
 /*===========================================================================
@@ -4482,7 +4974,7 @@ qmi_wds_initiate_mbms_context_deactivate
   FUNCTION  qmi_wds_get_current_bearer_tech
 ===========================================================================*/
 /*!
-@brief 
+@brief
   This message queries the current data bearer technology.
 
 @return
@@ -5013,102 +5505,6 @@ qmi_wds_set_client_ip_pref
 );
 
 /*===========================================================================
-  FUNCTION  qmi_wds_fmc_set_tunnel_params
-===========================================================================*/
-/*!
-@brief
-  This message sends the FMC tunnel parameters to the modem to support FMC
-  mode.
-
-@return
-  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
-  indicate which QMI error occurred.
-
-@note
-
-  - This function executes synchronously, there is not currently an
-    asynchronous option for this functionality.
-
-  - Dependencies
-    - None.
-
-  - Side Effects
-    - None.
-*/
-/*=========================================================================*/
-EXTERN int
-qmi_wds_fmc_set_tunnel_params
-(
-  int                             user_handle,
-  qmi_wds_fmc_tunnel_params_type  *tunnel_params,
-  int                             *qmi_err_code
-);
-
-/*===========================================================================
-  FUNCTION  qmi_wds_fmc_clear_tunnel_params
-===========================================================================*/
-/*!
-@brief
-  This message clears the FMC tunnel parameters from the modem
-
-@return
-  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
-  indicate which QMI error occurred.
-
-@note
-
-  - This function executes synchronously, there is not currently an
-    asynchronous option for this functionality.
-
-  - Dependencies
-    - None.
-
-  - Side Effects
-    - None.
-*/
-/*=========================================================================*/
-EXTERN int
-qmi_wds_fmc_clear_tunnel_params
-(
-  int    user_handle,
-  int    *qmi_err_code
-);
-
-
-/*===========================================================================
-  FUNCTION  qmi_wds_fmc_get_tunnel_params
-===========================================================================*/
-/*!
-@brief
-  This command gets the FMC tunnel parameters from the modem.
-
-@return
-  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
-  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
-  indicate which QMI error occurred.
-
-@note
-
-  - This function executes synchronously, there is not currently an
-    asynchronous option for this functionality.
-
-  - Dependencies
-    - None.
-
-  - Side Effects
-    - None.
-*/
-/*=========================================================================*/
-EXTERN int
-qmi_wds_fmc_get_tunnel_params
-(
-  int                             user_handle,
-  qmi_wds_fmc_tunnel_params_type  *tunnel_params,
-  int                             *qmi_err_code
-);
-/*===========================================================================
   FUNCTION  qmi_wds_set_mip_mode
 ===========================================================================*/
 /*!
@@ -5516,6 +5912,38 @@ qmi_wds_get_lte_attach_pdn_list
 );
 
 /*===========================================================================
+  FUNCTION  qmi_wds_get_lte_attach_params
+===========================================================================*/
+/*!
+@brief
+  This message is used to query the LTE attach Params
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_wds_get_lte_attach_params
+(
+  int                        user_handle,
+  qmi_wds_lte_attach_params  *attach_params,
+  int                        *qmi_err_code
+);
+
+/*===========================================================================
   FUNCTION  qmi_wds_set_lte_data_retry
 ===========================================================================*/
 /*!
@@ -5838,6 +6266,38 @@ qmi_wds_get_data_path
   int                         user_handle,
   qmi_wds_get_data_path_type  *data_path,
   int                         *qmi_err_code
+);
+
+/*===========================================================================
+  FUNCTION  qmi_wds_remove_delegated_ipv6_prefix
+===========================================================================*/
+/*!
+@brief
+  This message is used to remove IPv6 prefix from the interface
+
+@return
+  QMI_NO_ERR if operation was sucessful, < 0 if not.  If return code is
+  QMI_SERVICE_ERR, then the qmi_err_code will be valid and will
+  indicate which QMI error occurred.
+
+@note
+
+  - This function executes synchronously, there is not currently an
+    asynchronous option for this functionality.
+
+  - Dependencies
+    - None.
+
+  - Side Effects
+    - None.
+*/
+/*=========================================================================*/
+int
+qmi_wds_remove_delegated_ipv6_prefix
+(
+  int                                 user_handle,
+  qmi_wds_delegated_ipv6_prefix_type  *params,
+  int                                 *qmi_err_code
 );
 
 #ifdef __cplusplus
