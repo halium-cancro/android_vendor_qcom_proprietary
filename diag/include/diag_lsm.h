@@ -75,6 +75,7 @@ when       who     what, where, why
 
 
 #ifdef ANDROID
+        #undef LOG_TAG
 	#define LOG_TAG "Diag_Lib"
 	#define DIAG_LOGE(...)  { \
 		ALOGE(__VA_ARGS__); \
