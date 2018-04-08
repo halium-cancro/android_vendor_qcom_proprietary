@@ -190,8 +190,11 @@ void netmgr_qmi_dfs_ind_cb
   cmd->data.type                     = NETMGR_QMI_MSG_CMD;
   cmd->data.link                     = link;
   cmd->data.info.qmi_msg.type        = NETMGR_QMI_DFS_IND_CMD;
+
+#ifdef FEATURE_DATA_IWLAN
   cmd->data.info.qmi_msg.data.dfs_ind.link   = link;
   cmd->data.info.qmi_msg.data.dfs_ind.ind_id = msg_id;
+#endif /* FEATURE_DATA_IWLAN */
 
   /* Post command for processing in the command thread context */
   if( NETMGR_SUCCESS != netmgr_exec_put_cmd( cmd ) ) {

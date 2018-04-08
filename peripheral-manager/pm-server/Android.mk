@@ -31,7 +31,7 @@ LOCAL_SHARED_LIBRARIES:= \
     libperipheral_client
 
 LOCAL_MODULE:= pm-service
-LOCAL_CFLAGS = -Wall -Werror
+LOCAL_CFLAGS = -Wall
 LOCAL_MODULE_OWNER := qti
 
 include $(BUILD_EXECUTABLE)

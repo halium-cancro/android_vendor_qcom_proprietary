@@ -419,7 +419,7 @@ qmi_csi_cb_error qmiServerShutdown(qmi_client_handle qmiClient,
     qmi_csi_error csiErr;
 
     // Not used for now
-    pmService = pmService;
+    //this->pmService = pmService;
 
     request = (qmi_ssreq_system_shutdown_req_msg_v01 *) reqStruct;
     identifier = request->ss_client_id;
@@ -469,7 +469,7 @@ qmi_csi_cb_error qmiServerRestart(qmi_client_handle qmiClient,
     qmi_csi_error csiErr;
 
     // Not used for now
-    pmService = pmService;
+    //this->pmService = pmService;
 
     request = (qmi_ssreq_system_restart_req_msg_v01 *) reqStruct;
     identifier = request->ss_client_id;
@@ -564,8 +564,8 @@ qmi_csi_cb_error qmiServerConnect(qmi_client_handle qmiClient, void *pmService,
 }
 
 void qmiServerDisconnect(void *qmiClient, void *pmService) {
-    pmService = pmService;
-    qmiClient = qmiClient;
+    //this->pmService = pmService;
+    //this->qmiClient = qmiClient;
     ALOGI("QMI client %p disconnected", qmiClient);
 }
 
@@ -578,7 +578,7 @@ qmi_csi_cb_error qmiServerProcessRequest(void *__qmiClient,
     PeripheralManagerServer *pmService;
     qmi_client_handle qmiClient;
 
-    reqStructLen = reqStructLen;
+    //reqStructLen = reqStructLen;
     pmService = (PeripheralManagerServer *)__pmService;
     qmiClient = (qmi_client_handle) __qmiClient;
 

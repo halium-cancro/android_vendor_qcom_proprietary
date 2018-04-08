@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
 
     clients = calloc(cnt * threads, sizeof(*clients));
     if (!clients && (cnt * threads)) {
-        ALOGE("%s", strerror(errno));
+        //ALOGE("%s", strerror(errno));
         return -1;
     }
 
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
             ret = pthread_create(&clients[offset].thread, NULL,
                                  test_thread, &clients[offset]);
             if (ret) {
-                ALOGE("Create %s", strerror(errno));
+                //ALOGE("Create %s", strerror(errno));
                 return -1;
             }
         }

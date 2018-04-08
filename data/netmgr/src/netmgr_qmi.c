@@ -2901,9 +2901,11 @@ netmgr_qmi_cmd_exec (ds_cmd_t * cmd, void * data)
       break;
 
   case NETMGR_QMI_DFS_IND_CMD:
+#ifdef FEATURE_DATA_IWLAN
       netmgr_qmi_dfs_process_ind( qmi_cmd->data.dfs_ind.link,
                                   qmi_cmd->data.dfs_ind.ind_id,
                                   &qmi_cmd->data.dfs_ind.info );
+#endif /* FEATURE_DATA_IWLAN */
       break;
 
     default:

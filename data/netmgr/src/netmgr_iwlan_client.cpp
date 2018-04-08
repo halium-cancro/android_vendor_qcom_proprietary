@@ -459,8 +459,8 @@ void NetmgrIwlanClient::onNetConfigChange(const CnoNetConfigType &netConfig)
         req_msg.wlan_ipv4_address = ntohl(netConfig.ip4.s_addr);
       }
 
-      if (0 != wnc.ip4dns)
-      {
+      //if (0 != wnc.ip4dns)
+      //{
         req_msg.dns_ipv4_address_1_valid = TRUE;
         req_msg.dns_ipv4_address_1 = ntohl(wnc.ip4dns[0].s_addr);
 
@@ -476,10 +476,10 @@ void NetmgrIwlanClient::onNetConfigChange(const CnoNetConfigType &netConfig)
         {
           NETMGR_LOG_MED("OnNetConfigChange: Copying ipv4 dns addr 2 [%s]", buff);
         }
-      }
+      //}
 
-      if (NULL != wnc.ssid)
-      {
+      //if (NULL != wnc.ssid)
+      //{
         req_msg.ssid_len = (uint32_t)sizeof(wnc.ssid);
         req_msg.ssid_valid = TRUE;
         if (NULL != memmove(req_msg.ssid,
@@ -496,7 +496,7 @@ void NetmgrIwlanClient::onNetConfigChange(const CnoNetConfigType &netConfig)
         {
           NETMGR_LOG_ERR("OnNetConfigChange: Failed to copy ssid");
         }
-      }
+      //}
 
       if (0 != memcmp(netConfig.ip6.s6_addr,
                       null_ip6_addr.s6_addr,
