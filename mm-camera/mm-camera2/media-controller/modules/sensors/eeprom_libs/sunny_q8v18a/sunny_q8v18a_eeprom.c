@@ -349,7 +349,7 @@ void sunny_q8v18a_format_lensshading(sensor_eeprom_data_t *e_ctrl)
 
   if((group_index=sunny_q8v18a_get_group_index(mid))==-1){
     SERR("%s:invalid or empty lensshading data",__func__) ;
-    return -1 ;
+    return ;
   }
 
   addr_offset = LENS_OFFSET + group_index*group_offset ;

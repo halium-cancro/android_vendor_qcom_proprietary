@@ -34,8 +34,7 @@ LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/modules/pproc/cpp/
 LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/modules/sensors/chromatix/$(CHROMATIX_VERSION)
 
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-LOCAL_C_INCLUDES += \
- $(LOCAL_PATH)/../../../../../../../../../hardware/qcom/camera/QCamera2/stack/common
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 
 LOCAL_CFLAGS  += -Werror
 

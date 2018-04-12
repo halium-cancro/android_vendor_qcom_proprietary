@@ -1739,3 +1739,53 @@ main( int argc, char *argv[] )
 
   return 0;
 }
+
+/*===========================================================================
+  FUNCTION:   smr_print_heap_summary
+===========================================================================*/
+/*!
+  @brief This function prints the summary of the heap memory
+  @detail
+  @param[i] none
+  @return
+   None
+*/
+/*=========================================================================*/
+#ifdef USE_NATIVE_MALLOC
+void sns_print_heap_summary (void)
+{
+  return;
+}
+#else
+#include "oi_support_init.h"
+#define NUM_BLOCK 10
+extern uint32_t PoolFreeCnt[];
+extern const OI_MEMMGR_POOL_CONFIG memmgrPoolTable[];
+
+void sns_print_heap_summary (void)
+{
+  static bool     is_block_counted = false;
+  static uint32_t tot_block_cnt = 0;
+  uint32_t        i, tot_free_cnt = 0;
+
+  SNS_PRINTF_STRING_FATAL_0(SNS_DBG_MOD_APPS_SMR,
+                            "prints heap_summary");
+  if ( !is_block_counted )
+  {
+    for ( i = 0; i < NUM_BLOCK; i++)
+    {
+      tot_block_cnt += memmgrPoolTable[i].numBlocks;
+    }
+    is_block_counted = true;
+  }
+  for ( i = 0; i < NUM_BLOCK; i++)
+  {
+    tot_free_cnt += PoolFreeCnt[i];
+    SNS_PRINTF_STRING_FATAL_3(SNS_DBG_MOD_APPS_SMR,
+                              "Free Cnt[%5d] = %d/%d",
+                              memmgrPoolTable[i].blockSize, PoolFreeCnt[i], memmgrPoolTable[i].numBlocks);
+  }
+  SNS_PRINTF_STRING_FATAL_2(SNS_DBG_MOD_APPS_SMR,
+                            "Total Free Cnt  = %d/%d", tot_free_cnt, tot_block_cnt);
+}
+#endif

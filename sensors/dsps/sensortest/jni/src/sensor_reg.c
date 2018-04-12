@@ -167,7 +167,7 @@ sensor_reg_sig_all()
   }
   pthread_mutex_unlock( &sensor_reg_reqs_mutex );
 
-  return curr;
+  //return curr;
 }
 
 /**

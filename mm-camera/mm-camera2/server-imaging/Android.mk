@@ -5,7 +5,7 @@ ifeq ($(call is-vendor-board-platform,QCOM),true)
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_CFLAGS := -Werror \
+LOCAL_CFLAGS :=  \
   -DAMSS_VERSION=$(AMSS_VERSION) \
   $(mmcamera_debug_defines) \
   $(mmcamera_debug_cflags) \
@@ -35,8 +35,7 @@ LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/pipeline/
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/stream/
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/module/
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/port/
-LOCAL_C_INCLUDES+= \
- $(LOCAL_PATH)/../../../../../../hardware/qcom/camera/QCamera2/stack/common
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 
 include $(LOCAL_PATH)/../../local_additional_dependency.mk
 

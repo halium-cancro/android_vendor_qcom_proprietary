@@ -19,7 +19,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../libsensor1/inc
 # Figure out if this build system is a QCOM build. If so, include
 # the path to the sanitized headers in the target "out" dir.
 ifeq ($(call is-vendor-board-platform,QCOM),true)
-LOCAL_CFLAGS     += -include bionic/libc/kernel/arch-arm/asm/posix_types.h
+#LOCAL_CFLAGS     += -include bionic/libc/kernel/arch-arm/asm/posix_types.h
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 endif
@@ -41,7 +41,7 @@ LOCAL_STATIC_LIBRARIES += libsensors_lib
 LOCAL_SRC_FILES += \
 	$(shell find $(LOCAL_PATH)/* -name '*.c' | grep  'src/.*\.c' | sed s:^$(LOCAL_PATH)/::g )
 
-LOCAL_CFLAGS += -D_GNU_SOURCE -Wall -Wno-missing-field-initializers -Werror -DSNS_LA -std=c99
+LOCAL_CFLAGS += -D_GNU_SOURCE -Wall -Wno-missing-field-initializers -DSNS_LA -std=c99
 LOCAL_MODULE_TAGS := optional
 #PRODUCT_COPY_FILES += $(LOCAL_PATH)/sensors_dbg_config.txt:persist/sensors/sensors_dbg_config.txt 
 

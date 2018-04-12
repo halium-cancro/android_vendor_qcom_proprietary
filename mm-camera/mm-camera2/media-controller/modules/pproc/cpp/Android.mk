@@ -33,8 +33,7 @@ endif
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../includes
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../includes
-LOCAL_C_INCLUDES += \
- $(LOCAL_PATH)/../../../../../../../../../hardware/qcom/camera/QCamera2/stack/common
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 
 LOCAL_SRC_FILES:= cpp_params.c

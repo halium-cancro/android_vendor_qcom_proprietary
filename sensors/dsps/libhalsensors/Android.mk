@@ -51,7 +51,7 @@ LOCAL_SRC_FILES += src/sensors_hal_sam_thresh.c
 LOCAL_SRC_FILES += src/sensors_hal_sam.c
 LOCAL_SRC_FILES += src/sensors_hal_ma.c
 
-LOCAL_CFLAGS += -DSNS_LA -Werror
+LOCAL_CFLAGS += -DSNS_LA 
 
 LOCAL_MODULE_TAGS := optional
 LOCAL_PRELINK_MODULE := false

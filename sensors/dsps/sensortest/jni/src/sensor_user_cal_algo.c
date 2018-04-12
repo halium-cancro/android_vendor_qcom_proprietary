@@ -499,7 +499,7 @@ user_cal_init()
   if( NULL == g_user_cal_control )
   {
     LOGE( "%s: Malloc failure", __FUNCTION__ );
-    return -1;
+    return ;
   }
 
   g_user_cal_control->bias_result = NULL;

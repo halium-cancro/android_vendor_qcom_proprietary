@@ -47,8 +47,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../mct/stream
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../mct/tools
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../includes
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../includes
-LOCAL_C_INCLUDES += \
- $(LOCAL_PATH)/../../../../../../../../../../hardware/qcom/camera/QCamera2/stack/common
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 

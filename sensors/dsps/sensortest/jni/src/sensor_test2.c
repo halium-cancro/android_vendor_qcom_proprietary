@@ -281,7 +281,7 @@ Java_com_qualcomm_sensors_sensortest_SensorTest_getNativeRawDataMode
   (JNIEnv *ENV, jclass class)
 {
    int error = 0;
-   uint8_t *data, data_len = NULL;
+   uint8_t *data, data_len ;
    int result = 0;
 
    error = sensor_reg_open();

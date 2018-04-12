@@ -32,7 +32,7 @@ IDL_SRC_FILES := $(IDL_FILES:.h=.c)
 
 LOCAL_SRC_FILES += $(addprefix ../sensordaemon/common/idl/src/,$(IDL_SRC_FILES))
 
-LOCAL_CFLAGS += -D_GNU_SOURCE -Wno-missing-field-initializers -Werror -DSNS_RDIAG_DEBUG -DSNS_LA
+LOCAL_CFLAGS += -D_GNU_SOURCE -Wno-missing-field-initializers -DSNS_RDIAG_DEBUG -DSNS_LA
 
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := eng

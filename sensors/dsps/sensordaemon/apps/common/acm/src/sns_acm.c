@@ -1075,7 +1075,7 @@ sns_acm_log_api_call( sns_log_sensor1_api_e             sensor1_fn,
       log_ptr->txn_id = msg_hdr->txn_id;
     }
 
-    if( NULL == log_ptr->request || NULL == msg_hdr || 0 == msg_hdr->msg_size ) {
+    if(  NULL == msg_hdr || 0 == msg_hdr->msg_size ) {
       log_ptr->request_size = 0;
     }
 
