@@ -102,7 +102,7 @@ include $(BUILD_EXECUTABLE)
 # ---------------------------------------------------------------------------------
 #             Populate ACDB data files
 # ---------------------------------------------------------------------------------
-include $(LOCAL_PATH)/acdbdata/Android.mk
+#include $(LOCAL_PATH)/acdbdata/Android.mk
 
 endif #BUILD_TINY_ANDROID
 endif
