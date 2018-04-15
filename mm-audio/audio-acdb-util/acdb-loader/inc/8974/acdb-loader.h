@@ -15,6 +15,5 @@ int acdb_loader_send_anc_cal(int acdb_id);
 void send_tabla_anc_data(void);
 int acdb_loader_get_remote_acdb_id(unsigned int native_acdb_id);
 int acdb_loader_get_ecrx_device(int acdb_id);
-int acdb_loader_get_calibration(char *attr, int size, void *data);
 
 #endif /* ACDB_LOADER_H */

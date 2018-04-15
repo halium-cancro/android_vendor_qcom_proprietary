@@ -99,10 +99,37 @@ LOCAL_SRC_FILES         := test/sendcal.c
 
 include $(BUILD_EXECUTABLE)
 
+#Gionee Driver tangwei 20140925 add for dts start
+include $(CLEAR_VARS)
+LOCAL_MODULE            := dts.lic
+LOCAL_MODULE_TAGS       := optional
+LOCAL_MODULE_CLASS      := ETC
+LOCAL_MODULE_PATH       := $(TARGET_OUT_ETC)/srs
+LOCAL_SRC_FILES         := dts/license/dts.lic
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE            := srs_processing.cfg
+LOCAL_MODULE_TAGS       := optional
+LOCAL_MODULE_CLASS      := ETC
+LOCAL_MODULE_PATH       := $(TARGET_OUT_ETC)/srs
+LOCAL_SRC_FILES         := dts/srs_config/srs_processing.cfg
+include $(BUILD_PREBUILT)
+
+#include $(CLEAR_VARS)
+#LOCAL_MODULE            := srs_processing.cfg
+#LOCAL_MODULE_TAGS       := optional
+#LOCAL_MODULE_CLASS      := DATA
+#LOCAL_MODULE_PATH       := $(TARGET_OUT_DATA)/data/media
+#LOCAL_SRC_FILES         := dts/srs_config/srs_processing.cfg
+#include $(BUILD_PREBUILT)#aurora zhouxiaobing change 20141112 because the data/data/media/srs_processing.cfg can't write
+#Gionee Driver tangwei 20140925 add for dts end
+
+
 # ---------------------------------------------------------------------------------
 #             Populate ACDB data files
 # ---------------------------------------------------------------------------------
-#include $(LOCAL_PATH)/acdbdata/Android.mk
+include $(LOCAL_PATH)/acdbdata/Android.mk
 
 endif #BUILD_TINY_ANDROID
 endif

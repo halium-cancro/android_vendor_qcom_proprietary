@@ -44,9 +44,11 @@ static char MsmAdieCodecPoke[FILE_NAME_LENGTH] = "/sys/kernel/debug/asoc";
 static char MsmAdieCodecPeek[FILE_NAME_LENGTH] = "/sys/kernel/debug/asoc";
 static uint32_t found_codec_path = 0;
 
+#define RTC_IO_BUF_SIZE 5000
+static char rtc_io_buf[RTC_IO_BUF_SIZE];
+
 #define NUMBER_OF_SUBSTRING	3
-#define READ_STEP_SIZE 100
-#define ADIE_RTC_HEADER_SIZE 2
+
 static int get_adie_codec_file_names(void)
 {
 	DIR *dir;
@@ -85,7 +87,6 @@ static int get_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 {
 	int result = ACPH_SUCCESS;
 	int     fd = -1;
-	char_t *rtc_io_buf = NULL;
 
 	if((resp_buf_ptr != NULL) && (resp_buf_len >= sizeof(ACPH_CMD_GET_ADIE_REGISTER_rsp)))
 	{
@@ -99,8 +100,6 @@ static int get_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 		size_t numBytes = 0;
 		uint32_t nOutputBufPos = (uint32_t)resp_buf_ptr;
 		char_t *pInputBuf = (char_t *)req_buf_ptr;
-		int32_t rtc_io_buf_size;
-		char temp[READ_STEP_SIZE];
 
 		nReqBufLen = req_buf_len;
 		/* Req buffer contains 4 bytes of Reg addr and 4 bytes of Mask Value */
@@ -120,6 +119,7 @@ static int get_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 			memcpy(&regMask,
 				(pInputBuf+ACPH_CAL_DATA_UNIT_LENGTH),
 				ACPH_CAL_DATA_UNIT_LENGTH);
+
 			fd = open(MsmAdieCodecPeek, O_RDWR);
 			if(fd < 0)
 			{
@@ -127,22 +127,9 @@ static int get_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 				LOGE("[ACPH_CMD_GET_ADIE_REGISTER]->ERROR! cannot open adie peek error: %d, path: %s", fd, MsmAdieCodecPeek);
 				goto done;
 			}
-			/* read till end of the file to calculate the filesize, codec_reg is not a regular file so stat operations wont work*/
-			while(read(fd,temp,READ_STEP_SIZE));
-			/*add 2 bytes for header information like no.of registers etc.*/
-			rtc_io_buf_size = lseek(fd,0,SEEK_CUR)+ADIE_RTC_HEADER_SIZE;
-			lseek(fd,0,SEEK_SET);/*set the cur position to begining*/
-			LOGE("[ACPH_CMD_GET_ADIE_REGISTER]->codec_reg file size =%d",rtc_io_buf_size);
 
-			rtc_io_buf = (char_t *)malloc(rtc_io_buf_size);
-			if (rtc_io_buf == NULL)
-			{
-				result = ACPH_ERR_ADIE_INIT_FAILURE;
-				LOGE("[ACPH_CMD_GET_ADIE_REGISTER]->ERROR! cannot allocate memory: %d, path: %s", rtc_io_buf_size, MsmAdieCodecPeek);
-				goto done;
-			}
 			/* First four bytes is register address */
-			numBytes = read(fd, rtc_io_buf, rtc_io_buf_size);
+			numBytes = read(fd, rtc_io_buf, RTC_IO_BUF_SIZE);
 			close(fd);
 			LOGE("[rtc_apps_intf]->ACPH_CMD_GET_ADIE_REGISTER->byte read[%d]\n",numBytes);
 			if (numBytes <= 0)
@@ -164,10 +151,6 @@ static int get_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 				offset += 3;
 				LOGE("[ACPH_CMD_GET_ADIE_REGISTER]->reg[%08X],val[%08X]\n",
 							   ultempRegAddr, lRegValue);
-
-				if (ultempRegAddr >= CDC_REG_DIG_BASE_READ)
-					ultempRegAddr -= CDC_REG_DIG_OFFSET;
-
 				if(ultempRegAddr == regAddr)
 				{
 					found = 1;
@@ -180,8 +163,7 @@ static int get_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 			if (found == 0)
 			{
 				result = ACPH_ERR_ADIE_GET_CMD_FAILURE;
-				LOGE("[ACPH_CMD_GET_ADIE_REGISTER]->ERROR! get adie register[0x%x] failed Peek(%s) Poke(%s)",
-					regAddr, MsmAdieCodecPeek, MsmAdieCodecPoke);
+				LOGE("[ACPH_CMD_GET_ADIE_REGISTER]->ERROR! get adie register[0x%x] failed",regAddr);
 				goto done;
 			}
 			else
@@ -199,7 +181,6 @@ static int get_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 		result = ACPH_FAILURE;
 	}
 done:
-	free(rtc_io_buf);
 	return result;
 }
 
@@ -240,10 +221,6 @@ static int set_adie_register(uint8_t *req_buf_ptr, uint32_t req_buf_len,
 				ACPH_CAL_DATA_UNIT_LENGTH);
 			/* set the value as masked one*/
 			ulRegValue &= regMask;
-
-			if (regAddr >= CDC_REG_DIG_BASE_WRITE)
-				regAddr += CDC_REG_DIG_OFFSET;
-
 			numBytes1 = asprintf(&temp, "0x%x 0x%x", regAddr, ulRegValue);
 			LOGE("set register request received for ==> reg[%X], val[%X], bytes[%d]\n",
 				 regAddr, ulRegValue, numBytes1);
@@ -293,7 +270,6 @@ static int get_multiple_adie_registers(uint8_t *req_buf_ptr,
 {
 	int result = ACPH_SUCCESS;
 	int     fd = -1;
-	char_t *rtc_io_buf = NULL;
 
 	if(NULL != resp_buf_bytes_filled)
 	{
@@ -307,8 +283,6 @@ static int get_multiple_adie_registers(uint8_t *req_buf_ptr,
 		int32_t i=0;
 		char_t *pInputBuf = (char_t *)req_buf_ptr;
 		char_t *pCurInputBuf = NULL;
-		int32_t rtc_io_buf_size;
-		char temp[READ_STEP_SIZE];
 
 		nReqBufLen = req_buf_len;
 		if(nReqBufLen < ACPH_CAL_DATA_UNIT_LENGTH)
@@ -341,23 +315,8 @@ static int get_multiple_adie_registers(uint8_t *req_buf_ptr,
 					LOGE("[ACPH_CMD_GET_MULTIPLE_ADIE_REGISTERS]->ERROR! cannot open adie peek error: %d, path: %s", fd, MsmAdieCodecPeek);
 					goto done;
 				}
-				/* read till end of the file to calculate the filesize, codec_reg is not a regular file so stat operations wont work*/
-				while(read(fd,temp,READ_STEP_SIZE));
-				/*add 2 bytes for header information like no.of registers etc.*/
-				rtc_io_buf_size = lseek(fd,0,SEEK_CUR)+ADIE_RTC_HEADER_SIZE;
-				lseek(fd,0,SEEK_SET);/*set the cur position to begining*/
-				LOGE("[ACPH_CMD_GET_MULTIPLE_ADIE_REGISTERS]->codec_reg file size =%d",rtc_io_buf_size);
-
-				rtc_io_buf = (char_t *)malloc(rtc_io_buf_size);
-				if (rtc_io_buf == NULL)
-				{
-					result = ACPH_ERR_ADIE_INIT_FAILURE;
-					LOGE("[ACPH_CMD_GET_MULTIPLE_ADIE_REGISTERS]->ERROR! cannot allocate memory: %d, path: %s",
-						rtc_io_buf_size, MsmAdieCodecPeek);
-					goto done;
-				}
 				/* First four bytes is register address */
-				numBytes = read(fd, rtc_io_buf, rtc_io_buf_size);
+				numBytes = read(fd, rtc_io_buf, RTC_IO_BUF_SIZE);
 				if (numBytes <= 0)
 				{
 					/* read failure error */
@@ -388,9 +347,6 @@ static int get_multiple_adie_registers(uint8_t *req_buf_ptr,
 					memcpy((void*)val, (void*)rtc_io_buf+offset, sizeof(uint16_t));
 					lRegValue = strtol(val, NULL, 16);
 					offset += 3;
-					if (ultempRegAddr >= CDC_REG_DIG_BASE_READ)
-						ultempRegAddr -= CDC_REG_DIG_OFFSET;
-
 					if(ultempRegAddr == regAddr)
 					{
 						count++;
@@ -431,7 +387,6 @@ static int get_multiple_adie_registers(uint8_t *req_buf_ptr,
 		result = ACPH_FAILURE;
 	}
 done:
-	free(rtc_io_buf);
 	return result;
 
 }
@@ -486,9 +441,6 @@ static int set_multiple_adie_registers(uint8_t *req_buf_ptr, uint32_t req_buf_le
 						 regAddr, ulRegValue, regMask);
 					/* set the value as masked one*/
 					ulRegValue &= regMask;
-
-					if (regAddr >= CDC_REG_DIG_BASE_WRITE)
-						regAddr += CDC_REG_DIG_OFFSET;
 
 					numBytes1 = asprintf(&temp, "0x%x 0x%x", regAddr, ulRegValue);
 

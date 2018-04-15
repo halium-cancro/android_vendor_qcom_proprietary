@@ -71,6 +71,11 @@ LOCAL_MODULE_PATH       := $(TARGET_OUT_ETC)/acdbdata/MTP/
 LOCAL_SRC_FILES         := MTP/Speaker_cal.acdb
 include $(BUILD_PREBUILT)
 
+#Gionee huangzhuolin 20140528 add for acdb parameter version begin
+#PRODUCT_COPY_FILES += \
+#	$(LOCAL_PATH)/MTP/version.txt:system/media/acdb_version.txt
+#Gionee huangzhuolin 20140528 add for acdb parameter version end
+
 # ---------------------------------------------------------------------------------
 #             Populate ACDB data files to file system for Fluid
 # ---------------------------------------------------------------------------------

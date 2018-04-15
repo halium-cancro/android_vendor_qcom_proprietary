@@ -73,22 +73,8 @@ enum {
 	MAX_AUDPROC_TYPES
 };
 
-enum {
-       DEFAULT_MAX_CAL_TABLE_SIZE = 4096,
-       ANC_MAX_CODEC_CAL_TABLE_SIZE = 8192,
-};
-
-struct param_data {
-        int     use_case;
-        int     acdb_id;
-        int     get_size;
-        int     buff_size;
-        int     data_size;
-        void    *buff;
-};
-
-
 #ifdef _ANDROID_
+static mode_t PERM644 = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
 static int get_files_from_properties(AcdbInitCmdType *acdb_init_cmd)
 {
@@ -144,7 +130,9 @@ pthread_mutex_t loader_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int send_asm_topology(void);
 static int send_adm_custom_topology(void);
 static int send_asm_custom_topology(void);
-
+int acdb_loader_send_wcd9xxx_anc_cal(int acdb_id, int file_descriptor);
+void send_mbhc_data(void);
+void send_wcd9xxx_anc_data(void);
 
 static int get_files_from_device_tree(AcdbInitCmdType *acdb_init_cmd)
 {
@@ -356,6 +344,8 @@ int acdb_loader_init_ACDB(void)
 	send_asm_topology();
 	send_adm_custom_topology();
 	send_asm_custom_topology();
+	send_mbhc_data();
+	send_wcd9xxx_anc_data();
 	current_feature_set = ACDB_VOCVOL_FID_DEFAULT;
 	LOGD("ACDB -> init done!\n");
 	return 0;
@@ -965,17 +955,26 @@ done:
 	return result;
 }
 
-int send_codec_cal(struct param_data *params)
+int send_codec_cal(int acdb_id)
 {
 	int				result = 0;
+	int				mad_fd;
 	AcdbCodecCalDataCmdType		codec_table;
 	AcdbQueryResponseType		response;
 
-        LOGE("ACDB -> send_codec_cal\n");
-        codec_table.nDeviceID = params->acdb_id;
+	LOGD("ACDB -> send_codec_cal\n");
+	mad_fd = creat(MAD_BIN_PATH, PERM644);
+	if (mad_fd < 0)
+	{
+		LOGE("Error opening MAD file %d\n", errno);
+		result = -ENOENT;
+		goto done;
+	}
+
+	codec_table.nDeviceID = acdb_id;
 	codec_table.nCodecFeatureType = ACDB_WCD9320_MAD;
-        codec_table.nBufferLength = params->buff_size;
-        codec_table.pBufferPointer = (uint8_t *)params->buff;
+	codec_table.nBufferLength = ACDB_BLOCK_SIZE;
+	codec_table.pBufferPointer = (uint8_t *)mad_buf;
 
 	LOGD("ACDB -> ACDB_CMD_GET_CODEC_CAL_DATA\n");
 
@@ -984,9 +983,18 @@ int send_codec_cal(struct param_data *params)
 		(uint8_t *)&response, sizeof(response));
 	if (result) {
 		LOGE("Error: ACDB CODEC CAL returned = %d\n", result);
+		goto close_fd;
 	}
 
-        params->data_size = (int)response.nBytesUsedInBuffer;
+	result = write(mad_fd, mad_buf, response.nBytesUsedInBuffer);
+	if ( result != (int)response.nBytesUsedInBuffer) {
+		LOGE("Error writing MAD calibration data returned = %x\n", result);
+		goto close_fd;
+	}
+
+close_fd:
+	fsync(mad_fd);
+	close(mad_fd);
 done:
 	return result;
 }
@@ -1023,16 +1031,14 @@ void acdb_loader_send_listen_cal(int acdb_id, int app_id)
 {
 	send_afe_cal(acdb_id, TX_CAL);
 	send_lsm_cal(acdb_id, app_id);
+	send_codec_cal(acdb_id);
 }
 
-static int get_anc_table(int acdb_id, struct cal_block *block)
-
+static int32_t get_anc_table(int acdb_id, struct cal_block *block, int timpani)
 {
-        int result = -EINVAL;
-
+	int32_t result = -1;
 	AcdbCodecANCSettingCmdType acdb_cmd;
-        AcdbQueryResponseType response;
-
+	AcdbQueryResponseType acdb_cmd_response;
 	uint32_t			*addr =
 		(uint32_t *)(virt_cal_buffer + (ACDB_ANC_OFFSET)
 		* ACDB_BLOCK_SIZE);
@@ -1047,12 +1053,12 @@ static int get_anc_table(int acdb_id, struct cal_block *block)
 
 	result = acdb_ioctl(acdb_command_id,
 		(const uint8_t *)&acdb_cmd, sizeof(acdb_cmd),
-		(uint8_t *)&response, sizeof(response));
+		(uint8_t *)&acdb_cmd_response, sizeof(acdb_cmd_response));
 	if (result) {
 		LOGE("Error: ACDB ANC returned = %d\n", result);
 		goto done;
 	}
-	block->cal_size = response.nBytesUsedInBuffer;
+	block->cal_size = acdb_cmd_response.nBytesUsedInBuffer;
 	block->cal_offset = (ACDB_ANC_OFFSET) * ACDB_BLOCK_SIZE;
 done:
 	return result;
@@ -1123,20 +1129,33 @@ int32_t FP_format(int32_t val, int32_t intb, int32_t fracb, int32_t max_val)
 	return val;
 }
 
-void send_mbhc_data(struct param_data *params)
+void send_mbhc_data(void)
 {
-        int result;
+	int mbhc_fd, result;
 	AcdbGblTblCmdType global_cmd;
 	AcdbQueryResponseType   response;
+	uint8_t *calbuf;
 
 	LOGD("send mbhc data\n");
-        params->data_size = 0;
+
+	mbhc_fd = creat(MBHC_BIN_PATH, PERM644);
+
+	if (mbhc_fd < 0)
+	{
+		LOGE("Error opening MBHC file %d\n", errno);
+		return;
+	}
+
+	calbuf = malloc(TEMP_CAL_BUFSZ);
+	if (calbuf == NULL) {
+		LOGE("Fail to allocate memory for button detection calibration\n");
+		goto close_fd;
+	}
+
 	global_cmd.nModuleId = ACDB_MID_MBHC;
 	global_cmd.nParamId = ACDB_PID_GENERAL_CONFIG;
-        global_cmd.nBufferLength = params->buff_size;
-        global_cmd.nBufferPointer = (uint8_t *)params->buff;
-
-        LOGD("ACDB -> MBHC ACDB_PID_GENERAL_CONFIG\n");
+	global_cmd.nBufferLength = TEMP_CAL_BUFSZ;
+	global_cmd.nBufferPointer = calbuf;
 
 	result = acdb_ioctl(ACDB_CMD_GET_GLBTBL_DATA,
 		(const uint8_t *) &global_cmd, sizeof(global_cmd),
@@ -1148,12 +1167,14 @@ void send_mbhc_data(struct param_data *params)
 		goto acdb_error;
 	}
 
-        params->data_size += response.nBytesUsedInBuffer;
-        global_cmd.nBufferLength = params->buff_size - params->data_size;
-        global_cmd.nBufferPointer = (uint8_t *)params->buff + params->data_size;
+	result = write(mbhc_fd, calbuf, response.nBytesUsedInBuffer);
+	if ( result != (int)response.nBytesUsedInBuffer) {
+		LOGE("Error writing MBHC calibration data returned = %x\n", result);
+		goto acdb_error;
+	}
+
 	global_cmd.nParamId = ACDB_PID_PLUG_REMOVAL_DETECTION;
 
-        LOGD("ACDB -> MBHC ACDB_PID_PLUG_REMOVAL_DETECTION\n");
 	result = acdb_ioctl(ACDB_CMD_GET_GLBTBL_DATA,
 		(const uint8_t *) &global_cmd, sizeof(global_cmd),
 		(uint8_t *) &response, sizeof(response));
@@ -1164,12 +1185,14 @@ void send_mbhc_data(struct param_data *params)
 		goto acdb_error;
 	}
 
-        params->data_size += response.nBytesUsedInBuffer;
-        global_cmd.nBufferLength = params->buff_size - params->data_size;
-        global_cmd.nBufferPointer = (uint8_t *)params->buff + params->data_size;
-        global_cmd.nParamId = ACDB_PID_PLUG_TYPE_DETECTION;
+	result = write(mbhc_fd, calbuf, response.nBytesUsedInBuffer);
+	if ( result != (int)response.nBytesUsedInBuffer) {
+		LOGE("Error writing MBHC calibration data returned = %x\n", result);
+		goto acdb_error;
+	}
 
-        LOGD("ACDB -> MBHC ACDB_PID_PLUG_TYPE_DETECTION\n");
+	global_cmd.nParamId = ACDB_PID_PLUG_TYPE_DETECTION;
+
 	result = acdb_ioctl(ACDB_CMD_GET_GLBTBL_DATA,
 		(const uint8_t *) &global_cmd, sizeof(global_cmd),
 		(uint8_t *) &response, sizeof(response));
@@ -1180,12 +1203,13 @@ void send_mbhc_data(struct param_data *params)
 		goto acdb_error;
 	}
 
-        params->data_size += response.nBytesUsedInBuffer;
-        global_cmd.nBufferLength = params->buff_size - params->data_size;
-        global_cmd.nBufferPointer = (uint8_t *)params->buff + params->data_size;
-        global_cmd.nParamId = ACDB_PID_BUTTON_PRESS_DETECTION;
+	result = write(mbhc_fd, calbuf, response.nBytesUsedInBuffer);
+	if ( result != (int)response.nBytesUsedInBuffer) {
+		LOGE("Error writing MBHC calibration data returned = %x\n", result);
+		goto acdb_error;
+	}
+	global_cmd.nParamId = ACDB_PID_BUTTON_PRESS_DETECTION;
 
-        LOGD("ACDB -> MBHC ACDB_PID_BUTTON_PRESS_DETECTION\n");
 	result = acdb_ioctl(ACDB_CMD_GET_GLBTBL_DATA,
 		(const uint8_t *) &global_cmd, sizeof(global_cmd),
 		(uint8_t *) &response, sizeof(response));
@@ -1196,12 +1220,14 @@ void send_mbhc_data(struct param_data *params)
 		goto acdb_error;
 	}
 
-        params->data_size += response.nBytesUsedInBuffer;
-        global_cmd.nBufferLength = params->buff_size - params->data_size;
-        global_cmd.nBufferPointer = (uint8_t *)params->buff + params->data_size;
-        global_cmd.nParamId = ACDB_PID_IMPEDANCE_DETECTION;
+	result = write(mbhc_fd, calbuf, response.nBytesUsedInBuffer);
+	if ( result != (int)response.nBytesUsedInBuffer) {
+		LOGE("Error writing MBHC calibration data returned = %x\n", result);
+		goto acdb_error;
+	}
 
-        LOGD("ACDB -> MBHC ACDB_PID_IMPEDANCE_DETECTION\n");
+	global_cmd.nParamId = ACDB_PID_IMPEDANCE_DETECTION;
+
 	result = acdb_ioctl(ACDB_CMD_GET_GLBTBL_DATA,
 		(const uint8_t *) &global_cmd, sizeof(global_cmd),
 		(uint8_t *) &response, sizeof(response));
@@ -1212,40 +1238,47 @@ void send_mbhc_data(struct param_data *params)
 		goto acdb_error;
 	}
 
-       params->data_size += response.nBytesUsedInBuffer;
+	result = write(mbhc_fd, calbuf, response.nBytesUsedInBuffer);
+	if ( result != (int)response.nBytesUsedInBuffer) {
+		LOGE("Error writing MBHC calibration data returned = %x\n", result);
+		goto acdb_error;
+	}
+
+	fsync(mbhc_fd);
+	free(calbuf);
+	close(mbhc_fd);
+	return;
 
 acdb_error:
-       return;
-
+	free(calbuf);
+close_fd:
+	close(mbhc_fd);
+	unlink(MBHC_BIN_PATH);
 }
 
-void send_wcd9xxx_anc_data(struct param_data *params)
 
+void send_wcd9xxx_anc_data(void)
 {
 	uint32_t anc_configurations = 7;
 	uint32_t anc_base_configuration = 26;
-        uint32_t anc_reserved[3] = {0, 0, 0};
+	uint32_t anc_reserved[3];
 	int i;
+	int result = creat (WCD9320_ANC_BIN_PATH, PERM644);
+	if (result < 0)
+	{
+		LOGE("Error opening anc file %d\n", errno);
+		return;
+	}
 
-	params->data_size = 0;
+	write (result, anc_reserved, sizeof(uint32_t) * 3);
+	write (result, &anc_configurations, sizeof(uint32_t));
 
-	memcpy(((uint8_t *)params->buff + params->data_size), anc_reserved, sizeof(uint32_t) * 3);
-	params->data_size += sizeof(uint32_t) * 3;
-
-	memcpy(((uint8_t *)params->buff + params->data_size), &anc_configurations, sizeof(uint32_t));
-	params->data_size += sizeof(uint32_t);
-
-	
-        for (i = 0; i < (int32_t)(anc_configurations - 1); i++) {
-                params->acdb_id = i + anc_base_configuration;
-                send_wcd9xxx_anc_cal(params);
-
+	for (i = 0; i < (int32_t)(anc_configurations - 1); i++) {
+		acdb_loader_send_wcd9xxx_anc_cal(i + anc_base_configuration, result);
 	}
 	/* Add the AANC Rx device */
-        params->acdb_id = DEVICE_HANDSET_RX_AANC_ACDB_ID;
-        send_wcd9xxx_anc_cal(params);
-done:
-        return;
+	acdb_loader_send_wcd9xxx_anc_cal(DEVICE_HANDSET_RX_AANC_ACDB_ID, result);
+	close(result);
 }
 
 int Setwcd9xxxANC_IIRCoeffs(uint32_t *anc_config, uint32_t *anc_index,
@@ -1324,8 +1357,7 @@ int Setwcd9xxxANC_LPFShift(uint32_t *anc_config, uint32_t *anc_index,
 	return res;
 }
 
-int convert_anc_data_to_wcd9xxx(struct adie_codec_taiko_db_anc_cfg *pANCCfg,
-                                struct param_data *params)
+int convert_anc_data_to_wcd9xxx(struct adie_codec_taiko_db_anc_cfg *pANCCfg, int file_descriptor)
 {
 	uint32_t index;
 	uint32_t reg, mask, val;
@@ -1365,9 +1397,9 @@ int convert_anc_data_to_wcd9xxx(struct adie_codec_taiko_db_anc_cfg *pANCCfg,
 		anc_config.writes[anc_index++] = TAIKO_CODEC_PACK_ENTRY((TAIKO_A_CDC_ANC1_B1_CTL + offset), 0xFF, temp_ctl_reg_val);
 		anc_config.writes[anc_index++] = TAIKO_CODEC_PACK_ENTRY((TAIKO_A_CDC_ANC1_SHIFT + offset), 0xFF, ((pANCCfg[ancCh].anc_ff_shift << 4) | pANCCfg[ancCh].anc_fb_shift));
 		/* IIR COEFFS */
-		anc_config.writes[anc_index++] = TAIKO_CODEC_PACK_ENTRY((TAIKO_A_CDC_ANC1_IIR_B1_CTL + offset), 0xFF, 0x00);
-
 		Setwcd9xxxANC_IIRCoeffs((uint32_t *)anc_config.writes, &anc_index, pANCCfg, ancCh);
+
+		anc_config.writes[anc_index++] = TAIKO_CODEC_PACK_ENTRY((TAIKO_A_CDC_ANC1_IIR_B1_CTL + offset), 0x08, pANCCfg[ancCh].adaptive ? 0x08 : 0);
 
 		/* LPF COEFFS */
 		Setwcd9xxxANC_LPFShift((uint32_t *)anc_config.writes, &anc_index, pANCCfg, ancCh);
@@ -1383,16 +1415,13 @@ int convert_anc_data_to_wcd9xxx(struct adie_codec_taiko_db_anc_cfg *pANCCfg,
 	}
 	anc_config.size = anc_index;
 
-        memcpy(((uint8_t *)params->buff + params->data_size), &anc_config.size, sizeof(anc_config.size));
-        params->data_size += sizeof(anc_config.size);
-
-        memcpy(((uint8_t *)params->buff + params->data_size), anc_config.writes, (anc_config.size * TAIKO_PACKED_REG_SIZE));
-        params->data_size += anc_config.size * TAIKO_PACKED_REG_SIZE;
+	write (file_descriptor, &anc_config.size, sizeof(anc_config.size));
+	write (file_descriptor, anc_config.writes, anc_config.size * TAIKO_PACKED_REG_SIZE);
 
 	return anc_index;
 }
 
-int send_wcd9xxx_anc_cal(struct param_data *params)
+int acdb_loader_send_wcd9xxx_anc_cal(int acdb_id, int file_descriptor)
 {
 	int32_t		  result;
 	int			  index;
@@ -1403,15 +1432,18 @@ int send_wcd9xxx_anc_cal(struct param_data *params)
 
 	block = (struct cal_block *)&anc_cal[1];
 
-        result = get_anc_table(params->acdb_id, block);
-
+	if (!block) {
+		LOGE("Error retrieving calibration block\n");
+		return -EPERM;
+	}
+	result = get_anc_table(acdb_id, block, 0);
 	if (result) {
 		return result;
 	}
 	addr = (uint32_t *)(virt_cal_buffer + block->cal_offset);
 	ancCfg = (struct adie_codec_taiko_db_anc_cfg *)(addr);
 
-        convert_anc_data_to_wcd9xxx(ancCfg, params);
+	convert_anc_data_to_wcd9xxx(ancCfg, file_descriptor);
 
 	return 0;
 }
@@ -2083,50 +2115,3 @@ done:
 	return result;
 }
 
-int process_attribute(char *attr, struct param_data *params)
-{
-        int ret = 0;
-
-        if (params->get_size) {
-            if (strcmp("anc_cal", attr) == 0)
-                        params->buff_size = ANC_MAX_CODEC_CAL_TABLE_SIZE;
-                else
-                        params->buff_size = DEFAULT_MAX_CAL_TABLE_SIZE;
-                goto done;
-        }
-
-        if (strcmp("mad_cal", attr) == 0) {
-                ret = send_codec_cal(params);
-        } else if (strcmp("mbhc_cal", attr) == 0) {
-                send_mbhc_data(params);
-        } else if (strcmp("anc_cal", attr) == 0) {
-                send_wcd9xxx_anc_data(params);
-        }
-done:
-        return ret;
-}
-
-int acdb_loader_get_calibration(char *attr, int size, void *data)
-{
-        int ret = 0;
-        struct param_data *params = data;
-
-        if (attr == NULL) {
-                LOGE("%s: Error: attr is NULL!\n", __func__);
-                ret = -EINVAL;
-                goto done;
-        } else if (size != sizeof(*params)) {
-                LOGE("%s: Error: Invalid size %d, expected %d\n",
-	               __func__, size, sizeof(*params));
-                ret = -EINVAL;
-                goto done;
-        } else if (data == NULL) {
-                LOGE("%s: Error: data is NULL!\n", __func__);
-                ret = -EINVAL;
-                goto done;
-        }
-
-        process_attribute(attr, params);
-done:
-        return ret;
-}

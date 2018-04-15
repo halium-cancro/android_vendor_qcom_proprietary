@@ -12,8 +12,12 @@ include $(CLEAR_VARS)
 libacdbloader-def := -g -O3
 libacdbloader-def += -D_ANDROID_
 libacdbloader-def += -D_ENABLE_QC_MSG_LOG_
-libacdbloader-def += -D ACDB_BIN_PATH=\"/etc/acdbdata/\"
-libacdbloader-def += -D DEFAULT_ACDB_BOARD=\"MTP\"
+libacdbloader-def += -DWCD9310_ANC_BIN_PATH=\"/data/misc/audio/wcd9310_anc.bin\"
+libacdbloader-def += -DWCD9320_ANC_BIN_PATH=\"/data/misc/audio/wcd9320_anc.bin\"
+libacdbloader-def += -DMBHC_BIN_PATH=\"/data/misc/audio/mbhc.bin\"
+libacdbloader-def += -DMAD_BIN_PATH=\"/data/misc/audio/wcd9320_mad_audio.bin\"
+libacdbloader-def += -DACDB_BIN_PATH=\"/etc/acdbdata/\"
+libacdbloader-def += -DDEFAULT_ACDB_BOARD=\"MTP\"
 ifeq ($(call is-board-platform-in-list,msm8610 apq8084),true)
 libacdbloader-def += -DQCOM_AUDIO_USE_SYSTEM_HEAP_ID
 endif
