@@ -16,12 +16,6 @@
 #include <sound/asound.h>
 #include "control.h"
 
-#ifdef USE_GLIB
-#include <glib.h>
-#define strlcat g_strlcat
-#define strlcpy g_strlcpy
-#endif /* USE_GLIB */
-
 #define DIR_TX	2
 #define DIR_RX	1
 
