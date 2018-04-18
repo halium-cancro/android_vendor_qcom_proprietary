@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -17,6 +17,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_axi.h"
 #include "isp_hw.h"
 #include "isp.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -40,7 +41,7 @@ isp_axi_stream_t *isp_axi_util_find_stream(isp_axi_t *axi, uint32_t session_id,
   int i;
 
   for (i = 0; i < ISP_AXI_STREAM_MAX; i++) {
-    CDBG("%s: stream_state = %d, session_id = %d, "
+    ISP_DBG(ISP_MOD_COM,"%s: stream_state = %d, session_id = %d, "
          "stream_id = %d, in_sess_id = %d, in_stream_id = %d",
          __func__, axi->streams[i].state,
          axi->streams[i].cfg.stream_param.session_id,
@@ -55,6 +56,31 @@ isp_axi_stream_t *isp_axi_util_find_stream(isp_axi_t *axi, uint32_t session_id,
   return NULL;
 }
 
+/** isp_axi_util_find_active_video_stream:
+ *
+ *    @axi:
+ *    @session_id:
+ *
+ **/
+isp_axi_stream_t *isp_axi_util_find_active_video_stream(isp_axi_t *axi, uint32_t session_id)
+{
+  int i;
+
+  for (i = 0; i < ISP_AXI_STREAM_MAX; i++) {
+    ISP_DBG(ISP_MOD_COM,"%s: stream_state = %d, session_id = %d, "
+         "stream_id = %d, in_sess_id = %d",
+         __func__, axi->streams[i].state,
+         axi->streams[i].cfg.stream_param.session_id,
+         axi->streams[i].cfg.stream_param.stream_id, session_id);
+
+    if (axi->streams[i].state == ISP_AXI_STREAM_STATE_ACTIVE &&
+        axi->streams[i].cfg.stream_param.session_id == session_id &&
+        axi->streams[i].cfg.stream_param.stream_type == CAM_STREAM_TYPE_VIDEO)
+      return &axi->streams[i];
+  }
+
+  return NULL;
+}
 /** isp_axi_util_find_stream_handle:
  *
  *    @axi:
@@ -87,6 +113,18 @@ uint32_t isp_axi_util_cam_fmt_to_v4l2_fmt(
   uint32_t uv_subsample)
 {
   switch (fmt) {
+  case CAM_FORMAT_YUV_RAW_8BIT_YUYV:
+    return V4L2_PIX_FMT_YUYV;
+
+  case CAM_FORMAT_YUV_RAW_8BIT_YVYU:
+    return V4L2_PIX_FMT_YVYU;
+
+  case CAM_FORMAT_YUV_RAW_8BIT_UYVY:
+    return V4L2_PIX_FMT_UYVY;
+
+  case CAM_FORMAT_YUV_RAW_8BIT_VYUY:
+    return V4L2_PIX_FMT_VYUY;
+
   case CAM_FORMAT_YUV_420_NV12_VENUS:
   case CAM_FORMAT_YUV_420_NV12:
     return (uv_subsample) ? V4L2_PIX_FMT_NV14 : V4L2_PIX_FMT_NV12;
@@ -186,6 +224,7 @@ uint32_t isp_axi_util_cam_fmt_to_v4l2_fmt(
     return V4L2_PIX_FMT_JPEG;
 
   case CAM_FORMAT_META_RAW_8BIT:
+  case CAM_FORMAT_META_RAW_10BIT:
     return V4L2_PIX_FMT_META;
 
   default:

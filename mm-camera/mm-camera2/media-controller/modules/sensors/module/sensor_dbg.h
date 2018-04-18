@@ -14,13 +14,24 @@
 #undef SHIGH
 
 /* Enable SLOG_HIGH to print SERR and SHIGH */
-#define SLOG_HIGH
+//#define SLOG_HIGH
 
 /* Enable SLOG_LOW to print all log levels - SERR, SLOW and SHIGH */
-//#define SLOG_LOW
+#define SLOG_LOW
 
 /* ------- change this macro to enable mutex debugging for deadlock --------*/
 #define SENSOR_DEBUG_MUTEX    0
+
+#ifndef __cplusplus
+uint32_t sensordebug_mask;
+#endif
+
+typedef enum {
+  SENSOR_DEBUG_MASK_LOW  = (1 << 0),
+  SENSOR_DEBUG_MASK_HIGH = (1 << 1),
+  SENSOR_DEBUG_MASK_MAX  = 3,
+}sensor_dbg_mask_type;
+
 
 #if defined(SLOG_LOW)
   #ifdef _ANDROID_
@@ -32,9 +43,11 @@
     #define SERR(fmt, args...) \
       ALOGE("%s:%d "fmt"\n", __func__, __LINE__, ##args)
     #define SLOW(fmt, args...) \
-      ALOGE("%s:%d "fmt"\n", __func__, __LINE__, ##args)
+      if (sensordebug_mask & SENSOR_DEBUG_MASK_LOW) \
+        ALOGE("%s:%d "fmt"\n", __func__, __LINE__, ##args)
     #define SHIGH(fmt, args...) \
-      ALOGE("%s:%d "fmt"\n", __func__, __LINE__, ##args)
+      if (sensordebug_mask & SENSOR_DEBUG_MASK_HIGH) \
+        ALOGE("%s:%d "fmt"\n", __func__, __LINE__, ##args)
   #else
     #include <stdio.h>
     #define SERR(fmt, args...) fprintf(stderr, fmt, ##args)

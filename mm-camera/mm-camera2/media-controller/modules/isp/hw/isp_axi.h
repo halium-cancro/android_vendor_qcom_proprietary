@@ -46,6 +46,9 @@ typedef struct {
     struct msm_isp_event_data buf_event;
     struct msm_vfe_axi_stream_cfg_cmd stream_start_stop_cmd; /* start/stop */
     struct msm_vfe_input_cfg vfe_input_cfg;
+    struct msm_vfe_axi_halt_cmd halt_cmd;
+    struct msm_vfe_axi_reset_cmd reset_cmd;
+    struct msm_vfe_axi_restart_cmd restart_cmd;
   } u;
 } isp_hw_axi_work_struct_t;
 
@@ -82,6 +85,9 @@ typedef enum {
   ISP_AXI_ACTION_CODE_INVALID,
   ISP_AXI_ACTION_CODE_STREAM_START,
   ISP_AXI_ACTION_CODE_STREAM_STOP,
+  ISP_AXI_ACTION_CODE_HALT,
+  ISP_AXI_ACTION_CODE_RESET,
+  ISP_AXI_ACTION_CODE_RESTART,
   ISP_AXI_ACTION_CODE_STREAM_DIVERT_ACK,
   ISP_AXI_ACTION_CODE_HW_UPDATE,
   ISP_AXI_ACTION_CODE_MAX_NUM,

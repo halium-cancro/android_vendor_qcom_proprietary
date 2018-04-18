@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "demux40.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_DEMUX_LOGGING
-  #undef CDBG
-  #define CDBG ALOGE
+  #undef ISP_DBG
+  #define ISP_DBG ALOGE
 #endif
 
 /* TODO: need to clean this, 3D used.*/
@@ -36,19 +37,19 @@
  **/
 static void demux_debug(ISP_DemuxConfigCmdType* pcmd)
 {
-  CDBG("ISP_DemuxConfigCmd.ch0OddGain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxConfigCmd.ch0OddGain = %d\n",
     pcmd->ch0OddGain);
-  CDBG("ISP_DemuxConfigCmd.ch0EvenGain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxConfigCmd.ch0EvenGain = %d\n",
     pcmd->ch0EvenGain);
-  CDBG("ISP_DemuxConfigCmd.ch1Gain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxConfigCmd.ch1Gain = %d\n",
     pcmd->ch1Gain);
-  CDBG("ISP_DemuxConfigCmd.ch2Gain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxConfigCmd.ch2Gain = %d\n",
     pcmd->ch2Gain);
-  CDBG("ISP_DemuxConfigCmd.period = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxConfigCmd.period = %d\n",
     pcmd->period);
-  CDBG("ISP_DemuxConfigCmd.evenCfg = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxConfigCmd.evenCfg = %d\n",
     pcmd->evenCfg);
-  CDBG("ISP_DemuxConfigCmd.oddCfg = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxConfigCmd.oddCfg = %d\n",
     pcmd->oddCfg);
 } /* demux_debug */
 
@@ -64,13 +65,13 @@ static void demux_debug(ISP_DemuxConfigCmdType* pcmd)
  **/
 static void demux_gain_debug(ISP_DemuxGainCfgCmdType* pcmd)
 {
-  CDBG("ISP_DemuxGainCfgCmdType.ch0OddGain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxGainCfgCmdType.ch0OddGain = %d\n",
     pcmd->ch0OddGain);
-  CDBG("ISP_DemuxGainCfgCmdType.ch0EvenGain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxGainCfgCmdType.ch0EvenGain = %d\n",
     pcmd->ch0EvenGain);
-  CDBG("ISP_DemuxGainCfgCmdType.ch1Gain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxGainCfgCmdType.ch1Gain = %d\n",
     pcmd->ch1Gain);
-  CDBG("ISP_DemuxGainCfgCmdType.ch2Gain = %d\n",
+  ISP_DBG(ISP_MOD_DEMUX, "ISP_DemuxGainCfgCmdType.ch2Gain = %d\n",
     pcmd->ch2Gain);
 } /* demux_gain_debug */
 
@@ -111,7 +112,7 @@ static int demux_set_cfg_parms(ISP_DemuxConfigCmdType* pcmd,
   int rc = TRUE;
   enum ISP_START_PIXEL_PATTERN pix_pattern;
   /* Configure VFE input format, Send Input format command */
-  CDBG("%s: format %d", __func__, fmt);
+  ISP_DBG(ISP_MOD_DEMUX, "%s: format %d", __func__, fmt);
 
   pix_pattern = isp_fmt_to_pix_pattern(fmt);
 
@@ -202,13 +203,13 @@ static int demux_trigger_update(isp_demux_mod_t *demux_mod,
   demux_mod->remaining_digital_gain = 1.0; /* set to unitity */
 
   if(!demux_mod->enable || !demux_mod->trigger_enable) {
-    CDBG("%s: no trigger update for DEMUX, trigger_enable = %d, enable =%d\n",
+    ISP_DBG(ISP_MOD_DEMUX, "%s: no trigger update for DEMUX, trigger_enable = %d, enable =%d\n",
          __func__, demux_mod->enable, demux_mod->trigger_enable);
 
     return 0;
   }
 
-  CDBG("%s: dig gain %5.3f", __func__,
+  ISP_DBG(ISP_MOD_DEMUX, "%s: dig gain %5.3f", __func__,
     trigger_params->trigger_input.digital_gain);
   if (trigger_params->trigger_input.digital_gain < 1.0)
     trigger_params->trigger_input.digital_gain = 1.0;
@@ -218,12 +219,12 @@ static int demux_trigger_update(isp_demux_mod_t *demux_mod,
       MAX(chromatix_channel_balance_gains->red,
         chromatix_channel_balance_gains->blue)));
 
-  CDBG("%s: max_ch_gain %5.3f glob %5.3f", __func__, max_ch_gain,
+  ISP_DBG(ISP_MOD_DEMUX, "%s: max_ch_gain %5.3f glob %5.3f", __func__, max_ch_gain,
     AEC_algo_data->color_correction_global_gain);
   max_gain = max_ch_gain * AEC_algo_data->color_correction_global_gain *
     trigger_params->trigger_input.digital_gain;
 
-  CDBG("%s: max_gain_final %5.3f", __func__, max_gain);
+  ISP_DBG(ISP_MOD_DEMUX, "%s: max_gain_final %5.3f", __func__, max_gain);
   if (max_gain > MAX_DEMUX_GAIN) {
     new_dig_gain = MAX_DEMUX_GAIN/
       (AEC_algo_data->color_correction_global_gain * max_ch_gain);
@@ -233,11 +234,11 @@ static int demux_trigger_update(isp_demux_mod_t *demux_mod,
       (AEC_algo_data->color_correction_global_gain * max_ch_gain);
   }
 
-  CDBG("%s: dig_gain_old %5.3f new %5.3f", __func__, demux_mod->dig_gain,
+  ISP_DBG(ISP_MOD_DEMUX, "%s: dig_gain_old %5.3f new %5.3f", __func__, demux_mod->dig_gain,
     new_dig_gain);
   if (F_EQUAL(demux_mod->dig_gain, new_dig_gain)
     && (pix_setting->streaming_mode == demux_mod->old_streaming_mode)) {
-    CDBG("%s: No update required", __func__);
+    ISP_DBG(ISP_MOD_DEMUX, "%s: No update required", __func__);
 
     return 0;
   }
@@ -290,7 +291,7 @@ static int demux_config(isp_demux_mod_t *demux,
   demux->dig_gain = 1.0;
   demux->remaining_digital_gain = 1.0;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_DEMUX, "%s: E\n", __func__);
 
   if (pix_settings->camif_cfg.is_bayer_sensor) {
     INIT_GAIN(demux->gain, AEC_algo_data->color_correction_global_gain);
@@ -301,10 +302,10 @@ static int demux_config(isp_demux_mod_t *demux,
   INIT_GAIN(demux->r_gain, 1.0);
 
   demux_set_cfg_parms(p_cmd, pix_settings->camif_cfg.sensor_output_fmt);
-  CDBG("%s: sensor input format : %d \n", __func__,
+  ISP_DBG(ISP_MOD_DEMUX, "%s: sensor input format : %d \n", __func__,
        pix_settings->camif_cfg.sensor_output_fmt);
 
-  CDBG("%s:gain: gr_odd = %5.2f, gr_even = %5.2f, red = %5.2f blue = %5.2f ",
+  ISP_DBG(ISP_MOD_DEMUX, "%s:gain: gr_odd = %5.2f, gr_even = %5.2f, red = %5.2f blue = %5.2f ",
     __func__, demux->gain.green_odd, demux->gain.green_even, demux->gain.red,
     demux->gain.blue);
 
@@ -518,7 +519,7 @@ static int demux_get_params (void *mod_ctrl, uint32_t param_id,
     vfe_diag->control_demux.cntrlenable = demux_mod->trigger_enable;
     demux_ez_isp_update(demux_mod, gain);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_DEMUX, "%s: Populating vfe_diag data", __func__);
   }
     break;
 

@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "fovcrop32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_FOV_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #define MIN_DOWNSCALE_FACTOR 1.03125
@@ -26,10 +27,10 @@
  *==========================================================================*/
 static void vfe_fov_cmd_debug(ISP_FOV_CropConfigCmdType *cmd)
 {
-  CDBG("%s: FOV_CROP firstPixel %d\n", __func__, cmd->firstPixel);
-  CDBG("%s: FOV_CROP lastPixel %d\n", __func__, cmd->lastPixel);
-  CDBG("%s: FOV_CROP firstLine %d\n", __func__, cmd->firstLine);
-  CDBG("%s: FOV_CROP lastLine %d\n", __func__, cmd->lastLine);
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP firstPixel %d\n", __func__, cmd->firstPixel);
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP lastPixel %d\n", __func__, cmd->lastPixel);
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP firstLine %d\n", __func__, cmd->firstLine);
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP lastLine %d\n", __func__, cmd->lastLine);
 } /* isp_fov_cmd_debug */
 
 /*===========================================================================
@@ -176,7 +177,7 @@ static int fov_config(isp_fov_mod_t *mod,
     pix_setting->crop_info.y.pix_line.last_line = mod->fov_cmd.firstLine +
       mod->output_res.crop_out_y -1;
 
-    CDBG("%s: crop_factor = %d, fov_out first_pix = %d, first_line = %d,"
+    ISP_DBG(ISP_MOD_FOV, "%s: crop_factor = %d, fov_out first_pix = %d, first_line = %d,"
       "last_pix = %d, last_line = %d", __func__, pix_setting->crop_factor,
       mod->fov_cmd.firstPixel, mod->fov_cmd.firstLine,
       mod->fov_cmd.lastPixel, mod->fov_cmd.lastLine);
@@ -218,7 +219,7 @@ static int fov_trigger_update(isp_fov_mod_t *mod,
     return 0;
 
   if (!mod->fov_trigger_enable) {
-    CDBG("%s: Trigger is disable. Skip the trigger update.\n", __func__);
+    ISP_DBG(ISP_MOD_FOV, "%s: Trigger is disable. Skip the trigger update.\n", __func__);
     return 0;
   }
 
@@ -432,7 +433,7 @@ static int fov_do_hw_update(isp_fov_mod_t *fov_mod)
   struct msm_vfe_cfg_cmd2 cfg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[1];
 
-  CDBG("%s: HW_update, = %d\n", __func__, fov_mod->hw_update_pending);
+  ISP_DBG(ISP_MOD_FOV, "%s: HW_update, = %d\n", __func__, fov_mod->hw_update_pending);
 
   if (fov_mod->hw_update_pending) {
     cfg_cmd.cfg_data = (void *) &fov_mod->fov_cmd;

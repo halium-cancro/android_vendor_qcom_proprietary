@@ -227,7 +227,7 @@ static tintless_return_t isp_tintless_stat_config(void * const res, tintless_sta
 
     CDBG_TINTLESS("%s: Enter \n", __func__);
 
-    CDBG_TINTLESS("%s: stats : camif hxw %d x %d, ele col,row %d, %d, hxw %d x %d, type %d",__func__,
+    CDBG_HIGH("%s: stats : camif hxw %d x %d, ele col,row %d, %d, hxw %d x %d, type %d",__func__,
                cfg->camif_win_h, cfg->camif_win_w,
                cfg->num_stat_elem_cols, cfg->num_stat_elem_rows,
                cfg->stat_elem_h, cfg->stat_elem_w,

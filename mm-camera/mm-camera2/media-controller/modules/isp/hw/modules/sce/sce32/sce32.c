@@ -8,6 +8,7 @@
 #include <math.h>
 #include "camera_dbg.h"
 #include "sce32.h"
+#include "isp_log.h"
 
 #define SWAP(a,b) ({\
   a[0]^=b[0];\
@@ -19,8 +20,8 @@
 })
 
 #ifdef ENABLE_SCE_LOGGING
-  #undef CDBG
-  #define CDBG ALOGE
+  #undef ISP_DBG
+  #define ISP_DBG ALOGE
 #endif
 
 
@@ -99,7 +100,7 @@ static boolean sce_find_intersection(ISP_Skin_enhan_line *line1,
       ((FLOAT_EQ(line1->shift_cr, 0) && FLOAT_EQ(line2->shift_cr, 0)))){
     /* Lines are parallel */
 
-    CDBG("%s: parallel lines", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: parallel lines", __func__);
     return FALSE;
   }
 
@@ -119,7 +120,7 @@ static boolean sce_find_intersection(ISP_Skin_enhan_line *line1,
 
   if ((t2 < 0) || (t2 > 1)){
     /* Lines intersect outside poligon */
-    CDBG("%s: outside intersection", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: outside intersection", __func__);
     return FALSE;
   }
 
@@ -202,7 +203,7 @@ static int sce_found_boundaries(sce_cr_cb_triangle_set *triangles,
   *t_pos *= 2.0/3.0;
   *t_neg *= 2.0/3.0;
 
-  CDBG("%s: Boundaries %lf,%lf and %lf,%lf",__func__,
+  ISP_DBG(ISP_MOD_SCE, "%s: Boundaries %lf,%lf and %lf,%lf",__func__,
     line->point0.cr + line->shift_cr * *t_pos,
     line->point0.cb + line->shift_cb * *t_pos,
     line->point0.cr + line->shift_cr * *t_neg,
@@ -229,8 +230,11 @@ static void sce_reorder_triangles(isp_sce_mod_t *sce_mod,
   chromatix_SCE_type *p_sce = &p_chx->chromatix_VFE.chromatix_SCE;
 
   sce_mod->origin_triangles_A = p_sce->origin_triangles_A;
+  sce_mod->destination_triangles_A = p_sce->destination_triangles_A;
   sce_mod->origin_triangles_D65 = p_sce->origin_triangles_D65;
+  sce_mod->destination_triangles_D65 = p_sce->destination_triangles_D65;
   sce_mod->origin_triangles_TL84 = p_sce->origin_triangles_TL84;
+  sce_mod->destination_triangles_TL84 = p_sce->destination_triangles_TL84;
 }
 
 /** calc_sce_shiftbits:
@@ -321,7 +325,7 @@ static int32_t calc_sce_transform(ISP_Skin_enhan_range *interp_range,
   int32_t rc = TRUE, i;
 
   if (pOrigVert == NULL || pTransform == NULL) {
-    CDBG(" Null pointer in vfe_util_sce_transform\n");
+    ISP_DBG(ISP_MOD_SCE, " Null pointer in vfe_util_sce_transform\n");
     return FALSE;
   }
 
@@ -404,12 +408,12 @@ static void calc_sce_mapping(sce_affine_transform_2d *Tx, int32_t *coeff,
     if (i % 3 == 2) {
       coeff[i] = (int32_t)((*TxElem) * (1 << (*offset_shift)));
       if (coeff[i] <= -65536 || coeff[i] > 65536)
-        CDBG("ERROR: -65536 < coeffE <= 65536 is violated\n");
+        ISP_DBG(ISP_MOD_SCE, "ERROR: -65536 < coeffE <= 65536 is violated\n");
     } else {
       coeff[i] = (int32_t)(
         (*TxElem) * (1 << ((*matrix_shift) + (*offset_shift))));
       if (coeff[i] <= -2047 || coeff[i] > 2047)
-        CDBG("ERROR: -2047 < coeffA <= 2047 is violated\n");
+        ISP_DBG(ISP_MOD_SCE, "ERROR: -2047 < coeffA <= 2047 is violated\n");
     }
     TxElem++;
   }
@@ -654,11 +658,13 @@ chromatix_SCE_type *p_sce = &chroma_ptr->chromatix_VFE.chromatix_SCE;
   switch (cct_type) {
   case AWB_CCT_TYPE_A:
     sce_mod->orig = &(sce_mod->origin_triangles_A);
+    sce_mod->dest = &(sce_mod->destination_triangles_A);
     sce_mod->interp_vector = p_sce->shift_vector_A;
     break;
 
   case AWB_CCT_TYPE_D65:
     sce_mod->orig = &(sce_mod->origin_triangles_D65);
+    sce_mod->dest = &(sce_mod->destination_triangles_D65);
       sce_mod->interp_vector = p_sce->shift_vector_D65;
     break;
 
@@ -668,8 +674,18 @@ chromatix_SCE_type *p_sce = &chroma_ptr->chromatix_VFE.chromatix_SCE;
         sce_mod->trigger_info.trigger_A.mired_start,
         sce_mod->trigger_info.trigger_A.mired_end);
 
-    trigger_interpolate_sce_triangles(&(sce_mod->origin_triangles_TL84),
-      &(sce_mod->origin_triangles_A), sce_mod->orig, awb_ratio);
+      trigger_interpolate_sce_triangles(
+        &(sce_mod->origin_triangles_TL84),
+        &(sce_mod->origin_triangles_A),
+        sce_mod->orig,
+        awb_ratio);
+
+      trigger_interpolate_sce_triangles(
+        &(sce_mod->destination_triangles_TL84),
+        &(sce_mod->destination_triangles_A),
+        sce_mod->dest,
+        awb_ratio);
+
       trigger_interpolate_sce_vectors(&p_sce->shift_vector_TL84,
           &p_sce->shift_vector_A, &sce_mod->interp_vector, awb_ratio);
     break;
@@ -681,7 +697,15 @@ chromatix_SCE_type *p_sce = &chroma_ptr->chromatix_VFE.chromatix_SCE;
         sce_mod->trigger_info.trigger_d65.mired_start);
 
     trigger_interpolate_sce_triangles(&(sce_mod->origin_triangles_D65),
-      &(sce_mod->origin_triangles_TL84), sce_mod->orig, awb_ratio);
+      &(sce_mod->origin_triangles_TL84),
+      sce_mod->orig,
+      awb_ratio);
+
+    trigger_interpolate_sce_triangles(&(sce_mod->destination_triangles_D65),
+      &(sce_mod->destination_triangles_TL84),
+      sce_mod->dest,
+      awb_ratio);
+
     trigger_interpolate_sce_vectors(&p_sce->shift_vector_D65,
       &p_sce->shift_vector_TL84, &sce_mod->interp_vector, awb_ratio);
     break;
@@ -689,16 +713,17 @@ chromatix_SCE_type *p_sce = &chroma_ptr->chromatix_VFE.chromatix_SCE;
   case AWB_CCT_TYPE_TL84:
   default:
     sce_mod->orig = &(sce_mod->origin_triangles_TL84);
+    sce_mod->dest = &(sce_mod->destination_triangles_TL84);
     sce_mod->interp_vector = p_sce->shift_vector_TL84;
     break;
   }
 
   sce_find_line_by_vector(&sce_mod->interp_range.interpolation_line,
-    &p_sce->shift_vector_A, &sce_mod->orig->triangle1.point1);
+    &sce_mod->interp_vector, &sce_mod->dest->triangle1.point1);
   sce_found_boundaries(&sce_mod->origin_triangles_A,
     &sce_mod->interp_range.interpolation_line, &sce_mod->interp_range.pos_step,
     &sce_mod->interp_range.neg_step);
-  CDBG("%s: Interpolation parameter range -  %6.4lf to %6.4lf",
+  ISP_DBG(ISP_MOD_SCE, "%s: Interpolation parameter range -  %6.4lf to %6.4lf",
       __func__, sce_mod->interp_range.neg_step, sce_mod->interp_range.pos_step);
 }
 
@@ -726,15 +751,15 @@ static int sce_trigger_update(isp_sce_mod_t *sce_mod,
   uint8_t is_burst = IS_BURST_STREAMING((&trigger_params->cfg));
 
   if (!sce_mod->sce_enable) {
-    CDBG("%s: SCE not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE not enabled", __func__);
     return 0;
   }
   if (!sce_mod->sce_trigger_enable) {
-    CDBG("%s: SCE trigger not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE trigger not enabled", __func__);
     return 0;
   }
   if (trigger_params->trigger_input.stats_update.awb_update.color_temp == 0) {
-    CDBG("%s: SCE zero color temperature", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE zero color temperature", __func__);
     return 0;
   }
 
@@ -793,12 +818,12 @@ static int sce_set_factor(isp_sce_mod_t *sce_mod,
   }
 
   if (!sce_mod->sce_enable) {
-    CDBG("%s: SCE not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE not enabled", __func__);
     return 0;
   }
 
   sce_mod->sce_adjust_factor = (double)(*sce_factor)/100.0;
-  CDBG("%s:UI : %d Adj factor = %lf\n", __func__, *sce_factor,
+  ISP_DBG(ISP_MOD_SCE, "%s:UI : %d Adj factor = %lf\n", __func__, *sce_factor,
     sce_mod->sce_adjust_factor);
   return rc;
 }
@@ -885,24 +910,24 @@ static int sce_set_bestshot(isp_sce_mod_t *mod,
     tEnable.enable = TRUE;
     rc = sce_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0) {
-      CDBG("%s: cannot enable SCE", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot enable SCE", __func__);
       break;
     }
     rc = sce_trigger_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0) {
-      CDBG("%s: cannot enable trigger", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot enable trigger", __func__);
     }
     break;
   default:
     tEnable.enable = TRUE;
     rc = sce_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0) {
-      CDBG("%s: cannot disable SCE", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot disable SCE", __func__);
       break;
     }
     rc = sce_trigger_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0) {
-      CDBG("%s: cannot disable trigger", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot disable trigger", __func__);
     }
     break;
   }
@@ -954,16 +979,14 @@ static int sce_config(isp_sce_mod_t *sce_mod,
   int32_t coeff[6];
   uint32_t matrix_shift, offset_shift;
 
-  CDBG("%s:sce_adjust_factor : %lf\n",__func__,sce_mod->sce_adjust_factor);
+  ISP_DBG(ISP_MOD_SCE, "%s:sce_adjust_factor : %lf\n",__func__,sce_mod->sce_adjust_factor);
   sce_set_factor (sce_mod,&(in_params->sce_factor), sizeof(in_params->sce_factor));
   sce_mod->prev_cct_type = AWB_CCT_TYPE_TL84;
   sce_mod->prev_sce_adj = 0.0;
   sce_mod->prev_aec_ratio = 0.0;
   sce_reorder_triangles(sce_mod, in_params);
   sce_mod->orig = &(sce_mod->origin_triangles_TL84);
-
-  /*originally called, no longer needed and just config default value into cmd*/
-  //config_sce_cmd(sce_mod, in_params);
+  sce_mod->dest = &(sce_mod->destination_triangles_TL84);
   /* Cr cordintates for Triangle 0-4 */
   sce_mod->sce_cmd.crcoord.vertex00 = sce_mod->orig->triangle1.point1.cr;
   sce_mod->sce_cmd.crcoord.vertex01 = sce_mod->orig->triangle1.point2.cr;
@@ -1274,7 +1297,7 @@ static int sce_get_params(void *mod_ctrl, uint32_t param_id, void *in_params,
       break;
     }
     /*Populate vfe diag data */
-    CDBG("%s: Populating vfe diag data", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: Populating vfe diag data", __func__);
     vfe_diag->control_skincolorenhan.enable = sce->sce_enable;
     vfe_diag->control_skincolorenhan.cntrlenable = sce->sce_trigger_enable;
     sce_ez_vfe_update(skincolorenhan, &sce->applied_sce_cmd);

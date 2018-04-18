@@ -18,6 +18,91 @@
 #define CDBG_AWB  CDBG
 #endif
 
+/* Tuning param values controlled from outside of algorithm */
+#define INITIAL_CCT                       (4100) /* TL84 */
+#define K1_FLASH_SENSITIVITY_NORMAL_LIGHT (7.5)
+#define K1_FLASH_SENSITIVITY_WARM_LIGHT   (3.0)
+
+#define AWB_MAX_HISTORY                   (30)// Max possible value = 30
+#define AWB_AEC_MAX_HISTORY               (30)// Max possible value = 30
+#define STAT_SAT_TH                       (75)
+#define ALL_OUTLIER_HEURISTIC_FLAG        (0) /*1:enable all outlier heuristic; 0: disable all outlier heuristic*/
+#define DAY_LOCK_ENABLE                   (1)
+#define F_LOCK_ENABLE                     (0)
+#define A_LOCK_ENABLE                     (0)
+#define DAY_STABILITY_ENABLE              (1)
+#define F_STABILITY_ENABLE                (1)
+#define A_STABILITY_ENABLE                (1)
+#define H_STABILITY_ENABLE                (1)
+#define STABLE_RANGE_THRESHOLD            (15)
+#define HISTORY_SAVE_AVERAGE              (0)
+#define GREEN_ZONE_TOP_RG_OFFSET          (-30)
+#define GREY_WEIGHT_DAY                   (0.8)
+#define GREY_WEIGHT_F                     (1)
+#define GREY_WEIGHT_A                     (1)
+#define GREY_WEIGHT_H                     (1)
+#define WHITE_WEIGHT_DAY                  (0.2)
+#define WHITE_WEIGHT_F                    (1)
+#define WHITE_WEIGHT_A                    (1)
+#define WHITE_WEIGHT_H                    (1)
+#define WHITE_STAT_CNT_TH                 (3)
+#define WHITE_YAMX_YMID_DIST_TH           (5)
+#define WHITE_HISTORY_WEIGHT              (1)
+#define WHITE_HISTORY_EXP_TH              (5)
+#define OUTLIER_DIST2_A_H_LEFT            (6)
+#define D50_D65_WEIGHTED_SAMPLE_BOUNDARY  (1.0/3.0)
+#define AWB_DAY_ZONE_LEFT_OUTLIER_DIST    (12)
+#define AWB_DAY_ZONE_TOP_OUTLIER_DIST     (8)
+
+
+#define AWB_SUBSAMPLE               (4)
+#define MIN_AWB_SUBSAMPLE           (1)
+#define AWB_STATS_PROC_FREQ_PREVIEW (2)
+#define AWB_STATS_PROC_FREQ_VIDEO   (2)
+
+/* Dual Led Params */
+#define DUAL_LED_HIGH_LOW_LED_RATIO (7.5f)
+#define DUAL_LED_INTERSECT_SLOPE    (2.0f)
+#define DUAL_LED_RED_RG_ADJ         (1.0f)
+#define DUAL_LED_RED_BG_ADJ         (1.0f)
+#define DUAL_LED_BLUE_RG_ADJ        (1.0f)
+#define DUAL_LED_BLUE_BG_ADJ        (1.0f)
+#define USE_ENHANCED_K_INTERPOLATION (0)
+
+/* For Dual LED Calibration
+ * Manual LED control */
+#define DUAL_LED_MANUAL_SETTING_NUM 11
+static awb_dual_led_settings_t manual_settings[] = {
+  {200, 0, 0, 0},
+  {180, 20, 0, 0},
+  {160, 40, 0, 0},
+  {140, 60, 0, 0},
+  {120, 80, 0, 0},
+  {100, 100, 0, 0},
+  {80, 120, 0, 0},
+  {60, 140, 0, 0},
+  {40, 160, 0, 0},
+  {20, 180, 0, 0},
+  {0, 200, 0, 0}
+};
+
+/* Dual LED tuning data, rg/bg ratios
+ * Filled with golden led module data
+ * Need to match the number of entries in Chromatix */
+static float dual_led_ratios[] = {
+  1.0998f, 0.2901f,   // rg_ratio, bg_ratio (Entry 1)
+  0.9953f, 0.3404f,   // rg_ratio, bg_ratio (Entry 2)
+  0.9058f, 0.3859f,   // rg_ratio, bg_ratio (Entry 3)
+  0.8659f, 0.4075f,   // rg_ratio, bg_ratio (Entry 4)
+  0.7927f, 0.4468f,   // rg_ratio, bg_ratio (Entry 5)
+  0.7416f, 0.4751f,   // rg_ratio, bg_ratio (Entry 6)
+  0.6929f, 0.5022f,   // rg_ratio, bg_ratio (Entry 7)
+  0.6327f, 0.5371f,   // rg_ratio, bg_ratio (Entry 8)
+  0.6035f, 0.5542f,   // rg_ratio, bg_ratio (Entry 9)
+  0.5466f, 0.5893f,   // rg_ratio, bg_ratio (Entry 10)
+  0.4884f, 0.6219f    // rg_ratio, bg_ratio (Entry 11)
+};
+
 
 typedef enum {
   AWB_STATS_YUV,
@@ -35,7 +120,7 @@ typedef enum {
   CAMERA_WB_CLOUDY_DAYLIGHT,
   CAMERA_WB_TWILIGHT,
   CAMERA_WB_SHADE,
-  CAMERA_WB_CCT,
+  CAMERA_WB_MANUAL,
   CAMERA_WB_OFF,
   CAMERA_WB_MAX_PLUS_1
 } awb_config3a_wb_t;
@@ -84,19 +169,69 @@ typedef enum _awb_set_parameter_type {
   AWB_SET_PARAM_STATS_DEBUG_MASK,
   AWB_SET_PARAM_ENABLE,
   AWB_SET_PARAM_EZ_TUNE_RUNNING,
-  AWB_SET_PARAM_CCT,
+  AWB_SET_PARAM_MANUAL_WB,
+  AWB_SET_PARAM_SUBSAMPLING_FACTOR,
 } awb_set_parameter_type;
 
 typedef q3a_operation_mode_t awb_operation_mode_t;
+
+
+typedef struct _awb_tunable_params {
+  uint8_t             awb_stats_proc_freq;
+  uint32_t            awb_initial_cct;
+  float               awb_k1_flash_sensitivity_normal_light;
+  float               awb_k1_flash_sensitivity_warm_light;
+  uint16_t            awb_max_history;
+  uint16_t            awb_aec_max_history;
+  uint8_t             awb_stat_sat_th;
+  uint8_t             awb_all_outlier_heuristic_flag;
+  uint8_t             awb_day_lock_enable;
+  uint8_t             awb_f_lock_enable;
+  uint8_t             awb_a_lock_enable;
+  uint8_t             awb_day_stability_enable;
+  uint8_t             awb_f_stability_enable;
+  uint8_t             awb_a_stability_enable;
+  uint8_t             awb_h_stability_enable;
+  uint8_t             awb_stable_range_threshold;
+  uint8_t             awb_history_save_average;
+  int8_t              awb_green_zone_top_rg_offset;
+  float               awb_grey_weight_day;
+  float               awb_grey_weight_f;
+  float               awb_grey_weight_a;
+  float               awb_grey_weight_h;
+  float               awb_white_weight_day;
+  float               awb_white_weight_f;
+  float               awb_white_weight_a;
+  float               awb_white_weight_h;
+  uint16_t            awb_white_stat_cnt_th;
+  uint8_t             awb_white_yamx_ymid_dist_th;
+  uint8_t             awb_white_history_weight;
+  uint8_t             awb_white_history_exp_th;
+  uint8_t             awb_outlier_dist2_a_h_left;
+  float               awb_d50_d65_weighted_sample_boundary;
+  int32_t             awb_day_zone_left_outlier_dist;
+  int32_t             awb_day_zone_top_outlier_dist;
+
+  /* Dual led params */
+  float               awb_dual_led_high_low_led_ratio;
+  float               awb_dual_led_intersect_slope;
+  float               awb_dual_led_red_rg_adj;
+  float               awb_dual_led_red_bg_adj;
+  float               awb_dual_led_blue_rg_adj;
+  float               awb_dual_led_blue_bg_adj;
+  uint8_t             awb_use_enhanced_k_interpolation;
+} awb_tuning_params_t;
 
 typedef struct _awb_set_parameter_init {
   awb_stats_type_t     stats_type;
 
   void                 *chromatix;
   void                 *comm_chromatix;
+  void                 *dual_led_ratios;
 
   /* op_mode can be derived from stream info */
   awb_operation_mode_t op_mode;
+  awb_tuning_params_t  awb_tuning_params;
 
 } awb_set_parameter_init_t;
 
@@ -115,6 +250,7 @@ typedef struct {
    uint32_t cur_line_cnt;
    float cur_real_gain;
    float stored_digital_gain;
+   uint32_t cur_preview_fps;
 
    q3q_flash_sensitivity_t  flash_sensitivity;
 
@@ -122,7 +258,23 @@ typedef struct {
    int led_state;
    int use_led_estimation;
    int aec_flash_settled;
+   uint32_t exp_tbl_val;
+   aec_led_est_state_t est_state;
 } awb_set_aec_parms;
+
+typedef enum {
+  MANUAL_WB_MODE_CCT,
+  MANUAL_WB_MODE_GAIN,
+  MANUAL_WB_MODE_MAX
+} manual_wb_mode_type;
+
+typedef struct {
+  manual_wb_mode_type type;
+  union {
+    int32_t cct;
+    awb_gain_t gains;
+  } u;
+} manual_wb_parm_t;
 
 typedef struct _awb_set_parameter {
   awb_set_parameter_type type;
@@ -130,7 +282,7 @@ typedef struct _awb_set_parameter {
   union {
     awb_set_parameter_init_t          init_param;
     int32_t                           awb_current_wb;
-    int32_t                           awb_manual_cct;
+    manual_wb_parm_t                  manual_wb_params;
     int32_t                           awb_best_shot;
     int                               ez_disable;
     int                               ez_lock_output;
@@ -141,6 +293,7 @@ typedef struct _awb_set_parameter {
     int32_t                           video_hdr;
     uint32_t                          stats_debug_mask;
     boolean                           ez_running;
+    uint32_t                          subsampling_factor;
   } u;
 } awb_set_parameter_t;
 
@@ -322,6 +475,11 @@ typedef struct _awb_output_data {
   uint32_t frame_id;
   awb_output_type_t type;
   awb_output_eztune_data_t eztune_data;
+  char awb_debug_data_array[AWB_DEBUG_DATA_SIZE];
+  uint32_t  awb_debug_data_size;
+  uint8_t   awb_stats_proc_freq;
+  int gains_restored;
+  awb_dual_led_settings_t  dual_led_settings;
 } awb_output_data_t;
 /*Data structure for awb ends */
 

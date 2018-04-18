@@ -164,7 +164,8 @@ int dis_process(dis_context_type *dis, rs_cs_data_t *rs_cs_data,
   if (dis == NULL)
     return -1;
 
-  if (dis->input_data.is_mode == GA_DIS && frame_times->frame_time != 0) {
+  if (dis->input_data.is_mode == IS_TYPE_GA_DIS &&
+    frame_times->frame_time != 0) {
     /* Gyro-assisted DIS and gyro data is available for this frame */
     dis_detect_motion(frame_times, dis);
   }
@@ -189,7 +190,8 @@ int dis_process(dis_context_type *dis, rs_cs_data_t *rs_cs_data,
     is_output->prev_dis_output_y = dis->inst_shake.y;
 
     /* Check for EIS 1 and valid EIS 1 offsets */
-    if (dis->input_data.is_mode == EIS_1 && is_output->eis_output_valid) {
+    if (dis->input_data.is_mode == IS_TYPE_EIS_1_0 &&
+      is_output->eis_output_valid) {
       /* Use EIS 1 offsets for this frame */
       offset.x = is_output->eis_output_x;
       offset.y = is_output->eis_output_y;
@@ -202,7 +204,7 @@ int dis_process(dis_context_type *dis, rs_cs_data_t *rs_cs_data,
     }
 
     dis_normalize_offset(dis, &offset);
-    if (dis->input_data.is_mode != EIS_2) {
+    if (dis->input_data.is_mode != IS_TYPE_EIS_2_0) {
       is_output->x = offset.x;
       is_output->y = offset.y;
     }

@@ -6,6 +6,11 @@
 ============================================================================*/
 #include "camera_dbg.h"
 #include "matrix_utils.h"
+#include <inttypes.h>
+#include "isp_pipeline.h"
+#include "isp_pipeline_util.h"
+#include "isp_hw_module_ops.h"
+#include "isp_log.h"
 
 
 /*==============================================================================
@@ -37,7 +42,7 @@ void multmat(double **m1, int r1, int c1, double **m2, int r2, int c2,
 {
   int i, j, k;
 
-  CDBG("%s: r1=%d, c1=%d, r2=%d, c2=%d\n", __func__, r1, c1, r2, c2);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: r1=%d, c1=%d, r2=%d, c2=%d\n", __func__, r1, c1, r2, c2);
   if (c1 != r2) {
     CDBG_ERROR("%s: m1 and m2 not compatible for matrix multiplication.\n",
       __func__);

@@ -65,6 +65,7 @@ typedef struct {
 
   /* Module Control */
   uint8_t hw_update_pending;
+  cam_flash_mode_t prev_flash_mode;
   uint8_t trigger_enable; /* enable trigger update feature flag from PIX*/
   uint8_t skip_trigger;
   uint8_t enable;         /* enable flag from PIX */

@@ -59,17 +59,24 @@ typedef struct _aec_port_private {
   int                 vfe_out_width;
   int                 vfe_out_height;
   uint32_t            cur_sof_id;
+  uint32_t            cur_stats_id;
   aec_port_state_t    state;
   stats_update_t      aec_update_data;
+  stats_update_t      aec_data_copy;
   boolean             aec_update_flag;
+  boolean             need_to_send_est;
   aec_object_t        aec_object;
   q3a_thread_data_t   *thread_data;
   mct_stream_info_t   stream_info;
   aec_get_t           aec_get_data;
-  int32_t             video_hdr;
+
+  int32_t                  video_hdr;
+  enum sensor_stats_type   video_hdr_stats_type;
+
   uint8_t             aec_state;
   cam_ae_state_t      aec_last_state;
   boolean             locked_from_hal;
+  boolean             in_longshot_mode;
   boolean             aec_enabled;
   boolean             aec_precap_start;
   boolean             aec_precap_for_af;
@@ -78,9 +85,14 @@ typedef struct _aec_port_private {
   int32_t             iso_speed;
   uint32_t            max_sensor_delay;
   boolean             in_zsl_capture;
+  int                 preview_width;
+  int                 preview_height;
+  char                aec_debug_data_array[AEC_DEBUG_DATA_SIZE];
+  uint32_t            aec_debug_data_size;
   /* HAL 3*/
   cam_area_t          aec_roi;
   aec_led_est_state_t est_state;
+  uint32_t            dual_led_calibration_cnt;
 } aec_port_private_t;
 
 void    aec_port_deinit(mct_port_t *port);

@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 - 2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013 - 2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -10,6 +10,9 @@
 #include <poll.h>
 #include <unistd.h>
 #include "c2d_hardware.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+
 #define PIPE_FD_IDX   0
 #define CEILING16(X) (((X) + 0x000F) & 0xFFF0)
 //#define SUBDEV_FD_IDX 1
@@ -35,10 +38,11 @@ static void* c2d_thread_func(void* data)
   struct pollfd pollfds;
   int num_fds = 1;
   int ready=0, i=0;
+  prctl(PR_SET_NAME, "c2d_thread", 0, 0, 0);
   pollfds.fd = ctrl->pfd[READ_FD];
   pollfds.events = POLLIN|POLLPRI;
-  CDBG_HIGH("%s:%d: c2d_thread entering the polling loop...",
-    __func__, __LINE__);
+  CDBG_HIGH("%s:%d: c2d_thread entering the polling loop... thread_id is %d\n",
+    __func__, __LINE__,syscall(SYS_gettid));
   while(1) {
     /* poll on the fds with no timeout */
     ready = poll(&pollfds, (nfds_t)num_fds, -1);
@@ -161,6 +165,16 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
       ctrl, c2d_event);
     return -EINVAL;
   }
+  /* if C2D processing is not needed, just ack input buffer*/
+  if (c2d_event->u.process_buf_data.isp_buf_divert.is_skip_pproc) {
+    CDBG("%s, C2D processing not required for frame:%d,Iden:0x%x,stream type:%d",
+      __func__,
+      c2d_event->u.process_buf_data.isp_buf_divert.buffer.sequence,
+      c2d_event->u.process_buf_data.proc_identity,
+      c2d_event->u.process_buf_data.stream_info->stream_type);
+    c2d_module_do_ack(ctrl, c2d_event->ack_key);
+    return 0;
+  }
 
   c2d_hardware_params_t* hw_params;
   hw_params = &(c2d_event->u.process_buf_data.hw_params);
@@ -180,7 +194,12 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
       c2d_event->u.process_buf_data.input_stream_info,
       &hw_params->input_buffer_info.vaddr);
     if (bool_ret == FALSE) {
-      CDBG_ERROR("%s:%d failed: pp_buf_mgr_get_vaddr()\n", __func__, __LINE__);
+      CDBG_ERROR("%s:%d failed: pp_buf_mgr_get_vaddr() for frame_id:%d"
+      "identity:0x%x,stream type: %d\n",
+      __func__, __LINE__,
+      c2d_event->u.process_buf_data.isp_buf_divert.buffer.sequence,
+      c2d_event->u.process_buf_data.proc_identity,
+      c2d_event->u.process_buf_data.stream_info->stream_type);
       c2d_module_do_ack(ctrl, c2d_event->ack_key);
       return -EINVAL;
     }
@@ -214,7 +233,10 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
   output_buf = pp_buf_mgr_get_buf(ctrl->buf_mgr,
     c2d_event->u.process_buf_data.stream_info);
   if (!output_buf) {
-    CDBG_ERROR("%s:%d failed: pp_buf_mgr_get_buf()\n", __func__, __LINE__);
+    CDBG_ERROR("%s:%d failed: pp_buf_mgr_get_buf() for frame_id:%d "
+      "identity:0x%x,stream type: %d\n",
+      __func__, __LINE__,hw_params->frame_id,hw_params->identity,
+      c2d_event->u.process_buf_data.stream_info->stream_type);
     c2d_module_do_ack(ctrl, c2d_event->ack_key);
     return 0;
   }
@@ -228,8 +250,10 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
   cmd.u.hw_params = hw_params;
   rc = c2d_hardware_process_command(ctrl->c2dhw, cmd);
   if (rc == -EAGAIN) {
-     CDBG_ERROR("%s:%d] get buffer fail. drop frame id:%d identity:0x%x\n",
-       __func__, __LINE__, hw_params->frame_id, hw_params->identity);
+     CDBG_ERROR("%s:%d] get buffer fail. drop frame id:%d identity:0x%x"
+      " stream type:%d",
+       __func__, __LINE__, hw_params->frame_id, hw_params->identity,
+       c2d_event->u.process_buf_data.stream_info->stream_type);
      pp_buf_mgr_put_buf(ctrl->buf_mgr,
          c2d_event->u.process_buf_data.stream_info->identity,
          output_buf->buf_index, hw_params->frame_id,
@@ -238,8 +262,8 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
   }
 
   /* get stream parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, hw_params->identity,
     &session_params, &stream_params);
   if (!stream_params) {
@@ -247,19 +271,30 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
     return -EFAULT;
   }
 
-  CDBG_ERROR("%s:%d output buf index %d, buf size %d\n", __func__, __LINE__,
+  CDBG("%s:%d frame_id:%d,identity:0x%x,stream type: %d output buf index %d,"
+    "buf size %d\n",
+    __func__, __LINE__,hw_params->frame_id,hw_params->identity,
+    c2d_event->u.process_buf_data.stream_info->stream_type,
     output_buf->buf_index, output_buf->buf_size);
 
   /* Initialize input frame */
   memset(&c2d_input_buffer, 0, sizeof(c2d_input_buffer));
-  if (hw_params->input_info.plane_fmt == C2D_PARAM_PLANE_CBCR) {
+  if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_CBCR) {
     c2d_input_buffer.format = CAM_FORMAT_YUV_420_NV12;
-  } else if (hw_params->input_info.plane_fmt == C2D_PARAM_PLANE_CRCB) {
+  } else if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_CRCB) {
     c2d_input_buffer.format = CAM_FORMAT_YUV_420_NV21;
-  } else if (hw_params->input_info.plane_fmt == C2D_PARAM_PLANE_CBCR422) {
+  } else if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_CBCR422) {
     c2d_input_buffer.format = CAM_FORMAT_YUV_422_NV16;
-  } else if (hw_params->input_info.plane_fmt == C2D_PARAM_PLANE_CRCB422) {
+  } else if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_CRCB422) {
     c2d_input_buffer.format = CAM_FORMAT_YUV_422_NV61;
+  } else if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_YCRYCB422) {
+    c2d_input_buffer.format = CAM_FORMAT_YUV_RAW_8BIT_YUYV;
+  } else if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_YCBYCR422) {
+    c2d_input_buffer.format = CAM_FORMAT_YUV_RAW_8BIT_YVYU;
+  } else if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_CRYCBY422) {
+    c2d_input_buffer.format = CAM_FORMAT_YUV_RAW_8BIT_UYVY;
+  } else if (hw_params->input_info.c2d_plane_fmt == C2D_PARAM_PLANE_CBYCRY422) {
+    c2d_input_buffer.format = CAM_FORMAT_YUV_RAW_8BIT_VYUY;
   }
   if ((c2d_input_buffer.format == CAM_FORMAT_YUV_422_NV61) ||
        (c2d_input_buffer.format == CAM_FORMAT_YUV_422_NV16)) {
@@ -294,19 +329,25 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
   c2d_input_buffer.mp[0].fd = hw_params->input_buffer_info.fd;
   c2d_input_buffer.mp[0].addr_offset = 0;
   c2d_input_buffer.mp[0].data_offset = 0;
+  if ((c2d_input_buffer.format >= CAM_FORMAT_YUV_RAW_8BIT_YUYV) &&
+      (c2d_input_buffer.format <= CAM_FORMAT_YUV_RAW_8BIT_VYUY)) {
+    c2d_input_buffer.num_planes = 1;
+    c2d_input_buffer.mp[0].length *= 2;
+  } else {
   /* Plane 1 */
-  c2d_input_buffer.mp[1].vaddr = c2d_input_buffer.mp[0].vaddr +
-    hw_params->input_info.stride * hw_params->input_info.scanline;
-  c2d_input_buffer.mp[1].length = (hw_params->input_info.stride *
-    hw_params->input_info.scanline) / 2;
-  c2d_input_buffer.mp[1].fd = hw_params->input_buffer_info.fd;
-  c2d_input_buffer.mp[1].addr_offset = 0;
-  c2d_input_buffer.mp[1].data_offset = 0;
-
-  if ((c2d_input_buffer.format == CAM_FORMAT_YUV_422_NV61) ||
-       (c2d_input_buffer.format == CAM_FORMAT_YUV_422_NV16)) {
+    c2d_input_buffer.mp[1].vaddr = c2d_input_buffer.mp[0].vaddr +
+        hw_params->input_info.stride * hw_params->input_info.scanline;
     c2d_input_buffer.mp[1].length = (hw_params->input_info.stride *
-      hw_params->input_info.scanline);
+        hw_params->input_info.scanline) / 2;
+    c2d_input_buffer.mp[1].fd = hw_params->input_buffer_info.fd;
+    c2d_input_buffer.mp[1].addr_offset = 0;
+    c2d_input_buffer.mp[1].data_offset = 0;
+
+    if ((c2d_input_buffer.format == CAM_FORMAT_YUV_422_NV61) ||
+        (c2d_input_buffer.format == CAM_FORMAT_YUV_422_NV16)) {
+      c2d_input_buffer.mp[1].length = (hw_params->input_info.stride *
+          hw_params->input_info.scanline);
+    }
   }
 
   /* Configure c2d IS parameters */
@@ -314,7 +355,7 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
   if (hw_params->crop_info.is_crop.use_3d && session_params->dis_enable ) {
     c2d_input_buffer.lens_correction_cfg.use_LC = TRUE;
     c2d_input_buffer.lens_correction_cfg.transform_mtx =
-        &hw_params->crop_info.is_crop.transform_matrix;
+      &hw_params->crop_info.is_crop.transform_matrix[0];
     c2d_input_buffer.lens_correction_cfg.transform_type =
         hw_params->crop_info.is_crop.transform_type;
   } else {
@@ -323,9 +364,12 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
 
   /* Configure c2d for crop paramters required by the stream */
 
-  if (c2d_event->u.process_buf_data.input_stream_info &&
-      c2d_event->u.process_buf_data.input_stream_info->is_type \
-                                   == IS_TYPE_EIS_2_0) {
+
+  if (((c2d_event->u.process_buf_data.input_stream_info &&
+    c2d_event->u.process_buf_data.input_stream_info->is_type ==
+    IS_TYPE_EIS_2_0) || stream_params->interleaved) &&
+    !stream_params->single_module){
+
     c2d_input_buffer.roi_cfg.x = hw_params->crop_info.is_crop.x;
     c2d_input_buffer.roi_cfg.y = hw_params->crop_info.is_crop.y;
     if (!hw_params->crop_info.is_crop.dx && ! hw_params->crop_info.is_crop.dy){
@@ -361,24 +405,68 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
     c2d_input_buffer.roi_cfg.height =
         (hw_params->crop_info.stream_crop.dy * hw_params->crop_info.is_crop.dy)/
         hw_params->input_info.height;
-
-    CDBG("%s c2d_input_buffer.roi_cfg.x %d c2d_input_buffer.roi_cfg.y %d c2d_input_buffer.roi_cfg.width %d \
-           c2d_input_buffer.roi_cfg.height %d",__func__, c2d_input_buffer.roi_cfg.x,c2d_input_buffer.roi_cfg.y,
-           c2d_input_buffer.roi_cfg.width,c2d_input_buffer.roi_cfg.height);
   }
   /* Initialize output frame */
+
+  if (c2d_input_buffer.roi_cfg.height &&
+    hw_params->output_info.height && hw_params->output_info.width) {
+      float dst_aspect_ratio = (float)hw_params->output_info.width /
+        (float)hw_params->output_info.height;
+      float src_aspect_ratio = (float)c2d_input_buffer.roi_cfg.width /
+        (float)c2d_input_buffer.roi_cfg.height;
+      uint32_t process_window_first_pixel, process_window_first_line;
+      uint32_t process_window_width, process_window_height;
+
+      if((hw_params->rotation == 1) || (hw_params->rotation == 3)) {
+        dst_aspect_ratio = (float)hw_params->output_info.height /
+        (float)hw_params->output_info.width;
+      }
+
+    if (dst_aspect_ratio > src_aspect_ratio) {
+      process_window_height =
+        (float)c2d_input_buffer.roi_cfg.width / dst_aspect_ratio;
+      process_window_width = c2d_input_buffer.roi_cfg.width;
+      process_window_first_pixel =
+        c2d_input_buffer.roi_cfg.x;
+      process_window_first_line =
+        c2d_input_buffer.roi_cfg.y +
+        ((float)(c2d_input_buffer.roi_cfg.height -
+        process_window_height)) / 2.0;
+    } else {
+      process_window_width =
+        (float)c2d_input_buffer.roi_cfg.height * dst_aspect_ratio;
+      process_window_height = c2d_input_buffer.roi_cfg.height;
+      process_window_first_line =
+        c2d_input_buffer.roi_cfg.y;
+      process_window_first_pixel =
+        c2d_input_buffer.roi_cfg.x +
+        ((float)(c2d_input_buffer.roi_cfg.width-
+        process_window_width)) / 2.0;
+    }
+
+    c2d_input_buffer.roi_cfg.width = process_window_width;
+    c2d_input_buffer.roi_cfg.height = process_window_height;
+    c2d_input_buffer.roi_cfg.x =
+      process_window_first_pixel;
+    c2d_input_buffer.roi_cfg.y =
+      process_window_first_line;
+  }
+  CDBG("%s c2d_input_buffer.roi_cfg.x %d c2d_input_buffer.roi_cfg.y %d c2d_input_buffer.roi_cfg.width %d \
+         c2d_input_buffer.roi_cfg.height %d",__func__, c2d_input_buffer.roi_cfg.x,c2d_input_buffer.roi_cfg.y,
+         c2d_input_buffer.roi_cfg.width,c2d_input_buffer.roi_cfg.height);
+
   memset(&c2d_output_buffer, 0, sizeof(c2d_output_buffer));
-  if (hw_params->output_info.plane_fmt == C2D_PARAM_PLANE_CBCR) {
+  if (hw_params->output_info.c2d_plane_fmt == C2D_PARAM_PLANE_CBCR) {
     c2d_output_buffer.format = CAM_FORMAT_YUV_420_NV12;
-  } else if (hw_params->output_info.plane_fmt == C2D_PARAM_PLANE_CRCB) {
+  } else if (hw_params->output_info.c2d_plane_fmt == C2D_PARAM_PLANE_CRCB) {
     c2d_output_buffer.format = CAM_FORMAT_YUV_420_NV21;
-  } else if (hw_params->output_info.plane_fmt == C2D_PARAM_PLANE_CBCR422) {
+  } else if (hw_params->output_info.c2d_plane_fmt == C2D_PARAM_PLANE_CBCR422) {
     c2d_output_buffer.format = CAM_FORMAT_YUV_422_NV16;
-  } else if (hw_params->output_info.plane_fmt == C2D_PARAM_PLANE_CRCB422) {
+  } else if (hw_params->output_info.c2d_plane_fmt == C2D_PARAM_PLANE_CRCB422) {
     c2d_output_buffer.format = CAM_FORMAT_YUV_422_NV61;
-  } else if (hw_params->output_info.plane_fmt == C2D_PARAM_PLANE_CRCB420) {
+  } else if (hw_params->output_info.c2d_plane_fmt == C2D_PARAM_PLANE_CRCB420) {
     c2d_output_buffer.format = CAM_FORMAT_YUV_420_YV12;
-   }
+  }
   c2d_output_buffer.width = hw_params->output_info.width;
   c2d_output_buffer.height = hw_params->output_info.height;
   c2d_output_buffer.stride = hw_params->output_info.stride;
@@ -464,17 +552,20 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
   ALOGE("Not a valid Rotation");
  }
 
-  c2d_process_buffer.flip = 0;
+  c2d_process_buffer.flip = hw_params->mirror;
   c2d_process_buffer.c2d_input_lib_params = stream_params->c2d_input_lib_params;
   c2d_process_buffer.c2d_output_lib_params = stream_params->c2d_output_lib_params;
 
   /* Call process frame on c2d */
-
   rc = ctrl->c2d->func_tbl->process(ctrl->c2d_ctrl, PPROC_IFACE_PROCESS_FRAME,
     &c2d_process_buffer);
   if (rc < FALSE) {
-    CDBG_ERROR("%s:%d failed: ctrl->c2d->func_tbl->process()\n", __func__,
-      __LINE__);
+    CDBG_ERROR("%s:%d failed: ctrl->c2d->func_tbl->process() for frame_id:%d"
+      "iden:0x%x,stream_type:%d\n", __func__,
+      __LINE__,
+      hw_params->frame_id,
+      hw_params->identity,
+      c2d_event->u.process_buf_data.stream_info->stream_type);
   }
   }
 
@@ -491,12 +582,7 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
     cache_inv_data.vaddr = output_buf->buf_planes[0].buf;
     cache_inv_data.fd = output_buf->buf_planes[0].fd;
 
-    fd_data.fd = output_buf->buf_planes[0].fd;
-    rc = ioctl(session_params->ion_fd, ION_IOC_IMPORT, &fd_data);
-    if(rc < 0)
-       CDBG_ERROR("%s - WARNING - ION_IOC_IMPORT failed with error %d ",__func__,rc);
-
-    cache_inv_data.handle = fd_data.handle;
+    cache_inv_data.handle = 0;
     cache_inv_data.length = output_buf->buf_size;
     custom_data.cmd = ION_IOC_CLEAN_INV_CACHES;
     custom_data.arg = (unsigned long)&cache_inv_data;
@@ -505,8 +591,10 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
     if(rc < 0)
        CDBG_ERROR("%s - WARNING Cache invalidation on output buffer failed",__func__);
   }
+  if (((stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+    stream_params->interleaved) && !stream_params->single_module) ||
+    hw_params->processed_divert) {
 
-  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0) {
     if  (stream_params->is_stream_on) {
       mct_event_t event;
       isp_buf_divert_t  isp_buf;
@@ -524,7 +612,7 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
       isp_buf.buffer.m.planes = &plane;
       isp_buf.buffer.m.planes[0].m.userptr = output_buf->buf_planes[0].fd;
       isp_buf.fd = output_buf->buf_planes[0].fd;
-      isp_buf.vaddr = (void *)output_buf->buf_planes[0].buf;
+      isp_buf.vaddr = output_buf->buf_planes[0].buf;
       isp_buf.buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
       isp_buf.buffer.memory = V4L2_MEMORY_USERPTR;
       isp_buf.is_uv_subsampled =
@@ -544,7 +632,15 @@ static int32_t c2d_thread_handle_process_buf_event(c2d_module_ctrl_t* ctrl,
       if (rc < 0) {
         CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
           __func__, __LINE__, event.u.module_event.type, hw_params->identity);
+        pp_buf_mgr_put_buf(ctrl->buf_mgr,hw_params->identity,output_buf->buf_index,
+          c2d_event->u.divert_buf_data.isp_buf_divert.buffer.sequence,
+          c2d_event->u.divert_buf_data.isp_buf_divert.buffer.timestamp);
         return -EFAULT;
+      }
+      if (isp_buf.ack_flag == 1) {
+          pp_buf_mgr_put_buf(ctrl->buf_mgr,hw_params->identity,output_buf->buf_index,
+            c2d_event->u.divert_buf_data.isp_buf_divert.buffer.sequence,
+            c2d_event->u.divert_buf_data.isp_buf_divert.buffer.timestamp);
       }
     } else {
       pp_buf_mgr_put_buf(ctrl->buf_mgr,hw_params->identity,output_buf->buf_index,
@@ -763,6 +859,7 @@ int32_t c2d_thread_create(mct_module_t *module)
   }
   ctrl->c2d_thread_started = FALSE;
   rc = pthread_create(&(ctrl->c2d_thread), NULL, c2d_thread_func, module);
+  pthread_setname_np(ctrl->c2d_thread, "CAM_c2d");
   if(rc < 0) {
     CDBG_ERROR("%s:%d, pthread_create() failed, rc= ", __func__, __LINE__);
     return rc;

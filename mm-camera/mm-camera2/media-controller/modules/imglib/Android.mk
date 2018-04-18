@@ -14,6 +14,23 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS  := -D_ANDROID_
 LOCAL_CFLAGS += $(COMMON_DEFINES)
 
+ifeq ($(call is-board-platform-in-list, msm8909),true)
+LOCAL_CFLAGS  += -DAF_2X13_FILTER_SUPPORT
+COMMON_DEFINES += -DAF_2X13_FILTER_SUPPORT
+endif
+
+ifeq ($(MSM_VERSION), 8226)
+  LOCAL_CFLAGS += -DCAMERA_FEATURE_WNR_SW
+endif
+
+ifeq ($(MSM_VERSION), 8610)
+  LOCAL_CFLAGS += -DCAMERA_FEATURE_WNR_SW
+endif
+
+ifeq ($(MSM_VERSION), 8909)
+  LOCAL_CFLAGS += -DCAMERA_FEATURE_WNR_SW
+endif
+
 LOCAL_MMCAMERA_PATH  := $(LOCAL_PATH)/../../../../mm-camera2
 
 USE_CAC_V1:= false
@@ -33,6 +50,7 @@ LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/mct/object/
 LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/mct/pipeline/
 LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/mct/port/
 LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/mct/stream/
+LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/mct/debug/
 
 LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/modules/includes/
 LOCAL_C_INCLUDES += $(LOCAL_IMGLIB_PATH)/components/common
@@ -56,8 +74,9 @@ LOCAL_C_INCLUDES += $(LOCAL_IMGLIB_PATH)/utils
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/modules/sensors/chromatix/$(CHROMATIX_VERSION)
+LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/modules/sensors/actuators/$(CHROMATIX_VERSION)
 
-LOCAL_CFLAGS  += -include img_dbg.h
+#LOCAL_CFLAGS  += -Werror
 
 ifeq ($(strip $(USE_CAC_V1)),true)
   LOCAL_CFLAGS += -DUSE_CAC_V1
@@ -68,13 +87,14 @@ LOCAL_SRC_DIR := $(LOCAL_PATH)/modules
 LOCAL_SRC_FILES += $(shell find $(LOCAL_SRC_DIR) -name '*.c' | sed s:^$(LOCAL_PATH)::g )
 
 LOCAL_MODULE           := libmmcamera2_imglib_modules
-
+LOCAL_32_BIT_ONLY := true
 LOCAL_SHARED_LIBRARIES := liblog libcutils liboemcamera libmmcamera_imglib
 LOCAL_SHARED_LIBRARIES += libdl
 LOCAL_MODULE_TAGS      := optional eng
 LOCAL_ADDITIONAL_DEPENDENCIES  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
@@ -82,20 +102,6 @@ include $(BUILD_SHARED_LIBRARY)
 ################ faceproc prebuilt library #############
 
 LOCAL_PATH:= $(LOCAL_IMGLIB_PATH)
-
-ifeq ($(FEATURE_FACE_PROC),true)
-  include $(CLEAR_VARS)
-  LOCAL_PATH := $(LOCAL_IMGLIB_PATH)/components/lib/faceproc
-  LOCAL_MODULE       := libmmcamera_faceproc
-  LOCAL_MODULE_SUFFIX := .so
-  LOCAL_MODULE_CLASS := SHARED_LIBRARIES
-  LOCAL_SRC_FILES := libmmcamera_faceproc.so
-  LOCAL_MODULE_TAGS := optional eng
-  LOCAL_MODULE_OWNER := qcom
-  LOCAL_PROPRIETARY_MODULE := true
-
-  include $(BUILD_PREBUILT)
-endif
 
 ################ component library ######################
 include $(CLEAR_VARS)
@@ -137,6 +143,7 @@ mmimg_defines += -include $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/lin
 
 LOCAL_CFLAGS := $(mmimg_defines)
 LOCAL_CFLAGS += $(COMMON_DEFINES)
+
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/adsprpc/inc
 
 ifeq ($(call is-board-platform-in-list,msm8610),true)
@@ -161,12 +168,13 @@ endif
 
 LOCAL_MODULE           := libmmcamera_imglib
 LOCAL_PRELINK_MODULE   := false
-LOCAL_SHARED_LIBRARIES := libdl libcutils liblog 
+LOCAL_SHARED_LIBRARIES := libdl libcutils liblog libadsprpc
 
 LOCAL_MODULE_TAGS := optional
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
@@ -215,7 +223,8 @@ LOCAL_SRC_FILES += components/test/cac_test.c
 
 LOCAL_SHARED_LIBRARIES:= \
     libmmcamera_imglib libcutils libdl
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_MODULE:= mm-imglib-test
 
 LOCAL_MODULE_TAGS := optional
@@ -267,7 +276,8 @@ LOCAL_SRC_FILES := test/test_module_hdr.c
 
 LOCAL_SHARED_LIBRARIES:= \
     libmmcamera2_imglib_modules liboemcamera libcutils libdl
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_MODULE:= mm-module-hdr-test
 
 LOCAL_MODULE_TAGS := optional
@@ -313,6 +323,10 @@ LOCAL_C_INCLUDES += $(LOCAL_MMCAMERA_PATH)/media-controller/modules/sensors/chro
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 
 LOCAL_CFLAGS := $(mmimg_defines)
+ifeq ($(call is-board-platform-in-list, msm8909),true)
+LOCAL_CFLAGS  += -DAF_2X13_FILTER_SUPPORT
+mmimg_defines  += -DAF_2X13_FILTER_SUPPORT
+endif
 
 LOCAL_SRC_FILES := test/test_module_imglib.c
 
@@ -320,7 +334,8 @@ LOCAL_CFLAGS := $(mmimg_defines)
 
 LOCAL_SHARED_LIBRARIES:= \
     libmmcamera2_imglib_modules liboemcamera libcutils libdl
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_MODULE:= mm-module-imglib-test
 
 LOCAL_MODULE_TAGS := optional
@@ -334,7 +349,7 @@ include $(CLEAR_VARS)
 
 LOCAL_PATH:= $(LOCAL_IMGLIB_PATH)
 
-mmimg_defines:=  \
+mmimg_defines:= \
        -DAMSS_VERSION=$(AMSS_VERSION) \
        -g -O0 \
        -D_ANDROID_ \
@@ -351,13 +366,15 @@ LOCAL_CFLAGS += $(COMMON_DEFINES)
 LOCAL_SRC_FILES := test/imgalgo_dummy.c
 
 LOCAL_MODULE           := libmmcamera_dummyalgo
+LOCAL_32_BIT_ONLY := true
 LOCAL_PRELINK_MODULE   := false
 LOCAL_SHARED_LIBRARIES := libdl libcutils liblog libmmcamera_imglib
 
 LOCAL_MODULE_TAGS := optional
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -92,6 +92,7 @@ typedef struct {
   uint8_t linear_enable;
   awb_cct_type prev_cct_type;
   isp_linear_lux_t prev_lux;
+  float prev_lux_idx;
   float blk_inc_comp;
   uint8_t hw_update_pending;
   cam_streaming_mode_t old_streaming_mode;

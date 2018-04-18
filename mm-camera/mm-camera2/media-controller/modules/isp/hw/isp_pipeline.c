@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -23,6 +23,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_pipeline_util.h"
 #include "q3a_stats_hw.h"
 #include "aec/aec.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -199,6 +200,26 @@ static int isp_pipeline_stats_config_update(isp_pipeline_t *pipeline,
     }
   }
 
+  return rc;
+}
+
+/** isp_pripeline_set_stats_fullsize:
+ *  @ctrl : Pointer to pileline
+ *
+ *
+ *  Return 0 on Success
+ *
+ **/
+int isp_pipeline_set_stats_fullsize(void *ctrl, boolean enable)
+{
+  int rc = 0;
+  isp_pipeline_t *pipeline = ctrl;
+  pipeline->pix_params.cfg_and_3a_params.cfg.do_fullsize_cfg = enable;
+  rc = pipeline->mod_ops[ISP_MOD_STATS]->set_params(
+    pipeline->mod_ops[ISP_MOD_STATS]->ctrl,
+    ISP_HW_MOD_SET_STATS_FULLSIZE_CFG,
+    (void *)&pipeline->pix_params.cfg_and_3a_params.cfg,
+    sizeof(isp_hw_pix_setting_params_t));
   return rc;
 }
 
@@ -387,7 +408,7 @@ static int isp_pipeline_set_effect(isp_pipeline_t *pipeline)
   module_ids = pipeline->dep.mod_trigger_update_order_bayer;
   num = pipeline->dep.num_mod_trigger_update_order_bayer;
 
-  CDBG("%s: effect_mask = 0x%x, contrast = %d, "
+  ISP_DBG(ISP_MOD_COM,"%s: effect_mask = 0x%x, contrast = %d, "
     "saturation = %f, special effect = %d\n", __func__,
     params->cfg_and_3a_params.cfg.effects.effect_type_mask,
     params->cfg_and_3a_params.cfg.effects.contrast,
@@ -448,12 +469,14 @@ static void isp_pipeline_set_saved_params(isp_pipeline_t *pipeline,
     saved_params->aec_stats_update;
   pipeline->pix_params.cfg_and_3a_params.cfg.flash_params =
     saved_params->flash_params;
+  pipeline->pix_params.cfg_and_3a_params.trigger_input.digital_gain =
+    saved_params->dig_gain;
   /* save the ihist data in pipeline*/
   for (i = 0; i<256; i++) {
     pipeline->pix_params.cfg_and_3a_params.trigger_input.stats_update.
       ihist_params.isp_ihist_data[i] = saved_params->ihist_stats.histogram[i];
   }
-  CDBG("%s: spl_effect = %d, contrast = %d, satuation = %f, sce_factor = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: spl_effect = %d, contrast = %d, satuation = %f, sce_factor = %d\n",
     __func__,
     pipeline->pix_params.cfg_and_3a_params.cfg.effects.spl_effect,
     pipeline->pix_params.cfg_and_3a_params.cfg.effects.contrast,
@@ -650,6 +673,16 @@ static int isp_pipeline_map_eatune_mod_to_isp(
    }
      break;
 
+  case VFE_MODULE_WB: {
+     *isp_mod = ISP_MOD_WB;
+   }
+     break;
+
+   case VFE_MODULE_ABF: {
+     *isp_mod = ISP_MOD_ABF;
+   }
+     break;
+
    case VFE_MODULE_ALL:
    default: {
      return -1;
@@ -670,6 +703,20 @@ static int isp_pipeline_set_mod_trigger(isp_pipeline_t *pipeline,
    if(rc < 0) {
       CDBG_ERROR("%s: Unable to map eztune module to ISP\n", __func__);
       return rc;
+   }
+   if (GET_ISP_MAIN_VERSION(pipeline->isp_version) == ISP_VERSION_32) {
+     if (isp_mod == ISP_MOD_COLOR_XFORM) {
+       CDBG_ERROR("%s: This module is not supported in VFE32 module no = %d\n",
+       __func__,isp_mod);
+     return 0;
+     }
+   } else if(GET_ISP_MAIN_VERSION(pipeline->isp_version) == ISP_VERSION_40) {
+     if ((isp_mod == ISP_MOD_ASF) || (isp_mod == ISP_MOD_CHROMA_SS) ||
+        (isp_mod == ISP_MOD_CLF)) {
+        CDBG_ERROR("%s: This module is not supported in VFE40 module no = %d\n",
+        __func__, isp_mod);
+        return 0;
+     }
    }
    enable.enable = tgr_enable->enable;
    rc = pipeline->mod_ops[isp_mod]->set_params(pipeline->mod_ops[isp_mod]->ctrl,
@@ -700,6 +747,10 @@ static int isp_pipeline_set_mod_enable(isp_pipeline_t *pipeline,
    else {
      pipeline->pix_params.user_module_mask &= ~(1 << isp_mod);
    }
+
+   //ensure usermodule mask do not set anything not supported in the config
+   pipeline->pix_params.user_module_mask &= pipeline->pix_params.max_module_mask;
+
    return rc;
 }
 
@@ -880,7 +931,7 @@ static int isp_pipeline_set_spl_effect(isp_pipeline_t *pipeline,
   pipeline->pix_params.cfg_and_3a_params.cfg.effects.effect_type_mask |=
     (1 <<ISP_EFFECT_SPECIAL);
 
-  CDBG("%s:set contrast = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s:set contrast = %d\n", __func__,
     pipeline->pix_params.cfg_and_3a_params.cfg.effects.contrast);
 
   rc = isp_pipeline_set_effect(pipeline);
@@ -906,7 +957,7 @@ static int isp_pipeline_set_contrast(isp_pipeline_t *pipeline,
   pipeline->pix_params.cfg_and_3a_params.cfg.effects.effect_type_mask |=
     (1 <<ISP_EFFECT_CONTRAST);
 
-  CDBG("%s:set contrast = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s:set contrast = %d\n", __func__,
     pipeline->pix_params.cfg_and_3a_params.cfg.effects.contrast);
 
   rc = isp_pipeline_set_effect(pipeline);
@@ -963,15 +1014,19 @@ END:
  *  Return 0 on Success, negative on ERROR
  **/
 static int isp_pipeline_set_saturation(isp_pipeline_t *pipeline,
-  int32_t *saturation, uint32_t in_params_size)
+  isp_saturation_setting_t *saturation, uint32_t in_params_size)
 {
   int rc = 0;
   float float_saturation;
+  int32_t saturation_value;
 
-  float_saturation = ((float)(*saturation)) / 10.0f;
+  saturation_value = saturation->saturation;
+  float_saturation = ((float)(saturation_value)) / 10.0f;
 
   pipeline->pix_params.cfg_and_3a_params.cfg.effects.saturation =
     float_saturation;
+  pipeline->pix_params.cfg_and_3a_params.trigger_input.is_init_setting =
+    saturation->is_init_setting;
   pipeline->pix_params.cfg_and_3a_params.cfg.effects.effect_type_mask |=
     (1 << ISP_EFFECT_SATURATION);
 
@@ -1165,8 +1220,8 @@ int isp_pipeline_set_params (void *ctrl, uint32_t params_id,
 
   case ISP_PIX_SET_SATURATION: {
     /* int32_t */
-    rc = isp_pipeline_set_saturation(pipeline, (int32_t *)in_params,
-           in_params_size);
+    rc = isp_pipeline_set_saturation(pipeline,
+      (isp_saturation_setting_t *)in_params, in_params_size);
   }
     break;
 
@@ -1358,6 +1413,20 @@ static int isp_pipeline_get_roi_map(isp_pipeline_t *pipeline,
 
   rc = pipeline->dep.get_roi_map((void *)pipeline, zoom_entrys);
 
+  if (pipeline->mod_ops[ISP_MOD_COLOR_XFORM] == NULL) {
+     CDBG("%s: No ColorXform. Nothing to be done\n", __func__);
+   } else {
+  /* After updating zoom, update colorxform s0, s1 & s2 values */
+    rc = pipeline->mod_ops[ISP_MOD_COLOR_XFORM]->set_params(
+           pipeline->mod_ops[ISP_MOD_COLOR_XFORM]->ctrl,
+           ISP_HW_MOD_SET_TRIGGER_UPDATE,
+           &pipeline->pix_params.cfg_and_3a_params.cfg,
+           sizeof(pipeline->pix_params.cfg_and_3a_params.cfg));
+    if (rc < 0) {
+      CDBG_ERROR("%s: ColorXform trigger update error, rc = %d\n",
+        __func__, rc);
+    }
+  }
   return rc;
 }
 
@@ -1441,7 +1510,7 @@ static int isp_pipeline_get_cds_trigg_val(isp_pipeline_t *pipeline,
   uint32_t out_params_size)
 {
   int rc = 0;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   if (out_params_size != sizeof(isp_uv_subsample_t)) {
     CDBG_ERROR("%s: size mismatch, recv = %d, need = %d\n",
       __func__, out_params_size, sizeof(isp_uv_subsample_t));
@@ -1449,7 +1518,7 @@ static int isp_pipeline_get_cds_trigg_val(isp_pipeline_t *pipeline,
   }
   pipeline->dep.util_get_param(in_params, in_params_size,
     ISP_PIPELINE_GET_CDS_TRIGGER_VAL, out_params, out_params_size, NULL);
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -1467,7 +1536,7 @@ static int isp_pipeline_get_vfe_diag_info(isp_pipeline_t *pipeline,
    uint32_t out_params_size)
 {
   int rc = 0;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   if (out_params_size != sizeof(vfe_diagnostics_t)) {
     CDBG_ERROR("%s: size mismatch, recv = %d, need = %d\n",
       __func__, out_params_size, sizeof(vfe_diagnostics_t));
@@ -1475,7 +1544,7 @@ static int isp_pipeline_get_vfe_diag_info(isp_pipeline_t *pipeline,
   }
   pipeline->dep.util_get_param(in_params, in_params_size,
     ISP_HW_MOD_GET_VFE_DIAG_INFO_USER, out_params, out_params_size, pipeline);
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -1493,7 +1562,7 @@ static int isp_pipeline_get_current_rolloff_data(isp_pipeline_t *pipeline,
    uint32_t out_params_size)
 {
   int rc = 0;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   if (out_params_size != sizeof(tintless_mesh_rolloff_array_t)) {
     CDBG_ERROR("%s: size mismatch, recv = %d, need = %d\n",
       __func__, out_params_size, sizeof(tintless_mesh_rolloff_array_t));
@@ -1501,7 +1570,7 @@ static int isp_pipeline_get_current_rolloff_data(isp_pipeline_t *pipeline,
   }
   pipeline->dep.util_get_param(in_params, in_params_size,
     ISP_HW_MOD_GET_TINTLESS_RO, out_params, out_params_size, pipeline);
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -1722,7 +1791,7 @@ static int isp_pipeline_start_common(isp_pipeline_t *pipeline)
   isp_hw_pix_setting_params_t *cfg = &params->cfg_and_3a_params.cfg;
   struct msm_vfe_cfg_cmd2 cfg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[5];
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
 
   rc = isp_pipeline_module_hw_update(pipeline,
          pipeline->pix_params.cfg_and_3a_params.cfg.camif_cfg.is_bayer_sensor);
@@ -1746,7 +1815,7 @@ static int isp_pipeline_start_common(isp_pipeline_t *pipeline)
     CDBG_ERROR("%s: isp_pipeline_util_stats_start error = %d\n", __func__, rc);
     goto error;
   }
-  CDBG("%s: X, rc = %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d", __func__, rc);
 
   return rc;
 error:
@@ -1794,15 +1863,17 @@ static int isp_hw_pix_stats_enable_and_config(isp_pipeline_t *pix, uint8_t enb)
   }
 
   /*write the configuration into HW*/
-  if (enable.enable) {
-    rc = pix->mod_ops[ISP_MOD_STATS]->action(ctrl,
-      ISP_HW_MOD_ACTION_HW_UPDATE, NULL, 0);
-    if (rc < 0) {
-      CDBG_ERROR("%s: cannot write to STATS hw registers\n", __func__);
-      return rc;
+  if (GET_ISP_MAIN_VERSION(pix->isp_version) !=
+     ISP_VERSION_32) {
+    if (enable.enable) {
+      rc = pix->mod_ops[ISP_MOD_STATS]->action(ctrl,
+        ISP_HW_MOD_ACTION_HW_UPDATE, NULL, 0);
+      if (rc < 0) {
+        CDBG_ERROR("%s: cannot write to STATS hw registers\n", __func__);
+        return rc;
+      }
     }
   }
-
   return rc;
 }
 
@@ -1851,7 +1922,7 @@ static void isp_pix_generate_module_enable_mask(isp_pipeline_t *pix,
       (pix->pix_params.user_module_mask &
        pix->pix_params.max_module_mask);
   }
-  CDBG("%s: is_bayer = %d, streaming_mode = %d, cur_mask = 0x%x, user_maks = 0x%x",
+  ISP_DBG(ISP_MOD_COM,"%s: is_bayer = %d, streaming_mode = %d, cur_mask = 0x%x, user_maks = 0x%x",
   __func__, is_bayer_input, cfg->streaming_mode,
   pix->pix_params.cur_module_mask,
   pix->pix_params.user_module_mask);
@@ -1909,22 +1980,21 @@ static int isp_pix_pipeline_module_trigger_enable(isp_pipeline_t *pix)
 
   /*enable pix modules one by one except for stats module*/
   for (i = 0; i < ISP_MOD_MAX_NUM; i++) {
-     CDBG("%s: i = %d\n", __func__, i);
+     ISP_DBG(ISP_MOD_COM,"%s: i = %d\n", __func__, i);
     if (i == ISP_MOD_STATS) {
        /*enable and config stats module seperately*/
        continue;
     }
-
     if (pix->mod_ops[i]) {
       enable.enable = (pix->pix_params.cur_module_mask & (1 << i)) ? 1 : 0;
       /* trigrer enable to get a updated lighting status*/
       if (!enable.enable) {
-        CDBG("%s: mod %d not enabled, skip trigger enable\n",
+        ISP_DBG(ISP_MOD_COM,"%s: mod %d not enabled, skip trigger enable\n",
           __func__, i);
         continue;
       }
 
-      CDBG("%s: module %d trigger_enable = %d\n", __func__, i, enable.enable);
+      ISP_DBG(ISP_MOD_COM,"%s: module %d trigger_enable = %d\n", __func__, i, enable.enable);
       rc = pix->mod_ops[i]->set_params(pix->mod_ops[i]->ctrl,
         ISP_HW_MOD_SET_TRIGGER_ENABLE, &enable, sizeof(enable));
       if (rc < 0 && rc != -EAGAIN) {
@@ -1964,7 +2034,7 @@ static int isp_pix_pipeline_module_config(isp_pipeline_t *pix,
 
   for (i = 0; i < num; i++) {
     id = module_ids[i];
-    CDBG("%s: id = %d, cur_mask = 0x%x, match = 0x%x",
+    ISP_DBG(ISP_MOD_COM,"%s: id = %d, cur_mask = 0x%x, match = 0x%x",
       __func__, id, pix->pix_params.cur_module_mask,
     ((1 << id) & pix->pix_params.cur_module_mask));
     if (((1 << id) & pix->pix_params.cur_module_mask) &&
@@ -2053,25 +2123,45 @@ static int isp_pipeline_module_hw_update(isp_pipeline_t *pix,
      if (cfg->streaming_mode == CAM_STREAMING_MODE_CONTINUOUS)
        for (i = 0; i < num; i++) {
          if (pix->mod_ops[i]) {
-          /* Based on the reconfig operation (enable/disable of individual
-           * modules), notify and update private data flags of those modules. */
-            enable.enable = ((1 << i) & pix->pix_params.cur_module_mask)? 1 : 0;
-            if (pix->mod_ops[i] && pix->mod_ops[i]->set_params) {
-              rc = pix->mod_ops[i]->set_params(pix->mod_ops[i]->ctrl,
-                ISP_HW_MOD_SET_MOD_ENABLE, &enable, sizeof(enable));
-            }
-          }
+           /* Based on the reconfig operation (enable/disable of individual
+            * modules), notify and update private data flags of those modules. */
+           enable.enable = ((1 << i) & pix->pix_params.cur_module_mask)? 1 : 0;
+           if (pix->mod_ops[i] && pix->mod_ops[i]->set_params) {
+             rc = pix->mod_ops[i]->set_params(pix->mod_ops[i]->ctrl,
+               ISP_HW_MOD_SET_MOD_ENABLE, &enable, sizeof(enable));
+           }
+           /* MCE and CS modules needs to be handles seperately
+            as they have separate controls to turn on/off */
+           if (i == ISP_MOD_CHROMA_SUPPRESS || i == ISP_MOD_MCE) {
+             if (!enable.enable) {
+               rc = pix->mod_ops[i]->action(
+                 pix->mod_ops[i]->ctrl, ISP_HW_MOD_ACTION_HW_UPDATE,
+                 NULL, 0);
+             }
+           }
+           /* ASF module needs to be reconfigured */
+           if (i == ISP_MOD_ASF) {
+             if (enable.enable) {
+               if (pix->mod_ops[i]) {
+                 rc = pix->mod_ops[i]->set_params(pix->mod_ops[i]->ctrl,
+                   ISP_HW_MOD_SET_MOD_CONFIG, cfg,
+                   sizeof(isp_hw_pix_setting_params_t));
+                 if (rc < 0)
+                   CDBG_ERROR("%s: module ASF config failed\n", __func__);
+               }
+             }
+           }
+         }
        }
     }
   }
-
   for (i = 0; i < num; i++) {
     if (((1 << module_ids[i]) & pix->pix_params.cur_module_mask) &&
-        pix->mod_ops[module_ids[i]]) {
+      pix->mod_ops[module_ids[i]]) {
       if ((1 << module_ids[i]) & pix->hfr_update_mod_mask) {
         rc = pix->mod_ops[module_ids[i]]->action(
-               pix->mod_ops[module_ids[i]]->ctrl, ISP_HW_MOD_ACTION_HW_UPDATE,
-               NULL, 0);
+          pix->mod_ops[module_ids[i]]->ctrl, ISP_HW_MOD_ACTION_HW_UPDATE,
+          NULL, 0);
         if (rc < 0) {
           CDBG_ERROR("%s: module %d hw register write failed\n", __func__, i);
           return rc;
@@ -2145,7 +2235,7 @@ static int isp_pipeline_start(isp_pipeline_t *pix)
   isp_mod_set_enable_t enable;
   uint8_t is_bayer_input = isp_pipeline_util_is_bayer_fmt(pix);
 
-  CDBG("%s: E, is_bayer = %d", __func__, is_bayer_input);
+  ISP_DBG(ISP_MOD_COM,"%s: E, is_bayer = %d", __func__, is_bayer_input);
 
   /*For HFR mode divide modules into batches. Batch 1,2 can be configured here.
     We can use only one variable and toggle to update in batches, but extra
@@ -2153,7 +2243,7 @@ static int isp_pipeline_start(isp_pipeline_t *pix)
     */
    if (pix->pix_params.cfg_and_3a_params.cfg.camif_cfg.hfr_mode ==
        CAM_HFR_MODE_120FPS) {
-      pix->hfr_update_batch1 = (1 << ISP_MOD_ROLLOFF) | (1 << ISP_MOD_LA);
+      pix->hfr_update_batch1 = (1 << ISP_MOD_LA);
       pix->hfr_update_batch2 = ~(pix->hfr_update_batch1);
       pix->hfr_update_mod_mask = pix->hfr_update_batch1;
    } else
@@ -2236,7 +2326,7 @@ static int isp_pipeline_start(isp_pipeline_t *pix)
     goto end;
   }
 end:
-  CDBG("%s: X, rc = %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d", __func__, rc);
   return rc;
 }
 
@@ -2444,7 +2534,7 @@ static int isp_pipeline_stop_stream(
     /* unconfig stats buf */
     rc = isp_pipeline_stop(pipeline);
   }
-  CDBG("%s: X, rc = %d, active_streams = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d, active_streams = %d\n",
        __func__, rc, pipeline->num_active_streams);
   return rc;
 }
@@ -2488,14 +2578,14 @@ int isp_pipeline_action (
     rc = isp_pipeline_module_hw_update(pix,
          pix->pix_params.cfg_and_3a_params.cfg.camif_cfg.is_bayer_sensor);
     if (rc < 0) {
-      CDBG("%s: module hw register update error = %d\n", __func__, rc);
+      ISP_DBG(ISP_MOD_COM,"%s: module hw register update error = %d\n", __func__, rc);
       return rc;
     }
     break;
   case ISP_PIX_ACTION_CODE_STATS_PARSE:
     if (pix->num_active_streams == 0) {
       /* got delayed stats. Drop it */
-      CDBG("%s: received dropped stats\n", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: received dropped stats\n", __func__);
       break;
     }
     rc = pix->mod_ops[ISP_MOD_STATS]->action(
@@ -2615,8 +2705,9 @@ int isp_pipeline_init (
   isp_pipeline_t *pix = ctrl;
   int i, rc = 0;
   isp_hw_mod_init_params_t mod_init_params;
+  isp_hw_t *isp_hw = parent;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   pix->parent = parent;
   memset(&mod_init_params,  0,  sizeof(mod_init_params));
   mod_init_params.fd = pix->fd;
@@ -2625,6 +2716,10 @@ int isp_pipeline_init (
   mod_init_params.buf_mgr = pix->buf_mgr;
   /* we save HW dev_idx as handle*/
   mod_init_params.dev_idx = pix->mod_notify_ops.handle;
+  mod_init_params.max_scaler_out_width =
+    isp_hw->init_params.cap.isp_info.max_scaler_out_width;
+  mod_init_params.max_scaler_out_height =
+    isp_hw->init_params.cap.isp_info.max_scaler_out_height;
   for (i = 0; i < ISP_MOD_MAX_NUM; i++) {
     pix->mod_ops[i] =
       isp_hw_module_open(pix->isp_version, (isp_hw_module_id_t)i);
@@ -2657,7 +2752,7 @@ int isp_pipeline_mod_notify (void *parent, uint32_t handle, uint32_t type,
   isp_pipeline_t *pipeline = parent;
   isp_hw_t *isp_hw = pipeline->parent;
 
-  CDBG("%s: type = %d\n", __func__, type);
+  ISP_DBG(ISP_MOD_COM,"%s: type = %d\n", __func__, type);
   switch (type) {
   case ISP_HW_MOD_NOTIFY_FETCH_SCALER_OUTPUT:
     rc = pipeline->mod_ops[ISP_MOD_SCALER]->get_params(
@@ -2738,11 +2833,11 @@ void *isp_hw_create_pipeline(
 
   isp_pipeline_t *pipeline = NULL;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   pipeline = malloc(sizeof(isp_pipeline_t));
   if (!pipeline) {
     /* no mem */
-    CDBG("%s: error, no mem", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: error, no mem", __func__);
     return NULL;
   }
   memset(pipeline, 0, sizeof(isp_pipeline_t));

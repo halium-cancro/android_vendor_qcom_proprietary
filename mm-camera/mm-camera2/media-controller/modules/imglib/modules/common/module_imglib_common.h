@@ -39,6 +39,13 @@
  **/
 #define IMGLIB_STREAMID(id) ((id) & 0x0000FFFF)
 
+/** IMGLIB_PACK_IDENTITY:
+ *
+ * Macro to pack the stream and session id
+ **/
+#define IMGLIB_PACK_IDENTITY(session_id, stream_id) \
+  ((((session_id) & 0x0000FFFF) << 16) + ((stream_id) & 0x0000FFFF))
+
 /** IMGLIB_ARRAY_SIZE:
  *    @a: array to be processed
  *
@@ -365,5 +372,32 @@ float module_imglib_common_get_zoom_ratio(mct_module_t *p_mct_mod,
  **/
 int module_imglib_common_get_zoom_level(mct_pipeline_cap_t *p_mct_cap,
   float zoom_ratio);
+
+/** module_imglib_common_get_metadata_buffer:
+ *  @info: Stream info
+ *  @meta_index: Metadata buffer index
+ *
+ * Function to get metadata buffer pointer
+ *
+ * Returns Pointer to metadata buffer / NULL on fail
+ **/
+cam_metadata_info_t *module_imglib_common_get_metadata(mct_stream_info_t *info,
+  uint8_t meta_index);
+
+/**
+ * Function: process_fd_on_frame
+ *
+ * Description: Appliies FD on a given frame
+ *
+ * Input parameters:
+ *   p_frame - input image frame
+ *   p_meta - imglib meta data structure
+ *
+ * Return values:
+ *   imaging error values
+ *
+ * Notes: none
+ **/
+int process_fd_on_frame(img_frame_t *p_frame, img_meta_t *p_meta);
 
 #endif //__MODULE_IMGLIB_COMMON_H__

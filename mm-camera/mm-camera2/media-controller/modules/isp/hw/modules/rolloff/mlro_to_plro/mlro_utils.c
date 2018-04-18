@@ -6,6 +6,12 @@
 ============================================================================*/
 #include "camera_dbg.h"
 #include "mlro_utils.h"
+#include <inttypes.h>
+#include "isp_pipeline.h"
+#include "isp_pipeline_util.h"
+#include "isp_hw_module_ops.h"
+#include "isp_log.h"
+
 #ifndef ABS
 #define ABS(x)            (((x) < 0) ? -(x) : (x))
 #endif
@@ -57,14 +63,14 @@ double absmax(double *x, int n)
 
   l = (int *)malloc(n * sizeof(int));
   if (NULL == l) {
-    CDBG("%s: Error mem alloc for l.\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Error mem alloc for l.\n", __func__);
     return -1;
   }
 
   y = (double *)malloc(n * sizeof(double));
   if (NULL == y) {
     free(l);
-    CDBG("%s: Error mem alloc for y.\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Error mem alloc for y.\n", __func__);
     return -1;
   }
   for(j = 0; j < n; j++)

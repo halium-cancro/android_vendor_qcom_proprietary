@@ -18,6 +18,40 @@
 #undef  LOG_TAG
 #define LOG_TAG "AEC_PORT"
 
+/** The following mask defines how many MSBs are valid data.
+ *  We have 14 bits for luma, and the mask is defining which 8 upper bits are
+ *  valid data. 0xFF means all are valid, 0x7F means bit 13 is not valid data,
+ *  0x3F means bits 13 and 12 are not valid data, and so on...
+ *  Depending on the HDR exposure ratio we may have the following masks:
+ *
+ *  0xFF - HDR exposure ratio 1:16
+ *  0x7F - HDR exposure ratio 1:8
+ *  0x3F - HDR exposure ratio 1:4
+ *  0x1F - HDR exposure ratio 1:2
+ *  0x0F - HDR exposure ratio 1:1
+ **/
+#define VIDEO_HDR_LUMA_MASK_RATIO_16 0xFF
+#define VIDEO_HDR_LUMA_MASK_RATIO_8  0x7F
+#define VIDEO_HDR_LUMA_MASK_RATIO_4  0x3F
+#define VIDEO_HDR_LUMA_MASK_RATIO_2  0x1F
+#define VIDEO_HDR_LUMA_MASK_RATIO_1  0x0F
+
+/** The following definition is used to correct the final luma data
+ *  to be 8 bits. Valid values:
+ *
+ *  4 - HDR exposure ratio 1:16
+ *  3 - HDR exposure ratio 1:8
+ *  2 - HDR exposure ratio 1:4
+ *  1 - HDR exposure ratio 1:2
+ *  0 - HDR exposure ratio 1:1
+ *
+ **/
+#define VIDEO_HDR_EXPOSURE_RATIO_CORRECTION_16 6
+#define VIDEO_HDR_EXPOSURE_RATIO_CORRECTION_8  5
+#define VIDEO_HDR_EXPOSURE_RATIO_CORRECTION_4  4
+#define VIDEO_HDR_EXPOSURE_RATIO_CORRECTION_2  3
+#define VIDEO_HDR_EXPOSURE_RATIO_CORRECTION_1  2
+
 /** aec_port_malloc_msg:
  *    @msg_type:   TODO
  *    @param_type: TODO
@@ -45,28 +79,29 @@ static q3a_thread_aecawb_msg_t* aec_port_malloc_msg(int msg_type,
   return aec_msg;
 }
 
+
 /** aec_port_send_exif_info_update:
  *    @port:   TODO
- *    @output: TODO
+ *    @stats_update_t: TODO
  *
  * TODO description
  *
  * Return nothing
  **/
 static void aec_port_send_exif_info_update(mct_port_t *port,
-  aec_output_data_t *output)
+  stats_update_t *stats_update)
 {
   mct_event_t        event;
   mct_bus_msg_t      bus_msg;
   cam_ae_params_t    aec_info;
   aec_port_private_t *private;
   int                size;
-  int                size_user_exif;
 
-  if (!output || !port) {
+  if (!stats_update || !port) {
     ALOGE("%s: input error", __func__);
     return;
   }
+
   private = (aec_port_private_t *)(port->port_private);
   bus_msg.sessionid = (private->reserved_id >> 16);
   bus_msg.type = MCT_BUS_MSG_AE_INFO;
@@ -74,17 +109,50 @@ static void aec_port_send_exif_info_update(mct_port_t *port,
   size = (int)sizeof(cam_ae_params_t);
   bus_msg.size = size;
   memset(&aec_info, 0, size);
-  aec_info.exp_time = output->stats_update.aec_update.exp_time;
-  aec_info.iso_value = output->stats_update.aec_update.exif_iso;
-  aec_info.settled = output->stats_update.aec_update.settled;
-  aec_info.flash_needed = output->stats_update.aec_update.flash_needed;
-  aec_info.exp_index = output->stats_update.aec_update.exp_index;
-  aec_info.line_count = output->stats_update.aec_update.linecount;
-  aec_info.real_gain = output->stats_update.aec_update.real_gain;
+  aec_info.exp_time = stats_update->aec_update.exp_time;
+  aec_info.iso_value = stats_update->aec_update.exif_iso;
+  aec_info.settled = stats_update->aec_update.settled;
+  aec_info.flash_needed = stats_update->aec_update.flash_needed;
+  aec_info.exp_index = stats_update->aec_update.exp_index;
+  aec_info.line_count = stats_update->aec_update.linecount;
+  aec_info.real_gain = stats_update->aec_update.real_gain;
 
-  CDBG("%s: exp_Time:%f, iso:%d, flash:%d, exp idx:%d, line cnt:%d, gain:%f",
+  switch (stats_update->aec_update.metering_type) {
+  default:
+    aec_info.metering_mode = CAM_METERING_MODE_UNKNOWN;
+    break;
+  case AEC_METERING_FRAME_AVERAGE:
+    aec_info.metering_mode = CAM_METERING_MODE_AVERAGE;
+    break;
+  case AEC_METERING_CENTER_WEIGHTED:
+  case AEC_METERING_CENTER_WEIGHTED_ADV:
+    aec_info.metering_mode = CAM_METERING_MODE_CENTER_WEIGHTED_AVERAGE;
+    break;
+  case AEC_METERING_SPOT_METERING:
+  case AEC_METERING_SPOT_METERING_ADV:
+    aec_info.metering_mode = CAM_METERING_MODE_SPOT;
+    break;
+  case AEC_METERING_SMART_METERING:
+    aec_info.metering_mode = CAM_METERING_MODE_MULTI_SPOT;
+    break;
+  case AEC_METERING_USER_METERING:
+    aec_info.metering_mode = CAM_METERING_MODE_PATTERN;
+    break;
+  }
+
+  aec_info.exposure_program = 0; // snap.exp_program;
+  aec_info.exposure_mode = 0; //snap.exp_mode;
+  if(aec_info.exposure_mode >= 0 && aec_info.exposure_mode <= 2) {
+    aec_info.scenetype = 0x1;
+  } else {
+    aec_info.scenetype = 0xFFFF;
+  }
+  aec_info.brightness = stats_update->aec_update.Bv;
+  CDBG("%s: exp_Time:%f, iso:%d, flash:%d, exp idx:%d, line cnt:%d, gain:%f,\
+    metering mode: %d, brightness: %f",
     __func__, aec_info.exp_time, aec_info.iso_value, aec_info.flash_needed,
-    aec_info.exp_index, aec_info.line_count, aec_info.real_gain);
+    aec_info.exp_index, aec_info.line_count, aec_info.real_gain,
+    aec_info.metering_mode, aec_info.brightness);
   event.direction = MCT_EVENT_UPSTREAM;
   event.identity = private->reserved_id;
   event.type = MCT_EVENT_MODULE_EVENT;
@@ -93,10 +161,68 @@ static void aec_port_send_exif_info_update(mct_port_t *port,
   MCT_PORT_EVENT_FUNC(port)(port, &event);
 }
 
+
+/** aec_port_send_exif_debug_data:
+ *    @port:   TODO
+ *    @stats_update_t: TODO
+ *
+ * TODO description
+ *
+ * Return nothing
+ **/
+static void aec_port_send_exif_debug_data(mct_port_t *port)
+{
+  mct_event_t          event;
+  mct_bus_msg_t        bus_msg;
+  cam_ae_exif_debug_t  *aec_info;
+  aec_port_private_t   *private;
+  int                  size;
+
+  if (!port) {
+    CDBG_ERROR("%s: input error", __func__);
+    return;
+  }
+  private = (aec_port_private_t *)(port->port_private);
+  if (private == NULL) {
+    return;
+  }
+
+  /* Send exif data if data size is valid */
+  if (!private->aec_debug_data_size) {
+    CDBG("aec_port: Debug data not available");
+    return;
+  }
+  aec_info = (cam_ae_exif_debug_t *)malloc(sizeof(cam_ae_exif_debug_t));
+  if (!aec_info) {
+    CDBG_ERROR("Failure allocating memory for debug data");
+    return;
+  }
+  bus_msg.sessionid = (private->reserved_id >> 16);
+  bus_msg.type = MCT_BUS_MSG_AE_EXIF_DEBUG_INFO;
+  bus_msg.msg = (void *)aec_info;
+  size = (int)sizeof(cam_ae_exif_debug_t);
+  bus_msg.size = size;
+  memset(aec_info, 0, size);
+  aec_info->aec_debug_data_size = private->aec_debug_data_size;
+
+  CDBG("%s: aec_debug_data_size: %d", __func__, private->aec_debug_data_size);
+  memcpy(&(aec_info->aec_private_debug_data[0]), private->aec_debug_data_array,
+    private->aec_debug_data_size);
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.identity = private->reserved_id;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.u.module_event.type = MCT_EVENT_MODULE_STATS_POST_TO_BUS;
+  event.u.module_event.module_event_data = (void *)(&bus_msg);
+  MCT_PORT_EVENT_FUNC(port)(port, &event);
+  if (aec_info) {
+    free(aec_info);
+  }
+}
+
+
 /** aec_port_send_aec_info_to_metadata
  *  update aec info which required by eztuning
  **/
-
 static void aec_port_send_aec_info_to_metadata(
   mct_port_t  *port,
   aec_output_data_t *output)
@@ -174,11 +300,13 @@ static void aec_port_send_event(mct_port_t *port, int evt_type,
 
   MCT_OBJECT_LOCK(port);
   if (private->aec_update_flag == FALSE ||
-    private->in_zsl_capture == TRUE) {
+    (private->in_zsl_capture == TRUE && private->in_longshot_mode == 0)
+    ||private->stream_type == CAM_STREAM_TYPE_SNAPSHOT) {
     CDBG("No AEC update event to send");
     MCT_OBJECT_UNLOCK(port);
     return;
   } else {
+    private->need_to_send_est = FALSE;
     private->aec_update_flag = FALSE;
   }
   MCT_OBJECT_UNLOCK(port);
@@ -205,7 +333,34 @@ static void aec_port_save_update(mct_port_t *port, aec_output_data_t *output)
   aec_port_private_t *private = NULL;
 
   private = (aec_port_private_t *)(port->port_private);
+
+  /* If estimation done needs to be sent, do not overwrite aec update */
+  if (private->need_to_send_est == TRUE) {
+    MCT_OBJECT_LOCK(port);
+    private->aec_update_flag = TRUE;
+    MCT_OBJECT_UNLOCK(port);
+    return;
+  }
   output->stats_update.flag = STATS_UPDATE_AEC;
+
+  /* For dual led calibration */
+  if (DUAL_LED_CALIBRATION) {
+    if ((output->stats_update.aec_update.use_led_estimation == TRUE) &&
+      (private->est_state == AEC_EST_START) && private->dual_led_calibration_cnt == 0) {
+      output->stats_update.aec_update.use_led_estimation = FALSE;
+      private->dual_led_calibration_cnt = DUAL_LED_CALIBRATION_FRAME;
+    } else if (private->dual_led_calibration_cnt >= 2) {
+      private->dual_led_calibration_cnt--;
+      output->stats_update.aec_update.use_led_estimation = FALSE;
+    } else if (private->dual_led_calibration_cnt == 1) {
+      private->dual_led_calibration_cnt = 0;
+    }
+
+    CDBG_ERROR("aec_hold in Dual_LED, cnt %d, use_led_estimation %d, est_state %d",
+      private->dual_led_calibration_cnt, output->stats_update.aec_update.use_led_estimation,
+      private->est_state);
+  }
+
 
   /* HAL uses flash_needed flag to determine if prepare snapshot
    * will be called, hence AEC will turn LED on when the call comes
@@ -231,38 +386,30 @@ static void aec_port_save_update(mct_port_t *port, aec_output_data_t *output)
   }
 
   output->stats_update.aec_update.est_state = private->est_state;
+  CDBG_ERROR("%s:real_gain:%f linecnt:%d exp_idx:%d cur_luma:%d led_est:%d",
+    __func__,
+    output->stats_update.aec_update.real_gain,
+    output->stats_update.aec_update.linecount,
+    output->stats_update.aec_update.exp_index,
+    output->stats_update.aec_update.cur_luma,
+    output->stats_update.aec_update.est_state);
 
-  if (output->stats_update.aec_update.est_state) {
-    CDBG_ERROR("%s:real_gain:%f linecnt:%d exp_idx:%d cur_luma:%d led_est:%d",
-      __func__,
-      output->stats_update.aec_update.real_gain,
-      output->stats_update.aec_update.linecount,
-      output->stats_update.aec_update.exp_index,
-      output->stats_update.aec_update.cur_luma,
-      output->stats_update.aec_update.est_state);
-  } else {
-    CDBG("%s: real_gain: %f linecnt: %d exp_idx: %d cur_luma:%d led_est: %d",
-      __func__,
-      output->stats_update.aec_update.real_gain,
-      output->stats_update.aec_update.linecount,
-      output->stats_update.aec_update.exp_index,
-      output->stats_update.aec_update.cur_luma,
-      output->stats_update.aec_update.est_state);
-  }
-  if(output->stats_update.aec_update.frame_id != private->cur_sof_id) {
-    /* This will be called when the events happen in the the order
-     * STAT1 SOF2 OUTPUT1. It ensures the AEC outputs are always synchronouse
-     * with SOFs */
-    MCT_OBJECT_LOCK(port);
-    private->aec_update_flag = TRUE;
-    MCT_OBJECT_UNLOCK(port);
-    aec_port_send_event(port, MCT_EVENT_MODULE_EVENT,
-      MCT_EVENT_MODULE_STATS_AEC_UPDATE, (void *)(&output->stats_update));
-    return;
-  }
   MCT_OBJECT_LOCK(port);
+  if (private->est_state == AEC_EST_NO_LED_DONE||
+      private->est_state == AEC_EST_DONE||
+      private->est_state == AEC_EST_DONE_FOR_AF) {
+      private->need_to_send_est = TRUE;
+  }
   memcpy(&(private->aec_update_data), &(output->stats_update),
     sizeof(stats_update_t));
+
+  /* Save the debug data in private data struct to be sent out later */
+  CDBG("%s: Save debug data in port private", __func__);
+  private->aec_debug_data_size = output->aec_debug_data_size;
+  if (output->aec_debug_data_size) {
+    memcpy(private->aec_debug_data_array, output->aec_debug_data_array,
+      output->aec_debug_data_size);
+  }
   private->aec_update_flag = TRUE;
   MCT_OBJECT_UNLOCK(port);
 }
@@ -290,25 +437,16 @@ static void aec_port_callback(aec_output_data_t *output, void *p)
     return;
   }
 
-  /* skip error AWB update in LED-assist snapshot, tanrifei, 20140214 */
-  if ((private->stream_type == CAM_STREAM_TYPE_SNAPSHOT) &&
-	  (private->aec_update_data.aec_update.led_state == MSM_CAMERA_LED_OFF) &&
-	  (private->aec_update_data.aec_update.use_led_estimation == TRUE)) {
-	  return;
-  }
-  /* Add end */
-
-  /* if eztune locked, still send meta to bus */
-  if ((output->eztune.lock)&& (output->eztune.running)){
-    CDBG("%saec_lock =1, send meta\n", __func__);
-    aec_port_send_aec_info_to_metadata(port,output);
-    return;
-  }
   /* populate the stats_upate object to be sent out*/
   if (AEC_UPDATE == output->type ) {
-    /*case AEC_FLASH_SETTLE_WAIT*/
-    CDBG("%s:%d] send exif update", __func__, __LINE__);
-    aec_port_send_exif_info_update(port, output);
+    if(!private->in_zsl_capture) {
+      /* Ensure that exif information is not send between
+      START_ZSL_SNAP to STOP_ZSL_SNAP */
+      CDBG("%s:%d] send exif update", __func__, __LINE__);
+      aec_port_send_exif_info_update(port, output);
+    } else if (private->aec_update_data.aec_update.use_led_estimation == 1) {
+      aec_port_send_exif_info_update(port, &private->aec_data_copy);
+    }
     if (output->eztune.running) {
       aec_port_send_aec_info_to_metadata(port,output);
     }
@@ -325,16 +463,9 @@ static void aec_port_callback(aec_output_data_t *output, void *p)
   return;
 }
 
-/** aec_port_parse_RDI_stats_AE:
- *    @destLumaBuff: TODO
- *    @rawBuff:      TODO
- *
- * TODO description
- *
- * TODO Return
- **/
-static boolean aec_port_parse_RDI_stats_AE(uint32_t *destLumaBuff,
-  void *rawBuff)
+/* for IMX 135*/
+static boolean aec_port_parse_RDI_stats_YRGB(aec_port_private_t *private,
+  uint32_t *destLumaBuff, void *rawBuff)
 {
   uint8_t  *buf = (uint8_t *)rawBuff;
   uint8_t  stat_seq[10];
@@ -390,6 +521,98 @@ static boolean aec_port_parse_RDI_stats_AE(uint32_t *destLumaBuff,
     }
   }
   return TRUE;
+
+}
+
+/* for IMX 214 */
+static boolean aec_port_parse_RDI_stats_YYYY(aec_port_private_t *private,
+  uint32_t *destLumaBuff, void *rawBuff)
+{
+  /* Parser for IMX214 */
+  uint8_t  *buf = (uint8_t *)rawBuff;
+  uint32_t temp_y = 0;
+  int      i;
+  int      count = 0;
+
+  if (buf == NULL ||  private == NULL) {
+    CDBG_ERROR("%s: Invalid HDR Stats buf!", __func__);
+    return FALSE;
+  }
+
+  boolean hdr_indoor = FALSE;
+  uint8_t bit_mask = 0;
+  uint8_t bit_shift = 0;
+
+  /* HDR stats is limited to 10 bits from sensor for all ratios */
+  bit_mask = VIDEO_HDR_LUMA_MASK_RATIO_1;
+  bit_shift = VIDEO_HDR_EXPOSURE_RATIO_CORRECTION_1;
+
+  /* Parse the stats only if camera is started and AF is stopped */
+
+  /* Stats data format:
+   * A pair of pixel data (10 bit each) is used for transmission of
+   * each sub-block 14 bit data.
+   * |y(0,0) U |y(0,0) L | y(0,1)U | y(0,1)L| ... | y(15,15)U | y(15,15)L |
+   * To get 14 bit y-avg we need to combine Upper and Lower pixel:
+   * Upper: D13 - D12 - D11 - D10 - D09 - D08 - D07 - D06 - 0 - 1
+   * Lower: D05 - D04 - D03 - D02 - D01 - D00 - 0   -   1 - 0 - 1
+   * 14-bit final data:
+   * D13 - D12 - D11 - D10 - D09 - D8 - D7 - D6 - D5 - D4 - D3 - D2 - D1 -D0
+   **/
+
+  /* We have 16x16 blocks
+   * Each block is 20 bits, so 256 blocks * 20 bits is 5120 bits = 640 bytes.
+   * We will process 5 bytes (2 luma values) on each iteration, so we need
+   * 128 iterations
+   **/
+  for (i = 0; i < 128; i++) {
+    /* Each pixel is 10 bits. And each stat data has pair of
+     * pixel - 20 bits. So for each Y we have 2 and a half bytes */
+
+    /* take only the bits specified by the mask */
+    temp_y = buf[0] & bit_mask;
+    temp_y = temp_y << 6;
+    temp_y |= (buf[1] >> 2);
+    CDBG("%s: Value obtained for block %d: %d", __func__, i*2, temp_y);
+    // shift at least 2 bits to make 10bit data to 8bit, as AEC algorithm only
+    // takes 8bit data
+    destLumaBuff[count++] = temp_y >> bit_shift;
+    /* Now calculate the next pair */
+    temp_y = 0;
+
+    temp_y = buf[2] & bit_mask;
+    temp_y = temp_y << 6;
+    temp_y |= (buf[3] >> 2);
+    CDBG("%s: Value obtained for block %d: %d", __func__, i*2+1, temp_y);
+    // shift at least 2 bits to make 10bit data to 8bit, as AEC algorithm only
+    // takes 8bit data
+    destLumaBuff[count++] = temp_y >> bit_shift;
+    /* now advance the buf pointer */
+    buf += 5;
+  }
+  return TRUE;
+
+}
+
+/** aec_port_parse_RDI_stats_AE:
+ *    @destLumaBuff: TODO
+ *    @rawBuff:      TODO
+ *
+ * TODO description
+ *
+ * TODO Return
+ **/
+static boolean aec_port_parse_RDI_stats_AE(aec_port_private_t *private,
+  uint32_t *destLumaBuff, void *rawBuff)
+{
+  boolean rc = FALSE;
+
+  if (private->video_hdr_stats_type == YRGB)
+    rc = aec_port_parse_RDI_stats_YRGB(private, destLumaBuff, rawBuff);
+  else if (private->video_hdr_stats_type == YYYY)
+    rc = aec_port_parse_RDI_stats_YYYY(private, destLumaBuff, rawBuff);
+
+  return rc;
 }
 
 /** aec_port_check_identity:
@@ -480,6 +703,10 @@ static boolean aec_port_proc_downstream_ctrl(mct_port_t *port,
           case AEC_SET_PARAM_LOCK:
             private->locked_from_hal = q3a_param->u.aec_param.u.aec_lock;
             break;
+          case AEC_SET_PARAM_LONGSHOT_MODE:
+            private->in_longshot_mode = q3a_param->u.aec_param.u.longshot_mode;
+            CDBG("%s longshot_mode: %d", __func__, private->in_longshot_mode);
+            break;
           case AEC_SET_PARAM_PREPARE_FOR_SNAPSHOT:
             if(q3a_param->u.aec_param.u.aec_trigger.trigger ==
               AEC_PRECAPTURE_TRIGGER_START) {
@@ -544,7 +771,8 @@ static boolean aec_port_proc_downstream_ctrl(mct_port_t *port,
         &(stat_parm->u.common_param);
       if (common_param->type == COMMON_SET_PARAM_BESTSHOT ||
         common_param->type == COMMON_SET_PARAM_VIDEO_HDR ||
-        common_param->type == COMMON_SET_PARAM_STATS_DEBUG_MASK) {
+        common_param->type == COMMON_SET_PARAM_STATS_DEBUG_MASK ||
+        common_param->type == COMMON_SET_PARAM_ALGO_OPTIMIZATIONS_MASK) {
         q3a_thread_aecawb_msg_t *aec_msg = aec_port_malloc_msg(MSG_AEC_SET,
           AEC_SET_PARAM_BESTSHOT);
         if (aec_msg != NULL ) {
@@ -565,6 +793,16 @@ static boolean aec_port_proc_downstream_ctrl(mct_port_t *port,
           case COMMON_SET_PARAM_STATS_DEBUG_MASK: {
             aec_msg->u.aec_set_parm.type = AEC_SET_PARAM_STATS_DEBUG_MASK;
             aec_msg->u.aec_set_parm.u.stats_debug_mask = common_param->u.stats_debug_mask;
+          }
+            break;
+
+          case COMMON_SET_PARAM_ALGO_OPTIMIZATIONS_MASK: {
+            aec_msg->u.aec_set_parm.type = AEC_SET_PARAM_SUBSAMPLING_FACTOR;
+            aec_msg->u.aec_set_parm.u.subsampling_factor =
+              ((common_param->u.algo_opt_mask & STATS_MASK_AEC) ?
+              (AEC_SUBSAMPLE) : (MIN_AEC_SUBSAMPLE));
+            CDBG("aec mask: %d, factor: %d",common_param->u.algo_opt_mask,
+              aec_msg->u.aec_set_parm.u.subsampling_factor);
           }
             break;
           default: {
@@ -737,6 +975,7 @@ static boolean aec_port_proc_get_aec_data(mct_port_t *port,
 {
   boolean            rc = FALSE;
   aec_output_data_t  output;
+  mct_event_t        event;
   aec_port_private_t *private = (aec_port_private_t *)(port->port_private);
 
   if (private->aec_get_data.valid_entries) {
@@ -786,15 +1025,41 @@ static boolean aec_port_proc_get_aec_data(mct_port_t *port,
           aec_msg->u.aec_get_parm.u.flash_needed;
         stats_get_data->aec_get.exposure_index =
           aec_msg->u.aec_get_parm.u.exp_params.exposure_index;
+        output.stats_update.aec_update.exif_iso =
+          aec_msg->u.aec_get_parm.u.exp_params.iso;
+        output.stats_update.aec_update.metering_type =
+          aec_msg->u.aec_get_parm.u.exp_params.metering_type;
         free(aec_msg);
 
         private->aec_get_data = stats_get_data->aec_get;
         output.stats_update.aec_update.exp_time =
           stats_get_data->aec_get.exp_time;
-        output.stats_update.aec_update.exif_iso =
-          stats_get_data->aec_get.real_gain[0] * 100;
         output.stats_update.aec_update.flash_needed =
           stats_get_data->aec_get.flash_needed;
+        CDBG_ERROR("ddd exp %f iso %d", stats_get_data->aec_get.exp_time,
+          output.stats_update.aec_update.exif_iso);
+        ALOGE("#### aec_port_get_aec_data runs\r\n");
+
+        if(private->aec_update_data.aec_update.use_led_estimation == 1){
+          MCT_OBJECT_LOCK(port);
+          private->aec_update_data.aec_update.linecount =
+            stats_get_data->aec_get.linecount[0];
+          private->aec_update_data.aec_update.lux_idx =
+            stats_get_data->aec_get.lux_idx;
+          private->aec_update_data.aec_update.real_gain =
+            stats_get_data->aec_get.real_gain[0];
+          MCT_OBJECT_UNLOCK(port);
+          event.direction = MCT_EVENT_UPSTREAM;
+          event.identity = private->reserved_id;
+          event.type = MCT_EVENT_MODULE_EVENT;
+          event.u.module_event.type = MCT_EVENT_MODULE_STATS_AEC_UPDATE;
+          event.u.module_event.module_event_data = (void *)(&private->aec_update_data);
+          MCT_PORT_EVENT_FUNC(port)(port, &event);
+
+          // save a copy for exif info sending
+          memcpy(&(private->aec_data_copy), &(output.stats_update),
+            sizeof(stats_update_t));
+        }
 
         output.stats_update.aec_update.exp_index =
           stats_get_data->aec_get.exposure_index;
@@ -809,7 +1074,11 @@ static boolean aec_port_proc_get_aec_data(mct_port_t *port,
           output.stats_update.aec_update.exp_index,
           output.stats_update.aec_update.linecount,
           output.stats_update.aec_update.real_gain);
-        aec_port_send_exif_info_update(port, &output);
+        aec_port_send_exif_info_update(port, &(output.stats_update));
+        MCT_OBJECT_LOCK(port);
+        if(private->stream_type == CAM_STREAM_TYPE_SNAPSHOT)
+          private->aec_update_flag = FALSE;
+        MCT_OBJECT_UNLOCK(port);
       }
     } else {
       CDBG_ERROR("%s:%d Not enough memory", __func__, __LINE__);
@@ -885,12 +1154,26 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
 
     sof_event = (mct_bus_msg_isp_sof_t *)(mod_evt->module_event_data);
     private->cur_sof_id = sof_event->frame_id;
-    q3a_thread_aecawb_msg_t *aec_msg =
-      aec_port_malloc_msg(MSG_AEC_SEND_EVENT, AEC_UNDEF);
-    if (aec_msg == NULL) {
-      break;
+    /* Handle out of order Stats /Sof sequence. If the resp stats hasnt been received
+       then hold on from sending the sof id until then.*/
+    /* Send SoF mesg for video-hdr case when ISP stats are not received */
+    if (((private->cur_stats_id) &&
+      (private->cur_sof_id == private->cur_stats_id + 1)) ||
+      private->video_hdr) {
+      q3a_thread_aecawb_msg_t *aec_msg = aec_port_malloc_msg(MSG_AEC_SEND_EVENT,
+        AEC_UNDEF);
+      if (aec_msg == NULL) {
+        break;
+      }
+      rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
+      if(!private->in_zsl_capture) {
+        CDBG("%s:%d] send exif update", __func__, __LINE__);
+        aec_port_send_exif_info_update(port, &private->aec_update_data);
+      }
     }
-    rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
+
+    /* Send exif info update from SoF */
+    aec_port_send_exif_debug_data(port);
   } /*MCT_EVENT_MODULE_SOF_NOTIFY*/
     break;
 
@@ -964,12 +1247,26 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
         free(aec_msg);
         break;
       }
+      private->cur_stats_id = stats_event->frame_id;
       rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
       /*If the aecawb thread is inactive, it will not enqueue our
        * message and instead will free it. Then we need to manually
        * free the payload */
       if (rc == FALSE) {
         free(aec_stats);
+      }
+      /* Handle out of order Stats /Sof sequence*/
+      if(private->cur_stats_id != private->cur_sof_id){
+        q3a_thread_aecawb_msg_t *aec_msg = aec_port_malloc_msg(MSG_AEC_SEND_EVENT,
+          AEC_UNDEF);
+        if (aec_msg == NULL) {
+          break;
+        }
+        rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
+        if(!private->in_zsl_capture) {
+          CDBG("%s:%d] send exif update", __func__, __LINE__);
+          aec_port_send_exif_info_update(port, &private->aec_update_data);
+        }
       }
     }
   } /* case MCT_EVENT_MODULE_STATS_DATA */
@@ -1006,7 +1303,8 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
     aec_stats->stats_type_mask |= STATS_HDR_VID;
     aec_stats->yuv_stats.q3a_aec_stats.ae_region_h_num = 16;
     aec_stats->yuv_stats.q3a_aec_stats.ae_region_v_num = 16;
-    aec_port_parse_RDI_stats_AE(aec_stats->yuv_stats.q3a_aec_stats.SY,
+    aec_stats->frame_id = hdr_stats_buff->buffer.sequence;
+    aec_port_parse_RDI_stats_AE(private, aec_stats->yuv_stats.q3a_aec_stats.SY,
       hdr_stats_buff->vaddr);
 
     rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
@@ -1059,11 +1357,90 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
       aec_msg->u.aec_set_parm.u.init_param.chromatix = mod_chrom->chromatixPtr;
       aec_msg->u.aec_set_parm.u.init_param.comm_chromatix =
         mod_chrom->chromatixComPtr;
+
+      aec_tuning_params_t * aec_tuning_params =
+        &(aec_msg->u.aec_set_parm.u.init_param.aec_tuning_params);
+
+      aec_tuning_params->aec_preview_iso_enable              = PREVIEW_ISO_ENABLE;
+      aec_tuning_params->aec_extreme_green_color_thld_radius = EXTREME_GREEN_COLOR_THLD_RADIUS;
+      aec_tuning_params->aec_start_exp_index                 = START_EXP_INDEX;
+      aec_tuning_params->aec_use_roi_for_led                 =  USE_ROI_FOR_LED;
+
+      aec_slow_smooth_conv_t *slow_conv =
+        &(aec_msg->u.aec_set_parm.u.init_param.aec_tuning_params.aec_slow_conv);
+      slow_conv->aec_luma_tolerance = LUMA_TOLERANCE;
+      slow_conv->aec_frame_skip = FRAME_SKIP;
+      slow_conv->aec_ht_enable = HT_ENABLE;
+      slow_conv->aec_ht_luma_tolerance = HT_LUMA_TOLERANCE;
+      slow_conv->aec_ht_thres = HT_THRES;
+      slow_conv->aec_ht_max = HT_MAX;
+      slow_conv->aec_ht_gyro_enable = HT_GYRO_ENABLE;
+      slow_conv->aec_ref_frame_rate = REF_FRAME_RATE;
+      slow_conv->aec_step_dark = STEP_DARK;
+      slow_conv->aec_step_bright = STEP_BRIGHT;
+      slow_conv->aec_step_regular = STEP_REGULAR;
+      slow_conv->aec_luma_tol_ratio_dark = LUMA_TOL_RATIO_DARK;
+      slow_conv->aec_luma_tol_ratio_bright = LUMA_TOL_RATIO_BRIGHT;
+      slow_conv->aec_raw_step_adjust_cap = RAW_STEP_ADJUST_CAP;
+      slow_conv->aec_adjust_skip_luma_tolerance = ADJUST_SKIP_LUMA_TOLERANCE;
+      slow_conv->aec_dark_region_num_thres = DARK_REGION_NUM_THRES;
+      slow_conv->bright_region_num_thres = BRIGHT_REGION_NUM_THRES;
+
+      slow_conv->aec_ht_luma_thres_low = HT_LUMA_THRES_LOW;
+      slow_conv->ht_luma_thres_high = HT_LUMA_THRES_HIGH;
+      slow_conv->aec_ht_luma_val_low = HT_LUMA_VAL_LOW;
+      slow_conv->ht_luma_val_high = HT_LUMA_VAL_HIGH;
+      slow_conv->aec_ht_gyro_thres_low = HT_GYRO_THRES_LOW;
+      slow_conv->ht_gyro_thres_high = HT_GYRO_THRES_HIGH;
+      slow_conv->aec_ht_gyro_val_low = HT_GYRO_VAL_LOW;
+      slow_conv->ht_gyro_val_high = HT_GYRO_VAL_HIGH;
+
+      aec_msg->u.aec_set_parm.u.init_param.aec_tuning_params.
+        aec_brightness_step_size = AEC_BRIGHTNESS_STEP_SIZE;
+      aec_msg->u.aec_set_parm.u.init_param.aec_tuning_params.
+        aec_dark_region_enable = AEC_DARK_REGION_ENABLE;
+
+      /* set prameters for low light luma target */
+      aec_msg->u.aec_set_parm.u.init_param.low_light_init.luma_target = AEC_LOW_LIGHT_LUMA_TARGET_INIT;
+      aec_msg->u.aec_set_parm.u.init_param.low_light_init.start_idx = AEC_LOW_LIGHT_LUMA_START_IDX_INIT;
+      aec_msg->u.aec_set_parm.u.init_param.low_light_init.end_idx = AEC_LOW_LIGHT_LUMA_END_IDX_INIT;
+
+      /*assign the histogram chromatix paramerters*/
+      aec_histogram_parameter_t *histo_params =
+        &(aec_msg->u.aec_set_parm.u.init_param.aec_tuning_params.aec_histogram_params);
+      histo_params->hist_target_adjust_enable       = HIST_TARGET_ADJUST_ENABLE;
+      histo_params->outdoor_max_target_adjust_ratio = OUTDOOR_MAX_TARGET_ADJUST_RATIO;
+      histo_params->outdoor_min_target_adjust_ratio = OUTDOOR_MIN_TARGET_ADJUST_RATIO;
+      histo_params->indoor_max_target_adjust_ratio  = INDOOR_MAX_TARGET_ADJUST_RATIO;
+      histo_params->indoor_min_target_adjust_ratio  = INDOOR_MIN_TARGET_ADJUST_RATIO;
+      histo_params->lowlight_max_target_adjust_ratio= LOWLIGHT_MAX_TARGET_ADJUST_RATIO;
+      histo_params->lowlight_min_target_adjust_ratio= LOWLIGHT_MIN_TARGET_ADJUST_RATIO;
+      histo_params->target_filter_factor            = TARGET_FILTER_FACTOR;
+      histo_params->hist_sat_pct                    = HIST_SAT_PCT;
+      histo_params->hist_dark_pct                   = HIST_DARK_PCT;
+      histo_params->hist_sat_low_ref                = HIST_SAT_LOW_REF;
+      histo_params->hist_sat_high_ref               = HIST_SAT_HIGH_REF;
+      histo_params->hist_dark_low_ref               = HIST_DARK_LOW_REF;
+      histo_params->hist_dark_high_ref              = HIST_DARK_HIGH_REF;
+
       rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
     } /* if (aec_msg != NULL ) */
   } /* case MCT_EVENT_MODULE_SET_CHROMATIX_PTR */
     break;
 
+  case MCT_EVENT_MODULE_PREVIEW_STREAM_ID: {
+    aec_set_parameter_init_t *init_param;
+    q3a_thread_aecawb_msg_t  *dim_msg;
+    mct_stream_info_t  *stream_info =
+      (mct_stream_info_t *)(mod_evt->module_event_data);
+
+    CDBG("Preview stream-id event: stream_type: %d width: %d height: %d",
+      stream_info->stream_type, stream_info->dim.width, stream_info->dim.height);
+
+    private->preview_width = stream_info->dim.width;
+    private->preview_height = stream_info->dim.height;
+  }
+    break;
 
   case MCT_EVENT_MODULE_SET_STREAM_CONFIG: {
     q3a_thread_aecawb_msg_t *aec_msg = aec_port_malloc_msg(MSG_AEC_SET,
@@ -1071,10 +1448,24 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
     sensor_out_info_t       *sensor_info =
       (sensor_out_info_t *)(mod_evt->module_event_data);
 
+    /* get stats type for video hdr */
+    private->video_hdr_stats_type = YRGB;
+    if (sensor_info->meta_cfg.num_meta > 0) {
+      private->video_hdr_stats_type =
+        sensor_info->meta_cfg.sensor_meta_info[0].stats_type;
+      CDBG("%s num_meta %d stats_type %d ", __func__,
+          sensor_info->meta_cfg.num_meta, private->video_hdr_stats_type);
+    }
+
     /* TBG to change to sensor */
-    float fps;
+    float fps, max_fps;
+
     if (aec_msg != NULL ) {
       fps = sensor_info->max_fps * 0x00000100;
+
+      /*max fps supported by sensor*/
+      max_fps = (float)sensor_info->vt_pixel_clk * 0x00000100 /
+        (float)(sensor_info->ll_pck * sensor_info->fl_lines);
       switch (private->stream_type) {
       case CAM_STREAM_TYPE_VIDEO: {
         aec_msg->u.aec_set_parm.u.init_param.op_mode =
@@ -1085,7 +1476,7 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
         aec_msg->u.aec_set_parm.u.init_param.sensor_info.video_fps = fps;
         aec_msg->u.aec_set_parm.u.init_param.sensor_info.preview_linesPerFrame =
           sensor_info->fl_lines;
-        aec_msg->u.aec_set_parm.u.init_param.sensor_info.max_preview_fps = fps;
+        aec_msg->u.aec_set_parm.u.init_param.sensor_info.max_preview_fps = max_fps;
         aec_msg->u.aec_set_parm.u.init_param.sensor_info.preview_fps = fps;
       }
         break;
@@ -1095,7 +1486,7 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
           AEC_OPERATION_MODE_PREVIEW;
         aec_msg->u.aec_set_parm.u.init_param.sensor_info.preview_linesPerFrame =
           sensor_info->fl_lines;
-        aec_msg->u.aec_set_parm.u.init_param.sensor_info.max_preview_fps = fps;
+        aec_msg->u.aec_set_parm.u.init_param.sensor_info.max_preview_fps = max_fps;
         aec_msg->u.aec_set_parm.u.init_param.sensor_info.preview_fps = fps;
       }
         break;
@@ -1118,7 +1509,7 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
       } /* switch (private->stream_type) */
 
       aec_msg->u.aec_set_parm.u.init_param.sensor_info.max_gain =
-        sensor_info->max_gain;
+       sensor_info->max_gain;
       aec_msg->u.aec_set_parm.u.init_param.sensor_info.current_fps = fps;
       aec_msg->u.aec_set_parm.u.init_param.sensor_info.pixel_clock =
         sensor_info->vt_pixel_clk;
@@ -1135,7 +1526,7 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
       rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
       /* Also send the stream dimensions for preview */
       if ((private->stream_type == CAM_STREAM_TYPE_PREVIEW) ||
-          (private->stream_type == CAM_STREAM_TYPE_VIDEO)){
+          (private->stream_type == CAM_STREAM_TYPE_VIDEO)) {
         aec_set_parameter_t      *params;
         aec_set_parameter_init_t *init_param;
         q3a_thread_aecawb_msg_t  *dim_msg;
@@ -1146,8 +1537,8 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
           break;
         }
         init_param = &(dim_msg->u.aec_set_parm.u.init_param);
-        init_param->frame_dim.width = private->stream_info.dim.width;
-        init_param->frame_dim.height = private->stream_info.dim.height;
+        init_param->frame_dim.width = private->preview_width;
+        init_param->frame_dim.height = private->preview_height;
         CDBG("enqueue msg update ui width %d and height %d",
           init_param->frame_dim.width, init_param->frame_dim.height);
 
@@ -1164,7 +1555,8 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
       CDBG_ERROR("%s:%d failed\n", __func__, __LINE__);
       break;
     }
-
+    if(private->stream_type == CAM_STREAM_TYPE_VIDEO)
+      memset(&private->aec_get_data, 0, sizeof(private->aec_get_data));
     aec_port_proc_get_aec_data(port, stats_get_data);
   } /* MCT_EVENT_MODULE_PPROC_GET_AEC_UPDATE X*/
     break;
@@ -1208,7 +1600,11 @@ static boolean aec_port_proc_downstream_event(mct_port_t *port,
         private->vfe_out_width;
       aec_msg->u.aec_set_parm.u.stream_crop.vfe_out_height =
         private->vfe_out_height;
-
+      CDBG("Crop Event from ISP received. PP (%d %d %d %d)", stream_crop->x,
+        stream_crop->y, stream_crop->crop_out_x, stream_crop->crop_out_y);
+      CDBG("vfe map: (%d %d %d %d) vfe_out: (%d %d)", stream_crop->x_map,
+        stream_crop->y_map, stream_crop->width_map, stream_crop->height_map,
+        private->vfe_out_width, private->vfe_out_height);
       rc = q3a_aecawb_thread_en_q_msg(private->thread_data, aec_msg);
     }
   }
@@ -1507,6 +1903,7 @@ static void aec_port_ext_unlink(unsigned int identity, mct_port_t *port,
     MCT_OBJECT_REFCOUNT(port) -= 1;
     if (!MCT_OBJECT_REFCOUNT(port)) {
       private->state = AEC_PORT_STATE_UNLINKED;
+      MCT_PORT_PEER(port) = NULL;
     }
   }
   MCT_OBJECT_UNLOCK(port);
@@ -1731,6 +2128,7 @@ boolean aec_port_init(mct_port_t *port, unsigned int *sessionid)
 
   private->reserved_id = *sessionid;
   private->state       = AEC_PORT_STATE_CREATED;
+  private->need_to_send_est = FALSE;
 
   port->port_private   = private;
   port->direction      = MCT_PORT_SINK;

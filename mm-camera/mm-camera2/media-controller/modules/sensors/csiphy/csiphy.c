@@ -6,6 +6,7 @@
 
 #include "csiphy.h"
 #include "sensor_common.h"
+#include "server_debug.h"
 
 /*==========================================================
  * FUNCTION    - csiphy_set_lane_params -
@@ -44,10 +45,10 @@ static int32_t csiphy_set_cfg(void *csiphy_ctrl, void *data)
     SERR("failed");
     return SENSOR_FAILURE;
   }
-  if (csiphy_params == ctrl->cur_csiphy_params) {
-    SLOW("same csiphy params");
-    return rc;
-  }
+  //if (csiphy_params->csiphy_clk == ctrl->cur_csiphy_params.csiphy_clk) {
+  //  SLOW("same csiphy params");
+  //  return rc;
+  //}
   csiphy_params->lane_mask = ctrl->csi_lane_params->csi_lane_mask;
 
   cfg.cfgtype = CSIPHY_CFG;
@@ -57,7 +58,8 @@ static int32_t csiphy_set_cfg(void *csiphy_ctrl, void *data)
     SERR("VIDIOC_MSM_CSIPHY_IO_CFG failed");
   }
 
-  ctrl->cur_csiphy_params = csiphy_params;
+  memcpy((void *)&(ctrl->cur_csiphy_params), (void *)csiphy_params,
+    sizeof(struct msm_camera_csiphy_params));
   return rc;
 }
 
@@ -88,6 +90,11 @@ static int32_t csiphy_open(void **csiphy_ctrl, const char *subdev_name)
   snprintf(subdev_string, sizeof(subdev_string), "/dev/%s", subdev_name);
   /* Open subdev */
   ctrl->fd = open(subdev_string, O_RDWR);
+  if ((ctrl->fd) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ctrl->fd = -1;
+    goto ERROR;
+  }
   if (ctrl->fd < 0) {
     SERR("failed");
     rc = SENSOR_FAILURE;
@@ -154,18 +161,16 @@ static int32_t csiphy_close(void *csiphy_ctrl)
     return SENSOR_FAILURE;
   }
 
+  cfg.cfgtype = CSIPHY_RELEASE;
+  memset(&csi_lane_params, 0, sizeof(csi_lane_params));
   if (ctrl->csi_lane_params) {
-    cfg.cfgtype = CSIPHY_RELEASE;
-    memset(&csi_lane_params, 0, sizeof(csi_lane_params));
-    if (ctrl->csi_lane_params) {
-      csi_lane_params.csi_lane_assign = ctrl->csi_lane_params->csi_lane_assign;
-      csi_lane_params.csi_lane_mask = ctrl->csi_lane_params->csi_lane_mask;
-    }
-    cfg.cfg.csi_lane_params = &csi_lane_params;
-    rc = ioctl(ctrl->fd, VIDIOC_MSM_CSIPHY_IO_CFG, &cfg);
-    if (rc < 0) {
-      SERR("VIDIOC_MSM_CSIPHY_IO_CFG failed");
-    }
+    csi_lane_params.csi_lane_assign = ctrl->csi_lane_params->csi_lane_assign;
+    csi_lane_params.csi_lane_mask = ctrl->csi_lane_params->csi_lane_mask;
+  }
+  cfg.cfg.csi_lane_params = &csi_lane_params;
+  rc = ioctl(ctrl->fd, VIDIOC_MSM_CSIPHY_IO_CFG, &cfg);
+  if (rc < 0) {
+    SERR("VIDIOC_MSM_CSIPHY_IO_CFG failed");
   }
 
   /* close subdev */

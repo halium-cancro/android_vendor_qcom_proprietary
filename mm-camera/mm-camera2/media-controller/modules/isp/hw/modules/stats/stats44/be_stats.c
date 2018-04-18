@@ -6,10 +6,11 @@
 ============================================================================*/
 #include <unistd.h>
 #include "be_stats.h"
+#include "isp_log.h"
 
 #ifdef BE_STATS_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #undef CDBG_ERROR
 #define CDBG_ERROR ALOGE
 #endif
@@ -24,17 +25,17 @@
  **/
 static void be_stats_debug(ISP_StatsBe_CfgCmdType *pcmd)
 {
-  CDBG("%s:Bayer Exposure Stats Configurations\n", __func__);
-  CDBG("%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
-  CDBG("%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
-  CDBG("%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
-  CDBG("%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
-  CDBG("%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
-  CDBG("%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
-  CDBG("%s:r_max      %d\n", __func__, pcmd->rMax);
-  CDBG("%s:gr_max     %d\n", __func__, pcmd->grMax);
-  CDBG("%s:b_max      %d\n", __func__, pcmd->bMax);
-  CDBG("%s:gb_max     %d\n", __func__, pcmd->gbMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:Bayer Exposure Stats Configurations\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:r_max      %d\n", __func__, pcmd->rMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:gr_max     %d\n", __func__, pcmd->grMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:b_max      %d\n", __func__, pcmd->bMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:gb_max     %d\n", __func__, pcmd->gbMax);
 }
 
 /** be_stats_config:
@@ -56,12 +57,12 @@ static int be_stats_config(isp_stats_entry_t *entry,
   isp_pix_camif_cfg_t *camif_cfg = &pix_settings->camif_cfg;
   uint32_t camif_window_w_t, camif_window_h_t;
 
-  CDBG("%s: config BE, enable %d\n", __func__, entry->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: config BE, enable %d\n", __func__, entry->enable);
   if (!entry->enable) {
-    CDBG("%s: BE not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: BE not enabled", __func__);
     return 0;
   }
-  CDBG("%s: ion_fd = %d\n", __func__, pix_settings->ion_fd);
+  ISP_DBG(ISP_MOD_STATS, "%s: ion_fd = %d\n", __func__, pix_settings->ion_fd);
 
   entry->session_id = pix_settings->outputs->stream_param.session_id;
   entry->is_ispif_split = pix_settings->camif_cfg.ispif_out_info.is_split;
@@ -221,7 +222,7 @@ static int be_stats_get_params (void *ctrl, uint32_t param_id,
   isp_stats_entry_t *entry = ctrl;
   int rc = 0;
 
-  CDBG("%s: param_id = %d\n", __func__, param_id);
+  ISP_DBG(ISP_MOD_STATS, "%s: param_id = %d\n", __func__, param_id);
   switch (param_id) {
   case ISP_STATS_GET_ENABLE:
     break;
@@ -404,7 +405,7 @@ static int be_stats_action (void *ctrl, uint32_t action_code,
   int rc = 0;
   isp_stats_entry_t *entry = ctrl;
 
-  CDBG("%s: action code = %d\n", __func__, action_code);
+  ISP_DBG(ISP_MOD_STATS, "%s: action code = %d\n", __func__, action_code);
   switch (action_code) {
   case ISP_STATS_ACTION_STREAM_START:
     break;
@@ -545,7 +546,7 @@ isp_ops_t *be_stats44_open(isp_stats_mod_t *stats,
   int rc = 0;
   isp_stats_entry_t *entry = NULL;
   ISP_StatsBe_CfgCmdType *cmd = NULL;
-CDBG("%s: E\n", __func__);
+ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
   entry = malloc(sizeof(isp_stats_entry_t));
   if (!entry) {
     CDBG_ERROR("%s: no mem for aec\n",  __func__);

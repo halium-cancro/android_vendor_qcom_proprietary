@@ -3,7 +3,7 @@
  * This file contains the helper methods and implementation for managing
  * lists.
  *
- * Copyright (c) 2012-2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -30,12 +30,7 @@ static void mct_list_free(mct_list_t *mct_list)
 {
   if (mct_list) {
     free(mct_list);
-//Gionee <zhaocuiqin> <2014-11-13> modify for CR01407026 begin
-#ifdef ORIGINAL_VERSION
-#else
     mct_list = NULL;
-#endif
-//Gionee <zhaocuiqin> <2014-11-13> modify for CR01407026 begin
   }
 }
 
@@ -112,7 +107,7 @@ mct_list_t* mct_list_append(mct_list_t *mct_list, void *data, void *appendto,
           return mct_list;
         }
       } else if (last->next) {
-        int num;
+        uint32_t num;
         num  = last->next_num;
         last = last->next[0];
         while (num--) {
@@ -180,8 +175,8 @@ mct_list_t* mct_list_prepend(mct_list_t *mct_list, void *data)
 
     if (mct_list->prev) {
       /*find corresponding mct_list->prev->next[i]*/
-	  mct_list->prev->next[i] = new_list;
-	}
+      mct_list->prev->next[i] = new_list;
+    }
     mct_list->prev = new_list;
   } else
     new_list->prev = NULL;
@@ -193,7 +188,7 @@ error:
   return NULL;
 }
 
-mct_list_t* mct_list_insert(mct_list_t *mct_list, void *data, int pos)
+mct_list_t* mct_list_insert(mct_list_t *mct_list, void *data, uint32_t pos)
 {
   /* TODO */
   return NULL;
@@ -209,7 +204,7 @@ mct_list_t* mct_list_insert_before(mct_list_t *mct_list, mct_list_t *inserted,
 mct_list_t* mct_list_remove(mct_list_t *mct_list, const void *data)
 {
   mct_list_t *temp, *temp_list;
-  int num, i, j;
+  uint32_t num, i, j;
   boolean moved;
 
   if (!mct_list)
@@ -248,12 +243,7 @@ mct_list_t* mct_list_remove(mct_list_t *mct_list, const void *data)
             i++;
           }
           free(temp->next);
-//Gionee <zhaocuiqin> <2014-11-13> modify for CR01407026 begin
-#ifdef ORIGINAL_VERSION
-#else
-          temp->next = NULL;
-#endif
-//Gionee <zhaocuiqin> <2014-11-13> modify for CR01407026 begin
+          temp->next  = NULL;
         } else {
           temp->prev->next = NULL;
         } /* num == 0 */
@@ -331,12 +321,7 @@ mct_list_t* mct_list_remove(mct_list_t *mct_list, const void *data)
         temp->next[0]->prev = NULL;
         mct_list = temp->next[0];
         free(temp->next);
-//Gionee <zhaocuiqin> <2014-11-13> modify for CR01407026 begin
-#ifdef ORIGINAL_VERSION
-#else
         temp->next = NULL;
-#endif
-//Gionee <zhaocuiqin> <2014-11-13> modify for CR01407026 begin
         mct_list_free(temp);
       } else if (temp->next_num == 0) {
         mct_list = NULL;
@@ -357,7 +342,7 @@ mct_list_t* mct_list_find_custom(mct_list_t *mct_list,
   void *data, mct_list_find_func list_find)
 {
   mct_list_t *temp_list;
-  int num;
+  uint32_t num;
 
   if (!list_find)
     return mct_list;
@@ -388,7 +373,7 @@ mct_list_t* mct_list_find_and_add_custom(mct_list_t *parent_list,
   mct_list_t *child_list, void *data, mct_list_find_func list_find)
 {
   mct_list_t *temp_list;
-  int num;
+  uint32_t num;
 
   if (parent_list) {
     num = parent_list->next_num;
@@ -416,7 +401,7 @@ boolean mct_list_traverse(mct_list_t *mct_list, mct_list_traverse_func traverse,
   void *user_data)
 {
   mct_list_t *temp_list;
-  int num;
+  uint32_t num;
 
   if (mct_list && traverse) {
     if (traverse(mct_list->data, user_data) == FALSE)
@@ -441,7 +426,7 @@ boolean mct_list_traverse(mct_list_t *mct_list, mct_list_traverse_func traverse,
 void mct_list_free_list(mct_list_t *mct_list)
 {
   mct_list_t *temp_list;
-  int num;
+  uint32_t num;
 
   if (mct_list) {
     num = mct_list->next_num;
@@ -490,7 +475,7 @@ void mct_list_operate_nodes(mct_list_t *mct_list,
   mct_list_operate_func list_operate, void *user_data)
 {
   mct_list_t *temp_list;
-  int num;
+  uint32_t num;
 
   if (mct_list && list_operate) {
     num = mct_list->next_num;

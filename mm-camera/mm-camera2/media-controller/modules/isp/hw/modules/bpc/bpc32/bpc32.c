@@ -7,10 +7,19 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "bpc32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_BPC_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
+#endif
+
+#ifndef sign
+#define sign(x) (((x) < 0) ? (-1) : (1))
+#endif
+
+#ifndef Round
+#define Round(x) (int)((x) + sign(x)*0.5)
 #endif
 
 /** util_bpc_cmd_debug:
@@ -24,16 +33,16 @@
  **/
 static void util_bpc_cmd_debug(ISP_DemosaicDBPC_CmdType *cmd)
 {
-  CDBG("%s: cmd->fminThreshold = %d \n", __func__, cmd->fminThreshold);
-  CDBG("%s: cmd->fmaxThreshold = %d \n", __func__, cmd->fmaxThreshold);
-  CDBG("%s: cmd->rOffsetHi = %d \n", __func__, cmd->rOffsetHi);
-  CDBG("%s: cmd->rOffsetLo = %d \n", __func__, cmd->rOffsetLo);
-  CDBG("%s: cmd->bOffsetHi = %d \n", __func__, cmd->bOffsetHi);
-  CDBG("%s: cmd->bOffsetLo = %d \n", __func__, cmd->bOffsetLo);
-  CDBG("%s: cmd->grOffsetHi = %d \n", __func__, cmd->grOffsetHi);
-  CDBG("%s: cmd->grOffsetLo = %d \n", __func__, cmd->grOffsetLo);
-  CDBG("%s: cmd->gbOffsetHi = %d \n", __func__, cmd->gbOffsetHi);
-  CDBG("%s: cmd->gbOffsetLo = %d \n", __func__, cmd->gbOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->fminThreshold = %d \n", __func__, cmd->fminThreshold);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->fmaxThreshold = %d \n", __func__, cmd->fmaxThreshold);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->rOffsetHi = %d \n", __func__, cmd->rOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->rOffsetLo = %d \n", __func__, cmd->rOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->bOffsetHi = %d \n", __func__, cmd->bOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->bOffsetLo = %d \n", __func__, cmd->bOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->grOffsetHi = %d \n", __func__, cmd->grOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->grOffsetLo = %d \n", __func__, cmd->grOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->gbOffsetHi = %d \n", __func__, cmd->gbOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->gbOffsetLo = %d \n", __func__, cmd->gbOffsetLo);
 } /* util_bpc_cmd_debug */
 
 /** util_bpc_cmd_config:
@@ -73,14 +82,14 @@ static int bpc_do_hw_update(isp_bpc_mod_t *bpc_mod)
 {
   int rc = 0;
   struct msm_vfe_cfg_cmd2 cfg_cmd;
-  struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[2];
+  struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[3];
   ISP_DemosaicDBPCCfg_CmdType cfg_mask;
 
   if (bpc_mod->hw_update_pending) {
     cfg_cmd.cfg_data = (void *)&bpc_mod->RegCmd;
     cfg_cmd.cmd_len = sizeof(bpc_mod->RegCmd);
     cfg_cmd.cfg_cmd = (void *)reg_cfg_cmd;
-    cfg_cmd.num_cfg = 2;
+    cfg_cmd.num_cfg = 3;
 
     cfg_mask.enable = 1;
     reg_cfg_cmd[0].cmd_type = VFE_CFG_MASK;
@@ -92,6 +101,13 @@ static int bpc_do_hw_update(isp_bpc_mod_t *bpc_mod)
     reg_cfg_cmd[1].cmd_type = VFE_WRITE;
     reg_cfg_cmd[1].u.rw_info.reg_offset = ISP_DBPC32_CFG_OFF;
     reg_cfg_cmd[1].u.rw_info.len = ISP_DBPC32_LEN * sizeof(uint32_t);
+
+    reg_cfg_cmd[2].u.rw_info.cmd_data_offset = 8;
+    reg_cfg_cmd[2].cmd_type = VFE_WRITE;
+    reg_cfg_cmd[2].u.rw_info.reg_offset = ISP_DBPC32_CFG_OFF_1;
+    reg_cfg_cmd[2].u.rw_info.len = ISP_DBPC32_LEN_1 * sizeof(uint32_t);
+
+    util_bpc_cmd_debug(&(bpc_mod->RegCmd));
 
     rc = ioctl(bpc_mod->fd, VIDIOC_MSM_VFE_REG_CFG, &cfg_cmd);
     if (rc < 0) {
@@ -157,10 +173,10 @@ static int bpc_config(isp_bpc_mod_t *mod,
     return -1;
   }
 
-  CDBG("%s: enter", __func__);
+  ISP_DBG(ISP_MOD_BPC, "%s: enter", __func__);
 
   if (!mod->enable) {
-    CDBG("%s: Mod not Enable.", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Mod not Enable.", __func__);
     return rc;
   }
 
@@ -290,7 +306,7 @@ static int bpc_trigger_update(isp_bpc_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable || mod->skip_trigger) {
-    CDBG("%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
+    ISP_DBG(ISP_MOD_BPC, "%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
       __func__, mod->enable, mod->trigger_enable, mod->skip_trigger);
     return rc;
   }
@@ -299,11 +315,11 @@ static int bpc_trigger_update(isp_bpc_mod_t *mod,
   if (!is_snapmode
     && !isp_util_aec_check_settled(
       &(in_params->trigger_input.stats_update.aec_update))) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: AEC not settled", __func__);
     return rc;
   }
 
-  CDBG("%s: Calculate table with AEC", __func__);
+  ISP_DBG(ISP_MOD_BPC, "%s: Calculate table with AEC", __func__);
 
   trigger_point = &(chromatix_BPC->bpc_lowlight_trigger);
   Fmin = chromatix_BPC->bpc_Fmin;
@@ -315,65 +331,65 @@ static int bpc_trigger_update(isp_bpc_mod_t *mod,
 
   tunning_control = chromatix_BPC->control_bpc;
   aec_ratio = isp_util_get_aec_ratio(mod->notify_ops->parent,
-    chromatix_CS_MCE->control_cs, trigger_point,
+    chromatix_BPC->control_bpc, trigger_point,
     &(in_params->trigger_input.stats_update.aec_update), is_snapmode);
 
   update_cs = ((mod->old_streaming_mode != in_params->cfg.streaming_mode)
     || !F_EQUAL(mod->aec_ratio, aec_ratio));
 
   if (!update_cs) {
-    CDBG("%s: update not required", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: update not required", __func__);
     return 0;
   }
 
   if (F_EQUAL(aec_ratio, 0.0)) {
-    CDBG("%s: Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Low Light \n", __func__);
     mod->p_params.p_input_offset = bpc_lowlight_input_offset;
     mod->p_params.p_Fmin = &(Fmin_lowlight);
     mod->p_params.p_Fmax = &(Fmax_lowlight);
     util_bpc_cmd_config(mod);
   } else if (F_EQUAL(aec_ratio, 1.0)) {
-    CDBG("%s: Normal Light \n", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Normal Light \n", __func__);
     mod->p_params.p_input_offset = bpc_normal_input_offset;
     mod->p_params.p_Fmin = &(Fmin);
     mod->p_params.p_Fmax = &(Fmax);
     util_bpc_cmd_config(mod);
   } else {
-    CDBG("%s: Interpolate between Nomal and Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Interpolate between Nomal and Low Light \n", __func__);
     /* Directly configure reg cmd.*/
-    Fmin = (uint8_t)LINEAR_INTERPOLATION(Fmin, Fmin_lowlight, aec_ratio);
+    Fmin = (uint8_t)Round(LINEAR_INTERPOLATION(Fmin, Fmin_lowlight, aec_ratio));
     mod->RegCmd.fminThreshold = MIN(63, Fmin);
 
-    Fmax = (uint8_t)LINEAR_INTERPOLATION(Fmax, Fmax_lowlight, aec_ratio);
+    Fmax = (uint8_t)Round(LINEAR_INTERPOLATION(Fmax, Fmax_lowlight, aec_ratio));
     mod->RegCmd.fmaxThreshold = MIN(127, Fmax);
 
-    mod->RegCmd.rOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.rOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_r_hi,
-        bpc_lowlight_input_offset->bpc_4_offset_r_hi, aec_ratio);
-    mod->RegCmd.rOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bpc_lowlight_input_offset->bpc_4_offset_r_hi, aec_ratio));
+    mod->RegCmd.rOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_r_lo,
-        bpc_lowlight_input_offset->bpc_4_offset_r_lo, aec_ratio);
+      bpc_lowlight_input_offset->bpc_4_offset_r_lo, aec_ratio));
 
-    mod->RegCmd.bOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.bOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_b_hi,
-        bpc_lowlight_input_offset->bpc_4_offset_b_hi, aec_ratio);
-    mod->RegCmd.bOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bpc_lowlight_input_offset->bpc_4_offset_b_hi, aec_ratio));
+    mod->RegCmd.bOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_b_lo,
-        bpc_lowlight_input_offset->bpc_4_offset_b_lo, aec_ratio);
+      bpc_lowlight_input_offset->bpc_4_offset_b_lo, aec_ratio));
 
-    mod->RegCmd.grOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.grOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_gr_hi,
-        bpc_lowlight_input_offset->bpc_4_offset_gr_hi, aec_ratio);
-    mod->RegCmd.grOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bpc_lowlight_input_offset->bpc_4_offset_gr_hi, aec_ratio));
+    mod->RegCmd.grOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_gr_lo,
-        bpc_lowlight_input_offset->bpc_4_offset_gr_lo, aec_ratio);
+      bpc_lowlight_input_offset->bpc_4_offset_gr_lo, aec_ratio));
 
-    mod->RegCmd.gbOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.gbOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_gb_hi,
-        bpc_lowlight_input_offset->bpc_4_offset_gb_hi, aec_ratio);
-    mod->RegCmd.gbOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bpc_lowlight_input_offset->bpc_4_offset_gb_hi, aec_ratio));
+    mod->RegCmd.gbOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bpc_normal_input_offset->bpc_4_offset_gb_lo,
-        bpc_lowlight_input_offset->bpc_4_offset_gb_lo, aec_ratio);
+      bpc_lowlight_input_offset->bpc_4_offset_gb_lo, aec_ratio));
   }
   mod->aec_ratio = aec_ratio;
 
@@ -495,7 +511,7 @@ static int bpc_get_params(void *mod_ctrl, uint32_t param_id, void *in_params,
     vfe_diag->control_bpc.cntrlenable = mod->trigger_enable;
     bpc_ez_isp_update(mod, bpcDiag);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Populating vfe_diag data", __func__);
   }
     break;
 

@@ -27,6 +27,8 @@ typedef enum {
 typedef struct {
   enum msm_isp_stats_type stats_type;
   void *reg_cmd;
+  void *current_reg_cmd;
+  void *new_reg_cmd;
   uint8_t hw_update_pending;
   uint8_t trigger_enable; /* enable trigger update feature flag */
   uint8_t enable;         /* enable flag from PIX */
@@ -51,7 +53,17 @@ typedef struct {
   void *parsed_stats_buf;
   void *saved_stats_buf;        /* saved prevous stats */
   boolean has_saved_stats;      /* has saved  stats */
+  boolean need_to_do_fullsize_cfg;
+  boolean is_tintless_stats_configured;
+  boolean is_fullsize_stats;
+  boolean is_current_stats_fullsize;
+  boolean is_new_stats_full_size;
+  boolean roi_config_skip_stats;
+  boolean tinltess_cofig_stats;
+  boolean new_stats_config;
   uint32_t len_parsed_stats_buf;
+  uint32_t hnum;
+  uint32_t vnum;
   void *private;
   int dev_idx;
   void *buf_mgr;
@@ -105,6 +117,9 @@ typedef struct {
   isp_notify_ops_t *notify_ops;
   void *buf_mgr;
   int dev_idx;
+  uint32_t stats_burst_len;
+  pthread_mutex_t  parse_stats_mutex;
+  uint32_t isp_version;
 }isp_stats_mod_t;
 
 int isp_stats_enqueue_buf(isp_stats_entry_t *entry, int buf_idx);

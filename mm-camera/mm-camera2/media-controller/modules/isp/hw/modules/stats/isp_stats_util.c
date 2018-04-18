@@ -11,6 +11,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include <sys/stat.h>
 #include <linux/media.h>
 #include <media/msmb_isp.h>
+#include "isp_log.h"
 
 #include "isp_stats.h"
 #ifdef _ANDROID_
@@ -18,8 +19,8 @@ Qualcomm Technologies Proprietary and Confidential.
 #endif
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -49,7 +50,7 @@ static int isp_stats_alloc_native_buf(int ion_fd, isp_frame_buffer_t *bufs, int 
   int i, j, rc = 0;
   int cached = 1;
 
-  CDBG("%s: num_buf = %d\n", __func__, num_bufs);
+  ISP_DBG(ISP_MOD_STATS, "%s: num_buf = %d\n", __func__, num_bufs);
 
   for (i = 0; i < num_bufs; i++) {
     rc = isp_init_native_buffer(&bufs[i], i, ion_fd, len_offset, cached);
@@ -242,7 +243,7 @@ int isp_stats_config_stats_stream(isp_stats_entry_t *entry, int num_bufs)
   entry->stream_handle = req_cmd.stream_handle;
   rc = isp_stats_reg_buf(entry);
   if (rc < 0) {
-     CDBG("%s: isp request buffer failed, rc = %d\n", __func__, rc);
+     ISP_DBG(ISP_MOD_STATS, "%s: isp request buffer failed, rc = %d\n", __func__, rc);
     struct msm_vfe_stats_stream_release_cmd rel_cmd;
     rel_cmd.stream_handle = entry->stream_handle;
     ioctl(entry->fd, VIDIOC_MSM_ISP_RELEASE_STATS_STREAM, &rel_cmd);
@@ -263,7 +264,7 @@ int isp_stats_unconfig_stats_stream(isp_stats_entry_t *entry)
   rel_cmd.stream_handle = entry->stream_handle;
 
   isp_stats_unreg_buf(entry);
-  CDBG("%s: entry->fd = %d, rel_cmd = %p\n", __func__, entry->fd, &rel_cmd);
+  ISP_DBG(ISP_MOD_STATS, "%s: entry->fd = %d, rel_cmd = %p\n", __func__, entry->fd, &rel_cmd);
   rc = ioctl(entry->fd, VIDIOC_MSM_ISP_RELEASE_STATS_STREAM, &rel_cmd);
   if (rc < 0) {
     CDBG_ERROR("%s: cannot release stream for stats 0x%x\n",
@@ -287,8 +288,10 @@ int isp_stats_start_streams(
   struct msm_vfe_stats_stream_cfg_cmd cmd;
   uint32_t handle;
   memset(&cmd, 0, sizeof(cmd));
+  pthread_mutex_init(&mod->parse_stats_mutex, NULL);
 
   cmd.enable = 1;
+  cmd.stats_burst_len = mod->stats_burst_len;
   for (i = 0; i < MSM_ISP_STATS_MAX; i++) {
     if (stats_mask & (1 << i)) {
       mod->stats_ops[i]->get_params(mod->stats_ops[i]->ctrl,
@@ -322,13 +325,15 @@ int isp_stats_stop_streams(
   memset(&cmd, 0, sizeof(cmd));
 
   cmd.enable = 0;
+  /* Wait for stats parsing to complete */
+  pthread_mutex_lock(&mod->parse_stats_mutex);
   for (i = 0; i < MSM_ISP_STATS_MAX; i++) {
     if (stats_mask & (1 << i)) {
       mod->stats_ops[i]->get_params(mod->stats_ops[i]->ctrl,
         ISP_STATS_GET_STREAM_HANDLE, NULL, 0, &handle, sizeof(handle));
       cmd.stream_handle[cmd.num_streams++] = handle;
-			/* send stop action to each stats in
-			 * case they need to do local cleanup */
+      /* send stop action to each stats in
+       * case they need to do local cleanup */
       mod->stats_ops[i]->action(mod->stats_ops[i]->ctrl,
         ISP_STATS_ACTION_STREAM_STOP, NULL, 0);
     }
@@ -340,6 +345,8 @@ int isp_stats_stop_streams(
     __func__, stats_mask);
   }
 
+  pthread_mutex_unlock(&mod->parse_stats_mutex);
+  pthread_mutex_destroy(&mod->parse_stats_mutex);
   return rc;
 }
 
@@ -363,6 +370,7 @@ int isp_stats_parse(isp_stats_mod_t *mod,
   action_data->parsed_stats_event->frame_id = raw_event->frame_id;
   action_data->parsed_stats_event->timestamp = raw_event->timestamp;
 
+  pthread_mutex_lock(&mod->parse_stats_mutex);
   for (i = 0; i < MSM_ISP_STATS_MAX; i++) {
     if (!(stats_mask & (1 << i)))
       continue;
@@ -371,9 +379,11 @@ int isp_stats_parse(isp_stats_mod_t *mod,
            action_data, sizeof(isp_pipeline_stats_parse_t));
     if (rc < 0) {
       CDBG_ERROR("%s: stats (%d) parsing error = %d\n", __func__, i, rc);
+      pthread_mutex_unlock(&mod->parse_stats_mutex);
       return rc;
     }
   }
+  pthread_mutex_unlock(&mod->parse_stats_mutex);
   return rc;
 }
 

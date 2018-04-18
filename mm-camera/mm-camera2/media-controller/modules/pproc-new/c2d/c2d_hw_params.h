@@ -177,6 +177,10 @@ typedef enum {
   C2D_PARAM_PLANE_CBCR422,
   C2D_PARAM_PLANE_CRCB422,
   C2D_PARAM_PLANE_CRCB420,
+  C2D_PARAM_PLANE_YCBYCR422,
+  C2D_PARAM_PLANE_YCRYCB422,
+  C2D_PARAM_PLANE_CBYCRY422,
+  C2D_PARAM_PLANE_CRYCBY422,
 } c2d_params_plane_fmt_t;
 
 typedef struct {
@@ -199,7 +203,8 @@ typedef struct _c2d_params_dim_info_t {
   int32_t                height;
   int32_t                stride;
   int32_t                scanline;
-  c2d_params_plane_fmt_t  plane_fmt;
+  cam_format_t           cam_fmt;
+  c2d_params_plane_fmt_t c2d_plane_fmt;
 } c2d_params_dim_info_t;
 
 typedef struct _c2d_params_asf_info_t {
@@ -266,6 +271,7 @@ typedef struct _c2d_hardware_params_t {
     denoise_info[C2D_DENOISE_NUM_PLANES][C2D_DENOISE_NUM_PROFILES];
   void                     *cookie;
   c2d_hardware_buffer_info_t input_buffer_info;
+  boolean                   processed_divert;
 } c2d_hardware_params_t;
 
 #endif

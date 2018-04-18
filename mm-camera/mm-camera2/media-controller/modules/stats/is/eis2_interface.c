@@ -234,8 +234,13 @@ int eis2_process(eis2_context_type *p_eis, frame_times_t *frame_times,
       eis2_gyro_data[1].gyro_data[i].ts);
   }
 
-  /* Sanity check on number of samples? */
-  rc = eis2_stabilize_frame(p_eis, &eis_input, is_output->transform_matrix);
+  /* Stabilize only when both RS and 3D shake gyro intervals are not empty */
+  if (eis2_gyro_data[0].num_elements > 0 &&
+    eis2_gyro_data[1].num_elements > 0) {
+    rc = eis2_stabilize_frame(p_eis, &eis_input, is_output->transform_matrix);
+  } else {
+    CDBG_HIGH("%s: Gyro sample interval empty", __func__);
+  }
 
   CDBG("tform mat: %f, %f, %f, %f, %f, %f, %f, %f, %f\n",
     is_output->transform_matrix[0], is_output->transform_matrix[1],

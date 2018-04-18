@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "chroma_subsample32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_CHROMA_SUBSAMPLE_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 /** chroma_subsample_cmd_debug:
@@ -20,18 +21,18 @@
  **/
 static void chroma_subsample_cmd_debug(isp_chroma_ss_mod_t *mod)
 {
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SS, "%s: E", __func__);
 
-  CDBG("%s: hCositedPhase = %d, vCositedPhase = %d", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SS, "%s: hCositedPhase = %d, vCositedPhase = %d", __func__,
     mod->reg_cmd.hCositedPhase, mod->reg_cmd.vCositedPhase);
-  CDBG("%s: hCosited = %d, vCosited = %d", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SS, "%s: hCosited = %d, vCosited = %d", __func__,
     mod->reg_cmd.hCosited, mod->reg_cmd.vCosited);
-  CDBG("%s: hsubSampleEnable = %d, vsubSampleEnable = %d cropEnable = %d",
+  ISP_DBG(ISP_MOD_CHROMA_SS, "%s: hsubSampleEnable = %d, vsubSampleEnable = %d cropEnable = %d",
     __func__, mod->reg_cmd.hsubSampleEnable, mod->reg_cmd.vsubSampleEnable,
     mod->reg_cmd.cropEnable);
-  CDBG("%s: cropWidthLastPixel = %d, cropWidthFirstPixel = %d", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SS, "%s: cropWidthLastPixel = %d, cropWidthFirstPixel = %d", __func__,
     mod->reg_cmd.cropWidthLastPixel, mod->reg_cmd.cropWidthFirstPixel);
-  CDBG("%s: cropHeightLastLine = %d, cropHeightFirstLine = %d", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SS, "%s: cropHeightLastLine = %d, cropHeightFirstLine = %d", __func__,
     mod->reg_cmd.cropHeightLastLine, mod->reg_cmd.cropHeightFirstLine);
 } /* chroma_subsample_cmd_debug */
 
@@ -125,7 +126,7 @@ static int chroma_subsample_config(isp_chroma_ss_mod_t *mod,
   mod->reg_cmd.vsubSampleEnable    =  1;
 
   if (!mod->enable) {
-    CDBG("%s: Chroma SS not enabled %d", __func__, mod->enable);
+    ISP_DBG(ISP_MOD_CHROMA_SS, "%s: Chroma SS not enabled %d", __func__, mod->enable);
     return -EAGAIN;
   }
 
@@ -329,7 +330,7 @@ isp_ops_t *chroma_subsample32_open(uint32_t version)
 {
   isp_chroma_ss_mod_t *mod = malloc(sizeof(isp_chroma_ss_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SS, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

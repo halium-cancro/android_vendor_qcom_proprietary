@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -29,6 +29,26 @@ static boolean find_port_with_identity_find_func(void *data, void *user_data)
     }
   }
   return FALSE;
+}
+
+/** cpp_module_util_check_stream
+ *    @d1: mct_stream_t* pointer to the streanm being checked
+ *    @d2: uint32_t* pointer to identity
+ *
+ *  Check if the stream matches stream index or stream type.
+ *
+ *  Return: TRUE if stream matches.
+ **/
+static boolean cpp_module_util_check_stream(void *d1, void *d2)
+{
+  boolean ret_val = FALSE;
+  mct_stream_t *stream = (mct_stream_t *)d1;
+  uint32_t *id = (uint32_t *)d2;
+
+  if (stream && id && stream->streaminfo.identity == *id)
+    ret_val = TRUE;
+
+  return ret_val;
 }
 
 mct_port_t* cpp_module_find_port_with_identity(mct_module_t *module,
@@ -85,6 +105,74 @@ cpp_module_ack_t* cpp_module_find_ack_from_list(cpp_module_ctrl_t *ctrl,
     return (cpp_module_ack_t*)(templist->data);
   }
   return NULL;
+}
+
+static
+boolean clk_rate_find_by_identity_func(void* data, void* userdata)
+{
+  if(!data || !userdata) {
+    CDBG_ERROR("%s:%d: failed, data=%p, userdata=%p\n",
+                __func__, __LINE__, data, userdata);
+    return FALSE;
+  }
+
+  cpp_module_stream_clk_rate_t *clk_rate_obj =
+    (cpp_module_stream_clk_rate_t*) data;
+  uint32_t identity = *(uint32_t*)userdata;
+
+  if(clk_rate_obj->identity == identity) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+cpp_module_stream_clk_rate_t *
+cpp_module_find_clk_rate_by_identity(cpp_module_ctrl_t *ctrl,
+  uint32_t identity)
+{
+  mct_list_t *templist;
+
+  templist = mct_list_find_custom(ctrl->clk_rate_list.list, &identity,
+    clk_rate_find_by_identity_func);
+  if(templist) {
+    return (cpp_module_stream_clk_rate_t *)(templist->data);
+  }
+  return NULL;
+}
+
+static
+boolean clk_rate_find_by_value_func(void* data, void** userdata)
+{
+  if(!data) {
+    CDBG_ERROR("%s:%d: failed, data=%p\n",
+                __func__, __LINE__, data);
+    return FALSE;
+  }
+  cpp_module_stream_clk_rate_t *curent_clk_obj =
+    (cpp_module_stream_clk_rate_t *) data;
+  uint64_t  *total_load = (uint64_t *)userdata;
+
+  *total_load += curent_clk_obj->total_load;
+
+  return TRUE;
+}
+
+int64_t cpp_module_get_total_load_by_value(cpp_module_ctrl_t *ctrl)
+{
+  int32_t rc;
+  uint64_t total_load = 0;
+  uint64_t *ptr_total_load = NULL;
+
+  ptr_total_load = &total_load;
+
+  rc = mct_list_traverse(ctrl->clk_rate_list.list,
+    clk_rate_find_by_value_func, &ptr_total_load);
+
+  if (rc < 0) {
+    return rc;
+  }
+
+  return total_load;
 }
 
 cam_streaming_mode_t cpp_module_get_streaming_mode(mct_module_t *module,
@@ -162,8 +250,6 @@ void cpp_module_dump_stream_params(cpp_module_stream_params_t *stream_params,
   }
   CDBG_LOW("%s:%d,\t stream_params.identity=0x%x", func, line,
     stream_params->identity);
-  CDBG_LOW("%s:%d,\t stream_params.divert_flags=%d\n", func, line,
-    stream_params->div_info.divert_flags);
   CDBG_LOW("%s:%d,\t stream_params.priority=%d", func, line,
     stream_params->priority);
   CDBG_LOW("%s:%d, ---------------------------------------------------------",
@@ -424,9 +510,14 @@ int32_t cpp_module_set_output_duplication_flag(
      stream_params->hw_params.output_info.scanline ==
      stream_params->linked_stream_params->hw_params.output_info.scanline &&
      stream_params->hw_params.output_info.plane_fmt ==
-     stream_params->linked_stream_params->hw_params.output_info.plane_fmt) {
+     stream_params->linked_stream_params->hw_params.output_info.plane_fmt &&
+     stream_params->hw_params.mirror ==
+     stream_params->linked_stream_params->hw_params.mirror &&
+     stream_params->hw_params.rotation ==
+     stream_params->linked_stream_params->hw_params.rotation) {
     /* make the linked streams duplicates of each other */
-    CDBG("%s:%d, linked streams formats match: output duplication enabled",
+    CDBG(
+      "%s:%d,linked streams formats and flip match: output duplication enabled",
       __func__, __LINE__);
     stream_params->hw_params.duplicate_output = TRUE;
     stream_params->hw_params.duplicate_identity =
@@ -560,8 +651,8 @@ int32_t cpp_module_util_post_diag_to_bus(mct_module_t *module,
 int32_t cpp_module_util_update_session_diag_params(mct_module_t *module,
   cpp_hardware_params_t* hw_params)
 {
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_ctrl_t *ctrl;
 
   /* Check whether the current stream type needs update diag params */
@@ -604,4 +695,30 @@ int32_t cpp_module_util_update_session_diag_params(mct_module_t *module,
       hw_params->identity);
   }
   return 0;
+}
+
+/** cpp_module_util_find_parent
+ *    @identity: required identity
+ *    @module: module, whichs parents will be serached
+ *
+ * Finds module parent (stream) with specified identity
+ *
+ * Returns Pointer to stream handler in case of cucess
+ *   or NULL in case of failure
+ **/
+mct_stream_t* cpp_module_util_find_parent(uint32_t identity,
+  mct_module_t* module)
+{
+  mct_stream_t* ret_val = NULL;
+  mct_list_t *find_list;
+
+  if (module && MCT_MODULE_PARENT(module)) {
+    find_list = mct_list_find_custom(MCT_MODULE_PARENT(module),
+      &identity, cpp_module_util_check_stream);
+
+    if (find_list)
+      ret_val = find_list->data;
+  }
+
+  return ret_val;
 }

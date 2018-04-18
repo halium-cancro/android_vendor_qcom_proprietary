@@ -27,7 +27,8 @@ ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

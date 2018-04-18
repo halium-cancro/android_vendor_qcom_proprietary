@@ -10,7 +10,7 @@
 #include <semaphore.h>
 #include <media/msmb_pproc.h>
 #include "c2d2.h"
-//#include "c2dExt.h"
+#include "c2dExt.h"
 #include "c2d_interface.h"
 //#include "mtype.h"
 
@@ -18,18 +18,6 @@
 #define PPROC_FAILURE -1
 
 //#define MAX_PLANES 3
-
-typedef struct C2D_LENSCORRECT_OBJ_STR {
-    uint32   srcId;                     /*!< source surface */
-    C2D_RECT blitSize;                  /*!< C2D_RECT for blit size */
-    C2D_RECT gridSize;                  /*!< C2D_RECT for grid size */
-    int32    offsetX;                   /*!< source x offset */
-    int32    offsetY;                   /*!< source y offset */
-    uint32   transformType;             /*!< (C2D_LENSCORRECT_AFFINE or C2D_LENSCORRECT_PERSPECTIVE) + C2D_LENSCORRECT_BILINEAR */
-    float   *transformMatrices;         /*!<  transformMatrix array, 3x2 or 3x3 depending transformType  */
-    C2D_RECT source_rect;               /*!< region of the source surface,   16.16 fp */
-    C2D_RECT target_rect;               /*!< position and scaling in target, 16.16 fp */
-}C2D_LENSCORRECT_OBJECT;
 
 typedef struct {
   void *ptr;

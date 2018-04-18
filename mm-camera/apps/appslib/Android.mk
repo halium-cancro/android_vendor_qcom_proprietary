@@ -193,7 +193,8 @@ LOCAL_PRELINK_MODULE:= true
 LOCAL_MODULE:= liboemcamera
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
@@ -222,6 +223,7 @@ LOCAL_C_INCLUDES+= \
  $(LOCAL_PATH)/../appslib \
  $(LOCAL_PATH)/../../common \
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../../../../../../hardware/qcom/camera
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 
 ifeq ($(MSM_VERSION),7x2x)
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../../../mm-still/jpeg

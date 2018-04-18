@@ -29,7 +29,7 @@
 static int module_cac1_config_update_offline_params(cac_client_t *p_client)
 {
   int status = IMG_SUCCESS;
-  cam_metadata_info_t *metadata_buff;
+  cam_metadata_info_t *metadata_buff = NULL;
   mct_stream_session_metadata_info* session_meta;
   awb_update_t awb_update_val;
   awb_update_t *p_awb_update = &awb_update_val;
@@ -43,11 +43,19 @@ static int module_cac1_config_update_offline_params(cac_client_t *p_client)
 
   IDBG_MED("%s:%d] ", __func__, __LINE__);
 
-  metadata_buff = mct_module_get_buffer_ptr(
-    p_client->stream_info->parm_buf.reprocess.meta_buf_index,
-    p_client->parent_mod,
-    IMGLIB_SESSIONID(p_client->identity),
-    p_client->stream_info->parm_buf.reprocess.meta_stream_handle);
+
+  if (p_client->stream_info->reprocess_config.pp_type ==
+      CAM_ONLINE_REPROCESS_TYPE) {
+    metadata_buff = mct_module_get_buffer_ptr(
+      p_client->stream_info->parm_buf.reprocess.meta_buf_index,
+      p_client->parent_mod,
+      IMGLIB_SESSIONID(p_client->identity),
+      p_client->stream_info->parm_buf.reprocess.meta_stream_handle);
+
+  } else {
+    metadata_buff = module_imglib_common_get_metadata(p_client->stream_info,
+        p_client->stream_info->parm_buf.reprocess.meta_buf_index);
+  }
 
   if (!metadata_buff) {
     IDBG_ERROR("%s:%d] Invalid metadata buffer", __func__, __LINE__);

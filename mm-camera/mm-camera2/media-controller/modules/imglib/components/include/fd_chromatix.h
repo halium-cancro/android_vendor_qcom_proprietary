@@ -54,6 +54,19 @@ typedef enum {
   FD_CONTOUR_MODE_EYE = 1,
 } fd_chromatix_ct_detection_mode_t;
 
+/** fd_face_stab_filter_t
+ *   FD_STAB_NO_FILTER: Without stabilization filter.
+ *   FD_STAB_TEMPORAL: Temporal filter.
+ *   FD_STAB_HYSTERESIS: Hysteresis.
+ *
+ *   Face stabilization filter type.
+ **/
+typedef enum {
+  FD_STAB_NO_FILTER,
+  FD_STAB_TEMPORAL,
+  FD_STAB_HYSTERESIS,
+} fd_face_stab_filter_t;
+
 /** fd_chromatix_angle_t
  *   FD_STAB_EQUAL: Values will be marked as stable when two consecutive
  *     values are equal.
@@ -84,6 +97,50 @@ typedef enum {
   FD_STAB_CONTINUES_BIGGER,
   FD_STAB_CONTINUES_CLOSER_TO_REFERENCE,
 } fd_face_stab_mode_t;
+
+
+/** fd_face_stab_params_t
+ *   @enable: Enable stabilization.
+ *   @mode: Stabilization mode.
+ *   @threshold: Stabilization threshold (Within threshold new values will not
+ *     be accepted).
+ *   @state_cnt: Number of consecutive frames to wait
+ *     for entry to became stable.
+ *   @use_reference: Stabilize entry by reference
+ *       (Current reference are eyes).
+ *   @filter_type: Filter type to be used for stabilization
+ *     @temp: Temporal filter:
+ *       @num: Strength numerator.
+ *       @denom: Strength denominator.
+ *     @hyst: Hysteresis - Two square zones available: Zone A and Zone B.
+ *       Requirement - zone A < zone B. Fields:
+ *       @start_A: A Start point.
+ *       @end_A: A end point.
+ *       @start_B: B Start point.
+ *       @end_B: B end point.
+ *
+ *   Structure which holds face stabilization tuning parameters.
+ **/
+typedef struct {
+  uint32_t enable;
+  fd_face_stab_mode_t mode;
+  uint32_t threshold;
+  uint32_t state_cnt;
+  uint32_t use_reference;
+  fd_face_stab_filter_t filter_type;
+  union {
+    struct {
+      uint32_t num;
+      uint32_t denom;
+    } temp;
+    struct {
+      uint32_t start_A;
+      uint32_t end_A;
+      uint32_t start_B;
+      uint32_t end_B;
+      } hyst;
+  };
+} fd_face_stab_params_t;
 
 /** fd_chromatix_t
  *   @enable: flag to enable face detection
@@ -120,31 +177,12 @@ typedef enum {
  *   @move_rate_threshold: Position Modify rate threshold
  *                (in percents) how smoothly face changes coordinates
  *   @stab_enable: enable face stabilization
- *   @stab_pos_threshold: Threshold for stabilizing face position (0.1%)
- *   @stab_pos_state_cnt: Face position state count - how much consecutive frames to wait
- *     for face to became stable i.e insight the threshold
- *   @stab_pos_strength_num: Position temporal filter strength numerator.
- *   @stab_pos_strength_denum: Position temporal filter strength denominator.
- *   @stab_pos_mode: Position stabilization mode
- *   @stab_pos_use_reference: Stabilize position by reference
- *       (Current reference are eyes)
- *   @stab_size_threshold: Threshold for stabilizing face position (0.1%)
- *   @stab_size_state_cnt: Face position state count - how much consecutive frames to wait
- *     for face to became stable i.e insight the threshold
- *   @stab_size_strength_num: Position temporal filter strength numerator.
- *   @stab_size_strength_denum: Position temporal filter strength denominator.
- *   @stab_size_mode: Size stabilization mode
- *   @stab_size_use_reference: Stabilize position by reference
- *       (Current reference are eyes)
- *   @stab_mouth_threshold: Threshold for stabilizing face position (0.1%)
- *   @stab_mouth_state_cnt: Face position state count - how much consecutive frames to wait
- *     for face to became stable i.e insight the threshold
- *   @stab_mouth_strength_num: Position temporal filter strength numerator
- *   @stab_mouth_strength_denum: Position temporal filter strength denominator
- *   @stab_mouth_mode: Mouth stabilization mode
- *   @stab_mouth_use_reference: Stabilize position by reference
- *       (Current reference are eyes)
  *   @stab_history: Stabilization history depth (min is 2)
+ *   @stab_pos: Face position stabilization parameters.
+ *   @stab_size: Face size stabilization parameters.
+ *   @stab_mouth: Mouth position stabilization parameters.
+ *   @stab_smile: Smile degree stabilization parameters.
+ *
  *
  *   faceproc chromatix header
  **/
@@ -177,31 +215,12 @@ typedef struct {
   uint32_t lock_faces;
   uint32_t move_rate_threshold;
   fd_chromatix_ct_detection_mode_t ct_detection_mode;
-
-  /* stabilization parameters */
   int8_t stab_enable;
-  /* Face position tuning parameters */
-  uint32_t stab_pos_threshold;
-  uint32_t stab_pos_state_cnt;
-  uint32_t stab_pos_strength_num;
-  uint32_t stab_pos_strength_denum;
-  fd_face_stab_mode_t stab_pos_mode;
-  uint32_t stab_pos_use_reference;
-  /* Face size tuning parameters */
-  uint32_t stab_size_threshold;
-  uint32_t stab_size_state_cnt;
-  uint32_t stab_size_strength_num;
-  uint32_t stab_size_strength_denum;
-  fd_face_stab_mode_t stab_size_mode;
-  uint32_t stab_size_use_reference;
-  /* Face mouth tuning parameters */
-  uint32_t stab_mouth_threshold;
-  uint32_t stab_mouth_state_cnt;
-  uint32_t stab_mouth_strength_num;
-  uint32_t stab_mouth_strength_denum;
-  fd_face_stab_mode_t stab_mouth_mode;
-  uint32_t stab_mouth_use_reference;
   uint32_t stab_history;
+  fd_face_stab_params_t stab_pos;
+  fd_face_stab_params_t stab_size;
+  fd_face_stab_params_t stab_mouth;
+  fd_face_stab_params_t stab_smile;
 } fd_chromatix_t;
 
 

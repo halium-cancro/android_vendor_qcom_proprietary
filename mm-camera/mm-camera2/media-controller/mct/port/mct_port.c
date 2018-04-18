@@ -14,7 +14,7 @@
 
 #if 0
 #undef CDBG
-#define CDBG ALOGE
+#define CDBG CDBG_ERROR
 #endif
 
 /** Name:

@@ -61,8 +61,8 @@ static mct_module_init_name_t stats_mods_list[] = {
  **/
 static boolean stats_module_check_port(void *data1, void *data2)
 {
-  mct_port_t   *port = (struct _mct_port *)data1;
-  unsigned int *id   = (unsigned int*)data2;
+  mct_port_t   *port = (mct_port_t *)data1;
+  unsigned int *id   = (unsigned int *)data2;
 
   CDBG("%s: E port=%p, name =%s, id=%d", __func__,
     port, MCT_OBJECT_NAME(port), *id );
@@ -128,11 +128,16 @@ boolean stats_module_deinit_submod(void *data, void *userdata)
   int i;
   mct_module_t *sub_module = (mct_module_t *)data;
 
+  if (sub_module == NULL) {
+    CDBG_ERROR("%s: submodule null", __func__);
+  }
   /* Iterate through sub module list and call deinit */
   for (i = 0; i < (int)(sizeof(stats_mods_list) /
     sizeof(mct_module_init_name_t)); i++) {
-    if (!strcmp(MCT_MODULE_NAME(sub_module), stats_mods_list[i].name)) {
+    if ((sub_module != NULL) && (MCT_MODULE_NAME(sub_module) != NULL) &&
+      (!strcmp(MCT_MODULE_NAME(sub_module), stats_mods_list[i].name))) {
       stats_mods_list[i].deinit_mod(sub_module);
+      break;
     }
   }
 
@@ -212,7 +217,7 @@ static boolean stats_module_start_session(mct_module_t *module,
   CDBG("%s: E, sessionid=0x%x, module=%p", __func__, sessionid, module);
   /* Sanity check */
   if (!module || strcmp(MCT_OBJECT_NAME(module), "stats")) {
-    return FALSE;
+    return false;
   }
 
   MCT_OBJECT_LOCK(module);
@@ -313,21 +318,21 @@ static boolean stats_module_stop_session(mct_module_t *module,
   }
   port = MCT_PORT_CAST(list->data);
 
-  CDBG_ERROR("%s: list =%p, remove port =%p name=%s from module=%p, name=%s",
+  CDBG("%s: list =%p, remove port =%p name=%s from module=%p, name=%s",
     __func__, list, port, MCT_OBJECT_NAME( port), module,
     MCT_OBJECT_NAME(module));
   mct_module_remove_port(module, port);
 
-  CDBG_ERROR("%s: 1 port =%p name=%s ", __func__,
+  CDBG("%s: 1 port =%p name=%s ", __func__,
     port, MCT_OBJECT_NAME( port) );
   stats_port_deinit(port);
 
-  CDBG_ERROR("%s: 2 port =%p name=%s ", __func__,
+  CDBG("%s: 2 port =%p name=%s ", __func__,
     port, MCT_OBJECT_NAME( port) );
   mct_list_traverse((mct_list_t *)module->module_private,
     stats_module_sub_mod_stop_session, &sessionid);
 
-  CDBG_ERROR("%s: 3 port =%p name=%s ", __func__,
+  CDBG("%s: 3 port =%p name=%s ", __func__,
     port, MCT_OBJECT_NAME( port) );
   mct_port_destroy(port);
 

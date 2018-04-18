@@ -1,6 +1,6 @@
 /* is_set.c
  *
- * Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013 - 2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -33,10 +33,24 @@ boolean is_set_parameters(is_set_parameter_t *param, is_info_t *is_info)
     break;
 
   case IS_SET_PARAM_DIS_CONFIG:
-    CDBG("%s: IS_SET_PARAM_DIS_CONFIG", __func__);
     is_info->is_width = param->u.is_config_info.width;
     is_info->is_height = param->u.is_config_info.height;
-    is_info->is_enabled = 1;
+    CDBG("%s: IS_SET_PARAM_DIS_CONFIG, w = %ld, h = %ld", __func__,
+      is_info->is_width, is_info->is_height);
+    break;
+
+  case IS_SET_PARAM_OUTPUT_DIM:
+    is_info->is_mode = param->u.is_output_dim_info.is_mode;
+    is_info->vfe_width = param->u.is_output_dim_info.vfe_width;
+    is_info->vfe_height = param->u.is_output_dim_info.vfe_height;
+    CDBG("%s: IS_SET_PARAM_OUTPUT_DIM, is mode = %d, w = %ld, h = %ld",
+      __func__, is_info->is_mode, is_info->is_width, is_info->is_height);
+    break;
+
+  case IS_SET_PARAM_IS_ENABLE:
+    is_info->is_enabled = param->u.is_enable;
+    CDBG("%s: IS_SET_PARAM_IS_ENABLE, IS enable = %u", __func__,
+      is_info->is_enabled);
     break;
 
   default:

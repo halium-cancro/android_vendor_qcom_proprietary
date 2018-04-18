@@ -1,12 +1,11 @@
 /*============================================================================
 
-  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
 
 #include "c2d_module_events.h"
-
 /** c2d_module_create_c2d_event:
  *
  * Description:
@@ -120,11 +119,12 @@ int32_t c2d_module_send_buf_divert_event(mct_module_t* module,
   int32_t ret = 0;
 
   /* get stream parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params, *linked_stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_stream_params_t *linked_stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, identity,
     &session_params, &stream_params);
-  if (!stream_params) {
+  if (!stream_params || !session_params) {
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
@@ -236,6 +236,7 @@ int32_t c2d_module_send_buf_divert_event(mct_module_t* module,
   key.identity = isp_buf->identity;
   key.buf_idx = isp_buf->buffer.index;
   key.channel_id = isp_buf->channel_id;
+  key.meta_data = isp_buf->meta_data;
 
   /* Decide the events to be queued to process this buffer */
   int event_idx = 0, num_events = 0;
@@ -256,6 +257,7 @@ int32_t c2d_module_send_buf_divert_event(mct_module_t* module,
     event_idx++;
   }
 
+  int32_t divert_info_num_passes = divert_info->num_passes;
   int32_t i = 0, j = 0;
   int32_t num_passes = 0;
   boolean skip_frame = FALSE;
@@ -268,9 +270,32 @@ int32_t c2d_module_send_buf_divert_event(mct_module_t* module,
   if (linked_stream_params) {
     stream_info[1] = linked_stream_params->stream_info;
   }
+
+  /* If LPM is enabled, check if C2D processing is needed based
+     on crop, rotation , scaling and formats set. If C2D processing
+     can be skipped, then ISP need to do buf done. */
+  if (session_params->lpm_enable) {
+    if ((stream_params->hw_params.crop_info.stream_crop.x ||
+      stream_params->hw_params.crop_info.stream_crop.y) ||
+      (stream_params->hw_params.rotation == 1)||
+      (stream_params->hw_params.rotation == 3) ||
+      (stream_params->hw_params.input_info.c2d_plane_fmt !=
+         stream_params->hw_params.output_info.c2d_plane_fmt) ||
+      (stream_params->hw_params.input_info.height !=
+        stream_params->hw_params.output_info.height) ||
+      (stream_params->hw_params.input_info.width !=
+        stream_params->hw_params.output_info.width)) {
+     CDBG("%s Need C2d processing for iden: 0x%x and frame %d",
+       __func__,identity,frame_id);
+     isp_buf->is_skip_pproc = FALSE;
+    }
+    stream_params->hfr_skip_info.skip_required = FALSE;
+    divert_info_num_passes = identity_list_size;
+  }
+
   /* Step 2. Based on the number of process identities set in divert config,
      generate c2d events accordingly */
-  for (i = 0; i < divert_info->num_passes; i++) {
+  for (i = 0; i < divert_info_num_passes; i++) {
     for (j = 0; j < 2; j++) {
       if (!linked_stream_list[j] ||
         (linked_stream_list[j]->identity != divert_info->proc_identity[i])) {
@@ -313,20 +338,20 @@ int32_t c2d_module_send_buf_divert_event(mct_module_t* module,
     }
   }
 
-  if (divert_info->num_passes != num_passes) {
-    CDBG_ERROR("%s:%d] failed error in accessing stream params\n", __func__,
-      __LINE__);
-    if(linked_stream_params)
-      PTHREAD_MUTEX_UNLOCK(&(linked_stream_params->mutex));
-    PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
-    return -EFAULT;
+  if (divert_info_num_passes != num_passes) {
+    CDBG("%s:%d] divert_info_num_passes %d num_passes %d\n", __func__,
+      __LINE__, divert_info_num_passes, num_passes);
   }
 
   num_events = event_idx;
   /* if no events needs to be queued, do a piggy-back ACK */
   if (num_events == 0) {
     isp_buf->ack_flag = TRUE;
-    isp_buf->is_buf_dirty = 1;
+    if (isp_buf->is_skip_pproc) {
+      isp_buf->is_buf_dirty = 0;
+    } else {
+      isp_buf->is_buf_dirty = 1;
+    }
     if(linked_stream_params)
       PTHREAD_MUTEX_UNLOCK(&(linked_stream_params->mutex));
     PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
@@ -353,9 +378,12 @@ int32_t c2d_module_send_buf_divert_event(mct_module_t* module,
     PTHREAD_MUTEX_UNLOCK(&(linked_stream_params->mutex));
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
   /* notify the thread about this new events */
-  c2d_thread_msg_t msg;
-  msg.type = C2D_THREAD_MSG_NEW_EVENT_IN_Q;
-  c2d_module_post_msg_to_thread(module, msg);
+
+  if (num_events) {
+    c2d_thread_msg_t msg;
+    msg.type = C2D_THREAD_MSG_NEW_EVENT_IN_Q;
+    c2d_module_post_msg_to_thread(module, msg);
+  }
 
   gettimeofday(&tv2, NULL);
   CDBG_LOW("%s:%d, downstream event time = %6ld us, ", __func__, __LINE__,
@@ -419,6 +447,9 @@ int32_t c2d_module_handle_buf_divert_event(mct_module_t* module,
   }
 
   frame_id = isp_buf->buffer.sequence;
+  CDBG("%s:%d received buffer divert for %d and identity 0x%x\n",
+    __func__, __LINE__, frame_id,event->identity);
+
 
   c2d_module_get_params_for_identity(ctrl, event->identity, &session_params,
      &stream_params);
@@ -428,7 +459,8 @@ int32_t c2d_module_handle_buf_divert_event(mct_module_t* module,
     return -EFAULT;
   }
   linked_stream_params = stream_params->linked_stream_params;
-  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0) {
+  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+      stream_params->interleaved) {
     if (linked_stream_params &&
         (stream_params->stream_type == CAM_STREAM_TYPE_VIDEO)) {
       CDBG("%s:%d, Set output out dim change %d identity=0x%x",
@@ -461,7 +493,15 @@ int32_t c2d_module_handle_buf_divert_event(mct_module_t* module,
             stream_info.dim.height;
         stream_info.buf_planes.plane_info.mp[0].offset = 0;
         stream_info.buf_planes.plane_info.mp[1].offset = 0;
-        stream_info.fmt = linked_stream_params->stream_info->fmt;
+        if(!stream_params->interleaved) {
+          stream_info.fmt = linked_stream_params->hw_params.input_info.cam_fmt;
+        }
+        else {
+          /* For camcorder recording, if video dim is greater than
+             preview dim, C2D outputs video stream to CPP, so inputs format to CPP
+             should be that of video stream. */
+          stream_info.fmt = stream_params->hw_params.output_info.cam_fmt;
+        }
         stream_info.stream_type = linked_stream_params->stream_type;
 
         linked_event.u.module_event.type = MCT_EVENT_MODULE_ISP_OUTPUT_DIM;
@@ -482,6 +522,7 @@ int32_t c2d_module_handle_buf_divert_event(mct_module_t* module,
     }
   }
 
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   /* Check whether DIS is enabled */
   if (session_params->dis_enable == 0) {
     CDBG("%s:%d send %d for processing\n", __func__, __LINE__,
@@ -514,13 +555,19 @@ int32_t c2d_module_handle_buf_divert_event(mct_module_t* module,
           __func__, __LINE__, isp_buf->buffer.sequence);
         /* Send current frame for processing */
         c2d_module_send_buf_divert_event(module, event->identity, isp_buf);
-      } else {
+      } else if ((stream_params->is_stream_on == TRUE) ||
+          (linked_stream_params &&
+          (linked_stream_params->is_stream_on == TRUE))) {
         /* DIS frame id is either invalid or DIS crop event for this frame
            has not arrived yet. HOLD this frame */
         CDBG("%s:%d HOLD %d\n", __func__, __LINE__, isp_buf->buffer.sequence);
         frame_hold->is_frame_hold = TRUE;
         frame_hold->identity = event->identity;
         memcpy(&frame_hold->isp_buf, isp_buf, sizeof(isp_buf_divert_t));
+      } else {
+        /* Send acknowledge to free  the buffer. */
+        isp_buf->ack_flag = 1;
+        isp_buf->is_buf_dirty = 1;
       }
     } else {
       /* This frame does not belong to preview / video.
@@ -536,6 +583,7 @@ int32_t c2d_module_handle_buf_divert_event(mct_module_t* module,
     c2d_module_send_buf_divert_event(module, event->identity, isp_buf);
 
   }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
   return 0;
 
@@ -569,8 +617,8 @@ int32_t c2d_module_handle_isp_out_dim_event(mct_module_t* module,
   CDBG("%s:%d identity=0x%x, dim=%dx%d\n", __func__, __LINE__,
     event->identity, stream_info->dim.width, stream_info->dim.height);
   /* get stream parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -587,22 +635,38 @@ int32_t c2d_module_handle_isp_out_dim_event(mct_module_t* module,
     stream_info->buf_planes.plane_info.mp[0].scanline;
   stream_params->out_dim_initialized = TRUE;
   /* format info */
-  if (stream_info->fmt == CAM_FORMAT_YUV_420_NV12) {
-    stream_params->hw_params.input_info.plane_fmt = C2D_PARAM_PLANE_CBCR;
+  if ( (stream_info->fmt == CAM_FORMAT_YUV_420_NV12) ||
+       (stream_info->fmt == CAM_FORMAT_YUV_420_NV12_VENUS) ) {
+    stream_params->hw_params.input_info.c2d_plane_fmt = C2D_PARAM_PLANE_CBCR;
   } else if (stream_info->fmt == CAM_FORMAT_YUV_420_NV21) {
-    stream_params->hw_params.input_info.plane_fmt = C2D_PARAM_PLANE_CRCB;
+    stream_params->hw_params.input_info.c2d_plane_fmt = C2D_PARAM_PLANE_CRCB;
   } else if (stream_info->fmt == CAM_FORMAT_YUV_422_NV16) {
-    stream_params->hw_params.input_info.plane_fmt = C2D_PARAM_PLANE_CBCR422;
+    stream_params->hw_params.input_info.c2d_plane_fmt =
+      C2D_PARAM_PLANE_CBCR422;
   } else if (stream_info->fmt == CAM_FORMAT_YUV_422_NV61) {
-    stream_params->hw_params.input_info.plane_fmt = C2D_PARAM_PLANE_CRCB422;
+    stream_params->hw_params.input_info.c2d_plane_fmt =
+      C2D_PARAM_PLANE_CRCB422;
   } else if (stream_info->fmt == CAM_FORMAT_YUV_420_YV12) {
-    stream_params->hw_params.input_info.plane_fmt = C2D_PARAM_PLANE_CRCB420;
+    stream_params->hw_params.input_info.c2d_plane_fmt =
+      C2D_PARAM_PLANE_CRCB420;
+  } else if (stream_info->fmt == CAM_FORMAT_YUV_RAW_8BIT_YUYV) {
+    stream_params->hw_params.input_info.c2d_plane_fmt =
+      C2D_PARAM_PLANE_YCRYCB422;
+  } else if (stream_info->fmt == CAM_FORMAT_YUV_RAW_8BIT_YVYU) {
+    stream_params->hw_params.input_info.c2d_plane_fmt =
+      C2D_PARAM_PLANE_YCBYCR422;
+  } else if (stream_info->fmt == CAM_FORMAT_YUV_RAW_8BIT_UYVY) {
+    stream_params->hw_params.input_info.c2d_plane_fmt =
+      C2D_PARAM_PLANE_CRYCBY422;
+  } else if (stream_info->fmt == CAM_FORMAT_YUV_RAW_8BIT_VYUY) {
+    stream_params->hw_params.input_info.c2d_plane_fmt =
+      C2D_PARAM_PLANE_CBYCRY422;
   } else {
     CDBG_ERROR("%s:%d] Format not supported\n", __func__, __LINE__);
     PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
     return -EINVAL;
   }
-  stream_params->stream_info->fmt = stream_info->fmt;
+  stream_params->hw_params.input_info.cam_fmt = stream_info->fmt;
   /* init crop info */
   stream_params->hw_params.crop_info.stream_crop.x = 0;
   stream_params->hw_params.crop_info.stream_crop.y = 0;
@@ -613,11 +677,29 @@ int32_t c2d_module_handle_isp_out_dim_event(mct_module_t* module,
   stream_params->hw_params.crop_info.is_crop.dx = stream_info->dim.width;
   stream_params->hw_params.crop_info.is_crop.dy = stream_info->dim.height;
 
-  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0) {
+
+  if ((stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+      stream_params->interleaved) &&
+      !stream_params->single_module) {
     c2d_module_stream_params_t*  linked_stream_params = NULL;
 
     linked_stream_params = stream_params->linked_stream_params;
 
+
+    if (!stream_params->interleaved) {
+      stream_params->hw_params.crop_info.stream_crop.x = 0;
+      stream_params->hw_params.crop_info.stream_crop.y = 0;
+      stream_params->hw_params.crop_info.stream_crop.dx =
+        stream_params->stream_info->dim.width;
+      stream_params->hw_params.crop_info.stream_crop.dy =
+        stream_params->stream_info->dim.height;
+      stream_params->hw_params.crop_info.is_crop.x = 0;
+      stream_params->hw_params.crop_info.is_crop.y = 0;
+      stream_params->hw_params.crop_info.is_crop.dx =
+        stream_params->stream_info->dim.width;
+      stream_params->hw_params.crop_info.is_crop.dy =
+        stream_params->stream_info->dim.height;
+    }
 
 
     if (linked_stream_params &&
@@ -645,7 +727,23 @@ int32_t c2d_module_handle_isp_out_dim_event(mct_module_t* module,
         stream_info->dim.height;
     stream_info->buf_planes.plane_info.mp[0].offset = 0;
     stream_info->buf_planes.plane_info.mp[1].offset = 0;
-    CDBG_ERROR("%s:%d,Send CPP input dimensions %dx%d, %dx%d",
+    if ( stream_params->interleaved) {
+      /* For camcorder recording, if video dim is less than preview dim
+         C2D outputs preview stream to CPP (which performs 2 pass to
+         give preview and video streams), so input format to CPP
+         should be that of preview stream */
+      if (linked_stream_params &&
+        (stream_params->stream_type == CAM_STREAM_TYPE_VIDEO) &&
+        (!stream_params->linkedstream_out_dim_change)) {
+        stream_info->fmt = linked_stream_params->c2d_output_lib_params.format;
+      }
+      else {
+        stream_info->fmt = stream_params->c2d_output_lib_params.format;
+      }
+    }
+    CDBG("%s:%d, set format =%d, identity=0x%x",
+      __func__, __LINE__,stream_info->fmt,event->identity);
+    CDBG("%s:%d,Send CPP input dimensions %dx%d, %dx%d",
       __func__, __LINE__,stream_info->dim.width,
       stream_info->dim.height, stream_info->buf_planes.plane_info.mp[0].stride,
       stream_info->buf_planes.plane_info.mp[0].scanline);
@@ -687,8 +785,8 @@ int32_t c2d_module_handle_stream_crop_event(mct_module_t* module,
     return -EFAULT;
   }
   /* get stream parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -723,7 +821,9 @@ int32_t c2d_module_handle_stream_crop_event(mct_module_t* module,
 
   }
 
-  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0) {
+  if ((stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+      stream_params->interleaved) &&
+      !stream_params->single_module) {
 
     if (stream_params->hw_params.input_info.width &&
         stream_params->hw_params.output_info.width) {
@@ -740,7 +840,6 @@ int32_t c2d_module_handle_stream_crop_event(mct_module_t* module,
           stream_params->hw_params.output_info.height) /
              stream_params->hw_params.input_info.height;
     }
-
     rc = c2d_module_send_event_downstream(module, event);
     if (rc < 0) {
        CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
@@ -797,9 +896,9 @@ int32_t c2d_module_handle_dis_update_event(mct_module_t* module,
     return -EFAULT;
   }
   /* get stream parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
-  c2d_module_stream_params_t  *linked_stream_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
+  c2d_module_stream_params_t  *linked_stream_params = NULL;
   c2d_module_frame_hold_t     *frame_hold = FALSE;
   c2d_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
@@ -807,12 +906,18 @@ int32_t c2d_module_handle_dis_update_event(mct_module_t* module,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
+
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
+  /* Check whether DIS is enabled, else return without storing */
+  if (session_params->dis_enable == 0) {
+    CDBG_LOW("%s:%d dis enable %d\n", __func__, __LINE__,
+      session_params->dis_enable);
+    PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
+    return 0;
+  }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
+
   PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
-  /* Update frame id in session_params */
-  session_params->dis_hold.is_valid = TRUE;
-  session_params->dis_hold.dis_frame_id = is_update->frame_id;
-
-
   /* Update is_crop in linked_stream_params */
   linked_stream_params = stream_params->linked_stream_params;
 
@@ -822,15 +927,31 @@ int32_t c2d_module_handle_dis_update_event(mct_module_t* module,
   stream_params->hw_params.crop_info.is_crop.transform_type =
       is_update->transform_type;
 
+  if (((is_update->x  + is_update->width) <=
+    stream_params->hw_params.input_info.width) &&
+    ((is_update->y + is_update->height) <=
+    stream_params->hw_params.input_info.height)) {
     stream_params->hw_params.crop_info.is_crop.x = is_update->x;
     stream_params->hw_params.crop_info.is_crop.y = is_update->y;
     stream_params->hw_params.crop_info.is_crop.dx = is_update->width;
     stream_params->hw_params.crop_info.is_crop.dy = is_update->height;
-
-  CDBG("%s:%d is_crop.x=%d, is_crop.y=%d, is_crop.dx=%d, is_crop.dy=%d,"
-    " identity=0x%x", __func__, __LINE__, is_update->x, is_update->y,
-    is_update->width, is_update->height, event->identity);
+    CDBG("%s:%d is_crop.x=%d, is_crop.y=%d, is_crop.dx=%d, is_crop.dy=%d,"
+      " identity=0x%x", __func__, __LINE__, is_update->x, is_update->y,
+      is_update->width, is_update->height, event->identity);
+  } else {
+    /* Error case. Incorrect DIS parameters */
+    linked_stream_params = NULL;
+    CDBG_ERROR("%s:%d is_crop.x=%d, is_crop.y=%d, is_crop.dx=%d, is_crop.dy=%d,"
+      " identity=0x%x", __func__, __LINE__, is_update->x, is_update->y,
+      is_update->width, is_update->height, event->identity);
+  }
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
+  /* Update frame id in session_params */
+  session_params->dis_hold.is_valid = TRUE;
+  session_params->dis_hold.dis_frame_id = is_update->frame_id;
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
   if (linked_stream_params) {
     PTHREAD_MUTEX_LOCK(&(linked_stream_params->mutex));
@@ -846,7 +967,7 @@ int32_t c2d_module_handle_dis_update_event(mct_module_t* module,
     PTHREAD_MUTEX_UNLOCK(&(linked_stream_params->mutex));
   }
 
-
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   frame_hold = &session_params->frame_hold;
   /* Check whether frame is on HOLD &&
      DIS crop event is for frame on HOLD */
@@ -861,7 +982,7 @@ int32_t c2d_module_handle_dis_update_event(mct_module_t* module,
     /* Update frame hold flag to FALSE */
     frame_hold->is_frame_hold = FALSE;
   }
-
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
 #if 0
   rc = c2d_module_send_event_downstream(module, event);
@@ -901,24 +1022,32 @@ int32_t c2d_module_handle_stream_cfg_event(mct_module_t* module,
     return -EFAULT;
   }
   /* get stream parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
-  if(!stream_params) {
+  if(!session_params) {
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
-  PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
-  stream_params->hfr_skip_info.frame_offset =
-    sensor_out_info->num_frames_skip + 1;
-  stream_params->hfr_skip_info.input_fps = sensor_out_info->max_fps;
-  CDBG("%s:%d frame_offset=%d, input_fps=%.2f, identity=0x%x",
-    __func__, __LINE__, stream_params->hfr_skip_info.frame_offset,
-    stream_params->hfr_skip_info.input_fps, event->identity);
-  c2d_module_update_hfr_skip(stream_params);
-  PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
-
+  /* apply this to all streams for that session */
+  int i;
+  for(i=0; i<C2D_MODULE_MAX_STREAMS; i++) {
+    if(session_params->stream_params[i]) {
+      PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
+      session_params->stream_params[i]->hfr_skip_info.frame_offset =
+        sensor_out_info->num_frames_skip + 1;
+      session_params->stream_params[i]->hfr_skip_info.input_fps =
+        sensor_out_info->max_fps;
+      c2d_module_update_hfr_skip(session_params->stream_params[i]);
+      PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
+      CDBG("%s:%d frame_offset=%d, input_fps=%.2f, identity=0x%x",
+        __func__, __LINE__,
+        session_params->stream_params[i]->hfr_skip_info.frame_offset,
+        session_params->stream_params[i]->hfr_skip_info.input_fps,
+        session_params->stream_params[i]->identity);
+    }
+  }
   rc = c2d_module_send_event_downstream(module, event);
   if(rc < 0) {
     CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
@@ -928,6 +1057,61 @@ int32_t c2d_module_handle_stream_cfg_event(mct_module_t* module,
   return 0;
 }
 
+/* c2d_module_handle_fps_update_event:
+ *
+ * Description:
+ *
+ **/
+int32_t c2d_module_handle_fps_update_event(mct_module_t* module,
+  mct_event_t* event)
+{
+  int32_t rc;
+  if(!module || !event) {
+    CDBG_ERROR("%s:%d, failed, module=%p, event=%p\n", __func__, __LINE__,
+      module, event);
+    return -EINVAL;
+  }
+  c2d_module_ctrl_t* ctrl = (c2d_module_ctrl_t*) MCT_OBJECT_PRIVATE(module);
+  if(!ctrl) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+
+  sensor_fps_update_t *fps_update =
+    (sensor_fps_update_t *)(event->u.module_event.module_event_data);
+
+  /* get stream parameters based on the event identity */
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
+  c2d_module_get_params_for_identity(ctrl, event->identity,
+    &session_params, &stream_params);
+  if(!session_params) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+  /* apply this to all streams for that session */
+  int i;
+  for(i=0; i<C2D_MODULE_MAX_STREAMS; i++) {
+    if(session_params->stream_params[i]) {
+      PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
+      session_params->stream_params[i]->hfr_skip_info.input_fps =
+        fps_update->max_fps;
+      c2d_module_update_hfr_skip(session_params->stream_params[i]);
+      PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
+      CDBG("%s:%d input_fps=%.2f, identity=0x%x",
+        __func__, __LINE__,
+        session_params->stream_params[i]->hfr_skip_info.input_fps,
+        session_params->stream_params[i]->identity);
+    }
+  }
+  rc = c2d_module_send_event_downstream(module, event);
+  if(rc < 0) {
+    CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
+      __func__, __LINE__, event->u.module_event.type, event->identity);
+    return -EFAULT;
+  }
+  return 0;
+}
 
 /**c2d_module_handle_div_info_event:
  *
@@ -960,7 +1144,7 @@ int32_t c2d_module_handle_div_info_event(mct_module_t* module,
   }
   /* check if this config is intended for this module */
   if (strncmp(MCT_OBJECT_NAME(module), div_cfg->name,
-       sizeof(MCT_OBJECT_NAME(module))) != 0) {
+       strlen(MCT_OBJECT_NAME(module))) != 0) {
     rc = c2d_module_send_event_downstream(module, event);
     if(rc < 0) {
       CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
@@ -970,8 +1154,8 @@ int32_t c2d_module_handle_div_info_event(mct_module_t* module,
     return 0;
   }
   /* get stream parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -981,6 +1165,13 @@ int32_t c2d_module_handle_div_info_event(mct_module_t* module,
   PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
   c2d_module_set_divert_cfg_entry(event->identity, div_cfg->update_mode,
     &div_cfg->divert_info, stream_params->div_config);
+  if(div_cfg->divert_info.divert_flags & PPROC_DIVERT_PROCESSED)
+    stream_params->hw_params.processed_divert = TRUE;
+  CDBG("%s,processed_divert = %d,divert_flag = 0x%x for iden: 0x%x",
+    __func__,
+    stream_params->hw_params.processed_divert,
+    div_cfg->divert_info.divert_flags,
+    event->identity);
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
 
   return 0;
@@ -997,8 +1188,8 @@ static int32_t c2d_module_set_parm_hfr_mode(c2d_module_ctrl_t *ctrl,
     return -EFAULT;
   }
   /* get parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, identity,
     &session_params, &stream_params);
   if(!session_params) {
@@ -1039,6 +1230,80 @@ static int32_t c2d_module_set_parm_hfr_mode(c2d_module_ctrl_t *ctrl,
   return 0;
 }
 
+/* c2d_module_set_parm_fps_range:
+ *
+ **/
+static int32_t c2d_module_set_parm_fps_range(c2d_module_ctrl_t *ctrl,
+  uint32_t identity, cam_fps_range_t *fps_range)
+{
+  if ((!ctrl) || (!fps_range)) {
+    CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+    return -EFAULT;
+  }
+  /* get parameters based on the event identity */
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
+  c2d_module_get_params_for_identity(ctrl, identity,
+    &session_params, &stream_params);
+  if(!session_params) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+  /* apply this to all streams where hfr skip is required */
+  int i;
+  session_params->fps_range.max_fps = fps_range->max_fps;
+  session_params->fps_range.min_fps = fps_range->min_fps;
+  session_params->fps_range.video_max_fps = fps_range->video_max_fps;
+  session_params->fps_range.video_min_fps = fps_range->video_min_fps;
+  CDBG ("%s:%d, max_fps %f video_max_fps %f", __func__, __LINE__,
+    fps_range->max_fps, fps_range->video_max_fps);
+  for(i=0; i<C2D_MODULE_MAX_STREAMS; i++) {
+    if(session_params->stream_params[i]) {
+      PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
+      if(session_params->stream_params[i]->hfr_skip_info.skip_required) {
+        if(session_params->stream_params[i]->stream_type ==
+          CAM_STREAM_TYPE_VIDEO)
+        {
+          session_params->stream_params[i]->hfr_skip_info.output_fps =
+           fps_range->video_max_fps;
+        }
+        else
+        {
+          session_params->stream_params[i]->hfr_skip_info.output_fps =
+           fps_range->max_fps;
+        }
+        c2d_module_update_hfr_skip(session_params->stream_params[i]);
+      }
+      PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
+    }
+  }
+  return 0;
+}
+
+static int32_t c2d_module_set_parm_lowpowermode(c2d_module_ctrl_t *ctrl,
+  uint32_t identity, uint32_t lpm_enable)
+{
+  if (!ctrl) {
+    CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+    return -EFAULT;
+  }
+  /* get parameters based on the event identity */
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
+  c2d_module_get_params_for_identity(ctrl, identity,
+    &session_params, &stream_params);
+  if(!session_params) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+  int i;
+  session_params->lpm_enable = lpm_enable;
+
+  CDBG ("%s:%d,lowpowermode %d", __func__, __LINE__,lpm_enable);
+
+  return 0;
+}
+
 /*
  * c2d_module_set_parm_dis:
  *    ctrl: c2d_module control structure
@@ -1058,8 +1323,8 @@ static int32_t c2d_module_set_parm_dis(c2d_module_ctrl_t *ctrl,
     return -EFAULT;
   }
   /* get parameters based on the event identity */
-  c2d_module_stream_params_t *stream_params;
-  c2d_module_session_params_t *session_params;
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
   c2d_module_get_params_for_identity(ctrl, identity,
     &session_params, &stream_params);
   if (!session_params) {
@@ -1067,6 +1332,7 @@ static int32_t c2d_module_set_parm_dis(c2d_module_ctrl_t *ctrl,
     return -EFAULT;
   }
 
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   /* Update dis_enable flag in session_params */
   session_params->dis_enable = dis_enable;
   CDBG("%s:%d dis_enable %d\n", __func__, __LINE__, dis_enable);
@@ -1074,8 +1340,90 @@ static int32_t c2d_module_set_parm_dis(c2d_module_ctrl_t *ctrl,
     /* Invalidate DIS hold flag */
     session_params->dis_hold.is_valid = FALSE;
   }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
   return 0;
 }
+
+/* c2d_module_set_parm_flip:
+ *    @ctrl: c2d module control struct
+ *    @indentity: current indentity
+ *    @flip_mask: new flip mode
+ *
+ *    Set the flip mode sent form application
+ *
+ *    Returns 0 on succes or EFAULT if some of the parameters
+ *      is missing.
+ **/
+static int32_t c2d_module_set_parm_flip(c2d_module_ctrl_t *ctrl,
+  uint32_t identity, int32_t flip_mask)
+{
+  if(!ctrl) {
+    CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+    return -EFAULT;
+  }
+  /* get parameters based on the event identity */
+  c2d_module_stream_params_t *stream_params = NULL;
+  c2d_module_session_params_t *session_params = NULL;
+  c2d_module_get_params_for_identity(ctrl, identity,
+    &session_params, &stream_params);
+  if(!stream_params) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+
+  PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
+  stream_params->hw_params.mirror = flip_mask;
+  PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+
+  return 0;
+}
+
+/* c2d_module_handle_set_stream_parm_event:
+ *
+ *  @module: mct module structure for c2d module
+ *  @event: incoming event
+ *
+ *    Handles stream_param events. Such as SET_FLIP_TYPE.
+ *
+ *    Returns 0 on success.
+ **/
+int32_t c2d_module_handle_set_stream_parm_event(mct_module_t* module,
+  mct_event_t* event)
+{
+  if(!module || !event) {
+    CDBG_ERROR("%s:%d, failed, module=%p, event=%p", __func__, __LINE__,
+                module, event);
+    return -EINVAL;
+  }
+
+  cam_stream_parm_buffer_t *param =
+    (cam_stream_parm_buffer_t *)event->u.ctrl_event.control_event_data;
+  int32_t rc;
+  c2d_module_ctrl_t *ctrl = (c2d_module_ctrl_t *)MCT_OBJECT_PRIVATE(module);
+  switch(param->type) {
+  case CAM_STREAM_PARAM_TYPE_SET_FLIP: {
+    int32_t flip_mask = param->flipInfo.flip_mask;
+
+    rc = c2d_module_set_parm_flip(ctrl, event->identity, flip_mask);
+    if(rc) {
+      CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+      return rc;
+    }
+    break;
+  }
+  default:
+    rc = c2d_module_send_event_downstream(module, event);
+    if(rc < 0) {
+      CDBG_ERROR("%s:%d, failed, control_event_type=%d, identity=0x%x",
+        __func__, __LINE__, event->u.ctrl_event.type, event->identity);
+      return -EFAULT;
+    }
+    break;
+  }
+
+  return 0;
+}
+
 
 /* c2d_module_handle_set_parm_event:
  *
@@ -1113,6 +1461,35 @@ int32_t c2d_module_handle_set_parm_event(mct_module_t* module,
     CDBG("%s:%d, CAM_INTF_PARM_HFR, mode=%d, identity=0x%x",
       __func__, __LINE__, hfr_mode, event->identity);
     rc = c2d_module_set_parm_hfr_mode(ctrl, event->identity, hfr_mode);
+    if (rc < 0) {
+      CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+      return rc;
+    }
+    break;
+  }
+  case CAM_INTF_PARM_FPS_RANGE: {
+    if(!(ctrl_parm->parm_data)) {
+      CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+      return -EFAULT;
+    }
+    cam_fps_range_t *fps_range = (cam_fps_range_t *)(ctrl_parm->parm_data);
+    CDBG("%s:%d, CAM_INTF_PARM_FPS_RANGE,, max_fps=%.2f, identity=0x%x",
+      __func__, __LINE__, fps_range->max_fps, event->identity);
+    rc = c2d_module_set_parm_fps_range(ctrl, event->identity, fps_range);
+    if(rc < 0) {
+      CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+      return rc;
+    }
+    break;
+  }
+  case CAM_INTF_PARM_LOW_POWER_ENABLE: {
+    if(!(ctrl_parm->parm_data)) {
+      CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
+      return -EFAULT;
+    }
+    int32_t lpm_enable =
+      *(int32_t *)(ctrl_parm->parm_data);
+    rc = c2d_module_set_parm_lowpowermode(ctrl, event->identity, lpm_enable);
     if (rc < 0) {
       CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
       return rc;
@@ -1223,19 +1600,14 @@ int32_t c2d_module_handle_streamon_event(mct_module_t* module,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     goto C2D_MODULE_STREAMON_ERROR2;
   }
-  rc = c2d_module_send_event_downstream(module,event);
-  if(rc < 0) {
-    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
-    goto C2D_MODULE_STREAMON_ERROR2;
-  }
   /* change state to stream ON */
   PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
   stream_params->is_stream_on = TRUE;
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
-  CDBG_HIGH("%s:%d, identity=0x%x, stream-on done", __func__, __LINE__,
-    event->identity);
 
-  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0) {
+  if ((stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+      stream_params->interleaved) &&
+      !stream_params->single_module){
     if (linked_stream_params &&
         (stream_params->stream_type == CAM_STREAM_TYPE_VIDEO)) {
       if (( linked_stream_params->hw_params.output_info.width *
@@ -1243,11 +1615,20 @@ int32_t c2d_module_handle_streamon_event(mct_module_t* module,
           (stream_params->hw_params.output_info.width *
               stream_params->hw_params.output_info.height)){
         stream_params->linkedstream_out_dim_change = TRUE;
-        CDBG_ERROR("%s:%d, Preview needs to change output identity 0x%x", __func__, __LINE__,
+        CDBG_ERROR("%s:%d, Preview needs to change output identity 0x%x",
+          __func__, __LINE__,
           stream_params->identity);
       }
     }
   }
+  rc = c2d_module_send_event_downstream(module,event);
+  if(rc < 0) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    goto C2D_MODULE_STREAMON_ERROR2;
+  }
+
+  CDBG_HIGH("%s:%d, identity=0x%x, stream-on done", __func__, __LINE__,
+    event->identity);
 
   rc = 0;
 
@@ -1278,7 +1659,7 @@ int32_t c2d_module_handle_streamoff_event(mct_module_t* module,
   mct_stream_info_t *streaminfo =
     (mct_stream_info_t *)event->u.ctrl_event.control_event_data;
   uint32_t identity = event->identity;
-  CDBG_HIGH("%s:%d, info: doing stream-off for identity 0x%x",
+  CDBG("%s:%d, info: doing stream-off for identity 0x%x",
     __func__, __LINE__, identity);
 
   c2d_module_ctrl_t* ctrl = (c2d_module_ctrl_t *) MCT_OBJECT_PRIVATE(module);
@@ -1295,12 +1676,12 @@ int32_t c2d_module_handle_streamoff_event(mct_module_t* module,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
-  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0) {
+  if ((stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+      stream_params->interleaved) &&
+      !stream_params->single_module) {
      c2d_module_stream_params_t*  linked_stream_params = NULL;
 
      linked_stream_params = stream_params->linked_stream_params;
-
-
 
      if (linked_stream_params &&
          (stream_params->stream_type == CAM_STREAM_TYPE_VIDEO)) {
@@ -1315,7 +1696,17 @@ int32_t c2d_module_handle_streamoff_event(mct_module_t* module,
              linked_stream_params->stream_info->dim.width;
          linked_stream_params->hw_params.output_info.scanline =
              linked_stream_params->stream_info->dim.height;
-
+         if (!stream_params->interleaved) {
+           linked_stream_params->hw_params.crop_info.is_crop.dx =
+             linked_stream_params->stream_info->dim.width;
+           linked_stream_params->hw_params.crop_info.is_crop.dy =
+             linked_stream_params->stream_info->dim.height;
+           linked_stream_info.fmt =
+             linked_stream_params->hw_params.input_info.cam_fmt;
+         } else {
+           linked_stream_info.fmt =
+             linked_stream_params->hw_params.output_info.cam_fmt;
+         }
          linked_stream_info.dim.width =
              linked_stream_params->hw_params.output_info.width;
          linked_stream_info.dim.height =
@@ -1326,7 +1717,6 @@ int32_t c2d_module_handle_streamoff_event(mct_module_t* module,
              linked_stream_info.dim.height;
          linked_stream_info.buf_planes.plane_info.mp[0].offset = 0;
          linked_stream_info.buf_planes.plane_info.mp[1].offset = 0;
-         linked_stream_info.fmt = linked_stream_params->stream_info->fmt;
          linked_stream_info.stream_type = linked_stream_params->stream_type;
 
          linked_event.u.module_event.type = MCT_EVENT_MODULE_ISP_OUTPUT_DIM;
@@ -1350,6 +1740,8 @@ int32_t c2d_module_handle_streamoff_event(mct_module_t* module,
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
 
   linked_stream_params = stream_params->linked_stream_params;
+
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   /* Check whether there is a frame on HOLD */
   frame_hold = &session_params->frame_hold;
   if (frame_hold->is_frame_hold == TRUE) {
@@ -1367,6 +1759,7 @@ int32_t c2d_module_handle_streamoff_event(mct_module_t* module,
       frame_hold->is_frame_hold = FALSE;
     }
   }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
 
   /* send stream_off to downstream. This blocking call ensures

@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -646,6 +646,10 @@ void ispif_util_dump_sensor_cfg(ispif_sink_port_t *sink_port)
   primary_cid_idx =
     ispif_util_find_primary_cid(sensor_cfg, &sink_port->sensor_cap);
 
+  if (SENSOR_CID_CH_MAX - 1 < primary_cid_idx) {
+    CDBG_ERROR("%s:%d error out of range\n", __func__, __LINE__);
+    return ;
+  }
   CDBG("%s: sensor dim: width = %d, heght = %d, fmt = %d, is_bayer = %d\n",
     __func__, sensor_cfg->dim_output.width, sensor_cfg->dim_output.height,
     sink_port->sensor_cap.sensor_cid_ch[primary_cid_idx].fmt,
@@ -706,6 +710,7 @@ int ispif_util_reserve_isp_resource(ispif_t *ispif,
   sensor_dim_output_t *dim_output = &sink_port->sensor_cfg.dim_output;
   ispif_session_t *session = NULL;
   uint32_t vfe_mask;
+  uint32_t primary_cid_idx;
   int fps, rc = 0;
 
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
@@ -737,8 +742,11 @@ int ispif_util_reserve_isp_resource(ispif_t *ispif,
       }
       /* fps is not use any more in resource allocation. Instead we
        * use sensor op_clk to determine if dual VFE is needed. */
+      primary_cid_idx = ispif_util_find_primary_cid(&sink_port->sensor_cfg,
+          &sink_port->sensor_cap);
+
       rc = reserve_isp_resource(stream->use_pix, TRUE, sensor_cap,
-        &stream->stream_info, dim_output, fps,
+        &stream->stream_info, dim_output, primary_cid_idx,
         sink_port->sensor_cfg.op_pixel_clk, session->session_idx,
         &stream->used_output_mask, &vfe_mask);
 
@@ -800,9 +808,10 @@ void ispif_util_release_isp_resource(ispif_t *ispif, ispif_stream_t *stream)
    * Now, we also need to make sure that we release the
    * associated meta data resource. */
   /*release RDI, assume only one meta*/
-  if (stream->num_meta > 0) {
+  if (stream->num_meta > 0 && (session->num_meta > 0)) {
     /* meta data case */
     session->rdi_cnt--;
+    session->num_meta--;
     stream->num_meta--;
     rc = release_isp_resource(TRUE,
       session->session_idx,
@@ -817,6 +826,154 @@ void ispif_util_release_isp_resource(ispif_t *ispif, ispif_stream_t *stream)
   memset(&stream->split_info, 0, sizeof(stream->split_info));
 }
 
+int ispif_util_proc_reset(ispif_t *ispif, mct_event_t *event)
+{
+  int rc = 0, i, j, k = 0, l = 0;
+  ispif_stream_t *stream = NULL;
+  uint32_t session_id = UNPACK_SESSION_ID(event->identity);
+  ispif_session_t *session =
+    ispif_util_get_session_by_id(ispif, session_id);
+  ispif_port_t *ispif_sink_port = NULL;
+  int isp_id;
+  struct ispif_cfg_data cfg_cmd_local;
+  struct ispif_cfg_data *cfg_cmd = &cfg_cmd_local;
+  uint32_t prim_cid_idx;
+
+  CDBG("%s E \n", __func__);
+  memset(cfg_cmd, 0, sizeof(struct ispif_cfg_data));
+  cfg_cmd->cfg_type = ISPIF_STOP_IMMEDIATELY;
+  if (!session) {
+    CDBG_ERROR("%s:get session by id failed\n",__func__);
+    return -1;
+  }
+  for (i = 0; i < ISP_MAX_STREAMS; i++) {
+    stream = &session->streams[i];
+    if (stream->session_id != session_id) {
+      continue;
+    }
+
+    ispif_sink_port = (ispif_port_t *)stream->sink_port->port_private;
+    prim_cid_idx = ispif_util_find_primary_cid(
+      &(ispif_sink_port->u.sink_port.sensor_cfg),
+      &(ispif_sink_port->u.sink_port.sensor_cap));
+
+    if (stream->num_meta > 0 && stream->meta_info[0].is_valid) {
+      isp_id = (stream->meta_use_output_mask & (0xffff << VFE0))? VFE0: VFE1;
+      cfg_cmd->params.entries[cfg_cmd->params.num].vfe_intf =
+        (enum msm_ispif_vfe_intf)isp_id;
+
+      cfg_cmd->params.entries[cfg_cmd->params.num].intftype =
+        isp_interface_mask_to_interface_num(stream->meta_use_output_mask, (1<< isp_id));
+      CDBG("%s: %d <DBG01> meta_isp_id %d meta_mask %x intftype %d\n", __func__, __LINE__,
+        isp_id, stream->meta_use_output_mask,
+        cfg_cmd->params.entries[cfg_cmd->params.num].intftype);
+      if (isp_interface_mask_to_interface_num(stream->meta_use_output_mask, (1<< isp_id)) < 0) {
+        CDBG_ERROR("%s: meta invalid ispif interface mask = %d",
+                   __func__, cfg_cmd->params.entries[cfg_cmd->params.num].intftype);
+        continue;
+      }
+      cfg_cmd->params.entries[cfg_cmd->params.num].num_cids = 1;
+      cfg_cmd->params.entries[cfg_cmd->params.num].csid =
+      ispif_sink_port->u.sink_port.sensor_cap.meta_ch[k].csid;
+      if (ispif_sink_port->u.sink_port.sensor_cap.num_meta_ch > 1) {
+        CDBG_ERROR("%s: not support one channel multiple cid yet\n",
+          __func__);
+        return -1;
+      } else {
+        cfg_cmd->params.entries[cfg_cmd->params.num].cids[k] =
+          ispif_sink_port->u.sink_port.sensor_cap.meta_ch[k].cid;
+      }
+      CDBG("%s meta cid %d csid %d intftype %d isp_id %d params_num %d\n", __func__,
+            ispif_sink_port->u.sink_port.sensor_cap.meta_ch[k].cid,
+            ispif_sink_port->u.sink_port.sensor_cap.meta_ch[k].csid,
+            cfg_cmd->params.entries[cfg_cmd->params.num].intftype,
+            cfg_cmd->params.entries[cfg_cmd->params.num].vfe_intf,
+            cfg_cmd->params.num);
+      cfg_cmd->params.num++;
+    } /* Meta end */
+    cfg_cmd->params.entries[cfg_cmd->params.num].num_cids =
+      ispif_sink_port->u.sink_port.sensor_cap.num_cid_ch;
+    for (l = 0; l < ispif_sink_port->u.sink_port.sensor_cap.num_cid_ch; l++) {
+      cfg_cmd->params.entries[cfg_cmd->params.num].cids[l] =
+        ispif_sink_port->u.sink_port.sensor_cap.sensor_cid_ch[l].cid;
+    }
+    if (SENSOR_CID_CH_MAX - 1 < prim_cid_idx) {
+      CDBG_ERROR("%s:%d error out of range\n", __func__, __LINE__);
+      return -1;
+    }
+    cfg_cmd->params.entries[cfg_cmd->params.num].csid =
+      ispif_sink_port->u.sink_port.sensor_cap.sensor_cid_ch[prim_cid_idx].csid;
+    for (isp_id = VFE0; isp_id < VFE_MAX; isp_id++) {
+      if ((session->vfe_mask & (1 << isp_id)) == 0) {
+        continue;
+      }
+      cfg_cmd->params.entries[cfg_cmd->params.num].intftype =
+        ispif_util_find_isp_intf_type(stream,
+                                      stream->used_output_mask, (1 << isp_id));
+      if (cfg_cmd->params.entries[cfg_cmd->params.num].intftype == INTF_MAX) {
+        CDBG_ERROR("%s: invalid ispif interface mask = %d used_output_mask 0x%x\n",
+                   __func__, cfg_cmd->params.entries[cfg_cmd->params.num].intftype,
+                   stream->used_output_mask);
+        continue;
+      }
+      cfg_cmd->params.entries[cfg_cmd->params.num].vfe_intf =
+        (enum msm_ispif_vfe_intf)isp_id;
+      memcpy(&(cfg_cmd->params.entries[cfg_cmd->params.num + 1]),
+             &(cfg_cmd->params.entries[cfg_cmd->params.num]),
+             sizeof(cfg_cmd->params.entries[cfg_cmd->params.num]));
+      cfg_cmd->params.num++;
+      CDBG("%s cid %d csid %d intftype %d isp_id %d params_num %d\n", __func__,
+            ispif_sink_port->u.sink_port.sensor_cap.meta_ch[l].cid,
+            ispif_sink_port->u.sink_port.sensor_cap.meta_ch[l].csid,
+            cfg_cmd->params.entries[cfg_cmd->params.num].intftype,
+            cfg_cmd->params.entries[cfg_cmd->params.num].vfe_intf,
+            cfg_cmd->params.num);
+    }
+  }
+  rc = ioctl(ispif->fd, VIDIOC_MSM_ISPIF_CFG, cfg_cmd);
+  if (rc != 0) {
+    if (errno == ETIMEDOUT) {
+      CDBG_ERROR("%s, error - ISPIF stop on frame boundary timed out!",
+        __func__);
+    }
+  }
+  /* Send MCT event to start CAMIF and AXI before starting ISPIF */
+  stream = ispif_util_find_stream(ispif, session_id,
+                                  UNPACK_STREAM_ID(event->identity));
+  if (!stream) {
+    CDBG_ERROR("%s:ispif_util_find_stream failed\n",__func__);
+    return -1;
+  }
+
+  mct_port_t *ispif_src_port = stream->src_port;
+
+  mct_event_t isp_event;
+  memset(&isp_event, 0, sizeof(isp_event));
+  isp_event.identity = event->identity;
+  isp_event.direction = MCT_EVENT_DOWNSTREAM;
+  isp_event.type = MCT_EVENT_MODULE_EVENT;
+  isp_event.u.module_event.type = MCT_EVENT_MODULE_ISP_RESTART;
+  isp_event.u.module_event.module_event_data = &session->vfe_mask;
+  rc = mct_port_send_event_to_peer(ispif_src_port, &isp_event);
+  if (rc < 0) {
+    CDBG_ERROR("%s Error Restarting ISP CAMIF and AXI \n", __func__);
+    return -1;
+  }
+  /* Stop finished. Now restart */
+  if (cfg_cmd->params.num > 0) {
+    cfg_cmd->cfg_type = ISPIF_RESTART_FRAME_BOUNDARY;
+    rc = ioctl(ispif->fd, VIDIOC_MSM_ISPIF_CFG, cfg_cmd);
+    if (rc != 0) {
+      if (errno == ETIMEDOUT) {
+        CDBG_ERROR("%s, error - ISPIF start on frame boundary timed out!",
+          __func__);
+        return rc;
+      }
+    }
+  }
+  return rc;
+}
+
 /** ispif_util_find_isp_intf_type:
  *    @stream: stream
  *
@@ -828,12 +985,13 @@ void ispif_util_release_isp_resource(ispif_t *ispif, ispif_stream_t *stream)
  *  Return: msm_ispif_intftype enumeration of interface found
  *          INTF_MAX - invalid mask
  **/
-enum msm_ispif_intftype ispif_util_find_isp_intf_type(ispif_stream_t *stream)
+enum msm_ispif_intftype ispif_util_find_isp_intf_type(ispif_stream_t *stream,
+  uint32_t used_output_mask, uint32_t vfe_mask)
 {
   int intf_idx;
   ispif_session_t *session = stream->session;
-  intf_idx = isp_interface_mask_to_interface_num(stream->used_output_mask,
-    session->vfe_mask);
+  intf_idx = isp_interface_mask_to_interface_num(used_output_mask,
+               vfe_mask);
   if (intf_idx == ISP_INTF_PIX)
     return PIX0;
   else if (intf_idx == ISP_INTF_RDI0)

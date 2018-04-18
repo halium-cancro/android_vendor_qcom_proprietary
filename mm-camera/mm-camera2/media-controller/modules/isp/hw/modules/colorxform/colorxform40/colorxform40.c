@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "colorxform40.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_COLOR_XFROM_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 /** color_xform_config_601_to_709
@@ -47,7 +48,7 @@ static void color_xform_config_601_to_709(isp_color_xform_mod_t *mod,
   /* VFE_COLOR_XFORM_ENC_Y_MATRIX_1 0x0720 = 0x000d5f44 */
   reg_cmd->m02 = 0x1f44;
   reg_cmd->o0 = 0x35;
-  reg_cmd->S0 = 0x0;
+  reg_cmd->s0 = 0x0;
   /* VFE_COLOR_XFORM_ENC_CB_MATRIX_0 0x0724 = 0x03980000 */
   reg_cmd->m10 = 0x0;
   reg_cmd->m11 = 0x398;
@@ -106,7 +107,7 @@ static void color_xform_config_601_to_601(isp_color_xform_mod_t *mod,
   /* VFE_COLOR_XFORM_ENC_Y_MATRIX_1 0x0720 = 0000000000 */
   reg_cmd->m02 = 0x0;
   reg_cmd->o0 = 0x0;
-  reg_cmd->S0 = 0x0;
+  reg_cmd->s0 = 0x0;
   /* VFE_COLOR_XFORM_ENC_CB_MATRIX_0 0x0724 = 0x04000000 */
   reg_cmd->m10 = 0x0;
   reg_cmd->m11 = 0x400;
@@ -164,7 +165,7 @@ static void color_xform_config_601_to_601_sdtv(isp_color_xform_mod_t *mod,
   /* VFE_COLOR_XFORM_ENC_Y_MATRIX_1 0x0720 = 0x00040000 */
   reg_cmd->m02 = 0x0;
   reg_cmd->o0  = 0x10;
-  reg_cmd->S0  = 0x0;
+  reg_cmd->s0  = 0x0;
   /* VFE_COLOR_XFORM_ENC_CB_MATRIX_0 0x0724 = 0x03870000 */
   reg_cmd->m10 = 0x0;
   reg_cmd->m11 = 0x387;
@@ -228,6 +229,45 @@ static int color_xform_init (void *mod_ctrl, void *in_params,
   return 0;
 } /* color_xform_init */
 
+/** color_xform_update_s_value
+ *    @mod: color xform module control
+ *    @in_params: color xform hw pix settings
+ *    @in_params_size:
+ *
+ *  color xform update s0, s1 & s2 value based on scaler ratio
+ *
+ * Return: 0 if success -1 if fail
+ **/
+static int color_xform_update_s_value(isp_color_xform_mod_t *mod,
+  isp_hw_pix_setting_params_t *in_params,
+  uint32_t in_params_size)
+{
+  int i, rc = 0;
+
+  if (in_params_size != sizeof(isp_hw_pix_setting_params_t)) {
+    CDBG_ERROR("%s size mismatch \n", __func__);
+    return -1;
+  }
+
+  for (i = 0; i < ISP_PIX_PATH_MAX; i++) {
+    ISP_colorXformCfgCmdType *reg_cmd = &mod->reg_cmd[i];
+    ALOGE("%s path %d scaling_factor %f \n", __func__,
+      i, in_params->scaler_output[i].scaling_factor);
+    if (in_params->scaler_output[i].scaling_factor >
+          ISP_COLOR_XFORM_SVALUE_THRESHOLD) {
+      reg_cmd->s0 = 0;
+      reg_cmd->s1 = -1;
+      reg_cmd->s2 = -1;
+    } else {
+      reg_cmd->s0 = 0;
+      reg_cmd->s1 = 0;
+      reg_cmd->s2 = 0;
+    }
+  }
+
+  return rc;
+}
+
 /** color_xform_config
  *    @mod: color_xform module struct data
  *    @in_params : input params
@@ -243,7 +283,7 @@ static int color_xform_config(isp_color_xform_mod_t *mod,
   int rc = 0;
   color_xform_type_t color_xform = XFORM_MAX;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: E", __func__);
 
   if (!mod->enable) {
     CDBG_ERROR("%s: module not enabled %d", __func__, mod->enable);
@@ -256,10 +296,10 @@ static int color_xform_config(isp_color_xform_mod_t *mod,
   memset(&mod->reg_cmd, 0, sizeof(mod->reg_cmd));
   memset(&mod->applied_reg_cmd, 0, sizeof(mod->reg_cmd));
 
-  color_xform =
-          (in_params->recording_hint)?XFORM_601_601_SDTV:XFORM_601_601;
+  /*Use 601 instead of 601_SDTV for better effect of recorded video and preview */
+  color_xform = XFORM_601_601;
 
-  CDBG("%s: recording_hint: %d set_color_xform: %d",
+  ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: recording_hint: %d set_color_xform: %d",
     __func__, in_params->recording_hint, color_xform);
   switch(color_xform) {
   case XFORM_601_601: {
@@ -305,6 +345,8 @@ static int color_xform_config(isp_color_xform_mod_t *mod,
   }
     break;
   }
+
+  color_xform_update_s_value(mod, in_params, in_param_size);
 
   return rc;
 } /* color_xform_config */
@@ -387,13 +429,13 @@ static void util_color_xform_debug(isp_color_xform_mod_t *mod)
   int32_t i = 0;
   for(i = 0; i < ISP_COLOR_XFORM_MAX; i++) {
     reg_cmd = &mod->reg_cmd[i];
-    CDBG("%s:%d xform coefficients:\n"
+    ISP_DBG(ISP_MOD_COLOR_XFORM, "%s:%d xform coefficients:\n"
       "m00 = 0x%x, m01 = 0x%x, m02 = 0x%x, o0 = 0x%x, S0 = 0x%x\n"
       "ml0 = 0x%x, ml1 = 0x%x, ml2 = 0x%x, o1 = 0x%x, s1 = 0x%x\n"
       "m20 = 0x%x, m21 = 0x%x, m22 = 0x%x, o2 = 0x%x, s2 = 0x%x\n"
       "c01 = 0x%x, c11 = 0x%x, c21 = 0x%x, c00 = 0x%x, c10 = 0x%x, c20 =0x%x\n",
       __FUNCTION__, i,
-    reg_cmd->m00, reg_cmd->m01, reg_cmd->m02, reg_cmd->o0, reg_cmd->S0,
+    reg_cmd->m00, reg_cmd->m01, reg_cmd->m02, reg_cmd->o0, reg_cmd->s0,
     reg_cmd->m10, reg_cmd->m11, reg_cmd->m12, reg_cmd->o1, reg_cmd->s1,
     reg_cmd->m20, reg_cmd->m21, reg_cmd->m22, reg_cmd->o2, reg_cmd->s2,
     reg_cmd->c01, reg_cmd->c11, reg_cmd->c21, reg_cmd->c00, reg_cmd->c10,
@@ -491,7 +533,7 @@ static int color_xform_set_params (void *mod_ctrl, uint32_t param_id,
     break;
 
   case ISP_HW_MOD_SET_TRIGGER_UPDATE: {
-    rc = color_xform_trigger_update(mod, in_params, in_param_size);
+    rc = color_xform_config(mod, in_params, in_param_size);
   }
     break;
 
@@ -544,7 +586,7 @@ static int color_xform_get_params (void *mod_ctrl, uint32_t param_id,
       break;
     }
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: Populating vfe_diag data", __func__);
   }
     break;
 
@@ -586,7 +628,7 @@ static int color_xform_action (void *mod_ctrl, uint32_t action_code, void *data,
 
   default: {
     /* no op */
-    CDBG("%s: action code = %d is not supported. nop",
+    ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: action code = %d is not supported. nop",
       __func__, action_code);
     rc = 0;
   }
@@ -607,7 +649,7 @@ isp_ops_t *color_xform40_open(uint32_t version)
 {
   isp_color_xform_mod_t *mod = malloc(sizeof(isp_color_xform_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

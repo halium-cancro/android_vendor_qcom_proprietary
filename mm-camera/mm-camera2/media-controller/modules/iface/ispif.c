@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -20,6 +20,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "ispif.h"
 #include "ispif_util.h"
 #include "isp_resource_mgr.h"
+#include "server_debug.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -120,6 +121,12 @@ static int ispif_discover_subdev_nodes(ispif_t *ispif)
   while (1) {
     snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
     dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
+    if (dev_fd >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      dev_fd = -1;
+      break;
+    }
+
     if (dev_fd < 0) {
       CDBG("Done discovering media devices\n");
       break;
@@ -514,15 +521,23 @@ static int ispif_proc_streamon(ispif_t *ispif, ispif_session_t *session,
   int i, rc = 0;
   uint32_t k;
   int isp_id;
+  unsigned int meta_isp_id;
   uint32_t num_cid_ch_non_meta = 0;
   ispif_stream_t *stream = NULL;
   struct ispif_cfg_data *cfg_cmd = &ispif->cfg_cmd;
+  ispif_port_t *ispif_src_port;
 
   CDBG("%s: E", __func__);
 
   /* start ispif */
   if (ispif->fd <= 0) {
     ispif->fd = open(ispif->dev_name, O_RDWR | O_NONBLOCK);
+     if ((ispif->fd) >= MAX_FD_PER_PROCESS) {
+       dump_list_of_daemon_fd();
+       ispif->fd = -1;
+       return -1;
+     }
+
     if (ispif->fd <= 0) {
       CDBG_ERROR("%s: cannot open ispif '%s'\n", __func__, ispif->dev_name);
       return -1;
@@ -549,10 +564,14 @@ static int ispif_proc_streamon(ispif_t *ispif, ispif_session_t *session,
     }
 
     ispif_sink_port = stream->sink_port->port_private;
+    ispif_src_port =  stream->src_port->port_private;
     ispif_sink_port->num_active_streams++;
     ispif->num_active_streams++;
 
-    if (ispif_sink_port->num_active_streams > 1) {
+    if (((ispif_sink_port->num_active_streams > 1) &&
+       (stream->num_meta == 0) &&
+       (ispif_src_port->u.src_port.caps.use_pix))||
+        (stream->stream_info.stream_type == CAM_STREAM_TYPE_VIDEO )) {
       CDBG("%s: sink_port = %p, num_active_stream = %d, continue\n", __func__,
         ispif_sink_port, ispif_sink_port->num_active_streams);
       continue;
@@ -571,14 +590,16 @@ static int ispif_proc_streamon(ispif_t *ispif, ispif_session_t *session,
       }
 
       /* hi 16 bits for ISP1 and low 16 bits for ISP0 */
-      if (stream->used_output_mask & (0xffff << (16 * isp_id)))
+      if (stream->used_output_mask & (0xffff << (16 * isp_id))){
         cfg_cmd->params.entries[cfg_cmd->params.num].vfe_intf =
           (enum msm_ispif_vfe_intf)isp_id;
-      else
+      } else
         continue;
 
       cfg_cmd->params.entries[cfg_cmd->params.num].intftype =
-        ispif_util_find_isp_intf_type(stream);
+        ispif_util_find_isp_intf_type
+        (stream, stream->used_output_mask, session->vfe_mask);
+
       if (cfg_cmd->params.entries[cfg_cmd->params.num].intftype == INTF_MAX) {
         CDBG_ERROR("%s: invalid ispif interface mask = %d", __func__,
           cfg_cmd->params.entries[i].intftype);
@@ -656,14 +677,13 @@ static int ispif_proc_streamon(ispif_t *ispif, ispif_session_t *session,
             goto error;
           }
           /*config metadata channel*/
-          isp_id = (stream->meta_use_output_mask & (0xffff << VFE0))? VFE0:VFE1;
+          meta_isp_id = (stream->meta_use_output_mask & (0xffff << VFE0))? VFE0:VFE1;
           cfg_cmd->params.entries[cfg_cmd->params.num].vfe_intf =
-            (enum msm_ispif_vfe_intf)isp_id;
+            (enum msm_ispif_vfe_intf)meta_isp_id;
 
           cfg_cmd->params.entries[cfg_cmd->params.num].intftype =
             isp_interface_mask_to_interface_num(stream->meta_use_output_mask,
-              (1<< isp_id));
-
+              (1<< meta_isp_id));
           /* one meta only map one cid */
           cfg_cmd->params.entries[cfg_cmd->params.num].num_cids = 1;
           cfg_cmd->params.entries[cfg_cmd->params.num].csid =
@@ -807,8 +827,10 @@ static int ispif_proc_streamoff(ispif_t *ispif, ispif_session_t *session,
   int i, isp_id;
   uint32_t k;
   boolean brc = FALSE;
+  unsigned int meta_isp_id;
   ispif_stream_t *stream = NULL;
   ispif_port_t *ispif_sink_port;
+  ispif_port_t *ispif_src_port;
   struct ispif_cfg_data *cfg_cmd = &ispif->cfg_cmd;
   uint32_t prim_cid_idx;
 
@@ -824,11 +846,13 @@ static int ispif_proc_streamoff(ispif_t *ispif, ispif_session_t *session,
 
     /* get ISPIF sink port*/
     ispif_sink_port = stream->sink_port->port_private;
+    ispif_src_port = stream->src_port->port_private;
 
     if((ispif_sink_port->num_active_streams <= 0) ||
            (ispif->num_active_streams <= 0)) {
       /* should not happen */
       CDBG_ERROR ("%s: error: No streams to be stopped", __func__);
+      return -1;
     }
 
     if(ispif_sink_port->num_active_streams > 0)
@@ -853,14 +877,15 @@ static int ispif_proc_streamoff(ispif_t *ispif, ispif_session_t *session,
     CDBG("%s: ispif active stream = %d, sink_port_active_stream = %d\n",
       __func__, ispif->num_active_streams, ispif_sink_port->num_active_streams);
 
-    if (ispif_sink_port->num_active_streams > 0) {
+    if (((ispif_sink_port->num_active_streams > 0) && (ispif_src_port->u.src_port.caps.use_pix)) ||
+        (stream->stream_info.stream_type == CAM_STREAM_TYPE_VIDEO)){
       CDBG("%s: sink_port = %p, active_stream = %d, continue\n", __func__,
         ispif_sink_port, ispif_sink_port->num_active_streams);
       continue;
     }
 
     ispif_sink_port->state = ISPIF_PORT_STATE_RESERVED;
-    cfg_cmd->cfg_type = ISPIF_STOP_FRAME_BOUNDARY;
+    cfg_cmd->cfg_type = ISPIF_STOP_IMMEDIATELY;
     for (isp_id = 0; isp_id < VFE_MAX; isp_id++) {
       /* hi 16 bits for ISP1 and low 16 bits for ISP0 */
       if (stream->used_output_mask & (0xffff << (16 * isp_id)))
@@ -870,7 +895,9 @@ static int ispif_proc_streamoff(ispif_t *ispif, ispif_session_t *session,
         continue;
 
       cfg_cmd->params.entries[cfg_cmd->params.num].intftype =
-        ispif_util_find_isp_intf_type(stream);
+        ispif_util_find_isp_intf_type
+        (stream, stream->used_output_mask, session->vfe_mask);
+
       if (cfg_cmd->params.entries[cfg_cmd->params.num].intftype == INTF_MAX) {
         CDBG_ERROR("%s: invalid ispif interface mask = %d",
           __func__, cfg_cmd->params.entries[cfg_cmd->params.num].intftype);
@@ -912,17 +939,26 @@ static int ispif_proc_streamoff(ispif_t *ispif, ispif_session_t *session,
           __func__, stream->num_meta);
         return -100;
       }
-
+      if (MAX_PARAM_ENTRIES <= cfg_cmd->params.num) {
+        CDBG_ERROR("%s: error, parm entries %d > max value %d\n",
+          __func__, (cfg_cmd->params.num)+1, MAX_PARAM_ENTRIES);
+        return -200;
+      }
       if (stream->num_meta > 0 && stream->meta_info[0].is_valid) {
         for (k = 0; k < stream->num_meta; k++) {
           /*config metadata channel*/
-          isp_id = (stream->meta_use_output_mask & (0xffff << VFE0))? VFE0:VFE1;
+          meta_isp_id = (stream->meta_use_output_mask & (0xffff << VFE0)) ?
+            VFE0 : VFE1;
           cfg_cmd->params.entries[cfg_cmd->params.num].vfe_intf =
             (enum msm_ispif_vfe_intf)isp_id;
 
           cfg_cmd->params.entries[cfg_cmd->params.num].intftype =
             isp_interface_mask_to_interface_num(stream->meta_use_output_mask,
-              (1<< isp_id));
+              (1 << meta_isp_id));
+
+          if ((isp_interface_mask_to_interface_num(stream->meta_use_output_mask,
+             (1 << meta_isp_id))) < 0 )
+           continue;
 
           /* one meta only map one cid */
           cfg_cmd->params.entries[cfg_cmd->params.num].num_cids = 1;
@@ -1349,7 +1385,7 @@ int ispif_meta_channel_config(ispif_t *ispif, uint32_t session_id,
     return -1;
   }
 
-  if(ispif->meta_info.sensor_meta_info[0].is_valid){
+  if(ispif->meta_info.sensor_meta_info[0].is_valid && (session->num_meta ==0)){
     for (i = 0; i < ISP_MAX_STREAMS; i++) {
       if (sink_port->streams[i] &&
         sink_port->streams[i]->stream_id == stream_id) {
@@ -1366,6 +1402,7 @@ int ispif_meta_channel_config(ispif_t *ispif, uint32_t session_id,
             &sink_port->streams[i]->meta_use_output_mask, &vfe_mask);
 
         session->rdi_cnt++;
+	 session->num_meta++;
         session->vfe_mask |= vfe_mask;
       }
     }

@@ -37,10 +37,6 @@ else
 LOCAL_CFLAGS += -DCAMERA_ION_HEAP_ID=ION_CAMERA_HEAP_ID
 endif
 
-ifeq ($(USE_CAMERA_STUB), true)
-LOCAL_STATIC_LIBRARIES += libcamerastub
-endif
-
 LOCAL_SHARED_LIBRARIES:= \
          libcutils libdl
 

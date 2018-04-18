@@ -7,6 +7,7 @@
 #include "vpe_module.h"
 #include "vpe_port.h"
 #include "vpe_log.h"
+#include "server_debug.h"
 
 #define VPE_NUM_SINK_PORTS    2
 #define VPE_NUM_SOURCE_PORTS  2
@@ -127,6 +128,11 @@ static vpe_module_ctrl_t* vpe_module_create_vpe_ctrl(void)
 
   /* Create PIPE for communication with vpe_thread */
   rc = pipe(ctrl->pfd);
+  if ((ctrl->pfd[0]) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ctrl->pfd[0] = -1;
+    goto error_pipe;
+  }
   if(rc < 0) {
     CDBG_ERROR("%s:%d, pipe() failed", __func__, __LINE__);
     goto error_pipe;
@@ -211,11 +217,7 @@ boolean vpe_module_query_mod(mct_module_t *module, void *buf,
     return FALSE;
   }
   /* TODO: Need a linking function to fill pp cap based on HW caps? */
-  pp_cap->height_padding = CAM_PAD_NONE;
-  pp_cap->plane_padding = CAM_PAD_NONE;
-  pp_cap->width_padding = CAM_PAD_NONE;
   pp_cap->min_num_pp_bufs += MODULE_VPE_MIN_NUM_PP_BUFS;
-  pp_cap->min_required_pp_mask = 0;
   pp_cap->feature_mask |= CAM_QCOM_FEATURE_CROP;
   return TRUE;
 }

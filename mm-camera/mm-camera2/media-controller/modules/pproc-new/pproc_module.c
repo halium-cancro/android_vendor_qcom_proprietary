@@ -1,6 +1,6 @@
 /* pproc_module.c
  *
- * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -21,6 +21,7 @@
 #include "vpe_module.h"
 #include "wnr_module.h"
 #include "module_imglib.h"
+#include <cutils/properties.h>
 
 #if 0
 #define DEBUG_PPROC_MODULE
@@ -49,6 +50,7 @@ typedef struct _pproc_module_type {
  *    @c2d_module:       c2d submodule
  *    @cac_module:       cac submodule
  *    @wnr_module:       wnr submodule
+ *    @llvd_module:      LLVD submodule
  *    @module_type_list: list to hold identity(stream) and
  *                       corresponding module type
  *
@@ -60,8 +62,59 @@ typedef struct _pproc_module_private {
   mct_module_t *c2d_module;
   mct_module_t *cac_module;
   mct_module_t *wnr_module;
+  mct_module_t *hdr_module;
+  mct_module_t *llvd_module;
   mct_list_t   *module_type_list;
 } pproc_module_private_t;
+
+volatile uint32_t gCamPprocLogLevel = 0;
+char pproc_prop[PROPERTY_VALUE_MAX];
+
+/** pproc_module_util_check_stream
+ *    @d1: mct_stream_t* pointer to the stream being checked
+ *    @d2: uint32_t* pointer to identity
+ *
+ *  Check if the stream matches stream index or stream type.
+ *
+ *  Return: TRUE if stream matches.
+ **/
+boolean pproc_module_util_check_stream(void *d1, void *d2)
+{
+  boolean ret_val = FALSE;
+  mct_stream_t *stream = (mct_stream_t *)d1;
+  uint32_t *id = (uint32_t *)d2;
+
+  if (stream && id && stream->streaminfo.identity == *id)
+    ret_val = TRUE;
+
+  return ret_val;
+}
+
+/** pproc_module_util_find_parent
+ *    @identity: required identity
+ *    @module: module, whichs parents will be serached
+ *
+ * Finds module parent (stream) with specified identity
+ *
+ * Returns Pointer to stream handler in case of cucess
+ *   or NULL in case of failure
+ **/
+mct_stream_t* pproc_module_util_find_parent(uint32_t identity,
+  mct_module_t* module)
+{
+  mct_stream_t* ret_val = NULL;
+  mct_list_t *find_list = NULL;
+
+  if (module && MCT_MODULE_PARENT(module)) {
+    find_list = mct_list_find_custom(MCT_MODULE_PARENT(module),
+      &identity, pproc_module_util_check_stream);
+
+    if (find_list)
+      ret_val = find_list->data;
+  }
+
+  return ret_val;
+}
 
 /** pproc_module_get_sub_mod
  *    @module: this pproc module object
@@ -103,6 +156,12 @@ mct_module_t* pproc_module_get_sub_mod(mct_module_t *module, const char *name)
   } else if (!strcmp(name, "wnr")) {
     if (mod_private->wnr_module)
       return mod_private->wnr_module;
+  } else if (!strcmp(name, "hdr")) {
+    if (mod_private->hdr_module)
+      return mod_private->hdr_module;
+  } else if (!strcmp(name, "llvd")) {
+    if (mod_private->llvd_module)
+      return mod_private->llvd_module;
   }
 
   CDBG("%s:%d] X\n", __func__, __LINE__);
@@ -119,7 +178,9 @@ mct_module_t* pproc_module_get_sub_mod(mct_module_t *module, const char *name)
  **/
 static boolean pproc_module_free_port(void *data, void *user_data)
 {
+  boolean ret = FALSE;
   mct_port_t *port = MCT_PORT_CAST(data);
+  mct_module_t *module = (mct_module_t *)user_data;
 
   CDBG("%s:%d] E\n", __func__, __LINE__);
   if (!port) {
@@ -132,6 +193,27 @@ static boolean pproc_module_free_port(void *data, void *user_data)
       strncmp(MCT_OBJECT_NAME(port), "pproc_source", strlen("pproc_source"))) {
     CDBG_ERROR("%s:%d] error because port is invalid\n", __func__, __LINE__);
     return FALSE;
+  }
+
+  switch (MCT_PORT_DIRECTION(port)) {
+    case MCT_PORT_SRC: {
+      module->srcports = mct_list_remove(module->srcports, port);
+      module->numsrcports--;
+      break;
+    }
+    case MCT_PORT_SINK: {
+      module->sinkports = mct_list_remove(module->sinkports, port);
+      module->numsinkports--;
+      break;
+    }
+    default:
+      break;
+  }
+
+  ret = mct_object_unparent(MCT_OBJECT_CAST(port), MCT_OBJECT_CAST(module));
+  if (FALSE == ret) {
+    CDBG_ERROR("%s: Can not unparent port %s from module %s \n",
+      __func__, MCT_OBJECT_NAME(port), MCT_OBJECT_NAME(module));
   }
 
   pproc_port_deinit(port);
@@ -282,7 +364,8 @@ ERROR:
 /** pproc_module_send_output_dim_event
  *    @module: pproc module
  *
- *  Handle pproc_module_send_output_dim_event
+ *  Handle pproc_module_send_output_dim_event. Sends
+ *  preview dimensions to the next module.
  *
  *  Return: TRUE on success
  *          FALSE otherwise **/
@@ -578,6 +661,47 @@ ERROR:
   return rc;
 }
 
+/** pproc_module_send_fd_update_event
+ *    @port: mct port
+ *    @identity: stream identity
+ *    @faces_data: fd info
+ *
+ *  Handle pproc_module_send_fd_update_event. Sends the FD
+ *  info to next module
+ *
+ *  Return: TRUE on success
+ *          FALSE otherwise **/
+static boolean pproc_module_send_fd_update_event(mct_port_t *port,
+  unsigned int identity, cam_face_detection_data_t *faces_data)
+{
+  boolean     rc = TRUE;
+  mct_event_t event;
+
+  /* Validate input parameters */
+  if (!port || !faces_data) {
+    CDBG_ERROR("%s:%d failed: port %p faces_data %p\n", __func__, __LINE__,
+      port, faces_data);
+    rc = FALSE;
+    goto ERROR;
+  }
+
+  /* Fill event parameters */
+  event.identity  = identity;
+  event.type      = MCT_EVENT_MODULE_EVENT;
+  event.direction = MCT_EVENT_DOWNSTREAM;
+  event.u.module_event.type = MCT_EVENT_MODULE_FACE_INFO;
+  event.u.module_event.module_event_data = (void *)faces_data;
+
+  rc = port->event_func(port, &event);
+  if (rc == FALSE) {
+    CDBG_ERROR("%s:%d failed: send fd update event\n", __func__,
+      __LINE__);
+  }
+
+ERROR:
+  return rc;
+}
+
 /** pproc_module_send_buf_divert_event
  *    @module: pproc module
  *
@@ -595,6 +719,9 @@ static boolean pproc_module_send_buf_divert_event(mct_module_t *module,
   struct v4l2_plane plane[VIDEO_MAX_PLANES];
   mct_event_t       event;
 
+  CDBG_LOW("%s:%d +: module %p port %p buf_holder %p\n",
+    __func__, __LINE__, module, port, buf_holder);
+
   /* Validate input parameters */
   if (!module || !port || !buf_holder || !parm_buf) {
     CDBG_ERROR("%s:%d failed: module %p port %p buf_holder %p\n", __func__,
@@ -606,12 +733,13 @@ static boolean pproc_module_send_buf_divert_event(mct_module_t *module,
   memset(&isp_buf, 0, sizeof(isp_buf_divert_t));
   memset(plane, 0, sizeof(plane));
   isp_buf.is_uv_subsampled = parm_buf->reprocess.frame_pp_config.uv_upsample;
+  isp_buf.is_skip_pproc = FALSE;
 #ifdef PPROC_OFFLINE_USE_V4L2
   /* TODO use v4l2 buffer later */
   isp_buf.native_buf = FALSE;
   isp_buf.buffer.sequence = parm_buf->reprocess.frame_idx;
   isp_buf.buffer.m.planes = plane;
-
+  CDBG_LOW("%s:%d,isp_buf.native_buf: %d\n", __func__,__LINE__, isp_buf.native_buf);
   for (i = 0; i < buf_holder->num_planes; i++) {
     isp_buf.buffer.m.planes[i].m.userptr = buf_holder->buf_planes[i].fd;
     isp_buf.buffer.m.planes[i].data_offset = buf_holder->buf_planes[i].offset;
@@ -635,6 +763,8 @@ static boolean pproc_module_send_buf_divert_event(mct_module_t *module,
 #else
   /* Use native buffer for now */
   isp_buf.native_buf = TRUE;
+  CDBG_LOW("%s:%d,isp_buf.native_buf: %d\n", __func__, __LINE__,
+    isp_buf.native_buf);
   isp_buf.fd = buf_holder->buf_planes[0].fd;
   isp_buf.vaddr = buf_holder->buf_planes[0].buf;
   isp_buf.buffer.sequence = parm_buf->reprocess.frame_idx;
@@ -704,7 +834,7 @@ static boolean pproc_module_find_stream_by_sessionid(void *data1, void *data2)
 static boolean pproc_module_find_online_input_buffer(void *data1, void *data2)
 {
   mct_stream_map_buf_t *buf_holder = (mct_stream_map_buf_t *)data1;
-  int *buf_index = (int *)data2;
+  uint32_t *buf_index = (uint32_t *)data2;
   if (!buf_holder || !buf_index) {
     CDBG_ERROR("%s:%d failed buf_holder %p buf_index %p\n", __func__, __LINE__,
       buf_holder, buf_index);
@@ -726,12 +856,16 @@ static void *pproc_module_get_online_input_buffer(mct_module_t *module,
   mct_pipeline_t *pipeline = NULL;
   mct_stream_t *stream = NULL;
   mct_list_t *stream_list = NULL, *buf_list = NULL;
+
   /* Validate input params */
   if (!module || !stream_info) {
     CDBG_ERROR("%s:%d failed module %p stream_info %p\n", __func__, __LINE__,
       module, stream_info);
     return NULL;
   }
+  CDBG_LOW("%s: %d + module = %p stream_info = %p stream_info.type = %d"
+    " identity = %d", __func__, __LINE__, module, stream_info,
+    stream_info->stream_type, identity);
   /* Get pproc module's parent - stream */
   stream_list = mct_list_find_custom(MCT_MODULE_PARENT(module), &session_id,
     pproc_module_find_stream_by_sessionid);
@@ -787,7 +921,7 @@ static void *pproc_module_get_online_input_buffer(mct_module_t *module,
 static boolean pproc_module_find_offline_input_buffer(void *data1, void *data2)
 {
   mct_stream_map_buf_t *buf_holder = (mct_stream_map_buf_t *)data1;
-  int *buf_index = (int *)data2;
+  uint32_t *buf_index = (uint32_t *)data2;
   if (!buf_holder || !buf_index) {
     CDBG_ERROR("%s:%d failed buf_holder %p buf_index %p\n", __func__, __LINE__,
       buf_holder, buf_index);
@@ -872,6 +1006,7 @@ static boolean pproc_module_send_set_param_event(mct_port_t *port,
   boolean                  rc = TRUE;
   mct_event_t              event;
   mct_event_control_parm_t event_parm;
+  cam_stream_parm_buffer_t stream_param;
 
   memset(&event, 0, sizeof(mct_event_t));
   memset(&event_parm, 0, sizeof(mct_event_control_parm_t));
@@ -903,6 +1038,13 @@ static boolean pproc_module_send_set_param_event(mct_port_t *port,
     break;
   case CAM_INTF_PARM_EFFECT:
     event_parm.parm_data = &pp_feature_config->effect;
+    break;
+  case CAM_INTF_PARM_STREAM_FLIP:
+    memset(&stream_param, 0, sizeof(cam_stream_parm_buffer_t));
+    stream_param.type = type;
+    stream_param.flipInfo.flip_mask = pp_feature_config->flip;
+    event.u.module_event.type = MCT_EVENT_CONTROL_PARM_STREAM_BUF;
+    event.u.ctrl_event.control_event_data = &stream_param;
     break;
   default:
     CDBG_ERROR("%s:%d] error invalid type:%d\n", __func__, __LINE__, type);
@@ -981,6 +1123,7 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
   aec_update_t                     *aec_update = NULL;
   awb_update_t                      awb_update;
   uint16_t                          gamma_update[64];
+  cam_face_detection_data_t faces_data;
 
   /* Validate input parameters */
   if (!module || !port || !stream_info || !parm_buf) {
@@ -1021,8 +1164,6 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
      pp_feature_config = &input_stream_info->pp_config; */
   pp_feature_config = &stream_info->reprocess_config.pp_feature_config;
 
-// Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 begin
-#ifdef ORIGINAL_VERSION
   /* check for CROP in feature mask */
   /* TODO: enable this only when HAL enables it */
   //if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_CROP) {
@@ -1078,13 +1219,13 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
       stats_get =
         (stats_get_data_t *)&priv_metadata->stats_aec_data.private_data;
       memset(&stats_update, 0, sizeof(stats_update_t));
-      stats_update.flag = STATS_UPDATE_AEC;
+      stats_update.flag = stats_get->flag;
       aec_update = &stats_update.aec_update;
-      if (stats_get) {
+      if (stats_update.flag) {
         aec_update->lux_idx = stats_get->aec_get.lux_idx;
         aec_update->real_gain = stats_get->aec_get.real_gain[0];
-        CDBG_ERROR("%s:%d ###AEC update %f %f", __func__,
-          __LINE__, aec_update->lux_idx, aec_update->real_gain);
+        CDBG_ERROR("%s:%d ###AEC update %f %f,identity:0x%x", __func__,
+          __LINE__, aec_update->lux_idx, aec_update->real_gain,identity);
         /* Send AEC_UPDATE event */
         rc = pproc_module_send_aec_update_event(port, identity,
           &stats_update);
@@ -1095,7 +1236,6 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
           goto ERROR;
         }
       }
-
       /* Extract gamma update from meta data and send downstream */
       memcpy(&gamma_update, &priv_metadata->isp_gamma_data,
         (sizeof(uint16_t) * 64));
@@ -1120,105 +1260,6 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
       }
     }
   //}
-#else
-  if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_CROP) {
-    /* Check if metadata is present */
-    if (parm_buf->reprocess.meta_present == 1) {
-      /* Extract meta buffer */
-      metadata = (cam_metadata_info_t *)mct_module_get_buffer_ptr(
-        parm_buf->reprocess.meta_buf_index, module, session_id,
-        parm_buf->reprocess.meta_stream_handle);
-      if (!metadata) {
-        CDBG_ERROR("%s:%d failed: metadata NULL\n", __func__, __LINE__);
-        rc = FALSE;
-        goto ERROR;
-      }
-
-      /* Extract crop params from meta data */
-      rc = pproc_module_extract_crop_params(metadata, input_stream_info,
-        identity, stream_info->reprocess_config.online.input_stream_id,
-        &stream_crop);
-
-      if (rc == FALSE) {
-        CDBG_ERROR("%s:%d failed: to extract crop params\n", __func__,
-          __LINE__);
-        rc = FALSE;
-        goto ERROR;
-      }
-
-      rc = pproc_module_send_stream_crop_event(port, identity, &stream_crop);
-      if (rc == FALSE) {
-        CDBG_ERROR("%s:%d failed: send stream crop event\n", __func__,
-          __LINE__);
-        rc = FALSE;
-        goto ERROR;
-      }
-
-      /* Extract chromatix params from meta data */
-      memset(&module_chromatix, 0, sizeof(modulesChromatix_t));
-      priv_metadata =
-        (mct_stream_session_metadata_info *)metadata->private_metadata;
-      module_chromatix.chromatixComPtr =
-        priv_metadata->sensor_data.common_chromatix_ptr;
-      module_chromatix.chromatixPtr = priv_metadata->sensor_data.chromatix_ptr;
-      /* Send chromatix pointer downstream */
-      rc = pproc_module_send_set_chromatix_event(port, identity,
-        &module_chromatix);
-      if (rc == FALSE) {
-        CDBG_ERROR("%s:%d failed: send stream crop event\n", __func__,
-          __LINE__);
-        rc = FALSE;
-        goto ERROR;
-      }
-
-      /* Extract aec update from meta data */
-      stats_get =
-        (stats_get_data_t *)&priv_metadata->stats_aec_data.private_data;
-      memset(&stats_update, 0, sizeof(stats_update_t));
-      stats_update.flag = STATS_UPDATE_AEC;
-      aec_update = &stats_update.aec_update;
-      if (stats_get) {
-        aec_update->lux_idx = stats_get->aec_get.lux_idx;
-        aec_update->real_gain = stats_get->aec_get.real_gain[0];
-        CDBG_ERROR("%s:%d ###AEC update %f %f", __func__,
-          __LINE__, aec_update->lux_idx, aec_update->real_gain);
-        /* Send AEC_UPDATE event */
-        rc = pproc_module_send_aec_update_event(port, identity,
-          &stats_update);
-        if (rc == FALSE) {
-          CDBG_ERROR("%s:%d failed: send aec update event\n", __func__,
-            __LINE__);
-          rc = FALSE;
-          goto ERROR;
-        }
-      }
-
-      /* Extract gamma update from meta data and send downstream */
-      memcpy(&gamma_update, &priv_metadata->isp_gamma_data,
-        (sizeof(uint16_t) * 64));
-      rc = pproc_module_send_gamma_update_event(port, identity,
-        (uint16_t *)&gamma_update[0]);
-      if (rc == FALSE) {
-        CDBG_ERROR("%s:%d failed: send gamma update event\n", __func__,
-          __LINE__);
-        rc = FALSE;
-        goto ERROR;
-      }
-
-      /* Extract awb update from meta data and send downstream */
-      memcpy(&awb_update, &priv_metadata->isp_stats_awb_data,
-        sizeof(awb_update_t));
-      rc = pproc_module_send_awb_update_event(port, identity, &awb_update);
-      if (rc == FALSE) {
-        CDBG_ERROR("%s:%d failed: send awb update event\n", __func__,
-          __LINE__);
-        rc = FALSE;
-        goto ERROR;
-      }
-    }
-  }
-#endif
-// Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 end
 
   /* check for denoise in feature mask */
   if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_DENOISE2D) {
@@ -1230,9 +1271,10 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
     }
   }
 
-  CDBG_HIGH("%s:%d input buf index %d input stream id %d\n", __func__,
-    __LINE__, parm_buf->reprocess.buf_index,
-    stream_info->reprocess_config.online.input_stream_id);
+  CDBG_HIGH("%s:%d input buf index %d input stream id %d"
+    "stream type %d\n", __func__, __LINE__, parm_buf->reprocess.buf_index,
+    stream_info->reprocess_config.online.input_stream_id,
+    stream_info->reprocess_config.online.input_stream_type);
 
   /* check for effect in feature mask */
   if(pp_feature_config->feature_mask & CAM_QCOM_FEATURE_EFFECT) {
@@ -1257,11 +1299,17 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
 
   /* check for flip in feature mask */
   if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_FLIP) {
-     /* TODO: Handle flip feature here */
+    rc = pproc_module_send_set_param_event(port, identity, pp_feature_config,
+       CAM_INTF_PARM_STREAM_FLIP);
+    if (rc == FALSE) {
+       CDBG_ERROR("%s:%d failed: send stream flip event\n", __func__,
+         __LINE__);
+       goto ERROR;
+    }
   }
 
   /* check for rotation in feature mask */
-  if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_CPP) {
+  if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_ROTATION) {
     rc = pproc_module_send_set_param_event(port, identity, pp_feature_config,
        CAM_INTF_PARM_ROTATION);
     if (rc == FALSE) {
@@ -1270,7 +1318,21 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
        goto ERROR;
     }
   }
+#ifdef USE_PREVIEW_FD_INFO_FOR_TP
+  /* check if trueportrait is enabled */
+  if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_TRUEPORTRAIT) {
+    memcpy(&faces_data, &metadata->faces_data,
+      sizeof(cam_face_detection_data_t));
 
+    rc = pproc_module_send_fd_update_event(port, identity, &faces_data);
+    if (rc == FALSE) {
+      CDBG_ERROR("%s:%d failed: send fd event\n", __func__,
+        __LINE__);
+      rc = FALSE;
+      goto ERROR;
+    }
+  }
+#endif
   /* Pick Input buffer from different stream */
   buf_holder = pproc_module_get_online_input_buffer(module, stream_info,
     parm_buf, identity);
@@ -1292,6 +1354,41 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
 
 ERROR:
   return rc;
+}
+
+/**
+* Function: pproc_module_get_meta_buffer
+*
+* Description: Function used as callback to find
+*   metadata buffer wiht corresponding index
+*
+* Input parameters:
+*   @data - MCT stream buffer list
+*   @user_data - Pointer to searched buffer index
+*
+* Return values:
+*     true/false
+*
+* Notes: none
+**/
+static boolean pproc_module_get_meta_buffer(void *data, void *user_data)
+{
+  mct_stream_map_buf_t *buf = (mct_stream_map_buf_t *)data;
+  uint8_t *buf_index = (uint8_t *)user_data;
+
+  if (!buf || !buf_index) {
+    CDBG_ERROR("%s:%d failed", __func__, __LINE__);
+    return FALSE;
+  }
+
+  CDBG("%s:%d] buf type %d buff index %d search index %d",
+      __func__, __LINE__, buf->buf_type, buf->buf_index, *buf_index);
+
+  /* For face detection is used stream buff type */
+  if (buf->buf_type != CAM_MAPPING_BUF_TYPE_OFFLINE_META_BUF)
+    return FALSE;
+
+  return ((uint8_t)buf->buf_index == *buf_index);
 }
 
 /** pproc_module_handle_reprocess_offline
@@ -1362,6 +1459,98 @@ static boolean pproc_module_handle_reprocess_offline(mct_module_t *module,
     }
   }
 
+   if (parm_buf->reprocess.meta_present == 1) {
+     /* Extract meta buffer */
+     mct_list_t  *temp_list = NULL;
+     cam_metadata_info_t  *metadata = NULL;
+
+     temp_list = mct_list_find_custom(input_stream_info->img_buffer_list,
+       &parm_buf->reprocess.meta_buf_index,pproc_module_get_meta_buffer);
+     if (temp_list && temp_list->data) {
+       mct_stream_map_buf_t *buff_holder = temp_list->data;
+       metadata = buff_holder->buf_planes[0].buf;
+     }
+     if (metadata) {
+       modulesChromatix_t                module_chromatix;
+       mct_stream_session_metadata_info *priv_metadata;
+       stats_get_data_t                 *stats_get = NULL;
+       stats_update_t                    stats_update;
+       aec_update_t                     *aec_update = NULL;
+       awb_update_t                      awb_update;
+       uint16_t                          gamma_update[64];
+
+       /* Extract chromatix params from meta data */
+       memset(&module_chromatix, 0, sizeof(modulesChromatix_t));
+       priv_metadata =
+         (mct_stream_session_metadata_info *)metadata->private_metadata;
+       module_chromatix.chromatixComPtr =
+         priv_metadata->sensor_data.common_chromatix_ptr;
+       module_chromatix.chromatixPtr = priv_metadata->sensor_data.chromatix_ptr;
+       /* Send chromatix pointer downstream */
+       rc = pproc_module_send_set_chromatix_event(port, identity,
+         &module_chromatix);
+       if (rc == FALSE) {
+         CDBG_ERROR("%s:%d failed: send stream crop event\n", __func__,
+           __LINE__);
+       }
+
+       /* Extract aec update from meta data */
+       stats_get =
+         (stats_get_data_t *)&priv_metadata->stats_aec_data.private_data;
+       memset(&stats_update, 0, sizeof(stats_update_t));
+       stats_update.flag = STATS_UPDATE_AEC;
+       aec_update = &stats_update.aec_update;
+       if (stats_get) {
+         aec_update->lux_idx = stats_get->aec_get.lux_idx;
+         aec_update->real_gain = stats_get->aec_get.real_gain[0];
+         /* Send AEC_UPDATE event */
+         rc = pproc_module_send_aec_update_event(port, identity,
+           &stats_update);
+         if (rc == FALSE) {
+           CDBG_ERROR("%s:%d failed: send aec update event\n", __func__,
+              __LINE__);
+         }
+       }
+
+       /* Extract gamma update from meta data and send downstream */
+       memcpy(&gamma_update, &priv_metadata->isp_gamma_data,
+         (sizeof(uint16_t) * 64));
+       rc = pproc_module_send_gamma_update_event(port, identity,
+         (uint16_t *)&gamma_update[0]);
+       if (rc == FALSE) {
+         CDBG_ERROR("%s:%d failed: send gamma update event\n", __func__,
+           __LINE__);
+       }
+
+       /* Extract awb update from meta data and send downstream */
+       memcpy(&awb_update, &priv_metadata->isp_stats_awb_data,
+         sizeof(awb_update_t));
+       rc = pproc_module_send_awb_update_event(port, identity, &awb_update);
+      if (rc == FALSE) {
+         CDBG_ERROR("%s:%d failed: send awb update event\n", __func__,
+           __LINE__);
+       }
+     } else {
+     CDBG_ERROR("%s:%d] Metadata buffer idx %d is not available",
+       __func__, __LINE__,parm_buf->reprocess.meta_buf_index );
+     }
+#ifdef USE_PREVIEW_FD_INFO_FOR_TP
+    /* check if trueportrait is enabled */
+    if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_TRUEPORTRAIT) {
+      cam_face_detection_data_t faces_data;
+      memcpy(&faces_data, &metadata->faces_data,
+        sizeof(cam_face_detection_data_t));
+
+      rc = pproc_module_send_fd_update_event(port, identity, &faces_data);
+      if (rc == FALSE) {
+        CDBG_ERROR("%s:%d failed: send fd event\n", __func__,
+          __LINE__);
+        rc = FALSE;
+        goto ERROR;
+      }
+    }
+#endif
+  }
   /* check for denoise in feature mask */
   if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_DENOISE2D) {
     rc = pproc_module_send_set_param_event(port, identity, pp_feature_config,
@@ -1396,11 +1585,17 @@ static boolean pproc_module_handle_reprocess_offline(mct_module_t *module,
 
   /* check for flip in feature mask */
   if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_FLIP) {
-     /* TODO: Handle flip feature here */
+    rc = pproc_module_send_set_param_event(port, identity, pp_feature_config,
+       CAM_INTF_PARM_STREAM_FLIP);
+    if (rc == FALSE) {
+       CDBG_ERROR("%s:%d failed: send stream flip event\n", __func__,
+         __LINE__);
+       goto ERROR;
+    }
   }
 
   /* check for rotation in feature mask */
-  if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_CPP) {
+  if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_ROTATION) {
     rc = pproc_module_send_set_param_event(port, identity, pp_feature_config,
       CAM_INTF_PARM_ROTATION);
     if (rc == FALSE) {
@@ -1530,9 +1725,7 @@ ERROR:
  *    @event: mct event to be handled
  *    @data: stream info
  *
- *  Handle stream off event for offline stream. Call unlink and
- *  caps unreserve on submodule's sink port that is used for
- *  offline stream.
+ *  Handle stream off event for offline stream.
  *
  *  Return: TRUE TRUE on success
  *          FALSE otherwise **/
@@ -1543,6 +1736,7 @@ static boolean pproc_module_offline_streamoff(mct_module_t *module,
   mct_list_t *lport = NULL;
   mct_port_t *port = NULL;
 
+  CDBG("%s:%d data %p\n", __func__, __LINE__, data);
   /* Validate input pameters */
   if (!module || strcmp(MCT_OBJECT_NAME(module), "pproc") || !event || !data) {
     CDBG_ERROR("%s:%d failed: data %p\n", __func__, __LINE__, data);
@@ -1572,6 +1766,52 @@ static boolean pproc_module_offline_streamoff(mct_module_t *module,
   if (rc == FALSE) {
     CDBG_ERROR("%s:%d failed: to stream off sub module\n", __func__, __LINE__);
     rc = FALSE;
+  }
+
+ERROR:
+  return rc;
+}
+
+/** pproc_module_offline_deletestream
+ *    @module: pproc module
+ *    @event: mct event to be handled
+ *    @data: stream info
+ *
+ *  Call unlink and caps unreserve on submodule's sink port that is used for
+ *  offline stream.
+ *
+ *  Return: TRUE TRUE on success
+ *          FALSE otherwise **/
+static boolean pproc_module_offline_deletestream(mct_module_t *module,
+  mct_event_t *event, void *data)
+{
+  boolean     rc = TRUE;
+  mct_list_t *lport = NULL;
+  mct_port_t *port = NULL;
+
+  CDBG("%s:%d data %p\n", __func__, __LINE__, data);
+  /* Validate input pameters */
+  if (!module || strcmp(MCT_OBJECT_NAME(module), "pproc") || !event || !data) {
+    CDBG_ERROR("%s:%d failed: data %p\n", __func__, __LINE__, data);
+    rc = FALSE;
+    goto ERROR;
+  }
+
+  /* Find pproc port for this identity */
+  lport = mct_list_find_custom(MCT_MODULE_SINKPORTS(module), &event->identity,
+    pproc_port_check_identity_in_port);
+  if (!lport) {
+    CDBG_ERROR("%s:%d failed: to find pproc port\n", __func__, __LINE__);
+    rc = FALSE;
+    goto ERROR;
+  }
+
+  /* Extract pproc port from mct list */
+  port = (mct_port_t *)lport->data;
+  if (!port) {
+    CDBG_ERROR("%s:%d failed: reserved port NULL", __func__, __LINE__);
+    rc = FALSE;
+    goto ERROR;
   }
 
   rc = port->check_caps_unreserve(port, event->identity);
@@ -1630,8 +1870,12 @@ static boolean pproc_module_process_event(mct_module_t *module,
     rc = pproc_module_offline_streamoff(module, event,
       ctrl_event->control_event_data);
     break;
+  case MCT_EVENT_CONTROL_DEL_OFFLINE_STREAM:
+    rc = pproc_module_offline_deletestream(module, event,
+      ctrl_event->control_event_data);
+    break;
   default:
-    CDBG_ERROR("%s:%d invalid control event type %d\n", __func__, __LINE__,
+    CDBG("%s:%d invalid control event type %d\n", __func__, __LINE__,
       ctrl_event->type);
     rc = FALSE;
     break;
@@ -1639,6 +1883,34 @@ static boolean pproc_module_process_event(mct_module_t *module,
 
 ERROR:
   return rc;
+}
+
+/** get_pproc_loglevel:
+ *
+ *  Args:
+ *  Return:
+ *    void
+ **/
+
+void get_pproc_loglevel()
+{
+  uint32_t temp;
+  uint32_t log_level;
+  uint32_t debug_mask;
+  memset(pproc_prop, 0, sizeof(pproc_prop));
+  /**  Higher 4 bits : Value of Debug log level (Default level is 1 to print all CDBG_HIGH)
+       Lower 28 bits : Control mode for sub module logging(Only 3 sub modules in PPROC )
+       0x1 for PPROC
+       0x10 for C2D
+       0x100 for CPP  */
+  property_get("persist.camera.pproc.debug.mask", pproc_prop, "268435463"); // 0x10000007=268435463
+  temp = atoi(pproc_prop);
+  log_level = ((temp >> 28) & 0xF);
+  debug_mask = (temp & PPROC_DEBUG_MASK_PPROC);
+  if (debug_mask > 0)
+      gCamPprocLogLevel = log_level;
+  else
+      gCamPprocLogLevel = 0; // Debug logs are not required if debug_mask is zero
 }
 
 /** pproc_module_start_session
@@ -1655,6 +1927,7 @@ static boolean pproc_module_start_session(mct_module_t *module,
   pproc_module_private_t  *mod_private;
   boolean                  rc = FALSE;
 
+  get_pproc_loglevel(); //dynamic logging
   CDBG("%s:%d] E\n", __func__, __LINE__);
   /* Sanity check */
   if (!module || strcmp(MCT_OBJECT_NAME(module), "pproc")) {
@@ -1715,6 +1988,22 @@ static boolean pproc_module_start_session(mct_module_t *module,
     if (mod_private->wnr_module->start_session(mod_private->wnr_module,
           sessionid) == FALSE) {
       CDBG_ERROR("%s:%d] error in wnr start session\n", __func__, __LINE__);
+      goto start_session_done;
+    }
+  }
+
+  if (mod_private->hdr_module) {
+    if (mod_private->hdr_module->start_session(mod_private->hdr_module,
+          sessionid) == FALSE) {
+      CDBG_ERROR("%s:%d] error in hdr start session\n", __func__, __LINE__);
+      goto start_session_done;
+    }
+  }
+
+  if (mod_private->llvd_module) {
+    if (mod_private->llvd_module->start_session(mod_private->llvd_module,
+          sessionid) == FALSE) {
+      CDBG_ERROR("%s:%d] error in llvd start session\n", __func__, __LINE__);
       goto start_session_done;
     }
   }
@@ -1805,6 +2094,22 @@ static boolean pproc_module_stop_session(mct_module_t *module,
     }
   }
 
+  if (mod_private->hdr_module) {
+    if (mod_private->hdr_module->stop_session(mod_private->hdr_module,
+          sessionid) == FALSE) {
+      CDBG_ERROR("%s:%d] error in hdr stop session\n", __func__, __LINE__);
+      goto stop_session_done;
+    }
+  }
+
+  if (mod_private->llvd_module) {
+    if (mod_private->llvd_module->stop_session(mod_private->llvd_module,
+          sessionid) == FALSE) {
+      CDBG_ERROR("%s:%d] error in llvd stop session\n", __func__, __LINE__);
+      goto stop_session_done;
+    }
+  }
+
   rc = TRUE;
 
 stop_session_done:
@@ -1886,7 +2191,6 @@ static void pproc_module_set_mod(mct_module_t *module,
     MCT_OBJECT_UNLOCK(module);
     return;
   }
-
   pproc_type->identity = identity;
   pproc_type->module_type = module_type;
 
@@ -1980,6 +2284,22 @@ static boolean pproc_module_query_mod(mct_module_t *module,
     }
   }
 
+  if (mod_private->hdr_module && mod_private->hdr_module->query_mod) {
+    if (mod_private->hdr_module->query_mod(mod_private->hdr_module, query_buf,
+      sessionid) == FALSE) {
+      CDBG_ERROR("%s:%d] error in hdr query mod\n", __func__, __LINE__);
+      goto query_mod_done;
+    }
+  }
+
+  if (mod_private->llvd_module && mod_private->llvd_module->query_mod) {
+    if (mod_private->llvd_module->query_mod(mod_private->llvd_module, query_buf,
+      sessionid) == FALSE) {
+      CDBG_ERROR("%s:%d] error in llvd query mod\n", __func__, __LINE__);
+      goto query_mod_done;
+    }
+  }
+
   rc = TRUE;
 
 query_mod_done:
@@ -2001,6 +2321,9 @@ query_mod_done:
 void pproc_module_deinit(mct_module_t *module)
 {
   pproc_module_private_t *mod_private;
+  int i = 0;
+  int numsrcports = 0;
+  int numsinkports = 0;
 
   CDBG("%s:%d] E\n", __func__, __LINE__);
   if (!module || strcmp(MCT_OBJECT_NAME(module), "pproc"))
@@ -2008,11 +2331,15 @@ void pproc_module_deinit(mct_module_t *module)
 
   mod_private = (pproc_module_private_t *)MCT_OBJECT_PRIVATE(module);
 
+#ifdef CAMERA_FEATURE_CPP
   if (mod_private->cpp_module)
     cpp_module_deinit(mod_private->cpp_module);
+#endif
 
+#ifdef CAMERA_FEATURE_VPE
   if (mod_private->vpe_module)
     vpe_module_deinit(mod_private->vpe_module);
+#endif
 
   if (mod_private->c2d_module)
     c2d_module_deinit(mod_private->c2d_module);
@@ -2023,19 +2350,34 @@ void pproc_module_deinit(mct_module_t *module)
 #ifdef CAMERA_FEATURE_WNR_SW
   if (mod_private->wnr_module)
     module_wnr_deinit(mod_private->wnr_module);
+  if (mod_private->hdr_module)
+    module_hdr_deinit(mod_private->hdr_module);
 #else
   if (mod_private->wnr_module)
     wnr_module_deinit(mod_private->wnr_module);
 #endif
 
-  mct_list_free_all(MCT_MODULE_SRCPORTS(module), pproc_module_free_port);
-  mct_list_free_all(MCT_MODULE_SINKPORTS(module),pproc_module_free_port);
+  if (mod_private->llvd_module)
+    module_llvd_deinit(mod_private->llvd_module);
+
+  numsrcports = module->numsrcports;
+  numsinkports = module->numsinkports;
+
+  for (i = 0; i < numsinkports; i++) {
+    pproc_module_free_port(MCT_MODULE_SINKPORTS(module)->data,module);
+  }
+  for (i = 0; i < numsrcports; i++) {
+   pproc_module_free_port(MCT_MODULE_SRCPORTS(module)->data,module);
+  }
+
+  mct_list_free_list(MCT_MODULE_SRCPORTS(module));
+  mct_list_free_list(MCT_MODULE_SINKPORTS(module));
+
   /* TODO: Modules children is port which is deleted above ! Is there a
      consideration to make the streams as children of PPROC */
   //mct_list_free_list(MCT_MODULE_CHILDREN(module));
 
   mct_list_free_all(mod_private->module_type_list, pproc_module_free_type_list);
-
   free(mod_private);
   mct_module_destroy(module);
 
@@ -2276,18 +2618,20 @@ mct_module_t* pproc_module_init(const char *name)
     CDBG_ERROR("%s:%d] error module create failed\n", __func__, __LINE__);
     return NULL;
   }
-
   mod_private = malloc(sizeof(pproc_module_private_t));
   if (mod_private == NULL) {
     CDBG_ERROR("%s:%d] error because private data alloc failed\n", __func__,
       __LINE__);
     goto private_error;
   }
-
   memset(mod_private, 0 ,sizeof(pproc_module_private_t));
   /* TODO: Add version or caps based information to build topology */
+#ifdef CAMERA_FEATURE_CPP
   mod_private->cpp_module = cpp_module_init("cpp");
+#endif
+#ifdef CAMERA_FEATURE_VPE
   mod_private->vpe_module = vpe_module_init("vpe");
+#endif
   mod_private->c2d_module = c2d_module_init("c2d");
 #if CAMERA_FEATURE_CAC
   mod_private->cac_module = module_cac_init("cac");
@@ -2308,8 +2652,21 @@ mct_module_t* pproc_module_init(const char *name)
   else {
     CDBG_ERROR("%s:%d] wnr module create failed\n", __func__, __LINE__);
   }
+
+  mod_private->hdr_module = module_hdr_init("hdr");
+  if (NULL == mod_private->hdr_module) {
+    CDBG_ERROR("%s:%d] hdr module create failed\n", __func__, __LINE__);
+  }
 #endif
 #endif
+
+  mod_private->llvd_module = module_llvd_init("llvd");
+  if (NULL != mod_private->llvd_module) {
+    /* populate the parent pointer */
+    module_llvd_set_parent(mod_private->llvd_module, pproc);
+  } else{
+    CDBG_ERROR("%s:%d] llvd module create failed\n", __func__, __LINE__);
+  }
 
   MCT_OBJECT_PRIVATE(pproc) = mod_private;
 
@@ -2331,31 +2688,15 @@ mct_module_t* pproc_module_init(const char *name)
   return pproc;
 
 port_create_error:
-  if (mod_private->cpp_module)
-    cpp_module_deinit(mod_private->cpp_module);
-
-  if (mod_private->vpe_module)
-    vpe_module_deinit(mod_private->vpe_module);
-
-  if (mod_private->c2d_module)
-    c2d_module_deinit(mod_private->c2d_module);
-
-  if (mod_private->cac_module)
-    module_cac_deinit(mod_private->cac_module);
-
-#ifdef CAMERA_FEATURE_WNR_SW
-  if (mod_private->wnr_module)
-    module_wnr_deinit(mod_private->wnr_module);
-#endif
-
-  mct_list_free_all(MCT_MODULE_SRCPORTS(pproc), pproc_module_free_port);
-  mct_list_free_all(MCT_MODULE_SINKPORTS(pproc),pproc_module_free_port);
-  /* TODO: Modules children is port which is deleted above !*/
-  //mct_list_free_list(MCT_MODULE_CHILDREN(pproc));
+  pproc_module_deinit(pproc);
+  mod_private = NULL;
+  pproc = NULL;
 sub_modue_error:
-  free(mod_private);
+  if(mod_private)
+    free(mod_private);
 private_error:
-  mct_module_destroy(pproc);
+  if(pproc)
+    mct_module_destroy(pproc);
   CDBG("%s:%d] X\n", __func__, __LINE__);
   return NULL;
 }

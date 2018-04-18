@@ -115,10 +115,19 @@ static boolean port_sensor_caps_reserve(mct_port_t *port, void *peer_caps,
   sensor_util_dump_bundle_and_stream_lists(port, __func__, __LINE__);
 
   /* update non bundle width and height */
-  if (bundle_info.s_bundle->max_width < stream_info->dim.width)
-    bundle_info.s_bundle->max_width = stream_info->dim.width;
-  if (bundle_info.s_bundle->max_height < stream_info->dim.height)
-    bundle_info.s_bundle->max_height = stream_info->dim.height;
+
+  if (stream_info->pp_config.rotation == ROTATE_90 ||
+    stream_info->pp_config.rotation == ROTATE_270) {
+    if (bundle_info.s_bundle->max_width < stream_info->dim.height)
+      bundle_info.s_bundle->max_width = stream_info->dim.height;
+    if (bundle_info.s_bundle->max_height < stream_info->dim.width)
+      bundle_info.s_bundle->max_height = stream_info->dim.width;
+  } else {
+    if (bundle_info.s_bundle->max_width < stream_info->dim.width)
+      bundle_info.s_bundle->max_width = stream_info->dim.width;
+    if (bundle_info.s_bundle->max_height < stream_info->dim.height)
+      bundle_info.s_bundle->max_height = stream_info->dim.height;
+  }
   bundle_info.s_bundle->stream_mask |= (1 << stream_info->stream_type);
 
   SLOW("port=%p, identity=0x%x", port, stream_info->identity);
@@ -516,8 +525,14 @@ static int32_t port_sensor_handle_sof_notify(mct_module_t* module,
   if (s_bundle->af_bracket_params.ctrl.enable == TRUE) {
     if(!module_sensor_update_af_bracket_entry(module, s_bundle, event)) {
       SERR("Fail to update af bracket entry");
-      return -EINVAL;
+      return FALSE;
     }
+  }
+  if (s_bundle->mtf_bracket_params.ctrl.enable == TRUE) {
+     if (!module_sensor_update_mtf_bracket_entry(module, s_bundle, event)) {
+        SERR("Fail to update mtf bracket entry");
+        return FALSE;
+     }
   }
 
   sensor_bracket_ctrl_t * flash_ctrl = &(s_bundle->flash_bracket_params.ctrl);
@@ -526,7 +541,7 @@ static int32_t port_sensor_handle_sof_notify(mct_module_t* module,
     /* update flash brackets */
     if(!module_sensor_update_flash_bracket_entry(module, s_bundle, event)) {
       SERR("Fail to update Flash bracket entry");
-      return -EINVAL;
+      return FALSE;
      }
   }
 
@@ -860,6 +875,7 @@ static boolean port_sensor_handle_upstream_module_event(mct_module_t *module,
     stats_update_t *stats_update =
       (stats_update_t *)event_module->module_event_data;
     mct_event_t new_event;
+    sensor_ctrl_t *ctrl;
 
     if (!stats_update || !module_sensor_params) {
       SERR("failed");
@@ -868,12 +884,15 @@ static boolean port_sensor_handle_upstream_module_event(mct_module_t *module,
 
     if (stats_update->flag & STATS_UPDATE_AWB) {
       SLOW("stats update awb hdr");
-      rc = module_sensor_params->func_tbl.process(
-        module_sensor_params->sub_module_private,
-        SENSOR_SET_AWB_UPDATE, &stats_update->awb_update);
-      if (rc < 0) {
-        SERR("failed");
-        return FALSE;
+      ctrl = module_sensor_params->sub_module_private;
+      if (ctrl->s_data->video_hdr_enable) {
+        rc = module_sensor_params->func_tbl.process(
+          module_sensor_params->sub_module_private,
+          SENSOR_SET_AWB_UPDATE, &stats_update->awb_update);
+        if (rc < 0) {
+          SERR("failed");
+          return FALSE;
+        }
       }
 
       if (led_module_params->func_tbl.process != NULL) {
@@ -901,17 +920,19 @@ static boolean port_sensor_handle_upstream_module_event(mct_module_t *module,
     }
 
     if (stats_update->flag & STATS_UPDATE_AF) {
-      sensor_bracket_ctrl_t *ctrl =
-        &(bundle_info->s_bundle->af_bracket_params.ctrl);
-      if (ctrl->enable) {
-        SERR("failed to move lens, because focus bracketing is ongoing");
+      sensor_af_bracket_t *af_bracket_params =
+        &(bundle_info->s_bundle->af_bracket_params);
+      sensor_af_bracket_t *mtf_bracket_params =
+        &(bundle_info->s_bundle->mtf_bracket_params);
+      if (af_bracket_params->enable || mtf_bracket_params->enable) {
+        SERR("failed to move lens, because focus bracketing is enabled");
         ret = FALSE;
         break;
       }
     if (stats_update->af_update.use_dac_value == TRUE) {
       rc = actuator_module_params->func_tbl.process(
         actuator_module_params->sub_module_private,
-        ACTUATOR_MOVE_FOCUS, &stats_update->af_update);
+        ACTUATOR_SET_POSITION, &stats_update->af_update);
         if (rc < 0) {
           SERR("failed");
           ret = FALSE;

@@ -25,29 +25,23 @@
 #define CPP_DEBUG_MUTEX    0
 
 /* -------------------------------------------------------------------------*/
+volatile extern uint32_t gCamCppLogLevel;
 
-#undef CDBG_LOW
-#define CDBG_LOW(fmt, args...) do {} while(0)
-
-#if (CPP_LOG_LEVEL == CPP_LOG_SILENT)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG
-#elif (CPP_LOG_LEVEL == CPP_LOG_NORMAL)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG_ERROR
-#elif (CPP_LOG_LEVEL == CPP_LOG_DEBUG)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG_ERROR
-  #undef CDBG
-  #define CDBG CDBG_ERROR
-#elif (CPP_LOG_LEVEL == CPP_LOG_VERBOSE)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG_ERROR
-  #undef CDBG
-  #define CDBG CDBG_ERROR
-  #undef CDBG_LOW
-  #define CDBG_LOW CDBG_ERROR
+#ifdef CDBG
+#undef CDBG
+#define CDBG(...) do{} while(0)
 #endif
+#define CDBG(fmt, args...) ALOGD_IF(gCamCppLogLevel >= 2, fmt, ##args)
+
+#ifdef CDBG_LOW
+#undef CDBG_LOW
+#endif //#ifdef CDBG_LOW
+#define CDBG_LOW(fmt, args...) ALOGD_IF(gCamCppLogLevel >= 3, fmt, ##args)
+
+#ifdef CDBG_HIGH
+#undef CDBG_HIGH
+#endif //#ifdef CDBG_HIGH
+#define CDBG_HIGH(fmt, args...) ALOGD_IF(gCamCppLogLevel >= 1, fmt, ##args)
 
 /* macro for profiling logs */
 #undef CDBG_PROFILE
@@ -80,5 +74,4 @@
   #define PTHREAD_MUTEX_LOCK(m)   pthread_mutex_lock(m)
   #define PTHREAD_MUTEX_UNLOCK(m) pthread_mutex_unlock(m)
 #endif
-
 #endif

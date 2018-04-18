@@ -27,6 +27,8 @@ typedef struct _asd_port_private {
   asd_object_t      asd_object;
   asd_thread_data_t *thread_data;
   mct_stream_info_t stream_info;
+  char              asd_debug_data_array[ASD_DEBUG_DATA_SIZE];
+  uint32_t          asd_debug_data_size;
 } asd_port_private_t;
 
 static void asd_port_send_decision_event(mct_port_t *port,
@@ -57,6 +59,59 @@ static void asd_port_send_decision_event(mct_port_t *port,
 }
 
 
+/** asd_port_send_exif_debug_data:
+ * Return nothing
+ **/
+static void asd_port_send_exif_debug_data(mct_port_t *port)
+{
+  mct_event_t          event;
+  mct_bus_msg_t        bus_msg;
+  cam_asd_exif_debug_t *asd_info;
+  asd_port_private_t   *private;
+  int                  size;
+
+  if (!port) {
+    CDBG_ERROR("%s: input error", __func__);
+    return;
+  }
+  private = (asd_port_private_t *)(port->port_private);
+  if (private == NULL) {
+    return;
+  }
+
+  /* Send exif data if data size is valid */
+  if (!private->asd_debug_data_size) {
+    CDBG("asd_port: Debug data not available");
+    return;
+  }
+  asd_info = (cam_asd_exif_debug_t *) malloc(sizeof(cam_asd_exif_debug_t));
+  if (!asd_info) {
+    CDBG_ERROR("Failure allocating memory for debug data");
+    return;
+  }
+  bus_msg.sessionid = (private->reserved_id >> 16);
+  bus_msg.type = MCT_BUS_MSG_ASD_EXIF_DEBUG_INFO;
+  bus_msg.msg = (void *)asd_info;
+  size = (int)sizeof(cam_asd_exif_debug_t);
+  bus_msg.size = size;
+  memset(asd_info, 0, size);
+  asd_info->asd_debug_data_size = private->asd_debug_data_size;
+
+  CDBG("%s asd_debug_data_size: %d", __func__, private->asd_debug_data_size);
+  memcpy(&(asd_info->asd_private_debug_data[0]), private->asd_debug_data_array,
+    private->asd_debug_data_size);
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.identity = private->reserved_id;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.u.module_event.type = MCT_EVENT_MODULE_STATS_POST_TO_BUS;
+  event.u.module_event.module_event_data = (void *)(&bus_msg);
+  MCT_PORT_EVENT_FUNC(port)(port, &event);
+  if (asd_info) {
+    free(asd_info);
+  }
+}
+
+
 /** asd_port_callback
  *
  **/
@@ -69,13 +124,16 @@ static void asd_port_callback(asd_output_data_t *output, void *p)
 
   mct_bus_msg_t bus_msg;
   mct_bus_msg_asd_hdr_status_t asd_msg;
+  asd_thread_data_t *thread_data;
+  int ui_update_count_new;
 
   if (!output || !port) {
       return;
   }
   private = (asd_port_private_t *)(port->port_private);
+  thread_data = (asd_thread_data_t *)(private->thread_data);
 
-  if (output->updated) {
+  if (ASD_UPDATE == output->type) {
     stats_update.asd_update.asd_enable = output->asd_enable;
     stats_update.asd_update.histo_backlight_detected =
       output->histo_backlight_detected;
@@ -99,7 +157,7 @@ static void asd_port_callback(asd_output_data_t *output, void *p)
     stats_update.asd_update.scene = output->scene;
 
     //is severity really needed?
-    uint32_t * severity = &stats_update.asd_update.severity;
+    uint32_t *severity = &(stats_update.asd_update.severity[0]);
     size_t i;
     for (i = 0; i < S_MAX; i++) {
       severity[i] = output->severity[i];
@@ -120,14 +178,30 @@ static void asd_port_callback(asd_output_data_t *output, void *p)
 
     MCT_PORT_EVENT_FUNC(port)(port, &event);
 
-    if (output->bcast_decision) {
+    if (ASD_UI_UPDATE_FRAME_INTERVAL > 0) {
+      ui_update_count_new = (int)thread_data->process_data.frame_count /
+        ASD_UI_UPDATE_FRAME_INTERVAL;
+    } else {
+      ui_update_count_new = (int)thread_data->process_data.frame_count;
+    }
+    if (ui_update_count_new > (int)thread_data->process_data.ui_update_count) {
       //send a bus update message so that HAL can be notified of
       //the new scene decision
-      CDBG("%s bcast decision on bus", __func__);
       asd_port_send_decision_event(port,
                                    output->scene);
+      thread_data->process_data.ui_update_count = ui_update_count_new;
     }
 
+    /* Save the debug data in private data struct to be sent out later */
+    CDBG("%s: Save debug data in port private", __func__);
+    private->asd_debug_data_size = output->asd_debug_data_size;
+    if (output->asd_debug_data_size) {
+      memcpy(private->asd_debug_data_array, output->asd_debug_data_array,
+        output->asd_debug_data_size);
+    }
+  } else if (ASD_SEND_EVENT == output->type) {
+   /* This will not be invoked from asd thread.
+      Keeping the output->type to keep the interface same as other modules */
   }
 
   /* Send Bus message */
@@ -156,25 +230,39 @@ static void asd_port_callback(asd_output_data_t *output, void *p)
 /** asd_port_start_threads
  *    @port:
  **/
-static boolean asd_port_start_threads(mct_port_t *port)
+static boolean asd_port_init_threads(mct_port_t *port)
 {
-  boolean     rc = TRUE;
-  mct_event_t event;
+  boolean     rc = FALSE;
   asd_port_private_t *private = port->port_private;
 
   private->thread_data = asd_thread_init();
-  if (private->thread_data == NULL) {
-    rc = FALSE;
-  } else {
+  CDBG("%s private->thread_data: %p", __func__, private->thread_data);
+  if (private->thread_data != NULL) {
+    rc = TRUE;
     private->thread_data->asd_port = port;
     private->thread_data->asd_obj = &private->asd_object;
     private->thread_data->asd_cb = asd_port_callback;
+  } else {
+    CDBG_ERROR("%s private->thread_data is NULL", __func__);
+  }
+  return rc;
+}
+
+/** asd_port_start_threads
+ *    @port:
+ **/
+static boolean asd_port_start_threads(mct_port_t *port)
+{
+  boolean     rc = FALSE;
+  asd_port_private_t *private = port->port_private;
+
+  if (private->thread_data != NULL) {
+    CDBG("%s: Start asd thread", __func__);
     rc = asd_thread_start(private->thread_data);
     if (rc == FALSE) {
       asd_thread_deinit(private->thread_data);
     }
   }
-
   return rc;
 }
 
@@ -277,7 +365,23 @@ static boolean asd_port_proc_downstream_event(mct_port_t *port, mct_event_t *eve
     rc = asd_port_event_stats_data(private, event);
   } /* case MCT_EVENT_MODULE_STATS_DATA */
     break;
+  case MCT_EVENT_MODULE_START_STOP_STATS_THREADS: {
+    uint8_t *start_flag = (uint8_t*)(mod_evt->module_event_data);
+    CDBG("%s MCT_EVENT_MODULE_START_STOP_STATS_THREADS start_flag: %d",
+      __func__,*start_flag);
 
+    if (*start_flag) {
+      if (asd_port_start_threads(port) == FALSE) {
+        CDBG("%s: asd thread start failed", __func__);
+        rc = FALSE;
+      }
+    } else {
+      if (private->thread_data) {
+        asd_thread_stop(private->thread_data);
+      }
+    }
+  }
+    break;
   case MCT_EVENT_MODULE_STATS_AEC_UPDATE: {
     stats_update_t *stats_update =
       (stats_update_t *)mod_evt->module_event_data;
@@ -386,27 +490,71 @@ static boolean asd_port_proc_downstream_event(mct_port_t *port, mct_event_t *eve
       asd_msg->type = MSG_SOF;
       //for now, don't care about timestamp or frame_id
       rc = asd_thread_en_q_msg(private->thread_data, asd_msg);
+
+      /* Send the ASD debug data from here in SoF context */
+      CDBG("%s: Send exif info update with debug data", __func__);
+      asd_port_send_exif_debug_data(port);
     }
   }
     break;
   case MCT_EVENT_MODULE_SET_STREAM_CONFIG: {
-    if (private->stream_type != CAM_STREAM_TYPE_PREVIEW) {
-      break;
-    }
+    asd_thread_msg_t *asd_msg = NULL;
+    if (private->stream_type == CAM_STREAM_TYPE_PREVIEW) {
+      asd_msg = (asd_thread_msg_t *)malloc(sizeof(asd_thread_msg_t));
+      if (asd_msg) {
+        memset(asd_msg, 0, sizeof(asd_thread_msg_t));
+        asd_msg->type = MSG_ASD_SET;
+        asd_set_parameter_t *param = &asd_msg->u.asd_set_parm;
+        param->type = ASD_SET_UI_FRAME_DIM;
+        param->u.init_param.preview_width = private->stream_info.dim.width;
+        param->u.init_param.preview_height = private->stream_info.dim.height;
 
-    asd_thread_msg_t *asd_msg =
-      (asd_thread_msg_t *)malloc(sizeof(asd_thread_msg_t));
+        rc = asd_thread_en_q_msg(private->thread_data, asd_msg);
+      }
+    }
+    /* send  op mode to ASD algorithm */
+    asd_msg = (asd_thread_msg_t *)malloc(sizeof(asd_thread_msg_t));
     if (asd_msg) {
       memset(asd_msg, 0, sizeof(asd_thread_msg_t));
       asd_msg->type = MSG_ASD_SET;
       asd_set_parameter_t *param = &asd_msg->u.asd_set_parm;
-      param->type = ASD_SET_UI_FRAME_DIM;
-      param->u.init_param.preview_width = private->stream_info.dim.width;
-      param->u.init_param.preview_height = private->stream_info.dim.height;
+      param->type = ASD_SET_PARAM_OP_MODE;
+
+      switch (private->stream_type) {
+        case CAM_STREAM_TYPE_VIDEO: {
+           param->u.init_param.op_mode = Q3A_OPERATION_MODE_CAMCORDER;
+        }
+          break;
+
+        case CAM_STREAM_TYPE_PREVIEW: {
+          param->u.init_param.op_mode = Q3A_OPERATION_MODE_PREVIEW;
+        }
+          break;
+
+        case CAM_STREAM_TYPE_RAW:
+        case CAM_STREAM_TYPE_SNAPSHOT: {
+          param->u.init_param.op_mode = Q3A_OPERATION_MODE_SNAPSHOT;
+        }
+          break;
+        default:
+          param->u.init_param.op_mode = Q3A_OPERATION_MODE_PREVIEW;
+          break;
+      } /* switch (private->stream_type) */
 
       rc = asd_thread_en_q_msg(private->thread_data, asd_msg);
     }
   }
+    break;
+
+  case MCT_EVENT_MODULE_MODE_CHANGE: {
+    //Stream mode has changed
+    private->stream_type = ((stats_mode_change_event_data*)
+      (event->u.module_event.module_event_data))->stream_type;
+    private->reserved_id = ((stats_mode_change_event_data*)
+      (event->u.module_event.module_event_data))->reserved_id;
+    CDBG("%s MCT_EVENT_MODULE_MODE_CHANGE event. mode: %d", __func__,
+      private->stream_type);
+   }
     break;
   default:
     break;
@@ -450,13 +598,6 @@ static boolean asd_port_proc_downstream_ctrl(mct_port_t *port, mct_event_t *even
       if (common_param->type == COMMON_SET_PARAM_BESTSHOT) {
         asd_enable = (common_param->u.bestshot_mode == CAM_SCENE_MODE_AUTO) ?
             TRUE : FALSE;
-
-		/* enable ASD if no specific bestmode is set, tanrifei, 20140818 */
-		if (common_param->u.bestshot_mode == CAM_SCENE_MODE_OFF) {
-			asd_enable = TRUE;
-		}
-		/* end */
-		
         CDBG("%s: MSG_ASD_SET: Enable/disable ASD? %d", __func__, asd_enable);
         asd_msg = (asd_thread_msg_t *)malloc(sizeof(asd_thread_msg_t));
         if (asd_msg != NULL) {
@@ -690,7 +831,7 @@ static boolean asd_port_check_caps_unreserve(mct_port_t *port,
 static boolean asd_port_ext_link(unsigned int identity,
   mct_port_t *port, mct_port_t *peer)
 {
-  boolean rc = FALSE, new_thread = FALSE;
+  boolean rc = FALSE, thread_init = FALSE;
   asd_port_private_t  *private;
   mct_event_t         event;
 
@@ -712,14 +853,14 @@ static boolean asd_port_ext_link(unsigned int identity,
     }
   /* Fall through */
   case ASD_PORT_STATE_CREATED:
-    new_thread = TRUE;
+    thread_init = TRUE;
     rc = TRUE;
     break;
 
   case ASD_PORT_STATE_LINKED:
     if ((private->reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000)) {
       rc = TRUE;
-      new_thread = FALSE;
+      thread_init = FALSE;
     }
     break;
 
@@ -728,9 +869,8 @@ static boolean asd_port_ext_link(unsigned int identity,
   }
 
   if (rc == TRUE) {
-
-    if (new_thread == TRUE) {
-      if (asd_port_start_threads(port) == FALSE) {
+    if (thread_init == TRUE) {
+      if (asd_port_init_threads(port) == FALSE) {
         rc = FALSE;
         goto asd_ext_link_done;
       }
@@ -774,10 +914,10 @@ static void asd_port_ext_unlink(unsigned int identity,
 
     MCT_OBJECT_REFCOUNT(port) -= 1;
     if (!MCT_OBJECT_REFCOUNT(port)) {
-      private->state = ASD_PORT_STATE_UNLINKED;
       CDBG("%s: asd_data=%p", __func__, private->thread_data);
-      asd_thread_stop(private->thread_data);
+      private->state = ASD_PORT_STATE_UNLINKED;
       asd_thread_deinit(private->thread_data);
+      MCT_PORT_PEER(port) = NULL;
     }
   }
   MCT_OBJECT_UNLOCK(port);

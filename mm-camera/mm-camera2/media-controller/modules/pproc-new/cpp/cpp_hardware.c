@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -12,10 +12,12 @@
 #include <media/msmb_generic_buf_mgr.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "server_debug.h"
 #ifdef _ANDROID_
 #include <cutils/properties.h>
 #endif
-
+#define ATRACE_TAG ATRACE_TAG_CAMERA
+#include <cutils/trace.h>
 #if 0
 #define CPPDUMP(fmt, args...) \
   ALOGE("CPPMETA "fmt"\n", ##args)
@@ -24,12 +26,53 @@
   do {} while (0);
 #endif
 
-/* cpp firmware version names matched with hw versions */
-const char firmware_version[CPP_MAX_FW_VERSIONS][CPP_MAX_FW_NAME_LEN] = {
-  "cpp_firmware_v1_1_6.fw", /* for CPP_HW_VERSION_1_0_0 */
-  "cpp_firmware_v1_2_0.fw", /* for CPP_HW_VERSION_1_1_0 */
-  "cpp_firmware_v1_2_0.fw", /* for CPP_HW_VERSION_2_0_0 */
-};
+/* cpp_hardware_select_fw_version:
+*
+* @hw_version: cpp hw version
+* @fw_version: micro firmware version
+* @fw_filename: firmware file name
+* Description:
+*     Returns firmware version and file name for corresponding
+*     CPP hardware version
+* Return: int
+*     0: if success, negative value otherwise.
+**/
+int32_t cpp_hardware_select_fw_version(uint32_t hw_version,
+  uint32_t *fw_version, char *fw_filename)
+{
+  if (!fw_filename || !fw_version) {
+    CDBG_ERROR("fw_filename=%p, fw_version=%p", fw_filename, fw_version);
+    return -EINVAL;
+  }
+  switch (hw_version) {
+  case CPP_HW_VERSION_1_1_0:
+    *fw_version = CPP_FW_VERSION_1_2_0;
+    break;
+  case CPP_HW_VERSION_1_1_1:
+    *fw_version = CPP_FW_VERSION_1_2_0;
+    break;
+  case CPP_HW_VERSION_2_0_0:
+    *fw_version = CPP_FW_VERSION_1_2_0;
+    break;
+  case CPP_HW_VERSION_4_0_0:
+    *fw_version = CPP_FW_VERSION_1_4_0;
+    break;
+  case CPP_HW_VERSION_4_1_0:
+  case CPP_HW_VERSION_4_2_0:
+    *fw_version = CPP_FW_VERSION_1_4_0;
+    break;
+  default:
+    CDBG_ERROR("invalid hw version=0x%08x\n", hw_version);
+    *fw_version = 0xffffffff;
+    return -EINVAL;
+  }
+  snprintf(fw_filename, CPP_MAX_FW_NAME_LEN,
+    "cpp_firmware_v%d_%d_%d.fw",
+    CPP_GET_FW_MAJOR_VERSION(*fw_version),
+    CPP_GET_FW_MINOR_VERSION(*fw_version),
+    CPP_GET_FW_STEP_VERSION(*fw_version));
+  return 0;
+}
 
 /* cpp_hardware_create:
  *
@@ -93,6 +136,10 @@ int32_t cpp_hardware_open_subdev(cpp_hardware_t *cpphw)
   snprintf(dev_name, sizeof(dev_name), "/dev/v4l-subdev%d",
     cpphw->subdev_ids[0]);
   fd = open(dev_name, O_RDWR | O_NONBLOCK);
+  if (fd >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    fd = -1;
+  }
   if (fd < 0) {
     CDBG_ERROR("%s:%d: error: cannot open cpp subdev: %s\n",
       __func__, __LINE__, dev_name);
@@ -242,6 +289,36 @@ static int32_t cpp_hardware_send_buf_done(cpp_hardware_t *cpphw,
   return 0;
 }
 
+/* cpp_hardware_set_clock:
+ *
+ **/
+static int32_t cpp_hardware_set_clock(cpp_hardware_t *cpphw,
+  cpp_hardware_clock_settings_t *clock_settings)
+{
+  int rc=0;
+  struct msm_camera_v4l2_ioctl_t v4l2_ioctl;
+  struct msm_cpp_frame_info_t inst_info;
+  char dev_name[SUBDEV_NAME_SIZE_MAX];
+  if(!cpphw) {
+    CDBG_ERROR("%s:%d: failed\n", __func__, __LINE__);
+    return -EINVAL;
+  }
+  /* make sure all code-paths unlock this mutex */
+  PTHREAD_MUTEX_LOCK(&(cpphw->mutex));
+  v4l2_ioctl.ioctl_ptr = clock_settings;
+  v4l2_ioctl.len = sizeof(cpp_hardware_clock_settings_t);
+  rc = ioctl(cpphw->subdev_fd, VIDIOC_MSM_CPP_SET_CLOCK, &v4l2_ioctl);
+  if (rc < 0) {
+    CDBG_ERROR("%s:%d: v4l2 ioctl() failed, rc=%d\n", __func__, __LINE__, rc);
+    rc = -EIO;
+  }
+
+error_mutex:
+  PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
+  return rc;
+}
+
+
 /* cpp_hardware_process_command:
  *
  *  processes the command given to the hardware. Hardware state is
@@ -289,6 +366,12 @@ int32_t cpp_hardware_process_command(cpp_hardware_t *cpphw,
     break;
   case CPP_HW_CMD_QUEUE_BUF:
     rc = cpp_hardware_send_buf_done(cpphw, cmd.u.event_data);
+    break;
+  case CPP_HW_CMD_SET_CLK:
+    rc = cpp_hardware_set_clock(cpphw, &cmd.u.clock_settings);
+    break;
+  case CPP_HW_CMD_BUF_UPDATE:
+    rc = cpp_hardware_update_buffer_list(cpphw, cmd.u.hw_params);
     break;
   default:
     CDBG_ERROR("%s:%d, error: bad command type=%d",
@@ -365,27 +448,20 @@ static int32_t cpp_hardware_load_firmware(cpp_hardware_t *cpphw)
     return -EIO;
   }
   CDBG_ERROR("%s:%d, cpphw->hwinfo.version = 0x%x", __func__, __LINE__,
-    cpphw->hwinfo.version);
-  switch (cpphw->hwinfo.version) {
-  case CPP_HW_VERSION_1_0_0:
-    v4l2_ioctl.ioctl_ptr = (void *)&firmware_version[0][0];
-    v4l2_ioctl.len = strlen(firmware_version[0]);
-    break;
-  case CPP_HW_VERSION_1_1_0:
-  case CPP_HW_VERSION_1_1_1:
-    v4l2_ioctl.ioctl_ptr = (void *)&firmware_version[1][0];
-    v4l2_ioctl.len = strlen(firmware_version[1]);
-    break;
-  case CPP_HW_VERSION_2_0_0:
-    v4l2_ioctl.ioctl_ptr = (void *)&firmware_version[2][0];
-    v4l2_ioctl.len = strlen(firmware_version[2]);
-    break;
-  default:
-    CDBG_ERROR("%s:%d: invalid hw version=0x%x\n", __func__, __LINE__,
-      cpphw->hwinfo.version);
+     cpphw->hwinfo.version);
+  /* Get corresponding fw version based on hw version */
+  char fw_filename[CPP_MAX_FW_NAME_LEN];
+  rc = cpp_hardware_select_fw_version(cpphw->hwinfo.version,
+    &cpphw->fw_version, fw_filename);
+  CDBG_HIGH("hw_version=0x%08x, fw_version=0x%08x",
+    cpphw->hwinfo.version, cpphw->fw_version);
+  if (rc < 0) {
+    CDBG_ERROR("failed");
     PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
     return -EFAULT;
   }
+  v4l2_ioctl.ioctl_ptr = fw_filename;
+  v4l2_ioctl.len = strlen(fw_filename);
   rc = ioctl(cpphw->subdev_fd, VIDIOC_MSM_CPP_LOAD_FIRMWARE,
     &v4l2_ioctl);
   if (rc < 0) {
@@ -400,6 +476,75 @@ static int32_t cpp_hardware_load_firmware(cpp_hardware_t *cpphw)
 }
 
 
+/* cpp_hardware_update_buffer_list
+ *
+ *  @cpphw - structure holding hardware parameters
+ *  @hw_strm_buff_info - structure holding information for the buufers that
+ *             have to be appended to the buffer queue
+ *
+ *  Send all the information for the buffers that have to be added to the
+ *  stream queue to the kernel.
+ *
+ *  Returns 0 on success
+ *
+ **/
+int32_t cpp_hardware_update_buffer_list(cpp_hardware_t *cpphw,
+  cpp_hardware_stream_buff_info_t *hw_strm_buff_info)
+{
+  int rc;
+  uint32_t i;
+  struct msm_camera_v4l2_ioctl_t v4l2_ioctl;
+  struct msm_cpp_stream_buff_info_t cpp_strm_buff_info;
+
+  if (NULL == hw_strm_buff_info) {
+    CDBG_ERROR("%s:%d] error hw_strm_buff_info:%p\n", __func__, __LINE__,
+      hw_strm_buff_info);
+    return -EINVAL;
+  }
+
+  /* Translate to msm stream buff list */
+   cpp_strm_buff_info.identity = hw_strm_buff_info->identity;
+   cpp_strm_buff_info.num_buffs = hw_strm_buff_info->num_buffs;
+   cpp_strm_buff_info.buffer_info =
+     malloc(sizeof(struct msm_cpp_buffer_info_t) *
+     hw_strm_buff_info->num_buffs);
+   if (NULL == cpp_strm_buff_info.buffer_info) {
+     CDBG_ERROR("%s:%d] error allocating buffer info\n", __func__, __LINE__);
+     return -ENOMEM;
+   }
+
+   for (i = 0; i < cpp_strm_buff_info.num_buffs; i++) {
+     cpp_strm_buff_info.buffer_info[i].fd =
+       hw_strm_buff_info->buffer_info[i].fd;
+     cpp_strm_buff_info.buffer_info[i].index =
+       hw_strm_buff_info->buffer_info[i].index;
+     cpp_strm_buff_info.buffer_info[i].native_buff =
+       hw_strm_buff_info->buffer_info[i].native_buff;
+     cpp_strm_buff_info.buffer_info[i].offset =
+       hw_strm_buff_info->buffer_info[i].offset;
+     cpp_strm_buff_info.buffer_info[i].processed_divert =
+       hw_strm_buff_info->buffer_info[i].processed_divert;
+   }
+
+   /* note: make sure to unlock this on each return path */
+   PTHREAD_MUTEX_LOCK(&(cpphw->mutex));
+
+   v4l2_ioctl.len = sizeof(cpp_strm_buff_info);
+   v4l2_ioctl.ioctl_ptr = (void *)&cpp_strm_buff_info;
+   rc = ioctl(cpphw->subdev_fd, VIDIOC_MSM_CPP_APPEND_STREAM_BUFF_INFO,
+     &v4l2_ioctl);
+   free(cpp_strm_buff_info.buffer_info);
+   if (rc < 0) {
+     CDBG_ERROR("%s:%d: v4l2 ioctl() failed, rc=%d\n", __func__, __LINE__, rc);
+     PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
+     return -EIO;
+   }
+   PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
+
+   return 0;
+}
+
+
 /* cpp_hardware_process_streamon:
  *
  **/
@@ -408,10 +553,28 @@ int32_t cpp_hardware_process_streamon(cpp_hardware_t *cpphw,
 {
   int rc;
   uint32_t i;
-  struct msm_camera_v4l2_ioctl_t v4l2_ioctl;
+  struct msm_camera_v4l2_ioctl_t v4l2_ioctl, v4l2_ioctl_iommu;
   struct msm_cpp_stream_buff_info_t cpp_strm_buff_info;
-
+  struct msm_camera_smmu_attach_type cpp_attach_info;
   CDBG("%s:%d, streaming on\n", __func__, __LINE__);
+  PTHREAD_MUTEX_LOCK(&(cpphw->mutex));
+  if (cpphw->num_iommu_cnt == 0) {
+    cpp_attach_info.attach = NON_SECURE_MODE;
+    v4l2_ioctl_iommu.len = sizeof(cpp_attach_info);
+    v4l2_ioctl_iommu.ioctl_ptr = (void*)&cpp_attach_info;
+    rc = ioctl(cpphw->subdev_fd, VIDIOC_MSM_CPP_IOMMU_ATTACH,
+               &v4l2_ioctl_iommu);
+    if (rc < 0) {
+      CDBG_ERROR("%s:%d: IOMMMU Attach v4l2 ioctl() failed, rc=%d\n",
+        __func__, __LINE__, rc);
+      PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
+      return -EIO;
+    }
+    cpphw->num_iommu_cnt++;
+  } else
+    cpphw->num_iommu_cnt++;
+
+  PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
   if (NULL == hw_strm_buff_info) {
     CDBG_ERROR("%s:%d] error hw_strm_buff_info:%p\n", __func__, __LINE__,
       hw_strm_buff_info);
@@ -479,7 +642,8 @@ int32_t cpp_hardware_process_streamoff(cpp_hardware_t *cpphw,
   cpp_hardware_streamoff_event_t streamoff_data)
 {
   int rc, i;
-  struct msm_camera_v4l2_ioctl_t v4l2_ioctl;
+  struct msm_camera_v4l2_ioctl_t v4l2_ioctl, v4l2_ioctl_iommu;
+  struct msm_camera_smmu_attach_type cpp_attach_info;
 
   CDBG("%s:%d, identity=0x%x", __func__, __LINE__,
     streamoff_data.streamoff_identity);
@@ -505,7 +669,7 @@ int32_t cpp_hardware_process_streamoff(cpp_hardware_t *cpphw,
   cpp_hardware_stream_status_t* duplicate_stream_status =
     cpp_hardware_get_stream_status(cpphw,
     streamoff_data.duplicate_identity);
-  CDBG_ERROR("%s:%d] skip_iden:0x%x, duplicate_stream_status:%p\n",
+  CDBG("%s:%d] skip_iden:0x%x, duplicate_stream_status:%p\n",
     __func__, __LINE__, streamoff_data.duplicate_identity,
     duplicate_stream_status);
 
@@ -535,6 +699,28 @@ int32_t cpp_hardware_process_streamoff(cpp_hardware_t *cpphw,
   }
   CDBG("%s:%d, hw stream off done. identity=0x%x\n", __func__, __LINE__,
     streamoff_data.streamoff_identity);
+  PTHREAD_MUTEX_LOCK(&(cpphw->mutex));
+  if (cpphw->num_iommu_cnt > 0) {
+    cpphw->num_iommu_cnt--;
+  } else {
+    CDBG_ERROR("%s: INVALID IOMMU cnt=%d\n",__func__, cpphw->num_iommu_cnt);
+    PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
+    return -EIO;
+  }
+  if (cpphw->num_iommu_cnt == 0) {
+    cpp_attach_info.attach = NON_SECURE_MODE;
+    v4l2_ioctl_iommu.ioctl_ptr = (void*)&cpp_attach_info;
+    v4l2_ioctl_iommu.len = sizeof(cpp_attach_info);
+    rc = ioctl(cpphw->subdev_fd, VIDIOC_MSM_CPP_IOMMU_DETACH,
+               &v4l2_ioctl_iommu);
+    if (rc < 0) {
+      CDBG_ERROR("%s:%d: IOMMMU detach v4l2 ioctl() failed, rc=%d\n",
+        __func__, __LINE__, rc);
+      PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
+      return -EIO;
+    }
+  }
+  PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
   return 0;
 }
 
@@ -586,7 +772,7 @@ static int32_t cpp_hardware_notify_event_get_data(cpp_hardware_t *cpphw,
 {
   int rc;
   struct msm_cpp_frame_info_t frame;
-
+  ATRACE_INT("Camera:CPP",0);
   if(!event_data) {
     CDBG_ERROR("%s:%d: failed\n", __func__, __LINE__);
     return -EINVAL;
@@ -623,27 +809,12 @@ static int32_t cpp_hardware_notify_event_get_data(cpp_hardware_t *cpphw,
   CDBG_LOW("%s:%d, in_time=%ld.%ldus out_time=%ld.%ldus, ",
     __func__, __LINE__, frame.in_time.tv_sec, frame.in_time.tv_usec,
     frame.out_time.tv_sec, frame.out_time.tv_usec);
-  CDBG_PROFILE("%s:%d, processing time = %6ld us, ", __func__, __LINE__,
+  CDBG("%s:%d, processing time = %6ld us,frame_id=%d,input_buf_idx=%d,"
+    "output_buf_idx = %d,identity = 0x%x",
+    __func__, __LINE__,
     (frame.out_time.tv_sec - frame.in_time.tv_sec)*1000000L +
-    (frame.out_time.tv_usec - frame.in_time.tv_usec));
-
-  /* update hardware stream_status */
-  cpp_hardware_stream_status_t *stream_status =
-    cpp_hardware_get_stream_status(cpphw, frame.identity);
-  if (!stream_status) {
-    CDBG_ERROR("%s:%d: failed\n", __func__, __LINE__);
-    PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
-    return -EFAULT;
-  }
-  stream_status->pending_buf--;
-  /* send signal to thread which is waiting on stream_off
-     for pending buffer to be zero */
-  if (stream_status->stream_off_pending == TRUE &&
-    stream_status->pending_buf == 0) {
-    CDBG("%s:%d, info: sending broadcast for pending stream-off",
-      __func__, __LINE__);
-    pthread_cond_broadcast(&(cpphw->no_pending_cond));
-  }
+    (frame.out_time.tv_usec - frame.in_time.tv_usec),event_data->frame_id,
+    event_data->buf_idx,event_data->out_buf_idx,event_data->identity);
   PTHREAD_MUTEX_UNLOCK(&(cpphw->mutex));
   return 0;
 }
@@ -686,10 +857,24 @@ static void cpp_hardware_destroy_hw_frame(
   free(msm_cpp_frame_info);
 }
 
+/* cpp_hardware_get_fw_version:
+*
+* @cpphw: pointer to cpp_hardware_t that has info about CPP HW
+* Description:
+*     Returns firmware version
+* Return: int
+*     CPP firmware version
+**/
+uint32_t cpp_hardware_get_fw_version(cpp_hardware_t *cpphw)
+{
+  return cpphw->fw_version;
+}
+
 /* cpp_hardware_fill_bus_message_params:
  *
  **/
-static int32_t cpp_hardware_dump_metadata(cpp_hardware_params_t *hw_params,
+static int32_t cpp_hardware_dump_metadata(cpp_hardware_t *cpphw,
+  cpp_hardware_params_t *hw_params,
   struct msm_cpp_frame_info_t *msm_cpp_frame_info,
   struct cpp_frame_info_t *cpp_frame_info)
 {
@@ -701,6 +886,7 @@ static int32_t cpp_hardware_dump_metadata(cpp_hardware_params_t *hw_params,
   cpp_info_t             *cpp_meta_info;
   fe_config_t            *fe_config;
   cpp_module_hw_cookie_t *cookie;
+  uint32_t                component_revision_no = 0x0;
 
   if (!hw_params || !msm_cpp_frame_info) {
     CDBG_ERROR("%s:%d invalid params hw_params %p frame info %p\n",
@@ -787,6 +973,8 @@ static int32_t cpp_hardware_dump_metadata(cpp_hardware_params_t *hw_params,
   meta_data->entry[PPROC_META_DATA_CPP_IDX].gain =
     hw_params->aec_trigger.gain;
   meta_data->entry[PPROC_META_DATA_CPP_IDX].pproc_meta_dump = cpp_meta_info;
+  meta_data->entry[PPROC_META_DATA_CPP_IDX].component_revision_no =
+    cpp_hardware_get_fw_version(cpphw);
 
   meta_data->entry[PPROC_META_DATA_FE_IDX].dump_type =
     PPROC_META_DATA_FE;
@@ -850,9 +1038,10 @@ static int32_t cpp_hardware_process_frame(cpp_hardware_t *cpphw,
   }
 #endif
 
-  CDBG_ERROR("%s:%d] stream_status:%p, iden:0x%x, cur_frame_id:%d\n",
+  CDBG_HIGH("%s:%d] stream_status:%p, iden:0x%x, stream type: %d,"
+    "cur_frame_id:%d\n",
     __func__, __LINE__, stream_status,
-    stream_status->identity, hw_params->frame_id);
+    stream_status->identity, hw_params->stream_type,hw_params->frame_id);
 
   cpp_params_create_frame_info(hw_params, &cpp_frame_info);
 
@@ -868,6 +1057,7 @@ static int32_t cpp_hardware_process_frame(cpp_hardware_t *cpphw,
   cpp_frame_info.frame_type = MSM_CPP_REALTIME_FRAME;
   cpp_frame_info.plane_info[0].src_fd = hw_params->buffer_info.fd;
   cpp_frame_info.plane_info[1].src_fd = hw_params->buffer_info.fd;
+  cpp_frame_info.out_buff_info = hw_params->output_buffer_info;
   /* TODO: Removal of this member needs careful kernel/userspace dependency */
   cpp_frame_info.plane_info[0].dst_fd = -1;
   cpp_frame_info.plane_info[1].dst_fd = -1;
@@ -901,7 +1091,7 @@ static int32_t cpp_hardware_process_frame(cpp_hardware_t *cpphw,
   }
 
   /* Fill bus message params */
-  rc = cpp_hardware_dump_metadata(hw_params, msm_cpp_frame_info,
+  rc = cpp_hardware_dump_metadata(cpphw, hw_params, msm_cpp_frame_info,
     &cpp_frame_info);
   if (rc < 0) {
     CDBG_ERROR("%s:%d failed: cpp_hardware_fill_bus_message_params rc %d\n",
@@ -914,12 +1104,18 @@ static int32_t cpp_hardware_process_frame(cpp_hardware_t *cpphw,
   msm_cpp_frame_info->status = &status;
   v4l2_ioctl.ioctl_ptr = msm_cpp_frame_info;
   v4l2_ioctl.len = sizeof(struct msm_cpp_frame_info_t);
+  ATRACE_INT("Camera:CPP",1);
   rc = ioctl(cpphw->subdev_fd, VIDIOC_MSM_CPP_CFG, &v4l2_ioctl);
   if (rc < 0) {
-    CDBG_ERROR("%s:%d, v4l2 ioctl() failed. rc:%d, trans_code:%d\n", __func__,
-      __LINE__, rc, *msm_cpp_frame_info->status);
+    CDBG_ERROR("%s:%d, v4l2 ioctl() failed. rc:%d, trans_code:%d, "
+               "frame_id=%d, identity=0x%x, stream type: %d\n",
+               __func__,__LINE__, rc,
+               *msm_cpp_frame_info->status,
+                msm_cpp_frame_info->frame_id,
+                msm_cpp_frame_info->identity,
+                hw_params->stream_type);
     if (*msm_cpp_frame_info->status == -EAGAIN) {
-      CDBG_ERROR("%s:%d] drop this frame\n", __func__, __LINE__);
+      CDBG("%s:%d] drop this frame\n", __func__, __LINE__);
       rc = -EAGAIN;
     }
     cpp_hardware_destroy_hw_frame(msm_cpp_frame_info);
@@ -932,10 +1128,14 @@ static int32_t cpp_hardware_process_frame(cpp_hardware_t *cpphw,
            msm_cpp_frame_info->input_buffer_info.index,
            msm_cpp_frame_info->identity);
 
-  /* TODO: check whether diagostics is enabled and then update params */
   /* Copy the current diagnostics parameters */
-  cpp_hw_params_copy_asf_diag_params(&cpp_frame_info, &hw_params->asf_diag);
-  cpp_hw_params_copy_wnr_diag_params(&cpp_frame_info, &hw_params->wnr_diag);
+  if(hw_params->diagnostic_enable)
+  {
+    if(hw_params->ez_tune_asf_enable)
+      cpp_hw_params_copy_asf_diag_params(&cpp_frame_info, &hw_params->asf_diag);
+    if(hw_params->ez_tune_wnr_enable)
+      cpp_hw_params_copy_wnr_diag_params(&cpp_frame_info, &hw_params->wnr_diag);
+  }
 
   cpp_hardware_destroy_hw_frame(msm_cpp_frame_info);
 
@@ -990,6 +1190,10 @@ static int32_t cpp_hardware_find_subdev(cpp_hardware_t *cpphw)
   while(1) {
     snprintf(name, sizeof(name), "/dev/media%d", i);
     fd = open(name, O_RDWR | O_NONBLOCK);
+    if (fd >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      fd = -1;
+    }
     if(fd < 0) {
       CDBG_LOW("%s:%d: no more media devices\n", __func__, __LINE__);
       break;

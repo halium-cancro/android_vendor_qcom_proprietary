@@ -16,7 +16,11 @@ typedef struct _mct_event_stats_gyro {
 
 #define MCT_MESH_ROLL_OFF_V4_TABLE_SIZE (13*10)
 
+#ifdef AF_2X13_FILTER_SUPPORT
+#define MAX_HPF_COEFF 26
+#else
 #define MAX_HPF_COEFF 10
+#endif
 
 typedef struct _mct_event_stats_isp_data {
   enum msm_isp_stats_type stats_type;
@@ -130,6 +134,7 @@ typedef struct {
   int led_state;
   boolean prep_snap_no_led;
   int use_led_estimation;
+  int aec_flash_settled;
   unsigned int luma_settled_cnt;
   unsigned int *SY;
   aec_led_est_state_t est_state;
@@ -148,7 +153,59 @@ typedef struct {
   float led_off_gain;
   unsigned int led_off_linecnt;
   boolean nightshot_detected;
+  boolean hdr_indoor_detected;
+  int metering_type;
+  /*TDB : Apex information*/
+  float Tv;
+  float Sv;
+  float Av;
+  float Bv;
+  float Ev;
 }aec_update_t;
+
+typedef struct _af_output_mobicat_data {
+  int          peak_location_index;
+  uint16_t     roi_left;
+  uint16_t     roi_top;
+  uint16_t     roi_width;
+  uint16_t     roi_height;
+  int          grid_info_h_num;
+  int          grid_info_v_num;
+  uint32_t     r_fv_min;
+  uint32_t     gr_fv_min;
+  uint32_t     gb_fv_min;
+  uint32_t     b_fv_min;
+  int          hpf[10];
+  int          mode;
+  int          status;
+  int          far_end;
+  int          near_end;
+  int          hyp_pos;
+  int          state;
+  int          stats_index;
+  int          stats_pos;
+  int          stats_fv[50];
+  int          stats_max_fv;
+  int          stats_min_fv;
+  int          frame_delay;
+  int          enable_multiwindow;
+  int          Mwin[14];
+  int          num_downhill;
+  int          caf_state;
+  uint32_t     cur_luma;
+  int          exp_index;
+  unsigned int luma_settled_cnt;
+  int          ave_fv;
+  int          caf_panning_unstable_cnt;
+  int          caf_panning_stable_cnt;
+  int          caf_panning_stable;
+  int          caf_sad_change;
+  int          caf_exposure_change;
+  int          caf_luma_chg_during_srch;
+  int          caf_trig_refocus;
+  int          caf_gyro_assisted_panning;
+} af_output_mobicat_data_t;
+
 
 typedef struct {
   uint32_t h_num;
@@ -248,6 +305,8 @@ typedef struct {
   int ccm_flag;
   float cur_ccm[3][3];
   awb_dual_led_settings_t dual_led_setting;
+  int decision;
+  int gains_restored;
 }awb_update_t;
 
 typedef enum {
@@ -329,6 +388,24 @@ typedef enum {
   STATS_CONFIG_MODE_MULTIPLE,
 } mct_event_stats_config_type;
 
+/** mct_stats_hpf_size:
+ *  */
+typedef enum _mct_stats_hpf_size {
+  MCT_EVENT_STATS_HPF_LEGACY,
+  MCT_EVENT_STATS_HPF_2X5,
+  MCT_EVENT_STATS_HPF_2X13
+} mct_stats_hpf_size_type;
+
+/**mct_stats_info_t: Used by ISP to report the supported stats.
+ *
+ * @kernel_size: isp will tell us which kenrel size to be configured
+ *
+ *
+ **/
+typedef struct mct_stats_info_t {
+  mct_stats_hpf_size_type kernel_size;
+} mct_stats_info_t;
+
 /**af_config_t: Information required to configure AF stats.
  *
  * @roi_type: configure single roi or whole region
@@ -362,6 +439,7 @@ typedef struct _mct_event_stats_isp {
   struct timeval timestamp;
   uint32_t frame_id;
   uint32_t stats_mask;
+  boolean is_tintless_data;
   mct_event_stats_isp_data_t stats_data[MSM_ISP_STATS_MAX];
   stats_config_t stats_config;
 } mct_event_stats_isp_t;
@@ -377,9 +455,6 @@ typedef enum _mct_event_stats_type {
   MCT_EVENT_STATS_ISP_STATS_CFG,     /* config stats */
   MCT_EVENT_STATS_ISP_STATS_ENABLE,  /* enable stats */
   MCT_EVENT_STATS_ISP_STATS,         /* isp parsed stats */
-  MCT_EVENT_STATS_AEC_REQUEST,
-  MCT_EVENT_STATS_AWB_REQUEST,
-  MCT_EVENT_STATS_AF_REQUEST,
   MCT_EVENT_STATS_STATS_MAX
 } mct_event_stats_type;
 

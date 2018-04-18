@@ -74,7 +74,7 @@ static boolean c2d_port_check_caps_reserve(mct_port_t *port, void *peer_caps,
   int rc;
   session_id = C2D_GET_SESSION_ID(identity);
   stream_id = C2D_GET_STREAM_ID(identity);
-  CDBG_HIGH("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
+  CDBG("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
 
   if(port_data->num_streams >= C2D_MAX_STREAMS_PER_PORT) {
     CDBG_ERROR("%s:%d, failed. max streams reached, num=%d",
@@ -151,7 +151,7 @@ static boolean c2d_port_check_caps_reserve(mct_port_t *port, void *peer_caps,
   /* notify the parent module about this new stream, once for the sink port */
   if(port->direction == MCT_PORT_SINK) {
     mct_module_t* module = (mct_module_t*)(MCT_PORT_PARENT(port)->data);
-    rc = c2d_module_notify_add_stream(module, port, stream_info);
+    rc = c2d_module_notify_add_stream(module, port, stream_info, peer_caps);
     if(rc < 0) {
       CDBG_ERROR("%s:%d, failed, unexpected error!", __func__, __LINE__);
       return FALSE;
@@ -167,7 +167,7 @@ static boolean c2d_port_check_caps_unreserve(mct_port_t *port,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return FALSE;
   }
-  CDBG_HIGH("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
+  CDBG("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
   c2d_port_data_t *port_data = (c2d_port_data_t *) MCT_OBJECT_PRIVATE(port);
   int i, rc;
   for(i=0; i<C2D_MAX_STREAMS_PER_PORT; i++) {

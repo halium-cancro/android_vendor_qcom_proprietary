@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "clamp32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_CLAMP_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 /** clamp_cmd_debug:
@@ -20,9 +21,9 @@
  **/
 static void clamp_cmd_debug(ISP_OutputClampConfigCmdType *cmd)
 {
-  CDBG("%s: ChanMax y = %d, cb = %d, cr = %d\n", __func__, cmd->yChanMax,
+  ISP_DBG(ISP_MOD_CLAMP, "%s: ChanMax y = %d, cb = %d, cr = %d\n", __func__, cmd->yChanMax,
     cmd->cbChanMax, cmd->crChanMax);
-  CDBG("%s: ChanMin y = %d, cb = %d, cr = %d\n", __func__, cmd->yChanMin,
+  ISP_DBG(ISP_MOD_CLAMP, "%s: ChanMin y = %d, cb = %d, cr = %d\n", __func__, cmd->yChanMin,
     cmd->cbChanMin, cmd->crChanMin);
 } /* clamp_cmd_debug */
 
@@ -154,7 +155,7 @@ static int clamp_do_hw_update(isp_clamp_mod_t *clamp_mod)
 static int clamp_config(isp_clamp_mod_t *mod,
   isp_hw_pix_setting_params_t *in_params, uint32_t in_param_size)
 {
-  CDBG("%s: enter", __func__);
+  ISP_DBG(ISP_MOD_CLAMP, "%s: enter", __func__);
   chromatix_parms_type *chroma_ptr =
     (chromatix_parms_type *)in_params->chromatix_ptrs.chromatixPtr;
 
@@ -308,7 +309,7 @@ isp_ops_t *clamp32_open(uint32_t version)
 {
   isp_clamp_mod_t *mod = malloc(sizeof(isp_clamp_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_CLAMP, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

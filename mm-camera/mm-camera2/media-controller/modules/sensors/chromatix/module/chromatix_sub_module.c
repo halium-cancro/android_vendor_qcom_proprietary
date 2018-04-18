@@ -1,6 +1,6 @@
 /* chromatix_sub_module.c
  *
- * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -105,8 +105,8 @@ static int32_t chromatix_open_library(void *chromatix_ctrl, void *data)
   if (ctrl->chromatix_ptr) {
     memcpy(&ctrl->chromatixData, ctrl->chromatix_ptr,
       sizeof(chromatix_parms_type));
-  }
   SLOW("chromatix_version = %x", (int)ctrl->chromatix_ptr->chromatix_version);
+  }
 
 LOAD_CHROMATIX_COMMON:
 

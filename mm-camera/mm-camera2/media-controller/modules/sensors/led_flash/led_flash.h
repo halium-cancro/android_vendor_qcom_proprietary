@@ -36,13 +36,9 @@ typedef struct {
 typedef struct {
   int            fd;
   rer_cfg_t     *rer;
+  //int32_t flash_max_duration[MAX_LED_TRIGGERS];
+  //int32_t flash_max_current[MAX_LED_TRIGGERS];
   awb_dual_led_settings_t   *dual_led_setting;
-//Gionee <zhuangxiaojian> <2014-07-21> modify for CR01325046 begin
-#ifdef ORIGINAL_VERSION
-#else
-  cam_led_flash_burst_level  burst_level;
-#endif
-//Gionee <zhuangxiaojian> <2014-07-21> modify for CR01325046 end
 } sensor_led_flash_data_t;
 
 int32_t led_flash_rer_get_current(

@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -9,6 +9,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "module_denoise_lib.h"
 #include <media/msmb_generic_buf_mgr.h>
 #include "modules.h"
+#include "server_debug.h"
 
 static boolean module_denoise_port_set_chromatix_ptr_event(mct_port_t *port,
   mct_event_t *event, boolean *forward_event);
@@ -711,7 +712,7 @@ static boolean module_denoise_port_fill_buffer_handler(img_frame_t* img_frame,
 {
   boolean ret_val = FALSE;
   struct timeval timestamp;
-  int i;
+  uint32_t i;
 
   IDBG_MED("%s +", __func__);
 
@@ -784,6 +785,11 @@ static boolean module_denoise_port_get_bfr_mngr_subdev(int *buf_mgr_fd)
       int32_t num_entities = 1;
       snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
       dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
+      if (dev_fd >= MAX_FD_PER_PROCESS) {
+        dump_list_of_daemon_fd();
+        dev_fd = -1;
+        break;
+      }
       if (dev_fd < 0) {
         IDBG_MED("Enumerating media devices completed");
         break;
@@ -818,6 +824,11 @@ static boolean module_denoise_port_get_bfr_mngr_subdev(int *buf_mgr_fd)
           snprintf(subdev_name, sizeof(dev_name), "/dev/%s", entity.name);
 
           *buf_mgr_fd = open(subdev_name, O_RDWR);
+          if ((*buf_mgr_fd) >= MAX_FD_PER_PROCESS) {
+            dump_list_of_daemon_fd();
+            *buf_mgr_fd = -1;
+            continue;
+          }
           if (*buf_mgr_fd < 0) {
             CDBG_ERROR("Open subdev %s failed", subdev_name);
             continue;
@@ -861,7 +872,7 @@ static boolean module_denoise_port_find_buff(void *list_data,
   IDBG_LOW("%s +", __func__);
 
   if (img_buf && buff_index) {
-    if (*buff_index == img_buf->buf_index)
+    if (*buff_index == (int32_t)img_buf->buf_index)
       ret_val = TRUE;
   } else
     CDBG_ERROR("Null pointer detected in %s\n", __func__);
@@ -1155,11 +1166,17 @@ static void *module_denoise_port_get_metadata_buffer(
   IDBG_MED("%s +", __func__);
 
   if (port && MCT_PORT_PARENT(port) && event && info) {
-    ret_val = mct_module_get_buffer_ptr(
-      info->parm_buf.reprocess.meta_buf_index,
-      (MCT_PORT_PARENT(port))->data,
-      IMGLIB_SESSIONID(event->identity),
-      info->parm_buf.reprocess.meta_stream_handle);
+
+    if (info->reprocess_config.pp_type == CAM_ONLINE_REPROCESS_TYPE) {
+      ret_val = mct_module_get_buffer_ptr(
+        info->parm_buf.reprocess.meta_buf_index,
+        (MCT_PORT_PARENT(port))->data,
+        IMGLIB_SESSIONID(event->identity),
+        info->parm_buf.reprocess.meta_stream_handle);
+    } else {
+      ret_val = module_imglib_common_get_metadata(info,
+          info->parm_buf.reprocess.meta_buf_index);
+    }
   }
 
   IDBG_MED("%s -", __func__);
@@ -1434,7 +1451,7 @@ boolean module_denoise_port_check_config_list_buf_index(void *data1,
   boolean ret_val = FALSE;
   module_denoise_frame_config_t *frame_config =
     (module_denoise_frame_config_t *)data1;
-  int32_t *buff_index = (int32_t *)data2;
+  uint32_t *buff_index = (uint32_t *)data2;
 
   IDBG_MED("%s +", __func__);
 

@@ -8,13 +8,16 @@
 
 #include "mct_bus.h"
 #include "camera_dbg.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
 #if 0
 #undef CDBG
-#define CDBG ALOGE
+#define CDBG CDBG_ERROR
 #endif
 
 #define MCT_BUS_SOF_TIMEOUT 5000000000 /*in ns unit*/
+#define MCT_BUS_NANOSECOND_SCALER 1000000000
 #define MAX_MCT_BUS_QUEUE_LENGTH 1000
 static boolean mct_bus_queue_free(void *data, void *user_data)
 {
@@ -67,10 +70,36 @@ static int mct_bus_timeout_wait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 static void* mct_bus_sof_thread_run(void *data)
 {
   mct_bus_t *bus = (mct_bus_t *)data;
+  signed long long timeout =
+    (((signed long long)(bus->thread_wait_time)) * MCT_BUS_NANOSECOND_SCALER);
   int ret;
+  CDBG_ERROR("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  pthread_mutex_lock(&bus->bus_sof_init_lock);
+  pthread_cond_signal(&bus->bus_sof_init_cond);
+  pthread_mutex_unlock(&bus->bus_sof_init_lock);
+  bus->thread_run = 1;
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "mct_bus_thread", 0, 0, 0);
   while(bus->thread_run) {
     ret = mct_bus_timeout_wait(&bus->bus_sof_msg_cond,
-                         &bus->bus_sof_msg_lock, MCT_BUS_SOF_TIMEOUT);
+                         &bus->bus_sof_msg_lock, timeout);
+    if (ret == ETIMEDOUT) {
+      CDBG_ERROR("%s: Sending event to dump info for sof freeze\n", __func__);
+      break;
+    }
+  }
+  if (bus->thread_run == 1) {
+    /*Things went wrong*/
+    mct_bus_msg_t bus_msg;
+    bus_msg.type = MCT_BUS_MSG_NOTIFY_KERNEL;
+    bus_msg.size = 0;
+    bus_msg.sessionid = bus->session_id;
+    bus->post_msg_to_bus(bus, &bus_msg);
+  }
+
+  while(bus->thread_run) {
+    ret = mct_bus_timeout_wait(&bus->bus_sof_msg_cond,
+                         &bus->bus_sof_msg_lock, timeout);
     if (ret == ETIMEDOUT) {
       CDBG_ERROR("%s: SOF freeze; Sending error message\n", __func__);
       break;
@@ -88,20 +117,25 @@ static void* mct_bus_sof_thread_run(void *data)
 }
 static void start_sof_check_thread(mct_bus_t *bus)
 {
+  int rc = 0;
   if (bus->thread_run == 1)
     return;
-  ALOGE("%s: Starting SOF timeout thread\n", __func__);
-  bus->thread_run = 1;
+  CDBG_HIGH("%s: Starting SOF timeout thread\n", __func__);
   pthread_mutex_init(&bus->bus_sof_msg_lock, NULL);
   pthread_cond_init(&bus->bus_sof_msg_cond, NULL);
-  pthread_create(&bus->bus_sof_tid, NULL, mct_bus_sof_thread_run, bus);
+  pthread_mutex_lock(&bus->bus_sof_init_lock);
+  rc = pthread_create(&bus->bus_sof_tid, NULL, mct_bus_sof_thread_run, bus);
+  if(!rc) {
+    pthread_cond_wait(&bus->bus_sof_init_cond, &bus->bus_sof_init_lock);
+  }
+  pthread_mutex_unlock(&bus->bus_sof_init_lock);
 }
 
 static void stop_sof_check_thread(mct_bus_t *bus)
 {
   if (bus->thread_run == 0)
     return;
-  ALOGE("%s: Stopping SOF timeout thread\n", __func__);
+  CDBG_HIGH("%s: Stopping SOF timeout thread\n", __func__);
   bus->thread_run = 0;
   pthread_mutex_lock(&bus->bus_sof_msg_lock);
   pthread_cond_signal(&bus->bus_sof_msg_cond);
@@ -118,19 +152,17 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
   unsigned int payload_size;
 
   if (!bus_msg) {
-    ALOGE("%s:%d NULL ptr", __func__, __LINE__);
+    CDBG_ERROR("%s:%d NULL ptr", __func__, __LINE__);
     goto error_2;
   }
 
   if (bus->bus_queue->length > MAX_MCT_BUS_QUEUE_LENGTH) {
       pthread_mutex_lock(&bus->bus_msg_q_lock);
       mct_bus_queue_flush(bus);
-      ALOGE("%s : Discard the bus msg's that got stagnated in the queue\n",__func__);
+      CDBG_HIGH("%s : Discard the bus msg's that got stagnated in the queue\n",__func__);
       pthread_mutex_unlock(&bus->bus_msg_q_lock);
       return TRUE;
   }
-
-  CDBG("%s:type=%d", __func__, bus_msg->type);
 
   switch (bus_msg->type) {
     case MCT_BUS_MSG_ISP_SOF:
@@ -184,6 +216,9 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
    case MCT_BUS_MSG_SET_AF_STATE:
       payload_size = sizeof(int32_t);
       break;
+    case MCT_BUS_MSG_UPDATE_AF_FOCUS_POS:
+      payload_size = sizeof(cam_focus_pos_info_t);
+      break;
    case MCT_BUS_MSG_SET_AF_TRIGGER_ID:
       payload_size = sizeof(int32_t);
     case MCT_BUS_MSG_AUTO_SCENE_DECISION:
@@ -198,8 +233,27 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
    case MCT_BUS_MSG_AWB_INFO:
       payload_size = sizeof(cam_awb_params_t);
       break;
+    case MCT_BUS_MSG_AE_EXIF_DEBUG_INFO:
+       payload_size = sizeof(cam_ae_exif_debug_t);
+       break;
+    case MCT_BUS_MSG_AWB_EXIF_DEBUG_INFO:
+       payload_size = sizeof(cam_awb_exif_debug_t);
+       break;
+   case MCT_BUS_MSG_AF_EXIF_DEBUG_INFO:
+       payload_size = sizeof(cam_af_exif_debug_t);
+       break;
+   case MCT_BUS_MSG_ASD_EXIF_DEBUG_INFO:
+       payload_size = sizeof(cam_asd_exif_debug_t);
+       break;
+   case MCT_BUS_MSG_STATS_EXIF_DEBUG_INFO:
+       payload_size = sizeof(cam_stats_buffer_exif_debug_t);
+       break;
    case MCT_BUS_MSG_SENSOR_INFO:
       payload_size = sizeof(cam_sensor_params_t);
+      break;
+   case MCT_BUS_MSG_NOTIFY_KERNEL:
+      payload_size = 0;
+      post_msg = TRUE;
       break;
    case MCT_BUS_MSG_SEND_HW_ERROR:
       payload_size = 0;
@@ -209,6 +263,7 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
       pthread_mutex_unlock(&bus->bus_msg_q_lock);
       break;
    case MCT_BUS_MSG_SENSOR_STARTING:
+      bus->thread_wait_time = bus_msg->thread_wait_time;
       start_sof_check_thread(bus);
       return TRUE;
       break;
@@ -225,6 +280,7 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
    case MCT_BUS_MSG_AE_EZTUNING_INFO:
    case MCT_BUS_MSG_AWB_EZTUNING_INFO:
    case MCT_BUS_MSG_AF_EZTUNING_INFO:
+   case MCT_BUS_MSG_AF_MOBICAT_INFO:
       payload_size = bus_msg->size;
       break;
    case MCT_BUS_MSG_ISP_CHROMATIX_LITE:
@@ -234,13 +290,29 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
    case MCT_BUS_MSG_ISP_META:
       payload_size = bus_msg->size;
       break;
+   case MCT_BUS_MSG_FRAME_INVALID:
+      payload_size = sizeof(cam_frame_idx_range_t);
+      break;
    case MCT_BUS_MSG_SENSOR_META:
       payload_size = bus_msg->size;
+      break;
    case MCT_BUS_MSG_PREPARE_HDR_ZSL_DONE:
       payload_size = sizeof(cam_prep_snapshot_state_t);
       break;
    case MCT_BUS_MSG_REPROCESS_STAGE_DONE:
       payload_size = 0;
+      post_msg = TRUE;
+      break;
+   case MCT_BUS_MSG_SEND_EZTUNE_EVT:
+      payload_size = 0;
+      post_msg = TRUE;
+      break;
+   case MCT_BUS_MSG_PP_SET_META:
+      payload_size = bus_msg->size;
+      post_msg = TRUE;
+      break;
+   case MCT_BUS_MSG_WM_BUS_OVERFLOW_RECOVERY:
+      payload_size = bus_msg->size;
       post_msg = TRUE;
       break;
    default:
@@ -254,7 +326,7 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
   local_msg = malloc(sizeof(mct_bus_msg_t));
 
   if (!local_msg) {
-    ALOGE("%s:%d Can't allocate memory", __func__, __LINE__);
+    CDBG_ERROR("%s:%d Can't allocate memory", __func__, __LINE__);
     goto error_2;
   }
 
@@ -265,7 +337,7 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
   if (payload_size) {
     local_msg->msg = malloc(payload_size);
     if (!local_msg->msg) {
-      ALOGE("%s:%d Can't allocate memory", __func__, __LINE__);
+      CDBG_ERROR("%s:%d Can't allocate memory", __func__, __LINE__);
       goto error_1;
     }
     memcpy(local_msg->msg, bus_msg->msg, payload_size);
@@ -308,6 +380,8 @@ mct_bus_t *mct_bus_create(unsigned int session)
 
   memset(new_bus, 0 , sizeof(mct_bus_t));
   pthread_mutex_init(&new_bus->bus_msg_q_lock, NULL);
+  pthread_mutex_init(&new_bus->bus_sof_init_lock, NULL);
+  pthread_cond_init(&new_bus->bus_sof_init_cond, NULL);
 
   new_bus->bus_queue = mct_queue_new;
   if (!new_bus->bus_queue)
@@ -320,6 +394,8 @@ mct_bus_t *mct_bus_create(unsigned int session)
   return new_bus;
 
 busmsgq_error:
+  pthread_cond_destroy(&new_bus->bus_sof_init_cond);
+  pthread_mutex_destroy(&new_bus->bus_sof_init_lock);
   pthread_mutex_destroy(&new_bus->bus_msg_q_lock);
   free(new_bus);
   return NULL;
@@ -332,10 +408,15 @@ void mct_bus_destroy(mct_bus_t *bus)
     mct_queue_free_all(bus->bus_queue, mct_bus_queue_free);
   else
     free(bus->bus_queue);
+  bus->bus_queue = NULL;
+
   pthread_mutex_unlock(&bus->bus_msg_q_lock);
 
+  pthread_cond_destroy(&bus->bus_sof_init_cond);
+  pthread_mutex_destroy(&bus->bus_sof_init_lock);
   pthread_mutex_destroy(&bus->bus_msg_q_lock);
   free(bus);
+  bus = NULL;
   return;
 }
 

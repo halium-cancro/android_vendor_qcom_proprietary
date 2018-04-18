@@ -50,13 +50,23 @@ void module_chroma_flash_deinit(mct_module_t *p_mct_mod)
  **/
 mct_module_t *module_chroma_flash_init(const char *name)
 {
-  return module_imgbase_init(name,
-    IMG_COMP_GEN_FRAME_PROC,
-    "qcom.gen_frameproc",
-    NULL,
-    &g_caps,
-    "libmmcamera_chromaflash_lib.so",
-    CAM_QCOM_FEATURE_CHROMA_FLASH,
-    NULL);
+  //Get RAM size and disable features which are memory rich
+  struct sysinfo info;
+  sysinfo(&info);
+
+  IDBG_MED("%s: totalram = %ld, freeram = %ld ", __func__, info.totalram,
+    info.freeram);
+  if (info.totalram > RAM_SIZE_THRESHOLD_FOR_AOST) {
+    return module_imgbase_init(name,
+      IMG_COMP_GEN_FRAME_PROC,
+      "qcom.gen_frameproc",
+      NULL,
+      &g_caps,
+      "libmmcamera_chromaflash_lib.so",
+      CAM_QCOM_FEATURE_CHROMA_FLASH,
+      NULL);
+  } else {
+    return NULL;
+  }
 }
 

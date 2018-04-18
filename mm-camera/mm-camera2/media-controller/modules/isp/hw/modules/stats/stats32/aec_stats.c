@@ -6,11 +6,12 @@
 ============================================================================*/
 #include <unistd.h>
 #include "aec_stats.h"
+#include "isp_log.h"
 
 #if 0 /*TODO */
 #ifdef ENABLE_AEC_STATS_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 /*===========================================================================
@@ -20,19 +21,19 @@
  *==========================================================================*/
 vfe_status_t vfe_aec_stats_debug(aec_stats_t *aec_stats)
 {
-  CDBG("AEC statsconfig rgnHOffset %d\n",
+  ISP_DBG(ISP_MOD_STATS, "AEC statsconfig rgnHOffset %d\n",
     aec_stats->aec_stats_cmd.rgnHOffset);
-  CDBG("AEC statsconfig rgnVOffset %d\n",
+  ISP_DBG(ISP_MOD_STATS, "AEC statsconfig rgnVOffset %d\n",
     aec_stats->aec_stats_cmd.rgnVOffset);
-  CDBG("AEC statsconfig shiftBits  %d\n",
+  ISP_DBG(ISP_MOD_STATS, "AEC statsconfig shiftBits  %d\n",
     aec_stats->aec_stats_cmd.shiftBits);
-  CDBG("AEC statsconfig rgnWidth   %d\n",
+  ISP_DBG(ISP_MOD_STATS, "AEC statsconfig rgnWidth   %d\n",
     aec_stats->aec_stats_cmd.rgnWidth);
-  CDBG("AEC statsconfig rgnHeight  %d\n",
+  ISP_DBG(ISP_MOD_STATS, "AEC statsconfig rgnHeight  %d\n",
     aec_stats->aec_stats_cmd.rgnHeight);
-  CDBG("AEC statsconfig rgnHNum    %d\n",
+  ISP_DBG(ISP_MOD_STATS, "AEC statsconfig rgnHNum    %d\n",
     aec_stats->aec_stats_cmd.rgnHNum);
-  CDBG("AEC statsconfig rgnVNum    %d\n",
+  ISP_DBG(ISP_MOD_STATS, "AEC statsconfig rgnVNum    %d\n",
     aec_stats->aec_stats_cmd.rgnVNum);
   return VFE_SUCCESS;;
 } /* vfe_aec_stats_debug */
@@ -74,7 +75,7 @@ vfe_status_t vfe_aec_stats_config(int mod_id, void *stats_aec,
   vfe_status_t status = VFE_SUCCESS;
   uint32_t camif_window_w_t, camif_window_h_t;
   if (!mod->enable) {
-    CDBG("%s: AF not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: AF not enabled", __func__);
     return status;
   }
 
@@ -114,7 +115,7 @@ vfe_status_t vfe_aec_stats_enable(int mod_id, void *stats_aec,
   if (!IS_BAYER_FORMAT(params))
     enable = FALSE;
 
-  CDBG("%s: %d", __func__, enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: %d", __func__, enable);
 
   mod->enable = enable;
   params->moduleCfg->statsAeBgEnable = enable;

@@ -1,9 +1,11 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 #include "isp_buf_mgr.h"
 #include "mct_stream.h"
+#include "isp_log.h"
+#include "server_debug.h"
 #ifdef _ANDROID_
 #include <cutils/properties.h>
 #endif
@@ -105,7 +107,8 @@ static int isp_do_munmap_ion (int ion_fd, struct ion_fd_data *ion_info_fd,
 int isp_init_native_buffer(isp_frame_buffer_t *buf, int buf_idx,
   int ion_fd, cam_frame_len_offset_t *len_offset, int cached)
 {
-  int current_fd = -1, i;
+  int current_fd = -1;
+  uint32_t i;
   unsigned long current_addr = 0;
 
   memset(buf, 0, sizeof(isp_frame_buffer_t));
@@ -120,7 +123,7 @@ int isp_init_native_buffer(isp_frame_buffer_t *buf, int buf_idx,
     buf->ion_alloc[0].flags = 0;
   }
 
-  buf->ion_alloc[0].heap_mask = 0x1 << ION_IOMMU_HEAP_ID;
+  buf->ion_alloc[0].heap_id_mask = 0x1 << ION_IOMMU_HEAP_ID;
   buf->ion_alloc[0].align = 4096;
   current_addr = (unsigned long) isp_do_mmap_ion(ion_fd,
     &(buf->ion_alloc[0]), &(buf->fd_data[0]), &current_fd);
@@ -198,6 +201,7 @@ void isp_deinit_native_buffer(isp_frame_buffer_t *buf, int ion_fd)
  **/
 static int isp_generate_new_bufq_handle(isp_buf_mgr_t *buf_mgr, int index)
 {
+  buf_mgr->bufq_handle_count &= 0x0000FFFF;
   if (buf_mgr->bufq_handle_count == 0)
     buf_mgr->bufq_handle_count = 1;
   return buf_mgr->bufq_handle_count++ << ISP_BUFQ_HANDLE_SHIFT | index;
@@ -245,6 +249,7 @@ static void isp_free_bufq_handle(isp_buf_mgr_t *buf_mgr, isp_bufq_t *bufq)
   bufq->open_cnt = 0;
   bufq->use_native_buf = 0;
   bufq->buf_type = MAX_ISP_BUF_TYPE;
+  buf_mgr->bufq_handle_count--;
   memset(bufq->image_buf, 0, sizeof(isp_frame_buffer_t)*ISP_MAX_IMG_BUF);
   bufq->used = 0;
   memset(bufq->vfe_fds, 0, sizeof(int)*2) ;
@@ -258,7 +263,7 @@ static void isp_free_bufq_handle(isp_buf_mgr_t *buf_mgr, isp_bufq_t *bufq)
  **/
 static boolean isp_init_hal_buffer(void *data, void *user_data)
 {
-  int i;
+  uint32_t i;
   find_map_buf_t *map_buf = (find_map_buf_t *)user_data;
   mct_stream_map_buf_t *img_buf = (mct_stream_map_buf_t *)data;
   struct v4l2_buffer *v4l2_buf = NULL;
@@ -300,7 +305,7 @@ static int isp_validate_buf_request(isp_buf_mgr_t *buf_mgr,
       __func__, bufq_handle);
     return -1;
   }
-  CDBG("%s: bufq %p, bufq_handle %x, stream_id %d,"
+  ISP_DBG(ISP_MOD_COM,"%s: bufq %p, bufq_handle %x, stream_id %d,"
     "img_buf_list %p, buf_mgr %p\n", __func__, bufq, bufq_handle,
     buf_request->stream_id, buf_request->img_buf_list, buf_mgr);
 
@@ -322,7 +327,7 @@ static int isp_validate_buf_request(isp_buf_mgr_t *buf_mgr,
       isp_init_hal_buffer, (void *)&map_buf);
     pthread_mutex_unlock(&bufq->mutex);
     buf_request->current_num_buf = map_buf.cnt;
-    CDBG("%s: old count %d new count %d\n", __func__, bufq->current_num_buffer,
+    ISP_DBG(ISP_MOD_COM,"%s: old count %d new count %d\n", __func__, bufq->current_num_buffer,
       buf_request->current_num_buf);
   }
 
@@ -372,7 +377,7 @@ static int isp_request_kernel_bufq(isp_buf_mgr_t *buf_mgr,
   bufq_request.num_buf = bufq->total_num_buffer;
   bufq_request.buf_type = bufq->buf_type;
 
-  CDBG("%s: stream_id %d total_num_buf %d current %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: stream_id %d total_num_buf %d current %d\n", __func__,
     bufq_request.stream_id, bufq_request.num_buf, bufq->current_num_buffer);
   rc = ioctl(vfe_fd, VIDIOC_MSM_ISP_REQUEST_BUF, &bufq_request);
   if (rc < 0 || !bufq_request.handle) {
@@ -421,7 +426,7 @@ static int isp_queue_buf_list_update(isp_buf_mgr_t *buf_mgr, isp_bufq_t *bufq,
   int rc = 0, i;
   uint32_t dirty_buf = 0;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   /*if vfe_fd is zero update buffer list to any of available hw*/
   pthread_mutex_lock(&bufq->mutex);
   if (vfe_fd <= 0) {
@@ -441,7 +446,7 @@ static int isp_queue_buf_list_update(isp_buf_mgr_t *buf_mgr, isp_bufq_t *bufq,
   /*Re-iterate through entire image_buf array and enque the newly added
     buffers to kernel*/
   for (i = 0; i < bufq->current_num_buffer; i++) {
-    CDBG("%s: buffer %lx buf_idx %d is reg = %d\n", __func__,
+    ISP_DBG(ISP_MOD_COM,"%s: buffer %lx buf_idx %d is reg = %d\n", __func__,
       bufq->image_buf[i].buffer.m.userptr, i, bufq->image_buf[i].is_reg);
     if (!bufq->image_buf[i].is_reg) {
       rc = isp_queue_buf_int(buf_mgr, bufq->user_bufq_handle, i, dirty_buf,
@@ -455,7 +460,7 @@ static int isp_queue_buf_list_update(isp_buf_mgr_t *buf_mgr, isp_bufq_t *bufq,
   }
 end:
   pthread_mutex_unlock(&bufq->mutex);
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -485,6 +490,26 @@ static int isp_queue_buf_all(isp_buf_mgr_t *buf_mgr,
   return 0;
 }
 
+/** isp_copy_planes_from_v4l2_buffer
+ *    @qbuf_buf: target isp qbuf buffer
+ *    @v4l2_buf: source v4l2 buffer
+ *
+ * Copies planes info from V4L2 buffer to isp queue buffer
+ *
+ * Return: None
+ *
+ **/
+static void isp_copy_planes_from_v4l2_buffer(
+  struct msm_isp_qbuf_buffer *qbuf_buf, const struct v4l2_buffer *v4l2_buf)
+{
+  unsigned int i;
+  qbuf_buf->num_planes = v4l2_buf->length;
+  for (i = 0; i < qbuf_buf->num_planes; i++) {
+    qbuf_buf->planes[i].addr = v4l2_buf->m.planes[i].m.userptr;
+    qbuf_buf->planes[i].offset = v4l2_buf->m.planes[i].data_offset;
+  }
+}
+
 /** isp_queue_buf_int
  *
  * DESCRIPTION:
@@ -510,7 +535,8 @@ static int isp_queue_buf_int(isp_buf_mgr_t *buf_mgr,
 
   qbuf_info.handle = bufq->kernel_bufq_handle;
   qbuf_info.buf_idx = buf_idx;
-  qbuf_info.buffer = bufq->image_buf[buf_idx].buffer;
+  isp_copy_planes_from_v4l2_buffer(&qbuf_info.buffer,
+    &(bufq->image_buf[buf_idx].buffer));
   qbuf_info.dirty_buf = dirty_buf;
 
   rc = ioctl(vfe_fd, VIDIOC_MSM_ISP_ENQUEUE_BUF, &qbuf_info);
@@ -714,7 +740,7 @@ int isp_register_buf_list_update(isp_buf_mgr_t *buf_mgr,
   isp_bufq_t *bufq;
   int rc = 0;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   bufq = ISP_GET_BUFQ(buf_mgr, bufq_handle);
   if (!bufq) {
     CDBG_ERROR("%s: cannot find bufq with handle 0x%x\n",
@@ -737,7 +763,7 @@ int isp_register_buf_list_update(isp_buf_mgr_t *buf_mgr,
   }
 
 queue_buf_error:
-  CDBG("%s: X,rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X,rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -960,6 +986,12 @@ int isp_open_buf_mgr(isp_buf_mgr_t *buf_mgr)
   }
 
   buf_mgr->ion_fd = open("/dev/ion", O_RDONLY | O_SYNC);
+  if (buf_mgr->ion_fd >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    buf_mgr->ion_fd = -1;
+    pthread_mutex_unlock(&buf_mgr->mutex);
+    return -1;
+  }
 
   if (buf_mgr->ion_fd < 0) {
     CDBG_ERROR("%s: ion open failed\n", __func__);
@@ -1047,6 +1079,11 @@ int isp_open_ion(void)
   int fd;
 
   fd = open("/dev/ion", O_RDONLY | O_SYNC);
+  if (fd >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    fd = -1;
+    return -1;
+  }
   return fd;
 }
 

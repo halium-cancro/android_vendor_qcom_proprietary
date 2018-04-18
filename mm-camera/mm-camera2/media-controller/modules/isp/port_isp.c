@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -21,6 +21,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_hw.h"
 #include "isp.h"
 #include "isp_util.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -54,11 +55,11 @@ static boolean port_isp_send_event_to_peer(void *data1, void *user_data)
   uint32_t identity;
   boolean rc = FALSE;
 
-  CDBG("%s: E, event type %d direction %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: E, event type %d direction %d\n", __func__,
        event->type, event->direction);
   if (isp_port->state == ISP_PORT_STATE_CREATED) {
     /* not used port */
-    CDBG("%s: X\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
     return TRUE;
   }
   if (mct_port->direction == MCT_PORT_SINK) {
@@ -68,7 +69,7 @@ static boolean port_isp_send_event_to_peer(void *data1, void *user_data)
     isp_src_port_t *src_port = &isp_port->u.src_port;
     streams = src_port->streams;
   } else {
-    CDBG("%s: X\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
     return TRUE;
   }
 
@@ -87,7 +88,7 @@ static boolean port_isp_send_event_to_peer(void *data1, void *user_data)
     }
     break;
   }
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
   return TRUE;
 }
 
@@ -103,7 +104,7 @@ static boolean port_isp_send_event_to_peer(void *data1, void *user_data)
 static boolean port_isp_forward_event_to_peer(isp_t *isp, mct_port_t *mct_port,
   mct_event_t *event)
 {
-  CDBG("%s: E, direction %d\n", __func__, mct_port->direction);
+  ISP_DBG(ISP_MOD_COM,"%s: E, direction %d\n", __func__, mct_port->direction);
   /* if receive from sink forward to src's peer */
   if (mct_port->direction == MCT_PORT_SINK)
     return mct_list_traverse(isp->module->srcports,
@@ -133,7 +134,7 @@ int port_isp_send_streamon_done_event_downstream(isp_t *isp, mct_port_t *port,
 {
   boolean rc = TRUE;
   mct_event_t streamon_done;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   isp_session_t *session =
     isp_util_find_session(isp, UNPACK_SESSION_ID(event->identity));
 
@@ -160,7 +161,7 @@ int port_isp_send_streamon_done_event_downstream(isp_t *isp, mct_port_t *port,
   streamon_done.timestamp = event->timestamp;
   streamon_done.u.module_event.type = MCT_EVENT_MODULE_ISP_STREAMON_DONE;
   rc = port_isp_forward_event_to_peer(isp, port, &streamon_done);
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d\n", __func__, rc);
 
   return (rc == TRUE) ? 0 : -1;
 }
@@ -177,7 +178,7 @@ int port_isp_send_streamon_done_event_downstream(isp_t *isp, mct_port_t *port,
 static  boolean port_isp_redirect_stats_event_to_frame_port(isp_t *isp,
   mct_port_t *mct_port, mct_event_t *event)
 {
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   isp_stream_t *stream = isp_util_find_stream(isp,
     UNPACK_SESSION_ID(event->identity),
     UNPACK_STREAM_ID(event->identity));
@@ -210,7 +211,7 @@ static  boolean port_isp_redirect_stats_event_to_frame_port(isp_t *isp,
 static  boolean port_isp_redirect_frame_port_event_to_stats_port(isp_t *isp,
   mct_port_t *mct_port, mct_event_t *event)
 {
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   isp_stream_t *stream = isp_util_find_stream(isp,
     UNPACK_SESSION_ID(event->identity),
     UNPACK_STREAM_ID(event->identity));
@@ -247,10 +248,10 @@ static boolean port_isp_mct_ctrl_cmd(mct_port_t *port, mct_event_t *event)
   isp_port_t *tmp_port = (isp_port_t *)port->port_private;
   isp_t *isp = (isp_t *)tmp_port->isp;
 
-  CDBG("%s: E, type=%d", __func__, ctrl->type);
+  ISP_DBG(ISP_MOD_COM,"%s: E, type=%d", __func__, ctrl->type);
   switch (ctrl->type) {
   case MCT_EVENT_CONTROL_STREAMON_FOR_FLASH: {
-    CDBG_HIGH("%s: E, identity = 0x%x, STREAMON\n",
+    ISP_DBG(ISP_MOD_COM,"%s: E, identity = 0x%x, STREAMON\n",
       __func__, event->identity);
     if (FALSE == port_isp_forward_event_to_peer(
              isp, port, event)){
@@ -381,7 +382,7 @@ static boolean port_isp_mct_ctrl_cmd(mct_port_t *port, mct_event_t *event)
   }
     break;
   }
-  CDBG("%s: X, ret %d\n", __func__, ret);
+  ISP_DBG(ISP_MOD_COM,"%s: X, ret %d\n", __func__, ret);
   return ((ret == 0) ? TRUE : FALSE);
 }
 
@@ -404,10 +405,14 @@ static boolean port_isp_module_event(mct_port_t *port,
   isp_port_t *tmp_port = (isp_port_t *)port->port_private;
   isp_t *isp = (isp_t *)tmp_port->isp;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   switch (mod_event->type) {
+  case MCT_EVENT_MODULE_ISP_RESTART:
+    ret = isp_util_proc_restart(isp, UNPACK_SESSION_ID(event->identity),
+                                (uint32_t *)mod_event->module_event_data);
+    break;
   case MCT_EVENT_MODULE_IFACE_SET_STREAM_CONFIG: {
-    CDBG_HIGH("%s: E, identity = 0x%x, IFACE_SET_STREAM_CONFIG\n",
+    ISP_DBG(ISP_MOD_COM,"%s: E, identity = 0x%x, IFACE_SET_STREAM_CONFIG\n",
       __func__, event->identity);
     ret = isp_sink_port_stream_config(isp, tmp_port,
             (ispif_src_port_stream_cfg_t *)mod_event->module_event_data);
@@ -415,7 +420,7 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_ISP_META_CONFIG: {
-    CDBG_HIGH("%s: received meta data config, identity = 0x%x\n",
+    ISP_DBG(ISP_MOD_COM,"%s: received meta data config, identity = 0x%x\n",
       __func__, event->identity);
     ret = isp_meta_channel_config(isp,
       UNPACK_STREAM_ID(event->identity),
@@ -471,7 +476,7 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_SET_AF_ROLLOFF_PARAMS: {
-    CDBG("%s: received Rolloff Tables Infinity\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: received Rolloff Tables Infinity\n", __func__);
     ret = isp_set_af_rolloff_params(isp, tmp_port,
             UNPACK_SESSION_ID(event->identity),
             UNPACK_STREAM_ID(event->identity), mod_event->module_event_data);
@@ -479,7 +484,7 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_SENSOR_LENS_POSITION_UPDATE: {
-    CDBG("%s: recevied AF Update from Sensor\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: recevied AF Update from Sensor\n", __func__);
     ret = isp_set_sensor_lens_position_trigger_update(isp, tmp_port,
             UNPACK_SESSION_ID(event->identity),
             UNPACK_STREAM_ID(event->identity), mod_event->module_event_data);
@@ -487,14 +492,14 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_SET_FLASH_MODE:
-    CDBG("%s: received flash trigger\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: received flash trigger\n", __func__);
     ret = isp_set_flash_mode(isp, tmp_port,
             UNPACK_SESSION_ID(event->identity),
             UNPACK_STREAM_ID(event->identity), mod_event->module_event_data);
     break;
 
   case MCT_EVENT_MODULE_STATS_AWB_UPDATE: {
-    CDBG_HIGH("%s: received AWB update event, identity = 0x%x",
+    ISP_DBG(ISP_MOD_COM,"%s: received AWB update event, identity = 0x%x",
       __func__, event->identity);
     ret = isp_set_awb_trigger_update(isp, tmp_port,
       UNPACK_SESSION_ID(event->identity), UNPACK_STREAM_ID(event->identity),
@@ -564,7 +569,7 @@ static boolean port_isp_module_event(mct_port_t *port,
      * after that ISP needs to change the case enum */
     rc = port_isp_forward_event_to_peer(
              isp, port, event);
-    CDBG("%s: received STATS_UPDATE, identity = 0x%x",
+    ISP_DBG(ISP_MOD_COM,"%s: received STATS_UPDATE, identity = 0x%x",
        __func__, event->identity);
     if (rc == FALSE) {
       CDBG_ERROR("%s: event type = %d, forward_event error\n",
@@ -588,7 +593,8 @@ static boolean port_isp_module_event(mct_port_t *port,
     }
   }
     break;
-
+  case MCT_EVENT_MODULE_GET_AF_SW_STATS_FILTER_TYPE:
+  case MCT_EVENT_MODULE_GET_AEC_LUX_INDEX:
   case MCT_EVENT_MODULE_IMGLIB_AF_OUTPUT:
   case MCT_EVENT_MODULE_FACE_INFO:
   case MCT_EVENT_MODULE_PPROC_GET_AWB_UPDATE:
@@ -606,7 +612,7 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_STATS_CONFIG_UPDATE: {
-    CDBG("%s: received AF update evt, event = 0x%x",
+    ISP_DBG(ISP_MOD_COM,"%s: received AF update evt, event = 0x%x",
       __func__, event->identity);
     ret = isp_set_stats_config_update(isp, tmp_port,
       UNPACK_SESSION_ID(event->identity), UNPACK_STREAM_ID(event->identity),
@@ -615,7 +621,7 @@ static boolean port_isp_module_event(mct_port_t *port,
      break;
 
   case MCT_EVENT_MODULE_SET_DIGITAL_GAIN: {
-    CDBG("%s: receive sensor dig gain event 0x%x\n", __func__, event->identity);
+    ISP_DBG(ISP_MOD_COM,"%s: receive sensor dig gain event 0x%x\n", __func__, event->identity);
     ret = isp_set_aec_trigger_update(isp, tmp_port,
       UNPACK_SESSION_ID(event->identity), UNPACK_STREAM_ID(event->identity),
       mod_event->module_event_data);
@@ -623,7 +629,7 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_GET_ISP_TABLES: {
-     CDBG("%s: receive isp get LA/Gamma table evt\n", __func__);
+     ISP_DBG(ISP_MOD_COM,"%s: receive isp get LA/Gamma table evt\n", __func__);
      ret = isp_get_la_gamma_tbl(isp, tmp_port,
       UNPACK_SESSION_ID(event->identity), UNPACK_STREAM_ID(event->identity),
       mod_event->module_event_data);
@@ -631,7 +637,7 @@ static boolean port_isp_module_event(mct_port_t *port,
      break;
 
   case MCT_EVENT_MODULE_BUF_DIVERT_ACK: {
-    CDBG("%s: receive buf divert ack, identity = 0x%x\n",
+    ISP_DBG(ISP_MOD_COM,"%s: receive buf divert ack, identity = 0x%x\n",
       __func__, event->identity);
     ret = isp_buf_divert_ack(isp, tmp_port,
       UNPACK_SESSION_ID(event->identity), UNPACK_STREAM_ID(event->identity),
@@ -640,7 +646,7 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_META_CHANNEL_DIVERT: {
-    CDBG("%s: receive 3a divert to event 0x%x\n", __func__, event->identity);
+    ISP_DBG(ISP_MOD_COM,"%s: receive 3a divert to event 0x%x\n", __func__, event->identity);
     ret = isp_set_divert_to_3a(isp, tmp_port,
       UNPACK_SESSION_ID(event->identity), UNPACK_STREAM_ID(event->identity));
   }
@@ -700,7 +706,7 @@ static boolean port_isp_module_event(mct_port_t *port,
     break;
   }
   rc = (ret == 0)? TRUE : FALSE;
-  CDBG("%s: X, rc %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc %d\n", __func__, rc);
   return rc;
 }
 
@@ -768,7 +774,7 @@ static boolean port_isp_ext_link_func(unsigned int identity, mct_port_t* port,
   int ret = 0;
   isp_port_t *tmp_port = (isp_port_t *)port->port_private;
   isp_t *isp = (isp_t *)tmp_port->isp;
-  CDBG("%s: E, identity = 0x%x, port = %p, direction = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: E, identity = 0x%x, port = %p, direction = %d\n",
        __func__, identity, port, port->direction);
   pthread_mutex_lock(&isp->mutex);
   if (port->direction == MCT_PORT_SRC)
@@ -779,7 +785,7 @@ static boolean port_isp_ext_link_func(unsigned int identity, mct_port_t* port,
                             UNPACK_STREAM_ID(identity));
   pthread_mutex_unlock(&isp->mutex);
   rc = (ret == 0)? TRUE : FALSE;
-  CDBG("%s: X, rc = %d, identity = 0x%x, port = %p, direction = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d, identity = 0x%x, port = %p, direction = %d\n",
        __func__, rc, identity, port, port->direction);
   return rc;
 }
@@ -799,7 +805,7 @@ static void port_isp_unlink_func(unsigned int identity, mct_port_t *port,
   int ret = 0;
   isp_port_t *tmp_port = (isp_port_t *)port->port_private;
   isp_t *isp = (isp_t *)tmp_port->isp;
-  CDBG("%s: E, identity = 0x%x, port = %p, direction = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: E, identity = 0x%x, port = %p, direction = %d\n",
        __func__, identity, port, port->direction);
 
   pthread_mutex_lock(&isp->mutex);
@@ -810,7 +816,7 @@ static void port_isp_unlink_func(unsigned int identity, mct_port_t *port,
     ret = isp_unlink_sink_port(isp, tmp_port, peer,
             UNPACK_SESSION_ID(identity), UNPACK_STREAM_ID(identity));
   pthread_mutex_unlock(&isp->mutex);
-  CDBG("%s: X, ret = %d, identity = 0x%x, port = %p, direction = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: X, ret = %d, identity = 0x%x, port = %p, direction = %d\n",
        __func__, ret, identity, port, port->direction);
 }
 
@@ -846,7 +852,7 @@ static boolean port_isp_check_caps_reserve_func(mct_port_t *port,
   isp_t *isp = (isp_t *)tmp_port->isp;
   mct_stream_info_t *stream_info = (mct_stream_info_t *)info;
 
-  CDBG("%s: E, identity = 0x%x, port = %p, direction = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: E, identity = 0x%x, port = %p, direction = %d\n",
        __func__, stream_info->identity, port, port->direction);
 
   pthread_mutex_lock(&isp->mutex);
@@ -859,9 +865,55 @@ static boolean port_isp_check_caps_reserve_func(mct_port_t *port,
     ret = isp_reserve_src_port(isp, tmp_port,
             stream_info, UNPACK_SESSION_ID(stream_info->identity),
             UNPACK_STREAM_ID(stream_info->identity));
+  if(tmp_port->u.src_port.port_type == ISP_SRC_PORT_DATA) {
+    switch(tmp_port->u.src_port.caps.sensor_cap.sensor_cid_ch[0].fmt) {
+      case CAM_FORMAT_YUV_RAW_8BIT_YUYV: {
+        if (tmp_port->u.src_port.caps.use_pix){
+          port->caps.u.frame.format_flag |= MCT_PORT_CAP_FORMAT_YCBCR;
+        }
+        else
+          port->caps.u.frame.format_flag = MCT_PORT_CAP_FORMAT_YCBCR |
+            MCT_PORT_CAP_FORMAT_YCBYCR;
+      }
+        break;
+      case CAM_FORMAT_YUV_RAW_8BIT_YVYU: {
+        if (tmp_port->u.src_port.caps.use_pix){
+          port->caps.u.frame.format_flag |= MCT_PORT_CAP_FORMAT_YCBCR;
+        }
+        else
+          port->caps.u.frame.format_flag = MCT_PORT_CAP_FORMAT_YCBCR |
+            MCT_PORT_CAP_FORMAT_YCRYCB;
+      }
+        break;
+      case CAM_FORMAT_YUV_RAW_8BIT_UYVY: {
+        if (tmp_port->u.src_port.caps.use_pix){
+          port->caps.u.frame.format_flag |= MCT_PORT_CAP_FORMAT_YCBCR;
+        }
+        else
+          port->caps.u.frame.format_flag = MCT_PORT_CAP_FORMAT_YCBCR |
+            MCT_PORT_CAP_FORMAT_CBYCRY;
+      }
+        break;
+      case CAM_FORMAT_YUV_RAW_8BIT_VYUY: {
+        if (tmp_port->u.src_port.caps.use_pix){
+          port->caps.u.frame.format_flag |= MCT_PORT_CAP_FORMAT_YCBCR;
+        }
+        else
+          port->caps.u.frame.format_flag = MCT_PORT_CAP_FORMAT_YCBCR |
+            MCT_PORT_CAP_FORMAT_CRYCBY;
+      }
+        break;
+      default:
+        if(tmp_port->u.src_port.caps.use_pix)
+          port->caps.u.frame.format_flag |= MCT_PORT_CAP_FORMAT_YCBCR;
+        else
+          port->caps.u.frame.format_flag |= MCT_PORT_CAP_FORMAT_BAYER;
+        break;
+    }
+  }
   pthread_mutex_unlock(&isp->mutex);
   rc = (ret == 0)? TRUE : FALSE;
-  CDBG("%s: X rc %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X rc %d\n", __func__, rc);
 
   return rc;
 }
@@ -882,19 +934,21 @@ static boolean port_isp_check_caps_unreserve_func(mct_port_t *port,
   int i = 0, ret = 0;
   isp_port_t *tmp_port = (isp_port_t *)port->port_private;
   isp_t *isp = (isp_t *)tmp_port->isp;
-  CDBG("%s: E, identity = 0x%x, port = %p, direction = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: E, identity = 0x%x, port = %p, direction = %d\n",
        __func__, identity, port, port->direction);
 
   pthread_mutex_lock(&isp->mutex);
-  if (port->direction == MCT_PORT_SINK)
+  if (port->direction == MCT_PORT_SINK) {
     ret = isp_unreserve_sink_port(isp, tmp_port,
             UNPACK_SESSION_ID(identity), UNPACK_STREAM_ID(identity));
-  else
+  } else {
     ret = isp_unreserve_src_port(isp, tmp_port,
             UNPACK_SESSION_ID(identity), UNPACK_STREAM_ID(identity));
+    port->caps.u.frame.format_flag = 0;
+  }
   pthread_mutex_unlock(&isp->mutex);
   rc = (ret == 0)? TRUE : FALSE;
-  CDBG("%s: X rc %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X rc %d\n", __func__, rc);
 
   return rc;
 }
@@ -936,7 +990,7 @@ static int port_isp_create_sink_ports(isp_t *isp)
   mct_port_t *mct_port = NULL;
   mct_module_t *isp_module = isp->module;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   for (i = 0; i < ISP_SINK_PORTS_NUM; i++) {
 
     isp_port = malloc(sizeof(isp_port_t));
@@ -964,7 +1018,7 @@ static int port_isp_create_sink_ports(isp_t *isp)
     isp_port->isp = (void *)isp;
   }
 end:
-  CDBG("%s: X rc %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X rc %d\n", __func__, rc);
   return rc;
 }
 
@@ -986,7 +1040,7 @@ static int port_isp_create_src_ports(isp_t *isp,
   mct_port_t *mct_port = NULL;
   mct_module_t *isp_module = isp->module;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   if (src_port_type == ISP_SRC_PORT_3A)
     num = ISP_SRC_PORTS_3A_NUM;
   /*else if (src_port_type == ISP_SRC_PORT_IMAGING)
@@ -1028,16 +1082,19 @@ static int port_isp_create_src_ports(isp_t *isp,
       mct_port->caps.port_caps_type = MCT_PORT_CAPS_STATS;
       mct_port->caps.u.stats.flag =
         isp->data.sd_info.sd_info[0].cap.stats_mask;
-      CDBG("%s: stats_mask = 0x%x\n", __func__, mct_port->caps.u.stats.flag);
+      ISP_DBG(ISP_MOD_COM,"%s: stats_mask = 0x%x\n", __func__, mct_port->caps.u.stats.flag);
     } else {
       mct_port->caps.port_caps_type = MCT_PORT_CAPS_FRAME;
       mct_port->caps.u.frame.priv_data = (uint32_t)isp_port;
+      /* Format flag will be set when we know the type of data
+         ISP module outputs */
+      mct_port->caps.u.frame.format_flag = 0;
     }
     isp_overwrite_port_funcs(mct_port, (void *)isp_port);
     isp_port->port = mct_port;
   }
 end:
-  CDBG("%s: X rc %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X rc %d\n", __func__, rc);
   return rc;
 }
 
@@ -1052,12 +1109,17 @@ end:
 static boolean port_isp_free_mem_func(void *data, void *user_data)
 {
   mct_port_t *port = (mct_port_t *)data;
-  CDBG("%s: E\n", __func__);
+  mct_module_t *module = (mct_module_t *)user_data;
+
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
+
+  mct_object_unparent(MCT_OBJECT_CAST(port), MCT_OBJECT_CAST(module));
   if (port->port_private){
     free(port->port_private);
+    mct_port_destroy(port);
     port->port_private = NULL;
   }
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
   return TRUE;
 }
 
@@ -1068,22 +1130,22 @@ static boolean port_isp_free_mem_func(void *data, void *user_data)
  *
  *  Returns nothing
  **/
-static void port_isp_destroy_ports(isp_t *isp)
+void port_isp_destroy_ports(isp_t *isp)
 {
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   if (isp->module->sinkports) {
     mct_list_traverse(isp->module->sinkports,
-              port_isp_free_mem_func, NULL);
+              port_isp_free_mem_func, isp->module);
     mct_list_free_list(isp->module->sinkports);
     isp->module->sinkports= NULL;
   }
   if (isp->module->srcports) {
     mct_list_traverse(isp->module->srcports,
-              port_isp_free_mem_func, NULL);
+              port_isp_free_mem_func, isp->module);
     mct_list_free_list(isp->module->srcports);
     isp->module->srcports= NULL;
   }
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
 }
 
 /** port_isp_create_ports
@@ -1097,7 +1159,7 @@ int port_isp_create_ports(isp_t *isp)
 {
   int i;
   int rc = 0;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   rc = port_isp_create_sink_ports(isp);
   if (rc == 0)
     rc = port_isp_create_src_ports(isp, ISP_SRC_PORT_3A);
@@ -1109,6 +1171,6 @@ int port_isp_create_ports(isp_t *isp)
 end:
   if (rc < 0)
     port_isp_destroy_ports(isp);
-  CDBG("%s: X rc %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X rc %d\n", __func__, rc);
   return rc;
 }

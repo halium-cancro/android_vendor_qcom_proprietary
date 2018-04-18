@@ -21,29 +21,23 @@
 #define C2D_DEBUG_MUTEX  0
 
 /* -------------------------------------------------------------------------*/
+volatile extern uint32_t gCamC2dLogLevel;
 
-#undef CDBG_LOW
-#define CDBG_LOW(fmt, args...) do {} while(0)
-
-#if (C2D_LOG_LEVEL == C2D_LOG_SILENT)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG
-#elif (C2D_LOG_LEVEL == C2D_LOG_NORMAL)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG_ERROR
-#elif (C2D_LOG_LEVEL == C2D_LOG_DEBUG)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG_ERROR
-  #undef CDBG
-  #define CDBG CDBG_ERROR
-#elif (C2D_LOG_LEVEL == C2D_LOG_VERBOSE)
-  #undef CDBG_HIGH
-  #define CDBG_HIGH CDBG_ERROR
-  #undef CDBG
-  #define CDBG CDBG_ERROR
-  #undef CDBG_LOW
-  #define CDBG_LOW CDBG_ERROR
+#ifdef CDBG
+#undef CDBG
+#define CDBG(...) do{} while(0)
 #endif
+#define CDBG(fmt, args...) ALOGD_IF(gCamC2dLogLevel >= 2, fmt, ##args)
+
+#ifdef CDBG_LOW
+#undef CDBG_LOW
+#endif //#ifdef CDBG_LOW
+#define CDBG_LOW(fmt, args...) ALOGD_IF(gCamC2dLogLevel >= 3, fmt, ##args)
+
+#ifdef CDBG_HIGH
+#undef CDBG_HIGH
+#endif //#ifdef CDBG_HIGH
+#define CDBG_HIGH(fmt, args...) ALOGD_IF(gCamC2dLogLevel >= 1, fmt, ##args)
 
 #undef PTHREAD_MUTEX_LOCK
 #undef PTHREAD_MUTEX_UNLOCK
@@ -68,5 +62,4 @@
   #define PTHREAD_MUTEX_LOCK(m)   pthread_mutex_lock(m)
   #define PTHREAD_MUTEX_UNLOCK(m) pthread_mutex_unlock(m)
 #endif
-
 #endif

@@ -6,10 +6,11 @@
 ============================================================================*/
 #include <unistd.h>
 #include "bhist_stats.h"
+#include "isp_log.h"
 
 #ifdef BHIST_STATS_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -28,11 +29,11 @@
  **/
 static void bhist_stats_debug(ISP_StatsBhist_CfgCmdType *pcmd)
 {
-  CDBG("%s:Bayer Histogram Stats Configurations\n", __func__);
-  CDBG("%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
-  CDBG("%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
-  CDBG("%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
-  CDBG("%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:Bayer Histogram Stats Configurations\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
 }
 
 /** bhist_stats_config:
@@ -54,7 +55,7 @@ static int bhist_stats_config(isp_stats_entry_t *entry,
   aec_bhist_config_t *bhist_config = &pix_settings->stats_cfg.aec_config.bhist_config;
 
   if (!entry->enable) {
-    CDBG("%s: Bhist stats not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: Bhist stats not enabled", __func__);
     return 0;
   }
 
@@ -126,7 +127,7 @@ static int bhist_stats_config(isp_stats_entry_t *entry,
 static int bhist_stats_enable(isp_stats_entry_t *entry,
   isp_mod_set_enable_t *in_params)
 {
-  CDBG("%s: enable = %d\n", __func__, in_params->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: enable = %d\n", __func__, in_params->enable);
   entry->enable = in_params->enable;
   entry->is_first = 1;
   return 0;
@@ -144,7 +145,7 @@ static int bhist_stats_enable(isp_stats_entry_t *entry,
 static int bhist_stats_trigger_enable(isp_stats_entry_t *entry,
   isp_mod_set_enable_t *in_params)
 {
-  CDBG("%s: trigger_enable = %d\n", __func__, in_params->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: trigger_enable = %d\n", __func__, in_params->enable);
   entry->trigger_enable = in_params->enable;
   return 0;
 }
@@ -321,7 +322,7 @@ static int bhist_stats_action (void *ctrl, uint32_t action_code,
   int rc = 0;
   isp_stats_entry_t *entry = ctrl;
 
-  CDBG("%s: action code = %d\n", __func__, action_code);
+  ISP_DBG(ISP_MOD_STATS, "%s: action code = %d\n", __func__, action_code);
   switch ((isp_stats_action_code_t)action_code) {
     case ISP_STATS_ACTION_STREAM_START:
       break;
@@ -354,7 +355,7 @@ static int bhist_stats_action (void *ctrl, uint32_t action_code,
       }
 
       if (entry->is_first == 1 || entry->skip_stats == 1) {
-        CDBG("%s: drop first stats\n", __func__);
+        ISP_DBG(ISP_MOD_STATS, "%s: drop first stats\n", __func__);
         entry->is_first = 0;
         entry->skip_stats = 0;
         isp_stats_enqueue_buf(entry, buf_idx);
@@ -459,7 +460,7 @@ isp_ops_t *bhist_stats_open(isp_stats_mod_t *stats,
   isp_stats_entry_t *entry = NULL;
   ISP_StatsBhist_CfgCmdType *cmd = NULL;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
   entry = malloc(sizeof(isp_stats_entry_t));
   if (!entry) {
     CDBG_ERROR("%s: no mem for aec\n",  __func__);

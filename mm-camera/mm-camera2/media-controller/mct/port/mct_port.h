@@ -1,6 +1,6 @@
 /* mct_port.h
  *  														 .
- * Copyright (c) 2012 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -10,10 +10,20 @@
 #include "mct_object.h"
 
 /* definintions of mct_port_caps_t.flag */
-#define MCT_PORT_CAP_FORMAT_BAYER (0x00000001 << 0)
-#define MCT_PORT_CAP_FORMAT_YCBCR (0x00000001 << 1)
-#define MCT_PORT_CAP_STATS_Q3A    (0x00000001 << 3)
-#define MCT_PORT_CAP_STATS_CS_RS  (0x00000001 << 4)
+
+#define MCT_PORT_CAP_FORMAT_BAYER   (0x00000001 << 0)
+#define MCT_PORT_CAP_FORMAT_YCBCR   (0x00000001 << 1)
+#define MCT_PORT_CAP_STATS_Q3A      (0x00000001 << 3)
+#define MCT_PORT_CAP_STATS_CS_RS    (0x00000001 << 4)
+#define MCT_PORT_CAP_FORMAT_YCBYCR  (0x00000001 << 5)
+#define MCT_PORT_CAP_FORMAT_YCRYCB  (0x00000001 << 6)
+#define MCT_PORT_CAP_FORMAT_CBYCRY  (0x00000001 << 7)
+#define MCT_PORT_CAP_FORMAT_CRYCBY  (0x00000001 << 8)
+#define MCT_PORT_CAP_FORMAT_NV12    (0x00000001 << 9)
+#define MCT_PORT_CAP_FORMAT_NV21    (0x00000001 << 10)
+#define MCT_PORT_CAP_FORMAT_NV16    (0x00000001 << 11)
+#define MCT_PORT_CAP_FORMAT_NV61    (0x00000001 << 12)
+
 
 #define MCT_PORT_CAP_SIZE_20MB 20
 
@@ -22,6 +32,12 @@
    MCT_PORT_CAP_FORMAT_YCBCR | \
    MCT_PORT_CAP_STATS_Q3A    | \
    MCT_PORT_CAP_STATS_CS_RS)
+
+#define MCT_PORT_CAP_INTERLEAVED  \
+  (MCT_PORT_CAP_FORMAT_YCBYCR | \
+   MCT_PORT_CAP_FORMAT_YCRYCB | \
+   MCT_PORT_CAP_FORMAT_CBYCRY | \
+   MCT_PORT_CAP_FORMAT_CRYCBY)
 
 /** Name:
  *

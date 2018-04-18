@@ -59,4 +59,6 @@ int isp_set_zoom_scaling_parm(isp_zoom_session_t *session,
 int isp_zoom_get_scaling_param(isp_zoom_session_t *session,
   isp_zoom_scaling_param_t *scaling_param);
 
+uint32_t isp_zoom_calc_dim(isp_zoom_session_t *session, uint32_t dim,
+  uint32_t crop_factor);
 #endif /* __ISP_ZOOM_H__ */

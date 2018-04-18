@@ -44,6 +44,8 @@ boolean module_sensor_handle_pixel_clk_change(mct_module_t *module,
   uint32_t identity, void *data);
 boolean module_sensor_update_af_bracket_entry(mct_module_t *module,
   void *s_bundle, mct_event_t *event);
+boolean module_sensor_update_mtf_bracket_entry(mct_module_t *module,
+  void *s_bundle, mct_event_t *event);
 boolean module_sensor_update_flash_bracket_entry(mct_module_t *module,
   void *s_bundle, mct_event_t *event);
 

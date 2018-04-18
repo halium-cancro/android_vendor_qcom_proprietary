@@ -14,9 +14,8 @@
 
 #define AWB_REG_SIZE 6
 
-#define RG_TYPICAL 0x182 //0x178
-#define BG_TYPICAL 0x177 //0x173
-#define ABS(x)            (((x) < 0) ? -(x) : (x))
+#define RG_TYPICAL 0x178
+#define BG_TYPICAL 0x173
 
 struct otp_struct {
   uint16_t module_integrator_id;
@@ -51,115 +50,6 @@ void sunny_p5v23c_get_calibration_items(void *e_ctrl)
   e_items->is_dpc = FALSE;
 }
 
-
-/** sunny_p5v23c_calc_otp:
- *
- * Calculate R/B target value for otp white balance data format
- *
- * This function executes in eeprom module context
- *
- * Return: void.
- */
-static void sunny_p5v23c_calc_otp(uint16_t r_ratio, uint16_t b_ratio,
-  uint16_t *r_target, uint16_t *b_target, uint16_t r_offset, uint16_t b_offset)
-{
-  if ((b_offset * ABS(RG_TYPICAL - r_ratio))
-    < (r_offset * ABS(BG_TYPICAL - b_ratio))) {
-    if (b_ratio < BG_TYPICAL)
-      *b_target = BG_TYPICAL - b_offset;
-    else
-      *b_target = BG_TYPICAL + b_offset;
-
-    if (r_ratio < RG_TYPICAL) {
-      *r_target = RG_TYPICAL
-        - ABS(BG_TYPICAL - *b_target)
-        * ABS(RG_TYPICAL - r_ratio)
-        / ABS(BG_TYPICAL - b_ratio);
-    } else {
-      *r_target = RG_TYPICAL
-        + ABS(BG_TYPICAL - *b_target)
-        * ABS(RG_TYPICAL - r_ratio)
-        / ABS(BG_TYPICAL - b_ratio);
-    }
-  } else {
-    if (r_ratio < RG_TYPICAL)
-      *r_target = RG_TYPICAL - r_offset;
-    else
-      *r_target = RG_TYPICAL + r_offset;
-
-    if (b_ratio < BG_TYPICAL) {
-      *b_target = BG_TYPICAL
-        - ABS(RG_TYPICAL - *r_target)
-        * ABS(BG_TYPICAL - b_ratio)
-        / ABS(RG_TYPICAL - r_ratio);
-    } else {
-      *b_target = BG_TYPICAL
-        + ABS(RG_TYPICAL - *r_target)
-        * ABS(BG_TYPICAL - b_ratio)
-        / ABS(RG_TYPICAL - r_ratio);
-    }
-  }
-}
-
-
-/** sunny_p5v23c_calc_gain:
- *
- * Calculate white balance gain
- *
- * This function executes in eeprom module context
- *
- * Return: void.
- **/
-static void sunny_p5v23c_calc_gain(uint16_t R_target,
-  uint16_t B_target, uint16_t *R_gain, uint16_t *B_gain, uint16_t *G_gain)
-{
-  /* 0x400 = 1x gain */
-  if (otp_data.bg_ratio < B_target) {
-    if (otp_data.rg_ratio < R_target) {
-      *G_gain = 0x400;
-      *B_gain = 0x400 *
-        B_target /
-        otp_data.bg_ratio;
-      *R_gain = 0x400 *
-        R_target /
-        otp_data.rg_ratio;
-    } else {
-      *R_gain = 0x400;
-      *G_gain = 0x400 *
-        otp_data.rg_ratio /
-        R_target;
-      *B_gain = 0x400 * otp_data.rg_ratio * B_target
-        / (otp_data.bg_ratio * R_target);
-    }
-  } else {
-    if (otp_data.rg_ratio < R_target) {
-      *B_gain = 0x400;
-      *G_gain = 0x400 *
-        otp_data.bg_ratio /
-        B_target;
-      *R_gain = 0x400 * otp_data.bg_ratio * R_target
-        / (otp_data.rg_ratio * B_target);
-    } else {
-      if (B_target * otp_data.rg_ratio < R_target * otp_data.bg_ratio) {
-        *B_gain = 0x400;
-        *G_gain = 0x400 *
-          otp_data.bg_ratio /
-          B_target;
-        *R_gain = 0x400 * otp_data.bg_ratio * R_target
-        / (otp_data.rg_ratio * B_target);
-      } else {
-        *R_gain = 0x400;
-        *G_gain = 0x400 *
-          otp_data.rg_ratio /
-          R_target;
-        *B_gain = 0x400 * otp_data.rg_ratio * B_target
-        / (otp_data.bg_ratio * R_target);
-      }
-    }
-  }
-}
-
-
 /** sunny_p5v23c_format_wbdata:
  *    @e_ctrl: point to sensor_eeprom_data_t of the eeprom device
  *
@@ -175,12 +65,7 @@ static void sunny_p5v23c_format_wbdata(sensor_eeprom_data_t *e_ctrl)
   int i = 0;
   uint8_t mid, flag, wb_mix;
   uint16_t rg, bg;
-  //int r_gain, g_gain, b_gain, g_gain_b, g_gain_r;
-
-  uint16_t R_gain, G_gain, B_gain;
-  uint16_t R_offset_outside, B_offset_outside;
-  uint16_t R_offset_inside, B_offset_inside;
-  uint16_t R_target, B_target;
+  int r_gain, g_gain, b_gain, g_gain_b, g_gain_r;
 
   for (i = 0; i < 3; i++) {
     mid = e_ctrl->eeprom_params.buffer[grp_off[i]];
@@ -210,11 +95,8 @@ static void sunny_p5v23c_format_wbdata(sensor_eeprom_data_t *e_ctrl)
 
   if (3 == i) {
     SERR("No WB calibration data valid\n");
-    goto exit;
+    return;
   }
-
-  SLOW("module data : module ID 0x%x, rg 0x%x, bg 0x%x, light_rg 0x%x, light_bg 0x%x",
-  	otp_data.module_integrator_id, otp_data.rg_ratio, otp_data.bg_ratio, otp_data.light_rg, otp_data.light_bg);
 
   if (otp_data.light_rg)
     otp_data.rg_ratio = otp_data.rg_ratio * (otp_data.light_rg + 512) / 1024;
@@ -222,8 +104,6 @@ static void sunny_p5v23c_format_wbdata(sensor_eeprom_data_t *e_ctrl)
   if (otp_data.light_bg)
     otp_data.bg_ratio = otp_data.bg_ratio * (otp_data.light_bg + 512) / 1024;
 
-
-  #if 0
   if (otp_data.bg_ratio < BG_TYPICAL) {
     if (otp_data.rg_ratio < RG_TYPICAL) {
       g_gain = 0x400;
@@ -254,76 +134,31 @@ static void sunny_p5v23c_format_wbdata(sensor_eeprom_data_t *e_ctrl)
       }
     }
   }
-  #endif
 
-  R_offset_inside = RG_TYPICAL / 100;
-  R_offset_outside = RG_TYPICAL * 3 / 100;
-  B_offset_inside = BG_TYPICAL / 100;
-  B_offset_outside = BG_TYPICAL * 3 / 100;
-
-  if ((ABS(otp_data.rg_ratio - RG_TYPICAL)
-	  < R_offset_inside)
-	  && (ABS(otp_data.bg_ratio - BG_TYPICAL)
-	  < B_offset_inside)) {
-	  R_gain = 0x400;
-	  G_gain = 0x400;
-	  B_gain = 0x400;
-	  SLOW("both rg and bg offset be within 1%%");
-  } else {
-	  if ((ABS(otp_data.rg_ratio - RG_TYPICAL)
-			< R_offset_outside)
-			&& (ABS(otp_data.bg_ratio - BG_TYPICAL)
-			< B_offset_outside)) {
-			sunny_p5v23c_calc_otp(otp_data.rg_ratio, otp_data.bg_ratio
-			  , &R_target, &B_target,
-			  R_offset_inside, B_offset_inside);
-			SLOW("both rg and bg offset be within 1%% to 3%%");
-	  } else {
-			sunny_p5v23c_calc_otp(otp_data.rg_ratio, otp_data.bg_ratio
-			  , &R_target, &B_target,
-			  R_offset_outside, B_offset_outside);
-	  }
-	  sunny_p5v23c_calc_gain(R_target,B_target,&R_gain,&B_gain,&G_gain);
-  }
-
-  SLOW("R G B gains for OTP : 0x%x, 0x%x, 0x%x", R_gain, G_gain, B_gain);
-
-  if (R_gain > 0x400) {
+  if (r_gain > 0x400) {
     g_reg_array[g_reg_setting.size].reg_addr = 0x5186;
-    g_reg_array[g_reg_setting.size].reg_data = R_gain >> 8;
+    g_reg_array[g_reg_setting.size].reg_data = r_gain >> 8;
     g_reg_setting.size++;
     g_reg_array[g_reg_setting.size].reg_addr = 0x5187;
-    g_reg_array[g_reg_setting.size].reg_data = R_gain & 0x00ff;
+    g_reg_array[g_reg_setting.size].reg_data = r_gain & 0x00ff;
     g_reg_setting.size++;
   }
-  if (G_gain > 0x400) {
+  if (g_gain > 0x400) {
     g_reg_array[g_reg_setting.size].reg_addr = 0x5188;
-    g_reg_array[g_reg_setting.size].reg_data = G_gain >> 8;
+    g_reg_array[g_reg_setting.size].reg_data = g_gain >> 8;
     g_reg_setting.size++;
     g_reg_array[g_reg_setting.size].reg_addr = 0x5189;
-    g_reg_array[g_reg_setting.size].reg_data = G_gain & 0x00ff;
+    g_reg_array[g_reg_setting.size].reg_data = g_gain & 0x00ff;
     g_reg_setting.size++;
   }
-  if (B_gain > 0x400) {
+  if (b_gain > 0x400) {
     g_reg_array[g_reg_setting.size].reg_addr = 0x518a;
-    g_reg_array[g_reg_setting.size].reg_data = B_gain >> 8;
+    g_reg_array[g_reg_setting.size].reg_data = b_gain >> 8;
     g_reg_setting.size++;
     g_reg_array[g_reg_setting.size].reg_addr = 0x518b;
-    g_reg_array[g_reg_setting.size].reg_data = B_gain & 0x00ff;
+    g_reg_array[g_reg_setting.size].reg_data = b_gain & 0x00ff;
     g_reg_setting.size++;
   }
-
-exit:
-  /* zero array size will cause camera crash, tanrifei, 20140102*/
-  if (g_reg_setting.size ==0) {
-	g_reg_array[g_reg_setting.size].reg_addr = 0x5186;
-	g_reg_array[g_reg_setting.size].reg_data = 0x04;
-	g_reg_setting.size++;
-	g_reg_array[g_reg_setting.size].reg_addr = 0x5187;
-	g_reg_array[g_reg_setting.size].reg_data = 0x00;
-	g_reg_setting.size++;
-  }
-  /* add end */  
 }
 
 /** sunny_p5v23c_format_calibration_data:

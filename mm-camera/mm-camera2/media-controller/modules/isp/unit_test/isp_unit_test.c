@@ -26,6 +26,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "mct_controller.h"
 #include "modules.h"
 #include "camera_dbg.h"
+#include "isp_log.h"
 
 uint8_t *do_mmap_ion(int ion_fd, struct ion_allocation_data *alloc,
   struct ion_fd_data *ion_info_fd, int *mapFd)
@@ -109,7 +110,7 @@ int isp_init_buffer(struct isp_frame_buffer *buf,
   buf->buffer.m.planes = malloc(
    sizeof(struct v4l2_plane) * alloc_info->num_planes);
   if (!buf->buffer.m.planes) {
-    CDBG("%s: no mem\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: no mem\n", __func__);
     return -1;
   }
 
@@ -119,10 +120,14 @@ int isp_init_buffer(struct isp_frame_buffer *buf,
     {
       buf->ion_alloc[i].len = alloc_info->plane_info[i].len;
       buf->ion_alloc[i].flags = 0;
-      buf->ion_alloc[i].heap_mask = 0x1 << ION_IOMMU_HEAP_ID;
+      buf->ion_alloc[i].heap_id_mask = 0x1 << ION_IOMMU_HEAP_ID;
       buf->ion_alloc[i].align = 4096;
       current_addr = (unsigned long) do_mmap_ion(ion_fd,
         &(buf->ion_alloc[i]), &(buf->fd_data[i]), &current_fd);
+      if (!current_addr) {
+        CDBG_ERROR("do_mmap_ion function return NULL\n");
+        return -1;
+      }
       memset((void *) current_addr, 128, buf->ion_alloc[i].len);
     }
     buf->addr[i] = current_addr + alloc_info->plane_info[i].offset;
@@ -156,7 +161,7 @@ void isp_test_func(const char *dev_name, int fd, int use_local_buf, uint32_t ses
     vfe_fd = open(dev_name, O_RDWR | O_NONBLOCK);
   else
     vfe_fd = fd;
-  CDBG("%s: %d, fd = %d\n", __func__, __LINE__, vfe_fd);
+  ISP_DBG(ISP_MOD_COM,"%s: %d, fd = %d\n", __func__, __LINE__, vfe_fd);
 #if 0
   uint32_t reset_data;
   reset_data = 0x1FF;// A_VFE_0_GLOBAL_RESET_CMD
@@ -171,7 +176,7 @@ void isp_test_func(const char *dev_name, int fd, int use_local_buf, uint32_t ses
   reg_cfg_cmd[0].len = sizeof(uint32_t);
   reg_cfg_cmd[0].reg_offset = 0xC;
   rc = ioctl(vfe_fd, VIDIOC_MSM_VFE_REG_CFG, &cfg_cmd);
-  CDBG("%s: %d, rc = %d, VIDIOC_MSM_VFE_REG_CFG\n", __func__, __LINE__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: %d, rc = %d, VIDIOC_MSM_VFE_REG_CFG\n", __func__, __LINE__, rc);
 #endif
   usleep(1000000);
 
@@ -213,7 +218,7 @@ void isp_test_func(const char *dev_name, int fd, int use_local_buf, uint32_t ses
     buf_request.num_buf = 10;
     buf_request.handle = 0;
     rc = ioctl(vfe_fd, VIDIOC_MSM_ISP_REQUEST_BUF, &buf_request);
-    CDBG("%d, rc = %d\n", buf_request.handle, rc);
+    ISP_DBG(ISP_MOD_COM,"%d, rc = %d\n", buf_request.handle, rc);
 /*
     struct msm_isp_qbuf_info qbuf_info;
     qbuf_info.handle = buf_request.handle;
@@ -351,29 +356,29 @@ void isp_test_func(const char *dev_name, int fd, int use_local_buf, uint32_t ses
     rc = ioctl(vfe_fd, VIDIOC_MSM_VFE_REG_CFG, &cfg_cmd);
   }
 
-   CDBG("dump frame\n");
+   ISP_DBG(ISP_MOD_COM,"dump frame\n");
    if (0) {
     int out_file_fd;
-    out_file_fd = open("/data/vfe_dump0.yuv", O_RDWR | O_CREAT, 0777);
+    out_file_fd = open("/data/misc/camera/vfe_dump0.yuv", O_RDWR | O_CREAT, 0777);
     if (out_file_fd < 0) {
-      CDBG("Cannot open file, errno: %s\n", strerror(errno));
+      ISP_DBG(ISP_MOD_COM,"Cannot open file, errno: %s\n", strerror(errno));
     }
     write(out_file_fd, (const void *) buffer[0].addr[0], buffer[0].ion_alloc[0].len);
     close(out_file_fd);
-    out_file_fd = open("/data/vfe_dump1.raw", O_RDWR | O_CREAT, 0777);
+    out_file_fd = open("/data/misc/camera/vfe_dump1.raw", O_RDWR | O_CREAT, 0777);
     if (out_file_fd < 0) {
-      CDBG("Cannot open file\n");
+      ISP_DBG(ISP_MOD_COM,"Cannot open file\n");
     }
     write(out_file_fd, (const void *) buffer[1].addr[0], buffer[1].ion_alloc[0].len);
     close(out_file_fd);
-   CDBG("dump frame done\n");
+    ISP_DBG(ISP_MOD_COM,"dump frame done\n");
 
     for (i = 0; i < 10; i++)
     {
       isp_release_buffer(&buffer[i], ion_fd);
     }
   }
-  CDBG("%s: X, %d\n", __func__, __LINE__);
+  ISP_DBG(ISP_MOD_COM,"%s: X, %d\n", __func__, __LINE__);
 
   close(ion_fd);
   if(fd == 0)

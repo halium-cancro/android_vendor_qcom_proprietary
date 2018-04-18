@@ -32,33 +32,43 @@ typedef enum {
   MCT_BUS_MSG_SET_AEC_PRECAPTURE_ID, /*int32_t*/
   MCT_BUS_MSG_SET_AEC_RESET, /* NULL */
   MCT_BUS_MSG_SET_AF_STATE, /*int32_t*/
+  MCT_BUS_MSG_UPDATE_AF_FOCUS_POS, /* cam_focus_pos_info_t */
   MCT_BUS_MSG_SET_AF_TRIGGER_ID, /*int32_t*/
-
   MCT_BUS_MSG_SET_AF_ROI, /*cam_area_t*/
   MCT_BUS_MSG_SET_AF_FOCUS_INFO, /* cam_focus_distances_info_t */
   MCT_BUS_MSG_SET_AF_LENS_STATE, /* cam_af_lens_state_t */
-  MCT_BUS_MSG_SET_AF_MODE, /* */
-
-  MCT_BUS_MSG_ERROR_MESSAGE, /*mct_bus_msg_error_message_t*/
-  MCT_BUS_MSG_AE_INFO, /* cam_ae_params_t */
-  MCT_BUS_MSG_AWB_INFO, /* cam_awb_params_t */
-  MCT_BUS_MSG_SENSOR_INFO, /*cam_sensor_params_t*/
+  MCT_BUS_MSG_SET_AF_MODE,
+  MCT_BUS_MSG_ERROR_MESSAGE,  /*mct_bus_msg_error_message_t*/
+  MCT_BUS_MSG_AE_INFO,        /* cam_ae_params_t */
+  MCT_BUS_MSG_AWB_INFO,       /* cam_awb_params_t */
+  MCT_BUS_MSG_AE_EXIF_DEBUG_INFO,
+  MCT_BUS_MSG_AWB_EXIF_DEBUG_INFO,
+  MCT_BUS_MSG_AF_EXIF_DEBUG_INFO,
+  MCT_BUS_MSG_ASD_EXIF_DEBUG_INFO,
+  MCT_BUS_MSG_STATS_EXIF_DEBUG_INFO,
+  MCT_BUS_MSG_SENSOR_INFO,    /*cam_sensor_params_t*/
   MCT_BUS_MSG_SENSOR_STARTING,/*NULL*/
   MCT_BUS_MSG_SENSOR_STOPPING,/*NULL*/
-  MCT_BUS_MSG_SEND_HW_ERROR, /*NULL*/
+  MCT_BUS_MSG_NOTIFY_KERNEL,
+  MCT_BUS_MSG_SEND_HW_ERROR,  /*NULL*/
   MCT_BUS_MSG_SENSOR_AF_STATUS,
   MCT_BUS_MSG_AUTO_SCENE_DECISION, /*mct_bus_msg_asd_decision_t*/
   MCT_BUS_MSG_ASD_HDR_SCENE_STATUS, /* mct_bus_msg_asd_hdr_status_t */
   MCT_BUS_MSG_META_VALID, /* mct_bus_msg_meta_valid */
+  MCT_BUS_MSG_FRAME_INVALID, /* mct_bus_msg_frame_invalid */
   MCT_BUS_MSG_AE_EZTUNING_INFO, /* ae_eztuning_params_t */
   MCT_BUS_MSG_AWB_EZTUNING_INFO,/* awb_eztuning_params_t */
   MCT_BUS_MSG_AF_EZTUNING_INFO, /* af_eztuning_params_t */
+  MCT_BUS_MSG_AF_MOBICAT_INFO,
   MCT_BUS_MSG_ISP_CHROMATIX_LITE,
   MCT_BUS_MSG_PP_CHROMATIX_LITE,
   MCT_BUS_MSG_ISP_META,
   MCT_BUS_MSG_SENSOR_META,
   MCT_BUS_MSG_REPROCESS_STAGE_DONE, /* NULL */
   MCT_BUS_MSG_PREPARE_HDR_ZSL_DONE, /* cam_prep_snapshot_state_t */
+  MCT_BUS_MSG_SEND_EZTUNE_EVT,
+  MCT_BUS_MSG_PP_SET_META,
+  MCT_BUS_MSG_WM_BUS_OVERFLOW_RECOVERY,
   MCT_BUS_MSG_MAX
 }mct_bus_msg_type_t;
 
@@ -161,12 +171,6 @@ typedef struct {
   uint32_t y; /* top */
   uint32_t crop_out_x; /* width */
   uint32_t crop_out_y; /* height */
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 being
-  #ifdef ORIGINAL_VERSION
-  #else
-  uint32_t remain_mask;
-  #endif
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 end
 } mct_bus_msg_stream_crop_t;
 
 /** mct_bus_msg_af_status:
@@ -202,6 +206,7 @@ typedef struct _mct_bus_msg {
   mct_bus_msg_type_t type;
   unsigned int size;
   void *msg;
+  uint32_t thread_wait_time;
 } mct_bus_msg_t;
 
 typedef boolean (*post_msg_to_bus_func)
@@ -220,9 +225,12 @@ struct _mct_bus {
   post_msg_to_bus_func post_msg_to_bus;
   pthread_mutex_t bus_sof_msg_lock;
   pthread_cond_t  bus_sof_msg_cond;
+  pthread_mutex_t bus_sof_init_lock;
+  pthread_cond_t  bus_sof_init_cond;
   pthread_t       bus_sof_tid;
   int             thread_run;
   mct_bus_msg_type_t msg_to_send_metadata;
+  uint32_t        thread_wait_time;
 };
 
 void mct_bus_queue_flush(mct_bus_t *bus);

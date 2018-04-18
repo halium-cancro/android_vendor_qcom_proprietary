@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -17,6 +17,8 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_buf_mgr.h"
 #include "isp_zoom.h"
 #include "isp_tintless.h"
+#include"isp_resource_mgr.h"
+#include "isp.h"
 
 #define UNPACK_STREAM_ID(identity) (identity & 0x0000FFFF)
 #define UNPACK_SESSION_ID(identity) ((identity & 0xFFFF0000) >> 16)
@@ -79,6 +81,11 @@ typedef struct {
   uint32_t vfe_mask;        /* which vfe associated */
 } isp_stream_cfg_t;
 
+typedef struct {
+  uint32_t saturation;
+  boolean is_init_setting;
+} isp_saturation_setting_t;
+
 typedef enum {
   ISP_CHANNEL_STATE_INITIAL,  /* initial */
   ISP_CHANNEL_STATE_CREATED,  /* created */
@@ -116,6 +123,7 @@ typedef struct {
   boolean is_encoder;
   boolean dis_enable;
   boolean divert_to_3a;
+  sensor_meta_t meta_info;
   int streamon_cnt;
   uint32_t bufq_handle;
 } isp_channel_t;
@@ -153,6 +161,7 @@ typedef enum {
   ISP_ASYNC_COMMAND_STREAMON,     /* isp_session_cmd_streamon_t */
   ISP_ASYNC_COMMAND_STRAEMOFF,    /* */
   ISP_ASYNC_COMMAND_SET_HW_PARAM, /* isp_buffered_hw_params_t */
+  ISP_ASYNC_COMMAND_WM_BUS_OVERFLOW_RECOVERY, /* isp_wm_bus_overflow */
   ISP_ASYNC_COMMAND_EXIT,         /* exit the thraed loop */
   ISP_ASYNC_COMMAND_MAX           /* not used */
 } isp_async_cmd_id_t;
@@ -183,12 +192,18 @@ typedef struct {
 } isp_session_cmd_set_hw_params_t;
 
 typedef struct {
+  void *isp_hw;
+  void *session;
+} isp_session_cmd_wm_bus_overflow_t;
+
+typedef struct {
   isp_async_cmd_id_t cmd_id;
   union {
     uint32_t uv_subsample_enable;
     isp_session_cmd_streamon_t streamon;
     isp_session_cmd_streamoff_t streamoff;
     isp_session_cmd_set_hw_params_t set_hw_params;
+    isp_session_cmd_wm_bus_overflow_t wm_recovery;
   };
 } isp_async_cmd_t;
 
@@ -262,12 +277,7 @@ typedef struct _isp_session_t {
   uint8_t isp_fast_aec_mode;
   boolean flash_streamon;
   int32_t zoom_val;
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 begin
-  #ifdef ORIGINAL_VERSION
-  #else
-  int32_t zoom_remain_mask;
-  #endif
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 end
+  int32_t pproc_zoom_val;
   isp_zoom_session_t *zoom_session;
   int zoom_stream_cnt;
   uint8_t num_src_data_port;
@@ -281,6 +291,9 @@ typedef struct _isp_session_t {
   uint32_t temp_frame_id; /* To synchronize ROI calculation & params update in dual ISP*/
   int temp_zoom_roi_hw_id_mask;
   mct_bracket_ctrl_t bracket_info;
+  boolean is_session_active;
+  pthread_mutex_t  state_mutex;
+  isp_reg_update_info_t reg_update_info;
 } isp_session_t;
 
 typedef struct {
@@ -361,6 +374,7 @@ typedef struct _isp_t {
   pthread_mutex_t mutex;
   isp_data_t data;    /* isp's local data struct */
   isp_buf_mgr_t buf_mgr;
+  isp_resources_t *res_mgr;
   uint32_t prev_sent_streamids[MAX_STREAMS_NUM];
   uint32_t prev_sent_streamids_cnt;
 } isp_t;
@@ -452,5 +466,6 @@ int isp_update_buf_info(isp_t *isp, uint32_t session_id,
   uint32_t stream_id, mct_event_t *event);
 int isp_set_cam_bracketing_ctrl(isp_t *isp, isp_port_t *isp_sink_port,
   uint32_t session_id, uint32_t stream_id, void *data);
+void port_isp_destroy_ports(isp_t *isp);
 #endif /* __ISP_H__ */
 

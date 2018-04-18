@@ -7,7 +7,8 @@
 #include "is_thread.h"
 #include "is_port.h"
 #include "camera_dbg.h"
-
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
 #if 0
 #undef CDBG
@@ -37,6 +38,8 @@ static void* is_thread_handler(void *data)
   is_port_private_t *private = thread_data->is_port->port_private;
   boolean rc;
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "is_thread", 0, 0, 0);
   if (!private) {
     return NULL;
   }
@@ -75,7 +78,9 @@ static void* is_thread_handler(void *data)
     CDBG("%s: Got event type %d", __func__, msg->type);
     switch (msg->type) {
     case MSG_IS_PROCESS:
+      ATRACE_BEGIN("Camera:IS");
       rc = private->process(&msg->u.is_process_parm, &private->is_process_output);
+      ATRACE_END();
       if (rc) {
         private->callback(thread_data->is_port, &private->is_process_output);
       }
@@ -147,6 +152,7 @@ boolean is_thread_en_q_msg(is_thread_data_t *thread_data, is_thread_msg_t *msg)
 boolean is_thread_start(is_thread_data_t *thread_data)
 {
   boolean rc = TRUE;
+  CDBG("%s: is thread start! ", __func__);
 
   if (!pthread_create(&thread_data->thread_id, NULL, is_thread_handler,
     (void *)thread_data)) {
@@ -154,6 +160,7 @@ boolean is_thread_start(is_thread_data_t *thread_data)
   } else {
     rc = FALSE;
   }
+  pthread_setname_np(thread_data->thread_id, "IS");
   return rc;
 }
 
@@ -173,6 +180,7 @@ boolean is_thread_stop(is_thread_data_t *thread_data)
   is_thread_msg_t *msg;
 
   msg = malloc(sizeof(is_thread_msg_t));
+  CDBG("%s: is thread stop! ", __func__);
 
   if (msg) {
     memset(msg, 0, sizeof(is_thread_msg_t));
@@ -233,6 +241,7 @@ is_thread_data_t* is_thread_init(void)
  **/
 void is_thread_deinit(is_thread_data_t *thread_data)
 {
+  CDBG("%s called", __func__);
   pthread_mutex_destroy(&thread_data->thread_mutex);
   pthread_cond_destroy(&thread_data->thread_cond);
   mct_queue_free(thread_data->msg_q);

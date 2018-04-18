@@ -1,3 +1,4 @@
+
 /*============================================================================
 
   Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
@@ -26,14 +27,16 @@
 #define LINE_BUFFER_SIZE 512
 #define MAL_SIZE 32
 
-/* hw version info:
-  31:28  Major version
-  27:16  Minor version
-  15:0   Revision bits
-**/
-#define CPP_HW_VERSION_1_0_0  0x10000000
-#define CPP_HW_VERSION_1_1_0  0x10010000
-#define CPP_HW_VERSION_2_0_0  0x20000000
+#define CPP_FW_VERSION_1_2_0  0x10020000
+#define CPP_FW_VERSION_1_4_0  0x10040000
+#define CPP_FW_VERSION_1_6_0  0x10060000
+
+#define CPP_GET_FW_MAJOR_VERSION(ver) ((ver >> 28) & 0xf)
+#define CPP_GET_FW_MINOR_VERSION(ver) ((ver >> 16) & 0xfff)
+#define CPP_GET_FW_STEP_VERSION(ver)  (ver & 0xffff)
+
+#define LINEAR_INTERPOLATE(factor, reference_i, reference_iplus1) \
+  ((factor * reference_iplus1) + ((1 - factor) * reference_i))
 
 /* forward declaration of cpp_hardware_t structures */
 typedef struct _cpp_hardware_t cpp_hardware_t;
@@ -88,6 +91,8 @@ struct cpp_asf_info {
   uint16_t clamp_offset_max;
   uint16_t clamp_offset_min;
   uint32_t nz_flag;
+  uint32_t nz_flag_f2;
+  uint32_t nz_flag_f3_f5;
   float sobel_h_coeff[CPP_PARAM_ASF_F_KERNEL_MAX];
   float sobel_v_coeff[CPP_PARAM_ASF_F_KERNEL_MAX];
   float hpf_h_coeff[CPP_PARAM_ASF_F_KERNEL_MAX];
@@ -101,9 +106,23 @@ struct cpp_asf_info {
 
 struct cpp_bf_info {
   double bilateral_scale[4];
-  double noise_threshold[4];
-  double weight[4];
+  double noise_threshold[5];
+  double weight[5];
+  double clamp_limit_UL[3];
+  double clamp_limit_LL[3];
 };
+
+typedef struct _cpp_tnr_info_t {
+  double bilateral_scale[4];
+  double noise_threshold[5];
+  double weight[5];
+} cpp_tnr_info_t;
+
+typedef struct _cpp_prescaler_bf_info_t {
+  double bilateral_scale;
+  double noise_threshold;
+  double weight;
+} cpp_prescaler_bf_info_t;
 
 struct cpp_plane_scale_info {
   uint8_t v_scale_fir_algo;
@@ -183,11 +202,16 @@ struct cpp_stripe_info {
   uint8_t rotation;
   uint8_t mirror;
   struct cpp_fe_info fe_info;
+  struct cpp_fe_info fe_r_info; /* TNR scratch buffer */
   struct cpp_crop_info bf_crop_info;
+  struct cpp_crop_info prescaler_bf_crop_info;
+  struct cpp_crop_info temporal_bf_crop_info;
   struct cpp_stripe_scale_info scale_info;
   struct cpp_crop_info asf_crop_info;
+  struct cpp_crop_info next_state_bf_crop_info;
   struct cpp_rotator_info rot_info;
   struct cpp_we_info we_info;
+  struct cpp_we_info we_r_info; /* TNR scratch buffer */
 };
 
 struct cpp_plane_info_t {
@@ -200,10 +224,17 @@ struct cpp_plane_info_t {
   int dst_width;
   int dst_height;
   int dst_stride;
+  int scanline;
+  uint32_t temporal_stride;
   int rotate;
   int mirror;
   int prescale_padding;
   int postscale_padding;
+  uint32_t state_padding;
+  uint32_t spatial_denoise_padding;
+  uint32_t prescaler_spatial_denoise_padding;
+  uint32_t temporal_denoise_padding;
+  uint32_t sharpen_padding;
   double h_scale_ratio;
   double v_scale_ratio;
   int horizontal_scale_ratio;
@@ -215,10 +246,24 @@ struct cpp_plane_info_t {
   int maximum_dst_stripe_height;
   cpp_plane_fmt input_plane_fmt;
   cpp_plane_fmt output_plane_fmt;
-  unsigned int source_address;
-  unsigned int destination_address;
-  unsigned int compl_destination_address;
+  /*  the following two are needed to support color conversion
+   *  from CbCr to Cb, Cr or vise versa.
+   *  they have the same value as in msm_cpp_frame_strip_info
+   */
+  uint32_t input_bytes_per_pixel;
+  uint32_t output_bytes_per_pixel;
+  uint32_t temporal_bytes_per_pixel;
+  /*  address[2] only needed for color conversion
+   * from CbCr to Cb, Cr or vise versa
+   */
+  uint32_t source_address[2];
+  uint32_t destination_address[2];
+  uint32_t temporal_source_address[2];
+  uint32_t temporal_destination_address[2];
+
   /*derived*/
+  uint32_t is_not_y_plane;
+  uint32_t denoise_after_scale_en; /* 1 -> TNR is on, 0 -> TNR is off */
   int num_stripes;
   int frame_width_mcus; /*The number of stripes*/
   int frame_height_mcus; /*The number of blocks in the vertical direction*/
@@ -238,10 +283,14 @@ struct cpp_plane_info_t {
   /*The initial phase of the topleft corner fetch block
     assuming each dst block has the same height dst_block_height*/
   long long vertical_scale_block_initial_phase;
-  int bytes_per_pixel;
+
+  uint32_t prescaler_crop_enable;
+  uint32_t tnr_crop_enable;
   uint32_t bf_crop_enable;
   uint32_t asf_crop_enable;
+  uint32_t next_state_crop_enable;
   uint32_t bf_enable;
+  uint32_t tnr_enable;
   struct cpp_plane_scale_info scale_info;
   struct cpp_stripe_info *stripe_info1;
   struct msm_cpp_frame_strip_info *stripe_info;
@@ -258,17 +307,20 @@ struct cpp_frame_info_t {
   uint32_t native_buff;
   uint32_t in_buff_identity;
   void    *cookie;
+  cpp_hardware_buffer_info_t out_buff_info;
   enum msm_cpp_frame_type frame_type;
   cpp_asf_mode asf_mode;
   struct cpp_asf_info asf_info;
   struct cpp_bf_info bf_info[3];
+  cpp_tnr_info_t     tnr_info[3];
+  cpp_prescaler_bf_info_t prescaler_info[3];
   struct cpp_plane_info_t plane_info[MAX_PLANES];
   int num_planes;
   cpp_plane_fmt out_plane_fmt;
   cpp_plane_fmt in_plane_fmt;
-  double noise_profile[3][4];
-  double weight[3][4];
-  double denoise_ratio[3][4];
+  double noise_profile[3][5];
+  double weight[3][5];
+  double denoise_ratio[3][5];
   double edge_softness[3][4];
   double sharpness_ratio;
 };
@@ -351,6 +403,8 @@ typedef struct _cpp_params_asf_info_t {
   uint16_t clamp_offset_max;
   uint16_t clamp_offset_min;
   uint32_t nz_flag;
+  uint32_t nz_flag_f2;
+  uint32_t nz_flag_f3_f5;
   float sobel_h_coeff[CPP_PARAM_ASF_F_KERNEL_MAX];
   float sobel_v_coeff[CPP_PARAM_ASF_F_KERNEL_MAX];
   float hpf_h_coeff[CPP_PARAM_ASF_F_KERNEL_MAX];
@@ -405,22 +459,32 @@ typedef struct _cpp_hardware_params_t {
   cpp_params_dim_info_t     input_info;
   cpp_params_dim_info_t     output_info;
   boolean                   denoise_enable;
+  boolean                   tnr_enable;
+  boolean                   expect_divert;
   boolean                   uv_upsample_enable;
   boolean                   diagnostic_enable;
   boolean                   denoise_lock;
+  boolean                   tnr_denoise_lock;
   boolean                   asf_lock;
   boolean                   ez_tune_wnr_enable;
   boolean                   ez_tune_asf_enable;
   boolean                   scene_mode_on;
+  cpp_tnr_info_t            tnr_info_Y;
+  cpp_tnr_info_t            tnr_info_Cb;
+  cpp_tnr_info_t            tnr_info_Cr;
   cpp_params_denoise_info_t
-    denoise_info[CPP_DENOISE_NUM_PLANES][CPP_DENOISE_NUM_PROFILES];
+    denoise_info[CPP_DENOISE_NUM_PLANES][CPP_DENOISE_NUM_PROFILES+1];
   void                     *cookie;
   cpp_hardware_buffer_info_t buffer_info;
   cpp_params_aec_trigger_info_t aec_trigger;
+  sensor_dim_output_t       sensor_dim_info;
   /* Current diagnostics */
   asfsharpness7x7_t          asf_diag;
   wavelet_t                  wnr_diag;
   cam_stream_type_t          stream_type;
+  uint32_t                  isp_width_map;
+  uint32_t                  isp_height_map;
+  cpp_hardware_buffer_info_t output_buffer_info;
 } cpp_hardware_params_t;
 
 void cpp_params_prepare_frame_info(cpp_hardware_t *cpphw,
@@ -436,7 +500,8 @@ int32_t cpp_hw_params_interpolate_wnr_params(float interpolation_factor,
   cpp_hardware_params_t *cpp_hw_params,
   ReferenceNoiseProfile_type *ref_noise_profile_i,
   ReferenceNoiseProfile_type *ref_noise_profile_iplus1);
-int32_t cpp_hw_params_asf_interpolate(cpp_hardware_params_t *hw_params,
+int32_t cpp_hw_params_asf_interpolate(cpp_hardware_t *cpphw,
+  cpp_hardware_params_t *hw_params,
   chromatix_parms_type  *chromatix_ptr,
   cpp_params_aec_trigger_info_t *trigger_input);
 uint8_t cpp_hardware_fw_version_1_2_x(cpp_hardware_t *cpphw);

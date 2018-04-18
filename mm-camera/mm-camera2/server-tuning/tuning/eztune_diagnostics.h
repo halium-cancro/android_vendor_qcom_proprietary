@@ -102,7 +102,7 @@ typedef struct {
   uint8_t deffocenable;
   uint8_t movfocenable;
   uint8_t movfocdirection;
-  uint8_t movfocsteps;
+  int32_t movfocsteps;
 } ez_af_tuning_params_t;
 
 typedef struct {
@@ -112,7 +112,7 @@ typedef struct {
 } ez_3a_params_t;
 
 typedef struct {
-  float smoothpercent;
+  int32_t smoothpercent;
   uint8_t neg_abs_y1;
   uint8_t dyna_clamp_en;
   uint8_t sp_eff_en;
@@ -120,19 +120,19 @@ typedef struct {
   int16_t clamp_hl;
   int16_t clamp_vh;
   int16_t clamp_vl;
-  float clamp_scale_max;
-  float clamp_scale_min;
+  int32_t clamp_scale_max;
+  int32_t clamp_scale_min;
   uint16_t clamp_offset_max;
   uint16_t clamp_offset_min;
   uint32_t nz_flag;
-  float sobel_h_coeff[16]; // f1
-  float sobel_v_coeff[16]; // f2
-  float hpf_h_coeff[16];   // f3
-  float hpf_v_coeff[16];   // f4
-  float lpf_coeff[16];
-  float lut1[24];
-  float lut2[24];
-  float lut3[12];
+  int32_t sobel_h_coeff[16]; // f1
+  int32_t sobel_v_coeff[16]; // f2
+  int32_t hpf_h_coeff[16];   // f3
+  int32_t hpf_v_coeff[16];   // f4
+  int32_t lpf_coeff[16];
+  int32_t lut1[24];
+  int32_t lut2[24];
+  int32_t lut3[12];
 } asfsharpness7x7_t;
 
 typedef struct {
@@ -156,15 +156,15 @@ typedef struct {
 } ez_asd_params_t;
 
 typedef struct {
-  float bilateral_scalecore0[4];
-  float bilateral_scalecore1[4];
-  float bilateral_scalecore2[4];
-  float noise_thresholdcore0[4];
-  float noise_thresholdcore1[4];
-  float noise_thresholdcore2[4];
-  float weightcore0[4];
-  float weightcore1[4];
-  float weightcore2[4];
+  int32_t bilateral_scalecore0[4];
+  int32_t bilateral_scalecore1[4];
+  int32_t bilateral_scalecore2[4];
+  int32_t noise_thresholdcore0[4];
+  int32_t noise_thresholdcore1[4];
+  int32_t noise_thresholdcore2[4];
+  int32_t weightcore0[4];
+  int32_t weightcore1[4];
+  int32_t weightcore2[4];
 } wavelet_t;
 
 typedef struct __attribute__((__packed__)) {
@@ -195,6 +195,7 @@ typedef enum {
   EZ_AEC_FORCEPREVEXPOSURE,
   EZ_AEC_FORCEPREVLINECOUNT,
   EZ_AEC_FORCEPREVGAIN,
+  EZ_AWB_MODE,
   EZ_AWB_ENABLE,
   EZ_AWB_LOCK,
   EZ_AF_ENABLE,

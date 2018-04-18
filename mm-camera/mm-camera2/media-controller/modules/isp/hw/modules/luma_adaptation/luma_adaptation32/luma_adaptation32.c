@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -9,10 +9,11 @@
 #include <stdlib.h>
 #include "camera_dbg.h"
 #include "luma_adaptation32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_LA_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #define MIN_SAT_PIXELS_PERCENT .1
@@ -86,9 +87,12 @@ static const uint8_t posterize_la[64] = {
  **/
 static void la_cfg_set_from_chromatix(la_8k_type *cfg, LA_args_type *chromatix)
 {
-  cfg->offset = LA_SCALE(chromatix->LA_reduction_fine_tune, 0, 16, 0, 100);
-  cfg->low_beam = LA_SCALE(chromatix->highlight_suppress_fine_tune, 0, 4, 0, 100);
-  cfg->high_beam = LA_SCALE(chromatix->shadow_boost_fine_tune, 0, 4, 0, 100);
+  cfg->offset =
+    LA_SCALE(chromatix->LA_reduction_fine_tune, 0, 16, 0, 100);
+  cfg->low_beam =
+    LA_SCALE(chromatix->shadow_boost_fine_tune, 0, 4, 0, 100);
+  cfg->high_beam =
+    LA_SCALE(chromatix->highlight_suppress_fine_tune, 0, 4, 0, 100);
 
   /* CDF_50_thr maps in inverse to shadow_boost allowance. It should be 100 when
    * when allowance is min(0) and 70, when allowance is max(70) */
@@ -97,7 +101,11 @@ static void la_cfg_set_from_chromatix(la_8k_type *cfg, LA_args_type *chromatix)
   cfg->histogram_cap = LA_SCALE(chromatix->shadow_boost_allowance, 3, 12, 0, 100);
   cfg->cap_low = LA_SCALE(chromatix->shadow_boost_allowance, 1.5, 1.5, 0, 100);
 
-  cfg->cap_adjust = 256.0f / chromatix->shadow_range;
+  if (chromatix->shadow_range > 1)
+   cfg->cap_adjust = 256.0f / chromatix->shadow_range;
+  else
+   cfg->cap_adjust = 256.0f;
+
 }
 
 /*===========================================================================
@@ -186,10 +194,15 @@ static int stats_calc_hist_curve(isp_ihist_params_t *ihist_stats,
   }
   /*if overall histogram is bright and saturated, then return from LA*/
   if (H[250] < la_get_min_pdf_count(num_hist_pixels)) {
-    CDBG("%s: pdf count %llu", __func__, H[250]);
+    ISP_DBG(ISP_MOD_LA, "%s: pdf count %llu", __func__, H[250]);
     free(hist);
     free(H);
     free(threshold);
+    return -1;
+  }
+
+  if (H[250] == 0) {
+    CDBG_ERROR("%s: ALL Ihist stats = 0!!\n", __func__);
     return -1;
   }
   /*Avoid the saturated pixels*/
@@ -236,12 +249,12 @@ static int stats_calc_hist_curve(isp_ihist_params_t *ihist_stats,
                     full_bin++;
           }
        }
-       CDBG("iterartion %d,", iter_cnt);
+       ISP_DBG(ISP_MOD_LA, "iterartion %d,", iter_cnt);
        if ((full_bin+high_bin) < 256)  /*alway true*/
          /* Distribute capped histogram counts to uncapped bins */
          avg_inc = capped_count / (256-full_bin-high_bin);
          iter_cnt++;
-        CDBG("full_bin, %d, high_bin, %d, avg_inc, %d\n",
+        ISP_DBG(ISP_MOD_LA, "full_bin, %d, high_bin, %d, avg_inc, %d\n",
           full_bin, high_bin, avg_inc);
   } while (high_bin > 0 && iter_cnt < 10);
   /* Adjust histogram: Offset, Low light boost, High light boost */
@@ -271,6 +284,10 @@ static int stats_calc_hist_curve(isp_ihist_params_t *ihist_stats,
   /* Scale target CDF with enacted equalization range (default full 255) */
   /*scaled CDF */
   for (i=0; i <= EqRange; i++) {
+     if (H[EqRange] == 0) {
+        CDBG_ERROR("%s: H[EqRange] = 0\n", __func__);
+        return -1;
+     }
      H[i] = EqRange * H[i]/H[EqRange];
   }
   for ( ; i<256; i++) {
@@ -347,7 +364,7 @@ static int la_prepare_hw_entry(isp_la_mod_t *la_mod, uint8_t *la_curve,
   }
 
   /* Fill in the last entry */
-  val = la_mod->LUT_Yratio[ISP_LA_TABLE_LENGTH - 1];
+  val = unit_Q - la_mod->LUT_Yratio[ISP_LA_TABLE_LENGTH - 1];
 
   if (val > ((1 << (Q_yratio + 1)) - 1))
     val = (1 << (Q_yratio + 1)) - 1;
@@ -405,6 +422,7 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
   uint8_t la_curve[256];
   uint8_t la_curve_avg[256];
   uint32_t i,j;
+  float luma_off_ratio;
   int32_t N_pixels, offset;
   float equalize;
   isp_ihist_params_t *ihist_stats = &(in_params->trigger_input.stats_update.ihist_params);
@@ -414,19 +432,19 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
   equalize = la_mod->la_config.offset;
 
   if (la_mod->bracketing_data.state != MCT_BRACKET_CTRL_OFF) {
-    CDBG("%s: luma adaptation need to be disabled for bracketing mode\n",
+    ISP_DBG(ISP_MOD_LA, "%s: luma adaptation need to be disabled for bracketing mode\n",
       __func__);
     return 0;
   }
 
   if (!la_mod->la_enable || !la_mod->la_trigger_enable) {
-    CDBG("%s: no trigger update fo LA:LA enable = %d, trigger_enable = %d",
+    ISP_DBG(ISP_MOD_LA, "%s: no trigger update fo LA:LA enable = %d, trigger_enable = %d",
            __func__, la_mod->la_enable, la_mod->la_trigger_enable);
     return 0;
   }
 
   if (!isp_util_aec_check_settled(&(in_params->trigger_input.stats_update.aec_update))) {
-      CDBG("%s: AEC is not setteled. Skip the trigger\n", __func__);
+      ISP_DBG(ISP_MOD_LA, "%s: AEC is not setteled. Skip the trigger\n", __func__);
       return 0;
   }
 
@@ -438,16 +456,30 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
   }
   offset = (N_pixels * equalize)/256;
 
-  /* system algo: Compute LA Y->Ynew curve */
-  if (chromatix_LA->LA_enable) {
-    rc = stats_calc_hist_curve(ihist_stats, la_mod, offset, la_curve);
-    if (rc != 0) {
-      /* since we cannot calculate the new curve, use the old table */
-      CDBG("%s: calculate new la curve fail, use previous table\n", __func__);
-      return 0;
-    }
+  /*
+    Decide when to execute the LA algo.
+    Only compute LA curve when luma is within a range of the target 0.5 ~ 2*/
+  if (in_params->trigger_input.stats_update.aec_update.target_luma != 0) {
+    luma_off_ratio =
+      (float)in_params->trigger_input.stats_update.aec_update.cur_luma * 1.0
+      / (float)in_params->trigger_input.stats_update.aec_update.target_luma;
+    ISP_DBG(ISP_MOD_LA, "%s: RUN LA algo, cur_luma = %d, tar_luma = %d ratio=%f",
+      __func__, in_params->trigger_input.stats_update.aec_update.cur_luma,
+      in_params->trigger_input.stats_update.aec_update.target_luma,
+      luma_off_ratio);
   } else {
-    CDBG("%s: not run LA algo,use default curve!cur_luma = %d, tar_luma = %d\n",
+    /* default value if devide by 0, no execute the algo*/
+    CDBG_ERROR("%s: luma target from AEC = 0! use default LA curve\n", __func__);
+    luma_off_ratio = 0;
+  }
+
+  if (luma_off_ratio > 0.5 && luma_off_ratio < 2 && chromatix_LA->LA_enable
+    && in_params->trigger_input.flash_mode == CAM_FLASH_MODE_OFF) {
+  /* system algo: Compute LA Y->Ynew curve */
+    ISP_DBG(ISP_MOD_LA, "%s: Compute LA Y->Ynew curve", __func__);
+    rc = stats_calc_hist_curve(ihist_stats, la_mod, offset, la_curve);
+  } else {
+    ISP_DBG(ISP_MOD_LA, "%s: not run LA algo,use default curve!cur_luma = %d, tar_luma = %d\n",
       __func__, in_params->trigger_input.stats_update.aec_update.cur_luma,
       in_params->trigger_input.stats_update.aec_update.target_luma);
     /* Initialize a default la curve */
@@ -456,6 +488,11 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
     }
     /* Fake the return value to be normal */
     rc = 0;
+  }
+  if (rc != 0) {
+    /* since we cannot calculate the new curve, use the old table */
+    ISP_DBG(ISP_MOD_LA, "%s: calculate new la curve fail, use previous table\n", __func__);
+    return 0;
   }
 
   /* Calculate average only after we rise la_mod->la_curve_is_valid flag */
@@ -467,12 +504,12 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
   /* system algo: to pack la_curve to hw dmi entry*/
   rc = la_prepare_hw_entry(la_mod, la_curve_avg, in_params);
   if (rc != 0) {
-    CDBG("%s: pack la curve to hw entry fail, use previous table\n", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: pack la curve to hw entry fail, use previous table\n", __func__);
     return 0;
   }
 
   /* save la_curve in isp la mod structure */
-  memcpy(la_mod->la_curve, la_curve, sizeof(la_mod->la_curve));
+  memcpy(la_mod->la_curve, la_curve_avg, sizeof(la_mod->la_curve));
   la_mod->la_curve_is_valid = TRUE;
 
   la_mod->hw_update_pending = TRUE;
@@ -561,7 +598,7 @@ static int la_set_bestshot(isp_la_mod_t *la_mod, isp_hw_pix_setting_params_t *in
   }
 
   if(0 != la_enable(la_mod, &mod_enable, sizeof(isp_mod_set_enable_t))) {
-    CDBG("%s: LA Enable/Diable Failed", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: LA Enable/Diable Failed", __func__);
   }
 
   return 0;
@@ -573,15 +610,15 @@ static int la_set_bestshot(isp_la_mod_t *la_mod, isp_hw_pix_setting_params_t *in
  * DESCRIPTION:
  *==========================================================================*/
 static void la_param_debug(isp_la_mod_t *la_mod){
-  CDBG("%s:\n",__func__);
+  ISP_DBG(ISP_MOD_LA, "%s:\n",__func__);
 
   /*LA algo params*/
-  CDBG("%s: la_config.offset: %f\n", __func__, la_mod->la_config.offset);
-  CDBG("%s: low beam: %f\n", __func__, la_mod->la_config.low_beam);
-  CDBG("%s: high beam: %f\n", __func__, la_mod->la_config.high_beam);
-  CDBG("%s: histogram cap: %f\n", __func__, la_mod->la_config.histogram_cap);
-  CDBG("%s: cap high: %f\n", __func__, la_mod->la_config.cap_high);
-  CDBG("%s: cap low: %f\n", __func__, la_mod->la_config.cap_low);
+  ISP_DBG(ISP_MOD_LA, "%s: la_config.offset: %f\n", __func__, la_mod->la_config.offset);
+  ISP_DBG(ISP_MOD_LA, "%s: low beam: %f\n", __func__, la_mod->la_config.low_beam);
+  ISP_DBG(ISP_MOD_LA, "%s: high beam: %f\n", __func__, la_mod->la_config.high_beam);
+  ISP_DBG(ISP_MOD_LA, "%s: histogram cap: %f\n", __func__, la_mod->la_config.histogram_cap);
+  ISP_DBG(ISP_MOD_LA, "%s: cap high: %f\n", __func__, la_mod->la_config.cap_high);
+  ISP_DBG(ISP_MOD_LA, "%s: cap low: %f\n", __func__, la_mod->la_config.cap_low);
 
 }
 
@@ -594,12 +631,12 @@ static void la_cfg_debug(isp_la_mod_t *la_mod){
   int i;
 
   /*LA DMI table SEL*/
-  CDBG("%s: lutBankSelect: %d\n", __func__, la_mod->la_cmd.CfgCmd.lutBankSelect);
+  ISP_DBG(ISP_MOD_LA, "%s: lutBankSelect: %d\n", __func__, la_mod->la_cmd.CfgCmd.lutBankSelect);
 
   for (i = 0; i < ISP_LA_TABLE_LENGTH ; i++) {
-    CDBG("%s: TblEntry.table[%d] = %d\n", __func__, i, la_mod->la_cmd.TblEntry.table[i]);
-
+    ISP_DBG(ISP_MOD_LA, "%s: TblEntry.table[%d] = %d\n", __func__, i, la_mod->la_cmd.TblEntry.table[i]);
   }
+
 }
 
 /*===========================================================================
@@ -654,7 +691,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
   uint32_t backlight_scene_severity = 0;
 
   if (!la_mod->la_enable || !la_mod->la_trigger_enable) {
-    CDBG("%s: no trigger update fo LA:LA enable = %d, trigger_enable = %d",
+    ISP_DBG(ISP_MOD_LA, "%s: no trigger update fo LA:LA enable = %d, trigger_enable = %d",
          __func__, la_mod->la_enable, la_mod->la_trigger_enable);
     return 0;
   }
@@ -665,7 +702,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
     backlight_scene_severity =
       MIN(255, sd_out->backlight_scene_severity);
 
-  CDBG("%s: current streaming mode = %d", __func__, trigger_params->cfg.streaming_mode);
+  ISP_DBG(ISP_MOD_LA, "%s: current streaming mode = %d", __func__, trigger_params->cfg.streaming_mode);
 
   la_cfg_set_from_chromatix(&la_8k_config_indoor, &chromatix_LA->LA_config);
   la_cfg_set_from_chromatix(&la_8k_config_outdoor,
@@ -673,7 +710,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
   tc = &(chromatix_LA->control_la);
   tp = &(chromatix_LA->la_brightlight_trigger);
 
-  ratio = isp_util_get_aec_ratio(la_mod->notify_ops->parent, *tc, tp,
+  ratio = isp_util_get_aec_ratio3(la_mod->notify_ops->parent, *tc, tp,
     &trigger_params->trigger_input.stats_update.aec_update, is_burst);
 
   if (ratio > 1.0)
@@ -681,6 +718,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
   else if (ratio < 0.0)
     ratio = 0.0;
 
+  ISP_DBG(ISP_MOD_LA, "%s: aec ratio = %f\n", __func__, ratio);
   la_mod->la_config.offset = (float) (LINEAR_INTERPOLATION(
     la_8k_config_indoor.offset, la_8k_config_outdoor.offset, ratio));
   la_mod->la_config.low_beam = (float) (LINEAR_INTERPOLATION(
@@ -742,13 +780,13 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
         / 255.0;
   }
 
-  CDBG("%s: backlight_scene_severity :%d \n", __func__, sd_out->backlight_scene_severity);
+  ISP_DBG(ISP_MOD_LA, "%s: backlight_scene_severity :%d \n", __func__, sd_out->backlight_scene_severity);
 
-/*the trigger update here is only update the la_config.
-  which is used for the input the calc LA curve.
-  the real trigger update is actaully la_ihist_trigger_update
-  so we dont set hw update pending flag here*/
+  /*update LA HW write command*/
+  for (i = 0; i<ISP_LA_TABLE_LENGTH ; i++)
+    la_mod->la_cmd.TblEntry.table[i] = (int16_t)la_mod->LUT_Yratio[i];
 
+  la_mod->hw_update_pending = TRUE;
   return 0;
 } /* la_trigger_update */
 
@@ -775,14 +813,14 @@ static int la_set_spl_effect(isp_la_mod_t *mod, isp_hw_pix_setting_params_t *pix
   }
 
   if (pix_settings->bestshot_mode != CAM_SCENE_MODE_OFF) {
-    CDBG("%s: Best shot enabled, skip seteffect", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: Best shot enabled, skip seteffect", __func__);
     return 0;
   }
 
   /* no need to trigger update for special effect */
   mod->la_trigger_enable = FALSE;
 
-  CDBG("%s: effect %d", __func__, pix_settings->effects.spl_effect);
+  ISP_DBG(ISP_MOD_LA, "%s: effect %d", __func__, pix_settings->effects.spl_effect);
   switch (pix_settings->effects.spl_effect) {
     case CAM_EFFECT_MODE_POSTERIZE:
       pLUT_Yratio = mod->posterize_la_tbl;
@@ -816,9 +854,16 @@ static int la_init (void *mod_ctrl, void *in_params, isp_notify_ops_t *notify_op
   la_mod->isp_version = init_params->isp_version;
   la_mod->fd = init_params->fd;
   la_mod->notify_ops = notify_ops;
-  la_mod->old_streaming_mode = CAM_STREAMING_MODE_MAX;
   la_mod->hw_update_pending = FALSE;
   la_mod->la_curve_is_valid = FALSE;
+  la_mod->old_streaming_mode = CAM_STREAMING_MODE_MAX;
+  memset(&la_mod->la_cmd, 0, sizeof(la_mod->la_cmd));
+  la_mod->la_trigger_enable = 0;
+  la_mod->la_enable = 0;
+  memset(&la_mod->LUT_Yratio, 0, sizeof(la_mod->LUT_Yratio));
+  memset(&la_mod->solarize_la_tbl, 0, sizeof(la_mod->solarize_la_tbl));
+  memset(&la_mod->posterize_la_tbl, 0, sizeof(la_mod->posterize_la_tbl));
+  memset(&la_mod->la_config, 0, sizeof(la_mod->la_config));
   return 0;
 }/* la_init */
 
@@ -833,7 +878,7 @@ static int la_config(isp_la_mod_t *la_mod, isp_hw_pix_setting_params_t *in_param
   int  rc = 0;
   uint32_t i;
 
-  CDBG("%s: E\n",__func__);
+  ISP_DBG(ISP_MOD_LA, "%s: E\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */
@@ -1006,7 +1051,7 @@ static int la_get_params (void *mod_ctrl, uint32_t param_id,
     vfe_diag->control_lumaadaptation.cntrlenable = la->la_trigger_enable;
     lumaadaption_ez_isp_update(la, lumadiag);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: Populating vfe_diag data", __func__);
   }
     break;
 

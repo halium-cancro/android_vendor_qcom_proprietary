@@ -147,6 +147,7 @@ typedef struct _mct_module_init_name
   const char *name;
   mct_module_init init_mod;
   mct_module_deinit deinit_mod;
+  mct_module_t *module;
 } mct_module_init_name_t;
 
 mct_module_t* module_sensor_init(const char *name);
@@ -170,9 +171,9 @@ void module_imglib_deinit(mct_module_t *p_mct_mod);
 mct_module_t* module_faceproc_init(const char *name);
 void module_faceproc_deinit(mct_module_t *mod);
 
-void *mct_module_get_buffer_ptr(int buf_idx, mct_module_t *module,
+void *mct_module_get_buffer_ptr(uint32_t buf_idx, mct_module_t *module,
   unsigned int session_id, unsigned int stream_id);
-void *mct_module_get_buffer(int buf_idx, mct_module_t *module,
+void *mct_module_get_buffer(uint32_t buf_idx, mct_module_t *module,
   unsigned int session_id, unsigned int stream_id);
 
 void mct_module_add_type(mct_module_t *module, mct_module_type_t type,
@@ -182,7 +183,7 @@ mct_module_type_t mct_module_find_type(mct_module_t *module,
 void mct_module_remove_type(mct_module_t *module, unsigned int identity);
 
 void *mct_module_get_stream_info(mct_module_t *module, unsigned int session_id,
-  unsigned int stream_id);
+  int32_t stream_id);
 mct_module_t *module_cac_init(const char *name);
 void module_cac_deinit(mct_module_t *p_mct_mod);
 mct_module_t *module_wnr_init(const char *name);

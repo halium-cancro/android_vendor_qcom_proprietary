@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013 - 2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013 - 2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 */
 
@@ -196,6 +196,7 @@ static C2D_YUV_FORMAT c2d_get_frame_format(cam_format_t cam_fmt)
 {
   switch (cam_fmt) {
     case CAM_FORMAT_YUV_420_NV12:
+    case CAM_FORMAT_YUV_420_NV12_VENUS:
       return C2D_COLOR_FORMAT_420_NV12;
     case CAM_FORMAT_YUV_420_NV21:
       return C2D_COLOR_FORMAT_420_NV21;
@@ -205,6 +206,14 @@ static C2D_YUV_FORMAT c2d_get_frame_format(cam_format_t cam_fmt)
       return C2D_COLOR_FORMAT_422_UYVY;
     case CAM_FORMAT_YUV_422_NV61:
       return C2D_COLOR_FORMAT_422_UYVY;
+    case CAM_FORMAT_YUV_RAW_8BIT_YUYV:
+      return C2D_COLOR_FORMAT_422_YUYV;
+    case CAM_FORMAT_YUV_RAW_8BIT_YVYU:
+      return C2D_COLOR_FORMAT_422_YVYU;
+    case CAM_FORMAT_YUV_RAW_8BIT_UYVY:
+      return C2D_COLOR_FORMAT_422_UYVY;
+    case CAM_FORMAT_YUV_RAW_8BIT_VYUY:
+      return C2D_COLOR_FORMAT_422_VYUY;
     default:
       CDBG_ERROR("%s: Invalid cam_fmt = %d", __func__, cam_fmt);
       return C2D_COLOR_FORMAT_420_NV12;
@@ -284,6 +293,8 @@ static int32_t c2d_process_frame(c2d_module_ctrl_t *ctrl, void *data)
     c2d_process_buffer->c2d_input_buffer->width;
   ctrl->c2d_input_lib_params.surface_def.height =
     c2d_process_buffer->c2d_input_buffer->height;
+  ctrl->c2d_input_lib_params.surface_def.format =
+    c2d_get_frame_format(c2d_process_buffer->c2d_input_buffer->format);
   rc = c2d_update_surface(ctrl, &ctrl->c2d_input_lib_params,
     c2d_process_buffer->c2d_input_buffer);
   if (rc < 0) {
@@ -292,19 +303,28 @@ static int32_t c2d_process_frame(c2d_module_ctrl_t *ctrl, void *data)
   }
 
   CDBG("%s:%d\n", __func__, __LINE__);
-  /* Update width and height based on target rotation */
-  if (c2d_process_buffer->rotation == ROTATION_90 ||
-    c2d_process_buffer->rotation == ROTATION_270) {
-    ctrl->c2d_output_lib_params.surface_def.width =
-      c2d_process_buffer->c2d_output_buffer->height;
-    ctrl->c2d_output_lib_params.surface_def.height =
-      c2d_process_buffer->c2d_output_buffer->width;
-  } else {
-    ctrl->c2d_output_lib_params.surface_def.width =
-      c2d_process_buffer->c2d_output_buffer->width;
-    ctrl->c2d_output_lib_params.surface_def.height =
-      c2d_process_buffer->c2d_output_buffer->height;
+  /* Rotation in C2D is counter-clockwise, whereas
+     rotation value set from HAL expects clockwise,
+     therefore swap rotation set for C2D */
+  switch(c2d_process_buffer->rotation)
+  {
+    case ROTATION_90:
+      c2d_process_buffer->rotation = ROTATION_270;
+      break;
+    case ROTATION_270:
+      c2d_process_buffer->rotation = ROTATION_90;
+      break;
+    default:
+      break;
   }
+
+  ctrl->c2d_output_lib_params.surface_def.width =
+    c2d_process_buffer->c2d_output_buffer->width;
+  ctrl->c2d_output_lib_params.surface_def.height =
+    c2d_process_buffer->c2d_output_buffer->height;
+  ctrl->c2d_output_lib_params.surface_def.format =
+    c2d_get_frame_format(c2d_process_buffer->c2d_output_buffer->format);
+
   /* C2D map gpu addr and update target surface */
   rc = c2d_update_surface(ctrl, &ctrl->c2d_output_lib_params,
     c2d_process_buffer->c2d_output_buffer);
@@ -376,8 +396,19 @@ static int32_t c2d_process_frame(c2d_module_ctrl_t *ctrl, void *data)
        c2d_process_buffer->c2d_input_buffer->roi_cfg.width << 16;
     ctrl->draw_params.draw_obj.source_rect.height =
       c2d_process_buffer->c2d_input_buffer->roi_cfg.height << 16;
-     ctrl->draw_params.draw_obj.config_mask |=
+    ctrl->draw_params.draw_obj.config_mask |=
          (C2D_SOURCE_RECT_BIT | C2D_ALPHA_BLEND_NONE);
+
+    switch (c2d_process_buffer->flip) {
+      case C2D_FLIP_H :
+        ctrl->draw_params.draw_obj.config_mask |= C2D_MIRROR_H_BIT;
+        break;
+      case C2D_FLIP_V :
+        ctrl->draw_params.draw_obj.config_mask |= C2D_MIRROR_V_BIT;
+        break;
+      default:
+        break;
+    }
 
     CDBG("%s:%d\n", __func__, __LINE__);
      /* Update target params */

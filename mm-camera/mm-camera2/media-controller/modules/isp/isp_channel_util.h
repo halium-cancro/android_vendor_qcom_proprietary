@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -46,6 +46,8 @@ int isp_ch_util_adjust_crop_factor(
   isp_session_t *session,
   uint32_t old_crop_factor,
   uint32_t *new_crop_factor);
+int isp_ch_util_config_for_yuv_sensor(
+  isp_t *isp, isp_session_t *session);
 int isp_ch_util_select_pipeline_channel(
   isp_t *isp,
   isp_session_t *session);
@@ -75,7 +77,8 @@ int isp_ch_util_streamoff(
   isp_t *isp,
   isp_session_t *session,
   int num_channels,
-  uint32_t *channel_ids);
+  uint32_t *channel_ids,
+  boolean stop_immediately);
 int isp_ch_util_unconfig_channel(
   isp_t *isp,
   int isp_id,
@@ -123,6 +126,7 @@ void isp_ch_util_all_streams_off(
   isp_session_t *session);
 int isp_ch_util_reg_buf_list_update(isp_t *isp, isp_session_t *session,
   int stream_id, mct_stream_map_buf_t * map_buffer_list);
-
+enum msm_vfe_frame_skip_pattern isp_ch_util_get_hfr_skip_pattern(
+  isp_session_t *session);
 #endif /* __ISP_CHANNEL_UTIL_H__ */
 

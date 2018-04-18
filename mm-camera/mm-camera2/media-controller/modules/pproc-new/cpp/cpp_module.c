@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -9,10 +9,21 @@
 #include "cpp_port.h"
 #include "cpp_log.h"
 #include "cpp_module_events.h"
+#include <cutils/properties.h>
+#include "server_debug.h"
 
 #define CPP_PORT_NAME_LEN     32
 #define CPP_NUM_SINK_PORTS    8
 #define CPP_NUM_SOURCE_PORTS  8
+#define MINIMUM_PROCESS_TIME 10.0f
+#define PADDING_FACTOR       1.2f
+#define MINIMUM_CPP_THROUGHPUT      1.2f
+#define MAXIMUM_CPP_THROUGHPUT      2
+
+#ifndef MAX
+#define MAX(x,y) (((x)>(y)) ? (x) : (y))
+#endif
+
 static const char cpp_sink_port_name[CPP_NUM_SINK_PORTS][CPP_PORT_NAME_LEN] = {
  "cpp_sink_0",
  "cpp_sink_1",
@@ -34,6 +45,9 @@ static const char cpp_src_port_name[CPP_NUM_SOURCE_PORTS][CPP_PORT_NAME_LEN] = {
  "cpp_src_6",
  "cpp_src_7",
 };
+
+volatile uint32_t gCamCppLogLevel = 0;
+char cpp_prop[PROPERTY_VALUE_MAX];
 
 /** cpp_module_init:
  *  Args:
@@ -75,6 +89,7 @@ mct_module_t *cpp_module_init(const char *name)
       return NULL;
     }
     module->srcports = mct_list_append(module->srcports, port, NULL, NULL);
+    module->numsrcports++;
     MCT_PORT_PARENT(port) = mct_list_append(MCT_PORT_PARENT(port), module,
                               NULL, NULL);
   }
@@ -85,6 +100,7 @@ mct_module_t *cpp_module_init(const char *name)
       return NULL;
     }
     module->sinkports = mct_list_append(module->sinkports, port, NULL, NULL);
+    module->numsinkports++;
     MCT_PORT_PARENT(port) = mct_list_append(MCT_PORT_PARENT(port), module,
                               NULL, NULL);
   }
@@ -96,6 +112,87 @@ error_cleanup_module:
   return NULL;
 }
 
+/** get_cpp_loglevel:
+ *
+ *  Args:
+ *  Return:
+ *    void
+ **/
+
+void get_cpp_loglevel()
+{
+  uint32_t temp;
+  uint32_t log_level;
+  uint32_t debug_mask;
+  memset(cpp_prop, 0, sizeof(cpp_prop));
+  /**  Higher 4 bits : Value of Debug log level (Default level is 1 to print all CDBG_HIGH)
+       Lower 28 bits : Control mode for sub module logging(Only 3 sub modules in PPROC )
+       0x1 for PPROC
+       0x10 for C2D
+       0x100 for CPP  */
+  property_get("persist.camera.pproc.debug.mask", cpp_prop, "268435463"); // 0x10000007=268435463
+  temp = atoi(cpp_prop);
+  log_level = ((temp >> 28) & 0xF);
+  debug_mask = (temp & PPROC_DEBUG_MASK_CPP);
+  if (debug_mask > 0)
+      gCamCppLogLevel = log_level;
+  else
+      gCamCppLogLevel = 0; // Debug logs are not required if debug_mask is zero
+}
+
+/** cpp_module_free_port
+ *    @data: port object to free
+ *    @user_data: should be NULL
+ *
+ *  To free a sink or source port.
+ *
+ *  Return TRUE on success.
+ **/
+static boolean cpp_module_free_port(void *data, void *user_data)
+{
+  mct_port_t *port = MCT_PORT_CAST(data);
+  mct_module_t *module = (mct_module_t *)user_data;
+
+  CDBG("%s:%d] E\n", __func__, __LINE__);
+  if (!port ) {
+    CDBG_ERROR("%s:%d] error because list data is null\n", __func__,
+      __LINE__);
+    return FALSE;
+  }
+  if (!module ) {
+    CDBG_ERROR("%s:%d] error because module is null\n", __func__,
+      __LINE__);
+    return FALSE;
+  }
+
+  if (strncmp(MCT_OBJECT_NAME(port), "cpp_sink", strlen("cpp_sink")) &&
+      strncmp(MCT_OBJECT_NAME(port), "cpp_src", strlen("cpp_src"))) {
+    CDBG_ERROR("%s:%d] error because port is invalid\n", __func__, __LINE__);
+    return FALSE;
+  }
+
+  switch (MCT_PORT_DIRECTION(port)) {
+    case MCT_PORT_SRC: {
+      module->srcports = mct_list_remove(module->srcports, port);
+      module->numsrcports--;
+      break;
+    }
+    case MCT_PORT_SINK: {
+      module->sinkports = mct_list_remove(module->sinkports, port);
+      module->numsinkports--;
+      break;
+    }
+    default:
+      break;
+  }
+  MCT_PORT_PARENT(port) = mct_list_remove(MCT_PORT_PARENT(port), module);
+  cpp_port_destroy(port);
+
+  CDBG("%s:%d] X\n", __func__, __LINE__);
+  return TRUE;
+}
+
+
 /** cpp_module_deinit:
  *
  *  Args:
@@ -105,10 +202,31 @@ error_cleanup_module:
  **/
 void cpp_module_deinit(mct_module_t *module)
 {
+  int i = 0;
+  int numsrcports = 0;
+  int numsinkports = 0;
+  if (!module || strcmp(MCT_OBJECT_NAME(module), "cpp")) {
+    CDBG_ERROR("%s, Invalid module",__func__);
+    return;
+  }
+
   cpp_module_ctrl_t *ctrl =
     (cpp_module_ctrl_t *) MCT_OBJECT_PRIVATE(module);
+
+  numsrcports = module->numsrcports;
+  numsinkports = module->numsinkports;
+
+  for (i = 0; i < numsinkports; i++) {
+    cpp_module_free_port(MCT_MODULE_SINKPORTS(module)->data,module);
+  }
+  for (i = 0; i < numsrcports; i++) {
+    cpp_module_free_port(MCT_MODULE_SRCPORTS(module)->data,module);
+  }
+
+  mct_list_free_list(MCT_MODULE_SRCPORTS(module));
+  mct_list_free_list(MCT_MODULE_SINKPORTS(module));
+
   cpp_module_destroy_cpp_ctrl(ctrl);
-  /* TODO: free other dynamically allocated resources in module */
   mct_module_destroy(module);
 }
 
@@ -149,8 +267,17 @@ static cpp_module_ctrl_t* cpp_module_create_cpp_ctrl(void)
   ctrl->ack_list.size = 0;
   pthread_mutex_init(&(ctrl->ack_list.mutex), NULL);
 
+  ctrl->clk_rate_list.list = NULL;
+  ctrl->clk_rate_list.size = 0;
+  pthread_mutex_init(&(ctrl->clk_rate_list.mutex), NULL);
+
   /* Create PIPE for communication with cpp_thread */
   rc = pipe(ctrl->pfd);
+  if ((ctrl->pfd[0]) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ctrl->pfd[0] = -1;
+    rc = -1;
+  }
   if(rc < 0) {
     CDBG_ERROR("%s:%d, pipe() failed", __func__, __LINE__);
     goto error_pipe;
@@ -200,6 +327,7 @@ static int32_t cpp_module_destroy_cpp_ctrl(cpp_module_ctrl_t *ctrl)
   pthread_mutex_destroy(&(ctrl->realtime_queue.mutex));
   pthread_mutex_destroy(&(ctrl->offline_queue.mutex));
   pthread_mutex_destroy(&(ctrl->ack_list.mutex));
+  pthread_mutex_destroy(&(ctrl->clk_rate_list.mutex));
   pthread_mutex_destroy(&(ctrl->cpp_mutex));
   pthread_cond_destroy(&(ctrl->th_start_cond));
   close(ctrl->pfd[READ_FD]);
@@ -234,6 +362,7 @@ boolean cpp_module_query_mod(mct_module_t *module, void *buf,
   }
   mct_pipeline_cap_t *query_buf = (mct_pipeline_cap_t *)buf;
   mct_pipeline_pp_cap_t *pp_cap = &(query_buf->pp_cap);
+  int i = 0;
 
   cpp_module_ctrl_t *ctrl = (cpp_module_ctrl_t *) MCT_OBJECT_PRIVATE(module);
 
@@ -254,26 +383,49 @@ boolean cpp_module_query_mod(mct_module_t *module, void *buf,
     CAM_EFFECT_MODE_SKETCH;
   pp_cap->supported_effects[pp_cap->supported_effects_cnt++] =
     CAM_EFFECT_MODE_NEON;
-  pp_cap->height_padding = CAM_PAD_TO_64;
-  pp_cap->plane_padding = CAM_PAD_TO_64;
-  pp_cap->width_padding = CAM_PAD_TO_64;
+  if (pp_cap->height_padding < CAM_PAD_TO_64) {
+    pp_cap->height_padding = CAM_PAD_TO_64;
+  }
+  if (pp_cap->plane_padding < CAM_PAD_TO_64) {
+    pp_cap->plane_padding = CAM_PAD_TO_64;
+  }
+  if (pp_cap->width_padding < CAM_PAD_TO_64) {
+    pp_cap->width_padding = CAM_PAD_TO_64;
+  }
   pp_cap->min_num_pp_bufs += MODULE_CPP_MIN_NUM_PP_BUFS;
-  pp_cap->min_required_pp_mask |= CAM_QCOM_FEATURE_SHARPNESS;
-  pp_cap->min_required_pp_mask |= CAM_QCOM_FEATURE_EFFECT;
+  if (query_buf->sensor_cap.sensor_format != FORMAT_YCBCR) {
+    pp_cap->feature_mask |= CAM_QCOM_FEATURE_SHARPNESS;
+    pp_cap->feature_mask |= CAM_QCOM_FEATURE_EFFECT;
+  }
+  pp_cap->feature_mask |= CAM_QCOM_FEATURE_ROTATION;
 #ifndef CAMERA_FEATURE_WNR_SW
-  pp_cap->feature_mask |= (CAM_QCOM_FEATURE_DENOISE2D |
-    CAM_QCOM_FEATURE_CROP | CAM_QCOM_FEATURE_ROTATION |
+  if (query_buf->sensor_cap.sensor_format != FORMAT_YCBCR) {
+    pp_cap->feature_mask |= CAM_QCOM_FEATURE_DENOISE2D;
+  }
+  pp_cap->feature_mask |= (CAM_QCOM_FEATURE_CROP |
+    CAM_QCOM_FEATURE_ROTATION |
     CAM_QCOM_FEATURE_FLIP | CAM_QCOM_FEATURE_SCALE);
 #else
   pp_cap->feature_mask |= (CAM_QCOM_FEATURE_CROP |
     CAM_QCOM_FEATURE_ROTATION | CAM_QCOM_FEATURE_FLIP | CAM_QCOM_FEATURE_SCALE);
 #endif
+
+  for(i = 0; i < CPP_MODULE_MAX_SESSIONS; i++) {
+    if (ctrl->session_params[i] &&
+      (ctrl->session_params[i]->session_id == sessionid)) {
+        ctrl->session_params[i]->sensor_format =
+          query_buf->sensor_cap.sensor_format;
+        break;
+    }
+  }
+
   return TRUE;
 }
 
 boolean cpp_module_start_session(mct_module_t *module, unsigned int sessionid)
 {
   int32_t rc;
+  get_cpp_loglevel(); //dynamic logging level
   CDBG_HIGH("%s:%d, info: starting session %d", __func__, __LINE__, sessionid);
   if(!module) {
     CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
@@ -304,6 +456,14 @@ boolean cpp_module_start_session(mct_module_t *module, unsigned int sessionid)
       ctrl->session_params[i]->dis_hold.is_valid = FALSE;
       ctrl->session_params[i]->fps_range.max_fps = 30.0f;
       ctrl->session_params[i]->fps_range.min_fps = 30.0f;
+      ctrl->session_params[i]->fps_range.video_max_fps= 30.0f;
+      ctrl->session_params[i]->fps_range.video_min_fps= 30.0f;
+      ctrl->session_params[i]->diag_params.control_asf7x7.enable = 1;
+      ctrl->session_params[i]->diag_params.control_wnr.enable = 1;
+      ctrl->session_params[i]->hw_params.sharpness_level = 1.0;
+      ctrl->session_params[i]->hw_params.asf_mode =
+        CPP_PARAM_ASF_DUAL_FILTER;
+      pthread_mutex_init(&(ctrl->session_params[i]->dis_mutex), NULL);
       break;
     }
   }
@@ -322,7 +482,10 @@ boolean cpp_module_start_session(mct_module_t *module, unsigned int sessionid)
       CDBG_ERROR("%s:%d, cpp_thread_create() failed", __func__, __LINE__);
       return FALSE;
     }
-    CDBG_HIGH("%s:%d, info: cpp_thread created.", __func__, __LINE__);
+    CDBG("%s:%d, info: cpp_thread created.", __func__, __LINE__);
+
+    /* set default clock */
+    cpp_module_set_clock_freq(ctrl,NULL,0);
   }
   ctrl->session_count++;
   CDBG_HIGH("%s:%d, info: session %d started.", __func__, __LINE__, sessionid);
@@ -366,6 +529,8 @@ boolean cpp_module_stop_session(mct_module_t *module, unsigned int sessionid)
   for(i=0; i < CPP_MODULE_MAX_SESSIONS; i++) {
     if(ctrl->session_params[i]) {
       if(ctrl->session_params[i]->session_id == sessionid) {
+        pthread_mutex_destroy(
+                &(ctrl->session_params[i]->dis_mutex));
         free(ctrl->session_params[i]);
         ctrl->session_params[i] = NULL;
         break;
@@ -645,15 +810,19 @@ int32_t cpp_module_do_ack(cpp_module_ctrl_t *ctrl,
     /* unlock before sending event to prevent any deadlock */
     PTHREAD_MUTEX_UNLOCK(&(ctrl->ack_list.mutex));
     gettimeofday(&(cpp_ack->out_time), NULL);
-    CDBG_PROFILE("%s:%d, in_time=%ld.%ld us, out_time=%ld.%ld us, ",
+    CDBG_LOW("%s:%d, in_time=%ld.%ld us, out_time=%ld.%ld us, ",
       __func__, __LINE__, cpp_ack->in_time.tv_sec, cpp_ack->in_time.tv_usec,
       cpp_ack->out_time.tv_sec, cpp_ack->out_time.tv_usec);
-    CDBG_PROFILE("%s:%d, holding time = %6ld us, ", __func__, __LINE__,
+    CDBG("%s:%d, holding time = %6ld us,frame_id=%d,buf_idx=%d,identity=0x%x",
+      __func__, __LINE__,
       (cpp_ack->out_time.tv_sec - cpp_ack->in_time.tv_sec)*1000000L +
-      (cpp_ack->out_time.tv_usec - cpp_ack->in_time.tv_usec));
+      (cpp_ack->out_time.tv_usec - cpp_ack->in_time.tv_usec),
+      cpp_ack->isp_buf_divert_ack.frame_id,
+      cpp_ack->isp_buf_divert_ack.buf_idx,
+      key.identity);
     cpp_module_send_buf_divert_ack(ctrl, cpp_ack->isp_buf_divert_ack);
     gettimeofday(&tv, NULL);
-    CDBG_PROFILE("%s:%d, upstream event time = %6ld us, ", __func__, __LINE__,
+    CDBG_LOW("%s:%d, upstream event time = %6ld us, ", __func__, __LINE__,
       (tv.tv_sec - cpp_ack->out_time.tv_sec)*1000000L +
       (tv.tv_usec - cpp_ack->out_time.tv_usec));
     free(cpp_ack);
@@ -746,6 +915,9 @@ int32_t cpp_module_put_new_ack_in_list(cpp_module_ctrl_t *ctrl,
   cpp_ack->isp_buf_divert_ack.timestamp = isp_buf->buffer.timestamp;
   cpp_ack->isp_buf_divert_ack.meta_data = key.meta_data;
   cpp_ack->ref_count = ref_count;
+  cpp_ack->isp_buf_divert_ack.handle = isp_buf->handle;
+  cpp_ack->isp_buf_divert_ack.output_format = isp_buf->output_format;
+  cpp_ack->isp_buf_divert_ack.input_intf = isp_buf->input_intf;
   CDBG("%s:%d, adding ack in list, identity=0x%x", __func__, __LINE__,
     cpp_ack->isp_buf_divert_ack.identity);
   CDBG("%s:%d, buf_idx=%d, ref_count=%d", __func__, __LINE__,
@@ -838,6 +1010,15 @@ int32_t cpp_module_process_downstream_event(mct_module_t* module,
         return rc;
       }
       break;
+    case MCT_EVENT_MODULE_SENSOR_UPDATE_FPS:
+      CDBG_LOW("%s:%d: MCT_EVENT_MODULE_SENSOR_UPDATE_FPS: identity=0x%x", __func__,
+        __LINE__, identity);
+      rc = cpp_module_handle_fps_update_event(module, event);
+      if(rc < 0) {
+        CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+        return rc;
+      }
+      break;
     case MCT_EVENT_MODULE_PPROC_DIVERT_INFO:
       CDBG_LOW("%s:%d: MCT_EVENT_MODULE_PPROC_DIVERT_INFO: identity=0x%x",
                __func__, __LINE__, identity);
@@ -857,7 +1038,15 @@ int32_t cpp_module_process_downstream_event(mct_module_t* module,
       }
       break;
     }
-
+    case MCT_EVENT_MODULE_PPROC_SET_OUTPUT_BUFF:
+      CDBG_LOW("%s:%d: MCT_EVENT_MODULE_PPROC_SET_OUTPUT_BUFF: identity=0x%x",
+        __func__, __LINE__, identity);
+      rc = cpp_module_handle_set_output_buff_event(module, event);
+      if(rc < 0) {
+        CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+        return rc;
+      }
+      break;
     default:
       rc = cpp_module_send_event_downstream(module, event);
       if(rc < 0) {
@@ -903,6 +1092,14 @@ int32_t cpp_module_process_downstream_event(mct_module_t* module,
       }
       break;
     }
+    case MCT_EVENT_CONTROL_UPDATE_BUF_INFO:
+      rc = cpp_module_handle_update_buf_info(module,event);
+      CDBG_ERROR("%s:%d, Update buf queue: APPEND\n", __func__, __LINE__);
+      if(rc < 0) {
+        CDBG_ERROR("%s:%d, failed to update buffer info\n", __func__, __LINE__);
+        return rc;
+      }
+      break;
     default:
       rc = cpp_module_send_event_downstream(module, event);
       if(rc < 0) {
@@ -962,6 +1159,185 @@ int32_t cpp_module_process_upstream_event(mct_module_t* module,
     return rc;
   }
   return 0;
+}
+
+/* cpp_module_set_clock_freq:
+ *
+ * Check for stream information and select clock frequency.
+ **/
+int32_t cpp_module_set_clock_freq(cpp_module_ctrl_t *ctrl,
+  cpp_module_stream_params_t *stream_params, uint32_t stream_event)
+{
+  int32_t rc = 0;
+  uint32_t i;
+  cpp_hardware_cmd_t cmd;
+  uint32_t input_dim = 0, output_dim = 0, dim = 0;
+  float input_fps;
+  float input_format_factor, output_format_factor;
+  cpp_module_stream_clk_rate_t *clk_rate_obj = NULL;
+  int64_t total_load = 0;
+  unsigned long clk_rate = 0, rounded_clk_rate = 0;
+  float input_bw = 0.0f, output_bw = 0.0f;
+
+  if (!ctrl) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EINVAL;
+  }
+
+  if ( NULL == stream_params) {
+    ctrl->clk_rate = ctrl->cpphw->hwinfo.freq_tbl[0];
+    cmd.u.clock_settings.clock_rate = ctrl->cpphw->hwinfo.freq_tbl[0];
+    cmd.u.clock_settings.avg = 2 * ctrl->cpphw->hwinfo.freq_tbl[0];
+    cmd.u.clock_settings.inst = (6 * cmd.u.clock_settings.avg) / 5;
+    cmd.type = CPP_HW_CMD_SET_CLK;
+    /* Update the clk rate with the next biggest value */
+    rc = cpp_hardware_process_command(ctrl->cpphw, cmd);
+    if(rc < 0) {
+      CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+      return rc;
+    }
+    return 0;
+
+  } else if (stream_event){
+
+    switch (stream_params->hw_params.output_info.plane_fmt) {
+    case CPP_PARAM_PLANE_CRCB422:
+    case CPP_PARAM_PLANE_CBCR422: {
+      output_format_factor = 2;
+      break;
+    }
+    default: {
+      output_format_factor = 1.5f;
+      break;
+    }
+    }
+
+    switch (stream_params->hw_params.input_info.plane_fmt) {
+    case CPP_PARAM_PLANE_CRCB422:
+    case CPP_PARAM_PLANE_CBCR422: {
+      input_format_factor = 2;
+      break;
+    }
+    default: {
+      input_format_factor = 1.5f;
+      break;
+    }
+    }
+
+    if(stream_params->priority == CPP_PRIORITY_REALTIME)
+      input_fps = stream_params->hfr_skip_info.input_fps;
+    else
+      input_fps = MINIMUM_PROCESS_TIME;
+
+    output_dim = stream_params->hw_params.output_info.width *
+      stream_params->hw_params.output_info.height;
+
+    input_dim = stream_params->hw_params.input_info.width *
+      stream_params->hw_params.input_info.height;
+    dim = MAX(input_dim, output_dim);
+    if (dim)
+      total_load = (float)dim * input_format_factor *
+        PADDING_FACTOR * input_fps;
+    if (stream_params->hw_params.duplicate_output &&
+       stream_params->linked_stream_params &&
+       (stream_params->linked_stream_params->is_stream_on == TRUE)) {
+       /* if output duplication is enabled, only 50% load is added */
+       total_load = (float)total_load * 0.5f;
+    }
+
+    PTHREAD_MUTEX_LOCK(&(ctrl->clk_rate_list.mutex));
+    clk_rate_obj = cpp_module_find_clk_rate_by_identity(ctrl,
+      stream_params->hw_params.identity);
+    if (clk_rate_obj) {
+        CDBG("%s:%d,updating ident 0x%x from load %ld, to load %ld",
+            __func__, __LINE__,
+          stream_params->identity, (long)clk_rate_obj->total_load, (long)total_load);
+        clk_rate_obj->total_load = total_load;
+    }
+    PTHREAD_MUTEX_UNLOCK(&(ctrl->clk_rate_list.mutex));
+    if (!clk_rate_obj) {
+      clk_rate_obj = malloc(sizeof(cpp_module_stream_clk_rate_t));
+      if (NULL == clk_rate_obj) {
+        CDBG_ERROR("%s:%d, malloc failed\n", __func__, __LINE__);
+        return -ENOMEM;
+      }
+      clk_rate_obj->identity = stream_params->hw_params.identity;
+      clk_rate_obj->total_load = total_load;
+      PTHREAD_MUTEX_LOCK(&(ctrl->clk_rate_list.mutex));
+      ctrl->clk_rate_list.list = mct_list_append(ctrl->clk_rate_list.list,
+        clk_rate_obj, NULL, NULL);
+      ctrl->clk_rate_list.size++;
+      PTHREAD_MUTEX_UNLOCK(&(ctrl->clk_rate_list.mutex));
+    }
+  } else {
+    PTHREAD_MUTEX_LOCK(&(ctrl->clk_rate_list.mutex));
+    clk_rate_obj = cpp_module_find_clk_rate_by_identity(ctrl,
+      stream_params->hw_params.identity);
+    ctrl->clk_rate_list.list = mct_list_remove(ctrl->clk_rate_list.list,
+       clk_rate_obj);
+    ctrl->clk_rate_list.size--;
+    free(clk_rate_obj);
+    PTHREAD_MUTEX_UNLOCK(&(ctrl->clk_rate_list.mutex));
+  }
+  total_load = 0;
+  total_load = cpp_module_get_total_load_by_value(ctrl);
+  if (total_load < 0) {
+    CDBG_ERROR("Fail to get total load");
+    return -EFAULT;
+  }
+  /* output bandwidth does not need to acomodate for padding factor */
+  output_bw = ((float)(total_load) / PADDING_FACTOR);
+  /* input bandwidth is same as the max load calculated */
+  input_bw = (float)(total_load);
+  /* clock rate total load divided by the cpp throughput */
+  clk_rate = (float)(total_load) / MINIMUM_CPP_THROUGHPUT;
+
+  CDBG("%s: stream type %d, ident 0x%x load  %lld, width %d height %d clk rate %ld", __func__,
+    stream_params->stream_type, stream_params->identity, total_load,
+    stream_params->hw_params.output_info.width, stream_params->hw_params.output_info.height, clk_rate);
+
+  cmd.u.clock_settings.avg =
+    (output_bw + input_bw);
+
+  for(i = 0; i < ctrl->cpphw->hwinfo.freq_tbl_count; i++) {
+    if (clk_rate < ctrl->cpphw->hwinfo.freq_tbl[i]) {
+      rounded_clk_rate = ctrl->cpphw->hwinfo.freq_tbl[i];
+      break;
+    }
+  }
+
+  if (i == ctrl->cpphw->hwinfo.freq_tbl_count) {
+    rounded_clk_rate =
+      ctrl->cpphw->hwinfo.freq_tbl[ctrl->cpphw->hwinfo.freq_tbl_count - 1];
+    cmd.u.clock_settings.inst =
+        cmd.u.clock_settings.avg;
+  } else {
+    if(clk_rate != 0) {
+      cmd.u.clock_settings.inst =
+        ((rounded_clk_rate * cmd.u.clock_settings.avg) / clk_rate) *
+        MAXIMUM_CPP_THROUGHPUT;
+    } else {
+      cmd.u.clock_settings.inst = 0;
+    }
+  }
+
+  ctrl->clk_rate = rounded_clk_rate;
+  cmd.u.clock_settings.clock_rate = ctrl->clk_rate;
+
+  CDBG("%s: stream type %d,  ab %lld, ib %lld clock %ld", __func__,
+    stream_params->stream_type, cmd.u.clock_settings.avg,
+    cmd.u.clock_settings.inst, cmd.u.clock_settings.clock_rate);
+
+  cmd.type = CPP_HW_CMD_SET_CLK;
+  /* The new stream needs higher clock */
+  rc = cpp_hardware_process_command(ctrl->cpphw, cmd);
+
+  if(rc < 0) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return rc;
+  }
+
+  return rc;
 }
 
 /* cpp_module_notify_add_stream:
@@ -1035,18 +1411,37 @@ int32_t cpp_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
                 CPP_PRIORITY_OFFLINE;
             }
             /* initialize input/output fps values */
-            ctrl->session_params[i]->stream_params[j]->
-              hfr_skip_info.input_fps =
-              ctrl->session_params[i]->fps_range.max_fps;
-            ctrl->session_params[i]->stream_params[j]->
-              hfr_skip_info.output_fps =
-              ctrl->session_params[i]->fps_range.max_fps;
+            if(stream_info->stream_type == CAM_STREAM_TYPE_VIDEO)
+            {
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.input_fps =
+                  ctrl->session_params[i]->fps_range.video_max_fps;
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.output_fps =
+                  ctrl->session_params[i]->fps_range.video_max_fps;
+            }
+            else
+            {
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.input_fps =
+                  ctrl->session_params[i]->fps_range.max_fps;
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.output_fps =
+                  ctrl->session_params[i]->fps_range.max_fps;
+            }
+            CDBG("%s:%d input_fps=%.2f, output_fps %f identity=0x%x",
+              __func__, __LINE__,
+              ctrl->session_params[i]->stream_params[j]->hfr_skip_info.input_fps,
+              ctrl->session_params[i]->stream_params[j]->hfr_skip_info.output_fps,
+              ctrl->session_params[i]->stream_params[j]->identity);
+
             ctrl->session_params[i]->stream_params[j]->
               hfr_skip_info.skip_count = 0;
             /* hfr_skip_required in only in preview stream */
             ctrl->session_params[i]->stream_params[j]->
               hfr_skip_info.skip_required =
-                (stream_info->stream_type == CAM_STREAM_TYPE_PREVIEW) ?
+                ((stream_info->stream_type == CAM_STREAM_TYPE_PREVIEW) ||
+                (stream_info->stream_type == CAM_STREAM_TYPE_VIDEO))?
                   TRUE : FALSE;
 
             /* init divert information */
@@ -1069,12 +1464,27 @@ int32_t cpp_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
               stream_info->buf_planes.plane_info.mp[2].offset;
 
             hw_params->stream_type = stream_info->stream_type;
-
+            hw_params->ez_tune_asf_enable = 1;
+            #ifdef CAMERA_FEATURE_WNR_SW
+              hw_params->ez_tune_wnr_enable = 0;
+            #else
+              hw_params->ez_tune_wnr_enable = 1;
+            #endif
+            hw_params->diagnostic_enable =
+              ctrl->session_params[i]->hw_params.diagnostic_enable;
             /* rotation/flip */
             if (stream_info->stream_type == CAM_STREAM_TYPE_OFFLINE_PROC) {
                 pp_config = &stream_info->reprocess_config.pp_feature_config;
             } else {
                 pp_config = &stream_info->pp_config;
+            }
+            if (pp_config->feature_mask & CAM_QCOM_FEATURE_SHARPNESS) {
+              hw_params->asf_mode = CPP_PARAM_ASF_DUAL_FILTER;
+              hw_params->sharpness_level = 1.0;
+            } else {
+              /* Disable ASF */
+              hw_params->asf_mode = CPP_PARAM_ASF_OFF;
+              hw_params->sharpness_level = 0.0f;
             }
             hw_params->mirror = pp_config->flip;
             CDBG("%s:%d, Rotation=%d", __func__, __LINE__,
@@ -1169,6 +1579,7 @@ int32_t cpp_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
  **/
 int32_t cpp_module_notify_remove_stream(mct_module_t* module, uint32_t identity)
 {
+  cpp_hardware_cmd_t cmd;
   if(!module) {
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EINVAL;

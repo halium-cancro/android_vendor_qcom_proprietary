@@ -8,7 +8,7 @@
 #include "camera_dbg.h"
 
 
-#if 1
+#if 0
 #undef CDBG
 #define CDBG ALOGE
 #endif

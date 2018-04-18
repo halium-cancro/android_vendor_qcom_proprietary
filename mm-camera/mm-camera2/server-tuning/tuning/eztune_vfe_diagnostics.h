@@ -5,10 +5,9 @@
 #ifndef __EZTUNE_VFE_DIAGNOSTICS_H__
 #define __EZTUNE_VFE_DIAGNOSTICS_H__
 
-#define ROLLOFF_NUM_BASE 8
 #define ROLLOFF_NUM_ROWS 13
 #define ROLLOFF_NUM_COLS 17
-#define ROLLOFF_TABLE_SIZE (13*10)
+#define ROLLOFF_TABLE_SIZE (ROLLOFF_NUM_ROWS*ROLLOFF_NUM_COLS)
 #define LA_LUT_SIZE 64
 
 typedef struct {
@@ -46,6 +45,7 @@ typedef enum {
   VFE_MODULE_DEMOSAIC,
   VFE_MODULE_DEMUX,
   VFE_MODULE_CLFILTER,
+  VFE_MODULE_WB,
 } vfemodule_t;
 
 typedef struct {
@@ -394,6 +394,8 @@ typedef struct __attribute__((__packed__)) {
   config_cntrl_t control_clfilter;
   chromalumafiltercoeff_t prev_chromalumafilter;
   chromalumafiltercoeff_t snap_chromalumafilter;
+
+  config_cntrl_t control_wb;
 } vfe_diagnostics_t;
 
 #endif /* __EZTUNE_VFE_DIAGNOSTICS_H__ */

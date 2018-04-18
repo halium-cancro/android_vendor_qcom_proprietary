@@ -1,6 +1,6 @@
 /* stats_port.c
   *
- * Copyright (c) 2013 - 2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013 - 2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -15,6 +15,10 @@
 #include "aec.h"
 #include "awb.h"
 #include "af.h"
+#include "3AStatsDataTypes.h"
+#include <fcntl.h>
+#include <stdlib.h>
+
 
 #if 0
 #undef CDBG
@@ -29,6 +33,8 @@
 #define STATS_PORT_SKIP_STATS_MAX_FPS 30    // if fps exceed will trigger skip stats
 #define STATS_PORT_SKIP_STATS_MIN_FPS 20    // if fps below this value won't skip stats
 #define Q8                            0x00000100
+#define EXIF_DEBUG_MASK_STATS        (0x10000 << 5)
+#define CPU_CLOCK_TRESHOLD           (1700000) /* CPU clock rate below which target will be treated as Low-Tier*/
 
 /** stats_port_state_t
  *
@@ -132,6 +138,12 @@ typedef struct _stats_port_private {
   int32_t                      current_fps;
   int                          fake_trigger_id;
   boolean                      legacy_hal_cmd;
+  mct_stream_info_t            preview_stream_info;
+  uint32_t                     stats_debug_mask;
+  int32_t                      bg_stats_buffer_size;
+  int32_t                      bhist_stats_buffer_size;
+  BayerGridStatsType           bg_stats_debug_Data;
+  BayerHistogramStatsType      hist_stats_debug_Data;
 } stats_port_private_t;
 
 
@@ -158,6 +170,14 @@ typedef struct {
 } stats_port_caps_reserve_t;
 
 
+
+/* Internal function prototypes. */
+static void copy_stats_buffer_to_debug_data(
+  mct_event_t *event, mct_port_t *port);
+static void send_stats_buffer_to_debug_data(mct_port_t *port);
+boolean is_stats_buffer_debug_data_enable(mct_port_t *port);
+
+
 /** stats_port_set_stats_skip_mode
  *    @port:  the port instance
  *    @event: the event to be processed
@@ -178,7 +198,7 @@ static void stats_port_set_stats_skip_mode(mct_port_t *port,
   stats_update_t *stats_update = (stats_update_t *)event->u.module_event.module_event_data;
   stats_port_private_t *private = (stats_port_private_t *)port->port_private;
 
-  int32_t current_fps = (int32_t)(stats_update->aec_update.preview_fps/Q8);
+  int32_t current_fps = (int32_t)MIN(1/stats_update->aec_update.exp_time, private->max_sensor_fps);
   private->current_fps = current_fps;
 
   if (private->skip_stats_mode == TRUE && current_fps < STATS_PORT_SKIP_STATS_MIN_FPS) {
@@ -476,6 +496,15 @@ static boolean stats_port_proc_eztune_set_parm(unsigned int *cap_flag,
       ezetune_cmd_data->u.aec_enable;
   }
     break;
+  case CAM_EZTUNE_CMD_AWB_MODE: {
+    *cap_flag = MCT_PORT_CAP_STATS_AWB;
+    stats_parm->param_type = STATS_SET_Q3A_PARAM;
+    stats_parm->u.q3a_param.type = Q3A_SET_AWB_PARAM;
+    stats_parm->u.q3a_param.u.awb_param.type = AWB_SET_PARAM_WHITE_BALANCE;
+    stats_parm->u.q3a_param.u.awb_param.u.awb_current_wb =
+      ezetune_cmd_data->u.awb_mode;
+  }
+    break;
   case CAM_EZTUNE_CMD_AWB_ENABLE: {
     *cap_flag = MCT_PORT_CAP_STATS_AWB;
     stats_parm->param_type = STATS_SET_Q3A_PARAM;
@@ -521,6 +550,7 @@ static boolean stats_port_filter_set_param(int param)
   switch (cam_param) {
   case CAM_INTF_META_AF_TRIGGER:
   case CAM_INTF_META_AEC_PRECAPTURE_TRIGGER:
+  case CAM_INTF_PARM_MANUAL_FOCUS_POS:
     rc = FALSE;
     break;
   default:
@@ -529,6 +559,40 @@ static boolean stats_port_filter_set_param(int param)
 
   return rc;
 }
+
+#define INFO_PATH "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"
+boolean stats_port_is_low_tier_target(void) {
+  boolean retVal = FALSE;
+  FILE    *fp;
+  char    buf[100];
+  size_t  read_bytes;
+  int32_t cpuMaxFreq;
+
+  fp = fopen(INFO_PATH, "r");
+  if (fp == NULL) {
+    CDBG_ERROR("%s: Cannot determine CPU max frequency.", __func__);
+    return FALSE;
+  }
+
+  read_bytes = fread(buf, 1, 99, fp);
+  if (read_bytes <= 99) {
+    buf[read_bytes] = 0;
+  } else {
+    buf[99] = 0;
+  }
+  fclose(fp);
+
+  cpuMaxFreq = atoi(buf);
+  CDBG("%s: max CPU clock: %d, threshold: %d, low tier: %d" , __func__,
+    cpuMaxFreq, CPU_CLOCK_TRESHOLD, cpuMaxFreq <= CPU_CLOCK_TRESHOLD);
+
+  if (cpuMaxFreq <= CPU_CLOCK_TRESHOLD) {
+    retVal = TRUE;
+  }
+
+  return retVal;
+}
+
 
 /** stats_port_proc_set_parm
  *    @port:       a port instance where the event to send from;
@@ -596,16 +660,20 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         stats_parm->u.q3a_param.u.awb_param.u.awb_current_wb =
           *((int32_t *)ui_parm->parm_data);
         send_internal = TRUE;
+        CDBG("%s wb mode: %d", __func__,
+          stats_parm->u.q3a_param.u.awb_param.u.awb_current_wb);
       }
         break;
-      case CAM_INTF_PARM_WB_CCT: {
+      case CAM_INTF_PARM_WB_MANUAL: {
         port_event.cap_flag = MCT_PORT_CAP_STATS_AWB;
         stats_parm->param_type = STATS_SET_Q3A_PARAM;
         stats_parm->u.q3a_param.type = Q3A_SET_AWB_PARAM;
-        stats_parm->u.q3a_param.u.awb_param.type = AWB_SET_PARAM_CCT;
-        stats_parm->u.q3a_param.u.awb_param.u.awb_manual_cct =
-          *((int32_t *)ui_parm->parm_data);
+        stats_parm->u.q3a_param.u.awb_param.type = AWB_SET_PARAM_MANUAL_WB;
+        stats_parm->u.q3a_param.u.awb_param.u.manual_wb_params =
+          *((manual_wb_parm_t *)ui_parm->parm_data);
         send_internal = TRUE;
+        CDBG("%s wb manual mode type: %d", __func__,
+          stats_parm->u.q3a_param.u.awb_param.u.manual_wb_params.type);
       }
         break;
       case CAM_INTF_PARM_ISO: {
@@ -624,7 +692,7 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         stats_parm->u.q3a_param.type = Q3A_SET_AEC_PARAM;
         stats_parm->u.q3a_param.u.aec_param.type = AEC_SET_PARAM_EXP_TIME;
         stats_parm->u.q3a_param.u.aec_param.u.manual_exposure_time =
-          *((int32_t *)ui_parm->parm_data);
+          *((uint64_t *)ui_parm->parm_data);
         send_internal = TRUE;
       }
         break;
@@ -641,10 +709,17 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         stats_parm->param_type = STATS_SET_Q3A_PARAM;
         stats_parm->u.q3a_param.type = Q3A_SET_AEC_PARAM;
         stats_parm->u.q3a_param.u.aec_param.type = AEC_SET_PARAM_FPS;
-        stats_parm->u.q3a_param.u.aec_param.u.fps.max_fps =
-          ((cam_fps_range_t *)ui_parm->parm_data)->max_fps * 256;
-        stats_parm->u.q3a_param.u.aec_param.u.fps.min_fps =
-          ((cam_fps_range_t *)ui_parm->parm_data)->min_fps * 256;
+        if (CAM_STREAM_TYPE_VIDEO != private->stream_type) {
+          stats_parm->u.q3a_param.u.aec_param.u.fps.max_fps =
+            ((cam_fps_range_t *)ui_parm->parm_data)->max_fps * 256;
+          stats_parm->u.q3a_param.u.aec_param.u.fps.min_fps =
+            ((cam_fps_range_t *)ui_parm->parm_data)->min_fps * 256;
+        } else {
+          stats_parm->u.q3a_param.u.aec_param.u.fps.max_fps =
+            ((cam_fps_range_t *)ui_parm->parm_data)->video_max_fps * 256;
+          stats_parm->u.q3a_param.u.aec_param.u.fps.min_fps =
+            ((cam_fps_range_t *)ui_parm->parm_data)->video_min_fps * 256;
+        }
         send_internal = TRUE;
       }
         break;
@@ -720,9 +795,8 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
           *((cam_roi_info_t *)ui_parm->parm_data);
         int i;
 
-        stats_parm->u.q3a_param.u.af_param.u.af_roi_info.roi_updated = FALSE;
-        if (cam_roi_info.num_roi > 0)
-          stats_parm->u.q3a_param.u.af_param.u.af_roi_info.roi_updated = TRUE;
+
+        stats_parm->u.q3a_param.u.af_param.u.af_roi_info.roi_updated = TRUE;
 
         stats_parm->u.q3a_param.u.af_param.u.af_roi_info.num_roi =
             cam_roi_info.num_roi;
@@ -824,7 +898,11 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
       }
         break;
       case CAM_INTF_PARM_DIS_ENABLE: {
-        /* Do nothing */
+        port_event.cap_flag = MCT_PORT_CAP_STATS_IS;
+        stats_parm->param_type = STATS_SET_IS_PARAM;
+        stats_parm->u.is_param.type = IS_SET_PARAM_IS_ENABLE;
+        stats_parm->u.is_param.u.is_enable = *((int32_t *)ui_parm->parm_data);
+        send_internal = TRUE;
       }
         break;
       case CAM_INTF_PARM_HDR: {
@@ -834,8 +912,11 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         stats_parm->u.q3a_param.type = Q3A_SET_AEC_PARAM;
         stats_parm->u.q3a_param.u.aec_param.type = AEC_SET_PARAM_BRACKET;
         exp = *((cam_exp_bracketing_t *)ui_parm->parm_data);
-        strlcpy(stats_parm->u.q3a_param.u.aec_param.u.aec_bracket,
-          exp.values, MAX_EXP_BRACKETING_LENGTH);
+        if(exp.mode == CAM_EXP_BRACKETING_OFF)
+          stats_parm->u.q3a_param.u.aec_param.u.aec_bracket[0] = '\0';
+        else
+          strlcpy(stats_parm->u.q3a_param.u.aec_param.u.aec_bracket,
+            exp.values, MAX_EXP_BRACKETING_LENGTH);
         send_internal = TRUE;
       }
         break;
@@ -851,6 +932,7 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         send_internal = TRUE;
       }
         break;
+      case CAM_INTF_PARM_SENSOR_HDR:
       case CAM_INTF_PARM_VIDEO_HDR: {
         port_event.cap_flag = (MCT_PORT_CAP_STATS_AEC |
           MCT_PORT_CAP_STATS_AWB);
@@ -871,6 +953,24 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         stats_parm->u.common_param.type = COMMON_SET_PARAM_STATS_DEBUG_MASK;
         stats_parm->u.common_param.u.stats_debug_mask =
           *((int32_t *)ui_parm->parm_data);
+        send_internal = TRUE;
+        private->stats_debug_mask = stats_parm->u.common_param.u.stats_debug_mask;
+      }
+        break;
+      case CAM_INTF_PARM_ALGO_OPTIMIZATIONS_MASK: {
+        port_event.cap_flag = (MCT_PORT_CAP_STATS_AEC |
+          MCT_PORT_CAP_STATS_AWB);
+        stats_parm->param_type = STATS_SET_COMMON_PARAM;
+        stats_parm->u.common_param.type = COMMON_SET_PARAM_ALGO_OPTIMIZATIONS_MASK;
+        stats_parm->u.common_param.u.algo_opt_mask =
+          *((uint32_t *)ui_parm->parm_data);
+        if (stats_port_is_low_tier_target() &&
+          (!(0x80000000 & stats_parm->u.common_param.u.algo_opt_mask))) {
+          /* Dont enable optimizations for low-tier target if msb of mask is set */
+          stats_parm->u.common_param.u.algo_opt_mask |= (STATS_MASK_AEC|STATS_MASK_AWB);
+          CDBG_ERROR("%s Enable AEC & AWB subsampling optimizations", __func__);
+        }
+        CDBG("%s Algo opt enable %u", __func__, stats_parm->u.common_param.u.algo_opt_mask);
         send_internal = TRUE;
       }
         break;
@@ -951,6 +1051,17 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         send_internal = TRUE;
       }
         break;
+      case CAM_INTF_PARM_LONGSHOT_ENABLE: {
+        port_event.cap_flag = MCT_PORT_CAP_STATS_AEC;
+        stats_parm->param_type = STATS_SET_Q3A_PARAM;
+        stats_parm->u.q3a_param.type = Q3A_SET_AEC_PARAM;
+        stats_parm->u.q3a_param.u.aec_param.type =
+          AEC_SET_PARAM_LONGSHOT_MODE;
+        stats_parm->u.q3a_param.u.aec_param.u.longshot_mode =
+          *((int8_t *)ui_parm->parm_data);
+        send_internal = TRUE;
+      }
+      break;
       default: {
       }
         break;
@@ -1144,6 +1255,12 @@ static boolean stats_port_event(mct_port_t *port, mct_event_t *event)
     /* check to see if need to redirect this event to sub-modules */
     CDBG("%s: Received event type=%d", __func__, event->u.module_event.type);
     switch (event->u.module_event.type) {
+    case MCT_EVENT_MODULE_IMGLIB_AF_CONFIG: {
+        event->identity = private->preview_stream_info.identity;
+        redirect = MCT_EVENT_UPSTREAM;
+        CDBG("%s: Received IMGLIB_AF_CONFIG, identity=0x%x", __func__, event->identity);
+      }
+      break;
     case MCT_EVENT_MODULE_STATS_GYRO_STATS: {
       /* GRYO STATS should be redirected downstream to both Q3A
        * and EIS modules */
@@ -1331,23 +1448,28 @@ static boolean stats_port_event(mct_port_t *port, mct_event_t *event)
     } else if (event->type == MCT_EVENT_MODULE_EVENT &&
         event->u.module_event.type == MCT_EVENT_MODULE_STATS_DATA){
 
+      if (is_stats_buffer_debug_data_enable(port)) {
+
+        /* Copy stats buffers to debug data structures. */
+        copy_stats_buffer_to_debug_data(event, port);
+      } else {
+        CDBG("debug data not enabled");
+      }
       // if turns out we shall skip the current stats, then just set the sent flag to true, pretend it has already sent to the sub-modules
       CDBG("%s frame id %d", __func__, ((mct_event_stats_isp_t *)(event->u.module_event.module_event_data))->frame_id);
-	  
-	  /* skip stats if all streams are shutdown, modified by tanrifei, 20140308 */
-	  #if 0
       if (stats_port_if_skip_current_stats(port, event)) {
         CDBG("%s skip current stats", __func__);
         sent = TRUE;
       }
-	  #else
-      if (stats_port_if_skip_current_stats(port, event) || 
-	  		(!private->parm_ctrl.has_chromatix_set)) {
-        CDBG("%s skip current stats", __func__);
-        sent = TRUE;
+    } else if (event->type == MCT_EVENT_MODULE_EVENT &&
+      event->u.module_event.type == MCT_EVENT_MODULE_SOF_NOTIFY){
+      if (is_stats_buffer_debug_data_enable(port)) {
+
+        /* send stats buffers to exif debug data */
+        send_stats_buffer_to_debug_data(port);
+      } else {
+        CDBG("debug data not enabled");
       }
-	  #endif
-	  /* modify end */
     }
     CDBG("%s: down event:", __func__);
     if (!sent) {
@@ -1391,6 +1513,35 @@ static boolean stats_port_event(mct_port_t *port, mct_event_t *event)
 
   return rc;
 }
+
+static boolean stats_port_start_stop_stats_thread(
+mct_port_t *port, uint8_t start_flag)
+{
+  boolean                rc = TRUE;
+  stats_port_private_t   *private = (stats_port_private_t *)port->port_private;
+  stats_port_event_t     port_event;
+  mct_event_t            event;
+
+  /* This event handling in each submodule should be a blocking call */
+  CDBG("%s: start_flag: %d", __func__, start_flag);
+  port_event.event = &event;
+  port_event.cap_flag = (MCT_PORT_CAP_STATS_AF |
+    MCT_PORT_CAP_STATS_AEC |
+    MCT_PORT_CAP_STATS_AWB |
+    MCT_PORT_CAP_STATS_IS  |
+    MCT_PORT_CAP_STATS_AFD |
+    MCT_PORT_CAP_STATS_ASD);
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.identity = private->reserved_id;
+  event.direction = MCT_EVENT_DOWNSTREAM;
+  event.u.module_event.type = MCT_EVENT_MODULE_START_STOP_STATS_THREADS;
+  event.u.module_event.module_event_data = (void *)(&start_flag);
+  rc = mct_list_traverse((mct_list_t *)private->sub_ports,
+     stats_port_send_event_downstream, &port_event);
+
+ return rc;
+}
+
 
 /** stats_port_set_caps
  *    @port: port object which the caps to be set
@@ -1671,7 +1822,17 @@ static boolean stats_port_check_caps_reserve(mct_port_t *port, void *caps,
   private = (stats_port_private_t *)port->port_private;
   old_stream_type = private->stream_type;
 
+  if (!stats_port_check_session_id(&(private->reserved_id),
+    &(stream_info->identity))) {
+    CDBG("%s, session id not match.", __func__);
+    rc = FALSE;
+    goto reserve_done;
+  }
+
   CDBG("%s: state %d\n", __func__, private->state);
+  /* Hack: Keep preview stream info for AFS */
+  if (stream_info->stream_type == CAM_STREAM_TYPE_PREVIEW)
+    private->preview_stream_info = *stream_info;
   switch (private->state) {
   case STATS_PORT_STATE_LINKED: {
     if (mct_list_find_custom(MCT_OBJECT_CHILDREN(port),
@@ -1730,7 +1891,7 @@ static boolean stats_port_check_caps_reserve(mct_port_t *port, void *caps,
     cmd_event.direction = MCT_EVENT_DOWNSTREAM;
     cmd_event.u.module_event = event_data;
     cmd_event.u.module_event.type = MCT_EVENT_MODULE_PREVIEW_STREAM_ID;
-    cmd_event.u.module_event.module_event_data = (void *)&identity;
+    cmd_event.u.module_event.module_event_data = (void *)stream_info;
     stats_event.event = &cmd_event;
     rc = mct_list_traverse((mct_list_t *)private->sub_ports,
       stats_port_send_event_downstream, &stats_event);
@@ -1937,7 +2098,6 @@ static boolean stats_port_ext_link(unsigned int identity,
   if (rc == TRUE) {
     ext_link.id   = identity;
     ext_link.peer = port;
-
     CDBG("%s: Invoke sub-ports ext link", __func__);
     /* Invoke sub ports' ext link  */
     rc = mct_list_traverse(private->sub_ports, stats_port_sub_ports_ext_link,
@@ -1946,6 +2106,10 @@ static boolean stats_port_ext_link(unsigned int identity,
       private->state = STATS_PORT_STATE_LINKED;
       MCT_PORT_PEER(port) = peer;
       MCT_OBJECT_REFCOUNT(port) += 1;
+      if (1 == MCT_OBJECT_REFCOUNT(port)) {
+        /* Send event to start all 3A threads from here after linking first stream */
+        stats_port_start_stop_stats_thread(port, TRUE);
+      }
     }
   }
   MCT_OBJECT_UNLOCK(port);
@@ -2008,11 +2172,17 @@ static void stats_port_unlink(unsigned int identity, mct_port_t *port,
 
     sub_link.id   = identity;
     sub_link.peer = port;
+    if (1 == MCT_OBJECT_REFCOUNT(port)) {
+      /* Send event to stop all stats threads from here before unlinking last stream */
+      stats_port_start_stop_stats_thread(port, FALSE);
+    }
+    CDBG("%s: Invoke sub-ports ext un link", __func__);
     mct_list_traverse(private->sub_ports, stats_port_sub_unlink, &sub_link);
 
     MCT_OBJECT_REFCOUNT(port) -= 1;
     if (!MCT_OBJECT_REFCOUNT(port)) {
       private->state = STATS_PORT_STATE_UNLINKED;
+      MCT_PORT_PEER(port) = NULL;
     }
   }
   MCT_OBJECT_UNLOCK(port);
@@ -2034,9 +2204,13 @@ boolean stats_port_check_port(mct_port_t *port, unsigned int identity)
 
   CDBG("%s: E", __func__);
 
-  if (!port || ((private = port->port_private) == NULL) ||
+  if (!port){
+    CDBG_ERROR("%s: port NULL",__func__);
+    return FALSE;
+  }
+  if (((private = port->port_private) == NULL) ||
     strcmp(MCT_OBJECT_NAME(port), "stats_sink")) {
-    CDBG("%s: E private=%p, name =%s", __func__, private,
+   CDBG("%s: E private=%p, name =%s", __func__, private,
       MCT_OBJECT_NAME(port));
     return FALSE;
   }
@@ -2129,3 +2303,140 @@ boolean stats_port_init(mct_port_t *port, unsigned int identity,
 
   return TRUE;
 }
+
+/* This function simply returns the TRUE or FALSE, based on debug mask */
+boolean is_stats_buffer_debug_data_enable(mct_port_t *port)
+{
+  boolean exif_dbg_enable = 0;
+
+  if (!port) {
+    CDBG_ERROR("%s Null pointer", __func__);
+    return 0;
+  }
+  stats_port_private_t *private = (stats_port_private_t *)port->port_private;
+  if (private->stats_debug_mask & EXIF_DEBUG_MASK_STATS) {
+    exif_dbg_enable = 1;
+  }
+  return (exif_dbg_enable);
+}
+
+
+/* Function to copy BG stats and Hist stats into debug data structure. */
+static void copy_stats_buffer_to_debug_data(mct_event_t *event,
+  mct_port_t *port)
+{
+  if (!event || !port) {
+    CDBG_ERROR("%s Null pointer", __func__);
+    return;
+  }
+  stats_port_private_t *private = (stats_port_private_t *)port->port_private;
+  const mct_event_stats_isp_t *const stats_event =
+    (mct_event_stats_isp_t *)event->u.module_event.module_event_data;
+
+  if (stats_event->stats_mask & (1 << MSM_ISP_STATS_BG)) {
+    uint32 index = 0;
+    const q3a_bg_stats_t* const p_bg_stats =
+      (q3a_bg_stats_t*)stats_event->stats_data[MSM_ISP_STATS_BG].stats_buf;
+    BayerGridStatsType* const pBgDebugStats = &(private->bg_stats_debug_Data);
+    const int32 debug_data_size = sizeof(private->bg_stats_debug_Data.redChannelSum);
+    const int32 q3a_data_size = sizeof(p_bg_stats->bg_r_sum);
+    const int32 copy_size = (q3a_data_size > debug_data_size) ?
+      debug_data_size : q3a_data_size;
+
+    /* Horizontal and vertical regions */
+    pBgDebugStats->bgStatsNumHorizontalRegions =
+      (uint16)p_bg_stats->bg_region_h_num;
+    pBgDebugStats->bgStatsNumVerticalRegions =
+      (uint16)p_bg_stats->bg_region_v_num;
+
+    /* Instead of loop, used memcopy for better performance. */
+    /* Copy BG stats sum array. */
+    memcpy(pBgDebugStats->redChannelSum, p_bg_stats->bg_r_sum, copy_size);
+    memcpy(pBgDebugStats->grChannelSum, p_bg_stats->bg_gr_sum, copy_size);
+    memcpy(pBgDebugStats->gbChannelSum, p_bg_stats->bg_gb_sum, copy_size);
+    memcpy(pBgDebugStats->blueChannelSum, p_bg_stats->bg_b_sum, copy_size);
+
+    /* Copy BG stats count array. */
+    for (index = 0;
+      (index < BAYER_GRID_NUM_REGIONS) && (index < MAX_BG_STATS_NUM);
+      index++) {
+      pBgDebugStats->redChannelCount[index] = (uint16)p_bg_stats->bg_r_num[index];
+      pBgDebugStats->grChannelCount[index] = (uint16)p_bg_stats->bg_gr_num[index];
+      pBgDebugStats->gbChannelCount[index] = (uint16)p_bg_stats->bg_gb_num[index];
+      pBgDebugStats->blueChannelCount[index] = (uint16)p_bg_stats->bg_b_num[index];
+    }
+    private->bg_stats_buffer_size = sizeof(private->bg_stats_debug_Data);
+  }
+  if (stats_event->stats_mask & (1 << MSM_ISP_STATS_BHIST)) {
+    const q3a_bhist_stats_t* const p_hist_stats =
+      (q3a_bhist_stats_t*)stats_event->stats_data[MSM_ISP_STATS_BHIST].stats_buf;
+    BayerHistogramStatsType* const pHistDebugStats = &(private->hist_stats_debug_Data);
+    const int32 debug_data_size = sizeof(private->hist_stats_debug_Data.grChannel);
+    const int32 q3a_data_size = sizeof(p_hist_stats->bayer_gr_hist);
+    const int32 copy_size = (q3a_data_size > debug_data_size) ?
+      debug_data_size : q3a_data_size;
+
+    /* Instead of loop, used memcopy for better performance. */
+    /* Copy Gr histogram stats. */
+    memcpy(pHistDebugStats->grChannel, p_hist_stats->bayer_gr_hist, copy_size);
+    private->bhist_stats_buffer_size = sizeof(private->hist_stats_debug_Data);
+  }
+}
+
+static void send_stats_buffer_to_debug_data(mct_port_t *port)
+{
+  mct_event_t event;
+  mct_bus_msg_t bus_msg;
+  cam_stats_buffer_exif_debug_t stats_buffer_info;
+  stats_port_private_t *private;
+  int size = 0, total_stats_buff_size = 0;
+
+  if (!port) {
+    CDBG_ERROR("%s: input error", __func__);
+    return;
+  }
+  private = (stats_port_private_t *)(port->port_private);
+  total_stats_buff_size = private->bg_stats_buffer_size +
+    private->bhist_stats_buffer_size;
+
+  if (STATS_BUFFER_DEBUG_DATA_SIZE < total_stats_buff_size ||
+    0 == total_stats_buff_size) {
+    CDBG_ERROR("%s Stats buffer debug data send error. buffer size mismatch"
+      "buffer size: %d, BG stats size: %d, bhist stats size %d", __func__,
+      STATS_BUFFER_DEBUG_DATA_SIZE, private->bg_stats_buffer_size,
+      private->bhist_stats_buffer_size);
+    return;
+  }
+  bus_msg.sessionid = (private->reserved_id >> 16);
+  bus_msg.type = MCT_BUS_MSG_STATS_EXIF_DEBUG_INFO;
+  bus_msg.msg = (void *)&stats_buffer_info;
+  size = (int)sizeof(cam_stats_buffer_exif_debug_t);
+  bus_msg.size = size;
+  memset(&stats_buffer_info, 0, size);
+  stats_buffer_info.bg_stats_buffer_size =
+    private->bg_stats_buffer_size;
+  stats_buffer_info.bhist_stats_buffer_size =
+    private->bhist_stats_buffer_size;
+  CDBG("%s Stats buffer debug data size. bg: %d, bhist: %d", __func__,
+    private->bg_stats_buffer_size,
+    private->bhist_stats_buffer_size);
+
+  /* Copy the bg stats debug data if data size is valid */
+  if (private->bg_stats_buffer_size) {
+    memcpy(&(stats_buffer_info.stats_buffer_private_debug_data[0]),
+      &(private->bg_stats_debug_Data), private->bg_stats_buffer_size);
+  }
+
+  /* Copy the bhist stats debug data if data size is valid */
+  if (private->bhist_stats_buffer_size) {
+    memcpy(&(stats_buffer_info.stats_buffer_private_debug_data[private->bg_stats_buffer_size]),
+      &(private->hist_stats_debug_Data), private->bhist_stats_buffer_size);
+  }
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.identity = private->reserved_id;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.u.module_event.type = MCT_EVENT_MODULE_STATS_POST_TO_BUS;
+  event.u.module_event.module_event_data = (void *)(&bus_msg);
+  MCT_PORT_EVENT_FUNC(port)(port, &event);
+}
+

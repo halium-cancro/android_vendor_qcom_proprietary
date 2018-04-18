@@ -13,9 +13,75 @@
 #define MAX_EXP_ENTRIES 5
 #define MAX_EXP_CHAR 50
 
+/******************** chromatix reserved part starts ***********************/
+/******Shall be moved to chromatix and cleaned up whe new chroamtix relase*/
+#define HIST_TARGET_ADJUST_ENABLE          (0) // Disabled by default.
+#define OUTDOOR_MAX_TARGET_ADJUST_RATIO    (1.8)
+#define OUTDOOR_MIN_TARGET_ADJUST_RATIO    (0.9)
+#define INDOOR_MAX_TARGET_ADJUST_RATIO     (1.8)
+#define INDOOR_MIN_TARGET_ADJUST_RATIO     (0.9)
+#define LOWLIGHT_MAX_TARGET_ADJUST_RATIO   (1)
+#define LOWLIGHT_MIN_TARGET_ADJUST_RATIO   (0.85)
+#define TARGET_FILTER_FACTOR               (0.5)
+#define HIST_SAT_PCT                       (0.02)
+#define HIST_DARK_PCT                      (0.15)
+#define HIST_SAT_LOW_REF                   (200)
+#define HIST_SAT_HIGH_REF                  (240)
+#define HIST_DARK_LOW_REF                  (3)
+#define HIST_DARK_HIGH_REF                 (70)
+
+
 #define AEC_MANUAL_EXPOSURE_TIME_MAX  2000000 /* in micro-second, 2s*/
 #define AEC_MANUAL_EXPOSURE_TIME_MIN  200     /* in micro-second, 1/5000s */
 #define AEC_MANUAL_EXPOSURE_TIME_AUTO 0
+
+#define AEC_SUBSAMPLE     (10)
+#define MIN_AEC_SUBSAMPLE (1)
+
+#define PREVIEW_ISO_ENABLE              (0)
+#define EXTREME_GREEN_COLOR_THLD_RADIUS (0.5)
+#define START_EXP_INDEX                 (240)
+#define USE_ROI_FOR_LED                 (1)
+
+/* Slow conv parameters */
+#define LUMA_TOLERANCE                  (2)
+#define FRAME_SKIP                      (1)
+#define HT_ENABLE                       (1)
+#define HT_LUMA_TOLERANCE               (4)
+#define HT_THRES                        (3.0f)
+#define HT_MAX                          (1.0f)
+#define HT_GYRO_ENABLE                  (1)
+/* End - Tuning parameters */
+
+/* Start - Advanced tuning parameters */
+#define REF_FRAME_RATE                  (30.0f)
+#define STEP_DARK                       (17.0f)
+#define STEP_BRIGHT                     (12.0f)
+#define STEP_REGULAR                    (4.0f)
+#define LUMA_TOL_RATIO_DARK             (0.30f)
+#define LUMA_TOL_RATIO_BRIGHT           (0.20f)
+#define RAW_STEP_ADJUST_CAP             (2.0f)
+#define ADJUST_SKIP_LUMA_TOLERANCE      (4)
+#define DARK_REGION_NUM_THRES           (0.05f)
+#define BRIGHT_REGION_NUM_THRES         (0.05f)
+#define HT_LUMA_THRES_LOW               (0.5f)
+#define HT_LUMA_THRES_HIGH              (0.7f)
+#define HT_LUMA_VAL_LOW                 (1.0f)
+#define HT_LUMA_VAL_HIGH                (0.6f)
+#define HT_GYRO_THRES_LOW               (0.5f)
+#define HT_GYRO_THRES_HIGH              (4.0f)
+#define HT_GYRO_VAL_LOW                 (1.0f)
+#define HT_GYRO_VAL_HIGH                (0.4f)
+
+
+#define AEC_DARK_REGION_ENABLE          (0)
+#define AEC_BRIGHTNESS_STEP_SIZE        (2)
+/* prameters for low light luma target */
+#define AEC_LOW_LIGHT_LUMA_TARGET_INIT      26
+#define AEC_LOW_LIGHT_LUMA_START_IDX_INIT   350
+#define AEC_LOW_LIGHT_LUMA_END_IDX_INIT     420
+
+/********************* chromatix reserved part ends*************************/
 
 typedef enum {
   AEC_STATS_YUV,
@@ -234,6 +300,17 @@ typedef enum {
   AEC_FLASH_MODE_STROBE
 } aec_flash_mode_t;
 
+typedef enum {
+  AEC_METERING_FRAME_AVERAGE,
+  AEC_METERING_CENTER_WEIGHTED,
+  AEC_METERING_SPOT_METERING,
+  AEC_METERING_SMART_METERING,
+  AEC_METERING_USER_METERING,
+  AEC_METERING_SPOT_METERING_ADV,
+  AEC_METERING_CENTER_WEIGHTED_ADV,
+  AEC_METERING_MAX_MODES
+} aec_auto_exposure_mode_t;
+
 /** _aec_parms:
  *    @target_luma:        TODO
  *    @cur_luma:           TODO
@@ -281,6 +358,8 @@ typedef struct _aec_exp_parms {
   int      exposure_index;
   float    lux_idx;
   float    exp_time;
+  uint32_t iso;
+  aec_auto_exposure_mode_t metering_type;
 } aec_exp_parms_t;
 
 /** _aec_flash_parms:
@@ -423,17 +502,6 @@ typedef struct _aec_proc_snapshot {
 } aec_proc_snapshot_t;
 
 typedef enum {
-  AEC_METERING_FRAME_AVERAGE,
-  AEC_METERING_CENTER_WEIGHTED,
-  AEC_METERING_SPOT_METERING,
-  AEC_METERING_SMART_METERING,
-  AEC_METERING_USER_METERING,
-  AEC_METERING_SPOT_METERING_ADV,
-  AEC_METERING_CENTER_WEIGHTED_ADV,
-  AEC_METERING_MAX_MODES
-} aec_auto_exposure_mode_t;
-
-typedef enum {
   AEC_SET_PARAM_INIT_CHROMATIX_SENSOR   = 1,
   AEC_SET_PARAM_EXP_COMPENSATION        ,
   AEC_SET_PARAM_BRIGHTNESS_LVL          ,
@@ -499,6 +567,8 @@ typedef enum {
   AEC_SET_PARAM_PREP_FOR_SNAPSHOT_LEGACY,
   AEC_SET_PARAM_RESET_LED_EST,
   AEC_SET_PARAM_EXP_TIME                ,
+  AEC_SET_PARAM_LONGSHOT_MODE           ,
+  AEC_SET_PARAM_SUBSAMPLING_FACTOR      ,
   AEC_SET_PARAM_MAX
 } aec_set_parameter_type;
 
@@ -550,6 +620,102 @@ typedef struct _aec_ui_frame_dim {
   uint32_t height;
 } aec_ui_frame_dim_t;
 
+/** Gyro information
+ *
+ **/
+typedef struct {
+  /* Gyro data in float */
+  int float_ready;
+  float flt[3];
+  /* Gyro data in Q16 */
+  int q16_ready;
+  long q16[3];
+} aec_gyro_info_t;
+
+typedef struct {
+
+  /* Start - Tuning parameters */
+  int        aec_luma_tolerance;
+  int        aec_frame_skip;
+  int        aec_ht_enable;
+  int        aec_ht_luma_tolerance;
+  float      aec_ht_thres;
+  float      aec_ht_max;
+  int        aec_ht_gyro_enable;
+  /* End - Tuning parameters */
+
+  /* Start - Advanced tuning parameters */
+  float      aec_ref_frame_rate;
+  float      aec_step_dark;
+  float      aec_step_bright;
+  float      aec_step_regular;
+  float      aec_luma_tol_ratio_dark;
+  float      aec_luma_tol_ratio_bright;
+  float      aec_raw_step_adjust_cap;
+  int        aec_adjust_skip_luma_tolerance;
+  float      aec_dark_region_num_thres;
+  float      bright_region_num_thres;
+
+  float      aec_ht_luma_thres_low;
+  float      ht_luma_thres_high;
+  float      aec_ht_luma_val_low;
+  float      ht_luma_val_high;
+  float      aec_ht_gyro_thres_low;
+  float      ht_gyro_thres_high;
+  float      aec_ht_gyro_val_low;
+  float      ht_gyro_val_high;
+} aec_slow_smooth_conv_t;
+
+
+/** aec_reserved_parameter_t
+    since current chromatix does not have such parameters,
+    so add them here to be passed to algorithm
+
+*/
+typedef struct {
+  int hist_target_adjust_enable;
+  float outdoor_max_target_adjust_ratio;
+  float outdoor_min_target_adjust_ratio;
+  float indoor_max_target_adjust_ratio;
+  float indoor_min_target_adjust_ratio;
+  float lowlight_max_target_adjust_ratio;
+  float lowlight_min_target_adjust_ratio;
+  float target_filter_factor;
+  float hist_sat_pct;
+  float hist_dark_pct;
+  float hist_sat_low_ref;
+  float hist_sat_high_ref;
+  float hist_dark_low_ref;
+  float hist_dark_high_ref;
+} aec_histogram_parameter_t;
+
+typedef struct _aec_tunable_params {
+  /* this is to apply ISO values for Non-zsl preview frame*/
+  uint8_t                 aec_preview_iso_enable;
+  float                   aec_extreme_green_color_thld_radius;
+  uint16_t                aec_start_exp_index;
+  uint8_t                 aec_use_roi_for_led;
+  aec_slow_smooth_conv_t  aec_slow_conv;
+  aec_histogram_parameter_t aec_histogram_params;
+
+  /*brightness step size will be aec_brightness_step_size * aec->tolerance */
+  uint32_t                aec_brightness_step_size;
+  uint8_t                 aec_dark_region_enable;
+} aec_tuning_params_t;
+
+/** aec_low_light_init_t:
+ * luma_target: low light luma target
+ * start_idx: start exposure index
+ * end_idx: end exposure index
+ *
+ **/
+
+typedef struct {
+  uint32_t luma_target;
+  uint32_t start_idx;
+  uint32_t end_idx;
+} aec_low_light_init_t;
+
 /** _aec_set_parameter_init:
  *    @stats_type:     TODO
  *    @chromatix:      TODO
@@ -569,6 +735,8 @@ typedef struct _aec_set_parameter_init {
   unsigned int         numRegions;
   aec_operation_mode_t op_mode;
   aec_ui_frame_dim_t   frame_dim;
+  aec_tuning_params_t  aec_tuning_params;
+  aec_low_light_init_t low_light_init;
 } aec_set_parameter_init_t;
 
 /** aec_precapture_trigger_t:
@@ -684,7 +852,7 @@ typedef struct _aec_set_parameter {
     aec_set_parameter_init_t      init_param;
     aec_auto_exposure_mode_t      aec_metering;
     uint32_t                      iso;
-    int32_t                       manual_exposure_time; /* in micro-second */
+    uint64_t                       manual_exposure_time; /* in nano-second */
     aec_antibanding_type_t        antibanding;
     aec_afd_status_t              antibanding_status;
     int                           brightness;
@@ -725,6 +893,7 @@ typedef struct _aec_set_parameter {
     int32_t                       zsl_op;
     int32_t                       video_hdr;
     uint32_t                      stats_debug_mask;
+    uint32_t                      subsampling_factor;
 
     aec_precapture_trigger_t      aec_trigger;
     uint8_t                       aec_ctrl_mode;
@@ -734,6 +903,7 @@ typedef struct _aec_set_parameter {
 
     aec_algo_gyro_info_t          gyro_info;
     int32_t                       chromaflash_enable;
+    boolean                       longshot_mode;
   } u;
 } aec_set_parameter_t;
 
@@ -894,8 +1064,13 @@ typedef struct _aec_output_data {
   aec_ez_tune_t            eztune;
   short                    iso_Exif;
   float                    Bv_Exif;
+  float                    Av_Exif;
+  float                    Sv_Exif;
+  float                    Tv_Exif;
   aec_config_t             config;
   int                      need_config;
+  char                     aec_debug_data_array[AEC_DEBUG_DATA_SIZE];
+  uint32_t                 aec_debug_data_size;
 } aec_output_data_t;
 
 typedef enum {

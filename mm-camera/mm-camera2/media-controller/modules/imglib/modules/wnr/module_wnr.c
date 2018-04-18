@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -858,6 +858,26 @@ boolean module_wnr_port_event_func(mct_port_t *port,
           }
           break;
         }
+
+        case MCT_EVENT_MODULE_ISP_OUTPUT_DIM: {
+          mct_stream_info_t *stream_info =
+            (mct_stream_info_t *)(event->u.module_event.module_event_data);
+          if (!stream_info) {
+            IDBG_ERROR("%s:%d] failed", __func__, __LINE__);
+          } else {
+            p_client->input_stream_info.dim.width = stream_info->dim.width;
+            p_client->input_stream_info.dim.height = stream_info->dim.height;
+            memcpy(p_client->input_stream_info.buf_planes.plane_info.mp,
+              stream_info->buf_planes.plane_info.mp,sizeof(stream_info->buf_planes.plane_info.mp));
+            p_client->input_stream_info.fmt = stream_info->fmt;
+            IDBG_MED("%s:%d] MCT_EVENT_MODULE_ISP_OUTPUT_DIM %dx%d",
+              __func__, __LINE__,
+              p_client->input_stream_info.dim.width,
+              p_client->input_stream_info.dim.height);
+          }
+          break;
+        }
+
         case MCT_EVENT_MODULE_STATS_AEC_UPDATE:
           brc = module_wnr_port_stats_aec_update_event(p_client, event);
           if (TRUE == brc) fwd_event = TRUE;
@@ -1226,11 +1246,10 @@ boolean module_wnr_query_mod(mct_module_t *module, void *buf,
     return FALSE;
   }
   p_cap = &p_mct_cap->pp_cap;
-  p_cap->height_padding = CAM_PAD_NONE;
-  p_cap->plane_padding = CAM_PAD_NONE;
-  p_cap->width_padding = CAM_PAD_NONE;
   p_cap->min_num_pp_bufs += MODULE_WNR_MIN_NUM_PP_BUFS;
-  p_cap->min_required_pp_mask |= 0;
+#ifdef CAMERA_FEATURE_WNR_SW
+  p_cap->is_sw_wnr = TRUE;
+#endif
   if (p_mct_cap->sensor_cap.sensor_format != FORMAT_YCBCR)
     p_cap->feature_mask |= CAM_QCOM_FEATURE_DENOISE2D;
 

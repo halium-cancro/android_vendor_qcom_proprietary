@@ -6,53 +6,7 @@
 
 #include "led_flash.h"
 #include "sensor_common.h"
-
-/** set_led_flash_burst_level:
- *    @led_flash_ctrl: address of pointer to
- *                   sensor_led_flash_data_t struct
- *    @level: LED flash level
- *
- * Set LED flash level when in burst shot mode
- *
- *
- * Return:
- * Success - SENSOR_SUCCESS
- * Failure - SENSOR_FAILURE
- **/
-static int32_t set_led_flash_burst_level(void *led_flash_ctrl, int32_t level)
-{
-  int32_t rc = SENSOR_SUCCESS;
-  sensor_led_flash_data_t *ctrl = (sensor_led_flash_data_t *)led_flash_ctrl;
-
-  SERR("%s: led flash burst level is %d", __func__, level);
-  ctrl->burst_level = level;
-
-  return rc;
-}
-
-/** get_led_flash_burst_level:
- *    @led_flash_ctrl: address of pointer to
- *                   sensor_led_flash_data_t struct
- *    @level: LED flash level
- *
- * Get LED flash level when in burst shot mode
- *
- *
- * Return:
- * Success - SENSOR_SUCCESS
- * Failure - SENSOR_FAILURE
- **/
-static int32_t get_led_flash_burst_level(void *led_flash_ctrl, void *level)
-{
-  int32_t rc = SENSOR_SUCCESS;
-  sensor_led_flash_data_t *ctrl = (sensor_led_flash_data_t *)led_flash_ctrl;
-
-  *(int32_t *)level = ctrl->burst_level;
-  SERR("%s: led flash burst level is %d", __func__, *(int32_t *)level);
-
-  return rc;
-}
-
+#include "server_debug.h"
 
 /** led_flash_open:
  *    @led_flash_ctrl: address of pointer to
@@ -95,6 +49,11 @@ static int32_t led_flash_open(void **led_flash_ctrl, const char *subdev_name)
   SLOW("sd name %s", subdev_string);
   /* Open subdev */
   ctrl->fd = open(subdev_string, O_RDWR);
+  if ((ctrl->fd) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ctrl->fd = -1;
+    goto ERROR1;
+  }
   if (ctrl->fd < 0) {
     SERR("failed");
     rc = SENSOR_FAILURE;
@@ -124,6 +83,7 @@ static int32_t led_flash_open(void **led_flash_ctrl, const char *subdev_name)
     goto ERROR3;
   }
   memset(ctrl->dual_led_setting, 0, sizeof(awb_dual_led_settings_t));
+  //memset(ctrl->flash_max_duration, 0xFF, sizeof(ctrl->flash_max_duration));
 
   cfg.cfgtype = MSM_CAMERA_LED_INIT;
   rc = ioctl(ctrl->fd, VIDIOC_MSM_FLASH_LED_DATA_CFG, &cfg);
@@ -147,6 +107,46 @@ ERROR1:
   return rc;
 }
 
+/** led_flash_init:
+ *    @led_flash_ctrl: LED flash control handle
+ *    @data: NULL
+ *
+ * Handled all LED flash trigger events and passes control to
+ * kernel to configure LED hardware
+ *
+ * This function executes in sensor module context
+ *
+ * Return:
+ * Success - SENSOR_SUCCESS
+ * Failure - SENSOR_FAILURE
+ **/
+static int32_t led_flash_init(void *ptr)
+{
+  int32_t rc = SENSOR_SUCCESS;
+  int32_t i = 0;
+
+  sensor_led_flash_data_t *led_flash_ctrl = (sensor_led_flash_data_t*)ptr;
+  struct msm_camera_led_cfg_t cfg;
+
+  cfg.cfgtype = MSM_CAMERA_LED_INIT;
+  rc = ioctl(led_flash_ctrl->fd, VIDIOC_MSM_FLASH_LED_DATA_CFG, &cfg);
+  if (rc < 0) {
+    SERR("VIDIOC_MSM_FLASH_LED_DATA_CFG failed %s", strerror(errno));
+    return SENSOR_FAILURE;
+  }
+/*
+  for (i = 0; i < MAX_LED_TRIGGERS; i++) {
+    led_flash_ctrl->flash_max_current[i] =
+      (int32_t)cfg.flash_current[i];
+    led_flash_ctrl->flash_max_duration[i] =
+      (int32_t)cfg.flash_duration[i];
+    SLOW("i = %d flash_current = %d flash_duration = %d",
+      i, led_flash_ctrl->flash_max_current[i],
+      led_flash_ctrl->flash_max_duration[i]);
+  }
+*/
+  return SENSOR_SUCCESS;
+}
 /** led_flash_process:
  *    @led_flash_ctrl: LED flash control handle
  *    @event: configuration event type
@@ -166,37 +166,42 @@ static int32_t led_flash_process(void *led_flash_ctrl,
   sensor_submodule_event_type_t event, void *data)
 {
   int32_t                     rc = SENSOR_SUCCESS;
-  sensor_led_flash_data_t    *ctrl;
+  sensor_led_flash_data_t *ctrl = (sensor_led_flash_data_t *)led_flash_ctrl;
   rer_cfg_t                  *rer = NULL;
   module_sensor_params_t     *led_module_params = NULL;
   red_eye_reduction_type     *rer_chromatix = NULL;
   awb_dual_led_settings_t    *dual_led_setting = NULL;
-  int32_t                    mode = 0;
+  int32_t                  mode = 0;
   int32_t                     temp = 0;
+
   struct msm_camera_led_cfg_t cfg;
-//Gionee <zhuangxiaojian> <2014-07-21> modify for CR01325046 begin
-#ifdef ORIGINAL_VERSION
-#else
-  int32_t					 level = 0;
-#endif
-//Gionee <zhuangxiaojian> <2014-07-21> modify for CR01325046 end
 
   if (!led_flash_ctrl) {
     SERR("failed");
     return SENSOR_FAILURE;
   }
 
-  ctrl = (sensor_led_flash_data_t *)led_flash_ctrl;
   rer = ((sensor_led_flash_data_t *)led_flash_ctrl)->rer;
   dual_led_setting =
     ((sensor_led_flash_data_t *)led_flash_ctrl)->dual_led_setting;
 
   /* Set default current values = 0 */
   cfg.torch_current = 0;
+  //cfg.torch_current[1] = 0;
   cfg.flash_current[0] = 0;
   cfg.flash_current[1] = 0;
 
   switch (event) {
+  case LED_FLASH_GET_MAX_CURRENT: {
+    int32_t ** flash_current = (int32_t **)data;
+    //*flash_current = &(ctrl->flash_current[2]);
+  }
+    break;
+  case LED_FLASH_GET_MAX_DURATION: {
+    int32_t ** flash_duration = (int32_t **)data;
+    //*flash_duration = &(ctrl->flash_max_duration);
+  }
+    break;
   case LED_FLASH_GET_CURRENT: {
     awb_update_t *awb_update = (awb_update_t*) data;
     /* Get currents for dual LED */
@@ -226,25 +231,19 @@ static int32_t led_flash_process(void *led_flash_ctrl,
     /* Torch mode */
     cfg.cfgtype = MSM_CAMERA_LED_LOW;
     cfg.torch_current = data ? *(uint32_t *)data : 0;
+    //cfg.torch_current[1] = data ? *(uint32_t *)data : 0;
     break;
   case LED_FLASH_SET_PRE_FLASH:
     /* Pre flash mode */
-//Gionee <zhaocuiqin> <2014-07-21> modify for CR01324497 begin
-#ifdef ORIGINAL_VERSION
-    cfg.cfgtype = MSM_CAMERA_LED_HIGH;
+    cfg.cfgtype = MSM_CAMERA_LED_LOW;
 
     if (dual_led_setting) {
-      cfg.flash_current[0] = dual_led_setting->led1_low_setting;
-      cfg.flash_current[1] = dual_led_setting->led2_low_setting;
+      cfg.torch_current = dual_led_setting->led1_low_setting;
+      //cfg.torch_current[1] = dual_led_setting->led2_low_setting;
     } else {
-      cfg.flash_current[0] = data ? *(uint32_t *)data : 0;
-      cfg.flash_current[1] = data ? *(uint32_t *)data : 0;
+      cfg.torch_current = data ? *(uint32_t *)data : 0;
+      //cfg.torch_current[1] = data ? *(uint32_t *)data : 0;
     }
-#else
-    cfg.cfgtype = MSM_CAMERA_LED_LOW;
-    cfg.torch_current = data ? *(uint32_t *)data : 0;
-#endif
-//Gionee <zhaocuiqin> <2014-07-21> modify for CR01324497 end
     break;
   case LED_FLASH_SET_RER_PULSE_FLASH:
     /* RER flash pulses */
@@ -280,20 +279,6 @@ static int32_t led_flash_process(void *led_flash_ctrl,
     }
     rc = led_flash_rer_wait_pupil_contract(rer, led_module_params);
     break;
-//Gionee <zhuangxiaojian> <2014-07-21> modify for CR01325046 begin
-#ifdef ORIGINAL_VERSION
-#else
-  case LED_FLASH_SET_BURST_LEVEL: {
-    level = *(int32_t *)data;
-    rc = set_led_flash_burst_level(led_flash_ctrl, level);
-    return rc;
-  }
-  case LED_FLASH_GET_BURST_LEVEL:{
-    rc = get_led_flash_burst_level(led_flash_ctrl, (int32_t *)data);
-    return rc;
-  }
-#endif
-//Gionee <zhuangxiaojian> <2014-07-21> modify for CR01325046 end
   default:
     SERR("invalid event %d", event);
     return SENSOR_FAILURE;

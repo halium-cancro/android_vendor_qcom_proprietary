@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -23,6 +23,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_pipeline_util.h"
 #include "isp_pipeline32.h"
 #include "isp_pipeline_util.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -134,7 +135,8 @@ static uint16_t mod_cfg_order_bayer[] =
   ISP_MOD_SCE,
   ISP_MOD_FOV,
   ISP_MOD_SCALER,
-  ISP_MOD_ASF
+  ISP_MOD_ASF,
+  ISP_MOD_STATS
 };
 
 static uint16_t mod_cfg_order_yuv[] =
@@ -479,7 +481,7 @@ int isp_pipeline32_operation_config(void *pix_ptr, int is_bayer_input)
  **/
 static void isp_pix_dump_ISP_ModuleCfgPacked(ISP_ModuleCfgPacked *module_cfg)
 {
-  CDBG("%s: "
+  ISP_DBG(ISP_MOD_COM,"%s: "
     "blackLevelCorrectionEnable = %d,\n"
     "lensRollOffEnable = %d,\n"
     "demuxEnable = %d,\n"
@@ -797,6 +799,63 @@ static float isp32_util_get_aec_ratio_lowlight(unsigned char tunning_type,
   return ratio;
 } /* isp_util_get_aec_ratio */
 
+/** isp32_util_get_aec_ratio_bright
+ *
+ *    @tunning_type:
+ *    @trigger_ptr:
+ *    @aec_out:
+ *    @is_snap_mode
+ *
+ *   Get trigger ratio based on lowlight trigger.
+ *   Please note that ratio is the weight of the normal light.
+ *    NORMAL          Mix              BRIGHT(OUTDOOR)
+ *    ------------|-----------------|-----------------
+ *        bright_start(ex: 150)    bright_end(ex: 100)
+ *
+ **/
+static float isp32_util_get_aec_ratio_bright(unsigned char tunning_type,
+  void *trigger_ptr, aec_update_t* aec_out, int8_t is_snap_mode)
+{
+  float normal_light_ratio = 0.0, real_gain;
+  float ratio_to_birhgt_end = 0.0;
+  tuning_control_type tunning = (tuning_control_type)tunning_type;
+  trigger_point_type *trigger = (trigger_point_type *)trigger_ptr;
+
+  switch (tunning) {
+  /* 0 is Lux Index based */
+  case 0: {
+    ratio_to_birhgt_end =isp_util_calc_interpolation_weight(
+      aec_out->lux_idx, trigger->lux_index_end, trigger->lux_index_start);
+    }
+      break;
+  /* 1 is Gain Based */
+  case 1: {
+    real_gain = aec_out->real_gain;
+    ratio_to_birhgt_end = isp_util_calc_interpolation_weight(real_gain,
+      trigger->gain_end, trigger->gain_start);
+  }
+    break;
+
+  default: {
+    CDBG_ERROR("get_trigger_ratio: tunning type %d is not supported.\n",
+      tunning);
+  }
+    break;
+  }
+
+  /*ratio_to_birhgt_end is the sitance to bright_end,
+    the smaller distance to bright_end,
+    the lower ratio applied on normal light*/
+  normal_light_ratio = ratio_to_birhgt_end;
+
+  if (normal_light_ratio < 0) {
+    normal_light_ratio = 0;
+  } else if (normal_light_ratio > 1.0) {
+    normal_light_ratio = 1.0;
+  }
+
+  return normal_light_ratio;
+} /* isp_util_get_aec_ratio */
 /** isp32_util_get_aec_ratio_bright_low:
  *
  *    @tuning_type:
@@ -824,7 +883,7 @@ static int isp32_util_get_aec_ratio_bright_low(unsigned char tuning_type,
   rt->ratio = 0.0;
   rt->lighting = TRIGGER_NORMAL;
 
-  CDBG("lux_idx %f, current_real_gain %f\n",
+  ISP_DBG(ISP_MOD_COM,"lux_idx %f, current_real_gain %f\n",
     aec_out->lux_idx, aec_out->real_gain);
 
   switch (tuning) {
@@ -888,7 +947,7 @@ static awb_cct_type isp32_util_get_awb_cct_type(cct_trigger_info* trigger,
   chromatix_parms_type *p_chromatix = chromatix_ptr;
   awb_cct_type cct_type = AWB_CCT_TYPE_TL84;
 
-  CDBG("%s: CCT %f D65 %f %f A %f %f", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: CCT %f D65 %f %f A %f %f", __func__,
     trigger->mired_color_temp,
     trigger->trigger_d65.mired_end,
     trigger->trigger_d65.mired_start,
@@ -898,9 +957,9 @@ static awb_cct_type isp32_util_get_awb_cct_type(cct_trigger_info* trigger,
   if (trigger->mired_color_temp <= trigger->trigger_d65.mired_end) {
     cct_type = AWB_CCT_TYPE_D65;
   } else if ((trigger->mired_color_temp > trigger->trigger_d65.mired_end) &&
-             (trigger->mired_color_temp <= trigger->trigger_d65.mired_start)) {
+             (trigger->mired_color_temp < trigger->trigger_d65.mired_start)) {
     cct_type = AWB_CCT_TYPE_D65_TL84;
-  } else if ((trigger->mired_color_temp >= trigger->trigger_A.mired_start) &&
+  } else if ((trigger->mired_color_temp > trigger->trigger_A.mired_start) &&
              (trigger->mired_color_temp < trigger->trigger_A.mired_end)) {
     cct_type = AWB_CCT_TYPE_TL84_A;
   } else if (trigger->mired_color_temp >= trigger->trigger_A.mired_end) {
@@ -1085,7 +1144,7 @@ int isp32_reconfig_modules(void *pix_ptr)
     CDBG_ERROR("%s: VFE core/module cfg error = %d\n", __func__, rc);
     return rc;
   }
-  CDBG("%s: X, rc = %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d", __func__, rc);
 
   return rc;
 }
@@ -1100,7 +1159,7 @@ int isp32_reconfig_modules(void *pix_ptr)
 static void isp32_util_get_params(void *in_params, uint32_t in_params_size,
   uint32_t param_id, void* out_param, uint32_t out_params_size, void *ctrl)
 {
-  CDBG("%s:E, param_id %d", __func__, param_id);
+  ISP_DBG(ISP_MOD_COM,"%s:E, param_id %d", __func__, param_id);
   switch (param_id) {
   case ISP_PIPELINE_GET_CDS_TRIGGER_VAL: {
     modulesChromatix_t *chromatixPtr = (modulesChromatix_t *)ctrl;
@@ -1108,7 +1167,7 @@ static void isp32_util_get_params(void *in_params, uint32_t in_params_size,
     if (NULL != uv_subsample_ctrl) {
       uv_subsample_ctrl->trigger_A = 0;
       uv_subsample_ctrl->trigger_B = 0;
-      CDBG("%s: trigger pts set to 0 for isp32 ", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: trigger pts set to 0 for isp32 ", __func__);
     }
   }
     break;
@@ -1118,7 +1177,7 @@ static void isp32_util_get_params(void *in_params, uint32_t in_params_size,
     tintless_mesh_rolloff_array_t *rolloff = (tintless_mesh_rolloff_array_t *)out_param;
     int rc = 0;
     if (pipeline->mod_ops[ISP_MOD_ROLLOFF] && pipeline->mod_ops[ISP_MOD_ROLLOFF]->get_params) {
-      CDBG("%s: ISP_HW_MOD_GET_TINTLESS_RO\n", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: ISP_HW_MOD_GET_TINTLESS_RO\n", __func__);
       rc = pipeline->mod_ops[ISP_MOD_ROLLOFF]->get_params(pipeline->mod_ops[ISP_MOD_ROLLOFF]->ctrl,
              ISP_HW_MOD_GET_TINTLESS_RO, in_params, in_params_size,
              rolloff, sizeof(tintless_mesh_rolloff_array_t));
@@ -1133,7 +1192,7 @@ static void isp32_util_get_params(void *in_params, uint32_t in_params_size,
       int i, rc = 0;
       for (i = 0; i < ISP_MOD_MAX_NUM; i++) {
         if (pipeline->mod_ops[i] && pipeline->mod_ops[i]->get_params) {
-          CDBG("%s: module id = %d, ISP_HW_MOD_GET_VFE_DIAG_INFO_USER\n",
+          ISP_DBG(ISP_MOD_COM,"%s: module id = %d, ISP_HW_MOD_GET_VFE_DIAG_INFO_USER\n",
             __func__, i);
           rc = pipeline->mod_ops[i]->get_params(pipeline->mod_ops[i]->ctrl,
                  ISP_HW_MOD_GET_VFE_DIAG_INFO_USER, in_params, in_params_size,
@@ -1144,7 +1203,7 @@ static void isp32_util_get_params(void *in_params, uint32_t in_params_size,
     break;
 
   default: {
-    CDBG("%s: param_id %d not supported ", __func__, param_id);
+    ISP_DBG(ISP_MOD_COM,"%s: param_id %d not supported ", __func__, param_id);
   }
     break;
   }
@@ -1196,6 +1255,7 @@ int isp_pipeline32_init(isp_hw_pix_dep_t *dep)
   dep->get_roi_map = isp_pipeline32_get_roi_map;
   dep->util_get_aec_ratio_lowlight = isp32_util_get_aec_ratio_lowlight;
   dep->util_get_aec_ratio_bright_low = isp32_util_get_aec_ratio_bright_low;
+  dep->util_get_aec_ratio_bright = isp32_util_get_aec_ratio_bright;
   dep->util_get_awb_cct_type = isp32_util_get_awb_cct_type;
   dep->util_set_uv_subsample = isp32_util_set_uv_subsample;
   dep->util_get_param = isp32_util_get_params;

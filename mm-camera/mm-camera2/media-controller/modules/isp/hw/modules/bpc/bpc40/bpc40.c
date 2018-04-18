@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "bpc40.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_BPC_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #ifndef sign
@@ -30,16 +31,16 @@
  **/
 static void util_bpc_cmd_debug(ISP_DemosaicDBPC_CmdType *cmd)
 {
-  CDBG("%s: cmd->fminThreshold = %d \n", __func__, cmd->fminThreshold);
-  CDBG("%s: cmd->fmaxThreshold = %d \n", __func__, cmd->fmaxThreshold);
-  CDBG("%s: cmd->rOffsetHi = %d \n", __func__, cmd->rOffsetHi);
-  CDBG("%s: cmd->rOffsetLo = %d \n", __func__, cmd->rOffsetLo);
-  CDBG("%s: cmd->bOffsetHi = %d \n", __func__, cmd->bOffsetHi);
-  CDBG("%s: cmd->bOffsetLo = %d \n", __func__, cmd->bOffsetLo);
-  CDBG("%s: cmd->grOffsetHi = %d \n", __func__, cmd->grOffsetHi);
-  CDBG("%s: cmd->grOffsetLo = %d \n", __func__, cmd->grOffsetLo);
-  CDBG("%s: cmd->gbOffsetHi = %d \n", __func__, cmd->gbOffsetHi);
-  CDBG("%s: cmd->gbOffsetLo = %d \n", __func__, cmd->gbOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->fminThreshold = %d \n", __func__, cmd->fminThreshold);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->fmaxThreshold = %d \n", __func__, cmd->fmaxThreshold);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->rOffsetHi = %d \n", __func__, cmd->rOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->rOffsetLo = %d \n", __func__, cmd->rOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->bOffsetHi = %d \n", __func__, cmd->bOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->bOffsetLo = %d \n", __func__, cmd->bOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->grOffsetHi = %d \n", __func__, cmd->grOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->grOffsetLo = %d \n", __func__, cmd->grOffsetLo);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->gbOffsetHi = %d \n", __func__, cmd->gbOffsetHi);
+  ISP_DBG(ISP_MOD_BPC, "%s: cmd->gbOffsetLo = %d \n", __func__, cmd->gbOffsetLo);
 } /* util_bpc_cmd_debug */
 
 /** util_bpc_cmd_config
@@ -177,9 +178,9 @@ static int bpc_config(isp_bpc_mod_t *mod,
     return -1;
   }
 
-  CDBG("%s: enter", __func__);
+  ISP_DBG(ISP_MOD_BPC, "%s: enter", __func__);
   if (!mod->enable) {
-    CDBG("%s: Mod not Enable.", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Mod not Enable.", __func__);
     return rc;
   }
 
@@ -309,7 +310,7 @@ static int bpc_trigger_update(isp_bpc_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable || mod->skip_trigger) {
-    CDBG("%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
+    ISP_DBG(ISP_MOD_BPC, "%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
       __func__, mod->enable, mod->trigger_enable, mod->skip_trigger);
     return rc;
   }
@@ -317,11 +318,11 @@ static int bpc_trigger_update(isp_bpc_mod_t *mod,
   is_snapmode = IS_BURST_STREAMING(&in_params->cfg);
   if (!is_snapmode && !isp_util_aec_check_settled(
          &(in_params->trigger_input.stats_update.aec_update))) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: AEC not settled", __func__);
     return rc;
   }
 
-  CDBG("%s: Calculate table with AEC", __func__);
+  ISP_DBG(ISP_MOD_BPC, "%s: Calculate table with AEC", __func__);
   if ((chromatix_BPC->bpc_Fmin > chromatix_BPC->bpc_Fmax) ||
       (chromatix_BPC->bpc_Fmin_lowlight > chromatix_BPC->bpc_Fmax_lowlight)) {
     CDBG_ERROR("%s: Error min>max: %d/%d; %d/%d\n", __func__,
@@ -347,24 +348,24 @@ static int bpc_trigger_update(isp_bpc_mod_t *mod,
     !F_EQUAL(mod->aec_ratio, aec_ratio));
 
   if (!update_cs) {
-    CDBG("%s: update not required", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: update not required", __func__);
     return 0;
   }
 
   if (F_EQUAL(aec_ratio, 0.0)) {
-    CDBG("%s: Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Low Light \n", __func__);
     mod->p_params.p_input_offset = bpc_lowlight_input_offset;
     mod->p_params.p_Fmin = &(Fmin_lowlight);
     mod->p_params.p_Fmax = &(Fmax_lowlight);
     util_bpc_cmd_config(mod);
   } else if (F_EQUAL(aec_ratio, 1.0)) {
-    CDBG("%s: Normal Light \n", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Normal Light \n", __func__);
     mod->p_params.p_input_offset = bpc_normal_input_offset;
     mod->p_params.p_Fmin = &(Fmin);
     mod->p_params.p_Fmax = &(Fmax);
     util_bpc_cmd_config(mod);
   } else {
-    CDBG("%s: Interpolate between Nomal and Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Interpolate between Nomal and Low Light \n", __func__);
   /* Directly configure reg cmd.*/
     Fmin = (uint8_t)Round(LINEAR_INTERPOLATION(Fmin, Fmin_lowlight, aec_ratio));
     mod->RegCmd.fminThreshold = Fmin;
@@ -524,7 +525,7 @@ static int bpc_get_params (void *mod_ctrl, uint32_t param_id, void *in_params,
     vfe_diag->control_bpc.cntrlenable = mod->trigger_enable;
     bpc_ez_isp_update(mod, bpcDiag);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_BPC, "%s: Populating vfe_diag data", __func__);
   }
     break;
 
@@ -585,7 +586,7 @@ isp_ops_t *bpc40_open(uint32_t version)
 {
   isp_bpc_mod_t *mod = malloc(sizeof(isp_bpc_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_BPC, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

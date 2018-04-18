@@ -6,10 +6,11 @@
 ============================================================================*/
 #include <unistd.h>
 #include "ihist_stats.h"
+#include "isp_log.h"
 
 #ifdef IHIST_STATS_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -49,7 +50,7 @@ static int ihist_stats_config(isp_stats_entry_t *entry,
   int32_t shift_bits;
 
   if (!entry->enable) {
-    CDBG("%s: ihist not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: ihist not enabled", __func__);
     return 0;
   }
 
@@ -89,7 +90,7 @@ static int ihist_stats_config(isp_stats_entry_t *entry,
   shift_bits -= 16;
   shift_bits = MAX(0, shift_bits);
   shift_bits = MIN(4, shift_bits);
-  CDBG("%s: tot %d shift %d", __func__, total_pixels, shift_bits);
+  ISP_DBG(ISP_MOD_STATS, "%s: tot %d shift %d", __func__, total_pixels, shift_bits);
 
   pcmd->shiftBits = shift_bits;
   pcmd->siteSelect = 0;
@@ -120,15 +121,15 @@ static int ihist_stats_config(isp_stats_entry_t *entry,
     }
   }
 
-  CDBG("IHIST statsconfig shiftBits %d\n",
+  ISP_DBG(ISP_MOD_STATS, "IHIST statsconfig shiftBits %d\n",
     pcmd->shiftBits);
-  CDBG("IHIST statsconfig channelSelect  %d\n",
+  ISP_DBG(ISP_MOD_STATS, "IHIST statsconfig channelSelect  %d\n",
     pcmd->channelSelect);
-  CDBG("IHIST statsconfig siteSelect %d\n",
+  ISP_DBG(ISP_MOD_STATS, "IHIST statsconfig siteSelect %d\n",
     pcmd->siteSelect);
-  CDBG("IHIST statsconfig rgnHNum   %d\n",
+  ISP_DBG(ISP_MOD_STATS, "IHIST statsconfig rgnHNum   %d\n",
     pcmd->rgnHNum);
-  CDBG("IHIST statsconfig rgnVNum   %d\n",
+  ISP_DBG(ISP_MOD_STATS, "IHIST statsconfig rgnVNum   %d\n",
     pcmd->rgnVNum);
   entry->hw_update_pending = 1;
   return 0;
@@ -146,7 +147,7 @@ static int ihist_stats_config(isp_stats_entry_t *entry,
 static int ihist_stats_enable(isp_stats_entry_t *entry,
   isp_mod_set_enable_t *in_params)
 {
-  CDBG("%s: enable = %d\n", __func__, in_params->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: enable = %d\n", __func__, in_params->enable);
   entry->enable = in_params->enable;
   /* after enable the first stats is corrupted */
   entry->is_first = 1;
@@ -165,7 +166,7 @@ static int ihist_stats_enable(isp_stats_entry_t *entry,
 static int ihist_stats_trigger_enable(isp_stats_entry_t *entry,
   isp_mod_set_enable_t *in_params)
 {
-  CDBG("%s: trigger_enable = %d\n", __func__, in_params->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: trigger_enable = %d\n", __func__, in_params->enable);
   entry->trigger_enable = in_params->enable;
   return 0;
 }
@@ -229,7 +230,7 @@ static int ihist_stats_get_params (void *ctrl, uint32_t param_id,
   isp_stats_entry_t *entry = ctrl;
   int rc = 0;
 
-  CDBG("%s: param is = %d\n", __func__, param_id);
+  ISP_DBG(ISP_MOD_STATS, "%s: param is = %d\n", __func__, param_id);
   switch (param_id) {
   case ISP_STATS_GET_ENABLE:
     break;
@@ -303,7 +304,7 @@ static int ihist_stats_parse(isp_stats_entry_t *entry,
   int i;
   uint16_t *hist_statsBuffer = NULL;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
   hist_statsBuffer = (uint16_t *)raw_buf;
   for (i= 0; i< 256; i++) {
     ihist_stats->histogram[i] += *hist_statsBuffer;
@@ -330,7 +331,7 @@ static int ihist_stats_action (void *ctrl, uint32_t action_code,
   int rc = 0;
   isp_stats_entry_t *entry = ctrl;
 
-  CDBG("%s: action code = %d\n", __func__, action_code);
+  ISP_DBG(ISP_MOD_STATS, "%s: action code = %d\n", __func__, action_code);
   switch ((isp_stats_action_code_t)action_code) {
   case ISP_STATS_ACTION_STREAM_START:
     break;
@@ -362,7 +363,7 @@ static int ihist_stats_action (void *ctrl, uint32_t action_code,
     }
 
     if (entry->is_first == 1) {
-       CDBG("%s: drop first ihist stats\n", __func__);
+       ISP_DBG(ISP_MOD_STATS, "%s: drop first ihist stats\n", __func__);
        entry->is_first = 0;
        isp_stats_enqueue_buf(entry, buf_idx);
        return rc;
@@ -469,7 +470,7 @@ isp_ops_t *ihist_stats44_open(isp_stats_mod_t *stats,
   int rc = 0;
   isp_stats_entry_t *entry = NULL;
   ISP_StatsIhist_CfgType *cmd = NULL;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
   entry = malloc(sizeof(isp_stats_entry_t));
   if (!entry) {
     CDBG_ERROR("%s: no mem for aec\n",  __func__);

@@ -1,7 +1,7 @@
-/**********************************************************************
-* Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved. *
-* Qualcomm Technologies Proprietary and Confidential.                 *
-**********************************************************************/
+/***************************************************************************
+* Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Qualcomm Technologies Proprietary and Confidential.                      *
+***************************************************************************/
 #include <cutils/properties.h>
 #include <linux/media.h>
 #include "mct_module.h"
@@ -112,76 +112,65 @@ static boolean module_faceproc_within_limit(faceproc_history_entry_t *rect1,
 *   @p_fd_chromatix: faceproc chromatix pointer
 *
 * Return values:
-*  0 - on success
+*  None
 * Notes: none
 **/
-static int module_faceproc_stab_add_face(faceproc_faces_history_t *history,
+static void module_faceproc_stab_add_face(faceproc_faces_history_t *history,
   faceproc_info_t *roi, fd_chromatix_t *p_fd_chromatix)
 {
   history->id = abs(roi->unique_id);
 
   /* Fill face size */
-  history->face_position.index = (history->face_position.index + 1) %
-    p_fd_chromatix->stab_history;
-  history->face_position.entry[history->face_position.index].x =
-    roi->face_boundary.x + (roi->face_boundary.dx / 2);
-  history->face_position.entry[history->face_position.index].y =
-    roi->face_boundary.y + (roi->face_boundary.dy / 2);
-  if (history->face_position.faces_inside < p_fd_chromatix->stab_history)
-    history->face_position.faces_inside++;
+  if (p_fd_chromatix->stab_pos.enable) {
+    history->face_position.index = (history->face_position.index + 1) %
+      p_fd_chromatix->stab_history;
+    history->face_position.entry[history->face_position.index].x =
+      roi->face_boundary.x + (roi->face_boundary.dx / 2);
+    history->face_position.entry[history->face_position.index].y =
+      roi->face_boundary.y + (roi->face_boundary.dy / 2);
+
+    if (history->face_position.faces_inside < p_fd_chromatix->stab_history)
+      history->face_position.faces_inside++;
+  }
 
   /* Fill face positions */
-  history->face_size.index = (history->face_size.index + 1) %
-    p_fd_chromatix->stab_history;
-  history->face_size.entry[history->face_size.index].x = roi->face_boundary.dx;
-  history->face_size.entry[history->face_size.index].y = roi->face_boundary.dy;
-  if (history->face_size.faces_inside < p_fd_chromatix->stab_history)
-    history->face_size.faces_inside++;
+  if (p_fd_chromatix->stab_size.enable) {
+    history->face_size.index = (history->face_size.index + 1) %
+      p_fd_chromatix->stab_history;
+    history->face_size.entry[history->face_size.index].x =
+      roi->face_boundary.dx;
+    history->face_size.entry[history->face_size.index].y =
+      roi->face_boundary.dy;
+
+    if (history->face_size.faces_inside < p_fd_chromatix->stab_history)
+      history->face_size.faces_inside++;
+  }
 
   /* Fill mouth position */
-  history->mouth_position.index = (history->mouth_position.index + 1) %
-    p_fd_chromatix->stab_history;
-  history->mouth_position.entry[history->mouth_position.index].x =
-    roi->fp.face_pt[FACE_PART_MOUTH].x;
-  history->mouth_position.entry[history->mouth_position.index].y =
-    roi->fp.face_pt[FACE_PART_MOUTH].y;
-  if (history->mouth_position.faces_inside < p_fd_chromatix->stab_history)
-    history->mouth_position.faces_inside++;
+  if (p_fd_chromatix->stab_mouth.enable) {
+    history->mouth_position.index = (history->mouth_position.index + 1) %
+      p_fd_chromatix->stab_history;
+    history->mouth_position.entry[history->mouth_position.index].x =
+      roi->fp.face_pt[FACE_PART_MOUTH].x;
+    history->mouth_position.entry[history->mouth_position.index].y =
+      roi->fp.face_pt[FACE_PART_MOUTH].y;
 
-  return 0;
-}
+    if (history->mouth_position.faces_inside < p_fd_chromatix->stab_history)
+      history->mouth_position.faces_inside++;
+  }
 
-/**
-* Function: module_faceproc_stab_fill_roi
-*
-* Description: Add new face to the internal history,
-*   internal history is ring buffer.
-*
-* Arguments:
-*   @faces - Faces history
-*   @roi - New face which need to be added
-*
-* Return values:
-*   0 - on success
-* Notes: none
-**/
-static int module_faceproc_stab_fill_roi(faceproc_faces_history_t *faces,
-  faceproc_info_t *roi)
-{
-  roi->face_boundary.dx = faces->face_size.stable_entry.x;
-  roi->face_boundary.dy = faces->face_size.stable_entry.y;
+  /* Fill smile degree position */
+  if (p_fd_chromatix->stab_smile.enable) {
+    history->smile_degree.index = (history->smile_degree.index + 1) %
+      p_fd_chromatix->stab_history;
+    history->smile_degree.entry[history->smile_degree.index].x =
+      roi->sm.smile_degree;
+    history->smile_degree.entry[history->smile_degree.index].y =
+      roi->sm.smile_degree;
 
-  /* Face position is centered so move to begging of rectangle */
-  roi->face_boundary.x = faces->face_position.stable_entry.x -
-    (roi->face_boundary.dx / 2);
-  roi->face_boundary.y = faces->face_position.stable_entry.y -
-    (roi->face_boundary.dy / 2);
-
-  /* Fill mouth position */
-  roi->fp.face_pt[FACE_PART_MOUTH].x = faces->mouth_position.stable_entry.x;
-  roi->fp.face_pt[FACE_PART_MOUTH].y = faces->mouth_position.stable_entry.y;
-
-  return 0;
+    if (history->smile_degree.faces_inside < p_fd_chromatix->stab_history)
+      history->smile_degree.faces_inside++;
+  }
 }
 
 /**
@@ -195,37 +184,55 @@ static int module_faceproc_stab_fill_roi(faceproc_faces_history_t *faces,
 *   @p_fd_chromatix: faceproc chromatix pointer
 *
 * Return values:
-*   0 - on success
+*   None
 * Notes: none
 **/
-static int module_faceproc_stab_init_face(faceproc_faces_history_t *history,
-  faceproc_info_t *roi, fd_chromatix_t *p_fd_chromatix)
+static void module_faceproc_stab_init_face(faceproc_faces_history_t *history,
+  faceproc_info_t *roi, fd_chromatix_t *p_chromatix)
 {
-  history->face_position.index = 0;
-  history->face_position.faces_inside = 0;
-  history->face_position.max_state_count = p_fd_chromatix->stab_pos_state_cnt;
-  history->face_position.state = FD_STAB_STATE_STABILIZE;
+  memset(history, 0x0, sizeof(*history));
 
-  history->face_size.index = 0;
-  history->face_size.faces_inside = 0;
-  history->face_size.max_state_count = p_fd_chromatix->stab_size_state_cnt;
-  history->face_size.state = FD_STAB_STATE_STABILIZE;
+  if (p_chromatix->stab_pos.enable) {
+    history->face_position.max_state_count = p_chromatix->stab_pos.state_cnt;
+    history->face_position.state = FD_STAB_STATE_STABILIZE;
+  }
 
-  history->mouth_position.index = 0;
-  history->mouth_position.faces_inside = 0;
-  history->mouth_position.max_state_count = p_fd_chromatix->stab_mouth_state_cnt;
-  history->mouth_position.state = FD_STAB_STATE_STABILIZE;
+  if (p_chromatix->stab_size.enable) {
+    history->face_size.max_state_count = p_chromatix->stab_size.state_cnt;
+    history->face_size.state = FD_STAB_STATE_STABILIZE;
+  }
 
-  module_faceproc_stab_add_face(history, roi, p_fd_chromatix);
+  if (p_chromatix->stab_mouth.enable) {
+    history->mouth_position.max_state_count = p_chromatix->stab_mouth.state_cnt;
+    history->mouth_position.state = FD_STAB_STATE_STABILIZE;
+  }
 
-  history->face_position.stable_entry =
-    history->face_position.entry[history->face_position.index];
-  history->face_size.stable_entry =
-    history->face_size.entry[history->face_size.index];
-  history->mouth_position.stable_entry =
-    history->mouth_position.entry[history->mouth_position.index];
+  if (p_chromatix->stab_smile.enable) {
+    history->smile_degree.max_state_count = p_chromatix->stab_smile.state_cnt;
+    history->smile_degree.state = FD_STAB_STATE_STABILIZE;
+  }
 
-  return 0;
+  module_faceproc_stab_add_face(history, roi, p_chromatix);
+
+  if (p_chromatix->stab_pos.enable) {
+    history->face_position.stable_entry =
+      history->face_position.entry[history->face_position.index];
+  }
+
+  if (p_chromatix->stab_size.enable) {
+    history->face_size.stable_entry =
+      history->face_size.entry[history->face_size.index];
+  }
+
+  if (p_chromatix->stab_mouth.enable) {
+    history->mouth_position.stable_entry =
+      history->mouth_position.entry[history->mouth_position.index];
+  }
+
+  if (p_chromatix->stab_smile.enable) {
+    history->smile_degree.stable_entry =
+      history->smile_degree.entry[history->smile_degree.index];
+  }
 }
 
 /**
@@ -304,6 +311,95 @@ static boolean module_faceproc_stab_is_stable(faceproc_history_holder_t *history
 }
 
 /**
+* Function: module_faceproc_apply_hyst
+*
+* Description: Apply hysteresis with given direction
+*  @stab_params - Stabilization parameters
+*  @curr_entry - current entry
+*  @new_entry - new entry
+*  @direction_up - 0 direction down, otherwise direction up.
+*
+* Return values:
+*   TRUE - if values are stable
+* Notes: none
+**/
+static void module_faceproc_apply_hyst(fd_face_stab_params_t *stab_params,
+  uint32_t *curr_entry, uint32_t *new_entry, int direction_up)
+{
+  if (direction_up) {
+    if (*new_entry > stab_params->hyst.end_B) {
+      *curr_entry = *new_entry;
+    } else if (*new_entry > stab_params->hyst.start_B) {
+      *new_entry = stab_params->hyst.start_B;
+    } else if (*new_entry > stab_params->hyst.end_A) {
+      *curr_entry = *new_entry;
+    } else if (*new_entry > stab_params->hyst.start_A) {
+      *new_entry = stab_params->hyst.start_A;
+    } else {
+      *curr_entry = *new_entry;
+    }
+  } else {
+    if (*new_entry < stab_params->hyst.start_A) {
+      *curr_entry = *new_entry;
+    } else if (*new_entry < stab_params->hyst.end_A) {
+      *new_entry = stab_params->hyst.end_A;
+    } else if (*new_entry < stab_params->hyst.start_B) {
+      *curr_entry = *new_entry;
+    } else if (*new_entry < stab_params->hyst.end_B) {
+      *new_entry = stab_params->hyst.end_B;
+    } else {
+      *curr_entry = *new_entry;
+    }
+  }
+}
+
+/**
+* Function: module_faceproc_apply_filter
+*
+* Description: Apply filter based on stabilization parameters.
+*
+* Arguments:
+*   @stab_params - Stabilization parameters
+*   @curr_e - Current filtered entry.
+*   @new_e: New entry need to be filtered.
+*
+* Return values:
+*   IMG error codes
+**/
+static int module_faceproc_apply_filter(fd_face_stab_params_t *stab_params,
+  faceproc_history_entry_t *curr_e, faceproc_history_entry_t *new_e)
+{
+  switch (stab_params->filter_type) {
+  case FD_STAB_NO_FILTER:
+    curr_e->x = new_e->x;
+    curr_e->y = new_e->y;
+    break;
+  case FD_STAB_HYSTERESIS:
+    if (new_e->x > curr_e->x) {
+      module_faceproc_apply_hyst(stab_params, &curr_e->x, &new_e->x, 1);
+    } else {
+      module_faceproc_apply_hyst(stab_params, &curr_e->x, &new_e->x, 0);
+    }
+    if (new_e->y > curr_e->y) {
+      module_faceproc_apply_hyst(stab_params, &curr_e->y, &new_e->y, 1);
+    } else {
+      module_faceproc_apply_hyst(stab_params, &curr_e->y, &new_e->y, 0);
+    }
+    break;
+  case FD_STAB_TEMPORAL:
+    FD_STAB_APPLY_TEMP_FILTER(curr_e->x, stab_params->temp.num,
+      new_e->x, stab_params->temp.denom);
+    FD_STAB_APPLY_TEMP_FILTER(curr_e->y, stab_params->temp.num,
+      new_e->y, stab_params->temp.denom);
+    break;
+  default:
+    IDBG_ERROR("Invalid filter type");
+    return IMG_ERR_INVALID_INPUT;
+  }
+  return IMG_SUCCESS;
+}
+
+/**
 * Function: module_faceproc_stab_filter
 *
 * Description: Stabilization it will stabilize the entry
@@ -312,30 +408,29 @@ static boolean module_faceproc_stab_is_stable(faceproc_history_holder_t *history
 *
 * Arguments:
 *   @history - History for this entry
-*   @strength - Faces history
-*   @threshold: Variation threshold
+*   @stab_params - Stabilization parameters
 *   @refer: Reference coordinates for stabilization
-*   @stable_compar: Stabilization compare parameter
+*   @threshold: Variation threshold
 *    0 - Face is stable when previous face is equal with new
 *    1 - Face is stable when previous face is bigger then new
 *    2 - Face is stable when previous face is smaller then new
 *
 * Return values:
-*   0 - on success
-* Notes: none
+*   IMG error codes
 **/
 static int module_faceproc_stab_filter(faceproc_history_holder_t *history,
-  faceproc_history_entry_t *strength, uint32_t threshold,
-  faceproc_history_entry_t *refer, fd_face_stab_mode_t stab_mode)
+  fd_face_stab_params_t *stab_params, faceproc_history_entry_t *refer,
+  uint32_t threshold)
 {
   faceproc_history_state_t new_state;
   boolean within_limit = FALSE;
   boolean face_stable = FALSE;
   uint32_t last_index;
+  int ret = IMG_SUCCESS;
 
   if (history->faces_inside == 1) {
-    IDBG_MED("%s:%d] Only one face inside", __func__, __LINE__);
-    return 0;
+    IDBG_MED("%s:%d] not enough faces skip", __func__, __LINE__);
+    return IMG_SUCCESS;
   }
 
   /* Do nothing if previous coordinates are the same as new
@@ -371,8 +466,9 @@ static int module_faceproc_stab_filter(faceproc_history_holder_t *history,
     break;
   case FD_STAB_STATE_STABLE:
     if (TRUE == within_limit) {
-      if (module_faceproc_stab_is_continues(stab_mode)) {
-        face_stable = module_faceproc_stab_is_stable(history, refer, stab_mode);
+      if (module_faceproc_stab_is_continues(stab_params->mode)) {
+        face_stable = module_faceproc_stab_is_stable(history, refer,
+          stab_params->mode);
         if (FALSE == face_stable) {
           history->stable_entry.x = history->entry[history->index].x;
           history->stable_entry.y = history->entry[history->index].y;
@@ -387,7 +483,7 @@ static int module_faceproc_stab_filter(faceproc_history_holder_t *history,
       new_state = FD_STAB_STATE_STABILIZE;
     }
   case FD_STAB_STATE_STABILIZE:
-    face_stable = module_faceproc_stab_is_stable(history, refer, stab_mode);
+    face_stable = module_faceproc_stab_is_stable(history, refer, stab_params->mode);
     /* If face is stabilized put to the stable state */
     if (face_stable) {
       if (refer) {
@@ -398,16 +494,17 @@ static int module_faceproc_stab_filter(faceproc_history_holder_t *history,
       history->state_count = 0;
     }
 
-    if (strength->x != strength->y) {
-      FD_STAB_APPLY_TEMP_FILTER(history->stable_entry.x, strength->x,
-        history->entry[history->index].x, strength->y);
-      FD_STAB_APPLY_TEMP_FILTER(history->stable_entry.y, strength->x,
-        history->entry[history->index].y, strength->y);
-    } else {
-      history->stable_entry.x = history->entry[history->index].x;
-      history->stable_entry.y = history->entry[history->index].y;
+    ret = module_faceproc_apply_filter(stab_params, &history->stable_entry,
+      &history->entry[history->index]);
+    if (IMG_ERROR(ret)) {
+      IDBG_ERROR("Can not apply filter");
+      goto out;
     }
     break;
+  default:
+    ret = IMG_ERR_GENERAL;
+    IDBG_ERROR("Error invalid state something went wrong");
+    goto out;
   }
 
   /* Change state if requested */
@@ -418,7 +515,8 @@ static int module_faceproc_stab_filter(faceproc_history_holder_t *history,
     history->state_count++;
   }
 
-  return 0;
+out:
+  return ret;
 }
 
 /**
@@ -472,14 +570,14 @@ int module_faceproc_faces_stabilization(faceproc_client_t *p_client,
 {
   cam_face_detection_data_t faces_data;
   faceproc_stabilization_t *stab;
-  faceproc_history_entry_t strength;
   faceproc_history_entry_t refer;
   faceproc_history_entry_t eyes_center;
   faceproc_history_entry_t *p_refer;
   uint32_t i, j, new_faces, threshold, eyes_distance;
   int position;
+  int ret = IMG_SUCCESS;
 
-  if (!p_client) {
+  if (!p_client || !p_result) {
    IDBG_ERROR("%s:%d]Invalid input", __func__, __LINE__);
    return IMG_ERR_INVALID_INPUT;
   }
@@ -541,69 +639,119 @@ int module_faceproc_faces_stabilization(faceproc_client_t *p_client,
     stab->detected_faces = p_result->num_faces_detected;
   }
 
-  /* Fill output with the filtered value */
+  /* Stabilize faces */
   memset(&refer, 0x00, sizeof(refer));
   for (i = 0; i < p_result->num_faces_detected; i++) {
     /* Get eyes distance and center they will be used as reference */
     eyes_distance =
       FD_STAB_CALC_DISTANCE(p_result->roi[i].fp.face_pt[FACE_PART_LEFT_EYE],
       p_result->roi[i].fp.face_pt[FACE_PART_RIGHT_EYE]);
+
     eyes_center.x = (p_result->roi[i].fp.face_pt[FACE_PART_LEFT_EYE].x +
       p_result->roi[i].fp.face_pt[FACE_PART_RIGHT_EYE].x) / 2;
     eyes_center.y = (p_result->roi[i].fp.face_pt[FACE_PART_LEFT_EYE].y +
       p_result->roi[i].fp.face_pt[FACE_PART_RIGHT_EYE].y) / 2;
 
     /* Stabilize face size */
-    p_refer = NULL;
-    if (p_client->p_fd_chromatix->stab_size_use_reference) {
-      refer.x = eyes_distance;
-      refer.y = eyes_distance;
-      p_refer = &refer;
-      threshold = FD_STAB_CALC_THRESHOLD(eyes_distance,
-        p_client->p_fd_chromatix->stab_size_threshold);
-    } else {
-      threshold = FD_STAB_CALC_THRESHOLD(stab->faces[i].face_size.stable_entry.x,
-        p_client->p_fd_chromatix->stab_size_threshold);
-    }
-    strength.x = p_client->p_fd_chromatix->stab_size_strength_denum;
-    strength.y = p_client->p_fd_chromatix->stab_size_strength_num;
+    if (p_client->p_fd_chromatix->stab_size.enable) {
+      p_refer = NULL;
+      if (p_client->p_fd_chromatix->stab_size.use_reference) {
+        refer.x = eyes_distance;
+        refer.y = eyes_distance;
+        p_refer = &refer;
+        threshold = FD_STAB_CALC_THRESHOLD(eyes_distance,
+          p_client->p_fd_chromatix->stab_size.threshold);
+      } else {
+        threshold = FD_STAB_CALC_THRESHOLD(stab->faces[i].face_size.stable_entry.x,
+          p_client->p_fd_chromatix->stab_size.threshold);
+      }
 
-    module_faceproc_stab_filter(&stab->faces[i].face_size, &strength,
-      threshold, p_refer, p_client->p_fd_chromatix->stab_size_mode);
+      ret = module_faceproc_stab_filter(&stab->faces[i].face_size,
+        &p_client->p_fd_chromatix->stab_size, p_refer, threshold);
+      if (IMG_ERROR(ret)) {
+        IDBG_ERROR("Can not apply face size filter");
+        goto out;
+      }
+      /* Fill stable face size */
+      p_result->roi[i].face_boundary.dx =
+        stab->faces[i].face_size.stable_entry.x;
+      p_result->roi[i].face_boundary.dy =
+        stab->faces[i].face_size.stable_entry.y;
+    }
 
     /* Stabilize face position */
-    p_refer = NULL;
-    if (p_client->p_fd_chromatix->stab_pos_use_reference) {
-      refer.x = eyes_center.x;
-      refer.y = eyes_center.y;
-      p_refer = &refer;
-    }
-    threshold = FD_STAB_CALC_THRESHOLD(p_client->main_dim.width,
-      p_client->p_fd_chromatix->stab_pos_threshold);
-    strength.x = p_client->p_fd_chromatix->stab_pos_strength_denum;
-    strength.y = p_client->p_fd_chromatix->stab_pos_strength_num;
+    if (p_client->p_fd_chromatix->stab_pos.enable) {
+      p_refer = NULL;
+      if (p_client->p_fd_chromatix->stab_pos.use_reference) {
+        refer.x = eyes_center.x;
+        refer.y = eyes_center.y;
+        p_refer = &refer;
+      }
+      threshold = FD_STAB_CALC_THRESHOLD(p_client->main_dim.width,
+        p_client->p_fd_chromatix->stab_pos.threshold);
 
-    module_faceproc_stab_filter(&stab->faces[i].face_position, &strength,
-      threshold, p_refer, p_client->p_fd_chromatix->stab_pos_mode);
+      ret = module_faceproc_stab_filter(&stab->faces[i].face_position,
+        &p_client->p_fd_chromatix->stab_pos, p_refer, threshold);
+      if (IMG_ERROR(ret)) {
+        IDBG_ERROR("Can not apply face position filter");
+        goto out;
+      }
+      /* Fill stable face position */
+      p_result->roi[i].face_boundary.x =
+        stab->faces[i].face_position.stable_entry.x -
+        (p_result->roi[i].face_boundary.dx / 2);
+      p_result->roi[i].face_boundary.y =
+        stab->faces[i].face_position.stable_entry.y -
+        (p_result->roi[i].face_boundary.dy / 2);
+    }
 
     /* Stabilize mouth */
-    p_refer = NULL;
-    if (p_client->p_fd_chromatix->stab_mouth_use_reference) {
-      refer.x = eyes_center.x;
-      refer.y = eyes_center.y;
-      p_refer = &refer;
+    if (p_client->p_fd_chromatix->stab_mouth.enable) {
+      p_refer = NULL;
+      if (p_client->p_fd_chromatix->stab_mouth.use_reference) {
+        refer.x = eyes_center.x;
+        refer.y = eyes_center.y;
+        p_refer = &refer;
+      }
+      threshold = FD_STAB_CALC_THRESHOLD(p_client->main_dim.width,
+        p_client->p_fd_chromatix->stab_mouth.threshold);
+
+      ret = module_faceproc_stab_filter(&stab->faces[i].mouth_position,
+        &p_client->p_fd_chromatix->stab_mouth, p_refer, threshold);
+      if (IMG_ERROR(ret)) {
+        IDBG_ERROR("Can not apply mouth position filter");
+        goto out;
+      }
+      /* Fill stable face mouth */
+      p_result->roi[i].fp.face_pt[FACE_PART_MOUTH].x =
+        stab->faces[i].mouth_position.stable_entry.x;
+      p_result->roi[i].fp.face_pt[FACE_PART_MOUTH].y =
+        stab->faces[i].mouth_position.stable_entry.y;
     }
-    threshold = FD_STAB_CALC_THRESHOLD(p_client->main_dim.width,
-      p_client->p_fd_chromatix->stab_mouth_threshold);
-    strength.x = p_client->p_fd_chromatix->stab_mouth_strength_denum;
-    strength.y = p_client->p_fd_chromatix->stab_mouth_strength_num;
 
-    module_faceproc_stab_filter(&stab->faces[i].mouth_position, &strength,
-      threshold, p_refer, p_client->p_fd_chromatix->stab_mouth_mode);
+    /* Stabilize smile */
+    if (p_client->p_fd_chromatix->stab_smile.enable) {
+      p_refer = NULL;
+      if (p_client->p_fd_chromatix->stab_smile.use_reference) {
+        refer.x = eyes_center.x;
+        refer.y = eyes_center.y;
+        p_refer = &refer;
+      }
+      threshold = FD_STAB_CALC_THRESHOLD(p_client->main_dim.width,
+        p_client->p_fd_chromatix->stab_smile.threshold);
 
-    module_faceproc_stab_fill_roi(&stab->faces[i], &p_result->roi[i]);
+      ret = module_faceproc_stab_filter(&stab->faces[i].smile_degree,
+        &p_client->p_fd_chromatix->stab_smile, p_refer, threshold);
+      if (IMG_ERROR(ret)) {
+        IDBG_ERROR("Can not apply smile degree filter");
+        goto out;
+      }
+      p_result->roi[i].sm.smile_degree =
+        stab->faces[i].smile_degree.stable_entry.x;
+    }
   }
 
- return IMG_SUCCESS;
+out:
+ return ret;
 }
 

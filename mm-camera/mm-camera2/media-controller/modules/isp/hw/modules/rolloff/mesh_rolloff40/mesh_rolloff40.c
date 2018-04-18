@@ -8,10 +8,11 @@
 #include "camera_dbg.h"
 #include "mesh_rolloff40.h"
 #include "../mlro_to_plro/mlro.h"
+#include "isp_log.h"
 
 #ifdef ROLLOFF_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 // #define ROLLOFF_TBL_DEBUG  /*print out the tbl value*/
@@ -21,6 +22,8 @@
 
 #define NUM_OF_SUB_GRID 4 /* init 0 or 64? compute by system team code*/
 #define INTERP_FACTOR 3 /* 2^INTERP_FACTOR = NUM_OF_SUB_GRID */
+
+#define TINTLESS_TEMPORAL_RATIO 0.4
 
 /** mesh_rolloff_mesh_table_debug:
  *    @meshOut: output new meshtbl according to camif info
@@ -243,9 +246,9 @@ static void mesh_rolloff_mesh_table_debug(mesh_rolloff_array_type *meshtbl)
 {
   int i, j;
 
-  CDBG("%s: 17x13 Rolloff Tbl R\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: 17x13 Rolloff Tbl R\n", __func__);
   for (i = 0; i < CHROMATIX_MESH_ROLL_NUM_COL; i++) {
-    CDBG("%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
       __func__, meshtbl->r_gain[(i*17)+0], meshtbl->r_gain[(i*17)+1],
       meshtbl->r_gain[(i*17)+2], meshtbl->r_gain[(i*17)+3],
       meshtbl->r_gain[(i*17)+4], meshtbl->r_gain[(i*17)+5],
@@ -256,9 +259,9 @@ static void mesh_rolloff_mesh_table_debug(mesh_rolloff_array_type *meshtbl)
       meshtbl->r_gain[(i*17)+14], meshtbl->r_gain[(i*17)+15],
       meshtbl->r_gain[(i*17)+16]);
   }
-  CDBG("%s: 17x13 Rolloff Tbl GR\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: 17x13 Rolloff Tbl GR\n", __func__);
   for (i = 0; i < CHROMATIX_MESH_ROLL_NUM_COL; i++) {
-    CDBG("%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
       __func__, meshtbl->gr_gain[(i*17)+0], meshtbl->gr_gain[(i*17)+1],
       meshtbl->gr_gain[(i*17)+2], meshtbl->gr_gain[(i*17)+3],
       meshtbl->gr_gain[(i*17)+4], meshtbl->gr_gain[(i*17)+5],
@@ -270,9 +273,9 @@ static void mesh_rolloff_mesh_table_debug(mesh_rolloff_array_type *meshtbl)
       meshtbl->gr_gain[(i*17)+16]);
   }
 
-  CDBG("%s: 17x13 Rolloff Tbl GB\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: 17x13 Rolloff Tbl GB\n", __func__);
   for (i = 0; i < CHROMATIX_MESH_ROLL_NUM_COL; i++) {
-    CDBG("%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
       __func__, meshtbl->gb_gain[(i*17)+0], meshtbl->gb_gain[(i*17)+1],
       meshtbl->gb_gain[(i*17)+2], meshtbl->gb_gain[(i*17)+3],
       meshtbl->gb_gain[(i*17)+4], meshtbl->gb_gain[(i*17)+5],
@@ -284,9 +287,9 @@ static void mesh_rolloff_mesh_table_debug(mesh_rolloff_array_type *meshtbl)
       meshtbl->gb_gain[(i*17)+16]);
   }
 
-  CDBG("%s: 17x13 Rolloff Tbl B\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: 17x13 Rolloff Tbl B\n", __func__);
   for (i = 0; i < CHROMATIX_MESH_ROLL_NUM_COL; i++) {
-    CDBG("%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
       __func__, meshtbl->b_gain[(i*17)+0], meshtbl->b_gain[(i*17)+1],
       meshtbl->b_gain[(i*17)+2], meshtbl->b_gain[(i*17)+3],
       meshtbl->b_gain[(i*17)+4], meshtbl->b_gain[(i*17)+5],
@@ -312,8 +315,8 @@ static void mesh_rolloff_mesh_table_debug(mesh_rolloff_array_type *meshtbl)
 static void mesh_rolloff_mesh_downscaled_table_debug(float *meshtbl)
 {
   int i;
-  for (i = 0; i < HW_MESH_ROLL_NUM_COL; i++) {
-    CDBG("%s: %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
+  for (i = 0; i < HW_MESH_ROLL_NUM_ROW; i++) {
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
       __func__, meshtbl[(i*13)+0], meshtbl[(i*13)+1],
       meshtbl[(i*13)+2], meshtbl[(i*13)+3],
       meshtbl[(i*13)+4], meshtbl[(i*13)+5],
@@ -344,18 +347,18 @@ static void mesh_rolloff_downscale_rolloff_table (mesh_rolloff_array_type *table
 
   /* Down scale the mesh table from Chromatix header 17x13 to HW 13x10 size*/
   if (tableIn->mesh_rolloff_table_size > MESH_ROLL_OFF_V4_TABLE_SIZE) {
-    CDBG("\n\n\n\n%s:Bicubuc downscale 17x13 Chromatix mesh to 13x10 mesh table\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "\n\n\n\n%s:Bicubuc downscale 17x13 Chromatix mesh to 13x10 mesh table\n",
       __func__);
-    CDBG("%s: R table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: R table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->r_gain, (void *)tableOut->TableR, is_tintless);
 
-    CDBG("%s: Gr table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Gr table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->gr_gain, (void *)tableOut->TableGr, is_tintless);
 
-    CDBG("%s: Gb table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Gb table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->gb_gain, (void *)tableOut->TableGb, is_tintless);
 
-    CDBG("%s: B table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: B table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->b_gain, (void *)tableOut->TableB, is_tintless);
   }
   else {
@@ -379,8 +382,8 @@ static void mesh_rolloff_downscale_rolloff_table (mesh_rolloff_array_type *table
 static void mesh_rolloff_mesh_sensor_calc_table_debug(float *meshtbl)
 {
   int i;
-  for (i = 0; i < HW_MESH_ROLL_NUM_COL; i++) {
-    CDBG("%s: %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
+  for (i = 0; i < HW_MESH_ROLL_NUM_ROW; i++) {
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: %f %f %f %f %f %f %f %f %f %f %f %f %f \n",
       __func__, meshtbl[(i*13)+0], meshtbl[(i*13)+1],
       meshtbl[(i*13)+2], meshtbl[(i*13)+3],
       meshtbl[(i*13)+4], meshtbl[(i*13)+5],
@@ -407,11 +410,11 @@ static void rolloff_sensor_calc_tbl(mesh_rolloff_array_type *inTbl,
   mesh_rolloff_array_type *outTbl, sensor_rolloff_config_t *sensor_info)
 {
 
-   CDBG("%s: E\n", __func__);
+   ISP_DBG(ISP_MOD_ROLLOFF, "%s: E\n", __func__);
 
   if (sensor_info->full_width == 0 || sensor_info->output_width == 0 ||
       sensor_info->scale_factor == 0) {
-    CDBG("%s: sensor send wrong config!! not exec algo!"
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: sensor send wrong config!! not exec algo!"
       "full_w = %d, out_w = %d, scale_factor = %d\n",
       __func__, sensor_info->full_width, sensor_info->output_width,
       sensor_info->scale_factor);
@@ -421,7 +424,7 @@ static void rolloff_sensor_calc_tbl(mesh_rolloff_array_type *inTbl,
   if (sensor_info->full_width <
      (sensor_info->scale_factor * sensor_info->output_width +
      sensor_info->offset_x)) {
-    CDBG("%s: sensor send wrong config!! not exec algo!"
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: sensor send wrong config!! not exec algo!"
       "full_w = %d, out_w = %d, offset_x = %d, scale_factor = %d\n",
       __func__, sensor_info->full_width,
       sensor_info->output_width, sensor_info->offset_x,
@@ -429,44 +432,44 @@ static void rolloff_sensor_calc_tbl(mesh_rolloff_array_type *inTbl,
     return;
   }
 
-  CDBG("%s:===== input R table======\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== input R table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&inTbl->r_gain[0]);
   mesh_rolloff_V4_ScaleRolloffMesh_by_sensor_info(
     &inTbl->r_gain[0], &outTbl->r_gain[0],
     sensor_info->full_width, sensor_info->full_height,
     sensor_info->output_width, sensor_info->output_height,
     sensor_info->offset_x, sensor_info->offset_y, sensor_info->scale_factor);
-  CDBG("%s:===== output R table======\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== output R table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&outTbl->r_gain[0]);
 
-  CDBG("%s:===== input B table======\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== input B table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&inTbl->b_gain[0]);
   mesh_rolloff_V4_ScaleRolloffMesh_by_sensor_info(
     &inTbl->b_gain[0], &outTbl->b_gain[0],
     sensor_info->full_width, sensor_info->full_height,
     sensor_info->output_width, sensor_info->output_height,
     sensor_info->offset_x, sensor_info->offset_y, sensor_info->scale_factor);
-  CDBG("%s:===== output B table======\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== output B table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&outTbl->b_gain[0]);
 
-  CDBG("%s:===== input GB table======\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== input GB table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&inTbl->gb_gain[0]);
   mesh_rolloff_V4_ScaleRolloffMesh_by_sensor_info(
     &inTbl->gb_gain[0], &outTbl->gb_gain[0],
     sensor_info->full_width, sensor_info->full_height,
     sensor_info->output_width, sensor_info->output_height,
     sensor_info->offset_x, sensor_info->offset_y, sensor_info->scale_factor);
- CDBG("%s:===== output GB table======\n", __func__);
+ ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== output GB table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&outTbl->gb_gain[0]);
 
-  CDBG("%s:===== input GR table======\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== input GR table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&inTbl->gr_gain[0]);
   mesh_rolloff_V4_ScaleRolloffMesh_by_sensor_info(
     &inTbl->gr_gain[0], &outTbl->gr_gain[0],
     sensor_info->full_width, sensor_info->full_height,
     sensor_info->output_width, sensor_info->output_height,
     sensor_info->offset_x, sensor_info->offset_y, sensor_info->scale_factor);
-  CDBG("%s:===== output GR table======\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s:===== output GR table======\n", __func__);
   mesh_rolloff_mesh_sensor_calc_table_debug(&outTbl->gr_gain[0]);
 
 }
@@ -538,7 +541,7 @@ static void rolloff_normalize_table(isp_mesh_rolloff_mod_t *mesh_mod,
         }
 
         /* normalize initial mesh rolloff table*/
-        for (j = 0; j < MESH_ROLLOFF_SIZE; j++) {
+        for (j = 0; j < inTbl.mesh_rolloff_table_size; j++) {
           /* RED Channel */
           if (inTbl.r_gain[j] < min_value)
             min_value = inTbl.r_gain[j];
@@ -553,9 +556,13 @@ static void rolloff_normalize_table(isp_mesh_rolloff_mod_t *mesh_mod,
             min_value = inTbl.gb_gain[j];
         }
         if (min_value < 1.0) {
+        /*Table values in chromatix header should NOT be zero*/
+          if(min_value == 0.0)
+            CDBG_ERROR("%s: Invalid chromatix value", __func__);
+
           scaling_val = 1.0 / min_value;
 
-          for (j = 0; j < MESH_ROLLOFF_SIZE; j++) {
+          for (j = 0; j < inTbl.mesh_rolloff_table_size ; j++) {
             /* RED Channel */
             inTbl.r_gain[j]  *= scaling_val;
             /* GR Channel */
@@ -575,7 +582,7 @@ static void rolloff_normalize_table(isp_mesh_rolloff_mod_t *mesh_mod,
           rolloff_sensor_calc_tbl(&inTbl,
             &sensorCalcTable, &sensor_rolloff_info);
         } else {
-          CDBG("%s: no exec sensor calibration algo,"
+          ISP_DBG(ISP_MOD_ROLLOFF, "%s: no exec sensor calibration algo,"
             "sensor_rolloff_info.enable = %d\n",
             __func__, sensor_rolloff_info.enable);
         }
@@ -594,6 +601,12 @@ static void rolloff_normalize_table(isp_mesh_rolloff_mod_t *mesh_mod,
         }
       }
     }
+  }
+  // added for dual LED rolloff, store original table to led_rolloff_original
+  if (mesh_mod->rolloff_tbls.rolloff_tableset[0] != NULL) {
+    memcpy(&mesh_mod->led_rolloff_stored,
+           &(mesh_mod->rolloff_tbls.rolloff_tableset[0]->left[ISP_ROLLOFF_LED_FLASH]),
+           sizeof(MESH_RollOffTable_V4));
   }
 } /* rolloff_normalize_table */
 
@@ -664,9 +677,9 @@ static void mesh_rolloff_table_debug(MESH_RollOffTable_V4 *meshtbl)
 {
   int i;
 #ifdef ROLLOFF_TBL_DEBUG
-  CDBG("%s: Mesh Rolloff table\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: Mesh Rolloff table\n", __func__);
   for (i = 0; i < MESH_ROLL_OFF_V4_TABLE_SIZE; i++) {
-    CDBG("%s: %u %u %u %u\n", __func__, meshtbl->TableR[i], meshtbl->TableGr[i],
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: %u %u %u %u\n", __func__, meshtbl->TableR[i], meshtbl->TableGr[i],
     meshtbl->TableGb[i], meshtbl->TableB[i]);
   }
 #endif
@@ -839,16 +852,17 @@ static void mesh_rolloff_calc_flash_trigger(MESH_RollOffTable_V4 *tblNormalLight
   } else //assume flash off. To be changed when AUTO mode is added
     ratio = flash_start;
 
-  CDBG("%s: flash_start %5.2f flash_end %5.2f \n", __func__, flash_start,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: flash_start %5.2f flash_end %5.2f \n", __func__, flash_start,
     flash_end);
 
   if (ratio >= flash_end)
     *tblOut = *tblFlash;
   else if (ratio <= flash_start)
     *tblOut = *tblNormalLight;
-  else
-    mesh_rolloff_table_interpolate(tblNormalLight, tblFlash, tblOut,
-       ((ratio - flash_start) / (flash_end - flash_start)));
+  else {
+    ratio = GET_INTERPOLATION_RATIO(ratio, flash_start, flash_end);
+    mesh_rolloff_table_interpolate(tblNormalLight, tblFlash, tblOut,ratio);
+  }
 } /* mesh_rolloff_calc_flash_trigger */
 
 /** mesh_rolloff_calc_awb_trigger:
@@ -994,7 +1008,7 @@ static void mesh_rolloff_prepare_hw_table(const MESH_RollOffTable_V4 *pIn,
   const uint16_t* R =  pIn->TableR;
 
     for (i = 0; i < MESH_ROLL_OFF_V4_TABLE_SIZE; i++) {
-      CDBG("%s: i=%d, R=%d, Gr=%d\n",
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: i=%d, R=%d, Gr=%d\n",
         __func__, i, *R, *Gr);
       cmd->Table.Table[i] = (((uint32_t)(*R)) & 0x00001FFF) |
         (((uint32_t)(*Gr))<<13);
@@ -1002,7 +1016,7 @@ static void mesh_rolloff_prepare_hw_table(const MESH_RollOffTable_V4 *pIn,
       Gr++;
     }
     for (i = MESH_ROLL_OFF_V4_TABLE_SIZE; i < MESH_ROLL_OFF_V4_TABLE_SIZE * 2; i++) {
-      CDBG("%s: i=%d, B=%d, Gb=%d\n",
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: i=%d, B=%d, Gb=%d\n",
         __func__, i, *B, *Gb);
 
       cmd->Table.Table[i] = (((uint32_t)(*B)) &0x00001FFF) |
@@ -1023,31 +1037,31 @@ static void mesh_rolloff_prepare_hw_table(const MESH_RollOffTable_V4 *pIn,
 static void mesh_rolloff_cmd_debug(MESH_RollOff_V4_ConfigCmdType *cmd)
 {
   int i;
-  CDBG("%s: blockWidth = %d, blockHeight = %d, interp_factor = %d", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: blockWidth = %d, blockHeight = %d, interp_factor = %d", __func__,
     cmd->CfgParams.blockWidth, cmd->CfgParams.blockHeight,
     cmd->CfgParams.interpFactor);
 
-  CDBG("%s: subGridWidth=%d, subGridHeight=%d\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: subGridWidth=%d, subGridHeight=%d\n", __func__,
     cmd->CfgParams.subGridWidth, cmd->CfgParams.subGridHeight);
 
-  CDBG("%s: subGridXDelta = %d,subGridYDelta=%d\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: subGridXDelta = %d,subGridYDelta=%d\n", __func__,
     cmd->CfgParams.subGridXDelta, cmd->CfgParams.subGridYDelta);
 
-  CDBG("%s: BlockXIndex=%d, BlockYIndex=%d\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: BlockXIndex=%d, BlockYIndex=%d\n", __func__,
     cmd->CfgParams.blockXIndex, cmd->CfgParams.blockYIndex);
 
-  CDBG("%s: PixelXIndex=%d, PixelYIndex=%d \n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: PixelXIndex=%d, PixelYIndex=%d \n", __func__,
     cmd->CfgParams.PixelXIndex, cmd->CfgParams.PixelYIndex);
 
-  CDBG("%s: subGridXIndex = %d, subGridYIndex = %d\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: subGridXIndex = %d, subGridYIndex = %d\n", __func__,
     cmd->CfgParams.subGridXIndex, cmd->CfgParams.subGridYIndex);
 
-  CDBG("%s: yDeltaAccum=%d, pixelOffset = %d pcaLutBankSel =%d\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: yDeltaAccum=%d, pixelOffset = %d pcaLutBankSel =%d\n", __func__,
     cmd->CfgParams.yDeltaAccum, cmd->CfgParams.pixelOffset,
     cmd->CfgParams.pcaLutBankSel);
 
   for (i=0; i<(MESH_ROLL_OFF_V4_TABLE_SIZE * 2); i++)
-    CDBG("%s: HW Table[%d]=0x%x\n", __func__, i, cmd->Table.Table[i]);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: HW Table[%d]=0x%x\n", __func__, i, cmd->Table.Table[i]);
 } /* mesh_rolloff_cmd_debug */
 
 /** mesh_rolloff_calc_sub_grid:
@@ -1089,7 +1103,7 @@ static void mesh_rolloff_calc_sub_grid(uint16_t camif_width,
     BlockHeight = SGheight << iFactor;  // Bayer block height
     MeshOverHeight = BlockHeight * MESH_ROLL_OFF_V4_VERTICAL_GRIDS
       - (camif_height >> 1);
-    CDBG("%s: Bicubic Size Iteration- \ninterp_factor=%d, SGwidth=%d, SGheight=%d, BlockWidth=%d, BlockHeight=%d, MeshOverWidth=%d, MeshOverHeight=%d\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Bicubic Size Iteration- \ninterp_factor=%d, SGwidth=%d, SGheight=%d, BlockWidth=%d, BlockHeight=%d, MeshOverWidth=%d, MeshOverHeight=%d\n",
        __func__, iFactor, SGwidth, SGheight, BlockWidth, BlockHeight, MeshOverWidth, MeshOverHeight);
   } while ((iFactor > 0) &&   // Interpolation factor must be >= 0
           ((MeshOverWidth >= BlockWidth) || (SGwidth < 9) ||   // SW & HW constraints
@@ -1171,10 +1185,10 @@ static int mesh_rolloff_update_hw_table(isp_mesh_rolloff_mod_t *mesh_mod,
   uint32_t extra_left_width, extra_top_height;
   int rc = 0;
 
-  CDBG("%s: sensor_parms.lastPixel=%d sensor_parms.firstPixel=%d\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: sensor_parms.lastPixel=%d sensor_parms.firstPixel=%d\n", __func__,
     pix_settings->camif_cfg.sensor_out_info.request_crop.last_pixel,
     pix_settings->camif_cfg.sensor_out_info.request_crop.first_pixel);
-  CDBG("%s: sensor_parms.lastLine=%d sensor_parms.firstLine=%d\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: sensor_parms.lastLine=%d sensor_parms.firstLine=%d\n", __func__,
     pix_settings->camif_cfg.sensor_out_info.request_crop.last_line,
     pix_settings->camif_cfg.sensor_out_info.request_crop.first_line);
 
@@ -1288,13 +1302,13 @@ static void mesh_rolloff_calc_aec_trigger(isp_mesh_rolloff_mod_t *mod,
                 &(chromatix_rolloff->rolloff_lowlight_trigger),
                 &trigger_params->trigger_input.stats_update.aec_update, is_burst);
   if (F_EQUAL(aec_ratio, 0.0)) {
-    CDBG("%s: Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Low Light \n", __func__);
     *tblOut = *tblLowLight;
   } else if (F_EQUAL(aec_ratio, 1.0)) {
-    CDBG("%s: Bright Light \n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Bright Light \n", __func__);
     *tblOut = *tblNormalLight;
   } else {
-    CDBG("%s: Interpolate between Normal and Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Interpolate between Normal and Low Light \n", __func__);
     mesh_rolloff_table_interpolate(tblNormalLight,
       tblLowLight, tblOut, aec_ratio);
   }
@@ -1319,25 +1333,25 @@ static void mesh_rolloff_tintless_lowlight_adjust(isp_mesh_rolloff_mod_t *mod,
 
   /*adjust rolloff table for low light, also get normalize ratio by min gain*/
   for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
-    output_mesh_table->r_gain[i] *= mod->tintless_lowlight_adjust[i];
+    output_mesh_table->r_gain[i] *= mod->tintless_current_adjust[i];
     min_gain =
       MIN(min_gain, output_mesh_table->r_gain[i]);
 
-    output_mesh_table->gb_gain[i] *= mod->tintless_lowlight_adjust[i];
+    output_mesh_table->gb_gain[i] *= mod->tintless_current_adjust[i];
       min_gain =
         MIN(min_gain, output_mesh_table->gb_gain[i]);
 
-    output_mesh_table->gr_gain[i] *= mod->tintless_lowlight_adjust[i];
+    output_mesh_table->gr_gain[i] *= mod->tintless_current_adjust[i];
     min_gain =
       MIN(min_gain, output_mesh_table->gr_gain[i]);
 
-    output_mesh_table->b_gain[i] *= mod->tintless_lowlight_adjust[i];
+    output_mesh_table->b_gain[i] *= mod->tintless_current_adjust[i];
     min_gain =
       MIN(min_gain, output_mesh_table->b_gain[i]);
   }
 
   if (min_gain < 1.0 && min_gain > 0.0) {
-    CDBG("%s: min_gain = %f, Normalize rolloff table!\n", __func__, min_gain);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: min_gain = %f, Normalize rolloff table!\n", __func__, min_gain);
     for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
       output_mesh_table->r_gain[i] /= min_gain;
       output_mesh_table->gb_gain[i] /= min_gain;
@@ -1359,6 +1373,7 @@ static int mesh_rolloff_tintless_trigger_update(isp_mesh_rolloff_mod_t *mod,
   isp_pix_trigger_update_input_t *trigger_params)
 {
   int rc = 0;
+  int i = 0;
   chromatix_VFE_common_type *chrComPtr =
    (chromatix_VFE_common_type *)
     trigger_params->cfg.chromatix_ptrs.chromatixComPtr;
@@ -1377,10 +1392,10 @@ static int mesh_rolloff_tintless_trigger_update(isp_mesh_rolloff_mod_t *mod,
   /*determine low light condition for low light ratio adjust
     only pure low light will go into tintless lowlight mode*/
   if (F_EQUAL(aec_ratio, 0.0)) {
-    CDBG("%s: tintless low light mode\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: tintless low light mode\n", __func__);
     mod->tintless_low_light_mode = 1;
   } else if (F_EQUAL(aec_ratio, 1.0)) {
-    CDBG("%s: tintless normal light \n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: tintless normal light \n", __func__);
     mod->tintless_low_light_mode = 0;
   }
 
@@ -1412,6 +1427,18 @@ static int mesh_rolloff_tintless_trigger_update(isp_mesh_rolloff_mod_t *mod,
     }
 
     if (mod->tintless_low_light_mode == 1) {
+      for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+        mod->tintless_current_adjust[i] =
+          mod->tintless_lowlight_adjust[i]* (TINTLESS_TEMPORAL_RATIO)  +
+          mod->tintless_current_adjust[i] * (1 - TINTLESS_TEMPORAL_RATIO);
+      }
+      mesh_rolloff_tintless_lowlight_adjust(mod, &mesh_table);
+    } else {
+      for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+        mod->tintless_current_adjust[i] =
+          1 * TINTLESS_TEMPORAL_RATIO  +
+          mod->tintless_current_adjust[i] * (1 - TINTLESS_TEMPORAL_RATIO);
+      }
       mesh_rolloff_tintless_lowlight_adjust(mod, &mesh_table);
     }
 
@@ -1479,13 +1506,39 @@ static int mesh_rolloff_trigger_update(isp_mesh_rolloff_mod_t *mod,
   }
 
   if (!mod->mesh_rolloff_enable || !mod->mesh_rolloff_trigger_enable) {
-    CDBG("%s: skip trigger update! rolloff enable %d, trigger_enable %d\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: skip trigger update! rolloff enable %d, trigger_enable %d\n",
       __func__, mod->mesh_rolloff_enable, mod->mesh_rolloff_trigger_enable);
     return 0;
   }
 
   is_tintless_rolloff = (trigger_params->cfg.tintless_data->is_supported &&
       trigger_params->cfg.tintless_data->is_enabled);
+  new_flash_mode = trigger_params->trigger_input.flash_mode;
+  if (new_flash_mode == CAM_FLASH_MODE_ON) {
+    uint32_t led1_value_mainflash =
+      trigger_params->trigger_input.stats_update.awb_update.dual_led_setting.led1_high_setting;
+    uint32_t led2_value_mainflash =
+      trigger_params->trigger_input.stats_update.awb_update.dual_led_setting.led2_high_setting;
+    float led_mainflash_ratio = 0.0;
+    MESH_RollOffTable_V4 *tblLedFlash = NULL;
+    MESH_RollOffTable_V4 *tblStrobeFlash = NULL;
+    MESH_RollOffTable_V4 *tblLedFlashStored = NULL;
+
+    if (led1_value_mainflash + led2_value_mainflash == 0 ) {
+      CDBG_ERROR("%s: No entries in LED Flash table\n",__func__);
+      } else {
+        led_mainflash_ratio =
+          (float)led1_value_mainflash/(led1_value_mainflash + led2_value_mainflash);
+        tblLedFlash =
+          &(mod->rolloff_tbls.rolloff_tableset[0]->left[ISP_ROLLOFF_LED_FLASH]);
+        tblStrobeFlash =
+          &(mod->rolloff_tbls.rolloff_tableset[0]->left[ISP_ROLLOFF_STROBE_FLASH]);
+        tblLedFlashStored = &(mod->led_rolloff_stored);
+
+        mesh_rolloff_table_interpolate( tblLedFlashStored, tblStrobeFlash,tblLedFlash,
+                                        led_mainflash_ratio);
+    }
+  }
 
   /*tintless is not related to tradition 3a decision*/
   if (is_tintless_rolloff) {
@@ -1506,8 +1559,9 @@ static int mesh_rolloff_trigger_update(isp_mesh_rolloff_mod_t *mod,
   }
 
   if (!is_burst) {
-    if (!isp_util_aec_check_settled(&(trigger_params->trigger_input.stats_update.aec_update))) {
-      CDBG("%s: AEC is not setteled. Skip the trigger\n", __func__);
+    if (!isp_util_aec_check_settled(&(trigger_params->trigger_input.stats_update.aec_update))
+        && !isp_util_awb_restore_gains(&(trigger_params->trigger_input.stats_update.awb_update))) {
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: AEC is not setteled. Skip the trigger\n", __func__);
       return 0;
     }
   }
@@ -1517,7 +1571,7 @@ static int mesh_rolloff_trigger_update(isp_mesh_rolloff_mod_t *mod,
   new_flash_mode = trigger_params->trigger_input.flash_mode;
   new_mired_color_temp = MIRED(trigger_params->trigger_input.stats_update.awb_update.color_temp);
 
-  CDBG("%s: CURRENT gain %f, flash %d, lux %f, NEW gain %f flash %d lux%f\n",
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: CURRENT gain %f, flash %d, lux %f, NEW gain %f flash %d lux%f\n",
     __func__, mod->cur_real_gain,
     mod->cur_flash_mode,
     mod->cur_lux,
@@ -1529,7 +1583,7 @@ static int mesh_rolloff_trigger_update(isp_mesh_rolloff_mod_t *mod,
     (!mod->mesh_rolloff_reload_params) &&
     (mod->cur_mired_color_temp == new_mired_color_temp)&&
     (mod->old_streaming_mode == trigger_params->cfg.streaming_mode)) {
-    CDBG("%s: No change in trigger. Nothing to update\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: No change in trigger. Nothing to update\n", __func__);
     return 0;
   }
 
@@ -1621,6 +1675,9 @@ static void mesh_rolloff_reset(isp_mesh_rolloff_mod_t *mod)
   memset(&mod->mesh_rolloff_trigger_ratio, 0, sizeof(mod->mesh_rolloff_trigger_ratio));
   memset(&mod->mesh_rolloff_cmd, 0, sizeof(mod->mesh_rolloff_cmd));
   memset(&mod->mesh_rolloff_param, 0, sizeof(mod->mesh_rolloff_param));
+  for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+    mod->tintless_current_adjust[i] = 1.0;
+  }
   mod->mesh_rolloff_enable = 0;
   mod->mesh_rolloff_update = 0;
   mod->mesh_rolloff_trigger_enable = 0;
@@ -1684,18 +1741,18 @@ static void mesh_rolloff_tintless_downscale_table(
 
   /* Down scale the mesh table from Chromatix header 17x13 to HW 13x10 size*/
   if (tableIn->mesh_rolloff_table_size > MESH_ROLL_OFF_V4_TABLE_SIZE) {
-    CDBG("\n\n%s:Bicubuc downscale 17x13 Chromatix mesh to 13x10 mesh table\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "\n\n%s:Bicubuc downscale 17x13 Chromatix mesh to 13x10 mesh table\n",
       __func__);
-    CDBG("%s: R table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: R table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->r_gain, (void *)tableOut->r_gain,
       is_tintless);
-    CDBG("%s: Gr table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Gr table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->gr_gain, (void *)tableOut->gr_gain,
       is_tintless);
-    CDBG("%s: Gb table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Gb table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->gb_gain, (void *)tableOut->gb_gain,
       is_tintless);
-    CDBG("%s: B table 13 x 10\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: B table 13 x 10\n", __func__);
     mesh_rolloff_V4_ScaleMesh(tableIn->b_gain, (void *)tableOut->b_gain,
       is_tintless);
   } else if(tableIn->mesh_rolloff_table_size == MESH_ROLL_OFF_V4_TABLE_SIZE) {
@@ -1753,6 +1810,10 @@ static int mesh_rolloff_tintless_prepare_tables(
        CDBG_ERROR("%s: normal light ratio = 0! rc = -1\n", __func__);
        return -1;
      }
+  }
+
+  for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+    mesh_mod->tintless_current_adjust[i] = 1.0;
   }
 
   /* led table */
@@ -1847,7 +1908,7 @@ static int mesh_rolloff_config(isp_mesh_rolloff_mod_t *mesh_mod,
    (chromatix_parms_type *)pix_settings->chromatix_ptrs.chromatixPtr;
   MESH_RollOff_V4_ConfigCmdType *cmd = NULL;
 
-  CDBG("%s: E\n",__func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: E\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */
@@ -1862,7 +1923,7 @@ static int mesh_rolloff_config(isp_mesh_rolloff_mod_t *mesh_mod,
     return -1;
   }
 
-  CDBG("%s: prepare tables done\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: prepare tables done\n", __func__);
 
   if (!pix_settings->camif_cfg.is_bayer_sensor) {
     CDBG_HIGH("%s: not Bayer Format, not support rolloff\n", __func__);
@@ -2139,7 +2200,7 @@ static int mesh_rolloff_get_params (void *mod_ctrl, uint32_t param_id,
     vfe_diag->control_rolloff.cntrlenable = mesh_rolloff->mesh_rolloff_trigger_enable;
     rolloff_ez_isp_update(mesh_rolloff, rolloff_diag);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Populating vfe_diag data", __func__);
   }
     break;
 

@@ -1,5 +1,5 @@
 /**********************************************************************
-* Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
 * Qualcomm Technologies Proprietary and Confidential.                 *
 **********************************************************************/
 
@@ -161,6 +161,7 @@ typedef struct {
   uint32_t endingRange;
   hdr_chroma_order_t chromaOrder;
   hdr_pixel_component_type_t pixelComponent;
+  uint32_t contrastControl;
 } hdr_config_t;
 
 

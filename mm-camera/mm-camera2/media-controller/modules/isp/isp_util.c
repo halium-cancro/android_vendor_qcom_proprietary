@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -24,6 +24,8 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_pipeline.h"
 #include "isp_resource_mgr.h"
 #include "q3a_stats_hw.h"
+#include "isp_log.h"
+#include "server_debug.h"
 
 
 #define PAD_TO_SIZE(size, padding)  ((size + padding - 1) & ~(padding - 1))
@@ -60,6 +62,14 @@ typedef struct {
 static int isp_util_find_burst_stream_in_continuous_mode(isp_session_t *session,
   isp_stream_t **stream_ptr);
 
+uint32_t isp_util_is_lowpowermode_feature_enable(isp_t *isp, uint32_t session_id)
+{
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+  if (!session)
+    return -1;
+  return session->saved_params.lowpowermode_enable;
+}
+
 /** isp_util_is_video_hint_set
  *    @session: session instance
  *    @user_stream:
@@ -73,7 +83,7 @@ static boolean isp_util_is_video_hint_set(isp_session_t *session,
   isp_stream_t *user_stream)
 {
   int i, video_hint = 0;
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
 
   if (user_stream->stream_info.stream_type == CAM_STREAM_TYPE_VIDEO) {
     /* this is video case */
@@ -94,8 +104,18 @@ static boolean isp_util_is_video_hint_set(isp_session_t *session,
       }
     }
   }
-  CDBG("%s: X video_hint %d", __func__, video_hint);
+  ISP_DBG(ISP_MOD_COM,"%s: X video_hint %d", __func__, video_hint);
   return video_hint;
+}
+
+boolean isp_util_is_4k2k_resolution_set(cam_dimension_t dim)
+{
+  bool enabled = false;
+  if ((dim.width == 4096 && dim.height == 2160) ||
+    (dim.width == 3840 && dim.height == 2160) ){
+    enabled = true;
+  }
+  return enabled;
 }
 
 /** isp_util_find_matched_existing_src_port
@@ -121,7 +141,7 @@ static mct_port_t *isp_util_find_matched_existing_src_port(isp_t *isp,
   uint32_t size;
   uint32_t isp_ver;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
 
   /* we always use ISP 0 version now. */
   isp_ver = isp->data.sd_info.sd_info[0].isp_version;
@@ -131,7 +151,7 @@ static mct_port_t *isp_util_find_matched_existing_src_port(isp_t *isp,
       __func__, user_stream->session_id);
     return NULL;
   }
-  CDBG("%s: session_id = %d, stream_id = %d, stream_type = %d,"
+  ISP_DBG(ISP_MOD_COM,"%s: session_id = %d, stream_id = %d, stream_type = %d,"
     "num_data_port = %d\n", __func__,
     user_stream->session_id, user_stream->stream_id,
     user_stream->stream_info.stream_type,
@@ -144,41 +164,37 @@ static mct_port_t *isp_util_find_matched_existing_src_port(isp_t *isp,
       CDBG_ERROR("%s#%d: X", __func__, __LINE__);
       return NULL;
     } else {
-      /* for ISP 32. There is no 4k by 2k video so we can also
-       * allow to allocate two src ports */
-      if (GET_ISP_MAIN_VERSION(isp_ver) == ISP_VERSION_32) {
-        CDBG_ERROR("%s#%d: X", __func__, __LINE__);
-        return NULL;
+      /* if we already has a burst stream linked we need to
+       * put all continuous streams into one src port */
+      isp_stream_t *tmp_stream = NULL;
+      isp_util_find_burst_stream_in_continuous_mode(session, &tmp_stream);
+
+      if (tmp_stream) {
+        if (tmp_stream->src_ports[ISP_SRC_PORT_DATA] ||
+            (tmp_stream->src_ports[ISP_SRC_PORT_DATA] == NULL &&
+             session->num_src_data_port == 0)) {
+
+          /* This is liveshot case, we put two continuous streams into
+             one src port. */
+          CDBG_ERROR("%s#%d: X", __func__, __LINE__);
+          return NULL;
+        }
       } else {
-        /* if we already has a burst stream linked we need to
-         * put all continuous streams into one src port */
-        isp_stream_t *tmp_stream = NULL;
-        isp_util_find_burst_stream_in_continuous_mode(session, &tmp_stream);
-
-        if (tmp_stream) {
-          if (tmp_stream->src_ports[ISP_SRC_PORT_DATA] ||
-              (tmp_stream->src_ports[ISP_SRC_PORT_DATA] == NULL &&
-               session->num_src_data_port == 0)) {
-
-            /* This is liveshot case, we put two continuous streams into
-               one src port. */
-            CDBG_ERROR("%s#%d: X", __func__, __LINE__);
-            return NULL;
-          }
-        } else {
-          /* for the first continuous stream we always use a new src port */
-          if (session->num_src_data_port == 0) {
-            CDBG_ERROR("%s#%d: X", __func__, __LINE__);
-            return NULL;
-          }
-          /* Here, we already have one continuous stream with a src port.
-           * if there is one video straem it's camcorder use case put
-           * both continuous streams into the same src port.
-           */
-          if (!isp_util_is_video_hint_set(session, user_stream)) {
-            CDBG_ERROR("%s#%d: X", __func__, __LINE__);
-            return NULL;
-          }
+        /* for the first continuous stream we always use a new src port */
+        if (session->num_src_data_port == 0) {
+          CDBG_ERROR("%s#%d: X", __func__, __LINE__);
+          return NULL;
+        }
+        /* Here, we already have one continuous stream with a src port.
+         * if there is one video straem it's camcorder use case put
+         * both continuous streams into the same src port only if
+         * its 4k2k resolution or YUV.
+         */
+        if (!isp_util_is_video_hint_set(session, user_stream) ||
+            (!isp_util_is_4k2k_resolution_set(user_stream->stream_info.dim) &&
+            sink_port->caps.use_pix)) {
+          CDBG_ERROR("%s#%d: X", __func__, __LINE__);
+          return NULL;
         }
       }
     }
@@ -202,12 +218,12 @@ static mct_port_t *isp_util_find_matched_existing_src_port(isp_t *isp,
        * streaming mode matches */
       if (user_stream->stream_info.streaming_mode == src_port->streaming_mode) {
         /* streaming mode also match */
-        CDBG("%s: X", __func__);
+        ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
         return mct_port;
       }
     }
   } /* end for loop */
-  CDBG_ERROR("%s#%d: X", __func__, __LINE__);
+  ISP_DBG(ISP_MOD_COM,"%s#%d: X", __func__, __LINE__);
   return NULL;
 }
 
@@ -221,7 +237,7 @@ static mct_port_t *isp_util_find_matched_existing_src_port(isp_t *isp,
  **/
 static boolean isp_util_need_zoom(isp_session_t *session, isp_stream_t *stream)
 {
-  CDBG("%s: E,stream fmt %d", __func__, stream->stream_info.fmt);
+  ISP_DBG(ISP_MOD_COM,"%s: E,stream fmt %d", __func__, stream->stream_info.fmt);
   switch(stream->stream_info.fmt) {
   case CAM_FORMAT_YUV_420_NV12_VENUS:
   case CAM_FORMAT_YUV_420_NV12:
@@ -230,7 +246,7 @@ static boolean isp_util_need_zoom(isp_session_t *session, isp_stream_t *stream)
   case CAM_FORMAT_YUV_420_YV12:
   case CAM_FORMAT_YUV_422_NV16:
   case CAM_FORMAT_YUV_422_NV61: {
-    CDBG("%s: X TRUE", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: X TRUE", __func__);
     return TRUE;
   }
 
@@ -238,7 +254,7 @@ static boolean isp_util_need_zoom(isp_session_t *session, isp_stream_t *stream)
   }
     break;
   }
-  CDBG("%s: X FALSE", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X FALSE", __func__);
   return FALSE;
 }
 
@@ -260,12 +276,17 @@ static void isp_util_discover_subdev_nodes(isp_t *isp)
   int num_isps = 0;
   int num_entities;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
   while (1) {
     snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
     dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
+    if (dev_fd >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      dev_fd = -1;
+      break;
+    }
     if (dev_fd < 0) {
-      CDBG("Done discovering media devices\n");
+      ISP_DBG(ISP_MOD_COM,"Done discovering media devices\n");
       break;
     }
 
@@ -290,7 +311,7 @@ static void isp_util_discover_subdev_nodes(isp_t *isp)
       entity.id = num_entities++;
       rc = ioctl(dev_fd, MEDIA_IOC_ENUM_ENTITIES, &entity);
       if (rc < 0) {
-        CDBG("Done enumerating media entities\n");
+        ISP_DBG(ISP_MOD_COM,"Done enumerating media entities\n");
         rc = 0;
         break;
       }
@@ -303,10 +324,10 @@ static void isp_util_discover_subdev_nodes(isp_t *isp)
         isp->data.sd_info.num++;
       }
     }
-    CDBG("%s: close dev_fd: %d", __func__, dev_fd);
+    ISP_DBG(ISP_MOD_COM,"%s: close dev_fd: %d", __func__, dev_fd);
     close(dev_fd);
   }
-  CDBG("%s: X", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
 }
 
 /** isp_util_fill_pix_streamids
@@ -327,7 +348,7 @@ static int isp_util_fill_pix_streamids(isp_t *isp, uint32_t session_id,
   isp_stream_t *stream;
   isp_port_t *isp_sink_port;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
   if (!session)
     return -1;
 
@@ -345,7 +366,7 @@ static int isp_util_fill_pix_streamids(isp_t *isp, uint32_t session_id,
       streamids[cnt++] = stream->stream_id;
     }
   }
-  CDBG("%s: X, cnt %d", __func__, cnt);
+  ISP_DBG(ISP_MOD_COM,"%s: X, cnt %d", __func__, cnt);
   return cnt;
 }
 
@@ -367,7 +388,7 @@ void isp_util_broadcast_sof_msg_to_modules(isp_t *isp, uint32_t session_id,
   isp_stream_t *stream;
   mct_event_t mct_event;
 
-  CDBG("%s: E, isp %p, session_d %d, stream_id %d", __func__, (void *)isp,
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p, session_d %d, stream_id %d", __func__, (void *)isp,
        session_id, stream_id);
   if (!session)
     return;
@@ -391,7 +412,12 @@ void isp_util_broadcast_sof_msg_to_modules(isp_t *isp, uint32_t session_id,
     mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_3A],
       &mct_event);
   }
-  CDBG("%s: X", __func__);
+  if (stream->src_ports[ISP_SRC_PORT_DATA]) {
+    mct_event.direction = MCT_EVENT_DOWNSTREAM;
+    mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_DATA],
+      &mct_event);
+  }
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
 }
 
 /** isp_util_hw_notify_stats_awb_info
@@ -405,11 +431,11 @@ void isp_util_broadcast_sof_msg_to_modules(isp_t *isp, uint32_t session_id,
 static int isp_util_hw_notify_stats_awb_info(isp_t *isp, mct_bus_msg_t *bus_msg)
 {
   int rc = 0;
-  CDBG("%s: E, isp %p", __func__, (void *)isp);
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p", __func__, (void *)isp);
   if (TRUE != mct_module_post_bus_msg(isp->module, bus_msg))
     CDBG_ERROR("%s: STATS_AWB_INFO to bus error\n", __func__);
 
-  CDBG("%s: X", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
   return rc;
 }
 
@@ -463,7 +489,7 @@ static int isp_util_hw_notify_stats_bg_config(isp_t *isp, void *notify_data,
   isp_session_t *session;
   isp_tintless_notify_data_t *tintless_data = notify_data;
 
-  if (notify_data_size != sizeof(tintless_stats_config_t)) {
+  if (notify_data_size != sizeof(isp_tintless_notify_data_t)) {
     CDBG_ERROR("%s: Type mismatch\n", __func__);
     rc = -1;
     goto error;
@@ -560,23 +586,25 @@ error:
  *
  * Returns 0 - sucess and negative value - failure
  **/
-static int isp_util_hw_notify_stats(isp_t *isp, void *notify_data)
+static int isp_util_hw_notify_stats(isp_t *isp, void *notify_data,
+  void *ctrl)
 {
   boolean brc = FALSE;
   int rc = 0;
   mct_event_t event;
   isp_pipeline_stats_parse_t *stats_event = notify_data;
   isp_stream_t *stream;
+  isp_hw_t *isp_hw = (isp_hw_t *)ctrl;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
   isp_session_t *session = isp_util_find_session(isp, stats_event->session_id);
   if (!session){
-    CDBG("%s: no stats module linked\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: no stats module linked\n", __func__);
     goto error;
   }
   stream = isp_util_find_3a_stream(session);
   if (!stream){
-    CDBG("%s: no stats module linked\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: no stats module linked\n", __func__);
     goto error;
   }
 
@@ -597,7 +625,7 @@ static int isp_util_hw_notify_stats(isp_t *isp, void *notify_data)
       pthread_mutex_unlock(
          &isp->data.session_critical_section[session->session_idx]);
     } else
-      CDBG("%s: ihist_Stats NULL, ihist_stats = %p\n", __func__, ihist_stats);
+      ISP_DBG(ISP_MOD_COM,"%s: ihist_Stats NULL, ihist_stats = %p\n", __func__, ihist_stats);
   }
 
   if (stats_event->parsed_stats_event->stats_mask &
@@ -644,7 +672,20 @@ static int isp_util_hw_notify_stats(isp_t *isp, void *notify_data)
       }
     }
   }
-
+  if (GET_ISP_MAIN_VERSION(isp_hw->init_params.isp_version) ==
+      ISP_VERSION_32) {
+     if (isp->data.tintless->tintless_data.is_supported &&
+       isp->data.tintless->tintless_data.is_enabled) {
+       if ((stats_event->parsed_stats_event->frame_id + 2) % 10 == 0 &&
+         stats_event->parsed_stats_event->frame_id != 0) {
+         isp_pipeline_set_stats_fullsize((void *)isp_hw->pipeline.private_data, TRUE);
+       }
+       if ((stats_event->parsed_stats_event->frame_id + 1) % 10 == 0 &&
+         stats_event->parsed_stats_event->frame_id != 0) {
+         isp_pipeline_set_stats_fullsize((void *)isp_hw->pipeline.private_data, FALSE);
+       }
+     }
+  }
   /* if HW support BE, then use be stats for tintless*/
   if (isp->data.tintless->tintless_data.stats_support_type ==
     ISP_TINTLESS_STATS_TYPE_BE) {
@@ -659,7 +700,7 @@ static int isp_util_hw_notify_stats(isp_t *isp, void *notify_data)
          session->tintless_session->frame_id = stats_event->parsed_stats_event->frame_id;
 
          rc = isp_tintless_trigger_update(session->tintless_session,
-           (void *)be_stats, MSM_ISP_STATS_BE);
+           (void *)be_stats, MSM_ISP_STATS_BE, session->hfr_param.hfr_mode);
          if (rc < 0) {
            CDBG_ERROR("%s: tintless trigger update rc: %d\n", __func__, rc);
          }
@@ -667,25 +708,43 @@ static int isp_util_hw_notify_stats(isp_t *isp, void *notify_data)
      }
   } else if (isp->data.tintless->tintless_data.stats_support_type ==
      ISP_TINTLESS_STATS_TYPE_BG) {
-     if(stats_event->parsed_stats_event->stats_mask &
-              (1 << MSM_ISP_STATS_BG)) {
-       q3a_bg_stats_t *bg_stats = (q3a_bg_stats_t *)
-         stats_event->parsed_stats_event->
-           stats_data[MSM_ISP_STATS_BG].stats_buf;
+    if (GET_ISP_MAIN_VERSION(isp_hw->init_params.isp_version) ==
+      ISP_VERSION_32) {
+      if (stats_event->parsed_stats_event->is_tintless_data) {
+        q3a_bg_stats_t *bg_stats = (q3a_bg_stats_t *)
+          stats_event->parsed_stats_event->
+          stats_data[MSM_ISP_STATS_BG].stats_buf;
+        if (isp->data.tintless->tintless_data.is_supported &&
+          isp->data.tintless->tintless_data.is_enabled) {
+          session->tintless_session->frame_id = stats_event->parsed_stats_event->frame_id;
+          isp_pipeline_set_stats_fullsize((void *)isp_hw->pipeline.private_data, FALSE);
+          rc = isp_tintless_trigger_update(session->tintless_session,
+            (void *)bg_stats, MSM_ISP_STATS_BG, session->hfr_param.hfr_mode);
+          if (rc < 0) {
+            CDBG_ERROR("%s: tintless trigger update rc: %d\n", __func__, rc);
+          }
+          return rc;
+        }
+      }
+    } else {
+      if (stats_event->parsed_stats_event->stats_mask &
+        (1 << MSM_ISP_STATS_BG)) {
+        q3a_bg_stats_t *bg_stats = (q3a_bg_stats_t *)
+          stats_event->parsed_stats_event->
+          stats_data[MSM_ISP_STATS_BG].stats_buf;
 
-       if (isp->data.tintless->tintless_data.is_supported &&
-           isp->data.tintless->tintless_data.is_enabled) {
-         session->tintless_session->frame_id = stats_event->parsed_stats_event->frame_id;
-
-         rc = isp_tintless_trigger_update(session->tintless_session,
-           (void *)bg_stats, MSM_ISP_STATS_BG);
-         if (rc < 0) {
-           CDBG_ERROR("%s: tintless trigger update rc: %d\n", __func__, rc);
-         }
-       }
-     }
+        if (isp->data.tintless->tintless_data.is_supported &&
+          isp->data.tintless->tintless_data.is_enabled) {
+          session->tintless_session->frame_id = stats_event->parsed_stats_event->frame_id;
+          rc = isp_tintless_trigger_update(session->tintless_session,
+            (void *)bg_stats, MSM_ISP_STATS_BG, session->hfr_param.hfr_mode);
+          if (rc < 0) {
+            CDBG_ERROR("%s: tintless trigger update rc: %d\n", __func__, rc);
+          }
+        }
+      }
+    }
   }
-
   /*send event to 3A*/
   memset(&event, 0, sizeof(event));
 
@@ -696,7 +755,7 @@ static int isp_util_hw_notify_stats(isp_t *isp, void *notify_data)
   event.u.module_event.module_event_data = (void *)stats_event->
     parsed_stats_event;
   brc = mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_3A], &event);
-  CDBG("%s: X,send stats to 3A, rc = %d\n", __func__, brc);
+  ISP_DBG(ISP_MOD_COM,"%s: X,send stats to 3A, rc = %d\n", __func__, brc);
 
   return 0;
 error:
@@ -741,6 +800,8 @@ static int isp_util_fetch_hw_pending_update_params(isp_t *isp,
    isp_hw_pending_update_params_t *params)
 {
   int rc = 0;
+  int i = 0;
+  boolean wait_hw_fetch = FALSE;
 
   isp_session_t *session = isp_util_find_session(isp, params->session_id);
   if (!session) {
@@ -751,12 +812,24 @@ static int isp_util_fetch_hw_pending_update_params(isp_t *isp,
   pthread_mutex_lock(
     &isp->data.session_critical_section[session->session_idx]);
 
+  /*dual vfe case: check if all HW device fetched the previous pending parm yet
+    single vfe: never wait for another isp*/
+  if ((session->vfe_ids & (1<< VFE0)) && (session->vfe_ids & (1 << VFE1))) {
+    for (i = 0; i < VFE_MAX; i++) {
+      if (session->pending_update_params.hw_fetch_pending[i] == TRUE) {
+        wait_hw_fetch = TRUE;
+        break;
+      }
+     }
+  }
+
   /* Both VFEs will ask for set of params to be applied to hw update.
    * This call is made by individual VFE during SOF. This function will make
    * a cached param copy using saved params and send same copy to both VFEs
    * by checking frame id. Cached param copy will be updated
    * when frame id changes */
-  if (params->frame_id != session->pending_update_params.frame_id) {
+  if (params->frame_id != session->pending_update_params.frame_id
+      && wait_hw_fetch == FALSE) {
     session->pending_update_params.hw_update_params = session->saved_params;
     session->saved_params.uv_subsample_update = FALSE;
     session->saved_params.uv_subsample_enable = 0;
@@ -764,14 +837,154 @@ static int isp_util_fetch_hw_pending_update_params(isp_t *isp,
     if (session->saved_params.dig_gain == 0.0) {
       session->saved_params.dig_gain = 1.0;
     }
+
     session->saved_params.zoom_update = FALSE;
     session->pending_update_params.frame_id = params->frame_id;
+    /*after update pending parm, both vfe need to fetch*/
+    for (i = 0; i < VFE_MAX; i++)
+      session->pending_update_params.hw_fetch_pending[i] = TRUE;
   }
+  /*fetch the hw update parm from current pending parm*/
   params->hw_update_params = session->pending_update_params.hw_update_params;
+  params->hw_update_params.dig_gain =
+     session->pending_update_params.hw_update_params.dig_gain ;
+  params->hw_update_params.stats_flag =
+     session->pending_update_params.hw_update_params.stats_flag;
+  params->hw_update_params.aec_stats_update =
+     session->pending_update_params.hw_update_params.aec_stats_update;
+  session->pending_update_params.hw_fetch_pending[params->dev_idx] = FALSE;
   pthread_mutex_unlock(
     &isp->data.session_critical_section[session->session_idx]);
   return 0;
 }
+
+static int isp_util_notify_ispif_to_reset(isp_t *isp, int hw_idx, uint32_t *session_id, int size)
+{
+  int rc = 0, i, j;
+  isp_session_t *session = NULL;
+  isp_stream_t *stream = NULL;
+  mct_event_t event;
+  uint32_t is_overflow = 1;
+  uint32_t isp_id;
+
+  if (size != sizeof(uint32_t)) {
+    CDBG_ERROR("%s Size mismatch error \n", __func__);
+    return -1;
+  }
+  session = isp_util_find_session(isp, *session_id);
+  if (!session) {
+    CDBG_ERROR("%s: isp_util_find_session failed\n",__func__);
+    return -1;
+  }
+  if (session->vfe_ids & (1 << VFE0)) {
+    isp_id = VFE0;
+    rc = isp->data.hw[isp_id].hw_ops->set_params(isp->data.hw[isp_id].hw_ops->ctrl,
+                                                 ISP_HW_SET_PARAM_OVERFLOW_DETECTED,
+                                                 &is_overflow, sizeof(is_overflow));
+    if (rc < 0) {
+      CDBG_ERROR("%s Error in HW HALT \n", __func__);
+      return -1;
+    }
+    rc = isp->data.hw[isp_id].hw_ops->action(isp->data.hw[isp_id].hw_ops->ctrl,
+                                             ISP_HW_ACTION_CODE_HALT, NULL, 0);
+    if (rc < 0) {
+      CDBG_ERROR("%s Error in HW HALT \n", __func__);
+      return -1;
+    }
+  }
+  if (session->vfe_ids & (1 << VFE1)) {
+    isp_id = VFE1;
+    rc = isp->data.hw[isp_id].hw_ops->set_params(isp->data.hw[isp_id].hw_ops->ctrl,
+                                                 ISP_HW_SET_PARAM_OVERFLOW_DETECTED,
+                                                 &is_overflow, sizeof(is_overflow));
+    if (rc < 0) {
+      CDBG_ERROR("%s Error in HW HALT \n", __func__);
+      return -1;
+    }
+    rc = isp->data.hw[isp_id].hw_ops->action(isp->data.hw[isp_id].hw_ops->ctrl,
+                                             ISP_HW_ACTION_CODE_HALT, NULL, 0);
+    if (rc < 0) {
+      CDBG_ERROR("%s Error in HW HALT \n", __func__);
+      return -1;
+    }
+  }
+
+  /* Find first stream associated with the session to send MCT event using its identity */
+  for (i = 0; i < ISP_MAX_STREAMS; i++) {
+    if (session->streams[i].session_id == *session_id) {
+      stream = &session->streams[i];
+      break;
+    }
+  }
+
+  if (i == ISP_MAX_STREAMS) {
+    CDBG_ERROR("%s Error no stream found for session %d\n", __func__, *session_id);
+    return -1;
+  }
+
+  memset(&event, 0, sizeof(event));
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.identity = pack_identity(stream->session_id, stream->stream_id);
+  event.u.module_event.type = MCT_EVENT_MODULE_ISPIF_RESET;
+  event.u.module_event.module_event_data = NULL;
+  rc = mct_port_send_event_to_peer(stream->sink_port, &event);
+
+  if (rc < 0) {
+    CDBG_ERROR("%s Error sending ISPIF reset to peer \n", __func__);
+  }
+  return rc;
+}
+
+int isp_util_proc_restart(isp_t *isp, uint32_t session_id, uint32_t *vfe_mask)
+{
+  int rc = 0, i;
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+  uint32_t is_overflow = 0;
+
+  if (!session) {
+    CDBG_ERROR("%s: cannot find session \n",__func__);
+    return -1;
+  }
+
+  for (i = 0; i < VFE_MAX; i++) {
+    if (*vfe_mask & (1 << i)) {
+      CDBG("%s reset to vfe %d \n", __func__, i);
+      rc = isp->data.hw[i].hw_ops->action(isp->data.hw[i].hw_ops->ctrl,
+                                     ISP_HW_ACTION_CODE_RESET, &session->sof_frame_id,
+                                     sizeof(session->sof_frame_id));
+      if (rc < 0) {
+        CDBG_ERROR("%s Error in HW Reset \n", __func__);
+        return rc;
+      }
+    }
+  }
+  //reset the sof_id of current session.
+   for (i = 0; i < VFE_MAX; i++)
+     session->sof_id[i] = 0;
+
+  /* Restart after all VFE are reset since the kernel will flush all buffers */
+  for (i = 0; i < VFE_MAX; i++) {
+    if (*vfe_mask & (1 << i)) {
+      CDBG("%s restart to vfe %d \n", __func__, i);
+      rc = isp->data.hw[i].hw_ops->action(isp->data.hw[i].hw_ops->ctrl,
+                                     ISP_HW_ACTION_CODE_RESTART, NULL, 0);
+      if (rc < 0) {
+        CDBG_ERROR("%s Error in HW Restart \n", __func__);
+        return rc;
+      }
+      rc = isp->data.hw[i].hw_ops->set_params(isp->data.hw[i].hw_ops->ctrl,
+        ISP_HW_SET_PARAM_OVERFLOW_DETECTED, &is_overflow, sizeof(is_overflow));
+      if (rc < 0) {
+        CDBG_ERROR("%s Error in HW HALT \n", __func__);
+        return -1;
+      }
+    }
+  }
+
+  return rc;
+}
+
 
 /** isp_util_update_zoom_roi_params
  *
@@ -789,6 +1002,7 @@ static int isp_util_update_zoom_roi_params(isp_t *isp, int hw_idx,
   int rc = 0;
   int i =0;
   isp_session_t *session = isp_util_find_session(isp, params->session_id);
+  boolean zoom_enable = FALSE;
   if (!session) {
     CDBG_ERROR("%s: cannot find params %x session %d\n",
       __func__, (unsigned int)params, params->session_id);
@@ -821,7 +1035,6 @@ static int isp_util_update_zoom_roi_params(isp_t *isp, int hw_idx,
     session->temp_zoom_roi_hw_id_mask |= (1 << hw_idx);
     session->temp_zoom_params[hw_idx] = *params;
   }
-
   if(session->temp_zoom_roi_hw_id_mask == (int)session->vfe_ids) {
     /* now we received all VFE's ROI maps. In dual VFE case we need to
      * combine the width with the second VFE */
@@ -879,11 +1092,16 @@ static int isp_util_hw_notify (void *parent,  uint32_t handle, uint32_t type,
   int hw_idx = (int)handle;
   isp_data_hw_t *hw = &isp_data->hw[hw_idx];
 
-  CDBG("%s: E, type %d", __func__, type);
+  ISP_DBG(ISP_MOD_COM,"%s: E, type %d", __func__, type);
   switch (type) {
   case ISP_HW_NOTIFY_STATS: {
-    rc = isp_util_hw_notify_stats(isp, notify_data);
+    rc = isp_util_hw_notify_stats(isp, notify_data, hw->hw_ops->ctrl);
   }
+    break;
+
+  case ISP_HW_NOTIFY_ISPIF_TO_RESET:
+    rc = isp_util_notify_ispif_to_reset
+      (isp, hw_idx, notify_data, notify_data_size);
     break;
 
   case ISP_HW_NOTIFY_CAMIF_SOF: {
@@ -958,7 +1176,7 @@ static int isp_util_hw_notify (void *parent,  uint32_t handle, uint32_t type,
   }
     break;
   }
-  CDBG("%s: X", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
   return rc;
 }
 
@@ -973,7 +1191,7 @@ static int isp_util_hw_notify (void *parent,  uint32_t handle, uint32_t type,
  **/
 void isp_util_destroy_hw(isp_t *isp, int hw_idx, int num_streams)
 {
-  CDBG("%s: E, hw_idx %d, num_streams %d", __func__, hw_idx, num_streams);
+  ISP_DBG(ISP_MOD_COM,"%s: E, hw_idx %d, num_streams %d", __func__, hw_idx, num_streams);
   pthread_mutex_lock(&isp->data.hw[hw_idx].mutex);
   if (isp->data.hw[hw_idx].ref_cnt >= num_streams) {
     isp->data.hw[hw_idx].ref_cnt -= num_streams;
@@ -984,10 +1202,10 @@ void isp_util_destroy_hw(isp_t *isp, int hw_idx, int num_streams)
     isp->data.hw[hw_idx].hw_ops->destroy(isp->data.hw[hw_idx].hw_ops->ctrl);
         isp->data.hw[hw_idx].hw_ops = NULL;
   } else
-    CDBG("%s: hw_idx = %d, ref_cnt = %d, num_streams = %d\n",
+    ISP_DBG(ISP_MOD_COM,"%s: hw_idx = %d, ref_cnt = %d, num_streams = %d\n",
       __func__, hw_idx, isp->data.hw[hw_idx].ref_cnt, num_streams);
   pthread_mutex_unlock(&isp->data.hw[hw_idx].mutex);
-  CDBG("%s: X", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
 }
 
 /** isp_util_create_hw
@@ -1004,7 +1222,7 @@ int isp_util_create_hw(isp_t *isp, int hw_idx, int num_streams)
   int rc = 0;
   isp_hw_init_params_t init_params;
 
-  CDBG("%s: E, hw_idx %d, num_streams %d", __func__, hw_idx, num_streams);
+  ISP_DBG(ISP_MOD_COM,"%s: E, hw_idx %d, num_streams %d", __func__, hw_idx, num_streams);
   pthread_mutex_lock(&isp->data.hw[hw_idx].mutex);
   if (isp->data.hw[hw_idx].ref_cnt > 0) {
     isp->data.hw[hw_idx].ref_cnt += num_streams;
@@ -1041,7 +1259,7 @@ int isp_util_create_hw(isp_t *isp, int hw_idx, int num_streams)
     isp_util_destroy_hw(isp, hw_idx, num_streams);
   }
   pthread_mutex_unlock(&isp->data.hw[hw_idx].mutex);
-  CDBG("%s: X, rc %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc %d", __func__, rc);
   return rc;
 }
 
@@ -1061,7 +1279,7 @@ int isp_util_gen_hws_caps(isp_t *isp)
   isp_hw_cap_t hw_cap;
   uint32_t action_code, params_id;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
   isp_util_discover_subdev_nodes(isp);
   CDBG_ERROR("%s: integrating kernel vfe is pending\n", __func__);
   for (sd_num = 0; sd_num < isp->data.sd_info.num; sd_num++) {
@@ -1069,7 +1287,7 @@ int isp_util_gen_hws_caps(isp_t *isp)
       &isp->data.sd_info.sd_info[sd_num].isp_version,
       &isp->data.sd_info.sd_info[sd_num].cap, sd_num);
   }
-  CDBG("%s: X,rc %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X,rc %d", __func__, rc);
   return rc;
 }
 
@@ -1087,7 +1305,7 @@ isp_stream_t *isp_util_find_stream(isp_t *isp, uint32_t session_id,
 {
   int i, k;
 
-  CDBG("%s: E, session_id %d, stream_id %d", __func__, session_id, stream_id);
+  ISP_DBG(ISP_MOD_COM,"%s: E, session_id %d, stream_id %d", __func__, session_id, stream_id);
   for (i = 0; i < ISP_MAX_SESSIONS; i++) {
     if (isp->data.sessions[i].isp_data &&
         isp->data.sessions[i].session_id == session_id) {
@@ -1119,14 +1337,14 @@ static boolean isp_util_find_sink_port_by_caps(void *port_data, void *user_data)
   isp_port_t *isp_sink_port = (isp_port_t * )mct_port->port_private;
   isp_sink_port_t *sink_port = &isp_sink_port->u.sink_port;
 
-  CDBG("%s: E port state %d", __func__, isp_sink_port->state);
+  ISP_DBG(ISP_MOD_COM,"%s: E port state %d", __func__, isp_sink_port->state);
   if (isp_sink_port->state != ISP_PORT_STATE_CREATED &&
       memcmp(caps, &sink_port->caps, sizeof(ispif_src_port_caps_t)) == 0) {
       /* has the match */
-      CDBG("%s: X has the match", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: X has the match", __func__);
       return TRUE;
   } else {
-    CDBG("%s: X no match found", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: X no match found", __func__);
     return FALSE;
   }
 }
@@ -1146,14 +1364,14 @@ isp_port_t *isp_util_find_sink_port(isp_t *isp,
   mct_port_t *mct_port = NULL;
   isp_port_t *isp_sink_port = NULL;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
   sink_port_list = mct_list_find_custom (isp->module->sinkports,
     (void *)ispif_src_cap, isp_util_find_sink_port_by_caps);
   if (sink_port_list != NULL) {
     mct_port = (mct_port_t *)sink_port_list->data;
     isp_sink_port = (isp_port_t *)mct_port->port_private;
   }
-  CDBG("%s: X", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
   return isp_sink_port;
 }
 
@@ -1170,7 +1388,7 @@ isp_stream_t *isp_util_add_stream(isp_t *isp, uint32_t session_id,
 {
   int i, rc = 0, is_new_session = 1;
   isp_session_t *session = NULL;
-  CDBG("%s: E, isp %p, session_d %d, stream_id %d", __func__, (void *)isp,
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p, session_d %d, stream_id %d", __func__, (void *)isp,
     session_id, stream_id);
   for (i = 0; i < ISP_MAX_SESSIONS; i++) {
     if (isp->data.sessions[i].isp_data &&
@@ -1198,7 +1416,7 @@ isp_stream_t *isp_util_add_stream(isp_t *isp, uint32_t session_id,
       session->streams[i].stream_info = *stream_info;
       session->streams[i].state = ISP_STREAM_STATE_CREATED;
       session->streams[i].stream_idx = i;
-      CDBG("%s: i = %d, sessid = %d, streamid = %d, stream = %p\n",
+      ISP_DBG(ISP_MOD_COM,"%s: i = %d, sessid = %d, streamid = %d, stream = %p\n",
         __func__, i, session->streams[i].session_id,
         session->streams[i].stream_id, &session->streams[i]);
 #if 0
@@ -1238,7 +1456,7 @@ int isp_util_add_stream_to_sink_port(isp_t *isp, isp_port_t *isp_sink_port,
   isp_stream_t *stream)
 {
   int i;
-  CDBG("%s: E, isp %p", __func__, (void *)isp);
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p", __func__, (void *)isp);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     if (isp_sink_port->u.sink_port.streams[i] == NULL) {
       isp_sink_port->u.sink_port.streams[i] =  stream;
@@ -1246,7 +1464,7 @@ int isp_util_add_stream_to_sink_port(isp_t *isp, isp_port_t *isp_sink_port,
       stream->state = ISP_STREAM_STATE_ASSOCIATED_WITH_SINK_PORT;
       isp_sink_port->u.sink_port.num_streams++;
       stream->link_cnt++;
-      CDBG("%s: link_cnt = %d\n", __func__, stream->link_cnt);
+      ISP_DBG(ISP_MOD_COM,"%s: link_cnt = %d\n", __func__, stream->link_cnt);
       return 0;
     }
   }
@@ -1266,13 +1484,13 @@ int isp_util_del_stream_from_sink_port(isp_t *isp, isp_port_t *isp_sink_port,
    isp_stream_t *stream)
 {
   int i;
-  CDBG("%s: E, isp %p", __func__, (void *)isp);
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p", __func__, (void *)isp);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     if (isp_sink_port->u.sink_port.streams[i] == stream) {
       stream->link_cnt--;
       isp_sink_port->u.sink_port.streams[i] = NULL;
       isp_sink_port->u.sink_port.num_streams--;
-      CDBG("%s: link_cnt = %d\n", __func__, stream->link_cnt);
+      ISP_DBG(ISP_MOD_COM,"%s: link_cnt = %d\n", __func__, stream->link_cnt);
       return 0;
     }
   }
@@ -1293,13 +1511,13 @@ int isp_util_add_stream_to_src_port(isp_t *isp, isp_port_t *isp_src_port,
    isp_stream_t *stream)
 {
   int i;
-  CDBG("%s: E, isp %p", __func__, (void *)isp);
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p", __func__, (void *)isp);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     if (isp_src_port->u.src_port.streams[i] == NULL) {
       isp_src_port->u.src_port.streams[i] = stream;
       isp_src_port->u.src_port.num_streams++;
       stream->link_cnt++;
-      CDBG("%s: sessionid = %d, streamid = %d, num_straem = %d,"
+      ISP_DBG(ISP_MOD_COM,"%s: sessionid = %d, streamid = %d, num_straem = %d,"
         "stream_link_cnt = %d\n", __func__, stream->session_id,
         stream->stream_id, isp_src_port->u.src_port.num_streams,
         stream->link_cnt);
@@ -1322,13 +1540,13 @@ int isp_util_del_stream_from_src_port(isp_t *isp, isp_port_t *isp_src_port,
    isp_stream_t *stream)
 {
   int i;
-  CDBG("%s: E, isp %p,", __func__, (void *)isp);
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p,", __func__, (void *)isp);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     if (isp_src_port->u.src_port.streams[i] == stream) {
       stream->link_cnt--;
       isp_src_port->u.src_port.streams[i] = NULL;
       isp_src_port->u.src_port.num_streams--;
-      CDBG("%s: link_cnt = %d\n", __func__, stream->link_cnt);
+      ISP_DBG(ISP_MOD_COM,"%s: link_cnt = %d\n", __func__, stream->link_cnt);
       return 0;
     }
   }
@@ -1350,7 +1568,7 @@ int isp_util_del_stream(isp_t *isp, isp_stream_t *stream)
   int i, rc = 0, is_new_session = 1;
   isp_session_t *session = (isp_session_t *)stream->session;
   isp_stream_t *tmp_stream;
-  CDBG("%s: stream = %p, sessionid = %d, streamid = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: stream = %p, sessionid = %d, streamid = %d\n",
     __func__, stream, stream->session_id, stream->stream_id);
 
   if (stream->link_cnt > 0) {
@@ -1362,7 +1580,7 @@ int isp_util_del_stream(isp_t *isp, isp_stream_t *stream)
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     tmp_stream = &session->streams[i];
     if (tmp_stream == stream) {
-      CDBG("%s: found stream - stream = %p, sessionid = %d, "
+      ISP_DBG(ISP_MOD_COM,"%s: found stream - stream = %p, sessionid = %d, "
         "streamid = %d, channel_idx_mask = 0x%x\n", __func__, tmp_stream,
         tmp_stream->session_id, tmp_stream->stream_id,
         tmp_stream->channel_idx_mask);
@@ -1385,7 +1603,7 @@ int isp_util_del_stream(isp_t *isp, isp_stream_t *stream)
       break;
     }
   }
-  CDBG("%s: X", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
   return 0;
 }
 
@@ -1402,13 +1620,13 @@ isp_stream_t *isp_util_find_stream_from_sink_port(isp_port_t *isp_sink_port,
 {
   int i;
   isp_stream_t *stream;
-  CDBG("%s: E, isp %p, session_d %d, stream_id %d", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p, session_d %d, stream_id %d", __func__,
     (void *)isp_sink_port, session_id, stream_id);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     stream = isp_sink_port->u.sink_port.streams[i];
     if (stream->session_id == session_id &&
         stream->stream_id == stream_id) {
-      CDBG("%s: X, Found stream", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: X, Found stream", __func__);
       return stream;
     }
   }
@@ -1430,13 +1648,13 @@ isp_stream_t *isp_util_find_stream_from_src_port(isp_port_t *isp_src_port,
 {
   int i;
   isp_stream_t *stream;
-  CDBG("%s: E, isp %p, session_d %d, stream_id %d", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p, session_d %d, stream_id %d", __func__,
    (void *)isp_src_port, session_id, stream_id);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     stream = isp_src_port->u.src_port.streams[i];
     if (stream->session_id == session_id &&
         stream->stream_id == stream_id) {
-      CDBG("%s: X, Found stream", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: X, Found stream", __func__);
       return stream;
     }
   }
@@ -1456,13 +1674,13 @@ isp_stream_t *isp_util_find_stream_from_src_port(isp_port_t *isp_src_port,
  **/
 boolean isp_util_need_pix(isp_t *isp, uint32_t vfe_output_mask)
 {
-  CDBG("%s: E, isp %p, vfe_output_mask %x", __func__, (void *)isp,
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p, vfe_output_mask %x", __func__, (void *)isp,
        vfe_output_mask);
   if (vfe_output_mask & (1 << ISP_INTF_PIX)) {
-    CDBG("%s: VFE 0", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: VFE 0", __func__);
     return TRUE; /* VFE0 */
   } else if (vfe_output_mask & (1 << (16 + ISP_INTF_PIX))) {
-    CDBG("%s: VFE 1", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: VFE 1", __func__);
     return TRUE; /* VFE1 */
   } else {
     CDBG_HIGH("%s: pix intf not needed", __func__);
@@ -1482,7 +1700,7 @@ boolean isp_util_need_pix(isp_t *isp, uint32_t vfe_output_mask)
 isp_session_t *isp_util_find_session(isp_t *isp, uint32_t session_id)
 {
   int i;
-  CDBG("%s: E, isp %p, session_id %x", __func__, (void *)isp,
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p, session_id %x", __func__, (void *)isp,
        session_id);
   for (i = 0; i < ISP_MAX_SESSIONS; i++) {
     if (isp->data.sessions[i].isp_data &&
@@ -1506,7 +1724,7 @@ boolean isp_util_is_stream_in_sink_port(isp_t *isp, isp_port_t *isp_sink_port,
    isp_stream_t *stream)
 {
   int i;
-  CDBG("%s: E, isp %p", __func__, (void *)isp);
+  ISP_DBG(ISP_MOD_COM,"%s: E, isp %p", __func__, (void *)isp);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     if (isp_sink_port->u.sink_port.streams[i] == stream) {
       return TRUE;
@@ -1530,7 +1748,7 @@ isp_stream_t * isp_util_find_stream_in_session(isp_session_t *sess,
   uint32_t stream_id)
 {
   int i;
-  CDBG("%s: E, stream_id %d", __func__, stream_id);
+  ISP_DBG(ISP_MOD_COM,"%s: E, stream_id %d", __func__, stream_id);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     if (sess->streams[i].stream_id == stream_id &&
         sess->streams[i].state != ISP_STREAM_STATE_INITIAL) {
@@ -1552,7 +1770,7 @@ isp_stream_t * isp_util_find_stream_in_session(isp_session_t *sess,
 isp_stream_t * isp_util_find_3a_stream(isp_session_t *sess)
 {
   int i;
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
   for (i = 0; i < ISP_MAX_STREAMS; i++) {
     if (sess->streams[i].src_ports[ISP_SRC_PORT_3A] != NULL &&
         sess->streams[i].state != ISP_STREAM_STATE_INITIAL) {
@@ -1585,7 +1803,7 @@ static boolean isp_util_find_matched_src_stats_port_by_caps(void *port_data,
   if (isp_src_port->port->caps.port_caps_type != MCT_PORT_CAPS_STATS)
     return FALSE;
   if (isp_src_port->state != ISP_PORT_STATE_CREATED &&
-      memcmp(caps, &src_port->caps, sizeof(ispif_src_port_caps_t)) == 0) {
+      memcmp(&caps->sensor_cap, &src_port->caps.sensor_cap, sizeof(sensor_src_port_cap_t)) == 0) {
         /* isp sink port caps matches so this src port is for the stream */
         return TRUE;
   }
@@ -2014,16 +2232,16 @@ void isp_util_dump_stream_planes(isp_stream_t *stream)
 {
   cam_stream_buf_plane_info_t *buf_planes = &stream->stream_info.buf_planes;
   cam_dimension_t *dim = &stream->stream_info.dim;
-  int i;
+  uint32_t i;
 
-  CDBG("%s: sess_id = %d, stream_id = %d, "
+  ISP_DBG(ISP_MOD_COM,"%s: sess_id = %d, stream_id = %d, "
     "width = %d, height = %d, fmt = %d, num_planes = %d\n",
     __func__, stream->session_id, stream->stream_id,
     dim->width, dim->height, stream->stream_info.fmt,
     buf_planes->plane_info.num_planes);
 
   for (i = 0; i < buf_planes->plane_info.num_planes; i++) {
-    CDBG("%s: sess_id = %d, stream_id = %d, idx = %d,"
+    ISP_DBG(ISP_MOD_COM,"%s: sess_id = %d, stream_id = %d, idx = %d,"
       "stride = %d, scanline = %d, len = %d, offset = %d\n",
       __func__, stream->session_id, stream->stream_id,
       i, buf_planes->plane_info.mp[i].stride,
@@ -2090,7 +2308,7 @@ int isp_util_compute_stripe_info(isp_t *isp, isp_session_t *session,
  **/
 static boolean isp_util_traverse_map_buf(void *data, void *user_data)
 {
-  int i;
+  uint32_t i;
   find_stream_map_buf_t *map_buf = (find_stream_map_buf_t *)user_data;
   mct_stream_map_buf_t *img_buf = (mct_stream_map_buf_t *)data;
   struct v4l2_buffer *v4l2_buf = NULL;
@@ -2398,7 +2616,7 @@ int isp_util_set_bestshot(isp_t *isp, isp_port_t *isp_sink_port,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2446,7 +2664,7 @@ int isp_util_get_rolloff_table(isp_t *isp, uint32_t session_id,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2501,7 +2719,7 @@ int isp_util_set_skin_color_enhance(isp_t *isp, isp_port_t *isp_sink_port,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2555,7 +2773,7 @@ int isp_util_set_effect(isp_t *isp, isp_port_t *isp_sink_port,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2590,7 +2808,7 @@ int isp_util_set_module_trigger(isp_t *isp, uint32_t session_id,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2638,7 +2856,7 @@ int isp_util_set_module_enable(isp_t *isp, uint32_t session_id,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2686,7 +2904,7 @@ int isp_util_set_eztune_diagnostics(isp_t *isp, uint32_t session_id,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2734,7 +2952,7 @@ int isp_util_set_video_hdr(isp_t *isp, uint32_t session_id, uint32_t stream_id,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2776,7 +2994,7 @@ int isp_util_set_tintless(isp_t *isp, uint32_t session_id,
   }
 
   if (session->vfe_ids == 0){
-    CDBG("%s: vfe not started yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: vfe not started yet\n", __func__);
     return 0;
   }
 
@@ -2830,7 +3048,7 @@ int isp_util_set_contrast(isp_t *isp, isp_port_t *isp_sink_port,
 
   /* if we have not started VFE yet no need to send uncfg to HW */
   if (session->vfe_ids == 0){
-    CDBG("%s: not started vfe yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: not started vfe yet\n", __func__);
     return 0;
   }
 
@@ -2859,15 +3077,21 @@ int isp_util_set_contrast(isp_t *isp, isp_port_t *isp_sink_port,
   *    @session_id: session id
   *    @stream_id: stream id
   *    @saturation: saturation parameter
+  *    @is_init_setting: Is the Initialization param or not
   *
   *  Set saturation according required effect.
   **/
 int isp_util_set_saturation(isp_t *isp, isp_port_t *isp_sink_port,
-  uint32_t session_id, uint32_t stream_id, int32_t *saturation)
+  uint32_t session_id, uint32_t stream_id, int32_t *saturation,
+  boolean is_init_setting)
 {
   int rc = 0;
   isp_session_t *session = isp_util_find_session(isp, session_id);
   isp_stream_t *stream;
+  isp_saturation_setting_t sat_setting;
+
+  sat_setting.saturation = *saturation;
+  sat_setting.is_init_setting = is_init_setting;
 
   if (!session) {
     CDBG_ERROR("%s: cannot find session (%d)\n", __func__, session_id);
@@ -2885,7 +3109,7 @@ int isp_util_set_saturation(isp_t *isp, isp_port_t *isp_sink_port,
 
   /* if we have not started VFE yet no need to send uncfg to HW */
   if (session->vfe_ids == 0){
-    CDBG("%s: not started vfe yet\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: not started vfe yet\n", __func__);
     return 0;
   }
 
@@ -2893,7 +3117,8 @@ int isp_util_set_saturation(isp_t *isp, isp_port_t *isp_sink_port,
     if (isp->data.hw[VFE0].hw_ops) {
       rc = isp->data.hw[VFE0].hw_ops->set_params(
         isp->data.hw[VFE0].hw_ops->ctrl,
-        ISP_HW_SET_PARAM_SATURATION, (void *)saturation, sizeof(*saturation));
+        ISP_HW_SET_PARAM_SATURATION, (void *)&sat_setting,
+        sizeof(isp_saturation_setting_t));
     }
   }
 
@@ -2901,7 +3126,8 @@ int isp_util_set_saturation(isp_t *isp, isp_port_t *isp_sink_port,
     if (isp->data.hw[VFE1].hw_ops) {
       rc = isp->data.hw[VFE1].hw_ops->set_params(
         isp->data.hw[VFE1].hw_ops->ctrl,
-        ISP_HW_SET_PARAM_SATURATION, (void *)saturation, sizeof(*saturation));
+        ISP_HW_SET_PARAM_SATURATION, (void *)&sat_setting,
+        sizeof(isp_saturation_setting_t));
     }
   }
 
@@ -2955,7 +3181,7 @@ int isp_util_set_sharpness(isp_t *isp,
 
   /* if we have not started VFE yet no need to send uncfg to HW */
   if (session->vfe_ids == 0){
-     CDBG("%s: not started vfe yet\n", __func__);
+     ISP_DBG(ISP_MOD_COM,"%s: not started vfe yet\n", __func__);
     return 0;
   }
 
@@ -3006,7 +3232,7 @@ int isp_util_set_bundle(isp_t *isp, isp_port_t *isp_sink_port,
       goto error;
     }
     session->hal_bundling_mask |= (1 << stream->stream_idx);
-    CDBG("%s: stream_id = %d, stream_idx = %d, hal_bundling_mask= 0x%x",
+    ISP_DBG(ISP_MOD_COM,"%s: stream_id = %d, stream_idx = %d, hal_bundling_mask= 0x%x",
       __func__, stream->stream_id, stream->stream_idx,
       session->hal_bundling_mask);
   }
@@ -3036,7 +3262,13 @@ int isp_util_set_recording_hint(isp_t *isp, uint32_t session_id,
     return -1;
   }
   session->recording_hint = *recording_hint;
-  CDBG("%s: session_id = %d, recording_hint = %d\n",
+  if (session->recording_hint)
+    session->saved_params.use_bundled_frame_skip = 0;
+  else
+  /* Reset frameskip when switching back to camera mode */
+    session->saved_params.frame_skip.pattern = NO_SKIP;
+
+  ISP_DBG(ISP_MOD_COM,"%s: session_id = %d, recording_hint = %d\n",
     __func__, session_id, session->recording_hint);
   return rc;
 }
@@ -3055,7 +3287,8 @@ int isp_util_set_frame_skip(isp_t *isp, uint32_t session_id, uint32_t stream_id,
   isp_session_t *session = isp_util_find_session(isp, session_id);
   isp_stream_t *stream;
   isp_param_frame_skip_pattern_t *frame_skip;
-  enum msm_vfe_frame_skip_pattern temp_skip;
+  enum msm_vfe_frame_skip_pattern temp_skip,hfr_skip;
+  isp_channel_t *channel = NULL;
 
   if (!session) {
     CDBG_ERROR("%s: cannot find session (%d)\n", __func__, session_id);
@@ -3068,20 +3301,35 @@ int isp_util_set_frame_skip(isp_t *isp, uint32_t session_id, uint32_t stream_id,
     return -1;
   }
 
-  frame_skip = &session->saved_params.frame_skip;
-  temp_skip = (enum msm_vfe_frame_skip_pattern)(*skip_pattern);
+  /* avoid frame skip of burst stream */
+  channel = isp_ch_util_find_channel_in_session_by_idx(session, stream->stream_idx);
+  if (!channel || channel->stream_info.streaming_mode == CAM_STREAMING_MODE_BURST){
+    CDBG_ERROR("%s: channel is NULL or BURST stream, streamidx= %d\n", __func__,
+      stream->stream_idx);
+    return rc;
+  }
 
+  temp_skip = (enum msm_vfe_frame_skip_pattern)(*skip_pattern);
+  hfr_skip = isp_ch_util_get_hfr_skip_pattern(session);
   if((session->saved_params.use_bundled_frame_skip) &&
      (session->saved_params.bundled_frame_skip.pattern > temp_skip) &&
      (session->saved_params.bundled_frame_skip.session_id == session_id) &&
-     (session->saved_params.bundled_frame_skip.stream_id == stream_id))
-    frame_skip->pattern = session->saved_params.bundled_frame_skip.pattern;
-  else
+     (session->saved_params.bundled_frame_skip.stream_id == stream_id)) {
+     frame_skip = &session->saved_params.bundled_frame_skip;
+     frame_skip->pattern = session->saved_params.bundled_frame_skip.pattern;
+  } else if (session->recording_hint &&
+             isp_util_is_lowpowermode_feature_enable(isp, session->session_id)) {
+    /* In LPM camcorder mode preview and video constitute two different streams.
+    In HFR case frameskip needs to be set for preview stream since 30FPS will
+    suffice. By default frameskip will be NO_SKIP when HFR is turned off */
+    frame_skip = &session->saved_params.frame_skip;
+    frame_skip->pattern = hfr_skip;
+  } else {
+    frame_skip = &session->saved_params.frame_skip;
     frame_skip->pattern = temp_skip;
-
+  }
   frame_skip->session_id = session_id;
   frame_skip->stream_id = stream_id;
-
 
   if (session->vfe_ids & (1 << VFE0)) {
     if (isp->data.hw[VFE0].hw_ops) {
@@ -3118,7 +3366,7 @@ int isp_util_get_stream_ids_by_mask(isp_session_t *session,
     if (stream_idx_mask & (1 << i)) {
       stream_ids[*num_streams] = session->streams[i].stream_id;
       *num_streams += 1;
-      CDBG("%s: stream_id = %d, bit_pos = %d, mask = 0x%x",
+      ISP_DBG(ISP_MOD_COM,"%s: stream_id = %d, bit_pos = %d, mask = 0x%x",
         __func__, session->streams[i].stream_id, i, stream_idx_mask);
     }
   }
@@ -3179,11 +3427,73 @@ int isp_util_set_hfr(isp_t *isp, uint32_t session_id, uint32_t stream_id,
   int32_t *hfr_mode)
 {
   isp_session_t *session = isp_util_find_session(isp, session_id);
+  isp_stream_t *stream;
+  mct_event_t mct_event;
 
   if (!session)
     return -1;
   session->hfr_param.hfr_mode = *hfr_mode;
   session->hfr_param.stream_id = stream_id;
+  stream = isp_util_find_stream_in_session(session, stream_id);
+  if (!stream)
+    return -1;
+  memset(&mct_event, 0, sizeof(mct_event));
+  mct_event.u.module_event.type = MCT_EVENT_MODULE_HFR_MODE_NOTIFY;
+  mct_event.u.module_event.module_event_data = (void *)hfr_mode;
+  mct_event.type = MCT_EVENT_MODULE_EVENT;
+  mct_event.identity = pack_identity(session_id, stream_id);
+  /* broadcast hfr downstream */
+  if (stream->src_ports[ISP_SRC_PORT_3A]) {
+    mct_event.direction = MCT_EVENT_DOWNSTREAM;
+    mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_3A],
+    &mct_event);
+  }
+  return 0;
+}
+
+/** isp_util_set_stats_bf_filter_size
+ *    @stream_id:
+ *    @bf_filter_size:
+ * TODO
+ *
+ * Return: 0 - success and negative value - failure
+ **/
+int isp_util_set_stats_bf_filter_size(isp_t *isp, uint32_t session_id,
+         uint32_t stream_id)
+{
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+  isp_stream_t *stream;
+  mct_event_t mct_event;
+  uint32_t isp_ver;
+  mct_stats_hpf_size_type kernel_size = MCT_EVENT_STATS_HPF_2X5;
+
+  if (!session)
+    return -1;
+
+  stream = isp_util_find_stream_in_session(session, stream_id);
+  if (!stream)
+    return -1;
+
+  /* Use 2x13 BF filter for MSM8909 */
+  isp_ver = isp->data.sd_info.sd_info[0].isp_version;
+  if (GET_ISP_MAIN_VERSION(isp_ver) == ISP_VERSION_32 &&
+      GET_ISP_SUB_VERSION(isp_ver) == ISP_REVISION_V3) {
+    kernel_size = MCT_EVENT_STATS_HPF_2X13;
+  }
+  CDBG_HIGH("%s: BF filter size = %d\n", __func__, kernel_size);
+
+  memset(&mct_event, 0, sizeof(mct_event));
+  mct_event.u.module_event.type = MCT_EVENT_MODULE_ISP_STATS_INFO;
+  mct_event.u.module_event.module_event_data = (void *)&kernel_size;
+  mct_event.type = MCT_EVENT_MODULE_EVENT;
+  mct_event.identity = pack_identity(session_id, stream_id);
+
+  /* broadcast hfr downstream */
+  if (stream->src_ports[ISP_SRC_PORT_3A]) {
+    mct_event.direction = MCT_EVENT_DOWNSTREAM;
+    mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_3A],
+    &mct_event);
+  }
   return 0;
 }
 
@@ -3223,6 +3533,46 @@ int isp_util_set_vt(isp_t *isp, uint32_t session_id, int32_t *vt_enable)
   }
 
   session->saved_params.vt_enable = *vt_enable;
+  return 0;
+}
+
+/** isp_util_set_longshot
+ *    @session_id
+ *    @isLongshotEnabled:
+ * TODO
+ *
+ * Return: 0- success and negative value - failure
+ **/
+int isp_util_set_longshot(isp_t *isp, uint32_t session_id,
+       int32_t *longshot_enable)
+{
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+
+  if (!session) {
+    return -1;
+  }
+
+  session->saved_params.longshot_enable = *longshot_enable;
+  return 0;
+}
+
+/** isp_util_set_lowpowermode
+ *    @session_id
+ *    @lowpowermode_enable:
+ * TODO
+ *
+ * Return: 0- success and negative value - failure
+ **/
+int isp_util_set_lowpowermode(isp_t *isp, uint32_t session_id,
+       boolean *lowpowermode_enable)
+{
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+
+  if (!session) {
+    return -1;
+  }
+  session->saved_params.lowpowermode_enable =
+    (uint32_t)*lowpowermode_enable;
   return 0;
 }
 
@@ -3401,8 +3751,20 @@ static void isp_util_broadcast_stream_crop_to_bus(isp_t *isp,
   stream_crop.stream_id = stream->stream_id;
   stream_crop.frame_id = frame_id;
   stream_crop.timestamp = *timestamp;
+
   isp_ch_util_convert_crop_to_stream(session, stream,
     &stream_crop, entry,isp);
+
+  /* In case of smaller-than-output valid area, set crop for offline PPROC */
+  if((stream_crop.crop_out_x == 0) &&
+      (((uint32_t)stream->stream_info.dim.width > stream_crop.width_map) ||
+       ((uint32_t)stream->stream_info.dim.height > stream_crop.height_map))) {
+    stream_crop.crop_out_x = stream_crop.width_map;
+    stream_crop.crop_out_y = stream_crop.height_map;
+    stream_crop.x = 0;
+    stream_crop.y = 0;
+  }
+
   if (TRUE != mct_module_post_bus_msg(isp->module,
                 (mct_bus_msg_t *)&bus_msg)) {
     CDBG_ERROR("%s: session_id = %d, stream_id = %d, error\n",
@@ -3432,6 +3794,132 @@ static void isp_util_broadcast_stream_crop_downstream(isp_t *isp,
   mct_event.u.module_event.type = MCT_EVENT_MODULE_STREAM_CROP;
   mct_event.u.module_event.module_event_data = (void *)&stream_crop;
   mct_event.type = MCT_EVENT_MODULE_EVENT;
+  mct_event.identity = stream->stream_info.identity;
+  CDBG_LOW("%s crop identity  mct_event.identity %d\n",__func__, mct_event.identity);
+  mct_event.direction = MCT_EVENT_DOWNSTREAM;
+
+  stream_crop.session_id = session->session_id;
+  stream_crop.stream_id = stream->stream_id;
+  stream_crop.frame_id = frame_id;
+  stream_crop.timestamp = *timestamp;
+  isp_ch_util_convert_crop_to_stream(session, stream,
+    &stream_crop, entry,isp);
+
+  if (stream->src_ports[ISP_SRC_PORT_3A])
+    mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_3A],
+      &mct_event);
+
+  if (stream->src_ports[ISP_SRC_PORT_DATA])
+    mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_DATA],
+      &mct_event);
+}
+
+/** isp_util_calc_pproc_crop
+ *    @session:
+ *    @stream:
+ *    @stream_crop:
+ *
+ *  Calculates stream crop for pproc-only zoom.
+ *
+ * Return: nothing
+ **/
+static void isp_util_calc_pproc_crop(isp_t *isp, isp_session_t *session, isp_stream_t *stream,
+  mct_bus_msg_stream_crop_t *stream_crop)
+{
+  int rc;
+  isp_hw_set_crop_factor_t crop_factor;
+  uint32_t in_x, in_y, out_x, out_y, temp_x, temp_y;
+  boolean rotation_enable = FALSE;
+
+  session->pproc_zoom_val = session->zoom_val;
+
+  memset(&crop_factor, 0, sizeof(crop_factor));
+  crop_factor.session_id = session->session_id;
+  crop_factor.crop_factor = 0;
+  rc = isp_zoom_get_crop_factor(session->zoom_session,
+    session->zoom_val, &crop_factor.crop_factor);
+  if (rc) {
+    CDBG_ERROR("%s: isp_zoom_get_crop_factor error = %d\n", __func__, rc);
+    return;
+  }
+
+  memset(stream_crop, 0, sizeof(*stream_crop));
+
+  /* sensor reports bytes not pixels in case of YUV sensor */
+  in_x = stream->cfg.sensor_cfg.dim_output.width / 2;
+  in_y = stream->cfg.sensor_cfg.dim_output.height;
+
+  /*In case rotation is enabled it should be ignored since
+    sensor and ISP always operate in landscape. CPP will take
+    care of rotation*/
+  if (stream->stream_info.pp_config.rotation == ROTATE_90 ||
+       stream->stream_info.pp_config.rotation == ROTATE_270) {
+    out_x = stream->stream_info.dim.height;
+    out_y = stream->stream_info.dim.width;
+    rotation_enable = TRUE;
+  } else {
+    out_x = stream->stream_info.dim.width;
+    out_y = stream->stream_info.dim.height;
+    rotation_enable = FALSE;
+  }
+
+  if(in_x * out_y > out_x * in_y){
+    temp_y = in_y;
+    temp_x = in_y * out_x / out_y;
+  } else {
+    temp_x = in_x;
+    temp_y = in_x * out_y / out_x;
+  }
+
+  if((in_x != stream_crop->width_map) || (in_y != stream_crop->height_map)) {
+    stream_crop->width_map = temp_x;
+    stream_crop->height_map = temp_y;
+    stream_crop->x_map = (in_x - stream_crop->width_map) >> 1;
+    stream_crop->y_map = (in_y - stream_crop->height_map) >> 1;
+  }
+
+  if((in_x != stream_crop->crop_out_x) || (in_y != stream_crop->crop_out_y)) {
+    stream_crop->crop_out_x = isp_zoom_calc_dim(session->zoom_session, temp_x,
+      crop_factor.crop_factor);
+    stream_crop->crop_out_y = isp_zoom_calc_dim(session->zoom_session, temp_y,
+      crop_factor.crop_factor);
+    stream_crop->x = (in_x - stream_crop->crop_out_x) >> 1;
+    stream_crop->y = (in_y - stream_crop->crop_out_y) >> 1;
+  }
+
+  ISP_DBG(ISP_MOD_COM,"%s width_map %u height_map %u x_map %u y_map %u", __func__,
+    stream_crop->width_map, stream_crop->height_map, stream_crop->x_map,
+    stream_crop->y_map);
+  ISP_DBG(ISP_MOD_COM,"%s crop_out_x %u crop_out_y %u x %u y %u", __func__,
+    stream_crop->crop_out_x, stream_crop->crop_out_y, stream_crop->x,
+    stream_crop->y );
+
+}
+
+/** isp_util_broadcast_pproc_only_crop_downstream
+ *    @isp:
+ *    @session:
+ *    @stream:
+ *    @frame_id:
+ *    @timestamp:
+ *
+ *  Broadcasts stream crop dimensions downstream.
+ *
+ * Return: nothing
+ **/
+static void isp_util_broadcast_pproc_only_crop_downstream(isp_t *isp,
+  isp_session_t *session, isp_stream_t *stream, uint32_t frame_id,
+  struct timeval *timestamp)
+{
+  mct_bus_msg_stream_crop_t stream_crop;
+  mct_event_t mct_event;
+
+  memset(&mct_event, 0, sizeof(mct_event));
+  memset(&stream_crop, 0, sizeof(stream_crop));
+
+  mct_event.u.module_event.type = MCT_EVENT_MODULE_STREAM_CROP;
+  mct_event.u.module_event.module_event_data = (void *)&stream_crop;
+  mct_event.type = MCT_EVENT_MODULE_EVENT;
   mct_event.identity =
     pack_identity(stream->session_id, stream->stream_id);
   mct_event.direction = MCT_EVENT_DOWNSTREAM;
@@ -3439,15 +3927,13 @@ static void isp_util_broadcast_stream_crop_downstream(isp_t *isp,
   stream_crop.session_id = session->session_id;
   stream_crop.stream_id = stream->stream_id;
   stream_crop.frame_id = frame_id;
-  stream_crop.timestamp = *timestamp;
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 begin
-  #ifdef ORIGINAL_VERSION
-  #else
-  stream_crop.remain_mask = session->zoom_remain_mask;
-  #endif
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 end
-  isp_ch_util_convert_crop_to_stream(session, stream,
-    &stream_crop, entry,isp);
+
+  /* for initial crop configuration we do not have timestamp */
+  if(timestamp)
+    stream_crop.timestamp = *timestamp;
+
+  isp_util_calc_pproc_crop(isp,session, stream,
+      &stream_crop);
 
   if (stream->src_ports[ISP_SRC_PORT_3A])
     mct_port_send_event_to_peer(stream->src_ports[ISP_SRC_PORT_3A],
@@ -3509,6 +3995,46 @@ static isp_zoom_scaling_param_entry_t *isp_util_get_zoom_scaling_entry(
       return &scaling_param->entry[i];
   }
   return NULL;
+}
+
+/** isp_util_broadcast_pproc_zoom_crop
+ *    @isp:
+ *    @session_id:
+ *    @streamids:
+ *    @frame_id:
+ *    @timestamp:
+ *
+ *  Broadcasts stream crop dimensions for pproc zoom for all streams.
+ *
+ * Return: isp_zoom_scaling_param_entry_t pointer
+ **/
+void isp_util_broadcast_pproc_zoom_crop (isp_t *isp, uint32_t session_id,
+  int num_streams, uint32_t *streamids, uint32_t frame_id,
+  struct timeval *timestamp)
+{
+  int i;
+  isp_stream_t *stream;
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+  isp_port_t *isp_sink_port = NULL;
+
+  if (!session) {
+    CDBG_ERROR("%s: Error, no session with id = %d found.\n",
+      __func__, session_id);
+    return;
+  }
+
+  for (i = 0; i < num_streams; i++) {
+    if (!isp_util_check_yuv_sensor_from_stream(isp, session_id, streamids[i]))
+      continue;
+    stream = isp_util_find_stream_in_session(session, streamids[i]);
+
+    if (!stream)
+      continue;
+
+    isp_util_broadcast_pproc_only_crop_downstream(isp, session,
+      stream, frame_id, timestamp);
+  }
+
 }
 
 /** isp_util_broadcast_zoom_crop
@@ -3582,7 +4108,7 @@ int isp_util_ihist_la_trigger_update(isp_t *isp, isp_session_t *session)
   if (session->ihist_update == 1) {
     /*Trigger update LA for each VFE*/
     if (session->vfe_ids & (1 << VFE0)) {
-      CDBG("%s: VFE0 Ihist/LA trigger update\n", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: VFE0 Ihist/LA trigger update\n", __func__);
       if (isp->data.hw[VFE0].hw_ops) {
         rc = isp->data.hw[VFE0].hw_ops->set_params(
           isp->data.hw[VFE0].hw_ops->ctrl,
@@ -3591,12 +4117,12 @@ int isp_util_ihist_la_trigger_update(isp_t *isp, isp_session_t *session)
       }
       if (rc < 0) {
         session->ihist_update = 0;
-        CDBG("%s: VFE0 Ihist/LA trigger update failed, rc = %d\n", __func__, rc);
+        ISP_DBG(ISP_MOD_COM,"%s: VFE0 Ihist/LA trigger update failed, rc = %d\n", __func__, rc);
         return rc;
       }
     }
     if (session->vfe_ids & (1 << VFE1)) {
-      CDBG("%s: VFE1 Ihist/LA trigger update\n", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: VFE1 Ihist/LA trigger update\n", __func__);
       if (isp->data.hw[VFE1].hw_ops) {
         rc = isp->data.hw[VFE1].hw_ops->set_params(
           isp->data.hw[VFE1].hw_ops->ctrl,
@@ -3605,7 +4131,7 @@ int isp_util_ihist_la_trigger_update(isp_t *isp, isp_session_t *session)
       }
       if (rc < 0) {
         session->ihist_update = 0;
-        CDBG("%s: VFE1 Ihist/LA trigger update failed, rc = %d\n", __func__,
+        ISP_DBG(ISP_MOD_COM,"%s: VFE1 Ihist/LA trigger update failed, rc = %d\n", __func__,
              rc);
         return rc;
       }
@@ -3614,6 +4140,64 @@ int isp_util_ihist_la_trigger_update(isp_t *isp, isp_session_t *session)
   }
 
   return rc;
+}
+
+/** isp_util_check_yuv_sensor_from_stream
+ *  @isp
+ *  @session_id
+ *  @stream_id
+ *
+ *  check if sensor for this stream is outputing YUV.
+ *
+ **/
+boolean isp_util_check_yuv_sensor_from_stream(isp_t *isp, uint32_t session_id,
+  uint32_t stream_id)
+{
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+  isp_stream_t *stream;
+  bool rc = FALSE;
+  isp_info_t isp_info[VFE_MAX];
+  int num_isps = 0;
+  num_isps = isp_get_info(isp_info);
+  /* return FALSE is we want to use PIX interface for YUV sensor */
+  if (isp_info[0].use_pix_for_SOC){
+    return(FALSE);
+  }
+
+  if (!session)
+    return rc;
+
+  stream = isp_util_find_stream_in_session(session, stream_id);
+  if (!stream)
+    return rc;
+
+  if ( stream->cfg.sensor_cfg.fmt >= CAM_FORMAT_YUV_RAW_8BIT_YUYV &&
+       stream->cfg.sensor_cfg.fmt <= CAM_FORMAT_YUV_RAW_8BIT_VYUY){
+    rc = TRUE;
+  }
+  session->saved_params.lowpowermode_yuv_enable = rc;
+  return rc;
+}
+
+
+/** isp_util_do_pproc_zoom
+ *    @isp:
+ *    @session_id:
+ *    @zoom_val:
+ *
+ *  Sets zoom parameter to session in case of pproc-only zoom.
+ *
+ * Return: 0 - success and negative value - failure
+ **/
+int isp_util_do_pproc_zoom(isp_t *isp, uint32_t session_id, int32_t* zoom_val)
+{
+  int rc = 0;
+  isp_session_t *session = isp_util_find_session(isp, session_id);
+
+  if (!session)
+    return FALSE;
+  session->zoom_val = *zoom_val;
+  return 0;
 }
 
 /** isp_util_do_zoom
@@ -3705,6 +4289,9 @@ int isp_util_send_buffered_hw_params_to_hw(isp_t *isp, isp_session_t *session)
 
   CDBG_HIGH("%s: E, session_id = %d\n", __func__, session->session_id);
 
+  if(!session->use_pipeline)
+    return rc;
+
   cmd = malloc(sizeof(isp_async_cmd_t));
   if (!cmd) {
     CDBG_ERROR("%s:error,  no mem for streamon cmd, session_id = %d\n",
@@ -3729,7 +4316,53 @@ end:
   CDBG_HIGH("%s: X, session_id = %d\n", __func__, session->session_id);
   return rc;
 }
+/** isp_util_wm_bus_overflow
+ *    @isp:
+ *    @session:
+ *
+ * TODO
+ *
+ * Return: 0 - success and negative value - failure
+ **/
+int isp_util_wm_bus_overflow_recovery(isp_t *isp, isp_hw_t *isp_hw, isp_hw_session_t *hw_session)
+{
+  int rc = 0;
+  isp_async_cmd_t *cmd;
+  isp_session_t *session = NULL;
 
+  session = isp_util_find_session(isp, hw_session->session_id);
+
+  if (!session) {
+    CDBG_ERROR("%s unable to find session with session id %d\n", hw_session->session_id);
+    return -1;
+  }
+  CDBG_HIGH("%s: E, session_id = %d\n", __func__, session->session_id);
+
+  cmd = malloc(sizeof(isp_async_cmd_t));
+  if (!cmd) {
+    CDBG_ERROR("%s:error,  no mem for streamon cmd, session_id = %d\n",
+      __func__, session->session_id);
+    return -1;
+  }
+  memset(cmd, 0, sizeof(isp_async_cmd_t));
+  cmd->cmd_id = ISP_ASYNC_COMMAND_WM_BUS_OVERFLOW_RECOVERY;
+  cmd->wm_recovery.isp_hw = isp_hw;
+  cmd->wm_recovery.session = hw_session;
+
+  pthread_mutex_lock(&session->async_task.sync_mutex);
+  rc = isp_enqueue_async_command(isp, session, &cmd);
+  if (cmd)
+    free(cmd);
+  if (rc < 0) {
+    CDBG_ERROR("%s: error, isp_enqueue_async_command, session_id = %d\n",
+      __func__, session->session_id);
+    goto end;
+  }
+end:
+  pthread_mutex_unlock(&session->async_task.sync_mutex);
+  CDBG_HIGH("%s: X, session_id = %d\n", __func__, session->session_id);
+  return rc;
+}
 /** isp_util_buffered_set_param_zoom
  *    @stream_id:
  *    @zoom_val:
@@ -3748,31 +4381,16 @@ int isp_util_buffered_set_param_zoom(isp_t *isp, uint32_t session_id,
   if (!session)
     return -1;
 
-// Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 begin
-#ifdef ORIGINAL_VERSION
-#else
-  int32_t picZoomMask = (*zoom_val) >> 24;
-  *zoom_val = (*zoom_val) & 0x00FFFFFF;
-#endif
-// Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 
-  
   pthread_mutex_lock(
     &isp->data.session_critical_section[session->session_idx]);
   session->buffered_hw_params.new_params.zoom.present = TRUE;
   session->buffered_hw_params.new_params.zoom.zoom_val = *zoom_val;
   session->buffered_hw_params.new_params.has_params = TRUE;
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 begin
-  #ifdef ORIGINAL_VERSION
-  #else
-  session->zoom_remain_mask = picZoomMask;
-  #endif
-  // Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 end
   if (session->buffered_hw_params.in_service &&
       !session->buffered_hw_params.hw_update_pending) {
     send_cmd = TRUE;
     session->buffered_hw_params.hw_update_pending = TRUE;
   }
-
   pthread_mutex_unlock(
     &isp->data.session_critical_section[session->session_idx]);
   if (send_cmd) {
@@ -4000,7 +4618,7 @@ static void isp_util_send_hw_stream_output_dim_downstream_int(isp_t *isp,
   mct_stream_info_t stream_info;
   isp_channel_t *channel = NULL;
 
-  CDBG("%s: session_id = %d, stream_id = %d, channel_idx_mask = 0x%x\n",
+  ISP_DBG(ISP_MOD_COM,"%s: session_id = %d, stream_id = %d, channel_idx_mask = 0x%x\n",
      __func__, stream->session_id, stream->stream_id, stream->channel_idx_mask);
   channel = isp_ch_util_get_image_channel(session, stream->channel_idx_mask);
   if (!channel) {
@@ -4051,7 +4669,7 @@ void isp_util_send_hw_stream_output_dim_downstream(isp_t *isp,
 
   for (i = 0; i < num_streams; i++) {
     stream_id = stream_ids[i];
-    CDBG("%s: stream_id = %d, i = %d\n", __func__, stream_id, i);
+    ISP_DBG(ISP_MOD_COM,"%s: stream_id = %d, i = %d\n", __func__, stream_id, i);
     stream = isp_util_find_stream_in_session(session, stream_id);
     if (!stream) {
       CDBG_ERROR("%s: cannot find stream (session_id = %d, stream_id = %d)\n",
@@ -4082,12 +4700,14 @@ int isp_util_update_hal_image_buf_to_channel(isp_session_t *session,
           stream->stream_info.img_buffer_list;
 
         session->channel[i].total_num_bufs = stream->stream_info.num_bufs;
-        CDBG("%s: identity = 0x%x, channel_id = %d, stream_type = %d,"
+        ISP_DBG(ISP_MOD_COM,"%s: identity = 0x%x, channel_id = %d, stream_type = %d,"
           "hal_buf_ptr = %p num_bufs %d\n", __func__,
           stream->stream_info.identity, session->channel[i].channel_id,
           stream->stream_info.stream_type,
           session->channel[i].stream_info.img_buffer_list,
           session->channel[i].total_num_bufs);
+      } else {
+        return -1;
       }
       break;
     }
@@ -4148,7 +4768,7 @@ int isp_util_streamon(isp_t *isp, isp_session_t *session, int user_num_streams,
  * Return: 0 - success and negative value - failure
  **/
 int isp_util_streamoff(isp_t *isp, isp_session_t *session, int num_streams,
-  uint32_t *stream_ids)
+  uint32_t *stream_ids, boolean stop_immediately)
 {
   int rc = 0;
   int i;
@@ -4159,7 +4779,7 @@ int isp_util_streamoff(isp_t *isp, isp_session_t *session, int num_streams,
   isp_util_gen_ch_streamoff_list(isp, session,
     num_streams, stream_ids,&num_channels, channel_ids);
 
-  rc = isp_ch_util_streamoff(isp,session,num_channels,channel_ids);
+  rc = isp_ch_util_streamoff(isp,session,num_channels,channel_ids, stop_immediately);
 
   /* When restarting stream, new stream id can be different.
      we set invalid value to DIS stream_id so on stream on this can
@@ -4186,7 +4806,7 @@ void isp_util_dump_stats_config(stats_config_t *stats_data)
   if (af_config == NULL)
     return;
 
-  CDBG("%s: stream_id = %d, roi_type = %d, grid_h_num = %d, grid_v_num = %d, "
+  ISP_DBG(ISP_MOD_COM,"%s: stream_id = %d, roi_type = %d, grid_h_num = %d, grid_v_num = %d, "
     "roi_left = %d, roi_top = %d, roi_w = %d, roi_h = %d\n",
     __func__, af_config->stream_id, af_config->roi_type,
     af_config->grid_info.h_num, af_config->grid_info.v_num,
@@ -4390,10 +5010,10 @@ int isp_util_send_uv_subsample_cmd(isp_t *isp, isp_session_t *session,
   int rc = 0;
   isp_async_cmd_t *cmd = NULL;
 
-  CDBG("%s: uv_subsample = %d\n", __func__, uv_subsample);
+  ISP_DBG(ISP_MOD_COM,"%s: uv_subsample = %d\n", __func__, uv_subsample);
   cmd = malloc(sizeof(isp_async_cmd_t));
   if (!cmd) {
-    CDBG("%s: error, nomemory\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: error, nomemory\n", __func__);
     return -1;
   }
   memset(cmd, 0, sizeof(isp_async_cmd_t));

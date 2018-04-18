@@ -73,4 +73,8 @@ int32_t cpp_module_handle_div_info_event(mct_module_t* module,
 
 int32_t cpp_module_handle_load_chromatix_event(mct_module_t* module,
   mct_event_t* event);
+
+int32_t cpp_module_handle_set_output_buff_event(mct_module_t* module,
+  mct_event_t* event);
+
 #endif

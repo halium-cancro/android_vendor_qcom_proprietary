@@ -1,39 +1,61 @@
 /* sensor_init.c
  *
- * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
 #include "sensor_init.h"
-//Gionee <chenqiang> <2014-04-21> modify for register begin
-#ifdef ORIGINAL_VERSION
+#include "server_debug.h"
+#include <cutils/properties.h>
+
+#if defined(MSM8984_SENSORS)
+#define BOARD_SENSORS \
+  "imx135", \
+  "ov5648_q5v22e", \
+  "S5K4E1_13P1BA", \
+  "ov2680", \
+  "ov2680_5987fhq", \
+  "ov16825", \
+  "imx214", \
+  "ov13850", \
+  "ov13850_q13v06k",\
+  "ov8858", \
+  "ov5670_q5v41b", \
+  "ov8825",
+#elif defined(MSM8916_SENSORS)
+#define BOARD_SENSORS \
+  "imx135", \
+  "ov5648_q5v22e", \
+  "S5K4E1_13P1BA", \
+  "ov2680", \
+  "ov2680_5987fhq", \
+  "ov16825", \
+  "imx214", \
+  "ov13850", \
+  "ov13850_q13v06k",\
+  "ov8858", \
+  "ov5670_q5v41b", \
+  "ov8825",
+#elif defined(MSM8909_SENSORS)
+#define BOARD_SENSORS \
+  "ov8858_q8v19w", \
+  "ov5670_q5v41b", \
+  "ov2680_5987fhq", \
+  "ov5670_qc700", \
+  "ov5670_30010a3", \
+  "ov2680_cht852b",
+#else
+#define BOARD_SENSORS \
+  "imx134", \
+  "oem_camera1", \
+  "oem_camera2", \
+  "oem_camera3", \
+  "oem_camera4",
+#endif
 
 static const char *sensor_libs[] = {
-  "imx134",
-  "imx135",
-  "s5k3l1yx",
-  "imx132",
-  "ov2720",
-  "SKUAA_ST_gc0339",
-  "ov8825",
-  "ov9724",
-  "ov8865_q8v18a",
-  "ov5648_oty5f03",
-  "skuf_ov12830_p12v01c",
-  "skuf_ov5648_p5v23c",
-  "SKUAB_ST_s5k4e1",
-  "skuab_shinetech_gc0339",
-  "oem_camera1",
-  "oem_camera2",
-  "oem_camera3",
-  "oem_camera4",
+  BOARD_SENSORS
 };
-#else
-static const char *sensor_libs[] = {
-  "ov5648_oty5f03",
-};
-#endif
-//Gionee <chenqiang> <2014-04-21> modify for camera register end
 
 /** sensor_init_probe: probe available sensors
  *
@@ -65,11 +87,21 @@ boolean sensor_init_probe(module_sensor_ctrl_t *module_ctrl)
   char                        subdev_name[32];
   struct sensor_init_cfg_data cfg;
   boolean                     ret = TRUE;
+  uint32_t                    mask = 0;
+  char value[PROPERTY_VALUE_MAX];
+
+  property_get("persist.camera.sensor.30fps", value, "0");
+  mask = (uint32_t)atoi(value);
 
   while (1) {
     int32_t num_entities = 1;
     snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
     dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
+    if (dev_fd >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      dev_fd = -1;
+      break;
+    }
     if (dev_fd < 0) {
       SLOW("Done enumerating media devices");
       break;
@@ -111,6 +143,11 @@ boolean sensor_init_probe(module_sensor_ctrl_t *module_ctrl)
 
   /* Open sensor_init subdev */
   sd_fd = open(subdev_name, O_RDWR);
+  if (sd_fd >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    sd_fd = -1;
+    return FALSE;
+  }
   if (sd_fd < 0) {
     SHIGH("Open sensor_init subdev failed");
     return FALSE;
@@ -118,7 +155,10 @@ boolean sensor_init_probe(module_sensor_ctrl_t *module_ctrl)
 
   /* Open sensor libraries and get init information */
   for (i = 0; i < ARRAY_SIZE(sensor_libs); i++) {
-    ret = sensor_probe(sd_fd, sensor_libs[i]);
+    if (mask && !(strcmp(sensor_libs[i] , "ov8858_q8v19w")))
+      ret = sensor_probe(sd_fd, "ov8858_q8v19w_30");
+    else
+      ret = sensor_probe(sd_fd, sensor_libs[i]);
     if (ret == FALSE) {
       SERR("failed: to load %s", sensor_libs[i]);
     }

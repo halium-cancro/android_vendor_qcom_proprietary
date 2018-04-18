@@ -135,11 +135,11 @@ typedef enum {
  **/
 typedef struct {
   void *buf;
-  int  size;
+  size_t size;
   int  fd;
-  int offset;
-  int stride;
-  int scanline;
+  uint32_t offset;
+  int32_t stride;
+  int32_t scanline;
 } mct_stream_buf_plane_t;
 
 /** MctStreamMapBuf_t
@@ -151,9 +151,9 @@ typedef struct {
  *  Buffers Mapped from HAL via domain socket
  **/
 typedef struct {
-  int buf_index;
-  int num_planes;
-  int buf_size;
+  uint32_t buf_index;
+  uint32_t num_planes;
+  size_t buf_size;
   cam_mapping_buf_type buf_type;
   boolean common_fd;
   mct_stream_buf_plane_t buf_planes[VIDEO_MAX_PLANES];
@@ -170,7 +170,7 @@ typedef struct {
  **/
 typedef struct {
   void                 *stream_info;
-  int                   stream_size;
+  size_t               stream_size;
   int                   stream_fd;
   mct_list_t           *img_buf;
 } mct_stream_bufs_t;
@@ -185,15 +185,15 @@ typedef struct {
 } mct_stream_session_metadata_info;
 
 typedef struct {
-  unsigned int frame_number;
-  unsigned int frame_index;
+  uint32_t frame_number;
+  uint32_t frame_index;
 } mct_stream_frame_num_idx_map_t;
 
 typedef struct {
-  int                              current_buf_idx;
+  int32_t                          current_buf_idx;
   int                              buf_mgr_dev_fd;
-  int                              get_buf_err;
-  int                              current_frame_idx;
+  int32_t                          get_buf_err;
+  int32_t                          current_frame_idx;
   mct_list_t                       *frame_num_id_map;
   mct_stream_session_metadata_info session_meta;
 } mct_stream_metadata_t;
@@ -243,7 +243,7 @@ struct _mct_stream {
    * Note: Only Stream's children list can grow into a TREE form */
   mct_object_t     object;
 
-  unsigned int streamid;
+  uint32_t streamid;
   mct_stream_info_t  streaminfo;
 
   /*
@@ -311,7 +311,7 @@ struct _mct_stream {
 #define mct_stream_set_unmap_buf_func(stream,f)  \
   MCT_STREAM_CAST(stream)->unmap_buf = f
 
-mct_stream_t *mct_stream_new(unsigned int stream_id);
+mct_stream_t *mct_stream_new(uint32_t stream_id);
 void          mct_stream_destroy(mct_stream_t *stream);
 
 boolean mct_stream_metadata_bus_msg(mct_stream_t *stream,

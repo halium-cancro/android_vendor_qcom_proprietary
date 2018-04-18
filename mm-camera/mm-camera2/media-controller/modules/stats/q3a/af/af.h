@@ -1,15 +1,17 @@
 /* af.h
  *
- * Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
 #ifndef __AF_H__
 #define __AF_H__
 
+#include "modules.h"
 #include "q3a_stats.h"
 #include "chromatix_common.h"
-#include "af_tuning.h"
+#include "mct_event_stats.h"
+#include "af_algo_tuning.h"
 
 /* TBD: Need to include proper header for this */
 #undef  CDBG_ERROR
@@ -24,15 +26,27 @@
 #define NUM_AUTOFOCUS_VERTICAL_GRID       5
 #define NUM_AUTOFOCUS_MULTI_WINDOW_GRIDS  20
 
+
+#ifdef AF_2X13_FILTER_SUPPORT
+#ifndef MAX_HPF_COEFF
+#define MAX_HPF_COEFF              26
+#endif
+#else
 #ifndef MAX_HPF_COEFF
 #define MAX_HPF_COEFF              10
 #endif
+#endif
+
+
+#define MAX_SWAF_COEFFA_NUM                6
+#define MAX_SWAF_COEFFB_NUM                6
+#define MAX_SWAF_COEFFFIR_NUM              11
 
 
 /* Additional Tuning Param */
 
 // some customer wants to enable it.
-#define AF_CAF_TRIGGER_AFTER_TAF 1//0
+#define AF_CAF_TRIGGER_AFTER_TAF 0
 
 
 /** af_run_mode_type:
@@ -302,7 +316,7 @@ typedef struct _af_crop_info{
  * Data needed from AEC module for AF operation.
  **/
 typedef struct _af_input_from_aec {
-  boolean       aec_settled;
+  int           aec_settled;
   int           exp_index;
   int           pixels_per_region;
   float         comp_luma;
@@ -318,16 +332,50 @@ typedef struct _af_input_from_aec {
   unsigned int  exp_tbl_val;
   unsigned int  luma_settled_cnt;
   unsigned long SY[MAX_YUV_STATS_NUM];
+  /*TDB : Apex information*/
+  float Av_af;
+  float Tv_af;
+  float Sv_af;
+  float Bv_af;
+  float Ev_af;
 } af_input_from_aec_t;
 
 typedef enum {
   AF_MANUAL_FOCUS_MODE_INDEX,
-  AF_MANUAL_FOCUS_MODE_DAC_CODE
+  AF_MANUAL_FOCUS_MODE_DAC_CODE,
+  AF_MANUAL_FOCUS_MODE_POS_RATIO,
+  AF_MANUAL_FOCUS_MODE_DIOPTER,
 } af_manual_focus_mode_type;
+
+
+/** _af_input_manual_focus:
+ *    @flag:      flag to check the mode of manual focus.
+
+ *    @af_manual_lens_position_index:     Range (0-1000)
+          User can provide index position directly if supported.
+
+ *    @af_manual_lens_position_dac:     Range (0-1000)
+           User can provide dac value of actuator directly if supported.
+
+ *    @af_manual_lens_position_ratio:......range(0-100)
+            currently supported mode where user input is mapped b/w
+            near-end and far-end.
+
+ *    @af_manual_diopter:       range(0-10)
+            Diopter is 1/distance in meters ; distance to index mapping is done.
+
+ *Manual lens movement information
+ **/
 
 typedef struct _af_input_manual_focus {
   af_manual_focus_mode_type flag;
-  int af_manual_lens_position;
+  union{
+    int af_manual_lens_position_index;
+    int af_manual_lens_position_dac;
+    int af_manual_lens_position_ratio;
+    float af_manual_diopter;
+  };
+
 } af_input_manual_focus_t;
 
 /** _af_input_from_isp:
@@ -358,6 +406,8 @@ typedef struct _af_actuator_info{
   float af_total_f_dist;
   float hor_view_angle;
   float ver_view_angle;
+  float um_per_dac;
+  int   dac_offset;
 } af_actuator_info_t;
 
 /** _af_input_from_sensor:
@@ -437,7 +487,6 @@ typedef struct _af_output_eztune_data {
   int          caf_gyro_assisted_panning;
 } af_output_eztune_data_t;
 
-
 /** _af_eztune:
  *    @enable:        eztune is enabled/disabled.
  *    @peakpos_index: index to max FV position
@@ -458,6 +507,14 @@ typedef struct _af_eztune {
   af_output_eztune_data_t eztune_data;
 } af_eztune_t;
 
+/** _af_stats_kernel_size: Enum to indicate AF kernel
+ *  coefficient sizes.
+ **/
+typedef enum _af_stats_kernel_size {
+  AF_STATS_HPF_LEGACY,
+  AF_STATS_HPF_2x5,
+  AF_STATS_HPF_2x13,
+} af_stats_kernel_size_type;
 
 /** _af_config_data: information required to configure VFE for
 *   AF stats
@@ -480,6 +537,63 @@ typedef struct _af_config_data{
   int          hpf[MAX_HPF_COEFF];
   af_roi_type  roi_type;
 } af_config_data_t;
+
+/** _af_mobicat:
+ *    @enable:        mobicat is enabled/disabled.
+ *    @peakpos_index: index to max FV position
+ *    @tracing_index: current index in the array
+ *    @tracing_stats: array of subsequent focus values
+ *    @tracing_pos:   corresponding lens positions
+ *    @eztune_data:   mobicat variables
+ *
+ * some AF parameters for mobicat
+**/
+typedef struct _af_mobicat {
+  boolean                 enable;
+  boolean                 running;
+  int                     peakpos_index;
+  int                     tracing_index;
+  int                     tracing_stats[AF_COLLECTION_POINTS];
+  int                     tracing_pos[AF_COLLECTION_POINTS];
+  af_output_mobicat_data_t mobicat_data;
+} af_mobicat_t;
+
+/** swaf_config_t
+ *   @enable:    Flag to enable/disable stats collection
+ *   @frame_id:  current frame id
+ *   @roi:       ROI of the stats collection
+ *   @coeffa:    filterA coefficients
+ *   @coeffb:    filterB coefficients
+ *   @coeff_len: length of coefficient table
+ *   @sw_filter_type: filter type
+ *
+ *   Imglib preview assisted AF coefficients
+ **/
+typedef struct {
+  int8_t     enable;
+  int        frame_id;
+  af_roi_t   roi;
+  double     coeffa[MAX_SWAF_COEFFA_NUM];
+  double     coeffb[MAX_SWAF_COEFFB_NUM];
+  uint32_t   coeff_len;
+  int        coeff_fir[MAX_SWAF_COEFFFIR_NUM];
+  double     fv_min;
+  af_sw_filter_type sw_filter_type;
+} swaf_config_data_t;
+
+/** af_imglib_output_t
+ *   @frame_id: Frame ID out the AF output
+ *   @fV: Focus value
+ *   @pending: Flag to indicate the fv value has been query but
+ *           missing.
+ *
+ *   Imglib preview assisted AF output
+ **/
+typedef struct {
+  int     frame_id;
+  double  fV;
+  uint8_t pending;
+} af_sw_stats_t;
 
 /** af_bestshot_mode_type:
  *  List of scene modes supported.
@@ -623,6 +737,11 @@ typedef enum {
   AF_SET_PARAM_WAIT_FOR_AEC_EST,      /* Wait for AEC to complete estimation when LED is ON */
   AF_SET_PARAM_RESET_CAF,             /* Reset CAF to make it start from the beginning */
   AF_SET_PARAM_CROP_REGION,           /* Update Scalar crop info */
+  AF_SET_PARAM_IMGLIB_OUTPUT,         /* SW stats output*/
+  AF_SET_PARAM_HFR_MODE,              /* HFR mode */
+  AF_SET_PARAM_SW_STATS_POINTER,      /* SW stats backup pointer*/
+  AF_SET_PARAM_UPDATE_KERNEL_SIZE,    /* HPF size currently supported */
+  AF_SET_PARAM_RECONFIG_ISP,          /* Request AF algo to reconfigure ISP */
   AF_SET_PARAM_MAX = 0xFF              /* TODO */
 } af_set_parameter_type;
 
@@ -671,6 +790,8 @@ typedef struct _af_set_parameter {
     af_input_from_sensor_t    sensor_info;
     af_input_from_gyro_t      gyro_info;
     af_input_from_isp_t       isp_info;
+    af_sw_stats_t             sw_stats;
+    af_sw_stats_t             *p_sw_stats;
     camera_bestshot_mode_type af_bestshot_mode;
     af_stream_crop_t          stream_crop;
     af_move_lens_cb_t         move_lens_cb_info;
@@ -682,6 +803,8 @@ typedef struct _af_set_parameter {
     uint8_t                   af_set_meta_mode;
     int                       af_wait_for_aec_est;
     af_crop_info_t            crop_info;
+    int32_t                   hfr_mode;
+    int                       kernel_size;
   } u;
 } af_set_parameter_t;
 
@@ -697,6 +820,7 @@ typedef enum {
   AF_GET_PARAM_STATS_CONFIG_INFO,     /* Stats configuration data */
   AF_GET_PARAM_FOCUS_MODE,            /* Autofocus mode */
   AF_GET_PARAM_MOBICAT_INFO,          /* Mobicat info */
+  AF_GET_PARAM_SW_STATS_FILTER_TYPE,  /* SW Stats filter type */
 } af_get_parameter_type;
 
 /** _af_get_parameter:
@@ -719,6 +843,7 @@ typedef struct _af_get_parameter {
     int                  af_mode;
     af_focus_distances_t af_focus_distance;
     af_config_data_t     af_stats_config;
+    af_sw_filter_type    af_sw_stats_filter_type;
   } u;
 } af_get_parameter_t;
 
@@ -736,8 +861,19 @@ typedef enum {
   AF_OUTPUT_EZTUNE         = (1 << 7),
   AF_OUTPUT_STATS_CONFIG   = (1 << 8),
   AF_OUTPUT_EZ_METADATA    = (1 << 9),
-  AF_OUTPUT_RESET_AEC      = (1 << 10),
+  AF_OUTPUT_MOBICAT_METADATA = (1 << 10),
+  AF_OUTPUT_SWAF_CONFIG    = (1 << 11),
+  AF_OUTPUT_RESET_AEC      = (1 << 12),
+  AF_OUTPUT_UPDATE_EVENT   = (1 << 13),
+  AF_OUTPUT_UPDATE_FOCUS_POS = (1 << 14),
 } af_output_type;
+
+/* structure to have current lens position in terms of scale and diopter */
+typedef struct _af_curr_lens_pos{
+  uint32_t scale;
+  float diopter ;
+} af_curr_lens_pos;
+
 
 /** _af_output_data:
  *    @result:          TODO
@@ -751,6 +887,7 @@ typedef enum {
  *    @roi_info:        TODO
  *    @eztune:          eztune data
  *    @af_stats_config: Stats configuration data
+ *    @asf_config:      configure software AF in the imglib
  *
  * Output AF data for other components to consume once AF stat is processed.
  **/
@@ -766,8 +903,13 @@ typedef struct _af_output_data {
   af_status_t      focus_status;
   af_roi_info_t    roi_info;
   af_eztune_t      eztune;
+  af_mobicat_t     mobicat;
   af_config_data_t af_stats_config;
   uint32_t         sof_id;
+  swaf_config_data_t swaf_config;
+  char             af_debug_data_array[AF_DEBUG_DATA_SIZE];
+  uint32_t         af_debug_data_size;
+  af_curr_lens_pos cur_lens_pos;
 } af_output_data_t;
 
 

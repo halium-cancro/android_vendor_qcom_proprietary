@@ -39,17 +39,23 @@
 
 /** module_mms_hdr_buf_t
  *    @subdev_fd: buffer manager file descriptor
- *    @frame_id: frame id
+ *    @identity: stream identity for current buffer
+ *    @is_native: flag indicating whether buffer is native
  *    @img_frame: image frame descriptor
+ *    @channel_id: holds the channel id
+ *    @meta_data: holds the pointer for meta data associated with this buffer
  *
  *  hdr buffer handlers
  **/
 typedef struct
 {
   int32_t subdev_fd;
-  uint32_t frame_id;
+  uint32_t identity;
   boolean is_native;
   img_frame_t* img_frame;
+  int32_t channel_id;
+  void *meta_data;
+  boolean is_skip_pproc;
 } module_hdr_buf_t;
 
 /** module_hdr_crop_t

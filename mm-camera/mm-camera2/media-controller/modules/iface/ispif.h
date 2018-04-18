@@ -120,6 +120,7 @@ typedef struct {
   uint32_t vfe_mask;
   uint8_t camif_cnt;
   uint8_t rdi_cnt;
+  uint8_t num_meta;
   uint8_t session_idx;
   int num_stream;
   uint32_t hal_bundling_mask;
@@ -665,6 +666,6 @@ void ispif_restore_dual_isp_session(ispif_t *ispif);
  *         -1 - Error while adding ports
  **/
 int port_ispif_create_ports(ispif_t *ispif, ispif_caps_t *caps);
-
+void port_ispif_destroy_ports(ispif_t *ispif);
 #endif /* __ISPIF_CORE_H__ */
 

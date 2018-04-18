@@ -11,12 +11,6 @@
  **/
 #define UBIFOCUS_BURST_CNT 5
 
-/** UBIFOCUS_REFOCUS:
- *
- *  indicate if refocus is enabled
- **/
-static int g_c_ubi_refocus = 1;
-
 /**
  *  Static functions
  **/
@@ -27,7 +21,7 @@ static boolean module_ubifocus_init_params(img_init_params_t *p_params);
  *
  *  Focus steps
  **/
-uint8_t g_focus_steps[MAX_AF_BRACKETING_VALUES] =
+static uint8_t g_focus_steps[MAX_AF_BRACKETING_VALUES] =
   {1, 1, 1, 1, 1};
 
 /** g_caps:
@@ -48,30 +42,12 @@ static img_caps_t g_caps = {
 static module_imgbase_params_t g_params = {
   module_ubifocus_query_mod,
   module_ubifocus_init_params,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
 };
-
-/**
- * Function: module_ubifocus_get_refocus
- *
- * Description: This function is used to check whether refocus
- *            is enabled
- *
- * Arguments:
- *   none
- *
- * Return values:
- *     true/false
- *
- * Notes: none
- **/
-boolean module_ubifocus_get_refocus()
-{
-  char prop[PROPERTY_VALUE_MAX];
-  memset(prop, 0, sizeof(prop));
-  property_get("persist.camera.imglib.refocus", prop, "0");
-  int enable_refocus = atoi(prop);
-  return enable_refocus == 1;
-}
 
 /**
  * Function: module_ubifocus_init_params
@@ -90,9 +66,7 @@ boolean module_ubifocus_init_params(img_init_params_t *p_params)
 {
   boolean ret = FALSE;
   if (p_params) {
-    IDBG_HIGH("%s:%d] refocus %d", __func__, __LINE__,
-      g_c_ubi_refocus);
-    p_params->refocus_encode = g_c_ubi_refocus;
+    p_params->refocus_encode = 0;
     ret = TRUE;
   }
   return ret;
@@ -141,11 +115,10 @@ boolean module_ubifocus_query_mod(mct_pipeline_cap_t *p_mct_cap)
   }
 
   buf = &p_mct_cap->imaging_cap;
-  buf->ubifocus_af_bracketing.burst_count = UBIFOCUS_BURST_CNT;
-  buf->ubifocus_af_bracketing.enable = TRUE;
-  buf->ubifocus_af_bracketing.output_count =
-    (g_c_ubi_refocus) ? UBIFOCUS_BURST_CNT + 1 : 1;
-  memcpy(&buf->ubifocus_af_bracketing.focus_steps, &g_focus_steps,
+  buf->ubifocus_af_bracketing_need.burst_count = UBIFOCUS_BURST_CNT;
+  buf->ubifocus_af_bracketing_need.enable = TRUE;
+  buf->ubifocus_af_bracketing_need.output_count = 1;
+  memcpy(&buf->ubifocus_af_bracketing_need.focus_steps, &g_focus_steps,
     sizeof(g_focus_steps));
   return TRUE;
 }
@@ -165,14 +138,23 @@ boolean module_ubifocus_query_mod(mct_pipeline_cap_t *p_mct_cap)
  **/
 mct_module_t *module_ubifocus_init(const char *name)
 {
-  g_c_ubi_refocus = module_ubifocus_get_refocus();
-  return module_imgbase_init(name,
-    IMG_COMP_GEN_FRAME_PROC,
-    "qcom.gen_frameproc",
-    NULL,
-    &g_caps,
-    "libmmcamera_ubifocus_lib.so",
-    CAM_QCOM_FEATURE_UBIFOCUS,
-    &g_params);
+  //Get RAM size and disable features which are memory rich
+  struct sysinfo info;
+  sysinfo(&info);
+
+  IDBG_MED("%s: totalram = %ld, freeram = %ld ", __func__, info.totalram,
+    info.freeram);
+  if (info.totalram > RAM_SIZE_THRESHOLD_FOR_AOST) {
+    return module_imgbase_init(name,
+      IMG_COMP_GEN_FRAME_PROC,
+      "qcom.gen_frameproc",
+      NULL,
+      &g_caps,
+      "libmmcamera_ubifocus_lib.so",
+      CAM_QCOM_FEATURE_UBIFOCUS,
+      &g_params);
+  } else {
+    return NULL;
+  }
 }
 

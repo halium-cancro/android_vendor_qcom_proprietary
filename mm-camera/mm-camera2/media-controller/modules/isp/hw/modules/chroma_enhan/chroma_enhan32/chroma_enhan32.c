@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "chroma_enhan32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_CV_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #define SET_SAT_MATRIX(IN, S) ({\
@@ -32,22 +33,22 @@
  **/
 static void util_color_conversion_cmd_debug(isp_color_conversion_mod_t *mod)
 {
-  CDBG("%s: E", __func__);
-  CDBG("%s: am = %d, bm = %d, cm = %d, dm = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: E", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: am = %d, bm = %d, cm = %d, dm = %d\n", __func__,
     mod->RegCmd.am, mod->RegCmd.bm,
     mod->RegCmd.cm, mod->RegCmd.dm);
-  CDBG("%s: ap = %d, bp = %d, cp = %d, dp = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: ap = %d, bp = %d, cp = %d, dp = %d\n", __func__,
     mod->RegCmd.ap, mod->RegCmd.bp,
     mod->RegCmd.cp, mod->RegCmd.dp);
-  CDBG("%s: RGBtoYConversionV0 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: RGBtoYConversionV0 = %d\n", __func__,
     mod->RegCmd.RGBtoYConversionV0);
-  CDBG("%s: RGBtoYConversionV1 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: RGBtoYConversionV1 = %d\n", __func__,
     mod->RegCmd.RGBtoYConversionV1);
-  CDBG("%s: RGBtoYConversionV2 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: RGBtoYConversionV2 = %d\n", __func__,
     mod->RegCmd.RGBtoYConversionV2);
-  CDBG("%s: RGBtoYConversionOffset = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: RGBtoYConversionOffset = %d\n", __func__,
     mod->RegCmd.RGBtoYConversionOffset);
-  CDBG("%s: kcb = %d, kcr = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: kcb = %d, kcr = %d\n", __func__,
     mod->RegCmd.kcb, mod->RegCmd.kcr);
 } /* util_color_conversion_cmd_debug */
 
@@ -64,7 +65,7 @@ static void util_color_conversion_cmd_config(isp_color_conversion_mod_t *mod)
   double am_new, bm_new, cm_new, dm_new;
   double ap_new, bp_new, cp_new, dp_new;
 
-  CDBG("%s: effects_matrix: %f, %f; %f, %f\n", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: effects_matrix: %f, %f; %f, %f\n", __func__,
     mod->effects_matrix[0][0], mod->effects_matrix[0][1],
     mod->effects_matrix[1][0], mod->effects_matrix[1][1]);
 
@@ -152,6 +153,11 @@ static void util_color_conversion_interpolate(
   chromatix_color_conversion_type* in1, chromatix_color_conversion_type *in2,
   chromatix_color_conversion_type* out, float ratio)
 {
+   if (!in1 || !in2 || !out) {
+      CDBG_ERROR("%s:%d failed %p %p %p\n", __func__, __LINE__, in1, in2, out);
+      return;
+   }
+
   out->chroma.a_p = LINEAR_INTERPOLATION (in1->chroma.a_p,
     in2->chroma.a_p, ratio);
   out->chroma.a_m = LINEAR_INTERPOLATION(in1->chroma.a_m,
@@ -172,6 +178,10 @@ static void util_color_conversion_interpolate(
     in2->chroma.k_cb, ratio);
   out->chroma.k_cr = LINEAR_INTERPOLATION(in1->chroma.k_cr,
     in2->chroma.k_cr, ratio);
+  out->luma.k = LINEAR_INTERPOLATION(in1->luma.k, in2->luma.k, ratio);
+  out->luma.v0 = LINEAR_INTERPOLATION(in1->luma.v0, in2->luma.v0, ratio);
+  out->luma.v1 = LINEAR_INTERPOLATION(in1->luma.v1, in2->luma.v1, ratio);
+  out->luma.v2 = LINEAR_INTERPOLATION(in1->luma.v2, in2->luma.v2, ratio);
 } /* util_color_conversion_interpolate */
 
 /** util_color_conversion_aec_update:
@@ -224,13 +234,23 @@ static void util_color_conversion_awb_update(isp_color_conversion_mod_t *mod,
   isp_pix_trigger_update_input_t* in_params,
   chromatix_color_conversion_type *cv_data)
 {
-  chromatix_parms_type *chroma_ptr =
-    (chromatix_parms_type *)in_params->cfg.chromatix_ptrs.chromatixPtr;
-  chromatix_CV_type *chromatix_CV_ptr = &chroma_ptr->chromatix_VFE.chromatix_CV;
-  ASD_struct_type *ASD_algo_ptr = &chroma_ptr->ASD_algo_data;
+  chromatix_parms_type *chroma_ptr;
+  chromatix_CV_type *chromatix_CV_ptr;
+  ASD_struct_type *ASD_algo_ptr;
   cct_trigger_info trigger_info;
   float ratio = 0.0;
+  float color_temp = 0.0f;
 
+  if (!mod || !in_params || !cv_data) {
+    CDBG_ERROR("%s:%d failed: %p %p %p\n", __func__, __LINE__, mod, in_params,
+      cv_data);
+    return;
+  }
+  chroma_ptr = (chromatix_parms_type *)in_params->cfg.chromatix_ptrs.chromatixPtr;
+  chromatix_CV_ptr = &chroma_ptr->chromatix_VFE.chromatix_CV;
+  ASD_algo_ptr = &chroma_ptr->ASD_algo_data;
+
+  color_temp = in_params->trigger_input.stats_update.awb_update.color_temp;
   trigger_info.mired_color_temp =
     MIRED(in_params->trigger_input.stats_update.awb_update.color_temp);
   CALC_CCT_TRIGGER_MIRED(trigger_info.trigger_d65,
@@ -240,7 +260,7 @@ static void util_color_conversion_awb_update(isp_color_conversion_mod_t *mod,
   awb_cct_type cct_type = isp_util_get_awb_cct_type(mod->notify_ops->parent,
 	                                                  &trigger_info, chroma_ptr);
 
-  CDBG("%s: CCT type %d", __func__, cct_type);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: CCT type %d", __func__, cct_type);
 
   chromatix_color_conversion_type *cv_table_A, *cv_table_TL84, *cv_table_D65;
 
@@ -260,18 +280,20 @@ static void util_color_conversion_awb_update(isp_color_conversion_mod_t *mod,
   }
     break;
   case AWB_CCT_TYPE_TL84_A: {
-    ratio = GET_INTERPOLATION_RATIO(trigger_info.mired_color_temp,
-              trigger_info.trigger_A.mired_start,
-              trigger_info.trigger_A.mired_end);
-    util_color_conversion_interpolate(cv_table_TL84, cv_table_A, cv_data, ratio);
+    ratio = GET_INTERPOLATION_RATIO(1.0f / color_temp,
+      1.0f / (float)chromatix_CV_ptr->CV_A_trigger.CCT_start,
+      1.0f / (float)chromatix_CV_ptr->CV_A_trigger.CCT_end);
+    util_color_conversion_interpolate(cv_table_TL84, cv_table_A, cv_data,
+      ratio);
   }
     break;
 
   case AWB_CCT_TYPE_D65_TL84: {
-    ratio = GET_INTERPOLATION_RATIO(trigger_info.mired_color_temp,
-              trigger_info.trigger_d65.mired_start,
-              trigger_info.trigger_d65.mired_end);
-    util_color_conversion_interpolate(cv_table_D65,cv_table_TL84, cv_data, ratio);
+    ratio = GET_INTERPOLATION_RATIO(1.0f / color_temp,
+      1.0f / (float)chromatix_CV_ptr->CV_Daylight_trigger.CCT_end,
+      1.0f / (float)chromatix_CV_ptr->CV_Daylight_trigger.CCT_start);
+    util_color_conversion_interpolate(cv_table_D65,cv_table_TL84, cv_data,
+      ratio);
   }
     break;
 
@@ -311,11 +333,12 @@ static int color_conversion_set_spl_effect(isp_color_conversion_mod_t *mod,
   cam_effect_mode_type effects =
     (cam_effect_mode_type) in_params->effects.spl_effect;
   mod->trigger_enable = FALSE;
-  CDBG("%s: apply %d", __func__, effects);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: apply %d", __func__, effects);
   /* reset hue/saturation */
   SET_UNITY_MATRIX(mod->effects_matrix, 2);
 
   switch(effects) {
+  case CAM_EFFECT_MODE_EMBOSS:
   case CAM_EFFECT_MODE_MONO: {
     mod->cv_data = chromatix_CV_ptr->mono_color_conversion;
   }
@@ -339,6 +362,8 @@ static int color_conversion_set_spl_effect(isp_color_conversion_mod_t *mod,
   default: {
     mod->cv_data = chromatix_CV_ptr->TL84_color_conversion;
     mod->trigger_enable = TRUE;
+    mod->aec_ratio.lighting = TRIGGER_NORMAL;
+    mod->aec_ratio.ratio = 0;
   }
     break;
   }
@@ -368,7 +393,7 @@ static int color_conversion_set_effect(isp_color_conversion_mod_t *mod,
   }
 
   int i = 0, j = 0;
-  CDBG("%s",__func__);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s",__func__);
   float hue_matrix[2][2];
   float sat_matrix[2][2];
   float s, hue_in_radian;
@@ -376,7 +401,7 @@ static int color_conversion_set_effect(isp_color_conversion_mod_t *mod,
   int status= 0;
 
   if (in_params->bestshot_mode != CAM_SCENE_MODE_OFF) {
-    CDBG("%s: Best shot enabled, skip set effect", __func__);
+    ISP_DBG(ISP_MOD_COLOR_CONV, "%s: Best shot enabled, skip set effect", __func__);
     return 0;
   }
 
@@ -438,7 +463,7 @@ static int color_conversion_set_manual_wb(isp_color_conversion_mod_t *mod,
   chromatix_CV_type *chromatix_CV_ptr =
     &chromatix_ptr->chromatix_VFE.chromatix_CV;
 
-  CDBG("%s: wb %d", __func__, in_params->wb_mode);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: wb %d", __func__, in_params->wb_mode);
 
   switch(in_params->wb_mode) {
   case CAM_WB_MODE_INCANDESCENT: {
@@ -492,7 +517,7 @@ static int color_conversion_set_bestshot(isp_color_conversion_mod_t *mod,
   int status= 0;
 
   mod->trigger_enable = TRUE;
-  CDBG("%s: mode %d\n", __func__, bestshot_mode);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: mode %d\n", __func__, bestshot_mode);
   SET_UNITY_MATRIX(mod->effects_matrix, 2);
   switch (bestshot_mode) {
   case CAM_SCENE_MODE_THEATRE:
@@ -580,7 +605,7 @@ static int color_conversion_config(isp_color_conversion_mod_t *mod, isp_hw_pix_s
     return -1;
   }
 
-  CDBG("%s: enter", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: enter", __func__);
 
   if (!mod->enable) {
     CDBG_HIGH("%s: Mod not Enable.", __func__);
@@ -700,7 +725,7 @@ static int color_conversion_trigger_update(isp_color_conversion_mod_t *mod,
   if (!mod->enable || !isp_util_aec_check_settled(aec_params) ||
       !mod->trigger_enable ||
       in_params->trigger_input.stats_update.awb_update.color_temp == 0) {
-    CDBG("%s: CV no trigger update required, enable = %d,"
+    ISP_DBG(ISP_MOD_COLOR_CONV, "%s: CV no trigger update required, enable = %d,"
       "trigger_enable = %d, aec_settled? %d\n", __func__, mod->enable,
       mod->trigger_enable, isp_util_aec_check_settled(aec_params));
     return 0;
@@ -721,7 +746,7 @@ static int color_conversion_trigger_update(isp_color_conversion_mod_t *mod,
     || (trigger_ratio.lighting != mod->aec_ratio.lighting)
     || (mod->color_temp != in_params->trigger_input.stats_update.awb_update.color_temp));
 
-  CDBG("%s: update_cv %d ratio %f lighting %d colortemp %u", __func__,
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: update_cv %d ratio %f lighting %d colortemp %u", __func__,
     update_cv, trigger_ratio.ratio, trigger_ratio.lighting,
     in_params->trigger_input.stats_update.awb_update.color_temp);
 
@@ -767,7 +792,7 @@ static int color_conversion_set_chromatix(isp_color_conversion_mod_t *mod,
   chromatix_CV_type *chromatix_CV_ptr =
       &chromatix_ptr->chromatix_VFE.chromatix_CV;
 
-  CDBG("%s:", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s:", __func__);
   SET_UNITY_MATRIX(mod->effects_matrix, 2);
 
   mod->cv_data = chromatix_CV_ptr->TL84_color_conversion;
@@ -932,7 +957,7 @@ static int color_conversion_get_params(void *mod_ctrl, uint32_t param_id,
       break;
     }
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_COLOR_CONV, "%s: Populating vfe_diag data", __func__);
     if (NULL == colorconv || NULL == mod ) {
       CDBG_ERROR("%s: NULL colorconv %x mod %x", __func__,
         (unsigned int)colorconv, (unsigned int)mod);
@@ -1013,7 +1038,7 @@ isp_ops_t *chroma_enhan32_open(uint32_t version)
 {
   isp_color_conversion_mod_t *mod = malloc(sizeof(isp_color_conversion_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CONV, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

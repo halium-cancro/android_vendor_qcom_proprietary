@@ -1,8 +1,9 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
-
+#define ATRACE_TAG ATRACE_TAG_ALWAYS
+#include <cutils/trace.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <math.h>
@@ -28,6 +29,9 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_hw.h"
 #include "isp.h"
 #include "q3a_stats_hw.h"
+#include "isp_log.h"
+#include "server_debug.h"
+#include "isp_util.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -66,7 +70,8 @@ static int isp_hw_set_crop_factor(isp_hw_t *isp_hw,
   isp_hw_set_crop_factor_t *crop_factor, uint32_t size);
 static int isp_hw_get_roi_map(isp_hw_t *isp_hw, void *out_params,
   uint32_t out_params_size);
-
+static int isp_hw_subscribe_one_v4l2_event(isp_hw_t *isp_hw,
+  uint32_t event_type, boolean subscribe);
 /** isp_hw_find_session:
  *
  *    @isp_hw: isp hw
@@ -168,7 +173,7 @@ static void isp_hw_fill_stream_plane_info(isp_plane_info_t *planes,
   for (i = 0; i < planes->num_planes; i++) {
     planes->strides[i] = plane_info->plane_info.mp[i].stride;
     planes->scanline[i] = plane_info->plane_info.mp[i].scanline;
-    CDBG("%s: fmt = %d, plane idx = %d, width = 0x%x, stride = 0x%x, scanline = 0x%x\n",
+    ISP_DBG(ISP_MOD_COM,"%s: fmt = %d, plane idx = %d, width = 0x%x, stride = 0x%x, scanline = 0x%x\n",
       __func__, stream->cfg.stream_info.fmt, i,
       stream->cfg.stream_info.dim.width, planes->strides[i],
       planes->scanline[i]);
@@ -261,6 +266,7 @@ static enum msm_vfe_axi_stream_src isp_hw_get_axi_src_type(isp_hw_t *isp_hw,
     return RDI_INTF_0;
 
   case CAM_FORMAT_META_RAW_8BIT:
+  case CAM_FORMAT_META_RAW_10BIT:
     return RDI_INTF_1;
 
   default: {
@@ -320,6 +326,8 @@ static int isp_hw_camif_cfg(isp_hw_t *isp_hw, isp_hw_stream_t *stream,
   isp_pix_camif_cfg_t camif_cfg;
   isp_hw_session_t *session;
   uint32_t primary_cid_idx;
+  int input_src = 0;
+  int rdi_id = 0;;
 
   primary_cid_idx = isp_hw_find_primary_cid(&stream->cfg.sensor_out_info,
     &stream->cfg.sink_cap);
@@ -338,7 +346,20 @@ static int isp_hw_camif_cfg(isp_hw_t *isp_hw, isp_hw_stream_t *stream,
     stream->cfg.sink_cap.sensor_cid_ch[primary_cid_idx].is_bayer_sensor;
   camif_cfg.axi_path = axi_path;
 
-  session = isp_hw_find_session(isp_hw, isp_hw->pipeline.session_id);
+  if (axi_path >= VFE_AXI_SRC_MAX) {
+    CDBG_ERROR("%s: Invalid axi_path %d\n", __func__, axi_path);
+    return -1;
+  }
+
+  if (axi_path < RDI_INTF_0) {
+    input_src = VFE_PIX_0;
+  } else {
+    rdi_id = axi_path - RDI_INTF_0;
+    input_src = rdi_id + VFE_RAW_0;
+  }
+
+  session = isp_hw_find_session(isp_hw,
+    isp_hw->pipeline.session_id[input_src]);
 
   if (!session) {
     CDBG_ERROR("%s: can not find session\n", __func__);
@@ -364,19 +385,19 @@ static int isp_hw_camif_cfg(isp_hw_t *isp_hw, isp_hw_stream_t *stream,
  **/
 static void isp_hw_camif_dump_cfg(struct msm_vfe_pix_cfg *pix_cfg)
 {
-  CDBG("%s: =====dump Camif cfg for PIX interface====\n", __func__);
-  CDBG("%s: camif input type = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: =====dump Camif cfg for PIX interface====\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: camif input type = %d\n", __func__,
     pix_cfg->camif_cfg.camif_input);
-  CDBG("%s: camif pixel pattern = %d\n", __func__, pix_cfg->pixel_pattern);
-  CDBG("%s: camif input_format= %d\n", __func__, pix_cfg->input_format);
+  ISP_DBG(ISP_MOD_COM,"%s: camif pixel pattern = %d\n", __func__, pix_cfg->pixel_pattern);
+  ISP_DBG(ISP_MOD_COM,"%s: camif input_format= %d\n", __func__, pix_cfg->input_format);
 
-  CDBG("%s: camif first_pix = %d\n", __func__, pix_cfg->camif_cfg.first_pixel);
-  CDBG("%s: camif last_pix = %d\n", __func__, pix_cfg->camif_cfg.last_pixel);
-  CDBG("%s: camif first_line = %d\n", __func__, pix_cfg->camif_cfg.first_line);
-  CDBG("%s: camif last_line = %d\n", __func__, pix_cfg->camif_cfg.first_line);
-  CDBG("%s: camif pixels per line = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: camif first_pix = %d\n", __func__, pix_cfg->camif_cfg.first_pixel);
+  ISP_DBG(ISP_MOD_COM,"%s: camif last_pix = %d\n", __func__, pix_cfg->camif_cfg.last_pixel);
+  ISP_DBG(ISP_MOD_COM,"%s: camif first_line = %d\n", __func__, pix_cfg->camif_cfg.first_line);
+  ISP_DBG(ISP_MOD_COM,"%s: camif last_line = %d\n", __func__, pix_cfg->camif_cfg.first_line);
+  ISP_DBG(ISP_MOD_COM,"%s: camif pixels per line = %d\n",
     __func__,  pix_cfg->camif_cfg.pixels_per_line);
-  CDBG("%s: camif lines per frame = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: camif lines per frame = %d\n", __func__,
     pix_cfg->camif_cfg.lines_per_frame);
 }
 
@@ -440,12 +461,13 @@ static int isp_hw_input_cfg(isp_hw_t *isp_hw, isp_intf_type_t intf)
     return rc;
   }
 
+
   rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_INPUT_CFG, &input_cfg);
   if (rc < 0) {
     CDBG_ERROR("%s: input cfg error = %d\n", __func__, rc);
   }
 
-  CDBG("%s: X, rc = %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d", __func__, rc);
 
   return rc;
 }
@@ -528,15 +550,14 @@ static int isp_input_set_parms(isp_hw_t *isp_hw,
     isp_hw->input.camif_cfg.input_format =
        isp_cam_fmt_to_v4l2_fmt(stream->cfg.sink_cap.sensor_cid_ch[primary_cid_idx].fmt, 0);
   } else if (intf < ISP_INTF_MAX) {
+    int rdi = intf - ISP_INTF_RDI0;
     if (stream->cfg.meta_ch_idx_mask == 0) {
       /* this is normal RDI dump stream */
-      int rdi = intf - ISP_INTF_RDI0;
       sensor_out_info_t *sensor_info = &stream->cfg.sensor_out_info;
       isp_hw->input.rdi_cfg[rdi].cid =
         stream->cfg.sink_cap.sensor_cid_ch[primary_cid_idx].cid;
       isp_hw->input.rdi_cfg[rdi].frame_based = 1;
     } else {
-      int rdi = intf - ISP_INTF_RDI0;
       int meta_cid_idx = 0;
       sensor_out_info_t *sensor_info = &stream->cfg.sensor_out_info;
       if (stream->cfg.meta_ch_idx_mask != 1) {
@@ -553,7 +574,7 @@ static int isp_input_set_parms(isp_hw_t *isp_hw,
      * coexisting we take pipeline stream's clock.
      */
     if (isp_hw->input.camif_cfg.pixel_clock == 0) {
-        isp_hw->input.camif_cfg.pixel_clock =
+        isp_hw->input.rdi_cfg[rdi].pixel_clock =
         stream->cfg.sensor_out_info.op_pixel_clk;
     }
   } else {
@@ -684,6 +705,7 @@ static void isp_hw_fill_output_cfg(isp_hw_t *isp_hw, isp_hw_session_t *session,
     stream->cfg.sensor_out_info.num_frames_skip;
   output_cfg->stream_param.streaming_mode =
     stream->cfg.stream_info.streaming_mode;
+  output_cfg->frame_skip_pattern = stream->cfg.skip_pattern;
 
   if (stream->cfg.meta_ch_idx_mask == 0) {
     /* non meta data stream. */
@@ -713,6 +735,26 @@ static void isp_hw_fill_output_cfg(isp_hw_t *isp_hw, isp_hw_session_t *session,
   output_cfg->ion_fd = session->ion_fd;
   output_cfg->vt_enable = session->vt_enable;
 
+  switch(GET_ISP_MAIN_VERSION(isp_hw->init_params.isp_version)){
+  case ISP_VERSION_32:
+    output_cfg->burst_len = VFE32_BURST_LEN;
+    break;
+  case ISP_VERSION_40: {
+    if(isp_hw->init_params.cap.hw_ver == ISP_MSM8916 ||
+       isp_hw->init_params.cap.hw_ver == ISP_MSM8939 ) {
+         output_cfg->burst_len = VFE40_BURST_LEN_2;
+    } else {
+         output_cfg->burst_len = VFE40_BURST_LEN_1;
+    }
+  }
+    break;
+  case ISP_VERSION_44:
+    output_cfg->burst_len = VFE44_BURST_LEN;
+    break;
+  default:
+    output_cfg->burst_len = VFE40_BURST_LEN_1;
+    break;
+  }
   isp_hw_fill_stream_plane_info(&output_cfg->stream_param.planes, stream);
   isp_hw_sel_axi_path(isp_hw, stream, output_cfg);
 }
@@ -740,7 +782,11 @@ static int isp_hw_stream_config(isp_hw_t *isp_hw,
   }
 
   ion_fd = session->ion_fd;
-  isp_hw->pipeline.session_id = session->session_id;
+  for (i = 0; i < VFE_SRC_MAX; i ++) {
+    if (stream->cfg.vfe_output_mask & (1 << i)) {
+      isp_hw->pipeline.session_id[i] = session->session_id;
+    }
+  }
 
   rc = isp_pipeline_set_params(isp_hw->pipeline.private_data,
     ISP_PIX_SET_ION_FD, (void *)&ion_fd, sizeof(int));
@@ -754,7 +800,6 @@ static int isp_hw_stream_config(isp_hw_t *isp_hw,
 
   /*fill in stream info to stream cfg*/
   isp_hw_fill_output_cfg(isp_hw, session, stream, &output_cfg);
-
   /* config pix stream*/
   if (stream->cfg.use_pix) {
     isp_hw_camif_cfg(isp_hw, stream, output_cfg.axi_path);
@@ -821,6 +866,40 @@ static int isp_hw_count_num_pix_streams(isp_hw_t *isp_hw,
   return cnt;
 }
 
+/** isp_hw_subscribe_one_v4l2_event
+ *    @isp_hw:
+ *    @event_type:
+ *    @subscribe:
+ *
+ **/
+static int isp_hw_subscribe_one_v4l2_event(isp_hw_t *isp_hw,
+  uint32_t event_type, boolean subscribe)
+{
+  int rc = 0;
+  struct v4l2_event_subscription sub;
+
+  ISP_DBG(ISP_MOD_COM,"%s: event_type = 0x%x, is_subscribe = %d", __func__, event_type,
+    subscribe);
+
+  memset(&sub, 0, sizeof(sub));
+  sub.type = event_type;
+
+  if (isp_hw->fd < 0) {
+    CDBG_ERROR("%s: error, isp_hw->fd is incorrect", __func__);
+  }
+
+  if (subscribe)
+    rc = ioctl(isp_hw->fd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+  else
+    rc = ioctl(isp_hw->fd, VIDIOC_UNSUBSCRIBE_EVENT, &sub);
+
+  if (rc < 0)
+    CDBG_ERROR("%s: error, event_type = 0x%x, is_subscribe = %d", __func__,
+      event_type, subscribe);
+
+  return rc;
+}
+
 /** isp_hw_proc_action_stream_start:
  *
  *    @isp_hw: isp hw
@@ -834,8 +913,11 @@ static int isp_hw_proc_action_stream_start(isp_hw_t *isp_hw,
   int use_pix = 0;
   isp_hw_stream_t *stream = NULL;
   isp_hw_session_t *session = NULL;
+  isp_session_t *current_session = NULL;
+  isp_t *isp = (isp_t*)isp_hw->notify_ops->parent;
   start_stop_stream_t pipeline_start_param;
   uint32_t streamids[ISP_MAX_STREAMS];
+  int input_start_mask = 0;
   int existing_pix_cnt = isp_hw->pipeline.num_active_streams;
 
   if (isp_hw->hw_state == ISP_HW_STATE_STREAM_STOPPING) {
@@ -854,6 +936,11 @@ static int isp_hw_proc_action_stream_start(isp_hw_t *isp_hw,
     return -1;
   }
 
+  current_session = isp_util_find_session(isp, start_params->session_id);
+  if (!current_session) {
+    CDBG_ERROR("%s: cannot find session (%d)\n",
+               __func__, start_params->session_id);
+  }
   for (i = 0; i < start_params->num_streams; i++) {
     stream = isp_hw_find_stream_in_session(session,
       start_params->stream_ids[i]);
@@ -862,19 +949,49 @@ static int isp_hw_proc_action_stream_start(isp_hw_t *isp_hw,
         isp_hw->pipeline.num_active_streams++;
         streamids[pipeline_start_param.num_streams++] = stream->cfg.stream_id;
       }
+      input_start_mask |= stream->cfg.vfe_output_mask;
     }
   }
 
   if (existing_pix_cnt == 0 && isp_hw->pipeline.num_active_streams > 0) {
-    CDBG("%s: stream id %d type %d fmt %d subscribe pipeline related events\n",
+    ISP_DBG(ISP_MOD_COM,"%s: stream id %d type %d fmt %d subscribe pipeline related events\n",
          __func__, stream->cfg.stream_id, stream->cfg.stream_info.stream_type,
          stream->cfg.stream_info.fmt);
     isp_hw_subscribe_pipeline_event(isp_hw, TRUE);
   }
+  /*rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_SOF, TRUE);*/
+
 
   /* Start Pix*/
   pipeline_start_param.stream_ids = streamids;
   pipeline_start_param.fast_aec_mode = start_params->fast_aec_mode;
+
+  switch(GET_ISP_MAIN_VERSION(isp_hw->init_params.isp_version)){
+  case ISP_VERSION_32:
+      ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
+         VFE32_STATS_BURST_LEN;
+    break;
+  case ISP_VERSION_40: {
+    if(isp_hw->init_params.cap.hw_ver == ISP_MSM8916 ||
+       isp_hw->init_params.cap.hw_ver == ISP_MSM8939 ) {
+      ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
+         VFE40_STATS_BURST_LEN_2;
+    } else {
+      ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
+         VFE40_STATS_BURST_LEN_1;
+      }
+    }
+    break;
+  case ISP_VERSION_44:
+      ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
+         VFE44_STATS_BURST_LEN;
+    break;
+  default:
+      ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
+         VFE40_STATS_BURST_LEN_1;
+    break;
+  }
+
   if (pipeline_start_param.num_streams) {
     rc = isp_pipeline_action(isp_hw->pipeline.private_data,
       ISP_PIX_ACTION_CODE_STREAM_START, (void *)&pipeline_start_param,
@@ -886,8 +1003,21 @@ static int isp_hw_proc_action_stream_start(isp_hw_t *isp_hw,
     }
   }
 
-  CDBG("%s: PIX STREAM_START done\n", __func__);
+  for (i = 0; i < ISP_INTF_MAX; i++) {
+    if (input_start_mask & (1 << i)) {
+      isp_hw->sof_subscribe_ref_cnt[i] ++;
+      if (isp_hw->sof_subscribe_ref_cnt[i] == 1) {
+        rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_SOF + i, TRUE);
+        rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_REG_UPDATE + i, TRUE);
+      }
+    }
+  }
 
+  ISP_DBG(ISP_MOD_COM,"%s: PIX STREAM_START done\n", __func__);
+
+  if (current_session != NULL) {
+    start_params->frame_id = current_session->sof_id[0];
+  }
   /* start AXI */
   rc = isp_axi_action(isp_hw->axi.private_data,
     ISP_AXI_ACTION_CODE_STREAM_START, (void *)start_params,
@@ -922,7 +1052,7 @@ static int isp_hw_proc_action_stream_stop(isp_hw_t *isp_hw,
   int input_stop_mask = 0;
   int existing_pix_cnt = isp_hw->pipeline.num_active_streams;
 
-  CDBG("%s: E, sessionid = %d\n", __func__, stop_params->session_id);
+  ISP_DBG(ISP_MOD_COM,"%s: E, sessionid = %d\n", __func__, stop_params->session_id);
 
   if (isp_hw->hw_state != ISP_HW_STATE_ACTIVE) {
     CDBG_ERROR("%s: Invalid state\n", __func__);
@@ -951,11 +1081,11 @@ static int isp_hw_proc_action_stream_stop(isp_hw_t *isp_hw,
       input_stop_mask |= stream->cfg.vfe_output_mask;
     }
   }
-
   if (existing_pix_cnt > 0 && isp_hw->pipeline.num_active_streams == 0) {
-    CDBG("%s: subscribe pipeline related events\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: subscribe pipeline related events\n", __func__);
     isp_hw_subscribe_pipeline_event(isp_hw, FALSE);
   }
+  /*rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_SOF, FALSE);*/
 
   pipeline_stop_param.stream_ids = streamids;
 
@@ -982,8 +1112,13 @@ static int isp_hw_proc_action_stream_stop(isp_hw_t *isp_hw,
   }
 
   for (i = 0; i < ISP_INTF_MAX; i++) {
-    if (input_stop_mask & (1 << i))
-      isp_hw_input_uncfg(isp_hw, i);
+    if (input_stop_mask & (1 << i)) {
+      isp_hw->sof_subscribe_ref_cnt[i] --;
+      if (isp_hw->sof_subscribe_ref_cnt[i] == 0) {
+        isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_SOF + i, FALSE);
+        isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_REG_UPDATE + i, FALSE);
+      }
+    }
   }
 
   isp_hw->num_active_streams -= stop_params->num_streams;
@@ -992,7 +1127,7 @@ static int isp_hw_proc_action_stream_stop(isp_hw_t *isp_hw,
     isp_hw->hw_state = ISP_HW_STATE_IDLE;
   }
 
-  CDBG("%s: X, sessionid = %d, active_streams = %d, hw_state = %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: X, sessionid = %d, active_streams = %d, hw_state = %d\n", __func__,
     stop_params->session_id, isp_hw->num_active_streams, isp_hw->hw_state);
 
   return rc;
@@ -1028,10 +1163,6 @@ static int isp_hw_proc_set_saved_params(isp_hw_t *isp_hw,
   rc = isp_pipeline_set_params(isp_hw->pipeline.private_data,
     ISP_PIX_SET_SAVED_PARAMS, (void *)saved_params,
     sizeof(isp_saved_params_t));
-
-  rc = isp_hw_proc_set_params(isp_hw, ISP_HW_SET_PARAM_FRAME_SKIP,
-    (void *)&saved_params->frame_skip,
-    sizeof(saved_params->frame_skip));
 
   return rc;
 }
@@ -1134,7 +1265,7 @@ static int isp_hw_proc_init_pix(isp_hw_t *isp_hw)
 {
   int rc = 0;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
 
   if (isp_hw->pipeline.ref_cnt > 0) {
     isp_hw->pipeline.ref_cnt++;
@@ -1147,7 +1278,7 @@ static int isp_hw_proc_init_pix(isp_hw_t *isp_hw)
 
   if (isp_hw->pipeline.private_data) {
     rc = isp_pipeline_init(isp_hw->pipeline.private_data, NULL, isp_hw);
-    CDBG("%s: isp_pipeline_init ret = %d\n", __func__, rc);
+    ISP_DBG(ISP_MOD_COM,"%s: isp_pipeline_init ret = %d\n", __func__, rc);
   }
 
   isp_hw->pipeline.ref_cnt++;
@@ -1220,11 +1351,15 @@ static int isp_hw_proc_destroy_axi(isp_hw_t *isp_hw)
  *    @ctrl:
  *
  **/
-int isp_hw_proc_hw_update(void *ctrl)
+int isp_hw_proc_hw_update(void *ctrl, struct msm_isp_event_data *sof)
 {
   int rc = 0;
   isp_hw_t *isp_hw = ctrl;
   isp_pipeline_t *pipeline = isp_hw->pipeline.private_data;
+
+  struct msm_vfe_cfg_cmd2 cfg_cmd;
+  struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[1];
+  uint32_t hw_frame_id;
 
   if (isp_hw->hw_update_skip) {
     isp_hw->hw_update_skip--;
@@ -1238,13 +1373,13 @@ int isp_hw_proc_hw_update(void *ctrl)
   if (rc < 0) {
     CDBG_ERROR("%s: ISP axi HW update action error = %d\n",  __func__, rc);
   }
-
   /* pipeline hw update */
   rc = isp_pipeline_action(isp_hw->pipeline.private_data,
     ISP_PIX_ACTION_CODE_HW_UPDATE, NULL, 0);
 
   if (rc < 0) {
-    CDBG_ERROR("%s: ISP pipeline HW update action error = %d\n", __func__, rc);
+    CDBG_ERROR("%s: ISP pipeline HW update action error = %d\n",
+      __func__, rc);
   }
 
   isp_hw->dump_info.meta_data.awb_gain =
@@ -1256,6 +1391,28 @@ int isp_hw_proc_hw_update(void *ctrl)
 
   return rc;
 }
+
+int isp_hw_proc_hw_request_reg_update(  isp_hw_t *isp_hw ,void *session_ptr)
+{
+  boolean                      ret = TRUE;
+  int                          hw_id;
+  int                          rc = 0;
+  uint32_t                     frame_id;
+  enum msm_vfe_input_src       frame_src = VFE_PIX_0;
+  isp_session_t *session = (isp_session_t *)session_ptr;
+  if (session == NULL) {
+    CDBG_ERROR("%s: Session is NULL\n", __func__);
+    return -1;
+  }
+  rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_REG_UPDATE_CMD,
+       &frame_src);
+  if (rc < 0) {
+     CDBG_ERROR("failed: ret %d", ret);
+     ret = FALSE;
+  }
+  return ret;
+}
+
 
 /** isp_hw_proc_action
  *    @ctrl:
@@ -1304,40 +1461,6 @@ int isp_hw_proc_action(void *ctrl,  uint32_t action_code, void *action_data,
   return rc;
 }
 
-/** isp_hw_subscribe_one_v4l2_event
- *    @isp_hw:
- *    @event_type:
- *    @subscribe:
- *
- **/
-static int isp_hw_subscribe_one_v4l2_event(isp_hw_t *isp_hw,
-  uint32_t event_type, boolean subscribe)
-{
-  int rc = 0;
-  struct v4l2_event_subscription sub;
-
-  CDBG("%s: event_type = 0x%x, is_subscribe = %d", __func__, event_type,
-    subscribe);
-
-  memset(&sub, 0, sizeof(sub));
-  sub.type = event_type;
-
-  if (isp_hw->fd < 0) {
-    CDBG_ERROR("%s: error, isp_hw->fd is incorrect", __func__);
-  }
-
-  if (subscribe)
-    rc = ioctl(isp_hw->fd, VIDIOC_SUBSCRIBE_EVENT, &sub);
-  else
-    rc = ioctl(isp_hw->fd, VIDIOC_UNSUBSCRIBE_EVENT, &sub);
-
-  if (rc < 0)
-    CDBG_ERROR("%s: error, event_type = 0x%x, is_subscribe = %d", __func__,
-      event_type, subscribe);
-
-  return rc;
-}
-
 
 /** isp_hw_subscribe_pipeline_event
  *    @isp_hw:
@@ -1355,9 +1478,6 @@ static int isp_hw_subscribe_pipeline_event(isp_hw_t *isp_hw, boolean subscribe)
 
   rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_COMP_STATS_NOTIFY,
     subscribe);
-
-  if (rc == 0)
-    rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_SOF, subscribe);
 
   return rc;
 }
@@ -1448,8 +1568,8 @@ static int isp_hw_proc_init_meta_dump(isp_hw_t *isp_hw)
   isp_hw->dump_info.meta_data.meta_entry[ISP_META_LA_TBL].isp_meta_dump
     = malloc(read_info[ISP_META_LA_TBL].read_lengh);
 
-  CDBG("%s: num_reg = %d\n", __func__, isp_hw->init_params.cap.num_register);
-  CDBG("%s: tbl size: rolloff %d, gamma %d, linear %d, luma_adap %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: num_reg = %d\n", __func__, isp_hw->init_params.cap.num_register);
+  ISP_DBG(ISP_MOD_COM,"%s: tbl size: rolloff %d, gamma %d, linear %d, luma_adap %d\n",
     __func__, read_info[ISP_META_ROLLOFF_TBL].read_lengh,
     read_info[ISP_META_GAMMA_TBL].read_lengh,
     read_info[ISP_META_LINEARIZATION_TBL].read_lengh,
@@ -1510,10 +1630,6 @@ int isp_hw_proc_destroy(void *ctrl)
   isp_hw_proc_destroy_pix(isp_hw);
   isp_hw_proc_destroy_axi(isp_hw);
 
-  if (isp_hw->fd > 0) {
-    close(isp_hw->fd);
-    isp_hw->fd = 0;
-  }
   isp_hw->isp_diag.has_user_dianostics = 0;
   return rc;
 }
@@ -1561,7 +1677,7 @@ int isp_hw_read_reg_dump(isp_hw_t *isp_hw, void *dump_entry, uint32_t read_type,
      i*16/4: *16 = to be HEX, /4 = 4 byte per register*/
   for (i=0; i < ISP40_NUM_REG_DUMP; i++) {
      if (i % 4  == 0) {
-       CDBG("%s: 0x%x: %08x  %08x  %08x  %08x\n", __func__, (i * 16) / 4,
+       ISP_DBG(ISP_MOD_COM,"%s: 0x%x: %08x  %08x  %08x  %08x\n", __func__, (i * 16) / 4,
          reg_dump[i], reg_dump[i+1], reg_dump[i+2], reg_dump[i+3]);
      }
   }
@@ -1604,7 +1720,7 @@ int isp_hw_read_dmi_dump(isp_hw_t *isp_hw, void *dump_entry, isp_hw_read_info *d
 
   /* read_lengh = by words (4 bytes)*/
   for (i=0; i < (dmi_read_info->read_lengh / sizeof(uint32_t)); i++) {
-    CDBG("%s: DMI table[%d] %08x\n", __func__, i, reg_dump[i]);
+    ISP_DBG(ISP_MOD_COM,"%s: DMI table[%d] %08x\n", __func__, i, reg_dump[i]);
   }
 #endif
 
@@ -1729,7 +1845,7 @@ int isp_hw_get_current_rolloff_data(isp_hw_t *isp_hw,
  *
  *  Return none
  **/
-void isp_hw_send_info_to_metadata(isp_hw_t *isp_hw)
+void isp_hw_send_info_to_metadata(isp_hw_t *isp_hw, int input_src)
 {
   int rc;
   isp_pipeline_t *pipeline = isp_hw->pipeline.private_data;
@@ -1741,7 +1857,7 @@ void isp_hw_send_info_to_metadata(isp_hw_t *isp_hw)
     bus_msg.type = MCT_BUS_MSG_SET_ISP_GAMMA_INFO;
     bus_msg.size = sizeof(isp_gamma_t);
     bus_msg.msg = (void *)p_gamma;
-    bus_msg.sessionid = isp_hw->pipeline.session_id;
+    bus_msg.sessionid = isp_hw->pipeline.session_id[input_src];
 
     /* notify ptr is isp_core_hw_notify */
     rc = isp_hw->notify_ops->notify((void*)isp_hw->notify_ops->parent,
@@ -1774,21 +1890,17 @@ int isp_hw_proc_update_params_at_sof(isp_hw_t *isp_hw,
   isp_hw_set_crop_factor_t * crop_factor = NULL;
   isp_hw_zoom_param_t *zoom_params =NULL;
   int rc = 0;
-  CDBG("%s: E", __func__);
-  memset(&pending_update_params, 0,
-    sizeof(isp_hw_pending_update_params_t));
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
   memset(&stats_update, 0, sizeof(stats_update_t));
-  pending_update_params.session_id = isp_hw->pipeline.session_id;
-  pending_update_params.frame_id = sof->frame_id;
+  /* We are updating pipeline here - hence using PIX */
+
+  pending_update_params = isp_hw->thread_hw.pending_update_params;
 
   /* Fetch cached params for trigger update. This is to avoid sending
      different params to two VFEs. Both VFEs will use single cached
      params copy. If there is trigger update in between 2 VFE hw update
      calls, cached params won't be changed thus protect against split
      screen behaviour */
-  rc = isp_hw->notify_ops->notify((void*)isp_hw->notify_ops->parent,
-    isp_hw->init_params.dev_idx, ISP_HW_NOTIFY_FETCH_HW_UPDATE_PARAMS,
-    &pending_update_params, sizeof(isp_hw_pending_update_params_t));
 
   if (pending_update_params.hw_update_params.uv_subsample_update) {
     rc = isp_hw_proc_set_uv_subsample(isp_hw,
@@ -1814,7 +1926,8 @@ int isp_hw_proc_update_params_at_sof(isp_hw_t *isp_hw,
     } else if (zoom_params != NULL) {
       /* send to isp to calculate & save zoom params*/
       zoom_params->frame_id = sof->frame_id;
-      zoom_params->session_id = isp_hw->pipeline.session_id;
+      /* We are updating pipeline here - hence using PIX */
+      zoom_params->session_id = isp_hw->pipeline.session_id[VFE_PIX_0];
       rc = isp_hw->notify_ops->notify((void*)isp_hw->notify_ops->parent,
         isp_hw->init_params.dev_idx, ISP_HW_NOTIFY_ZOOM_ROI_PARAMS,
         zoom_params, sizeof(isp_hw_zoom_param_t *));
@@ -1866,7 +1979,7 @@ int isp_hw_proc_update_params_at_sof(isp_hw_t *isp_hw,
     if (rc < 0)
       CDBG_ERROR("%s: IHIST trigger update error = %d\n", __func__, rc);
   }
-  CDBG("%s: X", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X", __func__);
   return rc;
 }
 
@@ -1885,7 +1998,6 @@ static int isp_sof_update(void *ctrl, struct msm_isp_event_data *sof_parm)
   int len, rc = 0;
   isp_hw_t *isp_hw = ctrl;
   uint32_t cmd = MM_ISP_CMD_SOF_UPDATE;
-
   pthread_mutex_lock(&isp_hw->thread_hw.cmd_mutex);
   pthread_mutex_lock(&isp_hw->thread_hw.busy_mutex);
 
@@ -1893,7 +2005,18 @@ static int isp_sof_update(void *ctrl, struct msm_isp_event_data *sof_parm)
   if(!isp_hw->thread_hw.thread_busy) {
     isp_hw->thread_hw.thread_busy = TRUE;
     isp_hw->thread_hw.sof_parm = *sof_parm;
+    memset(&isp_hw->thread_hw.pending_update_params, 0,
+           sizeof(isp_hw_pending_update_params_t));
+
+    isp_hw->thread_hw.pending_update_params.session_id = isp_hw->pipeline.session_id[VFE_PIX_0];
+    isp_hw->thread_hw.pending_update_params.frame_id = isp_hw->thread_hw.sof_parm.frame_id;
+    isp_hw->thread_hw.pending_update_params.dev_idx = isp_hw->init_params.dev_idx;
     pthread_mutex_unlock(&isp_hw->thread_hw.busy_mutex);
+
+    rc = isp_hw->notify_ops->notify((void*)isp_hw->notify_ops->parent,
+      isp_hw->init_params.dev_idx, ISP_HW_NOTIFY_FETCH_HW_UPDATE_PARAMS,
+      &isp_hw->thread_hw.pending_update_params, sizeof(isp_hw_pending_update_params_t));
+
     len = write(isp_hw->thread_hw.pipe_fds[1], &cmd, sizeof(cmd));
 
     if (len != sizeof(cmd)) {
@@ -1920,9 +2043,14 @@ static int isp_sof_update(void *ctrl, struct msm_isp_event_data *sof_parm)
  **/
 void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
 {
-  int rc, index = 0;
+  int rc, input_src = 0;
   struct v4l2_event v4l2_event;
   struct msm_isp_event_data *isp_event_data = NULL;
+
+  /* HW is in overflow recovery. Don't process any more events*/
+  if (isp_hw->is_overflow) {
+    return;
+  }
 
   memset(&v4l2_event, 0, sizeof(v4l2_event));
   rc = ioctl(isp_hw->fd, VIDIOC_DQEVENT, &v4l2_event);
@@ -1931,8 +2059,8 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
     isp_event_data = (struct msm_isp_event_data *)v4l2_event.u.data;
 
     if ((v4l2_event.type & 0xFFFFFF00) >= ISP_EVENT_BUF_DIVERT) {
-      index = v4l2_event.type & 0xFF;
-      v4l2_event.type &= ~index;
+      input_src = v4l2_event.type & 0xFF;
+      v4l2_event.type &= ~input_src;
     }
 
     switch(v4l2_event.type) {
@@ -1969,7 +2097,7 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
       /* Notify 3A*/
       if (stats_event.parsed_stats_event->stats_mask == 0) {
         //no stats to be reported
-        CDBG("%s: Stats mask 0. No stats to be reported. Skip "\
+        ISP_DBG(ISP_MOD_COM,"%s: Stats mask 0. No stats to be reported. Skip "\
           "sending stats event to 3A\n", __func__);
       } else {
         mct_stats_event.type = MCT_EVENT_STATS_ISP_STATS;
@@ -1993,15 +2121,13 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
       struct msm_isp_event_data *sof =
         (struct msm_isp_event_data *)v4l2_event.u.data;
 
-      if (isp_hw->pipeline.num_active_streams == 0)
-        break;
-
       if (thread_data->wake_up_at_sof) {
-        CDBG("%s: wake up waiting thread\n", __func__);
+        ISP_DBG(ISP_MOD_COM,"%s: wake up waiting thread\n", __func__);
         thread_data->wake_up_at_sof = FALSE;
         sem_post(&thread_data->sig_sem);
       }
-
+      ATRACE_INT("Camera:SOF", 1);
+      ATRACE_INT("Camera:SOF", 0);
       /*when got SOF event means got reg update IRQ, just applied the hw setting*/
       if (isp_hw->isp_diag.has_user_dianostics) {
         isp_hw_prepare_vfe_diag(isp_hw, streaming_mode);
@@ -2019,7 +2145,7 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
       if(pipeline->pix_params.cfg_and_3a_params.cfg.tintless_data->stats_support_type
         == ISP_TINTLESS_STATS_TYPE_BG) {
         isp_hw_get_current_rolloff_data(isp_hw, &rolloff);
-        curr_rolloff.session_id = isp_hw->pipeline.session_id;
+        curr_rolloff.session_id = isp_hw->pipeline.session_id[input_src];
         curr_rolloff.rolloff = &rolloff;
         rc = isp_hw->notify_ops->notify((void*)isp_hw->notify_ops->parent,
            isp_hw->init_params.dev_idx, ISP_HW_NOTIFY_CUR_ROLLOFF, &curr_rolloff,
@@ -2034,7 +2160,7 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
         bus_msg.type = MCT_BUS_MSG_SET_ISP_STATS_AWB_INFO;
         bus_msg.size = sizeof(stats_update->awb_update);
         bus_msg.msg = (void *)&stats_update->awb_update;
-        bus_msg.sessionid = isp_hw->pipeline.session_id;
+        bus_msg.sessionid = isp_hw->pipeline.session_id[input_src];
         /* notify ptr is isp_core_hw_notify */
         rc = isp_hw->notify_ops->notify((void*)isp_hw->notify_ops->parent,
           isp_hw->init_params.dev_idx, ISP_HW_NOTIFY_STATS_AWB_INFO, &bus_msg,
@@ -2049,27 +2175,21 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
           sizeof(stats_update->awb_update));
       }
 
-      /* send ISP info */
-      isp_hw_send_info_to_metadata(isp_hw);
+      if (input_src == VFE_PIX_0) {
+        /* send ISP info */
+        isp_hw_send_info_to_metadata(isp_hw, input_src);
+      }
 
       bus_msg.type = MCT_BUS_MSG_ISP_SOF;
       bus_msg.msg = (void *)&sof_event;
       sof_event.frame_id = sof->frame_id;
       sof_event.timestamp = sof->timestamp;
       sof_event.mono_timestamp = sof->mono_timestamp;
-      bus_msg.sessionid = isp_hw->pipeline.session_id;
+      bus_msg.sessionid = isp_hw->pipeline.session_id[input_src];
 
-      CDBG("%s: SOF input intf = %d\n", __func__, sof->input_intf);
+      ISP_DBG(ISP_MOD_COM,"%s: SOF input intf = %d\n", __func__, sof->input_intf);
       if (sof_event.frame_id > 0) {
-        /* notify ptr is isp_core_hw_notify */
-        rc = isp_hw->notify_ops->notify(
-          (void*)isp_hw->notify_ops->parent, isp_hw->init_params.dev_idx,
-          ISP_HW_NOTIFY_CAMIF_SOF, &bus_msg, sizeof(mct_bus_msg_t));
-
-        if (rc < 0) {
-          CDBG_ERROR("%s: SOF to media bus error = %d\n", __func__, rc);
-        } else {
-          if (sof->input_intf == VFE_PIX_0) {
+         if (sof->input_intf == VFE_PIX_0) {
             /*SOF update contain
               1. HW reg_update
               2. trigger update parm*/
@@ -2077,28 +2197,100 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
             if (rc < 0)
               CDBG_ERROR("%s: HW update failed error = %d\n", __func__, rc);
           }
-        }
+
+         /* notify ptr is isp_core_hw_notify */
+         rc = isp_hw->notify_ops->notify(
+           (void*)isp_hw->notify_ops->parent, isp_hw->init_params.dev_idx,
+           ISP_HW_NOTIFY_CAMIF_SOF, &bus_msg, sizeof(mct_bus_msg_t));
+
+         if (rc < 0) {
+           CDBG_ERROR("%s: SOF to media bus error = %d\n", __func__, rc);
+         }
+       }
       }
+      break;
+
+    case ISP_EVENT_REG_UPDATE: {
+      isp_session_t *current_session = NULL;
+      isp_t *isp = (isp_t *)isp_hw->notify_ops->parent;
+      uint32_t frame_id;
+      struct msm_isp_event_data *reg_update_sof =
+        (struct msm_isp_event_data *)v4l2_event.u.data;
+      current_session =
+        isp_util_find_session(isp, isp_hw->pipeline.session_id[VFE_PIX_0]);
+      if (!current_session) {
+          CDBG_ERROR("%s: can not find session\n", __func__);
+          return;
+      }
+      if (isp_hw->pipeline.num_active_streams == 0) {
+        CDBG_ERROR("%s: no hw stream , skip sending REG_UPDATE!\n", __func__);
+        break;
+      }
+      pthread_mutex_lock(&current_session->state_mutex);
+      current_session->reg_update_info.reg_update_state =
+        ISP_REG_UPDATE_STATE_CONSUMED;
+      pthread_mutex_unlock(&current_session->state_mutex);
     }
       break;
 
     case ISP_EVENT_BUF_DIVERT: {
-      mct_bus_msg_meta_valid meta_valid;
-      mct_bus_msg_t bus_msg;
-      bus_msg.type = MCT_BUS_MSG_META_VALID;
-      bus_msg.msg = (void *)&meta_valid;
-      bus_msg.sessionid = isp_hw->pipeline.session_id;
-      meta_valid.frame_id = isp_event_data->frame_id;
+      /* is_skip_pproc is TRUE if LowPowerMode is enable,So ISP will do buf_done.*/
+        isp_event_data->is_skip_pproc = isp_util_is_lowpowermode_feature_enable(
+           (void *)isp_hw->notify_ops->parent,
+           isp_event_data->u.buf_done.session_id);
 
-      /* notify ptr is isp_core_hw_notify */
-      rc = isp_hw->notify_ops->notify(
-        (void*)isp_hw->notify_ops->parent, isp_hw->init_params.dev_idx,
-        ISP_HW_NOTIFY_META_VALID, &bus_msg, sizeof(mct_bus_msg_t));
+        mct_bus_msg_meta_valid meta_valid;
+        mct_bus_msg_t bus_msg;
+        bus_msg.type = MCT_BUS_MSG_META_VALID;
+        bus_msg.msg = (void *)&meta_valid;
+        bus_msg.sessionid = isp_event_data->u.buf_done.session_id;
+        meta_valid.frame_id = isp_event_data->frame_id;
+        /* notify ptr is isp_core_hw_notify */
+        rc = isp_hw->notify_ops->notify(
+           (void *)isp_hw->notify_ops->parent, isp_hw->init_params.dev_idx,
+           ISP_HW_NOTIFY_META_VALID, &bus_msg, sizeof(mct_bus_msg_t));
+        rc = isp_hw_notify_buf_divert_event(isp_hw, isp_event_data);
+      }
+      break;
+    case ISP_EVENT_WM_BUS_OVERFLOW: {
+      struct msm_isp_event_data *error_event =
+        (struct msm_isp_event_data *)v4l2_event.u.data;
+      isp_t *isp = (isp_t*)isp_hw->notify_ops->parent;
+      int j = 0;
+      isp_hw_session_t *session = NULL;
+      if (error_event->u.error_info.error_mask == (1 << ISP_WM_BUS_OVERFLOW)) {
+        CDBG_ERROR("%s Overflow detected. Notify ISPIF to reset \n", __func__);
+        isp_hw->is_overflow = 1;
+        for (j = 0; j < ISP_MAX_SESSIONS; j++) {
+          session = &isp_hw->session[j];
+          if (session && session->session_id) {
+            mct_bus_msg_t bus_msg;
+            uint8_t is_frame_id_reset = 1;
+            bus_msg.type = MCT_BUS_MSG_WM_BUS_OVERFLOW_RECOVERY;
+            bus_msg.msg = (void *)&is_frame_id_reset;
+            bus_msg.size = sizeof(uint8_t);
+            bus_msg.sessionid = session->session_id;
+            if (TRUE != mct_module_post_bus_msg(isp->module, &bus_msg))
+            CDBG_ERROR("%s: MCT_BUS_MSG_WM_BUS_OVERFLOW_RECOVERY to bus error\n", __func__);
 
-      rc = isp_hw_notify_buf_divert_event(isp_hw, isp_event_data);
+            rc = isp_util_wm_bus_overflow_recovery(isp,isp_hw, session);
+            if (rc < 0) {
+              CDBG_ERROR("%s Error doing WM BUS OVERFLOW Recovery \n", __func__);
+              return;
+            }
+          }
+        }
+      } else {
+        mct_bus_msg_t bus_msg;
+        bus_msg.type = MCT_BUS_MSG_SEND_HW_ERROR;
+        bus_msg.msg = NULL;
+        bus_msg.size = 0;
+        bus_msg.sessionid = (int)isp_hw->pipeline.session_id;
+        if (TRUE != mct_module_post_bus_msg(isp->module, &bus_msg))
+         CDBG_ERROR("%s: MCT_BUS_MSG_ERROR_MESSAGE to bus error\n", __func__);
+      }
     }
       break;
-
     default: {
     }
       break;
@@ -2189,7 +2381,7 @@ static int isp_hw_proc_stream_config(isp_hw_t *isp_hw,
     if (session->streams[i].cfg.use_pix)
       session->use_pipeline = TRUE;
 
-    CDBG("%s: i = %d, sessid = %d, streamid = %d, straem = %p\n", __func__, i,
+    ISP_DBG(ISP_MOD_COM,"%s: i = %d, sessid = %d, streamid = %d, straem = %p\n", __func__, i,
       in_params->session_id, session->streams[i].cfg.stream_id,
       &session->streams[i]);
 
@@ -2259,6 +2451,7 @@ static int isp_hw_proc_stream_unconfig(isp_hw_t *isp_hw,
   isp_hw_session_t *session;
   int use_pix = 0;
   isp_hw_stream_uncfg_t stream_uncfg;
+  isp_hwif_output_cfg_t stream_cfg;
 
   if (sizeof(isp_hw_stream_uncfg_t) != in_params_size) {
     CDBG_ERROR("%s: size mismatch\n", __func__);
@@ -2277,6 +2470,9 @@ static int isp_hw_proc_stream_unconfig(isp_hw_t *isp_hw,
           session->streams[k].cfg.stream_id == in_params->stream_ids[i]) {
         /* found the stream */
         stream = &session->streams[k];
+        isp_hw_sel_axi_path(isp_hw, stream, &stream_cfg);
+        isp_hw_input_uncfg(isp_hw, stream_cfg.isp_output_interface);
+
         stream_uncfg.num_streams = 1;
         stream_uncfg.session_id = session->session_id;
         stream_uncfg.stream_ids[0] = stream->cfg.stream_id;
@@ -2370,12 +2566,12 @@ static int isp_hw_proc_set_sharpness(
  *
  *  Sets effect parameter to pipeline.
  **/
-static int isp_hw_proc_set_saturation(isp_hw_t *isp_hw, int32_t *saturation,
-  uint32_t in_params_size)
+static int isp_hw_proc_set_saturation(isp_hw_t *isp_hw,
+  isp_saturation_setting_t *saturation, uint32_t in_params_size)
 {
   int rc = 0;
 
-  if (sizeof(int32_t) != in_params_size) {
+  if (sizeof(isp_saturation_setting_t) != in_params_size) {
     CDBG_ERROR("%s: size mismatch\n", __func__);
     return -1;
   }
@@ -2475,7 +2671,7 @@ static int isp_hw_proc_get_cds_trigger_val(isp_hw_t *isp_hw, void *in_params,
   uint32_t out_params_size)
 {
   int rc = 0;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n", __func__);
   if (sizeof(isp_uv_subsample_t) != out_params_size) {
     CDBG_ERROR("%s: size mismatch\n", __func__);
     return -1;
@@ -2483,7 +2679,7 @@ static int isp_hw_proc_get_cds_trigger_val(isp_hw_t *isp_hw, void *in_params,
   rc = isp_pipeline_get_params(isp_hw->pipeline.private_data,
       ISP_PIX_GET_CDS_TRIGGER_VAL, in_params, in_params_size,
       (void*)uv_sbsampling_ctrl, out_params_size);
-  CDBG("%s: X rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -2799,7 +2995,7 @@ static int isp_hw_proc_awb_trigger_update(isp_hw_t *isp_hw,
 {
   int rc = 0;
 
-  CDBG("%s: flag = 0x%x\n", __func__, stats_update->flag);
+  ISP_DBG(ISP_MOD_COM,"%s: flag = 0x%x\n", __func__, stats_update->flag);
 
   if (sizeof(stats_update_t) != in_params_size) {
     CDBG_ERROR("%s: size mismatch\n", __func__);
@@ -2882,7 +3078,7 @@ static int isp_hw_save_mapped_buf(isp_hw_t *isp_hw,
   }
 
   stream->cfg.map_buf = *in_params;
-  CDBG("%s: sessid = %d, streamid = %d, num_buf = %d, use_native = %d\n",
+  ISP_DBG(ISP_MOD_COM,"%s: sessid = %d, streamid = %d, num_buf = %d, use_native = %d\n",
     __func__, stream->cfg.map_buf.session_id, stream->cfg.map_buf.stream_id,
     stream->cfg.map_buf.num_bufs, stream->cfg.map_buf.use_native_buf);
 
@@ -2972,7 +3168,7 @@ int isp_hw_proc_set_params(void *ctrl, uint32_t params_id, void *in_params,
   uint32_t pix_params_id = ISP_PIX_SET_PARAM_INVALID;
   uint32_t axi_params_id = 0;
 
-  CDBG("%s: E, id = %d\n", __func__, params_id);
+  ISP_DBG(ISP_MOD_COM,"%s: E, id = %d\n", __func__, params_id);
 
   switch (params_id) {
   case ISP_HW_SET_PARAM_STREAM_CFG: {
@@ -3012,8 +3208,8 @@ int isp_hw_proc_set_params(void *ctrl, uint32_t params_id, void *in_params,
     break;
 
   case ISP_HW_SET_PARAM_SATURATION: {
-    rc = isp_hw_proc_set_saturation(isp_hw, (int32_t *)in_params,
-      in_params_size);
+    rc = isp_hw_proc_set_saturation(isp_hw,
+      (isp_saturation_setting_t *)in_params, in_params_size);
   }
     break;
 
@@ -3485,7 +3681,7 @@ static int isp_hw_destroy_thread(isp_thread_t *thread)
 
   /* we do not wait on sem but join to wait the thread to die. */
   if (pthread_join(thread->pid, NULL) != 0)
-    CDBG("%s: pthread dead already\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: pthread dead already\n", __func__);
 
   sem_destroy(&thread->sig_sem);
 
@@ -3506,6 +3702,7 @@ static int isp_hw_destroy(void *ctrl)
 {
   int i, len, rc = 0;
   isp_hw_t *isp_hw = ctrl;
+  struct msm_vfe_smmu_attach_cmd cmd;
 
   rc = isp_hw_destroy_thread(&isp_hw->thread_poll);
   if(rc < 0)
@@ -3523,13 +3720,58 @@ static int isp_hw_destroy(void *ctrl)
   for (i = 0; i < ISP_META_MAX; i++) {
     free(isp_hw->dump_info.meta_data.meta_entry[i].isp_meta_dump);
   }
+  memset(&cmd, 0, sizeof(cmd));
 
+  cmd.security_mode = NON_SECURE_MODE;
+  cmd.iommu_attach_mode = IOMMU_DETACH;
+  rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_SMMU_ATTACH, &cmd);
+  if (rc < 0) {
+    CDBG_ERROR("%s: isp smmu detach error = %d\n", __func__, rc);
+    return -1;
+  }
+  rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_WM_BUS_OVERFLOW, FALSE);
+  if (rc < 0) {
+    CDBG_ERROR("%s: isp de-subscribe event error = %d\n", __func__, rc);
+    return -1;
+  }
+  if (isp_hw->fd > 0) {
+    close(isp_hw->fd);
+    isp_hw->fd = 0;
+  }
   free (isp_hw);
 
   return rc;
 
 EXIT:
   isp_hw_proc_destroy(ctrl);
+
+  return rc;
+}
+
+static int isp_hw_proc_halt(isp_hw_t *isp_hw)
+{
+  int rc = 0;
+  rc = isp_axi_action(isp_hw->axi.private_data, ISP_AXI_ACTION_CODE_HALT,
+                      NULL, 0);
+
+  return rc;
+}
+
+static int isp_hw_proc_reset(isp_hw_t *isp_hw, void *action_data,
+  uint32_t action_data_size)
+{
+  int rc = 0;
+  rc = isp_axi_action(isp_hw->axi.private_data, ISP_AXI_ACTION_CODE_RESET,
+                      action_data, action_data_size);
+
+  return rc;
+}
+
+static int isp_hw_proc_restart(isp_hw_t *isp_hw)
+{
+  int rc = 0;
+  rc = isp_axi_action(isp_hw->axi.private_data, ISP_AXI_ACTION_CODE_RESTART,
+                      NULL, 0);
 
   return rc;
 }
@@ -3548,28 +3790,35 @@ static int isp_hw_set_params(void *ctrl, uint32_t params_id, void *in_params,
 {
   int len, rc = 0;
   isp_hw_t *isp_hw = ctrl;
-  isp_pipe_set_params_t set_params;
-  uint32_t cmd = MM_ISP_CMD_SET_PARAMS;
 
-  set_params.in_params = in_params;
-  set_params.in_params_size = in_params_size;
-  set_params.params_id = params_id;
+  if (params_id == ISP_HW_SET_PARAM_OVERFLOW_DETECTED) {
+    pthread_mutex_lock(&isp_hw->overflow_mutex);
+    isp_hw->is_overflow = *((uint32_t *)in_params);
+    if (isp_hw->is_overflow) {
+      sem_init(&isp_hw->reset_done, 0, 0);
+    } else {
+      sem_post(&isp_hw->reset_done);
+    }
+    pthread_mutex_unlock(&isp_hw->overflow_mutex);
+  } else {
+    isp_pipe_set_params_t set_params;
+    uint32_t cmd = MM_ISP_CMD_SET_PARAMS;
+    set_params.in_params = in_params;
+    set_params.in_params_size = in_params_size;
+    set_params.params_id = params_id;
 
-  pthread_mutex_lock(&isp_hw->thread_hw.cmd_mutex);
-
-  isp_hw->thread_hw.set_param_cmd = &set_params;
-
-  len = write(isp_hw->thread_hw.pipe_fds[1], &cmd, sizeof(cmd));
-  if (len != sizeof(cmd)) {
-    /* we got error here */
+    pthread_mutex_lock(&isp_hw->thread_hw.cmd_mutex);
+    isp_hw->thread_hw.set_param_cmd = &set_params;
+    len = write(isp_hw->thread_hw.pipe_fds[1], &cmd, sizeof(cmd));
+    if (len != sizeof(cmd)) {
+      /* we got error here */
+      pthread_mutex_unlock(&isp_hw->thread_hw.cmd_mutex);
+      return -EPIPE;
+    }
+    sem_wait(&isp_hw->thread_hw.sig_sem);
+    rc = isp_hw->thread_hw.return_code;
     pthread_mutex_unlock(&isp_hw->thread_hw.cmd_mutex);
-    return -EPIPE;
   }
-
-  sem_wait(&isp_hw->thread_hw.sig_sem);
-  rc = isp_hw->thread_hw.return_code;
-
-  pthread_mutex_unlock(&isp_hw->thread_hw.cmd_mutex);
 
   return rc;
 }
@@ -3621,17 +3870,36 @@ static int isp_hw_get_params(void *ctrl, uint32_t params_id, void *in_params,
 static int isp_hw_open(isp_hw_t *isp_hw, char *dev_name)
 {
   int rc = 0;
+  struct msm_vfe_smmu_attach_cmd cmd;
 
+  memset(&cmd, 0, sizeof(cmd));
   switch (isp_hw->hw_state) {
   case ISP_HW_STATE_INVALID: {
     isp_hw->fd = open(dev_name, O_RDWR | O_NONBLOCK);
 
+    if ((isp_hw->fd) >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      isp_hw->fd = -1;
+      return -1;
+    }
     if (isp_hw->fd <= 0) {
       CDBG_ERROR("%s: cannot open '%s'\n", __func__, dev_name);
       isp_hw->fd = 0;
       return -1;
     }
 
+    cmd.security_mode = NON_SECURE_MODE;
+    cmd.iommu_attach_mode = IOMMU_ATTACH;
+    rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_SMMU_ATTACH, &cmd);
+    if (rc < 0) {
+      CDBG_ERROR("%s: isp smmu attach error = %d\n", __func__, rc);
+      return -1;
+    }
+    rc = isp_hw_subscribe_one_v4l2_event(isp_hw, ISP_EVENT_WM_BUS_OVERFLOW, TRUE);
+    if (rc < 0) {
+      CDBG_ERROR("%s: isp subscribe event error = %d\n", __func__, rc);
+      return -1;
+    }
     /* hw opened, set state to idle */
     isp_hw->hw_state = ISP_HW_STATE_DEV_OPEN;
   }
@@ -3748,7 +4016,7 @@ static int isp_hw_action(void *ctrl, uint32_t action_code, void *action_data,
     }
 
     if (param->wait_for_sof) {
-      CDBG("%s: stream on thread wait for sof...\n", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: stream on thread wait for sof...\n", __func__);
       thread = &isp_hw->thread_poll;
       action.action_code = ISP_HW_ACTION_CODE_WAKE_UP_AT_SOF;
       action.data = NULL;
@@ -3803,7 +4071,7 @@ static int isp_hw_action(void *ctrl, uint32_t action_code, void *action_data,
 
   case ISP_HW_ACTION_CODE_STREAM_START_ACK:
   case ISP_HW_ACTION_CODE_STREAM_STOP_ACK: {
-    CDBG("%s: Sending start/stop ack \n",__func__);
+    ISP_DBG(ISP_MOD_COM,"%s: Sending start/stop ack \n",__func__);
     action.action_code = action_code;
     action.data = action_data;
     action.data_size = action_data_size;
@@ -3820,7 +4088,15 @@ static int isp_hw_action(void *ctrl, uint32_t action_code, void *action_data,
     }
   }
     break;
-
+  case ISP_HW_ACTION_CODE_HALT: // This needs to be executed immediately in the calling thread
+    rc = isp_hw_proc_halt(isp_hw);
+    return rc;
+  case ISP_HW_ACTION_CODE_RESET:
+    rc = isp_hw_proc_reset(isp_hw, action_data, action_data_size);
+    return rc;
+  case ISP_HW_ACTION_CODE_RESTART:
+    rc = isp_hw_proc_restart(isp_hw);
+    return rc;
   default: {
     /* use hw polling thread and pipe for rest of commands */
     thread = &isp_hw->thread_poll;
@@ -3896,10 +4172,17 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
   struct msm_vfe_cfg_cmd2 cmd2;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd;
   unsigned long max_clk_rate = 0;
+  unsigned long wm_ub_size = VFE40_UB_SIZE_24KB;
+  uint32_t ub_policy = VFE40_UB_SLICING_POLICY_DEFAULT;
 
   fd = open(dev_name, O_RDWR | O_NONBLOCK);
+  if (fd >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    fd = -1;
+    return -1;
+  }
   if (fd < 0) {
-    CDBG("%s: cannot open '%s'\n", __func__, dev_name);
+    ISP_DBG(ISP_MOD_COM,"%s: cannot open '%s'\n", __func__, dev_name);
     return -1;
   }
 
@@ -3922,6 +4205,9 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
     goto end;
   }
 
+  /* Assign HW Device details */
+  cap->hw_ver = ver;
+
   memset(&cmd2, 0, sizeof(cmd2));
   memset(&reg_cfg_cmd, 0, sizeof(reg_cfg_cmd));
 
@@ -3940,6 +4226,8 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
 
   cap->stats_mask = 0;
   cap->isp_info.max_pix_clk = max_clk_rate;
+  cap->isp_info.longshot_max_bandwidth = 0;
+  cap->isp_info.zsl_max_bandwidth = 0;
 
   switch (ver) {
   case ISP_MSM8974_V1:
@@ -3974,12 +4262,37 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
     }
 
     cap->isp_info.ver = *isp_version;
+    cap->isp_info.max_scaler_out_width = 2816;
+    cap->isp_info.max_scaler_out_height = 2252;
   }
     break;
 
   case ISP_MSM8226_V1:
-  case ISP_MSM8226_V2: {
+  case ISP_MSM8226_V2:
+  case ISP_MSM8916:
+  case ISP_MSM8939: {
     *isp_version = SET_ISP_VERSION(ISP_VERSION_40, ISP_REVISION_V2);
+    /* Limit ZSL+Longshot FPS to 4.5 for 8916 and 3.9 for 8939
+       at full resolution and ZSL only to 7.5. These values are
+       arrived at by analysing BUS characteristics*/
+    if (ver == ISP_MSM8916) {
+      cap->isp_info.max_resolution = 4288 * 3216;
+      cap->isp_info.max_scaler_out_width = 2112;
+      cap->isp_info.max_scaler_out_height = 1188;
+      cap->isp_info.longshot_max_bandwidth =
+        cap->isp_info.max_resolution * ISP_LIMIT_FPS_4p5;
+      cap->isp_info.zsl_max_bandwidth =
+        cap->isp_info.max_resolution * ISP_LIMIT_FPS_7p5;
+    } else if (ver == ISP_MSM8939) {
+      cap->isp_info.max_resolution = 5376 * 4032;
+      cap->isp_info.max_scaler_out_width = 2816;
+      cap->isp_info.max_scaler_out_height = 1600;
+      cap->isp_info.longshot_max_bandwidth =
+        cap->isp_info.max_resolution * ISP_LIMIT_FPS_3p9;
+    } else {
+      cap->isp_info.max_scaler_out_width = 2816;
+      cap->isp_info.max_scaler_out_height = 2252;
+    }
     cap->num_pix = 1;
     cap->num_rdi = 3;
     cap->num_wms = 7;
@@ -3993,7 +4306,6 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
     cap->stats_mask |= (1 << MSM_ISP_STATS_BF);
     cap->stats_mask |= (1 << MSM_ISP_STATS_BHIST);
     cap->isp_info.id = 0;
-    cap->isp_info.max_resolution = 4288 * 3216;
     cap->isp_info.ver = *isp_version;
   }
     break;
@@ -4001,14 +4313,31 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
   case ISP_MSM8930:
   case ISP_MSM8960V2:
   case ISP_MSM8610:
-  case ISP_MSM8960V1: {
+  case ISP_MSM8960V1:
+  case ISP_MSM8909: {
     if ((ver == ISP_MSM8930) || (ver == ISP_MSM8610)) {
       *isp_version = SET_ISP_VERSION(ISP_VERSION_32, ISP_REVISION_V2);
     } else if (ver == ISP_MSM8960V1) {
       *isp_version = SET_ISP_VERSION(ISP_VERSION_32, ISP_REVISION_V1);
-    }
-    else {
+    } else if (ver == ISP_MSM8909) {
+      *isp_version = SET_ISP_VERSION(ISP_VERSION_32, ISP_REVISION_V3);
+    } else {
       *isp_version = SET_ISP_VERSION(ISP_VERSION_32, ISP_REVISION_V2);
+    }
+
+    if (ver == ISP_MSM8610) {
+      cap->isp_info.max_scaler_out_width = 1056;
+      cap->isp_info.max_scaler_out_height = 594;
+    } else if(ver == ISP_MSM8909) {
+      cap->isp_info.max_resolution = 3264 * 2448;
+      cap->isp_info.max_scaler_out_width = 1408;
+      cap->isp_info.max_scaler_out_height = 792;
+      cap->isp_info.longshot_max_bandwidth =
+        cap->isp_info.max_resolution * ISP_LIMIT_FPS_3p0;
+	  cap->isp_info.use_pix_for_SOC = 1;
+    } else {
+      cap->isp_info.max_scaler_out_width = 2112;
+      cap->isp_info.max_scaler_out_height = 1188;
     }
 
     cap->num_pix = 1;
@@ -4039,6 +4368,62 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
   }
     break;
   }
+
+  switch(GET_ISP_MAIN_VERSION(*isp_version)){
+  case ISP_VERSION_32:
+    if (ver == ISP_MSM8909)
+      wm_ub_size = VFE32_UB_SIZE_32KB;
+    else
+      wm_ub_size = VFE32_UB_SIZE;
+    break;
+  case ISP_VERSION_40:
+    if (ver == ISP_MSM8916) {
+      wm_ub_size = VFE40_UB_SIZE_32KB;
+      ub_policy = VFE40_UB_SLICING_POLICY_DEFAULT;
+    } else if (ver == ISP_MSM8939) {
+      wm_ub_size = VFE40_UB_SIZE_48KB;
+      ub_policy = VFE40_UB_SLICING_POLICY_EQUAL;
+    }
+    break;
+  case ISP_VERSION_44:
+    wm_ub_size = VFE44_UB_SIZE;
+    break;
+  default:
+    wm_ub_size = VFE40_UB_SIZE_24KB;
+    break;
+  }
+
+  /* Send UB Size info to kernel */
+  memset(&cmd2, 0, sizeof(cmd2));
+  memset(&reg_cfg_cmd, 0, sizeof(reg_cfg_cmd));
+
+  cmd2.cfg_cmd = (void *)&reg_cfg_cmd;
+  cmd2.cfg_data = (void *)&wm_ub_size;
+  cmd2.cmd_len = sizeof(wm_ub_size);
+  cmd2.num_cfg = 1;
+
+  reg_cfg_cmd.cmd_type = SET_WM_UB_SIZE;
+
+  rc = ioctl(fd, VIDIOC_MSM_VFE_REG_CFG, &cmd2);
+  if (rc < 0) {
+    CDBG_ERROR("%s: set wm ub size error = %d\n", __func__, rc);
+    goto end;
+  }
+  memset(&cmd2, 0, sizeof(cmd2));
+  memset(&reg_cfg_cmd, 0, sizeof(reg_cfg_cmd));
+  reg_cfg_cmd.cmd_type = SET_UB_POLICY;
+  cmd2.cfg_cmd = (void *)&reg_cfg_cmd;
+  cmd2.cfg_data = (void *)&ub_policy;
+  cmd2.cmd_len = sizeof(ub_policy);
+  cmd2.num_cfg = 1;
+
+
+  rc = ioctl(fd, VIDIOC_MSM_VFE_REG_CFG, &cmd2);
+  if (rc < 0) {
+    CDBG_ERROR("%s: set ub policy size error = %d\n", __func__, rc);
+    goto end;
+  }
+
 
 end:
   close(fd);

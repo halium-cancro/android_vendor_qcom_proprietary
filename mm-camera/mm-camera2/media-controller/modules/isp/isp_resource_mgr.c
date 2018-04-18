@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -20,6 +20,8 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_def.h"
 #include "isp_resource_mgr.h"
 #include "isp_hw.h"
+#include "isp_log.h"
+#include"isp.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -34,6 +36,10 @@ Qualcomm Technologies Proprietary and Confidential.
 #define CDBG_ERROR ALOGE
 #undef CDBG_HIGH
 #define CDBG_HIGH ALOGE
+
+#define RM_RDI_POLICY_ONE_CID_ONE_RDI (1)
+#define RM_RDI_POLICY_MIMIC_PIX       (2)
+#define RM_RDI_POLICY_CURRENT         RM_RDI_POLICY_MIMIC_PIX
 
 static isp_resources_t isp_res_mgr;
 
@@ -51,7 +57,7 @@ boolean get_dual_vfe_session_id(int *session_idx)
   pthread_mutex_lock(&isp_res_mgr.mutex);
 
   if (isp_res_mgr.num_isps < 2) {
-    CDBG("%s: no dual VFE support\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: no dual VFE support\n", __func__);
     pthread_mutex_unlock(&isp_res_mgr.mutex);
     return FALSE;
   }
@@ -59,7 +65,7 @@ boolean get_dual_vfe_session_id(int *session_idx)
   if (isp_res_mgr.used_mask[0].camif_mask &&
     (isp_res_mgr.used_mask[0].camif_mask ==
     isp_res_mgr.used_mask[1].camif_mask)) {
-    CDBG("%s: camif_mask[0] = 0x%x, camif_mask[1] = 0x%x\n", __func__,
+    ISP_DBG(ISP_MOD_COM,"%s: camif_mask[0] = 0x%x, camif_mask[1] = 0x%x\n", __func__,
       isp_res_mgr.used_mask[0].camif_mask, isp_res_mgr.used_mask[1].camif_mask);
 
     for (i = 0; i < ISP_MAX_SESSIONS; i++) {
@@ -88,7 +94,7 @@ boolean has_isp_pix_interface(void)
   pthread_mutex_lock(&isp_res_mgr.mutex);
   for (i = 0; i < isp_res_mgr.num_isps; i++) {
     if (isp_res_mgr.used_mask[i].camif_mask == 0) {
-      CDBG("%s: ISP %d has free camif interface\n", __func__, i);
+      ISP_DBG(ISP_MOD_COM,"%s: ISP %d has free camif interface\n", __func__, i);
       pthread_mutex_unlock(&isp_res_mgr.mutex);
       return TRUE;
     }
@@ -205,7 +211,7 @@ static boolean isp_is_camif_raw(mct_stream_info_t *stream_info)
  *
  **/
 static int decide_isp_nums_camif(mct_stream_info_t *stream_info,
-  sensor_dim_output_t *dim_output, int fps, uint32_t op_pix_clk)
+  sensor_dim_output_t *dim_output, uint32_t op_pix_clk)
 {
   int num_isps = 0;
   int32_t enabled = 0;
@@ -257,16 +263,15 @@ static int decide_isp_nums_camif(mct_stream_info_t *stream_info,
 static boolean is_isp_used_by_session(int isp_id, uint32_t session_bit)
 {
   isp_interface_session_mask_t *isp_mask = &isp_res_mgr.used_mask[isp_id];
+  int i;
   if (isp_mask->camif_mask & session_bit)
     return TRUE;
-  else if (isp_mask->rdi0_mask & session_bit)
-    return TRUE;
-  else if (isp_mask->rdi1_mask & session_bit)
-    return TRUE;
-  else if (isp_mask->rdi2_mask & session_bit)
-    return TRUE;
-  else
-    return FALSE;
+  else {
+    for (i = 0; i < ISP_RM_NUM_RDI; i++)
+      if (isp_mask->rdi_mask[i] & session_bit)
+        return TRUE;
+  }
+  return FALSE;
 }
 
 /** get_camif_resource
@@ -275,7 +280,7 @@ static boolean is_isp_used_by_session(int isp_id, uint32_t session_bit)
  *
  **/
 static int get_camif_resource(int isp_id, uint32_t session_bit,
-  uint32_t *isp_interface_mask, uint32_t *isp_id_mask)
+  uint32_t *isp_interface_mask, uint32_t *isp_id_mask, uint32_t cid)
 {
   isp_interface_session_mask_t *isp_mask = &isp_res_mgr.used_mask[isp_id];
 
@@ -286,6 +291,7 @@ static int get_camif_resource(int isp_id, uint32_t session_bit,
     return 0;
   } else if (isp_mask->camif_mask == 0) {
     isp_mask->camif_mask = session_bit;
+    isp_mask->camif_cid = cid;
     *isp_interface_mask = (1 << (16 * isp_id + ISP_INTF_PIX));
     *isp_id_mask = (1 << isp_id);
     return 0;
@@ -300,7 +306,7 @@ static int get_camif_resource(int isp_id, uint32_t session_bit,
  **/
 static int reserve_camif_resource(boolean is_ispif,
   sensor_src_port_cap_t *sensor_cap, mct_stream_info_t *stream_info,
-  sensor_dim_output_t *dim_output, int fps, uint32_t op_pix_clk,
+  sensor_dim_output_t *dim_output, uint32_t cid, uint32_t op_pix_clk,
   uint32_t session_idx, uint32_t *isp_interface_mask, uint32_t *isp_id_mask)
 {
   int rc = -1;
@@ -315,30 +321,30 @@ static int reserve_camif_resource(boolean is_ispif,
     isp_fetch = 1;
 
   session_bit = ISP_SESSION_BIT(isp_fetch, session_idx);
-  num_isps = decide_isp_nums_camif(stream_info, dim_output, fps, op_pix_clk);
-  CDBG("%s: is_ispif = %d, sess_idx = %d, fps = %d, num_isps = %d\n",
-       __func__, is_ispif, session_idx, fps, num_isps);
+  num_isps = decide_isp_nums_camif(stream_info, dim_output, op_pix_clk);
+  ISP_DBG(ISP_MOD_COM,"%s: is_ispif = %d, sess_idx = %d, num_isps = %d\n",
+       __func__, is_ispif, session_idx, num_isps);
 
   if (num_isps == 1) {
     isp_id = 0;
     if (is_isp_used_by_session(isp_id, session_bit)) {
       /* isp0 is used by the session. get camif from isp 0 */
       rc = get_camif_resource(isp_id, session_bit,
-        isp_interface_mask, isp_id_mask);
+        isp_interface_mask, isp_id_mask, cid);
     } else if ((is_isp_used_by_session(1, session_bit))){
       /* session is associated with isp 1 */
       isp_id = 1;
       rc = get_camif_resource(isp_id, session_bit,
-        isp_interface_mask, isp_id_mask);
+        isp_interface_mask, isp_id_mask, cid);
     } else {
       if (isp_res_mgr.used_mask[0].camif_mask == 0) {
         isp_id = 0;
         rc = get_camif_resource(isp_id, session_bit,
-          isp_interface_mask, isp_id_mask);
+          isp_interface_mask, isp_id_mask, cid);
       } else if (isp_res_mgr.used_mask[1].camif_mask == 0) {
         isp_id = 1;
         rc = get_camif_resource(isp_id, session_bit,
-          isp_interface_mask, isp_id_mask);
+          isp_interface_mask, isp_id_mask, cid);
       }
     }
   } else {
@@ -365,28 +371,52 @@ static int reserve_camif_resource(boolean is_ispif,
  *
  **/
 static int get_rdi_resource(int isp_id, uint32_t session_bit,
-  uint32_t *isp_interface_mask, uint32_t *isp_id_mask)
+  uint32_t *isp_interface_mask, uint32_t *isp_id_mask, uint32_t cid,
+  cam_stream_type_t stream_type)
 {
+  int i;
   isp_interface_session_mask_t *isp_mask = &isp_res_mgr.used_mask[isp_id];
 
-  /* try RDI 0 first */
-  if (isp_mask->rdi0_mask == 0) {
-    isp_mask->rdi0_mask = session_bit;
-    *isp_interface_mask = (1 << (16 * isp_id + ISP_INTF_RDI0));
-    *isp_id_mask = (1 << isp_id);
-    return 0;
-  } else if (isp_mask->rdi1_mask == 0) {
-    isp_mask->rdi1_mask = session_bit;
-    *isp_interface_mask = (1 << (16 * isp_id + ISP_INTF_RDI1));
-    *isp_id_mask = (1 << isp_id);
-    return 0;
-  } else if (isp_mask->rdi2_mask == 0) {
-    isp_mask->rdi2_mask = session_bit;
-    *isp_interface_mask = (1 << (16 * isp_id + ISP_INTF_RDI2));
-    *isp_id_mask = (1 << isp_id);
-    return 0;
-  } else
-    return -1;
+#if (RM_RDI_POLICY_CURRENT == RM_RDI_POLICY_ONE_CID_ONE_RDI)
+  for (i = 0; i < ISP_RM_NUM_RDI; i++) {
+    if ((isp_mask->rdi_mask[i] != 0) && (isp_mask->rdi_cid[i] == (1u << cid)))
+    {
+      /* if stream is connected with same cid - reuse RDI */
+      *isp_interface_mask = (1 << (16 * isp_id + (ISP_INTF_RDI0 + i)));
+      *isp_id_mask = (1 << isp_id);
+      isp_mask->rdi_streams[i] |= 1u << stream_type;
+      return 0;
+    }
+  }
+#elif (RM_RDI_POLICY_CURRENT == RM_RDI_POLICY_MIMIC_PIX)
+  if((stream_type == CAM_STREAM_TYPE_PREVIEW) ||
+      (stream_type == CAM_STREAM_TYPE_VIDEO)) {
+    for (i = 0; i < ISP_RM_NUM_RDI; i++) {
+      if ((isp_mask->rdi_mask[i] != 0) &&
+          ((isp_mask->rdi_streams[i] & (1u << CAM_STREAM_TYPE_PREVIEW)) ||
+            (isp_mask->rdi_streams[i] & (1u << CAM_STREAM_TYPE_VIDEO))))
+      {
+        /* if stream is connected with same cid - reuse RDI */
+        *isp_interface_mask = (1 << (16 * isp_id + (ISP_INTF_RDI0 + i)));
+        *isp_id_mask = (1 << isp_id);
+        isp_mask->rdi_streams[i] |= 1u << stream_type;
+        return 0;
+      }
+    }
+  }
+#endif
+
+  for (i = 0; i < ISP_RM_NUM_RDI; i++) {
+    if (isp_mask->rdi_mask[i] == 0) {
+      isp_mask->rdi_mask[i] = session_bit;
+      isp_mask->rdi_cid[i] = (1u << cid);
+      isp_mask->rdi_streams[i] = (1u << stream_type);
+      *isp_interface_mask = (1 << (16 * isp_id + (ISP_INTF_RDI0 + i)));
+      *isp_id_mask = (1 << isp_id);
+      return 0;
+    }
+  }
+  return -1;
 }
 
 /** reserve_rdi_resource
@@ -395,13 +425,14 @@ static int get_rdi_resource(int isp_id, uint32_t session_bit,
  *
  **/
 static int reserve_rdi_resource(boolean is_ispif, uint32_t session_idx,
- uint32_t *isp_interface_mask, uint32_t *isp_id_mask)
+ uint32_t *isp_interface_mask, uint32_t *isp_id_mask, uint32_t cid,
+  cam_stream_type_t stream_type)
 {
   int rc = 0;
   uint8_t isp_fetch = 0;
   uint32_t session_bit = 0;
   int num_isps = 0;
-  CDBG("%s: E\n",  __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E\n",  __func__);
 
   /*only when we use fetch engine, the isp_fetch =1*/
   if (!is_ispif)
@@ -410,18 +441,22 @@ static int reserve_rdi_resource(boolean is_ispif, uint32_t session_idx,
 
   if (is_isp_used_by_session(VFE0, session_bit)) {
     /* isp0 is used by the session. get RDI from isp 0 */
-    rc = get_rdi_resource(VFE0, session_bit, isp_interface_mask, isp_id_mask);
+    rc = get_rdi_resource(VFE0, session_bit, isp_interface_mask, isp_id_mask,
+      cid, stream_type);
   } else if (is_isp_used_by_session(VFE1, session_bit)) {
-    rc = get_rdi_resource(VFE1, session_bit, isp_interface_mask, isp_id_mask);
+    rc = get_rdi_resource(VFE1, session_bit, isp_interface_mask, isp_id_mask,
+      cid, stream_type);
   } else {
     /* One VFE can support 1 bayer camera and 1 RDI camera (RDI based PIP).
      * But RDI based PIP has not been implemented. Now, for pure
      * RDI camera we force to use VFE1 as a short time solution. This policy
      * logic needs to be revisited when implementing RDI PIP. */
     if (isp_res_mgr.num_isps > 1)
-      rc = get_rdi_resource(VFE1, session_bit, isp_interface_mask, isp_id_mask);
+      rc = get_rdi_resource(VFE1, session_bit, isp_interface_mask, isp_id_mask,
+        cid, stream_type);
     else
-      rc = get_rdi_resource(VFE0, session_bit, isp_interface_mask, isp_id_mask);
+      rc = get_rdi_resource(VFE0, session_bit, isp_interface_mask, isp_id_mask,
+        cid, stream_type);
   }
   return rc;
 }
@@ -433,16 +468,16 @@ static int reserve_rdi_resource(boolean is_ispif, uint32_t session_idx,
  **/
 static void dump_isp_res_mask()
 {
-  CDBG("%s: isp0: camif = 0x%x, rdi0 = 0x%x, rdi1 = 0x%x, rdi2 = 0x%x",
+  ISP_DBG(ISP_MOD_COM,"%s: isp0: camif = 0x%x, rdi0 = 0x%x, rdi1 = 0x%x, rdi2 = 0x%x",
      __func__, isp_res_mgr.used_mask[0].camif_mask,
-       isp_res_mgr.used_mask[0].rdi0_mask,
-       isp_res_mgr.used_mask[0].rdi1_mask,
-       isp_res_mgr.used_mask[0].rdi1_mask);
-  CDBG("%s: isp1: camif = 0x%x, rdi0 = 0x%x, rdi1 = 0x%x, rdi2 = 0x%x",
+       isp_res_mgr.used_mask[0].rdi_mask[0],
+       isp_res_mgr.used_mask[0].rdi_mask[1],
+       isp_res_mgr.used_mask[0].rdi_mask[2]);
+  ISP_DBG(ISP_MOD_COM,"%s: isp1: camif = 0x%x, rdi0 = 0x%x, rdi1 = 0x%x, rdi2 = 0x%x",
        __func__, isp_res_mgr.used_mask[1].camif_mask,
-       isp_res_mgr.used_mask[1].rdi0_mask,
-       isp_res_mgr.used_mask[1].rdi1_mask,
-       isp_res_mgr.used_mask[1].rdi1_mask);
+       isp_res_mgr.used_mask[1].rdi_mask[0],
+       isp_res_mgr.used_mask[1].rdi_mask[1],
+       isp_res_mgr.used_mask[1].rdi_mask[2]);
 }
 
 /** reserve_isp_resource
@@ -452,24 +487,30 @@ static void dump_isp_res_mask()
  **/
 int reserve_isp_resource(boolean use_pix, boolean is_ispif,
   sensor_src_port_cap_t *sensor_cap, mct_stream_info_t *stream_info,
-  sensor_dim_output_t *dim_output, int fps, uint32_t op_pix_clk,
+  sensor_dim_output_t *dim_output, uint32_t cid, uint32_t op_pix_clk,
   uint32_t session_idx, uint32_t *isp_interface_mask, uint32_t *isp_id_mask)
 {
   int rc = 0;
+  cam_stream_type_t stream_type;
 
   pthread_mutex_lock(&isp_res_mgr.mutex);
-  if (use_pix)
+  if (use_pix) {
     rc = reserve_camif_resource(is_ispif,
-      sensor_cap, stream_info, dim_output, fps,
+      sensor_cap, stream_info, dim_output, cid,
       op_pix_clk, session_idx, isp_interface_mask, isp_id_mask);
-  else
+  } else {
+    if(stream_info)
+      stream_type = stream_info->stream_type;
+    else
+      stream_type = CAM_STREAM_TYPE_METADATA;
     rc = reserve_rdi_resource(is_ispif, session_idx,
-      isp_interface_mask, isp_id_mask);
+      isp_interface_mask, isp_id_mask, cid, stream_type);
+  }
   if(rc < 0)
     CDBG_ERROR("%s: Error reserving %s resource\n",
       __func__, use_pix?"camif":"RDI");
 
-  CDBG("%s: session_idx = %d, isp_mask = 0x%x, isp_interface_mask = 0x%x",
+  ISP_DBG(ISP_MOD_COM,"%s: session_idx = %d, isp_mask = 0x%x, isp_interface_mask = 0x%x",
        __func__, session_idx, *isp_id_mask, *isp_interface_mask);
   dump_isp_res_mask();
   pthread_mutex_unlock(&isp_res_mgr.mutex);
@@ -489,72 +530,81 @@ int release_isp_resource(boolean is_ispif, uint32_t session_idx,
   uint8_t isp_fetch = 0;
   uint32_t session_bit = 0;
   int num_isps = 0;
-  int isp_id = 0;
-  int rdi_idx = 0;
+  int isp_id = VFE0;
+  int intf_idx = 0;
   int rc = 0;
 
   pthread_mutex_lock(&isp_res_mgr.mutex);
-  rdi_idx = isp_interface_mask_to_interface_num(isp_interface_mask, isp_id_mask);
-  if (rdi_idx < 0 || rdi_idx >= ISP_INTF_MAX) {
-    CDBG_ERROR("%s: invalid RDI interface num %d\n", __func__, rdi_idx);
-    rc = -1;
-    goto end;
-  }
   if (!is_ispif)
     isp_fetch = 1;
 
   session_bit = ISP_SESSION_BIT(isp_fetch, session_idx);
   if (isp_id_mask & (1 << VFE0)) {
     /* release isp0 rdi */
-    isp_id = 0;
-    isp_interface_session_mask_t *isp_mask = &isp_res_mgr.used_mask[isp_id];
-    if (rdi_idx == ISP_INTF_PIX) {
+    isp_mask = &isp_res_mgr.used_mask[isp_id];
+    intf_idx = isp_interface_mask_to_interface_num(isp_interface_mask,
+      (1 << isp_id));
+    if (intf_idx < 0 || intf_idx >= ISP_INTF_MAX) {
+      CDBG_ERROR("%s:  invalid interface num %d\n", __func__, intf_idx);
+      rc = -1;
+      goto vfe1;
+    }
+    if (intf_idx == ISP_INTF_PIX) {
       isp_mask->camif_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, camif_session_bit = 0x%x\n",
+      ISP_DBG(ISP_MOD_COM,"%s: isp_id = %d, camif_session_bit = 0x%x\n",
         __func__, isp_id, isp_mask->camif_mask);
-    } else if (rdi_idx == ISP_INTF_RDI0) {
-      isp_mask->rdi0_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, rdi0_session_bit = 0x%x\n",
-        __func__, isp_id, isp_mask->rdi0_mask);
-    } else if (rdi_idx == ISP_INTF_RDI1) {
-      isp_mask->rdi1_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, rdi1_session_bit = 0x%x\n",
-        __func__, isp_id, isp_mask->rdi1_mask);
-    } else if (rdi_idx == ISP_INTF_RDI2) {
-      isp_mask->rdi2_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, rdi2_session_bit = 0x%x\n",
-        __func__, isp_id, isp_mask->rdi2_mask);
+    } else if (intf_idx == ISP_INTF_RDI0) {
+      isp_mask->rdi_mask[0] &= ~session_bit;
+      isp_mask->rdi_cid[0] = 0;
+      isp_mask->rdi_streams[0] = 0;
+    } else if (intf_idx == ISP_INTF_RDI1) {
+      isp_mask->rdi_mask[1] &= ~session_bit;
+      isp_mask->rdi_cid[1] = 0;
+      isp_mask->rdi_streams[1] = 0;
+    } else if (intf_idx == ISP_INTF_RDI2) {
+      isp_mask->rdi_mask[2] &= ~session_bit;
+      isp_mask->rdi_cid[2] = 0;
+      isp_mask->rdi_streams[2] = 0;
     } else
       rc = -1;
   }
-
+vfe1:
   if (isp_id_mask & (1 << VFE1)) {
     /* release isp1 rdi */
-    isp_id = 1;
-
-    isp_interface_session_mask_t *isp_mask = &isp_res_mgr.used_mask[isp_id];
-    if (rdi_idx == ISP_INTF_PIX) {
+    isp_id = VFE1;
+    isp_mask = &isp_res_mgr.used_mask[isp_id];
+    intf_idx = isp_interface_mask_to_interface_num(isp_interface_mask,
+      (1 << isp_id));
+    if (intf_idx < 0 || intf_idx >= ISP_INTF_MAX) {
+      CDBG_ERROR("%s: invalid interface num %d\n", __func__, intf_idx);
+      rc = -1;
+      goto end;
+    }
+    if (intf_idx == ISP_INTF_PIX) {
       isp_mask->camif_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, camif_session_bit = 0x%x\n",
+      ISP_DBG(ISP_MOD_COM,"%s: isp_id = %d, camif_session_bit = 0x%x\n",
         __func__, isp_id, isp_mask->camif_mask);
-    } else if (rdi_idx == ISP_INTF_RDI0) {
-      isp_mask->rdi0_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, rdi0_session_bit = 0x%x\n",
-        __func__, isp_id, isp_mask->rdi0_mask);
-    } else if (rdi_idx == ISP_INTF_RDI1) {
-      isp_mask->rdi1_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, rdi1_session_bit = 0x%x\n",
-        __func__, isp_id, isp_mask->rdi1_mask);
-    } else if (rdi_idx == ISP_INTF_RDI2) {
-      isp_mask->rdi2_mask &= ~session_bit;
-      CDBG("%s: isp_id = %d, rdi2_session_bit = 0x%x\n",
-        __func__, isp_id, isp_mask->rdi2_mask);
+    } else if (intf_idx == ISP_INTF_RDI0) {
+      isp_mask->rdi_mask[0] &= ~session_bit;
+      isp_mask->rdi_cid[0] = 0;
+      ISP_DBG(ISP_MOD_COM,"%s: isp_id = %d, rdi0_session_bit = 0x%x\n",
+        __func__, isp_id, isp_mask->rdi_mask[0]);
+    } else if (intf_idx == ISP_INTF_RDI1) {
+      isp_mask->rdi_mask[1] &= ~session_bit;
+      isp_mask->rdi_cid[1] = 0;
+      ISP_DBG(ISP_MOD_COM,"%s: isp_id = %d, rdi1_session_bit = 0x%x\n",
+        __func__, isp_id, isp_mask->rdi_mask[1]);
+    } else if (intf_idx == ISP_INTF_RDI2) {
+      isp_mask->rdi_mask[2] &= ~session_bit;
+      isp_mask->rdi_cid[2] = 0;
+      ISP_DBG(ISP_MOD_COM,"%s: isp_id = %d, rdi2_session_bit = 0x%x\n",
+        __func__, isp_id, isp_mask->rdi_mask[2]);
     } else
       rc = -1;
   }
 
 end:
-  CDBG("%s: session_idx = %d, isp_mask = 0x%x, isp_interface_mask = 0x%x",
+  ISP_DBG(ISP_MOD_COM,"%s: session_idx = %d, isp_mask = 0x%x, isp_interface_mask = 0x%x",
     __func__, session_idx, isp_id_mask, isp_interface_mask);
   dump_isp_res_mask();
   pthread_mutex_unlock(&isp_res_mgr.mutex);
@@ -605,7 +655,8 @@ void choose_isp_interface(sensor_out_info_t *sensor_info,
   if ((stream_info->fmt >= CAM_FORMAT_BAYER_MIPI_RAW_8BPP_GBRG &&
     stream_info->fmt <= CAM_FORMAT_BAYER_MIPI_RAW_12BPP_BGGR) ||
     stream_info->fmt == CAM_FORMAT_JPEG_RAW_8BIT ||
-    stream_info->fmt == CAM_FORMAT_META_RAW_8BIT) {
+    stream_info->fmt == CAM_FORMAT_META_RAW_8BIT ||
+    stream_info->fmt == CAM_FORMAT_META_RAW_10BIT) {
     /* For MIPI RAW format, use RDI interface to dump the data directly*/
     *use_pix = 0;
   } else if (stream_info->fmt !=
@@ -617,7 +668,18 @@ void choose_isp_interface(sensor_out_info_t *sensor_info,
      * For Google stock solution we do not implement the case that different.
      * color plane using different CIDs. That can be achieved by using      .
      * sensor_cid_ch[1]. This is not implemented in this phase. */
-    *use_pix = 1;
+    if ( isp_res_mgr.vfe_info[0].use_pix_for_SOC) {
+      *use_pix = 1;
+    } else if (sensor_cap->sensor_cid_ch[primary_cid_idx].fmt >=
+      CAM_FORMAT_YUV_RAW_8BIT_YUYV &&
+      sensor_cap->sensor_cid_ch[primary_cid_idx].fmt <=
+      CAM_FORMAT_YUV_RAW_8BIT_VYUY) {
+      *use_pix = 0;
+    } else if (isp_res_mgr.vfe_info[0].use_pix_for_SOC){
+      *use_pix = 1;
+    } else {
+      *use_pix = 1;
+    }
   }
 }
 
@@ -630,6 +692,7 @@ int isp_resource_mgr_init(uint32_t version, void *isp)
 {
   memset(&isp_res_mgr, 0, sizeof(isp_res_mgr));
   pthread_mutex_init(&isp_res_mgr.mutex, NULL);
+  isp_t * temp_isp = (isp_t *)isp;
   /* if enable avoid_turbo,
      we use dual vfe to avoid turbo mode in single camera. */
   if (ISP_VERSION_40 == GET_ISP_MAIN_VERSION(version)) {
@@ -640,6 +703,7 @@ int isp_resource_mgr_init(uint32_t version, void *isp)
     isp_res_mgr.num_isps = 1;
   }
   isp_res_mgr.isp_ptr = isp;
+ temp_isp->res_mgr = &isp_res_mgr;
   return 0;
 }
 
@@ -664,6 +728,20 @@ void increase_isp_session()
   pthread_mutex_lock(&isp_res_mgr.mutex);
   isp_res_mgr.isp_session_cnt++;
   pthread_mutex_unlock(&isp_res_mgr.mutex);
+}
+
+/** isp_get_number_of_active_sessions
+ *
+ * DESCRIPTION
+ *
+ **/
+int isp_get_number_of_active_sessions()
+{
+  int session_count = 0;
+  pthread_mutex_lock(&isp_res_mgr.mutex);
+  session_count = isp_res_mgr.isp_session_cnt;
+  pthread_mutex_unlock(&isp_res_mgr.mutex);
+  return session_count;
 }
 
 /** decrease_isp_session_cnt

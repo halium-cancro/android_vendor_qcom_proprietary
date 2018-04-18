@@ -444,7 +444,9 @@ static boolean af_fdprio_process_fd_roi(af_fdprio_t *af_fdprio_data) {
 
   curr_biggest_face_index = af_fdprio_get_index_by_id(af_fdprio_data,
     curr_biggest_face_id);
-  if (curr_biggest_face_index == AF_FDPRIO_INDEX_INVALID) {
+
+  /* faces[] array is of size MAX_ROI */
+  if (curr_biggest_face_index == AF_FDPRIO_INDEX_INVALID || curr_biggest_face_index >= MAX_ROI) {
     curr_biggest_face_index = 0;
   }
   CDBG("%s: Index of current biggest face: %d", __func__,
@@ -478,6 +480,10 @@ static boolean af_fdprio_process_fd_roi(af_fdprio_t *af_fdprio_data) {
       af_fdprio_data->active_face.face_id);
     active_face_index = af_fdprio_get_index_by_id(af_fdprio_data,
       af_fdprio_data->active_face.face_id);
+
+    if (active_face_index == AF_FDPRIO_INDEX_INVALID || active_face_index >= MAX_ROI) {
+      active_face_index = 0;
+    }
     af_fdprio_check_face_stability(
       af_fdprio_data,
       &af_fdprio_data->active_face,
@@ -648,9 +654,9 @@ static boolean af_fdprio_is_new_face_big_enough(
   new_face_idx = af_fdprio_get_index_by_id(af_fdprio_data,
     curr_biggest_face_id);
 
-  if(old_face_idx == AF_FDPRIO_INDEX_INVALID)
+  if(old_face_idx == AF_FDPRIO_INDEX_INVALID || old_face_idx >= MAX_ROI)
     return TRUE;
-  if (new_face_idx == AF_FDPRIO_INDEX_INVALID) {
+  if (new_face_idx == AF_FDPRIO_INDEX_INVALID || new_face_idx >= MAX_ROI) {
     return FALSE;
   }
 

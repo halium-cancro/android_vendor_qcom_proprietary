@@ -47,6 +47,7 @@ typedef struct {
  *   @p_sinkport: sink port associated with the client
  *   @p_srcport: source port associated with the client
  *   @stream_info - stream info for the reprocess stream
+ *   @input_stream_info - stream info of the input(snapshot) stream
  *   @p_buf_divert_data - input/process buffer holder
  *   @ session_meta - stream meta data holder
  *   @ cam_denoise_param - current session params
@@ -71,6 +72,7 @@ typedef struct {
   mct_port_t *p_sinkport;
   mct_port_t *p_srcport;
   mct_stream_info_t *stream_info;
+  mct_stream_info_t input_stream_info;
   isp_buf_divert_t *p_buf_divert_data;
   mct_stream_session_metadata_info session_meta;
   cam_denoise_param_t cam_denoise_param;

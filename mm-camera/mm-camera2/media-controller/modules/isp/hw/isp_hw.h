@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -26,8 +26,10 @@ Qualcomm Technologies Proprietary and Confidential.
 #define ISP_MSM8974_V3   0x1001001B
 #define ISP_MSM8226_V1   0x20000013
 #define ISP_MSM8226_V2   0x20010014
-#define ISP_MSM8610    0x3050A
-
+#define ISP_MSM8610      0x3050A
+#define ISP_MSM8916      0x10030000
+#define ISP_MSM8939      0x10040000
+#define ISP_MSM8909      0x30600
 #define ISP_REVISION_V1  1
 #define ISP_REVISION_V2  2
 #define ISP_REVISION_V3  3
@@ -35,6 +37,29 @@ Qualcomm Technologies Proprietary and Confidential.
 #define ISP_MAX_THREAD_POIING_FDS 2
 #define ISP40_NUM_REG_DUMP 576 /* 0x900(hex) = 2304 / 4(4 byte per register) */
 #define ISP32_NUM_REG_DUMP 576
+
+#define ISP_LIMIT_FPS_3p0 (3.0 * Q8)
+#define ISP_LIMIT_FPS_4p5 (4.5 * Q8)
+#define ISP_LIMIT_FPS_7p5 (7.5 * Q8)
+#define ISP_LIMIT_FPS_3p9 (3.9 * Q8)
+
+#define VFE32_BURST_LEN 2
+#define VFE32_UB_SIZE 1024 /* 1024 * 128 bits = 16KB */
+#define VFE32_UB_SIZE_32KB 2048
+#define VFE32_STATS_BURST_LEN 2
+
+#define VFE40_BURST_LEN_1 1
+#define VFE40_BURST_LEN_2 2
+#define VFE40_UB_SIZE_24KB 1536 /* 1536 * 128 bits = 24KB */
+#define VFE40_UB_SIZE_32KB 2048 /* 2048 * 128 bits = 32KB */
+#define VFE40_UB_SIZE_48KB 3072 /* 3072 * 128 bits = 48KB */
+#define VFE40_STATS_BURST_LEN_1 1
+#define VFE40_STATS_BURST_LEN_2 2
+#define VFE40_UB_SLICING_POLICY_DEFAULT 0
+#define VFE40_UB_SLICING_POLICY_EQUAL 1
+#define VFE44_BURST_LEN 3
+#define VFE44_STATS_BURST_LEN 2
+#define VFE44_UB_SIZE 2048
 
 /* root struct for isp pix interface */
 typedef enum {
@@ -112,6 +137,61 @@ typedef struct {
   sem_t sleep_sem;
 }isp_tread_timer_t;
 
+/** isp_saved_params_t
+
+ *    @effect:        saved effect
+ *    @contrast:      saved contrast value
+ *    @bestshot:      saved bestshot value
+ *
+ *  This structure holds all isp parameters set by HAL upon streamon command
+ **/
+typedef struct {
+  int32_t effect;
+  int32_t contrast;
+  cam_scene_mode_type bestshot;
+  int32_t sce_factor;
+  stats_update_mask_t stats_flag;
+  awb_update_t awb_stats_update;
+  aec_update_t aec_stats_update;
+  q3a_ihist_stats_t ihist_stats;
+  cam_flash_mode_t flash_mode;
+  int32_t saturation;
+  uint32_t vhdr_enable;
+  int32_t sharpness;
+  isp_param_frame_skip_pattern_t frame_skip;
+  boolean use_bundled_frame_skip;
+  isp_param_frame_skip_pattern_t bundled_frame_skip;
+  uint8_t ihist_update;
+  float dig_gain;
+  uint32_t uv_subsample_enable;
+  uint32_t vt_enable;
+  boolean uv_subsample_update;
+  isp_hw_set_crop_factor_t zoom_factor;
+  boolean zoom_update;
+  isp_flash_params_t flash_params;
+  awb_update_t awb_stored_stats;
+  aec_update_t aec_stored_stats;
+  uint32_t longshot_enable;
+  uint32_t lowpowermode_yuv_enable;
+  uint32_t lowpowermode_enable;
+  uint32_t lowpowermode_feature_enable;
+  uint32_t lowpowermode_feature_mask;
+} isp_saved_params_t;
+
+/** isp_hw_pending_update_params_t
+ *    @frame_id:        saved effect
+ *    @hw_update_params:      saved contrast value
+ *
+ *  This structure holds all isp parameters set by HAL upon streamon command
+ **/
+typedef struct {
+  uint32_t frame_id;    /* hw input */
+  uint32_t session_id;  /* hw input for finding session */
+  isp_saved_params_t hw_update_params; /* return result */
+  boolean hw_fetch_pending[VFE_MAX];
+  uint32_t dev_idx;
+} isp_hw_pending_update_params_t;
+
 typedef struct {
   uint32_t timer_cnt;
   pthread_t pid;
@@ -136,6 +216,7 @@ typedef struct {
   boolean thread_busy;
   boolean wake_up_at_sof;
   sem_t thread_wait_sem; /* thread waits on this semphore */
+  isp_hw_pending_update_params_t pending_update_params;
 } isp_thread_t;
 
 typedef struct {
@@ -168,7 +249,7 @@ typedef struct {
   uint32_t ref_cnt;
   void *private_data;
   isp_notify_ops_t hwif_notify_ops;
-  uint32_t session_id;
+  uint32_t session_id[VFE_SRC_MAX];
   int num_active_streams;
 } isp_hw_pipeline_t;
 
@@ -194,6 +275,7 @@ typedef struct {
   boolean need_uv_subsample;
   boolean use_native_buf;
   enum msm_vfe_frame_skip_pattern skip_pattern;
+  uint32_t burst_len;
 } isp_hw_stream_cfg_entry_t;
 
 typedef enum {
@@ -255,6 +337,7 @@ typedef struct {
 typedef struct {
   isp_hw_session_t session[ISP_MAX_SESSIONS];
   uint32_t num_active_streams;
+  uint32_t is_overflow;
   uint32_t hw_update_skip;
   isp_hw_dump_t dump_info;
   isp_hw_init_params_t init_params;
@@ -272,9 +355,9 @@ typedef struct {
   isp_thread_t thread_hw;
   boolean use_hw_thread_for_ack;
   isp_diag_t isp_diag;
-  /* from core to hw is a sync call. the sync_mutex
-   * guarantees the head of blocking calling */
-  pthread_mutex_t sync_mutex;
+  pthread_mutex_t overflow_mutex;
+  sem_t reset_done;
+  int sof_subscribe_ref_cnt[ISP_INTF_MAX];
 } isp_hw_t;
 
 typedef enum {
@@ -293,10 +376,12 @@ typedef enum {
   ISP_HW_NOTIFY_FETCH_HW_UPDATE_PARAMS,
   ISP_HW_NOTIFY_CUR_ROLLOFF,
   ISP_HW_NOTIFY_ZOOM_ROI_PARAMS,
+  ISP_HW_NOTIFY_ISPIF_TO_RESET,
   ISP_HW_NOTIFY_MAX
 } isp_hw_notify_params_id_t;
 
 typedef enum {
+  ISP_HW_SET_PARAM_OVERFLOW_DETECTED,
   ISP_HW_SET_PARAM_AF_ROLLOFF_PARAMS,
   ISP_HW_SET_PARAM_CHROMATIX,         /* modulesChromatix_t */
   ISP_HW_SET_PARAM_MAPPED_BUF,        /* isp_mapped_buf_params_t */
@@ -355,6 +440,9 @@ typedef enum {
   ISP_HW_ACTION_CODE_STREAM_START_ACK,  /* isp_action_stream_start_stop_t */
   ISP_HW_ACTION_CODE_STREAM_STOP,       /* isp_action_stream_start_stop_t */
   ISP_HW_ACTION_CODE_STREAM_STOP_ACK,   /* isp_action_stream_start_stop_t */
+  ISP_HW_ACTION_CODE_HALT,
+  ISP_HW_ACTION_CODE_RESET,
+  ISP_HW_ACTION_CODE_RESTART,
   ISP_HW_ACTION_CODE_BUF_DIVERT_ACK,    /* isp_hw_buf_divert_ack_t */
   ISP_HW_ACTION_CODE_WAKE_UP_AT_SOF,    /* null */
   ISP_HW_ACTION_CODE_MAX_NUM
@@ -383,53 +471,6 @@ typedef struct {
   boolean is_buf_dirty;
 } isp_hw_buf_divert_ack_t;
 
-/** isp_saved_params_t
-
- *    @effect:        saved effect
- *    @contrast:      saved contrast value
- *    @bestshot:      saved bestshot value
- *
- *  This structure holds all isp parameters set by HAL upon streamon command
- **/
-typedef struct {
-  int32_t effect;
-  int32_t contrast;
-  cam_scene_mode_type bestshot;
-  int32_t sce_factor;
-  stats_update_mask_t stats_flag;
-  awb_update_t awb_stats_update;
-  aec_update_t aec_stats_update;
-  q3a_ihist_stats_t ihist_stats;
-  cam_flash_mode_t flash_mode;
-  int32_t saturation;
-  uint32_t vhdr_enable;
-  int32_t sharpness;
-  isp_param_frame_skip_pattern_t frame_skip;
-  boolean use_bundled_frame_skip;
-  isp_param_frame_skip_pattern_t bundled_frame_skip;
-  uint8_t ihist_update;
-  float dig_gain;
-  uint32_t uv_subsample_enable;
-  uint32_t vt_enable;
-  boolean uv_subsample_update;
-  isp_hw_set_crop_factor_t zoom_factor;
-  boolean zoom_update;
-  isp_flash_params_t flash_params;
-  awb_update_t awb_stored_stats;
-  aec_update_t aec_stored_stats;
-} isp_saved_params_t;
-
-/** isp_hw_pending_update_params_t
- *    @frame_id:        saved effect
- *    @hw_update_params:      saved contrast value
- *
- *  This structure holds all isp parameters set by HAL upon streamon command
- **/
-typedef struct {
-  uint32_t frame_id;    /* hw input */
-  uint32_t session_id;  /* hw input for finding session */
-  isp_saved_params_t hw_update_params; /* return result */
-} isp_hw_pending_update_params_t;
 
 /* thread processing functions */
 int isp_hw_proc_set_params(void *ctrl, uint32_t params_id, void *in_params,
@@ -444,7 +485,7 @@ int isp_hw_proc_destroy(void *ctrl);
 
 /* pix interface apis */
 isp_ops_t *isp_hw_create(char *dev_name);
-int isp_hw_proc_hw_update(void *ctrl);
+int isp_hw_proc_hw_update(void *ctrl, struct msm_isp_event_data *sof);
 int isp_thread_start(isp_thread_t *thread_data, void *hw_ptr, int poll_fd);
 int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
       isp_hw_cap_t *cap, int id);
@@ -455,4 +496,6 @@ uint32_t isp_hw_find_primary_cid(sensor_out_info_t *sensor_cfg,
            sensor_src_port_cap_t *sensor_cap);
 int isp_hw_proc_update_params_at_sof(isp_hw_t *isp_hw,
   struct msm_isp_event_data *sof);
+int isp_hw_proc_hw_request_reg_update(isp_hw_t *isp_hw,
+  void *session);
 #endif /* __ISP_HW_H__ */

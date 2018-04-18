@@ -7,16 +7,17 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "clf44.h"
+#include "isp_log.h"
 
 
 #ifdef ENABLE_CLF_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #define CLF_START_REG 0x06B4
@@ -35,18 +36,18 @@
 static void util_clf_luma_debug(ISP_CLF_Luma_Update_CmdType* p_cmd)
 {
   int i = 0;
-  CDBG("%s: CLF Luma cutoff1: %d cutoff2: %d cutoff3: %d\n",
+  ISP_DBG(ISP_MOD_CLF, "%s: CLF Luma cutoff1: %d cutoff2: %d cutoff3: %d\n",
     __func__, p_cmd->Cfg.cutoff_1, p_cmd->Cfg.cutoff_2, p_cmd->Cfg.cutoff_3);
-  CDBG("%s: mult_neg %d mult_pos %d\n",
+  ISP_DBG(ISP_MOD_CLF, "%s: mult_neg %d mult_pos %d\n",
     __func__, p_cmd->Cfg.mult_neg, p_cmd->Cfg.mult_pos);
 
   for (i=0; i<8; i++)
-    CDBG("%s: posLUT%d %d posLUT%d %d", __func__,
+    ISP_DBG(ISP_MOD_CLF, "%s: posLUT%d %d posLUT%d %d", __func__,
       2*i, p_cmd->pos_LUT[i].lut0,
       2*i+1, p_cmd->pos_LUT[i].lut1);
 
   for (i=0; i<4; i++)
-    CDBG("%s: negLUT%d %d negLUT%d %d", __func__,
+    ISP_DBG(ISP_MOD_CLF, "%s: negLUT%d %d negLUT%d %d", __func__,
       2*i, p_cmd->neg_LUT[i].lut0,
       2*i+1, p_cmd->neg_LUT[i].lut1);
 } /* util_clf_luma_debug */
@@ -63,10 +64,10 @@ static void util_clf_luma_debug(ISP_CLF_Luma_Update_CmdType* p_cmd)
 static void util_clf_chroma_debug(ISP_CLF_Chroma_Update_CmdType* p_cmd)
 {
   int rc = TRUE;
-  CDBG("s: v_coeff0 %d v_coeff1 %d", p_cmd->chroma_coeff.v_coeff0,
+  ISP_DBG(ISP_MOD_CLF, "s: v_coeff0 %d v_coeff1 %d", p_cmd->chroma_coeff.v_coeff0,
      p_cmd->chroma_coeff.v_coeff1);
 
-  CDBG("s: h_coeff0 %d h_coeff1 %d h_coeff2 %d h_coeff3 %d",
+  ISP_DBG(ISP_MOD_CLF, "s: h_coeff0 %d h_coeff1 %d h_coeff2 %d h_coeff3 %d",
        p_cmd->chroma_coeff.h_coeff0, p_cmd->chroma_coeff.h_coeff1,
        p_cmd->chroma_coeff.h_coeff2, p_cmd->chroma_coeff.h_coeff3);
 } /* util_clf_chroma_debug */
@@ -82,10 +83,10 @@ static void util_clf_chroma_debug(ISP_CLF_Chroma_Update_CmdType* p_cmd)
  **/
 static void util_clf_debug(ISP_CLF_CmdType* p_cmd)
 {
-  CDBG("%s: colorconv_enable %d pipe_flush_cnt %d\n", __func__,
+  ISP_DBG(ISP_MOD_CLF, "%s: colorconv_enable %d pipe_flush_cnt %d\n", __func__,
    p_cmd->clf_cfg.colorconv_enable,
    p_cmd->clf_cfg.pipe_flush_cnt);
-  CDBG("%s: pipe_flush_ovd %d flush_halt_ovd %d\n", __func__,
+  ISP_DBG(ISP_MOD_CLF, "%s: pipe_flush_ovd %d flush_halt_ovd %d\n", __func__,
    p_cmd->clf_cfg.pipe_flush_ovd,
    p_cmd->clf_cfg.flush_halt_ovd);
 
@@ -243,7 +244,7 @@ static void util_clf_set_chroma_params(isp_clf_mod_t* mod,
   ISP_CLF_Chroma_Update_CmdType* p_chroma_cmd = &mod->reg_cmd.chromaUpdateCmd;
 
   if (!mod->cf_enable) {
-    CDBG("%s: CF not enabled\n", __func__);
+    ISP_DBG(ISP_MOD_CLF, "%s: CF not enabled\n", __func__);
     return;
   }
 
@@ -295,7 +296,7 @@ static int clf_chroma_trigger_update(isp_clf_mod_t *mod,
   }
 
   if (!cf_enabled) {
-    CDBG("%s: Chroma filter trigger not enabled %d %d", __func__,
+    ISP_DBG(ISP_MOD_CLF, "%s: Chroma filter trigger not enabled %d %d", __func__,
       mod->cf_enable, mod->cf_enable_trig);
     return 0;
   }
@@ -353,7 +354,7 @@ static int clf_luma_trigger_update(isp_clf_mod_t *mod,
   int status = 0;
 
   if (!lf_enabled) {
-    CDBG("%s: Luma filter trigger not enabled %d %d", __func__,
+    ISP_DBG(ISP_MOD_CLF, "%s: Luma filter trigger not enabled %d %d", __func__,
        mod->lf_enable, mod->lf_enable_trig);
 
     return status;
@@ -398,7 +399,7 @@ static int clf_luma_trigger_update(isp_clf_mod_t *mod,
    (trig_ratio.ratio != mod->cur_lf_aec_ratio.ratio) ||
    (in_params->cfg.streaming_mode != mod->old_streaming_mode);
 
-  CDBG("%s: update_lf %d ratio %f lighting %d", __func__, update_lf,
+  ISP_DBG(ISP_MOD_CLF, "%s: update_lf %d ratio %f lighting %d", __func__, update_lf,
     trig_ratio.ratio, trig_ratio.lighting);
   if (update_lf) {
     if(F_EQUAL(trig_ratio.ratio, 0.0) || F_EQUAL(trig_ratio.ratio, 1.0))
@@ -496,15 +497,15 @@ static int clf_config(isp_clf_mod_t *mod, isp_hw_pix_setting_params_t *in_params
     return -1;
   }
 
-  CDBG("%s: enter", __func__);
+  ISP_DBG(ISP_MOD_CLF, "%s: enter", __func__);
 
   if (!mod->enable) {
-    CDBG("%s: Mod not Enable.", __func__);
+    ISP_DBG(ISP_MOD_CLF, "%s: Mod not Enable.", __func__);
     return rc;
   }
 
   if (!IS_CLF_ENABLED(mod)) {
-    CDBG("%s: CLF not enabled", __func__);
+    ISP_DBG(ISP_MOD_CLF, "%s: CLF not enabled", __func__);
     return 0;
   }
 
@@ -540,7 +541,7 @@ static int clf_config(isp_clf_mod_t *mod, isp_hw_pix_setting_params_t *in_params
       (mod->cf_update) ?
       &mod->clf_params.cf_param : &chromatix_CL_filter->chroma_filter[1];
 
-    CDBG("%s: lf_update %d cf_update %d", __func__, mod->lf_update,
+    ISP_DBG(ISP_MOD_CLF, "%s: lf_update %d cf_update %d", __func__, mod->lf_update,
        mod->cf_update);
 
     util_clf_set_luma_params(mod, p_lf);
@@ -597,7 +598,7 @@ static int clf_enable(isp_clf_mod_t *mod,
   mod->lf_enable = mod->cf_enable = mod->enable = enable->enable;
 
   int clf_enable = IS_CLF_ENABLED(mod);
-  CDBG("%s: clf_enable %d", __func__, clf_enable);
+  ISP_DBG(ISP_MOD_CLF, "%s: clf_enable %d", __func__, clf_enable);
 
   if (!clf_enable)
     /* disable both modules */
@@ -669,7 +670,7 @@ static int clf_trigger_update(isp_clf_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable || mod->skip_trigger) {
-    CDBG("%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
+    ISP_DBG(ISP_MOD_CLF, "%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
       __func__, mod->enable, mod->trigger_enable, mod->skip_trigger);
     return rc;
   }
@@ -677,24 +678,24 @@ static int clf_trigger_update(isp_clf_mod_t *mod,
   is_burst = IS_BURST_STREAMING(&in_params->cfg);
 
   if (!is_burst && !isp_util_aec_check_settled(&in_params->trigger_input.stats_update.aec_update)) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_CLF, "%s: AEC not settled", __func__);
     return rc;
   }
 
   status = clf_luma_trigger_update(mod, in_params, in_param_size);
   if (0 != status) {
-    CDBG("%s: isp_clf_luma_trigger_update failed", __func__);
+    ISP_DBG(ISP_MOD_CLF, "%s: isp_clf_luma_trigger_update failed", __func__);
     return status;
   }
   status = clf_chroma_trigger_update(mod, in_params, in_param_size);
   if (0 != status) {
-    CDBG("%s: isp_clf_luma_trigger_update failed", __func__);
+    ISP_DBG(ISP_MOD_CLF, "%s: isp_clf_luma_trigger_update failed", __func__);
     return status;
   }
 
   //update:
   if (mod->cf_update) {
-    CDBG("%s: update required", __func__);
+    ISP_DBG(ISP_MOD_CLF, "%s: update required", __func__);
 
     util_clf_set_chroma_params(mod, &mod->clf_params.cf_param, is_burst);
     mod->hw_update_pending = TRUE;
@@ -925,7 +926,7 @@ isp_ops_t *clf44_open(uint32_t version)
 {
   isp_clf_mod_t *mod = malloc(sizeof(isp_clf_mod_t));
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_CLF, "%s: E\n", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

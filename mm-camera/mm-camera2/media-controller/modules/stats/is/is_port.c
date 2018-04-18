@@ -13,12 +13,11 @@
 #include "is_port.h"
 #include "aec.h"
 #include "camera_dbg.h"
-//#include "c2dExt.h"
-#include <cutils/properties.h>
+#include "c2dExt.h"
 /* This should be declared in sensor_lib.h */
 void poke_gyro_sample(uint64_t t, int32_t gx, int32_t gy, int32_t gz);
 
-
+#define IS_VIDEO_STREAM_RUNNING (private->video_reserved_id & 0xFFFF)
 #if 0
 #undef CDBG
 #define CDBG ALOGE
@@ -34,6 +33,29 @@ void poke_gyro_sample(uint64_t t, int32_t gx, int32_t gy, int32_t gz);
 #define SEC_TO_USEC     (1000000L)
 
 
+/** is_port_init_thread:
+ *    @port: IS port
+ *
+ *  Returns TRUE IS thread was successfuly started.
+ **/
+static boolean is_port_init_thread(mct_port_t *port)
+{
+  boolean rc = FALSE;
+  is_port_private_t *private;
+
+  private = (is_port_private_t *)port->port_private;
+  private->thread_data = is_thread_init();
+  CDBG("%s private->thread_data: %p", __func__, private->thread_data);
+  if (private->thread_data != NULL) {
+    private->thread_data->is_port = port;
+    rc = TRUE;
+  } else {
+    CDBG_ERROR("%s private->thread_data is NULL", __func__);
+  }
+  return rc;
+}
+
+
 /** is_port_start_thread:
  *    @port: IS port
  *
@@ -41,13 +63,12 @@ void poke_gyro_sample(uint64_t t, int32_t gx, int32_t gy, int32_t gz);
  **/
 static boolean is_port_start_thread(mct_port_t *port)
 {
-  boolean rc = TRUE;
+  boolean rc = FALSE;
   is_port_private_t *private;
 
   private = (is_port_private_t *)port->port_private;
-  private->thread_data = is_thread_init();
   if (private->thread_data != NULL) {
-    private->thread_data->is_port = port;
+    CDBG("%s: Start IS thread", __func__);
     rc = is_thread_start(private->thread_data);
     if (rc == FALSE) {
       is_thread_deinit(private->thread_data);
@@ -96,6 +117,38 @@ static boolean is_port_handle_stream_config_event(is_port_private_t *private,
 }
 
 
+/** is_port_handle_set_is_enable:
+ *    @private: private port data
+ *    @ctrl_evt: control event
+ *
+ *  Returns TRUE if event was successfuly queued to the IS thread for
+ *  processing.
+ **/
+static boolean is_port_handle_set_is_enable(is_port_private_t *private,
+  mct_event_control_t *ctrl_event)
+{
+  boolean rc = TRUE;
+  stats_set_params_type *stats_parm = ctrl_event->control_event_data;
+
+  CDBG_HIGH("%s: IS enable = %d", __func__, stats_parm->u.is_param.u.is_enable);
+  is_thread_msg_t *msg = (is_thread_msg_t *)
+    malloc(sizeof(is_thread_msg_t));
+
+  if (msg != NULL ) {
+    memset(msg, 0, sizeof(is_thread_msg_t));
+    msg->type = MSG_IS_SET;
+    msg->u.is_set_parm.type = IS_SET_PARAM_IS_ENABLE;
+    msg->u.is_set_parm.u.is_enable = stats_parm->u.is_param.u.is_enable;
+    is_thread_en_q_msg(private->thread_data, msg);
+  } else {
+    CDBG_ERROR("%s: malloc failed!", __func__);
+    rc = FALSE;
+  }
+
+  return rc;
+}
+
+
 /** is_port_handle_stream_event:
  *    @private: private port data
  *    @event: event
@@ -110,21 +163,21 @@ static boolean is_port_handle_stream_event(is_port_private_t *private,
   mct_event_control_t *control = &event->u.ctrl_event;
 
   if (control->type == MCT_EVENT_CONTROL_STREAMON) {
-    CDBG("%s: MCT_EVENT_CONTROL_STREAMON, identity = 0x%x", __func__,
+    CDBG_HIGH("%s: MCT_EVENT_CONTROL_STREAMON, identity = 0x%x", __func__,
       event->identity);
   } else {
-    CDBG("%s: MCT_EVENT_CONTROL_STREAMOFF, identity = 0x%x", __func__,
+    CDBG_HIGH("%s: MCT_EVENT_CONTROL_STREAMOFF, identity = 0x%x", __func__,
       event->identity);
   }
 
-  if (event->identity == private->video_reserved_id) {
-    is_thread_msg_t *msg = (is_thread_msg_t *)
-      malloc(sizeof(is_thread_msg_t));
+  is_thread_msg_t *msg = (is_thread_msg_t *)
+    malloc(sizeof(is_thread_msg_t));
 
-    if (msg != NULL ) {
-      memset(msg, 0, sizeof(is_thread_msg_t));
-      msg->type = MSG_IS_PROCESS;
-      msg->u.is_process_parm.type = IS_PROCESS_STREAM_EVENT;
+  if (msg != NULL ) {
+    memset(msg, 0, sizeof(is_thread_msg_t));
+    msg->type = MSG_IS_PROCESS;
+    msg->u.is_process_parm.type = IS_PROCESS_STREAM_EVENT;
+    if (event->identity == private->video_reserved_id) {
       if (control->type == MCT_EVENT_CONTROL_STREAMON) {
         msg->u.is_process_parm.u.stream_event_data.stream_event =
           IS_VIDEO_STREAM_ON;
@@ -132,12 +185,15 @@ static boolean is_port_handle_stream_event(is_port_private_t *private,
         msg->u.is_process_parm.u.stream_event_data.stream_event =
           IS_VIDEO_STREAM_OFF;
       }
-      msg->u.is_process_parm.u.stream_event_data.is_info = &private->is_info;
-      is_thread_en_q_msg(private->thread_data, msg);
     } else {
-      CDBG_ERROR("%s: malloc failed!", __func__);
-      rc = FALSE;
+      msg->u.is_process_parm.u.stream_event_data.stream_event =
+        IS_OTHER_STREAM_ON_OFF;
     }
+    msg->u.is_process_parm.u.stream_event_data.is_info = &private->is_info;
+    is_thread_en_q_msg(private->thread_data, msg);
+  } else {
+    CDBG_ERROR("%s: malloc failed!", __func__);
+    rc = FALSE;
   }
 
   return rc;
@@ -275,10 +331,10 @@ static boolean is_port_handle_dis_config_event(is_port_private_t *private,
   isp_dis_config_info_t *dis_config;
 
   dis_config = (isp_dis_config_info_t *)mod_event->module_event_data;
-  CDBG("%s: MCT_EVENT_MODULE_ISP_DIS_CONFIG, sid = %u, strid = %x, "
+  CDBG_HIGH("%s: MCT_EVENT_MODULE_ISP_DIS_CONFIG, sid = %u, strid = %x, "
     "vid = %x, col_num = %u, row_num = %u, w = %u, h = %u", __func__,
     dis_config->session_id, dis_config->stream_id, private->video_reserved_id,
-    dis_config->col_num, dis_config->row_num,
+    private->reserved_id, dis_config->col_num, dis_config->row_num,
     dis_config->width, dis_config->height);
 
   is_thread_msg_t *msg = (is_thread_msg_t *)
@@ -300,6 +356,42 @@ static boolean is_port_handle_dis_config_event(is_port_private_t *private,
 }
 
 
+/** is_port_handle_output_dim_event:
+ *    @private: private port data
+ *    @mod_evt: module event
+ **/
+static boolean is_port_handle_output_dim_event(is_port_private_t *private,
+  mct_event_module_t *mod_event)
+{
+  boolean rc = TRUE;
+  mct_stream_info_t *stream_info = NULL;
+
+  stream_info = (mct_stream_info_t *)mod_event->module_event_data;
+  CDBG_HIGH("%s: MCT_EVENT_MODULE_ISP_OUTPUT_DIM, steam_type = %d, w = %d, "
+    "h = %d, IS mode = %d", __func__, stream_info->stream_type,
+    stream_info->dim.width, stream_info->dim.height, stream_info->is_type);
+
+  is_thread_msg_t *msg = (is_thread_msg_t *)
+    malloc(sizeof(is_thread_msg_t));
+
+  if (msg != NULL ) {
+    memset(msg, 0, sizeof(is_thread_msg_t));
+    msg->type = MSG_IS_SET;
+    msg->u.is_set_parm.type = IS_SET_PARAM_OUTPUT_DIM;
+    msg->u.is_set_parm.u.is_output_dim_info.is_mode = stream_info->is_type;
+    msg->u.is_set_parm.u.is_output_dim_info.vfe_width = stream_info->dim.width;
+    msg->u.is_set_parm.u.is_output_dim_info.vfe_height =
+      stream_info->dim.height;
+    is_thread_en_q_msg(private->thread_data, msg);
+  } else {
+    CDBG_ERROR("%s: malloc failed!", __func__);
+    rc = FALSE;
+  }
+
+  return rc;
+}
+
+
 /** is_port_send_is_update:
  *    @port: IS port
  *    @private: private port data
@@ -310,13 +402,21 @@ static void is_port_send_is_update(mct_port_t *port,
   mct_event_t is_update_event;
   is_update_t is_update;
 
+  /* Sanity check */
+  /* is_enabled is reset to 0 when IS initialization fails.  By checking this
+     flag for 0, IS won't send DIS_UPDATE event when it is not operational. */
+  if (private->is_output.x < 0 || private->is_output.y < 0 ||
+    private->is_info.is_enabled == 0) {
+    return;
+  }
+
   is_update.id = private->video_reserved_id;
   is_update.x = private->is_output.x;
   is_update.y = private->is_output.y;
   is_update.width = private->is_info.is_width;
   is_update.height = private->is_info.is_height;
   is_update.frame_id = private->is_output.frame_id;
-  if (private->is_info.is_mode == EIS_2) {
+  if (private->is_info.is_mode == IS_TYPE_EIS_2_0) {
     is_update.use_3d = 1;
     memcpy(is_update.transform_matrix, private->is_output.transform_matrix,
       sizeof(is_update.transform_matrix));
@@ -361,9 +461,7 @@ static void is_port_callback(mct_port_t *port,
   CDBG("%s: IS process ouput type = %d", __func__, output->type);
   switch (output->type) {
   case IS_PROCESS_OUTPUT_RS_CS_STATS:
-    if (private->is_output.x >= 0 && private->is_output.y >= 0) {
-      is_port_send_is_update(port, port->port_private);
-    }
+    is_port_send_is_update(port, port->port_private);
     break;
 
   case IS_PROCESS_OUTPUT_GYRO_STATS:
@@ -371,11 +469,15 @@ static void is_port_callback(mct_port_t *port,
     break;
 
   case IS_PROCESS_OUTPUT_STREAM_EVENT:
-    private->video_stream_on = output->video_stream_on;
-    if (!private->video_stream_on) {
+    if (output->is_stream_event == IS_VIDEO_STREAM_ON) {
+      private->video_stream_on = 1;
+    } else if (output->is_stream_event == IS_VIDEO_STREAM_OFF) {
+      private->video_stream_on = 0;
+    }
+    if (private->video_stream_on == 0) {
       /* Default offsets to half margin for cropping at center during camcorder
          preview no recording. */
-      if (private->is_info.is_mode != EIS_2) {
+      if (private->is_info.is_mode != IS_TYPE_EIS_2_0) {
         private->is_output.x =
           (private->is_info.vfe_width - private->is_info.is_width) / 2;
         private->is_output.y =
@@ -425,7 +527,7 @@ static boolean is_port_event(mct_port_t *port, mct_event_t *event)
     return FALSE;
 
   /* sanity check: ensure event is meant for port with same identity*/
-  if ((private->video_reserved_id & 0xFFFF0000) !=
+  if ((private->reserved_id & 0xFFFF0000) !=
       (event->identity & 0xFFFF0000))
   {
     return FALSE;
@@ -440,11 +542,25 @@ static boolean is_port_event(mct_port_t *port, mct_event_t *event)
       //CDBG("%s: Control event type %d", __func__, control->type);
       switch (control->type) {
       case MCT_EVENT_CONTROL_STREAMON:
-        rc = is_port_handle_stream_event(private, event);
+        if (private->thread_data) {
+          rc = is_port_handle_stream_event(private, event);
+        }
         break;
 
       case MCT_EVENT_CONTROL_STREAMOFF:
-        rc = is_port_handle_stream_event(private, event);
+        if (private->thread_data) {
+          rc = is_port_handle_stream_event(private, event);
+        }
+        break;
+
+      case MCT_EVENT_CONTROL_SET_PARM: {
+        stats_set_params_type *stats_parm = control->control_event_data;
+        if (private->thread_data &&
+          stats_parm->param_type == STATS_SET_IS_PARAM &&
+          stats_parm->u.is_param.type == IS_SET_PARAM_IS_ENABLE) {
+            rc = is_port_handle_set_is_enable(private, control);
+        }
+      }
         break;
 
       default:
@@ -458,21 +574,21 @@ static boolean is_port_event(mct_port_t *port, mct_event_t *event)
 
       switch (mod_event->type) {
       case MCT_EVENT_MODULE_STATS_DATA:
-        if (private->is_info.is_enabled) {
+        if (private->is_info.is_enabled && (IS_VIDEO_STREAM_RUNNING)) {
           rc = is_port_handle_stats_event(port, event);
         }
         break;
 
       case MCT_EVENT_MODULE_STATS_GYRO_STATS:
-        if (private->is_info.is_inited && private->is_info.is_mode != DIS) {
+        if (private->is_info.is_inited &&
+          private->is_info.is_mode != IS_TYPE_DIS &&
+          (IS_VIDEO_STREAM_RUNNING)) {
           rc = is_port_handle_gyro_stats_event(port, event);
         }
         break;
 
       case MCT_EVENT_MODULE_SET_STREAM_CONFIG: {
-        if (private->thread_data) {
           rc = is_port_handle_stream_config_event(private, mod_event);
-        }
       }
         break;
 
@@ -489,37 +605,27 @@ static boolean is_port_event(mct_port_t *port, mct_event_t *event)
       }
         break;
 
-      case MCT_EVENT_MODULE_ISP_OUTPUT_DIM: {
-        mct_stream_info_t *stream_info = NULL;
-
-        stream_info = (mct_stream_info_t *)mod_event->module_event_data;
-        private->is_info.vfe_width = stream_info->dim.width;
-        private->is_info.vfe_height = stream_info->dim.height;
-        /* Default offsets to half margin for cropping at center during
-           camcorder preview no recording. */
-        if (private->is_info.is_mode != EIS_2) {
-          private->is_output.x =
-            (private->is_info.vfe_width - private->is_info.is_width) / 2;
-          private->is_output.y =
-            (private->is_info.vfe_height - private->is_info.is_height) / 2;
+      case MCT_EVENT_MODULE_START_STOP_STATS_THREADS: {
+        uint8_t *start_flag = (uint8_t*)(mod_event->module_event_data);
+        CDBG("%s MCT_EVENT_MODULE_START_STOP_STATS_THREADS start_flag: %d",
+          __func__,*start_flag);
+        if (*start_flag) {
+          if (is_port_start_thread(port) == FALSE) {
+            CDBG_ERROR("%s: is thread start failed", __func__);
+            rc = FALSE;
+          }
         } else {
-          private->is_output.x = 0;
-          private->is_output.y = 0;
+          if (private->thread_data) {
+            is_thread_stop(private->thread_data);
+          }
         }
+      }
+        break;
 
-       private->is_output.transform_matrix[0] = 0.877193;
-        private->is_output.transform_matrix[1] = 0.0;
-        private->is_output.transform_matrix[2] = 0.0;
-        private->is_output.transform_matrix[3] = 0.0;
-        private->is_output.transform_matrix[4] = 0.877193;
-        private->is_output.transform_matrix[5] = 0.0;
-        private->is_output.transform_matrix[6] = 0.0;
-        private->is_output.transform_matrix[7] = 0.0;
-        private->is_output.transform_matrix[8] = 1.0;
-
-        CDBG("%s: MCT_EVENT_MODULE_ISP_OUTPUT_DIM id = %x, steam_type = %d, "
-          "w = %d, h = %d", __func__, event->identity, stream_info->stream_type,
-          stream_info->dim.width, stream_info->dim.height);
+      case MCT_EVENT_MODULE_ISP_OUTPUT_DIM: {
+        if (private->thread_data) {
+          rc = is_port_handle_output_dim_event(private, mod_event);
+        }
       }
         break;
 
@@ -556,7 +662,7 @@ static boolean is_port_event(mct_port_t *port, mct_event_t *event)
 static boolean is_port_ext_link(unsigned int identity,
   mct_port_t *port, mct_port_t *peer)
 {
-  boolean rc = FALSE, new_thread = FALSE;
+  boolean rc = FALSE, thread_init = FALSE;
   is_port_private_t *private;
   mct_event_t event;
 
@@ -572,27 +678,26 @@ static boolean is_port_ext_link(unsigned int identity,
   switch (private->state) {
   case IS_PORT_STATE_RESERVED:
     CDBG("%s: IS_PORT_STATE_RESERVED", __func__);
-    if ((private->video_reserved_id & 0xFFFF0000) != (identity & 0xFFFF0000)) {
+    if ((private->reserved_id & 0xFFFF0000) != (identity & 0xFFFF0000)) {
       break;
     }
-
+  /* Fall through */
   case IS_PORT_STATE_UNLINKED:
     CDBG("%s: IS_PORT_STATE_UNLINKED", __func__);
-    if ((private->video_reserved_id & 0xFFFF0000) != (identity & 0xFFFF0000)) {
+    if ((private->reserved_id & 0xFFFF0000) != (identity & 0xFFFF0000)) {
       break;
     }
 
   case IS_PORT_STATE_CREATED:
-    CDBG("%s: IS_PORT_STATE_CREATED", __func__);
-    if (private->video_reserved_id == identity) {
-      new_thread = TRUE;
+    if ((private->reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000)) {
+      thread_init = TRUE;
     }
     rc = TRUE;
     break;
 
   case IS_PORT_STATE_LINKED:
     CDBG("%s: IS_PORT_STATE_LINKED", __func__);
-    if ((private->video_reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000)) {
+    if ((private->reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000)) {
       rc = TRUE;
     }
     break;
@@ -604,12 +709,10 @@ static boolean is_port_ext_link(unsigned int identity,
   if (rc == TRUE) {
     /* If IS module requires a thread and the port state above warrants one,
        create the thread here */
-    if (new_thread == TRUE) {
-      CDBG("%s: Start IS thread, video_reserved_id = %x", __func__,
-        private->video_reserved_id);
-      if (is_port_start_thread(port) == FALSE) {
+    if (thread_init == TRUE) {
+      if (is_port_init_thread(port) == FALSE) {
         rc = FALSE;
-        goto start_thread_fail;
+        goto init_thread_fail;
       }
     }
     private->state = IS_PORT_STATE_LINKED;
@@ -617,7 +720,7 @@ static boolean is_port_ext_link(unsigned int identity,
     MCT_OBJECT_REFCOUNT(port) += 1;
   }
 
-start_thread_fail:
+init_thread_fail:
   MCT_OBJECT_UNLOCK(port);
   CDBG("%s: rc=%d", __func__, rc);
   return rc;
@@ -647,17 +750,15 @@ static void is_port_unlink(unsigned int identity,
     private->state, identity);
   MCT_OBJECT_LOCK(port);
   if (private->state == IS_PORT_STATE_LINKED &&
-      (private->video_reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000)) {
+      (private->reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000)) {
     MCT_OBJECT_REFCOUNT(port) -= 1;
     if (!MCT_OBJECT_REFCOUNT(port)) {
       private->state = IS_PORT_STATE_UNLINKED;
-      if (private->video_reserved_id & 0xFFFF) {
-        CDBG("%s: Stop IS thread, video_reserved_id = %x", __func__,
-          private->video_reserved_id);
-        is_thread_stop(private->thread_data);
-        is_thread_deinit(private->thread_data);
-        private->thread_data = NULL;
-      }
+      CDBG("%s: Stop IS thread, video_reserved_id = %x", __func__,
+        private->video_reserved_id);
+      is_thread_deinit(private->thread_data);
+      private->thread_data = NULL;
+      MCT_PORT_PEER(port) = NULL;
     }
   }
   MCT_OBJECT_UNLOCK(port);
@@ -721,17 +822,17 @@ static boolean is_port_check_caps_reserve(mct_port_t *port, void *caps,
     private->state, strm_info->identity, strm_info->stream_type);
   switch (private->state) {
   case IS_PORT_STATE_LINKED:
-  if ((private->video_reserved_id & 0xFFFF0000) ==
+  if ((private->reserved_id & 0xFFFF0000) ==
       (strm_info->identity & 0xFFFF0000)) {
     if (strm_info->stream_type == CAM_STREAM_TYPE_VIDEO) {
       private->video_reserved_id = strm_info->identity;
       CDBG("%s: video reserved_id = 0x%x", __func__, private->video_reserved_id);
-      private->state = IS_PORT_STATE_RESERVED;
       CDBG("%s:%d w = %lu, h = %lu", __func__, __LINE__, strm_info->dim.width,
         strm_info->dim.height);
     } else if (strm_info->stream_type == CAM_STREAM_TYPE_PREVIEW) {
       private->is_info.preview_width = strm_info->dim.width;
       private->is_info.preview_height = strm_info->dim.height;
+      private->reserved_id = strm_info->identity;
       CDBG("%s:%d w = %lu, h = %lu", __func__, __LINE__,
         private->is_info.preview_width, private->is_info.preview_height);
     }
@@ -744,15 +845,17 @@ static boolean is_port_check_caps_reserve(mct_port_t *port, void *caps,
     if (strm_info->stream_type == CAM_STREAM_TYPE_VIDEO) {
       private->video_reserved_id = strm_info->identity;
       CDBG("%s: reserved_id = 0x%x", __func__, private->video_reserved_id);
-      private->state = IS_PORT_STATE_RESERVED;
       CDBG("%s:%d w = %lu, h = %lu", __func__, __LINE__, strm_info->dim.width,
         strm_info->dim.height);
     }
+    private->reserved_id = strm_info->identity;
+    private->stream_type = strm_info->stream_type;
+    private->state       = IS_PORT_STATE_RESERVED;
     rc = TRUE;
     break;
 
   case IS_PORT_STATE_RESERVED:
-    if ((private->video_reserved_id & 0xFFFF0000) ==
+    if ((private->reserved_id & 0xFFFF0000) ==
         (strm_info->identity & 0xFFFF0000))
       rc = TRUE;
     break;
@@ -797,11 +900,12 @@ static boolean is_port_check_caps_unreserve(mct_port_t *port,
   MCT_OBJECT_LOCK(port);
   if ((private->state == IS_PORT_STATE_UNLINKED ||
        private->state == IS_PORT_STATE_RESERVED) &&
-      ((private->video_reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000))) {
+      ((private->reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000))) {
 
     if (!MCT_OBJECT_REFCOUNT(port)) {
       private->state = IS_PORT_STATE_UNRESERVED;
       private->video_reserved_id = (private->video_reserved_id & 0xFFFF0000);
+      private->reserved_id = (private->reserved_id & 0xFFFF0000);
     }
     rc = TRUE;
   }
@@ -824,8 +928,6 @@ boolean is_port_init(mct_port_t *port, unsigned int session_id)
 {
   mct_port_caps_t caps;
   is_port_private_t *private;
-  char is_prop[PROPERTY_VALUE_MAX];
-  int is_value;
 
   if (port == NULL || strcmp(MCT_OBJECT_NAME(port), "is_sink"))
     return FALSE;
@@ -840,10 +942,11 @@ boolean is_port_init(mct_port_t *port, unsigned int session_id)
   private->callback = is_port_callback;
   private->is_process_output.is_output = &private->is_output;
   private->video_reserved_id = session_id;
+  private->reserved_id = session_id;
   private->state = IS_PORT_STATE_CREATED;
-  //private->is_info.transform_type = C2D_LENSCORRECT_PERSPECTIVE |
-  //  C2D_LENSCORRECT_BILINEAR | C2D_LENSCORRECT_ORIGIN_IN_MIDDLE |
-  //  C2D_LENSCORRECT_SOURCE_RECT;
+  private->is_info.transform_type = C2D_LENSCORRECT_PERSPECTIVE |
+    C2D_LENSCORRECT_BILINEAR | C2D_LENSCORRECT_ORIGIN_IN_MIDDLE |
+    C2D_LENSCORRECT_SOURCE_RECT;
   port->port_private = private;
   port->direction = MCT_PORT_SINK;
   caps.port_caps_type = MCT_PORT_CAPS_STATS;
@@ -857,24 +960,9 @@ boolean is_port_init(mct_port_t *port, unsigned int session_id)
   mct_port_set_check_caps_reserve_func(port, is_port_check_caps_reserve);
   mct_port_set_check_caps_unreserve_func(port, is_port_check_caps_unreserve);
 
-  if (port->set_caps)
+  if (port->set_caps) {
     port->set_caps(port, &caps);
-
-  memset(is_prop, 0, sizeof(is_prop));
-  property_get("persist.camera.is.setting", is_prop, "0");
-  is_value = atoi(is_prop);
-  if (is_value == 0)
-    private->is_info.is_mode = DIS;
-  else if (is_value == 1)
-    private->is_info.is_mode = GA_DIS;
-  else if (is_value == 2)
-    private->is_info.is_mode = EIS_1;
-  else if (is_value == 3)
-    private->is_info.is_mode = EIS_2;
-  else
-    private->is_info.is_mode = DIS;
-
-  CDBG("%s: is mode is %d", __func__, private->is_info.is_mode);
+  }
   return TRUE;
 }
 
@@ -915,7 +1003,7 @@ boolean is_port_find_identity(mct_port_t *port, unsigned int identity)
   private = port->port_private;
 
   if (private) {
-    return ((private->video_reserved_id & 0xFFFF0000) ==
+    return ((private->reserved_id & 0xFFFF0000) ==
             (identity & 0xFFFF0000) ? TRUE : FALSE);
   }
 

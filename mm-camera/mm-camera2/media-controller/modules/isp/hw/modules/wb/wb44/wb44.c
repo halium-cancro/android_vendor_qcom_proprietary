@@ -8,10 +8,11 @@
 #include <math.h>
 #include "camera_dbg.h"
 #include "wb44.h"
+#include "isp_log.h"
 
 #ifdef WB_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #undef CDBG_ERROR
 #define CDBG_ERROR ALOGE
 #endif
@@ -29,11 +30,11 @@
  **/
 static void wb_debug(ISP_WhiteBalanceConfigCmdType* p_cmd)
 {
-  CDBG("ISP_WhiteBalanceCfgCmd.ch0Gain = %d\n",
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch0Gain = %d\n",
     p_cmd->ch0Gain);
-  CDBG("ISP_WhiteBalanceCfgCmd.ch1Gain = %d\n",
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch1Gain = %d\n",
     p_cmd->ch1Gain);
-  CDBG("ISP_WhiteBalanceCfgCmd.ch2Gain = %d\n",
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch2Gain = %d\n",
     p_cmd->ch2Gain);
 }/*wb_debug*/
 
@@ -82,7 +83,7 @@ static int wb_set_manual_wb(isp_wb_mod_t *mod,
   return -1;
   }
 
-  CDBG("%s: old g= %f b= %f r= %f new g= %f b= %f r= %f", __func__,
+  ISP_DBG(ISP_MOD_WB, "%s: old g= %f b= %f r= %f new g= %f b= %f r= %f", __func__,
   mod->awb_gain.g_gain, mod->awb_gain.b_gain,
   mod->awb_gain.r_gain, awb_gain->g_gain,
   awb_gain->b_gain, awb_gain->r_gain);
@@ -129,12 +130,12 @@ static int wb_trigger_update(isp_wb_mod_t *wb_mod,
   }
 
   if (!wb_mod->enable || !wb_mod->trigger_enable) {
-      CDBG("%s: enable = %d, trigger_enable = %d",
+      ISP_DBG(ISP_MOD_WB, "%s: enable = %d, trigger_enable = %d",
          __func__, wb_mod->enable, wb_mod->trigger_enable);
       return 0;
   }
 
-  CDBG("%s: old gain  g=%f b=%f r=%f new g=%f b=%f r=%f", __func__,
+  ISP_DBG(ISP_MOD_WB, "%s: old gain  g=%f b=%f r=%f new g=%f b=%f r=%f", __func__,
     wb_mod->awb_gain.g_gain, wb_mod->awb_gain.b_gain,
     wb_mod->awb_gain.r_gain, awb_gain->g_gain,
     awb_gain->b_gain, awb_gain->r_gain);
@@ -174,7 +175,7 @@ static int wb_set_bestshot(isp_wb_mod_t *mod,
   return -1;
   }
 
-  CDBG("%s: bestshot mode %d", __func__, pix_settings->bestshot_mode);
+  ISP_DBG(ISP_MOD_WB, "%s: bestshot mode %d", __func__, pix_settings->bestshot_mode);
   switch(pix_settings->bestshot_mode) {
     case CAM_SCENE_MODE_FIREWORKS:
       pix_settings->wb_mode = CAM_WB_MODE_CLOUDY_DAYLIGHT;
@@ -254,7 +255,7 @@ static int wb_config(isp_wb_mod_t *mod, isp_hw_pix_setting_params_t *in_params,
   Bayer_AWB_parameters_type *AWB_bayer_algo_data =
     &chroma_ptr->AWB_bayer_algo_data;
 
-  CDBG("%s\n",__func__);
+  ISP_DBG(ISP_MOD_WB, "%s\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */

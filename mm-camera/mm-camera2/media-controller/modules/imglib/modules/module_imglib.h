@@ -17,7 +17,7 @@
 /* Imglib internal configuration limits */
 
 /* Max number of modules in internal topology */
-#define MODULE_IMGLIB_MAX_TOPO_MOD 10
+#define MODULE_IMGLIB_MAX_TOPO_MOD 11
 /* Max parallel topologies per port. Should not exceed 31 */
 #define MODULE_IMGLIB_MAX_PAR_TOPO 5
 /* Max events which can be hold inside imglib waiting for ack
@@ -257,7 +257,7 @@ void module_cac_set_parent(mct_module_t *p_mct_mod, mct_module_t *p_parent);
  * Description: Interface function for set parent of wnr module
  *
  * Arguments:
- *   @p_mct_mod: Cac module
+ *   @p_mct_mod: WNR module
  *   @p_parent: Stream object to be set as wnr module parent
 
  * Return values:
@@ -267,12 +267,83 @@ void module_cac_set_parent(mct_module_t *p_mct_mod, mct_module_t *p_parent);
  **/
 void module_wnr_set_parent(mct_module_t *p_mct_mod, mct_module_t *p_parent);
 
+/** module_dis20_set_parent:
+ *
+ *  Arguments:
+ *  @p_parent - parent module pointer
+ *
+ * Description: This function is used to set the parent pointer
+ * of the dis 2.0 module
+ *
+ * Return values:
+ *     none
+ *
+ * Notes: none
+ **/
+void module_dis20_set_parent(mct_module_t *p_mct_mod, mct_module_t *p_parent);
+
+/** module_llvd_set_parent:
+ *
+ *  Arguments:
+ *  @p_parent - parent module pointer
+ *
+ * Description: This function is used to set the parent pointer
+ * of the LLVD module
+ *
+ * Return values:
+ *     none
+ *
+ * Notes: none
+ **/
+void module_llvd_set_parent(mct_module_t *p_mct_mod, mct_module_t *p_parent);
+
 /* Exported APIs */
 mct_module_t *module_chroma_flash_init(const char *name);
 void module_chroma_flash_deinit(mct_module_t *p_mct_mod);
 mct_module_t *module_optizoom_init(const char *name);
 void module_optizoom_deinit(mct_module_t *p_mct_mod);
+mct_module_t *module_fssr_init(const char *name);
+void module_fssr_deinit(mct_module_t *p_mct_mod);
 mct_module_t *module_ubifocus_init(const char *name);
 void module_ubifocus_deinit(mct_module_t *p_mct_mod);
+mct_module_t *module_refocus_init(const char *name);
+void module_refocus_deinit(mct_module_t *p_mct_mod);
+mct_module_t *module_llvd_init(const char *name);
+void module_llvd_deinit(mct_module_t *p_mct_mod);
+mct_module_t *module_dis20_init(const char *name);
+void module_dis20_deinit(mct_module_t *p_mct_mod);
+mct_module_t *module_trueportrait_init(const char *name);
+void module_trueportrait_deinit(mct_module_t *p_mct_mod);
+mct_module_t *module_multitouch_focus_init(const char *name);
+void module_multitouch_focus_deinit(mct_module_t *p_mct_mod);
+
+/** module_afs_init:
+ *
+ *  Arguments:
+ *  @name - name of the module
+ *
+ * Description: This function is used to initialize the afs module
+ *
+ * Return values:
+ *     MCTL module instance pointer
+ *
+ * Notes: none
+ **/
+mct_module_t *module_afs_init(const char *name);
+
+/**
+ * Function: module_afs_free_mod
+ *
+ * Description: This function is used to free the afs module
+ *
+ * Arguments:
+ *   p_mct_mod - MCTL module instance pointer
+ *
+ * Return values:
+ *     none
+ *
+ * Notes: none
+ **/
+void module_afs_deinit(mct_module_t *p_mct_mod);
 
 #endif //__MODULE_IMGLIB_H__

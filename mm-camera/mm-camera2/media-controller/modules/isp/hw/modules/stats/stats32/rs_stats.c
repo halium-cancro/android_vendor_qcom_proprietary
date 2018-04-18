@@ -6,6 +6,7 @@
 ============================================================================*/
 #include <unistd.h>
 #include "rs_stats.h"
+#include "isp_log.h"
 
 /** rs_stats_config:
  *    @entry: pointer to instance private data
@@ -27,7 +28,7 @@ static int rs_stats_config(isp_stats_entry_t *entry,
   rs_stat_config_type_t *priv_cfg = entry->private;
 
   if (!entry->enable) {
-    CDBG("%s: not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: not enabled", __func__);
     return 0;
   }
   entry->session_id = pix_settings->outputs->stream_param.session_id;

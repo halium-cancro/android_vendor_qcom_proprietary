@@ -19,6 +19,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../../../../../common/
 LOCAL_C_INCLUDES += chromatix_imx135_liveshot.h
 
 LOCAL_SRC_FILES:= chromatix_imx135_liveshot.c
+LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_MODULE           := libchromatix_imx135_liveshot
 LOCAL_SHARED_LIBRARIES := libcutils

@@ -69,6 +69,7 @@ typedef enum {
   ISP_HW_MOD_SET_ZOOM_RATIO,         /* isp_hw_pix_setting_params_t */
   ISP_HW_MOD_SET_CHROMATIX_RELOAD,   /* chromatix changed, isp_hw_pix_setting_params_t */
   ISP_HW_MOD_SET_SHARPNESS_FACTOR,   /* int32_t */
+  ISP_HW_MOD_SET_STATS_FULLSIZE_CFG, /* isp_hw_pix_setting_params_t */
   ISP_HW_MOD_SET_BRACKETING_DATA,    /* mct_bracket_ctrl_t */
   ISP_HW_MOD_SET_MAX_NUM             /* max set param num */
 } isp_hw_mod_set_param_id_t;

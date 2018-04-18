@@ -16,7 +16,7 @@ typedef mct_list_traverse_func mct_queue_traverse_func;
 typedef struct _mct_queue {
   mct_list_t   *head;
   mct_list_t   *tail;
-  unsigned int length;
+  uint32_t length;
 } mct_queue_t;
 
 #define MCT_QUEUE_IS_EMPTY(q) \
@@ -25,8 +25,8 @@ typedef struct _mct_queue {
 #define mct_queue_new malloc(sizeof(mct_queue_t));
 
 #define MCT_QUEUE_FIND_CUSTOM(q, data, f) \
-	mct_list_find_custom((mct_queue_t*)(q)->head, (void *)d, \
-	(mct_list_find_func)f)
+     mct_list_find_custom((mct_queue_t*)(q)->head, (void *)d, \
+     (mct_list_find_func)f)
 
 
 

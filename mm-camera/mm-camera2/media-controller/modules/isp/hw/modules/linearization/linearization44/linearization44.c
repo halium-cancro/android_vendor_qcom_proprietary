@@ -8,10 +8,11 @@
 #include <math.h>
 #include "camera_dbg.h"
 #include "linearization44.h"
+#include "isp_log.h"
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -41,74 +42,74 @@ static const char * const awb_debug_str[] = {
  **/
 static void print_isp_linearization_config(ISP_LinearizationCmdType *cmd)
 {
-  CDBG("%s: Linearization configurations\n", __func__);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: Linearization configurations\n", __func__);
 
-  CDBG("%s: pointSlopeR.kneePoint_P0 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P0 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P0);
-  CDBG("%s: pointSlopeR.kneePoint_P1 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P1 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P1);
-  CDBG("%s: pointSlopeR.kneePoint_P2 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P2 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P2);
-  CDBG("%s: pointSlopeR.kneePoint_P3 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P3 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P3);
-  CDBG("%s: pointSlopeR.kneePoint_P4 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P4 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P4);
-  CDBG("%s: pointSlopeR.kneePoint_P5 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P5 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P5);
-  CDBG("%s: pointSlopeR.kneePoint_P6 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P6 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P6);
-  CDBG("%s: pointSlopeR.kneePoint_P7 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeR.kneePoint_P7 = %d\n", __func__,
     cmd->CfgParams.pointSlopeR.kneePoint_P7);
 
-  CDBG("%s: pointSlopeGb.kneePoint_P0 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P0 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P0);
-  CDBG("%s: pointSlopeGb.kneePoint_P1 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P1 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P1);
-  CDBG("%s: pointSlopeGb.kneePoint_P2 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P2 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P2);
-  CDBG("%s: pointSlopeGb.kneePoint_P3 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P3 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P3);
-  CDBG("%s: pointSlopeGb.kneePoint_P4 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P4 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P4);
-  CDBG("%s: pointSlopeGb.kneePoint_P5 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P5 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P5);
-  CDBG("%s: pointSlopeGb.kneePoint_P6 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P6 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P6);
-  CDBG("%s: pointSlopeGb.kneePoint_P7 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGb.kneePoint_P7 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGb.kneePoint_P7);
 
-  CDBG("%s: pointSlopeB.kneePoint_P0 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P0 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P0);
-  CDBG("%s: pointSlopeB.kneePoint_P1 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P1 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P1);
-  CDBG("%s: pointSlopeB.kneePoint_P2 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P2 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P2);
-  CDBG("%s: pointSlopeB.kneePoint_P3 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P3 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P3);
-  CDBG("%s: pointSlopeB.kneePoint_P4 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P4 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P4);
-  CDBG("%s: pointSlopeB.kneePoint_P5 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P5 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P5);
-  CDBG("%s: pointSlopeB.kneePoint_P6 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P6 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P6);
-  CDBG("%s: pointSlopeB.kneePoint_P7 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeB.kneePoint_P7 = %d\n", __func__,
     cmd->CfgParams.pointSlopeB.kneePoint_P7);
 
-  CDBG("%s: pointSlopeGr.kneePoint_P0 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P0 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P0);
-  CDBG("%s: pointSlopeGr.kneePoint_P1 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P1 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P1);
-  CDBG("%s: pointSlopeGr.kneePoint_P2 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P2 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P2);
-  CDBG("%s: pointSlopeGr.kneePoint_P3 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P3 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P3);
-  CDBG("%s: pointSlopeGr.kneePoint_P4 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P4 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P4);
-  CDBG("%s: pointSlopeGr.kneePoint_P5 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P5 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P5);
-  CDBG("%s: pointSlopeGr.kneePoint_P6 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P6 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P6);
-  CDBG("%s: pointSlopeGr.kneePoint_P7 = %d\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: pointSlopeGr.kneePoint_P7 = %d\n", __func__,
     cmd->CfgParams.pointSlopeGr.kneePoint_P7);
 
 }
@@ -369,57 +370,57 @@ static void linear_update_lowlight_table(chromatix_linearization_type *ip,
   /* R channel*/
   virtual_base = ip->r_lut_base[8] +
       (ip->r_lut_delta[8]) * (4095 - ip->r_lut_p[7]);
-  CDBG("%s: R calc_base : %u\n", __func__, virtual_base);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: R calc_base : %u\n", __func__, virtual_base);
 
   virtual_base = MIN(4095, virtual_base);
-  CDBG("%s: R virtual_base : %u, input_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: R virtual_base : %u, input_slope : %f\n", __func__,
     virtual_base, ip->r_lut_delta[8]);
 
   op->r_lut_delta[8] = CALC_SLOPE(op->r_lut_p[7], 4095,
     op->r_lut_base[8], virtual_base);
-  CDBG("%s: R virtual_base : %u, output_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: R virtual_base : %u, output_slope : %f\n", __func__,
     virtual_base, op->r_lut_delta[8]);
 
   /* Gr channel */
   virtual_base = ip->gr_lut_base[8] +
       (ip->gr_lut_delta[8]) * (4095 - ip->gr_lut_p[7]);
-  CDBG("%s: GR calc_base : %u\n", __func__, virtual_base);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: GR calc_base : %u\n", __func__, virtual_base);
 
   virtual_base = MIN(4095, virtual_base);
-  CDBG("%s: GR virtual_base : %u, input_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: GR virtual_base : %u, input_slope : %f\n", __func__,
     virtual_base, ip->gr_lut_delta[8]);
 
   op->gr_lut_delta[8] = CALC_SLOPE(op->gr_lut_p[7], 4095,
     op->gr_lut_base[8], virtual_base);
-  CDBG("%s: GR virtual_base : %u, output_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: GR virtual_base : %u, output_slope : %f\n", __func__,
     virtual_base, op->gr_lut_delta[8]);
 
   /* Gb channel */
   virtual_base = ip->gb_lut_base[8] +
     (ip->gb_lut_delta[8]) * (4095 - ip->gb_lut_p[7]);
-  CDBG("%s: GB calc_base : %u\n", __func__, virtual_base);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: GB calc_base : %u\n", __func__, virtual_base);
 
   virtual_base = MIN(4095, virtual_base);
-  CDBG("%s: GB virtual_base : %u, input_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: GB virtual_base : %u, input_slope : %f\n", __func__,
     virtual_base, ip->gb_lut_delta[8]);
 
   op->gb_lut_delta[8] = CALC_SLOPE(op->gb_lut_p[7], 4095,
     op->gb_lut_base[8], virtual_base);
-  CDBG("%s: GB virtual_base : %u, output_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: GB virtual_base : %u, output_slope : %f\n", __func__,
     virtual_base, op->gb_lut_delta[8]);
 
   /* B channel */
   virtual_base = ip->b_lut_base[8] +
     (ip->b_lut_delta[8]) * (4095 - ip->b_lut_p[7]);
-  CDBG("B calc_base : %u\n", virtual_base);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "B calc_base : %u\n", virtual_base);
 
   virtual_base = MIN(4095, virtual_base);
-  CDBG("%s: B virtual_base : %u, input_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: B virtual_base : %u, input_slope : %f\n", __func__,
     virtual_base, ip->b_lut_delta[8]);
 
   op->b_lut_delta[8] = CALC_SLOPE(op->b_lut_p[7], 4095,
     op->b_lut_base[8], virtual_base);
-  CDBG("%s: B virtual_base : %u, output_slope : %f\n", __func__,
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: B virtual_base : %u, output_slope : %f\n", __func__,
     virtual_base, op->b_lut_delta[8]);
 
 }
@@ -471,7 +472,7 @@ static void select_linear_table(isp_linear_mod_t *mod,
     awb_ratio = GET_INTERPOLATION_RATIO(mod->trigger_info.mired_color_temp,
       mod->trigger_info.trigger_d65.mired_end, mod->trigger_info.trigger_d65.mired_start);
 
-  CDBG("%s: lux = %d, aec_ratio : %f :: awb_ratio : %f\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: lux = %d, aec_ratio : %f :: awb_ratio : %f\n",
     __func__, lux, aec_rt.ratio, awb_ratio);
   switch (lux) {
   /* Bright */
@@ -638,13 +639,13 @@ static int linearization_trigger_update(isp_linear_mod_t *linear_mod,
   }
 
   if (!linear_mod->linear_enable || !linear_mod->linear_trigger_enable) {
-    CDBG("%s: no trigger update for Linear, enabled %d, trig_enable %d\n",
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: no trigger update for Linear, enabled %d, trig_enable %d\n",
       __func__, linear_mod->linear_enable, linear_mod->linear_trigger_enable);
     return 0;
   }
 
   if (!isp_util_aec_check_settled(&(trigger_params->trigger_input.stats_update.aec_update))) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: AEC not settled", __func__);
     return 0;
   }
 
@@ -689,13 +690,13 @@ static int linearization_trigger_update(isp_linear_mod_t *linear_mod,
       trigger_params);
     config_linearization_cmd(linear_mod, &output);
     linear_mod->hw_update_pending = TRUE;
-    CDBG("%s: color temp %d", __func__,
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: color temp %d", __func__,
       trigger_params->trigger_input.stats_update.awb_update.color_temp);
-    CDBG("%s: lux index %f", __func__,
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: lux index %f", __func__,
       trigger_params->trigger_input.stats_update.aec_update.lux_idx);
-    CDBG("%s: AEC type prev %s new %s", __func__,
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: AEC type prev %s new %s", __func__,
       aec_debug_str[linear_mod->prev_lux], aec_debug_str[lux]);
-    CDBG("%s: AWB type prev %s new %s", __func__,
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: AWB type prev %s new %s", __func__,
       awb_debug_str[linear_mod->prev_cct_type], awb_debug_str[cct_type]);
     linear_mod->old_streaming_mode = trigger_params->cfg.streaming_mode;
     linear_mod->prev_lux = lux;
@@ -921,7 +922,7 @@ static int linearization_do_hw_update(isp_linear_mod_t *linear_mod)
     (linear_mod->linear_cmd.CfgParams.lutBankSel == 0)?
       BLACK_LUT_RAM_BANK0 : BLACK_LUT_RAM_BANK1;
 
-  CDBG("%s: hw_update = %d\n", __func__, linear_mod->hw_update_pending);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: hw_update = %d\n", __func__, linear_mod->hw_update_pending);
   if (linear_mod->hw_update_pending) {
     /* prepare dmi_set and dmi_reset fields */
     linear_mod->linear_cmd.dmi_set[0] =

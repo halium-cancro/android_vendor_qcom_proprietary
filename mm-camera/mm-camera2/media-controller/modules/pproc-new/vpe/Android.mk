@@ -8,6 +8,7 @@ LOCAL_MODULE_TAGS := optional
 
 PPROC_MODULE_PATH := $(LOCAL_PATH)/../../pproc-new
 MM_CAMERA_PATH := $(LOCAL_PATH)/../../../../../mm-camera2
+HAL_PATH := $(LOCAL_PATH)/../../../../../../../../../hardware/qcom/camera
 
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)
@@ -21,6 +22,7 @@ LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/event
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/bus
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/module
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/stream
+LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/debug
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/pipeline
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/modules/includes
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
@@ -39,6 +41,7 @@ LOCAL_SRC_FILES += vpe_hw_params.c
 LOCAL_SRC_FILES += vpe_proc.c
 
 LOCAL_MODULE           := libmmcamera2_vpe_module
+LOCAL_32_BIT_ONLY := true
 LOCAL_SHARED_LIBRARIES := libcutils liboemcamera
 
 ifeq ($(MM_DEBUG),true)
@@ -46,7 +49,8 @@ LOCAL_SHARED_LIBRARIES += liblog
 endif
 LOCAL_MODULE_TAGS      := optional eng
 LOCAL_ADDITIONAL_DEPENDENCIES  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

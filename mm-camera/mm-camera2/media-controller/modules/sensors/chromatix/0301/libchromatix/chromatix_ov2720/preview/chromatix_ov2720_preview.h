@@ -3126,11 +3126,11 @@ Diversion contrary to U.S. law prohibited.
          {
             /* Noise Profile 1 */
             {
-               222.000000f, /* Trigger Value */
+               100.000000f, /* Trigger Value */
                {
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.906597f, 0.811697f, 0.491294f, 0.253922f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.294918f, 0.293889f, 0.486912f, 0.487189f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.294191f, 0.301821f, 0.503896f, 0.477494f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 2.059193f, 1.310086f, 0.557149f, 0.305014f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.473365f, 0.591581f, 0.901927f, 0.708010f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.413021f, 0.437599f, 0.594180f, 0.467607f
                },
                /* Denoise Scale Y */
                {
@@ -3138,7 +3138,7 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Scale Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Y */
                {
@@ -3146,7 +3146,7 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Edge Softness Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  15.000000f, 15.000000f, 15.000000f, 15.000000f
                },
                /* Denoise Weight Y */
                {
@@ -3154,18 +3154,18 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Weight Chroma */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f
                },
                204, /* SW Denosie Edge Threshold Y */
                204, /* SW Denosie Edge Threshold Chroma */
             },
             /* Noise Profile 2 */
             {
-               253.000000f, /* Trigger Value */
+               256.000000f, /* Trigger Value */
                {
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.757548f, 0.692369f, 0.444143f, 0.260161f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.281441f, 0.297441f, 0.472577f, 0.444237f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.282148f, 0.281977f, 0.447588f, 0.453012f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 2.899683f, 1.669038f, 0.766009f, 0.395317f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.493306f, 0.640263f, 0.992247f, 0.844626f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.459072f, 0.517536f, 0.788296f, 0.676503f
                },
                /* Denoise Scale Y */
                {
@@ -3173,7 +3173,7 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Scale Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Y */
                {
@@ -3181,7 +3181,7 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Edge Softness Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  15.000000f, 15.000000f, 15.000000f, 15.000000f
                },
                /* Denoise Weight Y */
                {
@@ -3189,18 +3189,18 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Weight Chroma */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f
                },
                204, /* SW Denosie Edge Threshold Y */
                204, /* SW Denosie Edge Threshold Chroma */
             },
             /* Noise Profile 3 */
             {
-               277.000000f, /* Trigger Value */
+               281.000000f, /* Trigger Value */
                {
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.903562f, 0.833977f, 0.509701f, 0.283857f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.300587f, 0.353994f, 0.571018f, 0.548736f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.304150f, 0.353706f, 0.556457f, 0.510030f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 4.079026f, 2.314515f, 1.103318f, 0.560449f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.614886f, 1.021326f, 1.381026f, 1.069697f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.566478f, 0.853698f, 1.133851f, 0.963088f
                },
                /* Denoise Scale Y */
                {
@@ -3208,120 +3208,120 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Scale Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Y */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                   7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  15.000000f, 15.000000f, 15.000000f, 15.000000f
                },
                /* Denoise Weight Y */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.300000f, 0.300000f, 0.450000f, 0.450000f
                },
                /* Denoise Weight Chroma */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f
                },
                204, /* SW Denosie Edge Threshold Y */
                204, /* SW Denosie Edge Threshold Chroma */
             },
             /* Noise Profile 4 */
             {
-               307.000000f, /* Trigger Value */
+               304.000000f, /* Trigger Value */
                {
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 1.488549f, 1.250134f, 0.704770f, 0.398831f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.340179f, 0.493897f, 0.822351f, 0.738712f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.331497f, 0.444140f, 0.716195f, 0.637776f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 4.034944f, 2.602460f, 1.207807f, 0.556115f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.867417f, 1.518999f, 1.876816f, 1.405498f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.723918f, 1.222131f, 1.573137f, 1.317924f
                },
                /* Denoise Scale Y */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                   7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Scale Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Y */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                   7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  15.000000f, 15.000000f, 15.000000f, 15.000000f
                },
                /* Denoise Weight Y */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.300000f, 0.300000f, 0.450000f, 0.450000f
                },
                /* Denoise Weight Chroma */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f
                },
                204, /* SW Denosie Edge Threshold Y */
                204, /* SW Denosie Edge Threshold Chroma */
             },
             /* Noise Profile 5 */
             {
-               332.000000f, /* Trigger Value */
+               326.000000f, /* Trigger Value */
                {
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 1.477813f, 1.226391f, 0.719974f, 0.346149f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.345427f, 0.493814f, 0.804769f, 0.672793f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.335472f, 0.447258f, 0.729645f, 0.686095f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 5.118175f, 3.154185f, 1.585954f, 0.829861f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.808333f, 1.432239f, 1.922457f, 1.739034f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.706026f, 1.196841f, 1.624299f, 1.359591f
                },
                /* Denoise Scale Y */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Scale Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Y */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  15.000000f, 15.000000f, 15.000000f, 15.000000f
                },
                /* Denoise Weight Y */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.300000f, 0.300000f, 0.450000f, 0.450000f
                },
                /* Denoise Weight Chroma */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f
                },
                204, /* SW Denosie Edge Threshold Y */
                204, /* SW Denosie Edge Threshold Chroma */
             },
             /* Noise Profile 6 */
             {
-               359.000000f, /* Trigger Value */
+               358.000000f, /* Trigger Value */
                {
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 1.228503f, 1.099033f, 0.762086f, 0.454916f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.342169f, 0.486482f, 0.831890f, 0.803808f,
-                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.358849f, 0.506433f, 0.890038f, 0.885608f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 5.114824f, 2.973075f, 1.732806f, 0.978696f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.823696f, 1.460697f, 2.107831f, 1.836780f,
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.733495f, 1.364059f, 1.924650f, 1.619799f
                },
                /* Denoise Scale Y */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Scale Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Y */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  7.000000f, 7.000000f, 7.000000f, 7.000000f
                },
                /* Denoise Edge Softness Chroma */
                {
-                  3.000000f, 3.000000f, 3.000000f, 3.000000f
+                  15.000000f, 15.000000f, 15.000000f, 15.000000f
                },
                /* Denoise Weight Y */
                {
@@ -3329,7 +3329,7 @@ Diversion contrary to U.S. law prohibited.
                },
                /* Denoise Weight Chroma */
                {
-                  0.300000f, 0.300000f, 0.300000f, 0.300000f
+                  0.000000f, 0.000000f, 0.000000f, 0.000000f
                },
                204, /* SW Denosie Edge Threshold Y */
                204, /* SW Denosie Edge Threshold Chroma */
@@ -4602,8 +4602,8 @@ Diversion contrary to U.S. law prohibited.
 // a variety of heuristics. We do not recommend the user change these values.
 /*********************************************************************/
 
-   290, /* Indoor Index */
-   190, /* Outdoor Index */
+   278, /* Indoor Index */
+   178, /* Outdoor Index */
 
 /*********************************************************************/
 // Feature name :
@@ -5372,13 +5372,13 @@ Diversion contrary to U.S. law prohibited.
       },
       /* TL84 AWB Reference Point */
       {
-         0.736000f,   /* R/G ratio */
-         0.601000f,   /* B/G ratio */
+         0.823500f,    /* R/G ratio */
+         0.590100f,    /* B/G ratio */
       },
       /* CoolWhite AWB Reference Point */
       {
-         0.620000f,   /* R/G ratio */
-         0.567000f,   /* B/G ratio */
+         0.683900f,    /* R/G ratio */
+         0.587900f,   /* B/G ratio */
       },
       /* Horizon AWB Reference Point */
       {
@@ -5392,8 +5392,8 @@ Diversion contrary to U.S. law prohibited.
       },
       /* Cust. Fluor. AWB Reference Point */
       {
-         0.736000f,   /* R/G ratio */
-         0.601000f,   /* B/G ratio */
+         0.823500f,    /* R/G ratio */
+         0.590100f,    /* B/G ratio */
       },
       /* Noon AWB Reference Point */
       {
@@ -5402,18 +5402,18 @@ Diversion contrary to U.S. law prohibited.
       },
       /* Custom Daylight AWB Reference Point */
       {
-         0.556000f,   /* R/G ratio */
-         0.972000f,   /* B/G ratio */
+         0.598300f,   /* R/G ratio */
+         0.919900f,   /* B/G ratio */
       },
       /* Custom A AWB Reference Point */
       {
-         0.899000f,   /* R/G ratio */
-         0.485000f,   /* B/G ratio */
+         0.971200f,   /* R/G ratio */
+         0.492900f,   /* B/G ratio */
       },
       /* U30 AWB Reference Point */
       {
-         0.899000f,   /* R/G ratio */
-         0.485000f,   /* B/G ratio */
+         0.971200f,    /* R/G ratio */
+         0.492900f,   /* B/G ratio */
       },
    },
    /* LED Gain Adjust */
@@ -5559,8 +5559,8 @@ Diversion contrary to U.S. law prohibited.
 // a variety of heuristics. We do not recommend the user change these values.
 /*********************************************************************/
 
-   240, /* Indoor Index */
-   140, /* Outdoor Index */
+   278, /* Indoor Index */
+   178, /* Outdoor Index */
 
 /*********************************************************************/
 // Feature name :

@@ -1,5 +1,5 @@
 /**********************************************************************
- * Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved. *
+ * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
  * Qualcomm Technologies Proprietary and Confidential.                 *
  **********************************************************************/
 
@@ -56,6 +56,21 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
   int rc = 0;
   //Program  gamma tables accordingly
   if ((p_comp->gamma.gamma_t == GAMMA_TBL_ALL)) {
+    memcpy(p_comp->g_hdr_gamma.red_gamma_table,
+      p_comp->gamma.gamma_tbl,
+      GAMMA_TABLE_SIZE_HDR*sizeof(uint16_t));
+    memcpy(p_comp->g_hdr_gamma.green_gamma_table,
+      p_comp->gamma.gamma_tbl,
+      GAMMA_TABLE_SIZE_HDR*sizeof(uint16_t));
+    memcpy(p_comp->g_hdr_gamma.blue_gamma_table,
+      p_comp->gamma.gamma_tbl,
+      GAMMA_TABLE_SIZE_HDR*sizeof(uint16_t));
+    p_comp->g_hdr_gamma.hdr_gamma_R.gamma_tbl =
+      p_comp->g_hdr_gamma.red_gamma_table;
+    p_comp->g_hdr_gamma.hdr_gamma_G.gamma_tbl =
+      p_comp->g_hdr_gamma.green_gamma_table;
+    p_comp->g_hdr_gamma.hdr_gamma_B.gamma_tbl =
+      p_comp->g_hdr_gamma.blue_gamma_table;
     //allocate memory for inverse gamma and new gamma correction tables
     if (!p_comp->param.mpRedInverseGammatable)
       p_comp->param.mpRedInverseGammatable = (uint32_t *)malloc(
@@ -68,13 +83,13 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
         256 * sizeof(uint32_t));
     if (!p_comp->param.mpRedNewGammatable)
       p_comp->param.mpRedNewGammatable = (uint32_t *)malloc(
-        4096 * sizeof(uint32_t));
+        MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
     if (!p_comp->param.mpGreenNewGammatable)
       p_comp->param.mpGreenNewGammatable = (uint32_t *)malloc(
-        4096 * sizeof(uint32_t));
+        MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
     if (!p_comp->param.mpBlueNewGammatable)
       p_comp->param.mpBlueNewGammatable = (uint32_t *)malloc(
-        4096 * sizeof(uint32_t));
+        MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
 
     if (p_comp->param.mpRedInverseGammatable == NULL
       || p_comp->param.mpGreenInverseGammatable == NULL
@@ -148,12 +163,12 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
     memcpy(p_comp->param.mpGreenInverseGammatable,
       p_comp->param.mpRedInverseGammatable, 256 * sizeof(uint32_t));
     memcpy(p_comp->param.mpGreenNewGammatable, p_comp->param.mpRedNewGammatable,
-      4096 * sizeof(uint32_t));
+      MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
     //For B
     memcpy(p_comp->param.mpBlueInverseGammatable,
       p_comp->param.mpRedInverseGammatable, 256 * sizeof(uint32_t));
     memcpy(p_comp->param.mpBlueNewGammatable, p_comp->param.mpRedNewGammatable,
-      4096 * sizeof(uint32_t));
+      MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
 
   } else {
     if (p_comp->gamma.gamma_t == GAMMA_TBL_R) {
@@ -163,7 +178,7 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
           256 * sizeof(uint32_t));
       if (!p_comp->param.mpRedNewGammatable)
         p_comp->param.mpRedNewGammatable = (uint32_t *)malloc(
-          4096 * sizeof(uint32_t));
+          MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
       if (p_comp->param.mpRedInverseGammatable == NULL
         || p_comp->param.mpRedNewGammatable == NULL) {
         if (p_comp->param.mpRedInverseGammatable) {
@@ -176,6 +191,13 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
         }
         return IMG_ERR_NO_MEMORY;
       }
+      memcpy(p_comp->g_hdr_gamma.red_gamma_table,
+        p_comp->gamma.gamma_tbl,
+        GAMMA_TABLE_SIZE_HDR*sizeof(uint16_t));
+
+      p_comp->g_hdr_gamma.hdr_gamma_R.gamma_tbl =
+        p_comp->g_hdr_gamma.red_gamma_table;
+
       rc = hdr_calc_inverse_gamma(&(p_comp->gamma),
         p_comp->param.mpRedInverseGammatable);
       if (rc != IMG_SUCCESS) {
@@ -198,7 +220,7 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
           256 * sizeof(uint32_t));
       if (!p_comp->param.mpGreenNewGammatable)
         p_comp->param.mpGreenNewGammatable = (uint32_t *)malloc(
-          4096 * sizeof(uint32_t));
+          MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
       if (p_comp->param.mpGreenInverseGammatable == NULL
         || p_comp->param.mpGreenNewGammatable == NULL) {
         if (p_comp->param.mpGreenInverseGammatable) {
@@ -211,6 +233,12 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
         }
         return IMG_ERR_NO_MEMORY;
       }
+      memcpy(p_comp->g_hdr_gamma.green_gamma_table,
+        p_comp->gamma.gamma_tbl,
+        GAMMA_TABLE_SIZE_HDR*sizeof(uint16_t));
+
+      p_comp->g_hdr_gamma.hdr_gamma_G.gamma_tbl =
+        p_comp->g_hdr_gamma.green_gamma_table;
       rc = hdr_calc_inverse_gamma(&(p_comp->gamma),
         p_comp->param.mpGreenInverseGammatable);
       if (rc != IMG_SUCCESS) {
@@ -233,7 +261,7 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
           256 * sizeof(uint32_t));
       if (!p_comp->param.mpBlueNewGammatable)
         p_comp->param.mpBlueNewGammatable = (uint32_t *)malloc(
-          4096 * sizeof(uint32_t));
+          MAX_GAMMA_INTERPOLATED * sizeof(uint32_t));
       if (p_comp->param.mpBlueInverseGammatable == NULL
         || p_comp->param.mpBlueNewGammatable == NULL) {
         if (p_comp->param.mpBlueInverseGammatable) {
@@ -246,6 +274,12 @@ int hdr_calculate_gammatbl(hdr_comp_t *p_comp)
         }
         return IMG_ERR_NO_MEMORY;
       }
+      memcpy(p_comp->g_hdr_gamma.blue_gamma_table,
+        p_comp->gamma.gamma_tbl,
+        GAMMA_TABLE_SIZE_HDR*sizeof(uint16_t));
+
+      p_comp->g_hdr_gamma.hdr_gamma_B.gamma_tbl =
+        p_comp->g_hdr_gamma.blue_gamma_table;
       rc = hdr_calc_inverse_gamma(&(p_comp->gamma),
         p_comp->param.mpBlueInverseGammatable);
       if (rc != IMG_SUCCESS) {
@@ -559,7 +593,20 @@ void hdr_fill_config(hdr_comp_t *p_comp, hdr_config_t *p_config,
     p_config->calculatedExposureRatioG =
       p_comp->param.mCalculatedExposureRatioG;
   }
-
+  if (p_comp->hdr_chromatix.enable) {
+    p_config->contrastControl =
+      p_comp->hdr_chromatix.hdr_contrast_control;
+    p_config->chromaSat_wgt     = (float)((p_comp->hdr_chromatix.hdr_chromaSat_wgt))/10.0f;
+    p_config->chromaSat_clamp   =
+      p_comp->hdr_chromatix.hdr_chromaSat_clamp;
+    p_config->chromaSat_shift   =
+      p_comp->hdr_chromatix.hdr_chromaSat_shift;
+  }  else {
+      /* By Default, Color saturation control is set to mild level of desaturation */
+      p_config->chromaSat_wgt   = 0.5f;
+      p_config->chromaSat_clamp = 90;
+      p_config->chromaSat_shift = 5;
+  }
   if (p_comp->mode == MULTI_FRAME) {
     p_config->maxLag = 200;
     p_config->pRedGammaInvTable = p_comp->param.mpRedInverseGammatable;
@@ -568,6 +615,9 @@ void hdr_fill_config(hdr_comp_t *p_comp, hdr_config_t *p_config,
     p_config->pRedGammaTable = p_comp->param.mpRedNewGammatable;
     p_config->pGreenGammaTable = p_comp->param.mpGreenNewGammatable;
     p_config->pBlueGammaTable = p_comp->param.mpBlueNewGammatable;
+    p_config->pGammaStruct = &p_comp->g_hdr_gamma.hdr_gamma_R;
+    p_config->pGammaStructG = &p_comp->g_hdr_gamma.hdr_gamma_G;
+    p_config->pGammaStructB = &p_comp->g_hdr_gamma.hdr_gamma_B;
     p_config->pHdrBuffer2Y = p_frame[1]->frame[0].plane[IY].addr
       + p_frame[1]->frame[0].plane[IY].offset;
     p_config->pHdrBuffer2C = p_frame[1]->frame[0].plane[IC].addr
@@ -605,6 +655,7 @@ int hdr_comp_execute(hdr_comp_t *p_comp)
   hdr_config_t *p_config = &(p_comp->structHdrConfig);
   int i = 0;
 
+  memset(p_config, 0, sizeof(hdr_config_t));
   if (p_comp->mode == SINGLE_FRAME) {
     if (p_comp->analyse_image) {
       hdr_fill_config(p_comp, p_config, p_comp->p_analysis_frame);
@@ -707,6 +758,15 @@ void *hdr_thread_loop(void *data)
   IDBG_HIGH("%s:%d] status %d analyse %d main_cnt %d", __func__, __LINE__,
     status, p_comp->analyse_image, p_comp->main_count);
 
+  pthread_mutex_lock(&p_base->mutex);
+  /* Don't send back buffers on abort */
+  if (IMG_STATE_STOP_REQUESTED == p_base->state) {
+    pthread_mutex_unlock(&p_base->mutex);
+    p_base->state = IMG_STATE_STOPPED;
+    return NULL;
+  }
+  pthread_mutex_unlock(&p_base->mutex);
+
   /* send all the buffers back */
   for (i = 0; i < p_comp->main_count; i++) {
     img_q_enqueue(&p_base->outputQ, p_comp->p_main_frame[i]);
@@ -806,6 +866,16 @@ int hdr_comp_set_param(void *handle, img_param_type param, void *p_data)
     }
     p_comp->out_index = *p_info;
     IDBG_HIGH("%s:%d] out_index %d", __func__, __LINE__, p_comp->out_index);
+  }
+    break;
+   case QHDR_HDR_CHROMATIX: {
+    hdr_chromatix_t *p_chromatix = (hdr_chromatix_t *)p_data;
+
+    if (NULL == p_chromatix) {
+      IDBG_ERROR("%s:%d] invalid hdr chromatix", __func__, __LINE__);
+      return IMG_ERR_INVALID_INPUT;
+    }
+    p_comp->hdr_chromatix = *p_chromatix;
   }
     break;
   default:

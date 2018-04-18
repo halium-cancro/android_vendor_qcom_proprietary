@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -18,6 +18,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_ops.h"
 #include "isp_hw.h"
 #include "isp.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -41,10 +42,10 @@ extern int port_isp_create_ports(isp_t *isp);
 static boolean  module_isp_process_event_func(mct_module_t *module,
   mct_event_t *event)
 {
-  CDBG("%s: E, event type %d direction %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: E, event type %d direction %d\n", __func__,
        event->type, event->direction);
 
-  CDBG("%s: Xn", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: Xn", __func__);
   return 0;
 }
 
@@ -59,10 +60,10 @@ static boolean  module_isp_process_event_func(mct_module_t *module,
 static boolean  module_isp_send_event_func(mct_module_t *module,
   mct_event_t *event)
 {
-  CDBG("%s: E, event type %d direction %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: E, event type %d direction %d\n", __func__,
        event->type, event->direction);
 
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
   return 0;
 }
 
@@ -79,9 +80,9 @@ static boolean  module_isp_send_event_func(mct_module_t *module,
 static void module_isp_set_mod_func(mct_module_t *module,
   unsigned int module_type, unsigned int identity)
 {
-  CDBG("%s: E, module_type %d\n", __func__, module_type);
+  ISP_DBG(ISP_MOD_COM,"%s: E, module_type %d\n", __func__, module_type);
 
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
   return;
 }
 
@@ -106,7 +107,7 @@ static boolean  module_isp_query_mod_func(mct_module_t *module,
   isp_t *isp;
   int num;
 
-  CDBG("%s: E, sessionid %d\n", __func__, sessionid);
+  ISP_DBG(ISP_MOD_COM,"%s: E, sessionid %d\n", __func__, sessionid);
   if (!query_buf || !module) {
     CDBG_ERROR("%s:%d failed query_buf %p s_module %p\n", __func__, __LINE__,
         query_buf, module);
@@ -134,8 +135,10 @@ static boolean  module_isp_query_mod_func(mct_module_t *module,
   isp_cap->supported_effects[6] = CAM_EFFECT_MODE_WHITEBOARD;
   isp_cap->supported_effects[7] = CAM_EFFECT_MODE_BLACKBOARD;
   isp_cap->supported_effects[8] = CAM_EFFECT_MODE_AQUA;
-
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  isp_cap->low_power_mode_supported =
+    (isp->data.sd_info.sd_info[0].cap.hw_ver == ISP_MSM8909);
+  isp_cap->use_pix_for_SOC = isp->res_mgr->vfe_info[0].use_pix_for_SOC;
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -156,13 +159,13 @@ static boolean module_isp_start_session(mct_module_t *module,
   int ret = 0;
   isp_t *isp = module->module_private;
 
-  CDBG("%s: E, module->module_private= %p, sessionid %d \n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: E, module->module_private= %p, sessionid %d \n", __func__,
        module->module_private, sessionid);
   pthread_mutex_lock(&isp->mutex);
   ret = isp_start_session(isp, sessionid);
   pthread_mutex_unlock(&isp->mutex);
   rc = (ret == 0)? TRUE : FALSE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -183,14 +186,14 @@ static boolean module_isp_stop_session(mct_module_t *module,
   int ret = 0;
   isp_t *isp = module->module_private;
 
-  CDBG("%s: E, module->module_private= %p, sessionid %d \n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: E, module->module_private= %p, sessionid %d \n", __func__,
        module->module_private,sessionid);
   pthread_mutex_lock(&isp->mutex);
   ret = isp_stop_session(isp, sessionid);
   pthread_mutex_unlock(&isp->mutex);
   rc = (ret == 0)? TRUE : FALSE;
 
-  CDBG("%s: X rc = %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X rc = %d", __func__, rc);
   return rc;
 }
 
@@ -209,7 +212,7 @@ mct_module_t *module_isp_init(const char *name)
   mct_module_t *module_isp = NULL;
   isp_t         *isp = NULL;
 
-  CDBG("%s: E, name= %s\n", __func__, name);
+  ISP_DBG(ISP_MOD_COM,"%s: E, name= %s\n", __func__, name);
 
   /* Create MCT module for ISP */
   module_isp = mct_module_create(name);
@@ -239,7 +242,7 @@ mct_module_t *module_isp_init(const char *name)
   module_isp->stop_session = module_isp_stop_session;
   isp->module->module_private = isp;
 
-  CDBG("%s: X, isp->module %x\n", __func__, (unsigned int)isp->module);
+  ISP_DBG(ISP_MOD_COM,"%s: X, isp->module %x\n", __func__, (unsigned int)isp->module);
   return isp->module;
 
 error_ports:
@@ -260,12 +263,17 @@ error:
  **/
 void module_isp_deinit(mct_module_t *mod)
 {
-  isp_t *isp = (isp_t*)mod->module_private;
-
-  CDBG("%s: E, mod->module_private= %p\n", __func__,
-       mod->module_private);
-  if (isp)
-    isp_destroy(isp);
-  mod->module_private = NULL;
-  CDBG("%s: X\n", __func__);
+  isp_t *isp = NULL;
+  if (mod) {
+      ISP_DBG(ISP_MOD_COM,"%s: E, mod->module_private= %p\n", __func__,
+           mod->module_private);
+      isp = (isp_t*)mod->module_private;
+      if (isp){
+        port_isp_destroy_ports(isp);
+        mct_module_destroy(isp->module);
+        isp_destroy(isp);
+        mod->module_private = NULL;
+      }
+  }
+  ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
 }

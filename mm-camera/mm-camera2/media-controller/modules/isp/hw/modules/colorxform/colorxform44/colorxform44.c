@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "colorxform44.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_COLOR_XFROM_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 /** color_xform_config_601_to_709
@@ -243,7 +244,7 @@ static int color_xform_config(isp_color_xform_mod_t *mod,
   int rc = 0;
   color_xform_type_t color_xform = XFORM_MAX;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: E", __func__);
 
   if (!mod->enable) {
     CDBG_ERROR("%s: module not enabled %d", __func__, mod->enable);
@@ -258,7 +259,7 @@ static int color_xform_config(isp_color_xform_mod_t *mod,
   color_xform =
           (in_params->recording_hint)?XFORM_601_601_SDTV:XFORM_601_601;
 
-  CDBG("%s: recording_hint: %d set_color_xform: %d",
+  ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: recording_hint: %d set_color_xform: %d",
     __func__, in_params->recording_hint, color_xform);
   switch(color_xform) {
   case XFORM_601_601: {
@@ -386,7 +387,7 @@ static void util_color_xform_debug(isp_color_xform_mod_t *mod)
   int32_t i = 0;
   for(i = 0; i < ISP_COLOR_XFORM_MAX; i++) {
     reg_cmd = &mod->reg_cmd[i];
-    CDBG("%s:%d xform coefficients:\n"
+    ISP_DBG(ISP_MOD_COLOR_XFORM, "%s:%d xform coefficients:\n"
       "m00 = 0x%x, m01 = 0x%x, m02 = 0x%x, o0 = 0x%x, S0 = 0x%x\n"
       "ml0 = 0x%x, ml1 = 0x%x, ml2 = 0x%x, o1 = 0x%x, s1 = 0x%x\n"
       "m20 = 0x%x, m21 = 0x%x, m22 = 0x%x, o2 = 0x%x, s2 = 0x%x\n"
@@ -569,7 +570,7 @@ static int color_xform_action (void *mod_ctrl, uint32_t action_code, void *data,
 
   default: {
     /* no op */
-    CDBG("%s: action code = %d is not supported. nop",
+    ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: action code = %d is not supported. nop",
       __func__, action_code);
     rc = 0;
   }
@@ -590,7 +591,7 @@ isp_ops_t *color_xform44_open(uint32_t version)
 {
   isp_color_xform_mod_t *mod = malloc(sizeof(isp_color_xform_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COLOR_XFORM, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

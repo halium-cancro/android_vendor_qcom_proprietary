@@ -54,6 +54,18 @@ endif
 LOCAL_CFLAGS+= -DIPL_DEBUG_STANDALONE
 #endif
 
+ifeq ($(MSM_VERSION), 8226)
+  LOCAL_CFLAGS += -DCAMERA_FEATURE_WNR_SW
+endif
+
+ifeq ($(MSM_VERSION), 8610)
+  LOCAL_CFLAGS += -DCAMERA_FEATURE_WNR_SW
+endif
+
+ifeq ($(MSM_VERSION), 8909)
+  LOCAL_CFLAGS += -DCAMERA_FEATURE_WNR_SW
+endif
+
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../includes/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../common/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/includes/
@@ -66,7 +78,9 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/mct/object/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/mct/pipeline/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/mct/port/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/mct/stream/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/mct/debug/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../server-imaging/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../server-tuning/tuning
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/modules/includes/
 #LOCAL_C_INCLUDES += $(LOCAL_PATH)/modules/sensors/
@@ -92,7 +106,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/modules/includes/
 #LOCAL_C_INCLUDES += $(LOCAL_PATH)/modules/isp/hw/modules/
 #LOCAL_C_INCLUDES += $(LOCAL_PATH)/modules/iface/
 #LOCAL_C_INCLUDES += \
-# $(LOCAL_PATH)/../../../../../../hardware/qcom/camera/QCamera2/stack/common
+# $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 
 #LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../mm-camera-lib/stats/q3a/aec
 #LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../mm-camera-lib/stats/q3a/awb
@@ -104,6 +118,7 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/modules/includes/
 #LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../mm-camera-lib/stats/q3a/af/algorithm
 
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
@@ -173,7 +188,8 @@ LOCAL_SHARED_LIBRARIES:= libdl libcutils  liblog
 LOCAL_MODULE:=liboemcamera
 LOCAL_MODULE_TAGS := optional
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
@@ -197,8 +213,13 @@ include $(LOCAL_PATH)/modules/sensors/eeprom_libs/Android.mk
 
 #************* actuator libs start ************#
 LOCAL_PATH := $(LOCAL_DIR_PATH)
-include $(LOCAL_PATH)/modules/sensors/actuators/0301/actuator_libs/Android.mk
+include $(LOCAL_PATH)/modules/sensors/actuators/$(CHROMATIX_VERSION)/Android.mk
 #************* actuator libs end ************#
+
+#************* actuator driver libs start ************#
+LOCAL_PATH := $(LOCAL_DIR_PATH)
+include $(LOCAL_PATH)/modules/sensors/actuator_libs/Android.mk
+#************* actuator driver libs end ************#
 
 #************* chromatix libs start ************#
 LOCAL_PATH := $(LOCAL_DIR_PATH)

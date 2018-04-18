@@ -10,11 +10,18 @@
 #include "mct_port.h"
 #include "q3a_thread.h"
 
+#define DUAL_LED_CALIBRATION       0
+#define DUAL_LED_CALIBRATION_FRAME 15
+
 #define Q3A_PORT_STATE_CREATED        0x1
 #define Q3A_PORT_STATE_RESERVED       0x2
 #define Q3A_PORT_STATE_UNRESERVED     0x3
 #define Q3A_PORT_STATE_LINKED         0x4
 #define Q3A_PORT_STATE_UNLINKED       0x5
+
+
+#define NUMBER_OF_SKIP_FRAMES_PRE_FLASH_START (4)
+#define NUMBER_OF_SKIP_FRAMES_PRE_FLASH_END   (4)
 
 typedef enum {
   AF_WITH_LED_STATE_IDLE,
@@ -38,6 +45,8 @@ typedef enum{
  *    @aec_update_data:         used to store the estimated AEC values
  *    @aec_no_led_data:         used to store the AEC values before the LED is turned ON
  *                              turned ON
+ *    @aec_output_data:         used to store the data that need to send out
+ *                              q3a port
  *    @led_needed:              a flag to track the AEC update and store the
  *                              condition if the LED is needed or not
  *    @preview_fps:             current preview fps to help the timer
@@ -54,12 +63,17 @@ typedef struct _q3a_port_af_led_t {
   int                 led_status;
   stats_update_t      aec_update_data;
   stats_update_t      aec_no_led_data;
-  boolean             led_needed;
+  stats_update_t      aec_output_data;
+  boolean             led_af_needed;
+  boolean             flash_needed;
   int                 preview_fps;
   int                 led_wait_count;
   boolean             send_stored_update_data;
   boolean             send_stored_no_led_data;
   int                 skip_update_frame;
+  boolean             af_focus_mode_block;
+  boolean             af_scene_mode_block;
+  boolean             prepare_snapshot_trigger;
 } q3a_port_af_led_t;
 
 /** q3a_port_private_t
@@ -95,6 +109,7 @@ typedef struct _q3a_port_private {
   boolean                  aec_roi_enable;
   boolean                  aec_settled;
   uint32_t                 aec_ocsillate_cnt;
+  boolean                  af_supported;
 } q3a_port_private_t;
 
 void    q3a_port_deinit(mct_port_t *port);

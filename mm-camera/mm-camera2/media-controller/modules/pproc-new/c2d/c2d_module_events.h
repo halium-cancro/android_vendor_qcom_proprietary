@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -47,5 +47,9 @@ int32_t c2d_module_handle_stream_cfg_event(mct_module_t* module,
 
 int32_t c2d_module_handle_div_info_event(mct_module_t* module,
   mct_event_t* event);
+
+int32_t c2d_module_handle_set_stream_parm_event(mct_module_t* module,
+  mct_event_t* event);
+
 
 #endif

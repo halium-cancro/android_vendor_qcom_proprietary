@@ -405,7 +405,7 @@ static boolean module_afs_forward_port_event(afs_client_t *p_client,
   if (MCT_PORT_IS_SINK(port)) {
     p_adj_port = p_client->p_srcport;
     if (NULL == p_adj_port) {
-       IDBG_HIGH("%s:%d] Invalid port", __func__, __LINE__);
+       IDBG_ERROR("%s:%d] Invalid port", __func__, __LINE__);
        return FALSE;
     }
     switch(event->direction) {
@@ -431,7 +431,7 @@ static boolean module_afs_forward_port_event(afs_client_t *p_client,
   } else if (MCT_PORT_IS_SRC(port)) {
     p_adj_port = p_client->p_sinkport;
     if (NULL == p_adj_port) {
-       IDBG_HIGH("%s:%d] Invalid port", __func__, __LINE__);
+       IDBG_ERROR("%s:%d] Invalid port", __func__, __LINE__);
        return FALSE;
     }
     switch(event->direction) {
@@ -519,18 +519,25 @@ boolean module_afs_port_event_func(mct_port_t *port,
       if (IMG_ERROR(rc)) {
         IDBG_ERROR("%s:%d] AFS_STREAMON failed %d", __func__, __LINE__, rc);
       } else {
-        IDBG_ERROR("%s:%d] AFS_STREAMON %x", __func__, __LINE__, event->identity);
+        IDBG_MED("%s:%d] AFS_STREAMON %x", __func__, __LINE__, event->identity);
       }
       pthread_mutex_unlock(&p_client->mutex);
       break;
     }
     case MCT_EVENT_CONTROL_STREAMOFF: {
+      pthread_mutex_lock(&p_client->frame_algo_mutex);
+      while (p_client->processing) {
+        pthread_cond_wait(&p_client->frame_algo_cond,
+          &p_client->frame_algo_mutex);
+      }
+      pthread_mutex_unlock(&p_client->frame_algo_mutex);
+
       pthread_mutex_lock(&p_client->mutex);
       rc = module_afs_handle_streamoff(p_mod, p_client);
       if (IMG_ERROR(rc)) {
-        IDBG_ERROR("%s:%d] AFS_STREAMON failed %d", __func__, __LINE__, rc);
+        IDBG_ERROR("%s:%d] AFS_STREAMOFF failed %d", __func__, __LINE__, rc);
       } else {
-        IDBG_ERROR("%s:%d] AFS_STREAMON %x", __func__, __LINE__, event->identity);
+        IDBG_MED("%s:%d] AFS_STREAOFF %x", __func__, __LINE__, event->identity);
       }
       pthread_mutex_unlock(&p_client->mutex);
       break;
@@ -559,28 +566,71 @@ boolean module_afs_port_event_func(mct_port_t *port,
         (isp_buf_divert_t *)p_mod_event->module_event_data;
       int frame_idx;
 
-      module_afs_client_handle_buffer(p_client,
-        p_buf_divert->buffer.index,
-        p_buf_divert->buffer.sequence,
-        &frame_idx);
 
-      if ((frame_idx >= 0) && (frame_idx < MAX_NUM_AFS_FRAMES)) {
-        IDBG_MED("%s:%d] frame_idx %d", __func__, __LINE__, frame_idx);
-        /* remove this */
-        p_client->cur_af_cfg.enable = TRUE;
-        memset(&msg, 0x0, sizeof(mod_img_msg_t));
-        msg.port = port;
-        msg.type = MOD_IMG_MSG_EXEC_INFO;
-        msg.data.exec_info.p_userdata = p_client;
-        msg.data.exec_info.data = &p_client->p_frame[frame_idx];
-        msg.data.exec_info.p_exec = module_afs_client_process;
-        module_imglib_send_msg(&p_mod->msg_thread, &msg);
+      if (p_client->cur_af_cfg.enable) {
+        if (!p_client->sync) {
+          /* async mode, post to msg thread */
+          module_afs_client_handle_buffer(p_client,
+            p_buf_divert->buffer.index,
+            p_buf_divert->buffer.sequence,
+            &frame_idx,
+            p_buf_divert);
+
+          if ((frame_idx >= 0) && (frame_idx < MAX_NUM_AFS_FRAMES)) {
+            IDBG_MED("%s:%d] frame_idx %d", __func__, __LINE__, frame_idx);
+            memset(&msg, 0x0, sizeof(mod_img_msg_t));
+            msg.port = port;
+            msg.type = MOD_IMG_MSG_EXEC_INFO;
+            msg.data.exec_info.p_userdata = p_client;
+            msg.data.exec_info.data = &p_client->p_frame[frame_idx];
+            msg.data.exec_info.p_exec = module_afs_client_process;
+            module_imglib_send_msg(&p_mod->msg_thread, &msg);
+          }
+        } else {
+          /* syncronous mode */
+          img_frame_t frame;
+          mct_stream_map_buf_t *p_map_buf;
+          memset(&frame, 0x0, sizeof(img_frame_t));
+          uint32_t buf_idx = p_buf_divert->buffer.index;
+          p_client->frame_id = p_buf_divert->buffer.sequence;
+
+          if (buf_idx >= p_client->buffer_cnt) {
+            IDBG_ERROR("%s:%d] invalid buffer index %d frame_idx %d",
+              __func__, __LINE__, buf_idx, p_client->frame_id);
+          } else {
+            p_map_buf = &p_client->p_map_buf[buf_idx];
+            IDBG_MED("%s:%d] frame_idx %d %dx%d native %d (%p %d)",
+              __func__, __LINE__,
+              p_client->frame_id,
+              p_client->out_dim.width,
+              p_client->out_dim.height,
+              p_buf_divert->native_buf,
+              p_buf_divert->vaddr,
+              p_buf_divert->fd);
+            if (!p_buf_divert->native_buf) {
+              frame.frame[0].plane[0].addr = p_map_buf->buf_planes[0].buf;
+              frame.frame[0].plane[0].fd = p_map_buf->buf_planes[0].fd;
+              p_client->video_mode = FALSE;
+            } else {
+              unsigned long *plane_addr = (unsigned long *)p_buf_divert->vaddr;
+              frame.frame[0].plane[0].addr = (uint8_t *)plane_addr[0];
+              frame.frame[0].plane[0].fd = p_buf_divert->fd;
+              p_client->video_mode = TRUE;
+            }
+            frame.frame[0].plane[0].height = p_client->out_dim.height;
+            frame.frame[0].plane[0].width = p_client->out_dim.width;
+            frame.frame[0].plane[0].length =
+              frame.frame[0].plane[0].height *
+              frame.frame[0].plane[0].width;
+            module_afs_client_process(p_client, &frame);
+          }
+        }
       }
 
+      fwd_event = !p_client->video_mode && !p_client->cur_af_cfg.enable;
       /* indicate that the buffer is consumed */
       p_buf_divert->is_locked = FALSE;
       p_buf_divert->ack_flag = TRUE;
-
       break;
     }
     case MCT_EVENT_MODULE_SET_STREAM_CONFIG: {
@@ -610,6 +660,21 @@ boolean module_afs_port_event_func(mct_port_t *port,
       *divert_mask |= PPROC_DIVERT_UNPROCESSED;
       break;
     }
+    case MCT_EVENT_MODULE_SET_AF_TUNE_PTR : {
+      af_algo_tune_parms_t *tuning_info;
+      tuning_info = (af_algo_tune_parms_t *)p_mod_event->module_event_data;
+      IDBG_LOW("%s: Handle af_tuning header update event, h_clip_ratio %f, "
+        "v_clip_ratio %f", __func__,
+        tuning_info->af_vfe.config.h_clip_ratio_normal_light,
+        tuning_info->af_vfe.config.v_clip_ratio_normal_light);
+
+      p_client->af_tuning_trans_info.h_scale =
+        tuning_info->af_vfe.config.h_clip_ratio_normal_light;
+      p_client->af_tuning_trans_info.v_scale =
+        tuning_info->af_vfe.config.v_clip_ratio_normal_light;
+
+      break;
+    }
     case MCT_EVENT_MODULE_IMGLIB_AF_CONFIG : {
       mct_imglib_af_config_t *p_cfg =
         (mct_imglib_af_config_t *)p_mod_event->module_event_data;
@@ -619,8 +684,39 @@ boolean module_afs_port_event_func(mct_port_t *port,
         p_client->cur_af_cfg = *p_cfg;
         pthread_mutex_unlock(&p_client->mutex);
       }
+      IDBG_MED("%s:%d] AF stats enable %d %d", __func__, __LINE__,
+        p_client->cur_af_cfg.enable,
+        p_client->cur_af_cfg.filter_type);
+
+      module_afs_client_update_cfg(p_client);
       break;
     }
+
+    case MCT_EVENT_MODULE_ISP_OUTPUT_DIM: {
+      mct_stream_info_t *stream_info =
+        (mct_stream_info_t *)(event->u.module_event.module_event_data);
+      if (!stream_info) {
+        IDBG_ERROR("%s:%d] failed", __func__, __LINE__);
+      } else {
+        if (stream_info->dim.width != p_client->stream_info->dim.width ||
+          stream_info->dim.height != p_client->stream_info->dim.height) {
+          IDBG_HIGH("dim change from %dx%d to %dx%d, re-map buffer",
+            p_client->stream_info->dim.width, p_client->stream_info->dim.height,
+            stream_info->dim.width, stream_info->dim.height);
+          module_afs_client_unmap_buffers(p_client);
+          p_client->stream_info = stream_info;
+          module_afs_client_map_buffers(p_client);
+        }
+        p_client->out_dim.width  = stream_info->dim.width;
+        p_client->out_dim.height = stream_info->dim.height;
+        IDBG_MED("%s:%d] MCT_EVENT_MODULE_ISP_OUTPUT_DIM %dx%d",
+          __func__, __LINE__,
+          p_client->out_dim.width,
+          p_client->out_dim.height);
+      }
+    }
+      break;
+
     default:
       break;
     }
@@ -858,7 +954,7 @@ boolean module_afs_port_check_caps_reserve(mct_port_t *port, void *peer_caps,
 
   } else if (p_peer_caps) {
     if (p_peer_caps->port_caps_type != MCT_PORT_CAPS_FRAME) {
-      IDBG_ERROR("%s:%d] invalid capabilitied, cannot connect port %x",
+      IDBG_ERROR("%s:%d] invalid capabilities, cannot connect port %x",
         __func__, __LINE__, p_peer_caps->port_caps_type);
       return FALSE;
     }
@@ -1398,6 +1494,8 @@ void module_afs_deinit(mct_module_t *p_mct_mod)
   module_afs_unload();
 
   p_mod->client_cnt = 0;
+  free(p_mod);
+  p_mod = NULL;
   mct_module_destroy(p_mct_mod);
 }
 

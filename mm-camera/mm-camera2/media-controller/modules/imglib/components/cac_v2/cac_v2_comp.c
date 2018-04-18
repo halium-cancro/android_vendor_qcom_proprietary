@@ -3,6 +3,8 @@
 * Qualcomm Technologies Proprietary and Confidential.                 *
 **********************************************************************/
 
+#define ATRACE_TAG ATRACE_TAG_CAMERA
+#include <cutils/trace.h>
 #include "cac_v2_comp.h"
 
 /**
@@ -191,7 +193,9 @@ int cac_comp_process_frame(cac_comp_t *p_comp, img_frame_t *p_frame)
   cac_comp_lib_debug(&cac_rnr_params);
   IDBG_ERROR("%s:%d] Start CAC ", __func__, __LINE__);
 
+  ATRACE_BEGIN("Camera:CAC");
   rc = g_cac_lib.cac2_process(&cac_rnr_params);
+  ATRACE_END();
   p_comp->b.state = IMG_STATE_IDLE;
 
   if (rc) {

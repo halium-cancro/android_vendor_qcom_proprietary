@@ -6,13 +6,17 @@
 ============================================================================*/
 #include <unistd.h>
 #include "bg_stats.h"
+#include "isp_log.h"
 
 #ifdef BG_STATS_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #undef CDBG_ERROR
 #define CDBG_ERROR ALOGE
 #endif
+
+#define MIN_RGN_WIDTH  4
+#define MIN_RGN_HEIGHT 2
 
 /** bg_stats_debug:
  *    @pcmd: Pointer to the reg_cmd struct that needs to be dumped
@@ -24,17 +28,17 @@
  **/
 static void bg_stats_debug(ISP_StatsBg_CfgCmdType *pcmd)
 {
-  CDBG("%s:Bayer Grid Stats Configurations\n", __func__);
-  CDBG("%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
-  CDBG("%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
-  CDBG("%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
-  CDBG("%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
-  CDBG("%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
-  CDBG("%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
-  CDBG("%s:gbMax      %d\n", __func__, pcmd->gbMax);
-  CDBG("%s:grMax      %d\n", __func__, pcmd->grMax);
-  CDBG("%s:rMax       %d\n", __func__, pcmd->rMax);
-  CDBG("%s:bMax       %d\n", __func__, pcmd->bMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:Bayer Grid Stats Configurations\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:gbMax      %d\n", __func__, pcmd->gbMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:grMax      %d\n", __func__, pcmd->grMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:rMax       %d\n", __func__, pcmd->rMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:bMax       %d\n", __func__, pcmd->bMax);
 }
 
 /** bg_stats_config:
@@ -55,10 +59,12 @@ static int bg_stats_config(isp_stats_entry_t *entry,
   ISP_StatsBg_CfgCmdType *pcmd = entry->reg_cmd;
   aec_bg_config_t *bg_config = &pix_settings->stats_cfg.aec_config.bg_config;
   uint32_t bg_rgn_width, bg_rgn_height;
+  uint32_t camif_window_w_t, camif_window_h_t;
+  isp_pix_camif_cfg_t *camif_cfg = &pix_settings->camif_cfg;
 
-  CDBG("%s: config BG, enable %d\n", __func__, entry->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: config BG, enable %d\n", __func__, entry->enable);
   if (!entry->enable) {
-    CDBG("%s: BG not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: BG not enabled", __func__);
     return 0;
   }
 
@@ -75,6 +81,13 @@ static int bg_stats_config(isp_stats_entry_t *entry,
   entry->hfr_mode = pix_settings->camif_cfg.hfr_mode;
   entry->comp_flag = 1;
 
+  camif_window_w_t = camif_cfg->sensor_out_info.request_crop.last_pixel -
+    camif_cfg->sensor_out_info.request_crop.first_pixel + 1;
+  camif_window_h_t = camif_cfg->sensor_out_info.request_crop.last_line -
+    camif_cfg->sensor_out_info.request_crop.first_line + 1;
+  if( FLOOR2(bg_config->roi.top) > camif_window_h_t )
+    return 0;
+
   if (bg_config->grid_info.h_num == 0 || bg_config->grid_info.v_num == 0) {
     CDBG_ERROR("%s: ERROR Received stats config with h_num=%d v_num=%d\n",
       __func__, bg_config->grid_info.h_num, bg_config->grid_info.v_num);
@@ -84,6 +97,14 @@ static int bg_stats_config(isp_stats_entry_t *entry,
                    bg_config->grid_info.h_num;
   bg_rgn_height = bg_config->roi.height /
                    bg_config->grid_info.v_num;
+  /* Minimum region width cannot be smaller than 4 as per thardware constraints for vfe40 */
+  if (bg_rgn_width < MIN_RGN_WIDTH) {
+    bg_rgn_width = MIN_RGN_WIDTH;
+  }
+  /* Minimum region height cannot be smaller than 2 as per hardware constraints for vfe40 */
+  if (bg_rgn_height < MIN_RGN_HEIGHT) {
+    bg_rgn_height = MIN_RGN_HEIGHT;
+  }
 
   pix_settings->saved_zoom_roi.rgnHOffset = pcmd->rgnHOffset =
     FLOOR2(bg_config->roi.left);
@@ -328,7 +349,7 @@ static int bg_stats_parse(isp_stats_entry_t *entry,
   uint32_t *current_region;
   uint32_t  i, j, x, y;
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
   Sr     = bg_stats->bg_r_sum;
   Sb     = bg_stats->bg_b_sum;
   Sgr    = bg_stats->bg_gr_sum;
@@ -385,7 +406,7 @@ static int bg_stats_parse(isp_stats_entry_t *entry,
    * it work on current 3a version
    * that uses 16x16 Ysum is done in 3A code
    **/
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: X\n", __func__);
   return 0;
 }
 
@@ -431,7 +452,7 @@ static int bg_stats_action (void *ctrl, uint32_t action_code,
   int rc = 0;
   isp_stats_entry_t *entry = ctrl;
 
-  CDBG("%s: action code = %d\n", __func__, action_code);
+  ISP_DBG(ISP_MOD_STATS, "%s: action code = %d\n", __func__, action_code);
   switch ((isp_stats_action_code_t)action_code) {
   case ISP_STATS_ACTION_STREAM_START:
     break;
@@ -465,7 +486,7 @@ static int bg_stats_action (void *ctrl, uint32_t action_code,
     }
 
     if (entry->is_first == 1 || entry->skip_stats == 1) {
-      CDBG("%s: drop first stats\n", __func__);
+      ISP_DBG(ISP_MOD_STATS, "%s: drop first stats\n", __func__);
       entry->is_first = 0;
       entry->skip_stats = 0;
       isp_stats_enqueue_buf(entry, buf_idx);
@@ -583,7 +604,7 @@ isp_ops_t *bg_stats_open(isp_stats_mod_t *stats,
   int rc = 0;
   isp_stats_entry_t *entry = NULL;
   ISP_StatsBg_CfgCmdType *cmd = NULL;
-  CDBG("%s: open BG stats\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: open BG stats\n", __func__);
 
   entry = malloc(sizeof(isp_stats_entry_t));
   if (!entry) {

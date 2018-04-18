@@ -440,8 +440,10 @@ static void gyro_port_unlink(unsigned int identity,
     /* Take care of stopping gyro thread (if any) here */
 
     MCT_OBJECT_REFCOUNT(port) -= 1;
-    if (!MCT_OBJECT_REFCOUNT(port))
+    if (!MCT_OBJECT_REFCOUNT(port)) {
       private->state = GYRO_PORT_STATE_UNLINKED;
+      MCT_PORT_PEER(port) = NULL;
+    }
   }
   MCT_OBJECT_UNLOCK(port);
 

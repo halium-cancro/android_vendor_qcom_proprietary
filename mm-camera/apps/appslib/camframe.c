@@ -177,9 +177,9 @@ void dump_frame(struct msm_frame* newFrame, int is_video)
     if( skip_cnt % skip_mode == 0) {
       if (frameCnt >= 0 && frameCnt <= frm_num) {
         if(is_video) {
-          snprintf(buf, BUFF_SIZE_128, "/data/%d_v.yuv", frameCnt);
+          snprintf(buf, BUFF_SIZE_128, "/data/misc/camera/%d_v.yuv", frameCnt);
         } else {
-          snprintf(buf, BUFF_SIZE_128, "/data/%d.yuv", frameCnt);
+          snprintf(buf, BUFF_SIZE_128, "/data/misc/camera/%d.yuv", frameCnt);
         }
         int file_fd = open(buf, O_RDWR | O_CREAT, 0777);
 

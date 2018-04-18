@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -15,6 +15,7 @@
 #include "pproc_port.h"
 #include "mct_controller.h"
 #include "chromatix_metadata.h"
+#include "server_debug.h"
 #ifdef _ANDROID_
 #include <cutils/properties.h>
 #endif
@@ -61,6 +62,8 @@ typedef struct _pproc_port_stream_info {
   mct_port_t        *int_link;
   uint32_t           divert_featue_mask;
   uint32_t           meta_frame_count;
+  boolean            mark_meta;
+  uint32_t           mark_frame_id;
 } pproc_port_stream_info_t;
 
 /** _pproc_port_private:
@@ -76,6 +79,7 @@ typedef struct _pproc_port_private {
   pproc_port_type_t        port_type;
   uint32_t                 num_streams;
   uint32_t                 sessionid;
+  uint32_t                 div_unproc_identity;
 } pproc_port_private_t;
 
 /** _pproc_port_match_data:
@@ -143,6 +147,7 @@ boolean pproc_port_check_identity_in_port(void *data1, void *data2)
 /** pproc_port_set_divert_config
  *    @port: pproc module port
  *    @identity: Identity to update the divert event
+ *    @unproc_divert_identity: Identity for unprocessed divert
  *
  *  Set divert config to the submodules. (currently only cpp,
  *  vpe and c2d). If more than one stream is linked then a
@@ -152,12 +157,12 @@ boolean pproc_port_check_identity_in_port(void *data1, void *data2)
  *  Return TRUE on success, otherwise return FALSE.
  **/
 boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
-  pproc_port_stream_info_t *port_stream_info, uint32_t identity)
+  pproc_port_stream_info_t *port_stream_info, uint32_t identity,
+  uint32_t div_unproc_identity)
 {
   pproc_port_private_t *port_private;
   mct_module_t         *pproc_module;
   mct_module_t         *cpp, *vpe, *c2d;
-  boolean               enable_div_unproc = FALSE;
   boolean               enable_div_proc = FALSE;
   pproc_divert_info_t   divert_info;
   uint32_t              large_dim_identity = PPROC_INVALID_IDENTITY;
@@ -182,10 +187,15 @@ boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
      module is connected to PPROC we assume unprocessed divert is needed.
      The usecase for now is facedetection and is indicated by feature
      flag in port.*/
+#if 0
+  /* This not needed because unprocessed divert is per port and based on
+     previous stream needing unprocessed divert, the corresponding identity
+     is stored and sent as argument. */
   if (port_stream_info->divert_featue_mask &
     PPROC_DIVERT_UNPROCESSED) {
     enable_div_unproc = TRUE;
   }
+#endif
 
   /* Decide processed divert is needed. Currently when smartzoom is on,
      we assume processed divert is needed.*/
@@ -202,10 +212,9 @@ boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
     /* Send divert config info for single streamon for this identity*/
     /* Send the event to CPP submodule */
     memset(&divert_info, 0, sizeof(divert_info));
-    divert_info.div_unproc_identity = PPROC_INVALID_IDENTITY;
-    if (enable_div_unproc) {
-      /* Set unprocess divert identity */
-      divert_info.div_unproc_identity = identity;
+    /* Set unprocess divert identity */
+    divert_info.div_unproc_identity = div_unproc_identity;
+    if (div_unproc_identity != PPROC_INVALID_IDENTITY) {
       divert_info.divert_flags |= PPROC_DIVERT_UNPROCESSED;
     }
     /* Set Process identity */
@@ -230,7 +239,9 @@ boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
     /* It is always NO_OP */
     if (c2d) {
     /* send divert config to c2d in case of EIS 2.0 */
-      if (port_stream_info->stream_info->is_type == IS_TYPE_EIS_2_0) {
+      if (port_stream_info->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+          (pproc_port->caps.u.frame.format_flag &
+              MCT_PORT_CAP_INTERLEAVED)) {
         divert_info.div_unproc_identity = PPROC_INVALID_IDENTITY;
         /* Set Process identity */
         divert_info.proc_identity[0] = identity;
@@ -250,10 +261,9 @@ boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
     if (port_private->num_streams > 1) {
       /* Send the event to CPP submodule */
       memset(&divert_info, 0, sizeof(divert_info));
-      divert_info.div_unproc_identity = PPROC_INVALID_IDENTITY;
-      if (enable_div_unproc) {
-        /* Set unprocess divert identity */
-        divert_info.div_unproc_identity = identity;
+      /* Set unprocess divert identity */
+      divert_info.div_unproc_identity = div_unproc_identity;
+      if (div_unproc_identity != PPROC_INVALID_IDENTITY) {
         divert_info.divert_flags |= PPROC_DIVERT_UNPROCESSED;
       }
       /* Find the large dimension and set process in CPP */
@@ -304,7 +314,9 @@ boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
             PPROC_CFG_UPDATE_DUAL, port_stream_info->int_link, &divert_info);
       }
      /* send divert config to c2d in case of EIS 2.0 */
-     if (port_stream_info->stream_info->is_type == IS_TYPE_EIS_2_0) {
+     if (port_stream_info->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+         (pproc_port->caps.u.frame.format_flag &
+                       MCT_PORT_CAP_INTERLEAVED)) {
        if (c2d) {
          memset(&divert_info, 0, sizeof(divert_info));
          divert_info.div_unproc_identity = PPROC_INVALID_IDENTITY;
@@ -323,16 +335,19 @@ boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
   } else if (c2d) {
     /* Send divert config info for single streamon for this identity*/
     memset(&divert_info, 0, sizeof(divert_info));
-    divert_info.div_unproc_identity = PPROC_INVALID_IDENTITY;
-    if (enable_div_unproc) {
-      /* Set unprocess divert identity */
-      divert_info.div_unproc_identity = identity;
+    /* Set unprocess divert identity */
+    divert_info.div_unproc_identity = div_unproc_identity;
+    if (div_unproc_identity != PPROC_INVALID_IDENTITY) {
       divert_info.divert_flags |= PPROC_DIVERT_UNPROCESSED;
     }
     /* Set Process identity */
     divert_info.proc_identity[0] = identity;
     divert_info.div_proc_identity[0] = PPROC_INVALID_IDENTITY;
-
+    if (enable_div_proc) {
+      /* Set process divert identity */
+      divert_info.div_proc_identity[0] = identity;
+      divert_info.divert_flags |= PPROC_DIVERT_PROCESSED;
+    }
     divert_info.proc_identity[1] = PPROC_INVALID_IDENTITY;
     divert_info.div_proc_identity[1] = PPROC_INVALID_IDENTITY;
     divert_info.num_passes = 1;
@@ -343,10 +358,9 @@ boolean pproc_port_set_divert_config(mct_port_t *pproc_port,
     /* Send divert config info for dual streamon if there are 2 streams*/
     if (port_private->num_streams > 1) {
       memset(&divert_info, 0, sizeof(divert_info));
-      divert_info.div_unproc_identity = PPROC_INVALID_IDENTITY;
-      if (enable_div_unproc) {
-        /* Set unprocess divert identity */
-        divert_info.div_unproc_identity = identity;
+      /* Set unprocess divert identity */
+      divert_info.div_unproc_identity = div_unproc_identity;
+      if (div_unproc_identity != PPROC_INVALID_IDENTITY) {
         divert_info.divert_flags |= PPROC_DIVERT_UNPROCESSED;
       }
       divert_info.proc_identity[0] =
@@ -394,7 +408,7 @@ static boolean pproc_port_reserve_compatible_port(void *data1, void *data2)
     return FALSE;
   }
 
-  return port->check_caps_reserve(port, NULL, stream_info);
+  return port->check_caps_reserve(port, &pproc_port->caps, stream_info);
 }
 
 /** pproc_port_resrv_port_on_module
@@ -405,7 +419,7 @@ static boolean pproc_port_reserve_compatible_port(void *data1, void *data2)
  *
  *  Return port from sub module if success
  **/
-static mct_port_t *pproc_port_resrv_port_on_module(mct_module_t *submod,
+mct_port_t *pproc_port_resrv_port_on_module(mct_module_t *submod,
   mct_stream_info_t *stream_info, mct_port_direction_t direction,
   mct_port_t *pproc_port)
 {
@@ -579,65 +593,104 @@ static boolean pproc_port_match_module_type(void *data1, void *data2)
 }
 
 static boolean pproc_port_add_modules_to_stream(
-  pproc_port_stream_info_t *port_stream_info, mct_module_t *submod1,
-  mct_module_t *submod2, mct_stream_info_t *stream_info, mct_port_t *port)
+  pproc_port_stream_info_t *port_stream_info, mct_module_t **submodarr,
+  int32_t num_submods, mct_stream_info_t *stream_info, mct_port_t *port)
 {
-  boolean      rc = FALSE;
-  unsigned int module_type = MCT_MODULE_FLAG_SINK;
+  boolean       rc = FALSE;
+  int           i = 0, j = 0;
 
   CDBG("%s:%d] E\n", __func__, __LINE__);
 
-  if (submod2 && submod1) {
-    /* link ops_mod(cac or wnr) + must_mod(cpp or vpe) */
-    submod1->set_mod(submod1, MCT_MODULE_FLAG_SOURCE,
-      stream_info->identity);
-    submod2->set_mod(submod2, MCT_MODULE_FLAG_SINK,
-      stream_info->identity);
-    port_stream_info->int_link = pproc_port_resrv_port_on_module(submod1,
-      stream_info, MCT_PORT_SINK, port);
-    if (port_stream_info->int_link) {
-      //port_stream_info->int_link->peer = port;
-      /* Invoke ext link for the submod port */
-      port_stream_info->int_link->ext_link(stream_info->identity,
-        port_stream_info->int_link, port);
-      rc = mct_port_add_child(stream_info->identity,
-        port_stream_info->int_link);
-      if (rc == TRUE) {
-        rc = mct_stream_link_modules(port_stream_info->pproc_stream,
-          submod1, submod2, NULL);
+  if ((NULL == submodarr) || (num_submods > PPROC_MAX_SUBMODS) ||
+    (num_submods <= 0) || (NULL == submodarr[num_submods-1])) {
+    CDBG_ERROR("%s:%d] error, invalid submodarr:%p, num_submods:%d\n",
+      __func__, __LINE__, submodarr, num_submods);
+    return rc;
+  }
+
+  /* To add modules to a stream
+     1. Need to set the module type
+     2. Reserve SINK port on the first module and link it to pproc int_link
+     3. Loop through the modules to link them together */
+
+  /* Set the last module as SINK */
+  CDBG_LOW("%s:%d] mod_num: %d submodule name: %s\n",
+    __func__, __LINE__, (num_submods-1), submodarr[num_submods-1]->object.name);
+  submodarr[num_submods-1]->set_mod(submodarr[num_submods-1],
+    MCT_MODULE_FLAG_SINK, stream_info->identity);
+  /* If there are more than one submodule then set the appropriate type */
+  if (num_submods > 1) {
+    for (i = num_submods - 2; i > 0; i--) {
+      if (submodarr[i]) {
+        CDBG_LOW("%s:%d] mod_num: %d submodule name: %s\n",
+         __func__, __LINE__, (i), submodarr[i]->object.name);
+         submodarr[i]->set_mod(submodarr[i], MCT_MODULE_FLAG_INDEXABLE,
+         stream_info->identity);
       } else {
-        CDBG_ERROR("%s:%d] error adding child\n", __func__, __LINE__);
-      }
-      /* TODO: Set the divert information to submods */
-    }
-  } else {
-    mct_module_t *submod = submod1;
-    if (!submod) {
-      submod = submod2;
-    }
-    if (submod) {
-      /* only must_mod(cpp or vpe) is existing */
-      submod->set_mod(submod, module_type,
-        stream_info->identity);
-      port_stream_info->int_link = pproc_port_resrv_port_on_module(submod,
-        stream_info, MCT_PORT_SINK,port);
-      if (port_stream_info->int_link) {
-        //port_stream_info->int_link->peer = port;
-        /* Invoke ext link for the submod port */
-        port_stream_info->int_link->ext_link(stream_info->identity,
-          port_stream_info->int_link, port);
-        rc = mct_port_add_child(stream_info->identity,
-          port_stream_info->int_link);
-        if (rc == TRUE) {
-          rc = mct_object_set_parent(MCT_OBJECT_CAST(submod),
-            MCT_OBJECT_CAST(port_stream_info->pproc_stream));
-        } else {
-          CDBG_ERROR("%s:%d] error adding child\n", __func__, __LINE__);
+        CDBG_ERROR("%s:%d] submodarr[%d] is NULL, X rc: %d\n",
+          __func__, __LINE__, i, rc);
+        /* Remove the module types */
+        for (j = i + 1; j < num_submods; j++) {
+          submodarr[j]->set_mod(submodarr[j], MCT_MODULE_FLAG_INVALID,
+            stream_info->identity);
         }
+        return rc;
+      }
+    }
+    if (submodarr[i]) {
+      CDBG_LOW("%s:%d] mod_num: %d submodule name: %s\n",
+       __func__, __LINE__, (i), submodarr[i]->object.name);
+      // hdr not set as source module in pproc to allow hdr
+      // module to process the pproc diverted buffers
+      if(strcmp(submodarr[i]->object.name,"hdr")) {
+        submodarr[i]->set_mod(submodarr[i], MCT_MODULE_FLAG_SOURCE,
+          stream_info->identity);
+      } else {
+        CDBG_LOW("%s: %d] HDR first module in pproc, not set as source",
+          __func__, __LINE__);
       }
     } else {
-      CDBG_ERROR("%s:%d] error submod1 & submode2 are NULL\n", __func__,
-        __LINE__);
+      CDBG_ERROR("%s:%d] submodarr[%d] is NULL, X rc: %d\n",
+        __func__, __LINE__, i, rc);
+      for (j = i + 1; j < num_submods; j++) {
+        submodarr[j]->set_mod(submodarr[j], MCT_MODULE_FLAG_INVALID,
+          stream_info->identity);
+      }
+      return rc;
+    }
+  }
+
+  /* Reserve sink port on first module */
+  port_stream_info->int_link = pproc_port_resrv_port_on_module(submodarr[0],
+    stream_info, MCT_PORT_SINK, port);
+  if (port_stream_info->int_link) {
+    /* Invoke ext link for the submod port */
+    port_stream_info->int_link->ext_link(stream_info->identity,
+      port_stream_info->int_link, port);
+    rc = mct_port_add_child(stream_info->identity,
+      port_stream_info->int_link);
+    if (rc == TRUE) {
+      if (num_submods > 1) {
+        for (i = 0; i < num_submods-1; i++) {
+          CDBG_LOW("%s:%d] modules added to pproc stream - mod1: %p mod2: %p"
+            " pproc_stream:%p\n",__func__, __LINE__, submodarr[i],
+            submodarr[i+1], port_stream_info->pproc_stream);
+          /* Loop through rest of the modules to link them together */
+          rc = mct_stream_link_modules(port_stream_info->pproc_stream,
+            submodarr[i], submodarr[i+1], NULL);
+          if (rc == FALSE) {
+            CDBG_ERROR("%s:%d] error, link module failed\n", __func__,
+              __LINE__);
+            break;
+          }
+        }
+      } else {
+        /* Just one submodule */
+        rc = mct_object_set_parent(MCT_OBJECT_CAST(submodarr[0]),
+          MCT_OBJECT_CAST(port_stream_info->pproc_stream));
+      }
+    } else {
+      CDBG_ERROR("%s:%d] error adding child\n", __func__, __LINE__);
     }
   }
 
@@ -667,7 +720,11 @@ static boolean pproc_port_create_stream_topology(mct_module_t *pproc,
 {
   mct_module_t *submod1 = NULL, *submod2 = NULL, *ops_submod = NULL;
   mct_module_t *cac = NULL, *wnr = NULL, *cpp = NULL, *vpe = NULL, *c2d = NULL;
+  mct_module_t *hdr = NULL;
+  mct_module_t *llvd = NULL;
   boolean       rc = TRUE;
+  int           num_submods = 0;
+  mct_module_t *submodarr[PPROC_MAX_SUBMODS];
 
   CDBG("%s:%d] E\n", __func__, __LINE__);
   port_stream_info->pproc_stream =
@@ -683,6 +740,8 @@ static boolean pproc_port_create_stream_topology(mct_module_t *pproc,
 
   port_stream_info->pproc_stream->streaminfo.stream =
     port_stream_info->pproc_stream;
+
+  memset(submodarr, 0, sizeof(submodarr));
 
   cpp = pproc_module_get_sub_mod(MCT_OBJECT_PARENT(port)->data, "cpp");
   submod1 = cpp;
@@ -713,15 +772,45 @@ static boolean pproc_port_create_stream_topology(mct_module_t *pproc,
     ((port_stream_info->pproc_stream->streaminfo.reprocess_config.
      pp_feature_config.feature_mask & CAM_QCOM_FEATURE_CAC))) {
     cac = pproc_module_get_sub_mod(MCT_OBJECT_PARENT(port)->data, "cac");
-    ops_submod = cac;
-  } else {
-    ops_submod = NULL;
+    if (cac) {
+      submodarr[num_submods++] = cac;
+    }
   }
-  if (!ops_submod) {
+#ifdef CAMERA_FEATURE_WNR_SW
+  if ((port_stream_info->pproc_stream->streaminfo.pp_config.feature_mask &
+    CAM_QCOM_FEATURE_DENOISE2D) ||
+    ((port_stream_info->pproc_stream->streaminfo.reprocess_config.
+    pp_feature_config.feature_mask & CAM_QCOM_FEATURE_DENOISE2D))) {
+    /* This is based on the assumption that sw-wnr is available only when
+       enabled based on target HW */
     wnr = pproc_module_get_sub_mod(MCT_OBJECT_PARENT(port)->data, "wnr");
-    ops_submod = wnr;
+    if (wnr) {
+      submodarr[num_submods++] = wnr;
+    }
   }
 
+  //add hdr module as submodule to pproc incase of sw wnr
+  if(port_stream_info->pproc_stream->streaminfo.reprocess_config.pp_feature_config.feature_mask &
+        CAM_QCOM_FEATURE_HDR) {
+      hdr = pproc_module_get_sub_mod(MCT_OBJECT_PARENT(port)->data, "hdr");
+      if(hdr)
+         submodarr[num_submods++] = hdr;
+      else
+         CDBG("%s:%d]HDR Not Available in PPROC, %p\n", __func__, __LINE__, hdr);
+  } else {
+     CDBG("%s:%d]HDR Feature Not Set, %p\n", __func__, __LINE__, hdr);
+  }
+#endif
+
+  if ((port_stream_info->pproc_stream->streaminfo.pp_config.feature_mask &
+      CAM_QCOM_FEATURE_LLVD) ||
+      ((port_stream_info->pproc_stream->streaminfo.reprocess_config.
+      pp_feature_config.feature_mask & CAM_QCOM_FEATURE_LLVD))) {
+    llvd = pproc_module_get_sub_mod(MCT_OBJECT_PARENT(port)->data, "llvd");
+    if (llvd) {
+      submodarr[num_submods++] = llvd;
+    }
+  }
   port_stream_info->int_link = NULL;
   /* If this is a single module stream, just need to get its sink port;
    * otherwise, need to determin which module needs to be added and use
@@ -732,44 +821,63 @@ static boolean pproc_port_create_stream_topology(mct_module_t *pproc,
    * 4. Add identity as child to sink port
    * 5. Add the modules to stream and link them if needed.
    * 6. If applicable set the divert information */
+  CDBG_LOW("%s:%d]stream_type: %d, submod1 = %p submod2 = %p\n",
+    __func__, __LINE__, stream_info->stream_type, submod1, submod2);
   switch (stream_info->stream_type) {
   case CAM_STREAM_TYPE_POSTVIEW: {
-    rc = pproc_port_add_modules_to_stream(port_stream_info, submod1,
-      NULL, stream_info, port);
+    if((port->caps.u.frame.format_flag & MCT_PORT_CAP_INTERLEAVED)) {
+      if (submod2) {
+        submodarr[num_submods++] = submod2;
+      }
+    }
+    if (submod1) {
+      submodarr[num_submods++] = submod1;
+    }
+    rc = pproc_port_add_modules_to_stream(port_stream_info, &submodarr[0],
+      num_submods, stream_info, port);
   }
     break;
 
+  case CAM_STREAM_TYPE_VIDEO:
   case CAM_STREAM_TYPE_PREVIEW: {
-    if (stream_info->is_type == IS_TYPE_EIS_2_0) {
-      rc = pproc_port_add_modules_to_stream(port_stream_info, submod2,
-        submod1, stream_info, port);
+    if (stream_info->is_type == IS_TYPE_EIS_2_0 ||
+      (port->caps.u.frame.format_flag & MCT_PORT_CAP_INTERLEAVED)) {
+      if (submod2) {
+        submodarr[num_submods++] = submod2;
+      }
+      if (submod1) {
+        submodarr[num_submods++] = submod1;
+      }
     } else {
-      rc = pproc_port_add_modules_to_stream(port_stream_info, submod1,
-        submod2, stream_info, port);
+      if (submod1) {
+        submodarr[num_submods++] = submod1;
+      }
+      if (submod2) {
+        submodarr[num_submods++] = submod2;
+      }
     }
+    rc = pproc_port_add_modules_to_stream(port_stream_info, &submodarr[0],
+      num_submods, stream_info, port);
   }
     break;
 
   case CAM_STREAM_TYPE_SNAPSHOT: {
-    rc = pproc_port_add_modules_to_stream(port_stream_info, ops_submod,
-      submod1, stream_info, port);
-  }
-    break;
-
-  case CAM_STREAM_TYPE_VIDEO: {
-    if (stream_info->is_type == IS_TYPE_EIS_2_0) {
-      rc = pproc_port_add_modules_to_stream(port_stream_info, submod2,
-        submod1, stream_info, port);
-    } else {
-      rc = pproc_port_add_modules_to_stream(port_stream_info, submod1,
-        submod2, stream_info, port);
+    if((port->caps.u.frame.format_flag & MCT_PORT_CAP_INTERLEAVED)) {
+      submodarr[num_submods++] = c2d;
+    } else if (submod1) {
+      submodarr[num_submods++] = submod1;
     }
+    rc = pproc_port_add_modules_to_stream(port_stream_info, &submodarr[0],
+      num_submods, stream_info, port);
   }
     break;
 
   case CAM_STREAM_TYPE_OFFLINE_PROC: {
-    rc = pproc_port_add_modules_to_stream(port_stream_info, ops_submod,
-      submod1, stream_info, port);
+    if (submod1) {
+      submodarr[num_submods++] = submod1;
+    }
+    rc = pproc_port_add_modules_to_stream(port_stream_info, &submodarr[0],
+      num_submods, stream_info, port);
   }
     break;
 
@@ -892,7 +1000,7 @@ static boolean pproc_port_check_port_state(mct_port_t *port,
 
   CDBG("%s:%d] E\n", __func__, __LINE__);
   if ((port->caps.port_caps_type != MCT_PORT_CAPS_FRAME) ||
-    (port->caps.u.frame.format_flag != MCT_PORT_CAP_FORMAT_YCBCR) ||
+    (!(port->caps.u.frame.format_flag & MCT_PORT_CAP_FORMAT_YCBCR)) ||
     (port->caps.u.frame.size_flag != MCT_PORT_CAP_SIZE_20MB)) {
     CDBG_ERROR("%s:%d error because port_pproc caps is wrong.\n", __func__,
       __LINE__);
@@ -1006,10 +1114,14 @@ static boolean pproc_port_sink_check_caps_reserve(mct_port_t *port, void *caps,
     goto reserve_done;
   }
 
+  if (stream_info->stream_type != CAM_STREAM_TYPE_OFFLINE_PROC)
+    port->caps.u.frame.format_flag = peer_caps->u.frame.format_flag;
+
   if (pproc_port_check_port_state(port, stream_info) == FALSE) {
     rc = FALSE;
     goto reserve_done;
   }
+
 
   port_private = (pproc_port_private_t *)MCT_OBJECT_PRIVATE(port);
   /* reserve the port for this stream */
@@ -1018,6 +1130,9 @@ static boolean pproc_port_sink_check_caps_reserve(mct_port_t *port, void *caps,
       port_private->streams[i].state = PPROC_PORT_STATE_RESERVED;
       port_private->streams[i].stream_info = stream_info;
       port_private->streams[i].meta_frame_count = 0;
+      if (!port_private->num_streams) {
+        port_private->div_unproc_identity = PPROC_INVALID_IDENTITY;
+      }
       port_private->num_streams++;
       rc = pproc_port_create_stream_topology(MCT_PORT_PARENT(port)->data, port,
         &port_private->streams[i], stream_info);
@@ -1025,7 +1140,7 @@ static boolean pproc_port_sink_check_caps_reserve(mct_port_t *port, void *caps,
       if (rc == TRUE) {
         port_private->sessionid = stream_info->identity & 0xFFFF0000;
         rc = pproc_port_set_divert_config(port, &port_private->streams[i],
-          stream_info->identity);
+          stream_info->identity, port_private->div_unproc_identity);
       }
 
       break;
@@ -1094,6 +1209,7 @@ static boolean pproc_port_sink_check_caps_unreserve(mct_port_t *port,
         if (!port_private->num_streams) {
           port_private->sessionid = 0;
           port_private->port_type = PPROC_PORT_TYPE_INVALID;
+          port_private->div_unproc_identity = PPROC_INVALID_IDENTITY;
         }
         port_private->streams[i].stream_info = NULL;
         port_private->streams[i].meta_frame_count = 0;
@@ -1309,6 +1425,7 @@ static boolean pproc_port_source_check_caps_unreserve(mct_port_t *port,
         port_stream_info->int_link, identity);
       mct_port_remove_child(identity, port_stream_info->int_link);
       port_stream_info->int_link = NULL;
+      port_stream_info->stream_info = NULL;
       port_private->num_streams--;
       port_private->streams[i].divert_featue_mask = 0;
       if (!port_private->num_streams) {
@@ -1418,6 +1535,12 @@ static int32_t pproc_port_dump_metaentry_prefix(int32_t file_fd,
   write(file_fd, &entry->start_addr, sizeof(entry->start_addr));
   write(file_fd, &entry->lux_idx, sizeof(entry->lux_idx));
   write(file_fd, &entry->gain, sizeof(entry->gain));
+  #ifdef PPROC_METADATA_HEADER_VERSION
+    if (PPROC_METADATA_HEADER_VERSION >= 0x2) {
+      write(file_fd, &entry->component_revision_no,
+        sizeof(entry->component_revision_no));
+    }
+  #endif
   return 0;
 }
 
@@ -1623,6 +1746,11 @@ static int32_t pproc_port_dump_metadata(pproc_port_stream_info_t *port_stream,
   snprintf(buf, sizeof(buf), "%s%d_Metadata_%s_%d.bin",
     timeBuf, meta_frame_count, stream_type_str, buf_divert_ack->frame_id);
   file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+  if (file_fd >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    file_fd = -1;
+    goto POST_DUMP_EXIT;
+  }
   if (file_fd < 0) {
     CDBG_ERROR("%s:%d] failed: invalid file_fd %d", __func__, __LINE__,
       file_fd);
@@ -1634,6 +1762,15 @@ static int32_t pproc_port_dump_metadata(pproc_port_stream_info_t *port_stream,
     sizeof(float));
 
   pproc_meta_data->header.version = 0x0001;
+
+  #ifdef PPROC_METADATA_HEADER_VERSION
+  if (PPROC_METADATA_HEADER_VERSION >= 0x2) {
+    //for component_revision_no struct member
+    prefix_size += sizeof(uint32_t);
+    pproc_meta_data->header.version = PPROC_METADATA_HEADER_VERSION;
+  }
+  #endif
+
   if (pproc_meta_data->entry[PPROC_META_DATA_CPP_IDX].dump_type ==
     PPROC_META_DATA_CPP) {
     cpp_info_t *cpp_info;
@@ -1736,6 +1873,80 @@ POST_DUMP_EXIT:
   return 0;
 }
 
+/** pproc_port_update_crop_params
+ *    @parm_buf:  pproc stream param buffer pointer
+ *    @stream: pointer to reprocess stream
+ *    @stream_info: pproc stream info pointer
+ *    @event: event object to send upstream or downstream
+ *
+ *  Update the crop parameters from pproc stream info to
+ *  reprocess stream to update HAL/JPEG to crop the image.
+ *
+ *  Returns TRUE on updating the croping params
+ **/
+ static boolean pproc_port_update_crop_params(
+  cam_stream_parm_buffer_t *parm_buf,
+  mct_stream_t *stream,
+  mct_stream_info_t *stream_info,
+  mct_event_t *event)
+{
+  boolean  rc = FALSE;
+  int32_t frame_w = stream_info->dim.width;
+  int32_t frame_h = stream_info->dim.height;
+  cam_stream_crop_info_t *reproc_crop_info =
+   &stream->streaminfo.parm_buf.outputCrop.crop_info[0];
+  cam_stream_crop_info_t *hdr_crop_info =
+   &stream_info->parm_buf.outputCrop.crop_info[0];
+  cam_rotation_t rotation =
+   stream->streaminfo.reprocess_config.pp_feature_config.rotation;
+  int32_t left = hdr_crop_info->crop.left;
+  int32_t top = hdr_crop_info->crop.top;
+  int32_t crop_w = hdr_crop_info->crop.width;
+  int32_t crop_h = hdr_crop_info->crop.height;
+
+  CDBG_LOW("%s: %d frame_w %d frame_h %d left %d top %d crop_w %d crop_h %d",
+    __func__, __LINE__, frame_w, frame_h, left, top, crop_w, crop_h);
+  if ((CAM_STREAM_PARAM_TYPE_GET_OUTPUT_CROP == parm_buf->type) &&
+      crop_w && crop_h) {
+    stream->streaminfo.parm_buf.outputCrop.num_of_streams =
+    stream_info->parm_buf.outputCrop.num_of_streams;
+    reproc_crop_info->stream_id = (event->identity & 0x0000FFFF);
+    if ((rotation == ROTATE_90) || (rotation == ROTATE_270)) {
+      frame_w = stream_info->dim.height;
+      frame_h = stream_info->dim.width;
+      reproc_crop_info->crop.height = crop_w;
+      reproc_crop_info->crop.width = crop_h;
+      if (rotation == ROTATE_90) {
+        reproc_crop_info->crop.left = (frame_h - (top + crop_h));
+        reproc_crop_info->crop.top = left;
+      } else {
+        reproc_crop_info->crop.left = top;
+        reproc_crop_info->crop.top = (frame_w - (left + crop_w));
+      }
+    } else {
+      frame_w = stream_info->dim.width;
+      frame_h = stream_info->dim.height;
+      reproc_crop_info->crop.height = crop_h;
+      reproc_crop_info->crop.width = crop_w;
+      if (rotation == ROTATE_180) {
+       reproc_crop_info->crop.left = (frame_w - (left + crop_w));
+       reproc_crop_info->crop.top = (frame_h - (top + crop_h));
+      } else {
+        reproc_crop_info->crop.left = left;
+        reproc_crop_info->crop.top = top;
+      }
+    }
+    rc = TRUE;
+  }
+  CDBG_LOW("%s:%d]rotation %d left %d top %d w %d h %d",__func__, __LINE__,
+   rotation,
+   stream->streaminfo.parm_buf.outputCrop.crop_info[0].crop.left,
+   stream->streaminfo.parm_buf.outputCrop.crop_info[0].crop.top,
+   stream->streaminfo.parm_buf.outputCrop.crop_info[0].crop.width,
+   stream->streaminfo.parm_buf.outputCrop.crop_info[0].crop.height);
+  return rc;
+}
+
 /** pproc_port_sink_event
  *    @port:  this port from where the event should go
  *    @event: event object to send upstream or downstream
@@ -1785,6 +1996,23 @@ static boolean pproc_port_sink_event(mct_port_t *port, mct_event_t *event)
             event->identity)) {
             isp_buf_divert_ack_t *buf_divert_ack =
               (isp_buf_divert_ack_t *)event->u.module_event.module_event_data;
+            if(!buf_divert_ack) {
+              CDBG_ERROR("%s,buf_divert_ack is NULL",__func__);
+              break;
+            }
+            if ((port_private->streams[i].stream_info->stream_type ==
+               CAM_STREAM_TYPE_SNAPSHOT) &&
+               (port_private->streams[i].mark_meta == TRUE)) {
+               CDBG("%s,BUF_DIVERT_ACK, reset meta flag for \
+                 mark frame = %d,ack frame = %d,iden:0x%x",
+                 __func__,
+                 port_private->streams[i].mark_frame_id,
+                 buf_divert_ack->frame_id,
+                 event->identity);
+               port_private->streams[i].mark_meta = FALSE;
+               port_private->streams[i].mark_frame_id = 0;
+            }
+
             if (buf_divert_ack->meta_data) {
               /* Extract the meta data and dump it to file */
               pproc_port_dump_metadata(&port_private->streams[i],
@@ -1828,8 +2056,12 @@ static boolean pproc_port_sink_event(mct_port_t *port, mct_event_t *event)
 
             if (TRUE == rc) {
               port_private->streams[i].divert_featue_mask |= divert_mask;
+              if (divert_mask & PPROC_DIVERT_UNPROCESSED) {
+                port_private->div_unproc_identity = streaminfo->identity;
+              }
               rc = pproc_port_set_divert_config(port,
-                &port_private->streams[i], streaminfo->identity);
+                &port_private->streams[i], streaminfo->identity,
+                port_private->div_unproc_identity);
 
               if (TRUE == rc) {
                 /* Now dispatch the stream to submodules */
@@ -1845,6 +2077,40 @@ static boolean pproc_port_sink_event(mct_port_t *port, mct_event_t *event)
             /* Update the stream_info in duplicate stream */
             port_private->streams[i].pproc_stream->streaminfo.img_buffer_list =
               NULL;
+          }
+            break;
+          case MCT_EVENT_CONTROL_PARM_STREAM_BUF: {
+            mct_module_t *pproc_module = NULL;
+            mct_stream_t *reproc_stream = NULL;
+            cam_stream_parm_buffer_t *parm_buf =
+              event->u.ctrl_event.control_event_data;;
+
+            pproc_module = (mct_module_t *)MCT_PORT_PARENT(port)->data;
+            if (!pproc_module) {
+              CDBG_ERROR("%s,Error pproc_module = %p for iden:0x%x",
+                __func__,pproc_module,event->identity);
+              return FALSE;
+            }
+
+            reproc_stream = pproc_module_util_find_parent(event->identity, pproc_module);
+            if (!reproc_stream) {
+              CDBG_ERROR("%s,Error stream = %p for iden:0x%x", __func__,
+                reproc_stream,event->identity);
+              return FALSE;
+            }
+
+            rc = port_private->streams[i].int_link->event_func(
+                port_private->streams[i].int_link, event);
+            mct_stream_info_t *pproc_stream_info =
+               &port_private->streams[i].pproc_stream->streaminfo;
+            if (!pproc_stream_info) {
+              CDBG_ERROR("%s,NULL stream_info for identity:0x%x",
+                __func__,event->identity);
+              return FALSE;
+            }
+            /* update crop info set in sub-modules to parent stream */
+            pproc_port_update_crop_params(parm_buf, reproc_stream,
+              pproc_stream_info, event);
           }
             break;
           default:
@@ -1868,8 +2134,58 @@ static boolean pproc_port_sink_event(mct_port_t *port, mct_event_t *event)
                 memset(buf_divert->meta_data, 0, sizeof(pproc_meta_data_t));
               }
             }
+
+            if ((port_private->streams[i].stream_info->stream_type ==
+               CAM_STREAM_TYPE_SNAPSHOT) &&
+               (port_private->streams[i].stream_info->streaming_mode ==
+               CAM_STREAMING_MODE_BURST)) {
+               CDBG("%s,BUF_DIVERT, mark meta flag for frame = %d,iden=0x%x",
+                __func__,buf_divert->buffer.sequence,event->identity);
+               port_private->streams[i].mark_meta = TRUE;
+               port_private->streams[i].mark_frame_id =
+                 buf_divert->buffer.sequence;
+            }
             rc = port_private->streams[i].int_link->event_func(
               port_private->streams[i].int_link, event);
+            if ((buf_divert->meta_data) &&
+              ((rc && (buf_divert->ack_flag)) || (rc == FALSE))) {
+                free(buf_divert->meta_data);
+            }
+            break;
+          }
+          case MCT_EVENT_MODULE_SOF_NOTIFY: {
+            if (port_private->streams[i].stream_info->stream_type ==
+              CAM_STREAM_TYPE_SNAPSHOT) {
+              mct_bus_msg_isp_sof_t *sof_event =
+              (mct_bus_msg_isp_sof_t *)(event->u.module_event.module_event_data);
+              if (!sof_event) {
+                CDBG_ERROR("%s, sof event NULL",__func__);
+                rc= FALSE;
+                break;
+              }
+              /* MCT decrements frameID by 1 before sending meta buf to HAL.
+                 Therefore to ensure our meta flag is applied on next meta buf
+                 condition below should also be for SOF frame Id-1 */
+              if ((port_private->streams[i].mark_meta == TRUE) &&
+                ((sof_event->frame_id  - 1) >
+                  port_private->streams[i].mark_frame_id)) {
+
+                mct_bus_msg_t bus_msg_cpp;
+                mct_bus_msg_meta_valid meta_valid;
+                CDBG("%s,SOF_NOTIFY send meta flag for frame %d",
+                  __func__, sof_event->frame_id);
+                  meta_valid.frame_id = sof_event->frame_id;
+
+                 bus_msg_cpp.type = MCT_BUS_MSG_PP_SET_META;
+                 bus_msg_cpp.size = sizeof(mct_bus_msg_t);
+                 bus_msg_cpp.msg = &meta_valid;
+                 bus_msg_cpp.sessionid = PPROC_GET_SESSION_ID(event->identity);
+                 rc = mct_module_post_bus_msg(
+                   (mct_module_t *)MCT_PORT_PARENT(port)->data,&bus_msg_cpp);
+                 if (rc == FALSE)
+                   CDBG_ERROR("%s, Failed to post msg on bus",__func__);
+                }
+            }
             break;
           }
           default:

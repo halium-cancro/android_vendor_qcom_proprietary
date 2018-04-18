@@ -122,7 +122,7 @@ int module_cac_client_getbuf(cac_client_t *p_client,
 {
   int rc = IMG_SUCCESS;
   int i = 0;
-  int buf_idx;
+  uint32_t buf_idx;
   uint32_t size;
   uint8_t *p_addr;
   mct_module_t *p_mct_mod;

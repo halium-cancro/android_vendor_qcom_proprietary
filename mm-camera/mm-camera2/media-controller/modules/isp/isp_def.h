@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 #ifndef __ISP_DEF_H__
@@ -153,6 +153,18 @@ typedef struct {
   uint8_t frame_base;
 } isp_stream_param_t;
 
+typedef enum{
+  ISP_REG_UPDATE_STATE_NOT_REQUESTED = 0,
+  ISP_REG_UPDATE_STATE_RECEIVED,
+  ISP_REG_UPDATE_STATE_PENDING,
+  ISP_REG_UPDATE_STATE_CONSUMED
+} isp_reg_update_state_t;
+
+typedef struct{
+  unsigned int last_reg_update_frame_id;
+  volatile isp_reg_update_state_t  reg_update_state;
+} isp_reg_update_info_t;
+
 typedef struct {
   int ion_fd;
   int vt_enable;
@@ -167,6 +179,7 @@ typedef struct {
   boolean need_divert;
   boolean need_uv_subsample;
   boolean use_native_buf;
+  uint32_t burst_len;
 } isp_hwif_output_cfg_t;
 
 typedef struct {
@@ -188,6 +201,11 @@ typedef struct {
   uint32_t id;
   uint32_t ver;
   uint32_t max_pix_clk;
+  uint32_t max_scaler_out_width;
+  uint32_t max_scaler_out_height;
+  float longshot_max_bandwidth;
+  float zsl_max_bandwidth;
+  boolean use_pix_for_SOC;
 } isp_info_t;
 
 typedef struct {
@@ -197,6 +215,7 @@ typedef struct {
   int num_register;
   uint32_t stats_mask;
   isp_info_t isp_info;
+  uint32_t hw_ver;
 } isp_hw_cap_t;
 
 #define ISP_MAX_IMG_BUF        CAM_MAX_NUM_BUFS_PER_STREAM
@@ -233,6 +252,8 @@ typedef struct {
   uint32_t *stream_ids;
   boolean wait_for_sof; /* if set one more frame delay is added */
   uint8_t fast_aec_mode;
+  uint32_t frame_id;
+  boolean stop_immediately;
 } start_stop_stream_t;
 
 typedef enum {

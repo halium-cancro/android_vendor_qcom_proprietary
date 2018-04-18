@@ -13,8 +13,9 @@
 #include "tintless_interface.h"
 #include "isp_tintless_interface.h"
 //#include "mesh_rolloff40.h"
-
 #include "camera_dbg.h"
+#include "isp_log.h"
+#include "isp_hw_module_ops.h"
 
 #define TINTLESS_DEBUG
 #ifdef TINTLESS_DEBUG
@@ -98,7 +99,7 @@ static tintless_return_t isp_tintless_bg_pca_open(void ** const res, uint32_t * 
     tintless_lib_t ** pp_tintless;
     char lib_name[BUFF_SIZE_255] = { 0 };
 
-    CDBG_TINTLESS("%s : Enter!\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF,"%s : Enter!\n", __func__);
     if (res != NULL){
         pp_tintless = (tintless_lib_t **)res;
     } else {
@@ -221,9 +222,9 @@ static tintless_return_t isp_tintless_bg_pca_stat_config(void * const res, tintl
     tintless_cfg_t c;
     tintless_lib_t * const tintless_lib = (tintless_lib_t *) res;
 
-    CDBG_TINTLESS("%s: Enter \n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF,"%s: Enter \n", __func__);
 
-    CDBG_TINTLESS("%s: stats : camif hxw %d x %d, hxw %d x %d, type %d",__func__,
+    ISP_DBG(ISP_MOD_ROLLOFF,"%s: stats : camif hxw %d x %d, hxw %d x %d, type %d",__func__,
                cfg->camif_win_h, cfg->camif_win_w,
                cfg->stat_elem_h, cfg->stat_elem_w,
                cfg->stats_type);
@@ -234,11 +235,13 @@ static tintless_return_t isp_tintless_bg_pca_stat_config(void * const res, tintl
     }
     else
     {
-        CDBG_ERROR("%s: pointer okay \n", __func__);
+        ISP_DBG(ISP_MOD_ROLLOFF,"%s: pointer okay \n", __func__);
         c.stats = cfg;
         if (tintless_lib->updates & ( 1 << UPDATES_STAT_CONFIG)) {
             rc = isp_tintless_config(tintless_lib, UPDATES_STAT_CONFIG, c);
-            CDBG_ERROR("%s: lib returned config err=%d", __func__, rc);
+            if (rc != TINTLESS_SUCCESS) {
+                CDBG_ERROR("%s: lib returned config err=%d", __func__, rc);
+            }
         } else {
             CDBG_ERROR("%s: Stat cfg updates not needed", __func__);
             rc = TINTLESS_UPDATES_NOT_SUPPORTED;
@@ -272,7 +275,7 @@ static tintless_return_t isp_tintless_bg_pca_update_chromatix_params(
     tintless_cfg_t param;
     tintless_lib_t * const tintless_lib = (tintless_lib_t *) res;
 
-    CDBG_TINTLESS("%s: chromatix : strength %d",__func__,
+    ISP_DBG(ISP_MOD_ROLLOFF,"%s: chromatix : strength %d",__func__,
                p->tint_correction_strength);
 
     if (tintless_lib == NULL || tintless_lib->init_func == NULL)
@@ -309,7 +312,7 @@ static tintless_return_t isp_tintless_bg_pca_algo(void * const res,
     mesh_rolloff_array_t p_tbl_correction;
     bayer_grid_stats_info_t pbayer_r, pbayer_gr, pbayer_gb, pbayer_b;
 
-    CDBG_TINTLESS("%s: Enter !\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF,"%s: Enter !\n", __func__);
 
     if (tintless_lib == NULL || tintless_lib->update_func == NULL) {
         rc = TINTLESS_LIB_NOT_LOADED;
@@ -356,13 +359,13 @@ static tintless_return_t isp_tintless_bg_pca_close(void ** const res)
     tintless_return_t rc = TINTLESS_SUCCESS;
     tintless_lib_t * tintless_lib = NULL;
 
-    CDBG_TINTLESS("%s: Enter\n",__func__);
+    ISP_DBG(ISP_MOD_ROLLOFF,"%s: Enter\n",__func__);
 
     if (res != NULL)
         tintless_lib = (tintless_lib_t *) *res;
 
     if (tintless_lib) {
-        CDBG_TINTLESS("%s: tint_lib %p, deinit_func %p \n", __func__,
+        ISP_DBG(ISP_MOD_ROLLOFF,"%s: tint_lib %p, deinit_func %p \n", __func__,
             tintless_lib, tintless_lib->deinit_func);
         if (tintless_lib->deinit_func) {
             tintless_lib->deinit_func();
@@ -378,7 +381,7 @@ static tintless_return_t isp_tintless_bg_pca_close(void ** const res)
         rc = TINTLESS_LIB_NOT_LOADED;
     }
 
-    CDBG_TINTLESS("%s: close/unload tintless lib %d", __func__, rc);
+    ISP_DBG(ISP_MOD_ROLLOFF,"%s: close/unload tintless lib %d", __func__, rc);
     return rc;
 } /* isp_tintless_close */
 

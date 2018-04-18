@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "mce44.h"
+#include "isp_log.h"
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -23,10 +24,10 @@
  **/
 static void display_mce_config(isp_mce_mod_t *mce_mod)
 {
-  CDBG("%s:MCE Configurations\n",__func__);
-  CDBG("%s: mce enable %d\n", __func__, mce_mod->mce_mix_cmd_1.enable);
-  CDBG("%s: qk %d\n", __func__,mce_mod->mce_mix_cmd_2.qk);
-  CDBG("%s: red:y1 %d, y2 %d, y3 %d, y4 %d, yM1 %d, yM3 %d, yS1 %d, yS3 %d,"
+  ISP_DBG(ISP_MOD_MCE, "%s:MCE Configurations\n",__func__);
+  ISP_DBG(ISP_MOD_MCE, "%s: mce enable %d\n", __func__, mce_mod->mce_mix_cmd_1.enable);
+  ISP_DBG(ISP_MOD_MCE, "%s: qk %d\n", __func__,mce_mod->mce_mix_cmd_2.qk);
+  ISP_DBG(ISP_MOD_MCE, "%s: red:y1 %d, y2 %d, y3 %d, y4 %d, yM1 %d, yM3 %d, yS1 %d, yS3 %d,"
     " width %d, trunc %d, CR %d, CB %d, slope %d, K %d\n", __func__,
     mce_mod->mce_cmd.redCfg.y1, mce_mod->mce_cmd.redCfg.y2,
     mce_mod->mce_cmd.redCfg.y3, mce_mod->mce_cmd.redCfg.y4,
@@ -35,7 +36,7 @@ static void display_mce_config(isp_mce_mod_t *mce_mod)
     mce_mod->mce_cmd.redCfg.transWidth, mce_mod->mce_cmd.redCfg.transTrunc,
     mce_mod->mce_cmd.redCfg.CRZone, mce_mod->mce_cmd.redCfg.CBZone,
     mce_mod->mce_cmd.redCfg.transSlope, mce_mod->mce_cmd.redCfg.K);
-  CDBG("%s: green:y1 %d, y2 %d, y3 %d, y4 %d, yM1 %d, yM3 %d, yS1 %d, yS3 %d,"
+  ISP_DBG(ISP_MOD_MCE, "%s: green:y1 %d, y2 %d, y3 %d, y4 %d, yM1 %d, yM3 %d, yS1 %d, yS3 %d,"
     " width %d, trunc %d, CR %d, CB %d, slope %d, K %d\n", __func__,
     mce_mod->mce_cmd.greenCfg.y1, mce_mod->mce_cmd.greenCfg.y2,
     mce_mod->mce_cmd.greenCfg.y3, mce_mod->mce_cmd.greenCfg.y4,
@@ -44,7 +45,7 @@ static void display_mce_config(isp_mce_mod_t *mce_mod)
     mce_mod->mce_cmd.greenCfg.transWidth, mce_mod->mce_cmd.greenCfg.transTrunc,
     mce_mod->mce_cmd.greenCfg.CRZone, mce_mod->mce_cmd.greenCfg.CBZone,
     mce_mod->mce_cmd.greenCfg.transSlope, mce_mod->mce_cmd.greenCfg.K);
-  CDBG("blue:y1 %d, y2 %d, y3 %d, y4 %d, yM1 %d, yM3 %d, yS1 %d, yS3 %d,"
+  ISP_DBG(ISP_MOD_MCE, "blue:y1 %d, y2 %d, y3 %d, y4 %d, yM1 %d, yM3 %d, yS1 %d, yS3 %d,"
     " width %d, trunc %d, CR %d, CB %d, slope %d, K %d\n",
     mce_mod->mce_cmd.blueCfg.y1, mce_mod->mce_cmd.blueCfg.y2,
     mce_mod->mce_cmd.blueCfg.y3, mce_mod->mce_cmd.blueCfg.y4,
@@ -77,7 +78,7 @@ static int mce_config(isp_mce_mod_t *mce_mod,
   }
 
   if (!mce_mod->mce_enable) {
-    CDBG("%s: MCE not enabled", __func__);
+    ISP_DBG(ISP_MOD_MCE, "%s: MCE not enabled", __func__);
     return 0;
   }
 
@@ -218,7 +219,7 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
   update_mce = ((mce_mod->old_streaming_mode!= trigger_params->cfg.streaming_mode) ||
     !F_EQUAL(mce_mod->prev_lux_idx, lux_idx));
   if(!update_mce) {
-    CDBG("%s: MCE update not required", __func__);
+    ISP_DBG(ISP_MOD_MCE, "%s: MCE update not required", __func__);
     return 0;
   } else {
     mce_mod->prev_lux_idx = lux_idx;
@@ -226,13 +227,13 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
   }
 
   if (!mce_mod->mce_enable || mce_mod->mce_trigger_enable != TRUE) {
-    CDBG("%s: skip MCE trigger, enabled %d, trigger_enb = %d\n",
+    ISP_DBG(ISP_MOD_MCE, "%s: skip MCE trigger, enabled %d, trigger_enb = %d\n",
       __func__, mce_mod->mce_enable, mce_mod->mce_trigger_enable);
     return 0;
   }
 
   if (!isp_util_aec_check_settled(&trigger_params->trigger_input.stats_update.aec_update)) {
-    CDBG("%s: skip trigger, AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_MCE, "%s: skip trigger, AEC not settled", __func__);
     return 0;
   }
 
@@ -246,11 +247,11 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
   ratio = 1.0f - isp_util_calc_interpolation_weight(lux_idx,
     pchromatix_CS_MCE->mce_config.green_bright_index,
     pchromatix_CS_MCE->mce_config.green_dark_index);
-  CDBG("%s: lux_idx %f, ratio = %f, \n", __func__, lux_idx, ratio);
+  ISP_DBG(ISP_MOD_MCE, "%s: lux_idx %f, ratio = %f, \n", __func__, lux_idx, ratio);
 
   fKg = ratio * (pchromatix_CS_MCE->mce_config.green_boost_factor - 1.0f);
   /*add ratio for landscape severity  */
-  CDBG("%s: pre fKg =%f", __func__, fKg);
+  ISP_DBG(ISP_MOD_MCE, "%s: pre fKg =%f", __func__, fKg);
   fKg = ((fKg + 1) * (((float)landscape_severity / 255.0 *
     (landscape_green_boost_factor - 1)) + 1));
 
@@ -260,7 +261,7 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
     fKg = max_boost;
 
   fKg = fKg-1;
-  CDBG("%s: post fKg =%f", __func__, fKg);
+  ISP_DBG(ISP_MOD_MCE, "%s: post fKg =%f", __func__, fKg);
   if (fKg > 0) {
     QKg = (uint8_t)ceil(log(4.0f / fKg) / log(2.0f)) + 6;
     while ((int32_t)(fKg * (1 << QKg)) > 383)
@@ -277,7 +278,7 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
     pchromatix_CS_MCE->mce_config.blue_dark_index);
   fKb = ratio * (pchromatix_CS_MCE->mce_config.blue_boost_factor - 1.0f);
   /*add ratio for landscape severity */
-  CDBG("%s: pre fKb =%f", __func__, fKb);
+  ISP_DBG(ISP_MOD_MCE, "%s: pre fKb =%f", __func__, fKb);
   fKb = ((fKb + 1) * (((float)landscape_severity / 255.0 *
     (landscape_blue_boost_factor - 1)) + 1));
 
@@ -287,7 +288,7 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
     fKb = max_boost;
 
   fKb = fKb-1;
-  CDBG("%s: post fKb =%f", __func__, fKb);
+  ISP_DBG(ISP_MOD_MCE, "%s: post fKb =%f", __func__, fKb);
   if (fKb > 0) {
     QKb = (uint8_t)ceil(log(4.0f / fKb) / log(2.0f)) + 6;
     while ((int32_t)(fKb * (1 << QKb)) > 383)
@@ -303,7 +304,7 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
     pchromatix_CS_MCE->mce_config.red_bright_index,
     pchromatix_CS_MCE->mce_config.red_dark_index);
   fKr = ratio * (pchromatix_CS_MCE->mce_config.red_boost_factor - 1.0f);
-  CDBG("%s: pre fKr =%f", __func__, fKr);
+  ISP_DBG(ISP_MOD_MCE, "%s: pre fKr =%f", __func__, fKr);
   /* add ratio for landscape severity */
   fKr = ((fKr + 1) * (((float)landscape_severity / 255.0 *
     (landscape_red_boost_factor - 1)) + 1));
@@ -313,7 +314,7 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
     fKr = max_boost;
 
   fKr = fKr-1;
-  CDBG("post fKr =%f", fKr);
+  ISP_DBG(ISP_MOD_MCE, "post fKr =%f", fKr);
   if (fKr > 0) {
     QKr = (uint8_t)ceil(log(4.0f / fKr) / log(2.0f)) + 6;
     while ((int32_t)(fKr * (1 << QKr)) > 383)
@@ -460,8 +461,8 @@ static int mce_trigger_update(isp_mce_mod_t *mce_mod,
   mce_mod->mce_update = TRUE;
 
   if (mce_mod->cnt == 0) {
-    CDBG("MCE_landscape_severity = %d\n", landscape_severity);
-    CDBG("MCE aec ratio = %f, aec_out->lux_idx %f\n", ratio, lux_idx);
+    ISP_DBG(ISP_MOD_MCE, "MCE_landscape_severity = %d\n", landscape_severity);
+    ISP_DBG(ISP_MOD_MCE, "MCE aec ratio = %f, aec_out->lux_idx %f\n", ratio, lux_idx);
     mce_mod->hw_update_pending = TRUE;
   }
   mce_mod->cnt++;
@@ -480,7 +481,7 @@ static int mce_enable(isp_mce_mod_t *mce,
                 isp_mod_set_enable_t *enable,
                 uint32_t in_param_size)
 {
-  CDBG("%s: enable = %d\n",__func__, enable->enable);
+  ISP_DBG(ISP_MOD_MCE, "%s: enable = %d\n",__func__, enable->enable);
 
   if (in_param_size != sizeof(isp_mod_set_enable_t)) {
     CDBG_ERROR("%s: size mismatch, expecting = %d, received = %d",
@@ -609,7 +610,7 @@ static int mce_do_hw_update(isp_mce_mod_t *mce_mod)
   struct msm_vfe_cfg_cmd2 cfg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[3];
 
-  CDBG("%s: E: hw_update = %d\n", __func__, mce_mod->hw_update_pending);
+  ISP_DBG(ISP_MOD_MCE, "%s: E: hw_update = %d\n", __func__, mce_mod->hw_update_pending);
   if (mce_mod->hw_update_pending) {
     cfg_cmd.cfg_data = (void *) &mce_mod->mce_cmd;
     cfg_cmd.cmd_len = sizeof(mce_mod->mce_cmd);

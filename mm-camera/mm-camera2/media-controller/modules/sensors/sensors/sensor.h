@@ -1,6 +1,6 @@
 /* sensor.h
  *
- * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -56,6 +56,8 @@ typedef struct {
   int32_t post_meta_bus;
   uint32_t prev_gain;
   uint32_t prev_linecount;
+  uint8_t sync_last_gain_needed;
+  uint8_t next_gain_needed;
 } sensor_ae_bracket_info_t;
 
 typedef struct {
@@ -72,6 +74,7 @@ typedef struct {
   uint32_t                       current_fps_div;
   uint32_t                       prev_gain;
   uint32_t                       prev_linecount;
+  uint32_t                       stored_gain;
   uint32_t                       current_gain;
   uint32_t                       current_linecount;
   int32_t                        current_luma_hdr;
@@ -93,11 +96,13 @@ typedef struct {
   sensor_ae_bracket_info_t       ae_bracket_info;
   uint32_t                       hdr_sof_counter;
   uint8_t                        hdr_zsl_mode;
+  uint8_t                        manual_exposure_mode;
   uint8_t                        isp_frame_skip;/* Default is 0*/
   /*Sensor skip counter is delta of initial skip and sensor hardware delay
     * to determine in non zsl mode when to apply exposure values*/
   int16_t                        sensor_skip_counter;
   int32_t                        video_hdr_enable;
+  int32_t                        snapshot_hdr_enable;
   int32_t                        dis_enable;
   /* Assume a sensor whose output large enough that it requires more than
      one VFE to process. when that sensor is streaming, assume another sensor
@@ -110,6 +115,7 @@ typedef struct {
   cam_dimension_t                max_dim;
   uint32_t                       cur_exposure_time;
   uint8_t                        next_valid_frame;
+  boolean                        apply_without_sync;
 } sensor_data_t;
 
 typedef struct {

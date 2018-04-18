@@ -2,6 +2,8 @@
 * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
 * Qualcomm Technologies Proprietary and Confidential.                      *
 ****************************************************************************/
+#define ATRACE_TAG ATRACE_TAG_CAMERA
+#include <cutils/trace.h>
 #include <linux/media.h>
 #include "mct_module.h"
 #include "module_wnr.h"
@@ -93,7 +95,8 @@ int module_wnr_client_getbuf(wnr_client_t *p_client,
 {
   int rc = IMG_SUCCESS;
   int i = 0;
-  int buf_idx, stride = 0, scanline = 0, padded_size = 0;
+  uint32_t buf_idx;
+  int stride = 0, scanline = 0, padded_size = 0;
   uint32_t size;
   uint8_t *p_addr;
   mct_module_t *p_mct_mod;
@@ -101,10 +104,13 @@ int module_wnr_client_getbuf(wnr_client_t *p_client,
   mct_stream_info_t* info = p_client->stream_info;
   isp_buf_divert_t *buf_divert = p_client->p_buf_divert_data;
   mct_stream_map_buf_t *buf_holder;
+  mct_stream_info_t* input_stream_info =  NULL;
 
   IDBG_MED("%s:%d] ", __func__, __LINE__);
 
-  if (!info || !buf_divert) {
+  p_mct_mod = MCT_MODULE_CAST((MCT_PORT_PARENT(p_client->p_sinkport))->data);
+
+  if (!info || !buf_divert || !p_mct_mod) {
     IDBG_ERROR("%s:%d] Invalid inputs", __func__, __LINE__);
     return IMG_ERR_GENERAL;
   }
@@ -113,19 +119,30 @@ int module_wnr_client_getbuf(wnr_client_t *p_client,
   pframe->idx = 0;
   pframe->frame_id = buf_divert ->buffer.sequence;
 
-  /* Swap the dimensions passed to WNR if rotation is  90/270 */
-  if( (info->reprocess_config.pp_feature_config.rotation == ROTATE_270) ||
-    (info->reprocess_config.pp_feature_config.rotation == ROTATE_90)) {
-    pframe->info.width = info->dim.height;
-    pframe->info.height = info->dim.width;
-    stride = p_client->stream_info->buf_planes.plane_info.mp[0].scanline;
-    scanline = p_client->stream_info->buf_planes.plane_info.mp[0].stride;
-  } else {
-    pframe->info.width = info->dim.width;
-    pframe->info.height = info->dim.height;
-    stride = p_client->stream_info->buf_planes.plane_info.mp[0].stride;
-    scanline = p_client->stream_info->buf_planes.plane_info.mp[0].scanline;
+  input_stream_info = &p_client->input_stream_info;
+
+  if (!input_stream_info) {
+    CDBG_ERROR("%s:%d] stream_info NULL\n", __func__, __LINE__);
+    return IMG_ERR_GENERAL;
   }
+
+  IDBG_MED("%s:%d] Output dimensions width %d height %d stride %d scanline %d",
+    __func__, __LINE__,
+    info->dim.width,info->dim.height,
+    info->buf_planes.plane_info.mp[0].stride,
+    info->buf_planes.plane_info.mp[0].scanline);
+
+  IDBG_MED("%s:%d] Input dimensions width %d height %d stride %d scanline %d",
+    __func__, __LINE__,
+    input_stream_info->dim.width,input_stream_info->dim.height,
+    input_stream_info->buf_planes.plane_info.mp[0].stride,
+    input_stream_info->buf_planes.plane_info.mp[0].scanline);
+
+  /* get the frame dimensions from input stream info */
+  pframe->info.width = input_stream_info->dim.width;
+  pframe->info.height = input_stream_info->dim.height;
+  stride = input_stream_info->buf_planes.plane_info.mp[0].stride;
+  scanline = input_stream_info->buf_planes.plane_info.mp[0].scanline;
   size = pframe->info.width * pframe->info.height;
   padded_size = stride * scanline;
 
@@ -185,21 +202,12 @@ int module_wnr_client_getbuf(wnr_client_t *p_client,
       : p_addr + padded_size;
     pframe->frame[0].plane[i].width = pframe->info.width;
     pframe->frame[0].plane[i].height = pframe->info.height;
-    if (CAM_FORMAT_YUV_420_NV21 == info->fmt)
+    if (CAM_FORMAT_YUV_420_NV21 == input_stream_info->fmt)
       pframe->frame[0].plane[i].height /= (i + 1);
-    /* check if the stride is set correctly */
-    if( (info->reprocess_config.pp_feature_config.rotation == ROTATE_270) ||
-      (info->reprocess_config.pp_feature_config.rotation == ROTATE_90)) {
-      pframe->frame[0].plane[i].stride =
-        info->buf_planes.plane_info.mp[i].scanline;
-      pframe->frame[0].plane[i].scanline =
-        info->buf_planes.plane_info.mp[i].stride;
-    } else {
-      pframe->frame[0].plane[i].stride =
-        info->buf_planes.plane_info.mp[i].stride;
-      pframe->frame[0].plane[i].scanline =
-        info->buf_planes.plane_info.mp[i].scanline;
-    }
+    pframe->frame[0].plane[i].stride =
+      input_stream_info->buf_planes.plane_info.mp[i].stride;
+    pframe->frame[0].plane[i].scanline =
+      input_stream_info->buf_planes.plane_info.mp[i].scanline;
     pframe->frame[0].plane[i].length =
       pframe->frame[0].plane[i].height * pframe->frame[0].plane[i].stride;
   }
@@ -243,14 +251,19 @@ static int module_wnr_update_offline_params(wnr_client_t *p_client)
 
   rc = module_wnr_client_get_meta_info(p_client, &meta_info);
   if (IMG_ERROR(rc)) {
-    IDBG_ERROR("%s:%d] Metadata info is not avalaible", __func__, __LINE__);
+    IDBG_ERROR("%s:%d] Metadata info is not available", __func__, __LINE__);
     return rc;
   }
-
-  metadata_buff = mct_module_get_buffer_ptr(meta_info.meta_buf_index,
-                    p_client->parent_mod,
-                    IMGLIB_SESSIONID(p_client->identity),
-                    meta_info.meta_stream_handle);
+  if (p_client->stream_info->reprocess_config.pp_type ==
+      CAM_ONLINE_REPROCESS_TYPE) {
+    metadata_buff = mct_module_get_buffer_ptr(meta_info.meta_buf_index,
+                        p_client->parent_mod,
+                        IMGLIB_SESSIONID(p_client->identity),
+                        meta_info.meta_stream_handle);
+  } else {
+    metadata_buff = module_imglib_common_get_metadata(p_client->stream_info,
+        meta_info.meta_buf_index);
+  }
 
   if (NULL == metadata_buff) {
     IDBG_ERROR("%s:%d] Invalid metadata pointer", __func__, __LINE__);
@@ -689,7 +702,9 @@ int module_wnr_client_do_buf_done(wnr_client_t *p_client,
 
   /* copy output buffer */
   if (p_addr) {
+    ATRACE_BEGIN("Camera:WNR:memcpy");
     memcpy(p_addr, p_frame->frame[0].plane[0].addr, padded_size * 3/2);
+    ATRACE_END();
     frame_id = p_divert->buf_divert.buffer.sequence;
   }
   frame_id = p_divert->buf_divert.buffer.sequence;
@@ -846,6 +861,8 @@ void module_wnr_client_divert_exec(void *userdata, void *data)
     pthread_mutex_unlock(&p_client->mutex);
     return;
   }
+
+  ATRACE_BEGIN("Camera:WNR");
   rc = module_wnr_client_exec(p_client);
   if (rc != IMG_SUCCESS) {
     IDBG_ERROR("%s:%d] WNR Not Successful, rc = %d", __func__, __LINE__, rc);
@@ -870,6 +887,7 @@ void module_wnr_client_divert_exec(void *userdata, void *data)
     pthread_mutex_unlock(&p_client->mutex);
     return;
   }
+  ATRACE_END();
   IDBG_HIGH("%s:%d] after wait rc %d", __func__, __LINE__, rc);
 
   if (p_client->debug_info.camera_dump_enabled) {

@@ -8,6 +8,7 @@ LOCAL_MODULE_TAGS := optional
 
 PPROC_MODULE_PATH := $(LOCAL_PATH)/../../pproc
 MM_CAMERA_PATH := $(LOCAL_PATH)/../../../../../mm-camera2
+HAL_PATH := $(LOCAL_PATH)/../../../../../../../../../hardware/qcom/camera
 
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)
@@ -21,6 +22,7 @@ LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/event
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/bus
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/module
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/stream
+LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/debug
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/mct/pipeline
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/modules/includes
 LOCAL_C_INCLUDES += $(MM_CAMERA_PATH)/media-controller/modules/pproc-new/buf_mgr
@@ -29,7 +31,6 @@ LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/adreno/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/adreno200/
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/qcom/display
 
 LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
 				$(mmcamera_debug_defines) \
@@ -46,6 +47,7 @@ LOCAL_SRC_FILES += ../buf_mgr/pp_buf_mgr.c
 LOCAL_SRC_FILES += c2d.c
 
 LOCAL_MODULE           := libmmcamera2_c2d_module
+LOCAL_32_BIT_ONLY := true
 LOCAL_SHARED_LIBRARIES := libcutils liboemcamera libdl
 #include $(LOCAL_PATH)/../../../../local_additional_dependency.mk
 
@@ -54,7 +56,8 @@ LOCAL_SHARED_LIBRARIES += liblog
 endif
 LOCAL_MODULE_TAGS      := optional eng
 LOCAL_ADDITIONAL_DEPENDENCIES  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include "awb_stats.h"
+#include "isp_log.h"
 
 #define AWB_SHIFT_BITS(n) ({ \
   uint32_t s_bits; \
@@ -64,33 +65,33 @@ const struct ISP_StatsAwb_CfgCmdType ISP_DefaultStats32Awb_ConfigCmd = {
  **/
 static void awb_stats_debug(ISP_StatsAwb_CfgCmdType *pcmd)
 {
-  CDBG("AWB statsconfig shiftBits  %d\n", pcmd->shiftBits);
-  CDBG("AWB statsconfig rgnWidth   %d\n", pcmd->rgnWidth);
-  CDBG("AWB statsconfig rgnHeight  %d\n", pcmd->rgnHeight);
-  CDBG("AWB statsconfig rgnHOffset %d\n", pcmd->rgnHOffset);
-  CDBG("AWB statsconfig rgnVOffset %d\n", pcmd->rgnVOffset);
-  CDBG("AWB statsconfig rgnHNum    %d\n", pcmd->rgnHNum);
-  CDBG("AWB statsconfig rgnVNum    %d\n", pcmd->rgnVNum);
-  CDBG("AWB statsconfig yMax       %d\n", pcmd->yMax);
-  CDBG("AWB statsconfig yMin       %d\n", pcmd->yMin);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig shiftBits  %d\n", pcmd->shiftBits);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig rgnWidth   %d\n", pcmd->rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig rgnHeight  %d\n", pcmd->rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig rgnHOffset %d\n", pcmd->rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig rgnVOffset %d\n", pcmd->rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig rgnHNum    %d\n", pcmd->rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig rgnVNum    %d\n", pcmd->rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig yMax       %d\n", pcmd->yMax);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig yMin       %d\n", pcmd->yMin);
 
-  CDBG("AWB statsconfig t1         %d\n", pcmd->t1);
-  CDBG("AWB statsconfig t2         %d\n", pcmd->t2);
-  CDBG("AWB statsconfig t3         %d\n", pcmd->t3);
-  CDBG("AWB statsconfig t4         %d\n", pcmd->t4);
-  CDBG("AWB statsconfig mg         %d\n", pcmd->mg);
-  CDBG("AWB statsconfig t5         %d\n", pcmd->t5);
-  CDBG("AWB statsconfig t6         %d\n", pcmd->t6);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig t1         %d\n", pcmd->t1);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig t2         %d\n", pcmd->t2);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig t3         %d\n", pcmd->t3);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig t4         %d\n", pcmd->t4);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig mg         %d\n", pcmd->mg);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig t5         %d\n", pcmd->t5);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig t6         %d\n", pcmd->t6);
 
-  CDBG("AWB statsconfig m1         %d\n", pcmd->m1);
-  CDBG("AWB statsconfig m2         %d\n", pcmd->m2);
-  CDBG("AWB statsconfig m3         %d\n", pcmd->m3);
-  CDBG("AWB statsconfig m4         %d\n", pcmd->m4);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig m1         %d\n", pcmd->m1);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig m2         %d\n", pcmd->m2);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig m3         %d\n", pcmd->m3);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig m4         %d\n", pcmd->m4);
 
-  CDBG("AWB statsconfig c1         %d\n", pcmd->c1);
-  CDBG("AWB statsconfig c2         %d\n", pcmd->c2);
-  CDBG("AWB statsconfig c3         %d\n", pcmd->c3);
-  CDBG("AWB statsconfig c4         %d\n", pcmd->c4);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig c1         %d\n", pcmd->c1);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig c2         %d\n", pcmd->c2);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig c3         %d\n", pcmd->c3);
+  ISP_DBG(ISP_MOD_STATS, "AWB statsconfig c4         %d\n", pcmd->c4);
 }
 
 /** isp_awb_stats_get_shiftbits:
@@ -165,7 +166,7 @@ static int awb_stats_config(isp_stats_entry_t *entry,
   uint32_t width, height;
 
   if (!entry->enable) {
-    CDBG("%s: AWB stats not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: AWB stats not enabled", __func__);
     return 0;
   }
 

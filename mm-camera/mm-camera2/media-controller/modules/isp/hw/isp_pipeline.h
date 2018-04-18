@@ -54,7 +54,7 @@ Qualcomm Technologies Proprietary and Confidential.
 
 #define Clamp(x, t1, t2) (((x) < (t1))? (t1): ((x) > (t2))? (t2): (x))
 
-#define MIRED(x) (1000000 / (x))
+#define MIRED(x) (1000000.0f / (x))
 
 #define F_EQUAL(a, b) \
   ( fabs(a-b) < 1e-4 )
@@ -286,6 +286,8 @@ typedef struct {
   uint32_t isp_version;
   void *buf_mgr;
   int dev_idx;
+  uint32_t max_scaler_out_width;
+  uint32_t max_scaler_out_height;
 } isp_hw_mod_init_params_t;
 
 typedef struct isp_hw_pix_dep isp_hw_pix_dep_t;
@@ -364,6 +366,7 @@ typedef struct {
   modulesChromatix_t chromatix_ptrs; /* chromatix headers */
   cam_streaming_mode_t streaming_mode; /* burst or continuous */
   isp_hwif_output_cfg_t outputs[ISP_PIX_PATH_MAX]; /* width == height == 0 means not used */
+  isp_pixel_window_info_t scaler_output[ISP_PIX_PATH_MAX];
   isp_hwif_output_cfg_t raw_output;
   isp_pix_camif_cfg_t camif_cfg;
   isp_pixel_line_info_t demosaic_output;
@@ -388,6 +391,7 @@ typedef struct {
   int32_t recording_hint;
   uint32_t vhdr_enable;
   isp_tintless_data_t *tintless_data;
+  boolean do_fullsize_cfg;
   isp_zoom_roi_params_t saved_zoom_roi;
   mct_bracket_ctrl_t bracketing_data;
 } isp_hw_pix_setting_params_t;
@@ -399,6 +403,7 @@ typedef struct {
   cam_flash_mode_t flash_mode;
   uint16_t lens_position_current_step;
   uint8_t demosaic_update_flag; /* pipeline will set this flag after wb trigger update */
+  boolean is_init_setting;
 } isp_hw_pix_trigger_update_params_t;
 
 typedef struct {
@@ -438,6 +443,7 @@ typedef struct {
   uint32_t hfr_update_mod_mask;
   uint32_t hfr_update_batch1;
   uint32_t hfr_update_batch2;
+  uint32_t stats_burst_len;
 } isp_pipeline_t;
 
 typedef enum {
@@ -546,5 +552,5 @@ int isp_pipeline_action(
   void *ctrl, uint32_t action_code,
   void *action_data, uint32_t action_data_size);
 
-
+int isp_pipeline_set_stats_fullsize(void *ctrl, boolean enable);
 #endif /* __ISP_PIPELINE_H__ */

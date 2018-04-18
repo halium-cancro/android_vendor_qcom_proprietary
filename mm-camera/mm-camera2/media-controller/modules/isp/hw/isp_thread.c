@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -16,6 +16,11 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_hw_module_ops.h"
 #include "isp_hw.h"
 #include "isp.h"
+#include "isp_log.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+#include "server_debug.h"
+#include "isp_util.h"
 
 #if 0
 #undef CDBG
@@ -37,6 +42,7 @@ static int isp_thread_proc_cmd(isp_hw_t *isp_hw,
   ssize_t read_len;
   int rc = 0;
   boolean sem_posted = FALSE;
+  boolean wait_for_reset = 0;
 
   if (use_pipe) {
     read_len = read(thread_data->pipe_fds[0],
@@ -53,6 +59,16 @@ static int isp_thread_proc_cmd(isp_hw_t *isp_hw,
       return -EPIPE;
     }
   }
+  pthread_mutex_lock(&isp_hw->overflow_mutex);
+  if (isp_hw->is_overflow) {
+    wait_for_reset = 1;
+  }
+  pthread_mutex_unlock(&isp_hw->overflow_mutex);
+  if (wait_for_reset) {
+    sem_wait(&isp_hw->reset_done);
+  }
+
+
   switch (thread_data->cmd) {
   case MM_ISP_CMD_NOTIFY_OPS_INIT: {
     if(!thread_data->init_cmd) {
@@ -166,7 +182,13 @@ static int isp_thread_proc_cmd(isp_hw_t *isp_hw,
     thread_data->return_code = 0;
     thread_data->action_cmd = NULL;
     struct msm_isp_event_data sof_parm;
-
+    isp_session_t *current_session = NULL;
+    isp_t *isp = (isp_t*)isp_hw->notify_ops->parent;
+    current_session = isp_util_find_session(isp, isp_hw->pipeline.session_id[0]);
+    if (current_session == NULL) {
+        CDBG_ERROR("%s: No seeison found with session id %d", __func__, isp_hw->pipeline.session_id[0]);
+        return -1;
+    }
     /*local copy before post caller thread*/
     sof_parm = thread_data->sof_parm;
 
@@ -175,25 +197,40 @@ static int isp_thread_proc_cmd(isp_hw_t *isp_hw,
     sem_posted = TRUE;
     isp_hw_updating_notify_t notify_data;
 
+    /*Execute trigger update at SOF*/
+    thread_data->return_code=
+      isp_hw_proc_update_params_at_sof(isp_hw, &sof_parm);
+
+    pthread_mutex_lock(&current_session->state_mutex);
+    if (current_session->reg_update_info.reg_update_state !=
+        ISP_REG_UPDATE_STATE_CONSUMED) {
+         pthread_mutex_unlock(&current_session->state_mutex);
+         pthread_mutex_lock(&thread_data->busy_mutex);
+         thread_data->thread_busy = FALSE;
+         pthread_mutex_unlock(&thread_data->busy_mutex);
+        goto end;
+    }
+    pthread_mutex_unlock(&current_session->state_mutex);
+
     /* Execute hw update */
-    thread_data->return_code = isp_hw_proc_hw_update((void *)isp_hw);
+    thread_data->return_code = isp_hw_proc_hw_update((void *)isp_hw, &sof_parm);
     if (thread_data->return_code < 0) {
       pthread_mutex_lock(&thread_data->busy_mutex);
       thread_data->thread_busy = FALSE;
       pthread_mutex_unlock(&thread_data->busy_mutex);
       goto end;
     }
+    isp_hw_proc_hw_request_reg_update(isp_hw, (void *)current_session);
+    pthread_mutex_lock(&current_session->state_mutex);
+    current_session->reg_update_info.reg_update_state = ISP_REG_UPDATE_STATE_PENDING;
+    pthread_mutex_unlock(&current_session->state_mutex);
 
-    notify_data.session_id = isp_hw->pipeline.session_id;
+    notify_data.session_id = isp_hw->pipeline.session_id[0];
     notify_data.is_hw_updating = 0;
     notify_data.dev_idx = isp_hw->init_params.dev_idx;
     rc = isp_hw->notify_ops->notify((void*)isp_hw->notify_ops->parent,
       isp_hw->init_params.dev_idx, ISP_HW_NOTIFY_HW_UPDATING,
       &notify_data, sizeof(isp_hw_updating_notify_t));
-
-    /*Execute trigger update at SOF*/
-    thread_data->return_code=
-      isp_hw_proc_update_params_at_sof(isp_hw, &sof_parm);
 
     pthread_mutex_lock(&thread_data->busy_mutex);
     thread_data->thread_busy = FALSE;
@@ -213,7 +250,7 @@ static int isp_thread_proc_cmd(isp_hw_t *isp_hw,
 
   if (thread_data->cmd == MM_ISP_CMD_DESTROY) {
     /* exit the thread */
-    CDBG("%s: HW thread exitting now\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: HW thread exitting now\n", __func__);
     *thread_exit = 1;
   } else if (!sem_posted && thread_data->cmd != MM_ISP_CMD_SOF_UPDATE) {
     /* zero out the pointer. Since it's union we
@@ -229,15 +266,6 @@ end:
   return 0;
 }
 
-/** isp_hw_halt_axi_immediately
- *
- * DESCRIPTION:
- *
- **/
-static void isp_hw_halt_axi_immediately(isp_hw_t *isp_hw)
-{
-   /*Todo: hal AXI*/
-}
 
 /** isp_thread_main_loop
  *
@@ -252,6 +280,8 @@ static void *isp_thread_main_loop(void *data)
   isp_thread_t *thread_data = (isp_thread_t *)data;
   isp_hw_t *isp_hw = (isp_hw_t *)thread_data->hw_ptr;
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "isp_main", 0, 0, 0);
   timeout = thread_data->poll_timeoutms;
   /* wake up the creater first */
   sem_post(&thread_data->sig_sem);
@@ -277,9 +307,6 @@ static void *isp_thread_main_loop(void *data)
   }
 
   if (thread_data->return_code == -EPIPE) {
-    /* TODO: before exit we need to halt axi immediately
-     * and disable VFE clock to make VFE be able to restart later */
-    isp_hw_halt_axi_immediately(isp_hw);
     isp_hw->notify_ops->notify(isp_hw->notify_ops->parent,
       isp_hw->notify_ops->handle, ISP_HW_NOTIFY_ISP_ERR_HALT_AXI,
       NULL, 0);
@@ -308,6 +335,8 @@ static void *isp_sem_thread_main(void *data)
   isp_thread_t *thread_data = (isp_thread_t *)data;
   isp_hw_t *isp_hw = (isp_hw_t *)thread_data->hw_ptr;
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "isp_sem_thread", 0, 0, 0);
   /* wake up the creater first */
   sem_post(&thread_data->sig_sem);
 
@@ -318,7 +347,6 @@ static void *isp_sem_thread_main(void *data)
     /* TODO: before exit we need to halt axi immediately
      * and disable VFE clock to make VFE be able to restart later */
     if (thread_data->return_code == -EPIPE) {
-      isp_hw_halt_axi_immediately(isp_hw);
       isp_hw->notify_ops->notify(isp_hw->notify_ops->parent,
         isp_hw->notify_ops->handle, ISP_HW_NOTIFY_ISP_ERR_HALT_AXI,
         NULL, 0);
@@ -340,6 +368,8 @@ static void* isp_thread_session_task(void *data)
   isp_session_t *session = task->session;
   task->thread_started = 1;
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "isp_session", 0, 0, 0);
   sem_post(&task->sync_sem);
 
   for (;;) {
@@ -390,6 +420,7 @@ int isp_thread_async_task_start(isp_t *isp, isp_session_t *session)
 
   rc = pthread_create(&session->async_task.thread, NULL,
         &isp_thread_session_task, (void *)&session->async_task);
+  pthread_setname_np(session->async_task.thread, "CAM_isp_async");
   if(!rc) {
     sem_wait(&session->async_task.sync_sem);
   } else {
@@ -447,6 +478,11 @@ int isp_thread_start(isp_thread_t *thread_data, void *hw_ptr, int poll_fd)
   int rc = 0;
   thread_data->hw_ptr = hw_ptr;
 
+  if ((thread_data->pipe_fds[0]) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    thread_data->pipe_fds[0] = -1;
+    return -1;
+  }
   rc = pipe(thread_data->pipe_fds);
   if(rc < 0) {
     CDBG_ERROR("%s: pipe open error = %d\n", __func__, rc);
@@ -466,6 +502,7 @@ int isp_thread_start(isp_thread_t *thread_data, void *hw_ptr, int poll_fd)
 
   rc = pthread_create(&thread_data->pid, NULL,
     isp_thread_main_loop, (void *)thread_data);
+  pthread_setname_np(thread_data->pid, "CAM_isp_main");
   if(!rc) {
     sem_wait(&thread_data->sig_sem);
   } else {
@@ -496,6 +533,7 @@ int isp_sem_thread_start(isp_thread_t *thread_data, void *hw_ptr)
 
     rc = pthread_create(&thread_data->pid, NULL,
       isp_sem_thread_main, (void *)thread_data);
+    pthread_setname_np(thread_data->pid, "CAM_isp_sem");
     if(!rc) {
       sem_wait(&thread_data->sig_sem);
     } else {

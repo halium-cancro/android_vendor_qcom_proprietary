@@ -6,6 +6,7 @@
  ============================================================================*/
 #include <unistd.h>
 #include "bg_stats.h"
+#include "isp_log.h"
 
 #define MIN_RGN_WIDTH  4
 #define MIN_RGN_HEIGHT 2
@@ -21,17 +22,17 @@
  **/
 static void bg_stats_debug(ISP_StatsBg_CfgCmdType *pcmd)
 {
-  CDBG("%s:Bayer Grid Stats Configurations\n", __func__);
-  CDBG("%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
-  CDBG("%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
-  CDBG("%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
-  CDBG("%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
-  CDBG("%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
-  CDBG("%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
-  CDBG("%s:gbMax      %d\n", __func__, pcmd->gbMax);
-  CDBG("%s:grMax      %d\n", __func__, pcmd->grMax);
-  CDBG("%s:rMax       %d\n", __func__, pcmd->rMax);
-  CDBG("%s:bMax       %d\n", __func__, pcmd->bMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:Bayer Grid Stats Configurations\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:gbMax      %d\n", __func__, pcmd->gbMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:grMax      %d\n", __func__, pcmd->grMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:rMax       %d\n", __func__, pcmd->rMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:bMax       %d\n", __func__, pcmd->bMax);
 }
 
 /** bg_stats_config:
@@ -52,14 +53,15 @@ static int bg_stats_config(isp_stats_entry_t *entry,
   aec_bg_config_t *bg_config = &pix_settings->stats_cfg.aec_config.bg_config;
   tintless_stats_config_t stats_cfg;
   isp_tintless_notify_data_t tintless_data;
+  isp_pix_camif_cfg_t *camif_cfg = &pix_settings->camif_cfg;
   uint32_t bg_rgn_width, bg_rgn_height;
+  uint32_t camif_window_w_t, camif_window_h_t;
   int rc;
 
   if (!entry->enable) {
-    CDBG("%s: BG not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: BG not enabled", __func__);
     return 0;
   }
-
   entry->session_id = pix_settings->outputs->stream_param.session_id;
   entry->ion_fd = pix_settings->ion_fd;
   entry->hfr_mode = pix_settings->camif_cfg.hfr_mode;
@@ -74,11 +76,6 @@ static int bg_stats_config(isp_stats_entry_t *entry,
     }
 
 
-  bg_rgn_width = bg_config->roi.width /
-                   bg_config->grid_info.h_num;
-  bg_rgn_height = bg_config->roi.height /
-                   bg_config->grid_info.v_num;
-
   /* Minimum region width cannot be smaller than 4 as per thardware constraints for vfe32 */
   if (bg_rgn_width < MIN_RGN_WIDTH) {
     bg_rgn_width = MIN_RGN_WIDTH;
@@ -87,38 +84,88 @@ static int bg_stats_config(isp_stats_entry_t *entry,
   if (bg_rgn_height < MIN_RGN_HEIGHT) {
     bg_rgn_height = MIN_RGN_HEIGHT;
   }
-  pcmd->rgnHOffset = FLOOR2(pix_settings->stats_cfg.aec_config.bg_config.roi.left);
-  pcmd->rgnVOffset = FLOOR2(pix_settings->stats_cfg.aec_config.bg_config.roi.top);
-  pcmd->rgnWidth   = FLOOR2(bg_rgn_width) - 1;
-  pcmd->rgnHeight  = FLOOR2(bg_rgn_height) - 1;
-  pcmd->rgnHNum    = pix_settings->stats_cfg.aec_config.bg_config.grid_info.h_num - 1;
-  pcmd->rgnVNum    = pix_settings->stats_cfg.aec_config.bg_config.grid_info.v_num - 1;
+  camif_window_w_t = camif_cfg->sensor_out_info.request_crop.last_pixel -
+    camif_cfg->sensor_out_info.request_crop.first_pixel + 1;
+  camif_window_h_t = camif_cfg->sensor_out_info.request_crop.last_line -
+    camif_cfg->sensor_out_info.request_crop.first_line + 1;
 
-  pcmd->rMax       = 255 - 16;
-  pcmd->grMax      = 255 - 16;
-  pcmd->bMax       = 255 - 16;
-  pcmd->gbMax      = 255 - 16;
+  if (!entry->need_to_do_fullsize_cfg) {
+    bg_rgn_width = bg_config->roi.width /
+      bg_config->grid_info.h_num;
+    bg_rgn_height = bg_config->roi.height /
+      bg_config->grid_info.v_num;
+    /* Minimum region width cannot be smaller than 4 as per thardware constraints for vfe32 */
+    if (bg_rgn_width < MIN_RGN_WIDTH) {
+      bg_rgn_width = MIN_RGN_WIDTH;
+    }
+    /* Minimum region height cannot be smaller than 2 as per hardware constraints for vfe32 */
+    if (bg_rgn_height < MIN_RGN_HEIGHT) {
+      bg_rgn_height = MIN_RGN_HEIGHT;
+    }
 
-  bg_config->roi.left = pcmd->rgnHOffset;
-  bg_config->roi.top = pcmd->rgnVOffset;
-  bg_config->roi.width = (pcmd->rgnWidth + 1) * bg_config->grid_info.h_num;
-  bg_config->roi.height = (pcmd->rgnHeight + 1) * bg_config->grid_info.v_num;
+    pcmd->rgnHOffset = FLOOR2(pix_settings->stats_cfg.aec_config.bg_config.roi.left);
+    pcmd->rgnVOffset = FLOOR2(pix_settings->stats_cfg.aec_config.bg_config.roi.top);
+    pcmd->rgnWidth   = FLOOR2(bg_rgn_width) - 1;
+    pcmd->rgnHeight  = FLOOR2(bg_rgn_height) - 1;
+    pcmd->rgnHNum    = pix_settings->stats_cfg.aec_config.bg_config.grid_info.h_num - 1;
+    pcmd->rgnVNum    = pix_settings->stats_cfg.aec_config.bg_config.grid_info.v_num - 1;
 
-  pix_settings->saved_zoom_roi.rgnHOffset = pcmd->rgnHOffset;
-  pix_settings->saved_zoom_roi.rgnVOffset = pcmd->rgnVOffset;
-  pix_settings->saved_zoom_roi.rgnWidth = pcmd->rgnWidth;
-  pix_settings->saved_zoom_roi.rgnHeight = pcmd->rgnHeight;
-  pix_settings->saved_zoom_roi.rgnHNum =  pcmd->rgnHNum;
-  pix_settings->saved_zoom_roi.rgnVNum = pcmd->rgnVNum;
-  pix_settings->saved_zoom_roi.rMax =  pcmd->rMax;
-  pix_settings->saved_zoom_roi.grMax = pcmd->grMax;
-  pix_settings->saved_zoom_roi.bMax = pcmd->bMax;
-  pix_settings->saved_zoom_roi.gbMax = pcmd->gbMax;
+    pcmd->rMax       = 255 - 16;
+    pcmd->grMax      = 255 - 16;
+    pcmd->bMax       = 255 - 16;
+    pcmd->gbMax      = 255 - 16;
+
+    bg_config->roi.left = pcmd->rgnHOffset;
+    bg_config->roi.top = pcmd->rgnVOffset;
+    bg_config->roi.width = (pcmd->rgnWidth + 1) * bg_config->grid_info.h_num;
+    bg_config->roi.height = (pcmd->rgnHeight + 1) * bg_config->grid_info.v_num;
+    pix_settings->saved_zoom_roi.rgnHOffset = pcmd->rgnHOffset;
+    pix_settings->saved_zoom_roi.rgnVOffset = pcmd->rgnVOffset;
+    pix_settings->saved_zoom_roi.rgnWidth = pcmd->rgnWidth;
+    pix_settings->saved_zoom_roi.rgnHeight = pcmd->rgnHeight;
+    pix_settings->saved_zoom_roi.rgnHNum =  pcmd->rgnHNum;
+    pix_settings->saved_zoom_roi.rgnVNum = pcmd->rgnVNum;
+    pix_settings->saved_zoom_roi.rMax =  pcmd->rMax;
+    pix_settings->saved_zoom_roi.grMax = pcmd->grMax;
+    pix_settings->saved_zoom_roi.bMax = pcmd->bMax;
+    pix_settings->saved_zoom_roi.gbMax = pcmd->gbMax;
+    if (!entry->tinltess_cofig_stats) {
+      entry->skip_stats = 1;
+      entry->roi_config_skip_stats = TRUE;
+    }
+    entry->is_fullsize_stats = FALSE;
+  } else {
+    pcmd->rgnWidth   = FLOOR2(camif_window_w_t/64) - 1;
+    pcmd->rgnHeight  = FLOOR2(camif_window_h_t/48) - 1;
+    pcmd->rgnHOffset = FLOOR2((camif_window_w_t - 64 *(pcmd->rgnWidth + 1))/2);
+    pcmd->rgnVOffset = FLOOR2((camif_window_h_t - 48 *(pcmd->rgnHeight + 1))/2);
+    pcmd->rgnHNum    = 64 - 1;
+    pcmd->rgnVNum    = 48 - 1;
+
+    pcmd->rMax       = 255 - 16;
+    pcmd->grMax      = 255 - 16;
+    pcmd->bMax       = 255 - 16;
+    pcmd->gbMax      = 255 - 16;
+    entry->need_to_do_fullsize_cfg = FALSE;
+    entry->is_fullsize_stats = TRUE;
+  }
+  entry->tinltess_cofig_stats = FALSE;
+
+  if (pcmd->rgnVOffset + ((pcmd->rgnVNum + 1) * (pcmd->rgnHeight + 1)) > camif_window_h_t ||
+      pcmd->rgnHOffset + ((pcmd->rgnHNum + 1) * (pcmd->rgnWidth + 1)) > camif_window_w_t) {
+    CDBG_ERROR("%s: BG ROI bigger than CAMIF window %ux%u !", __func__,
+      camif_window_w_t, camif_window_h_t);
+    CDBG_ERROR("%s: Horizontal: %u %u %u, Vertical: %u %u %u", __func__,
+      pcmd->rgnHOffset, pcmd->rgnHNum, pcmd->rgnWidth,
+      pcmd->rgnVOffset, pcmd->rgnVNum, pcmd->rgnHeight);
+    entry->hw_update_pending = 0;
+    return -1;
+  }
 
   if (pix_settings->tintless_data->is_supported &&
-      pix_settings->tintless_data->is_enabled) {
-    stats_cfg.camif_win_w =  bg_config->roi.width;
-    stats_cfg.camif_win_h =  bg_config->roi.height;
+    pix_settings->tintless_data->is_enabled && (!entry->is_tintless_stats_configured)) {
+    stats_cfg.camif_win_w =  camif_window_w_t;
+    stats_cfg.camif_win_h =  camif_window_h_t;
     stats_cfg.stat_elem_w = FLOOR2(stats_cfg.camif_win_w / 64);
     stats_cfg.stat_elem_h = FLOOR2(stats_cfg.camif_win_h / 48);
     stats_cfg.stats_type = STATS_TYPE_BG;
@@ -140,6 +187,26 @@ static int bg_stats_config(isp_stats_entry_t *entry,
   return 0;
 }
 
+/** bg_stats_fullsize_config:
+ *    @entry: pointer to instance private data
+ *    @pix_settings: input data
+ *    @in_param_size: size of input data
+ *
+ * Configure submodule.
+ *
+ * This function executes in ISP thread context
+ *
+ * Return 0 on success.
+ **/
+static int bg_stats_fullsize_config(isp_stats_entry_t *entry,
+  isp_hw_pix_setting_params_t *pix_settings, uint32_t in_param_size)
+{
+  int rc = 0;
+  entry->need_to_do_fullsize_cfg = pix_settings->do_fullsize_cfg;
+  entry->tinltess_cofig_stats = TRUE;
+  rc = bg_stats_config(entry, pix_settings, sizeof(isp_hw_pix_setting_params_t));
+  return rc;
+}
 /** bf_stats_start:
  *    @entry: pointer to instance private data
  *    @start: start or stop flag
@@ -153,7 +220,11 @@ static int bg_stats_config(isp_stats_entry_t *entry,
 static int bg_stats_start(isp_stats_entry_t *entry, boolean start)
 {
   int rc = 0;
-
+  entry->need_to_do_fullsize_cfg = FALSE;
+  entry->is_fullsize_stats = FALSE;
+  entry->is_current_stats_fullsize = FALSE;
+  entry->roi_config_skip_stats = FALSE;
+  entry->tinltess_cofig_stats = FALSE;
   /* ioctl */
   return rc;
 }
@@ -172,23 +243,6 @@ static int bg_stats_enable(isp_stats_entry_t *entry,
   isp_mod_set_enable_t *in_params)
 {
   entry->enable = in_params->enable;
-  return 0;
-}
-
-/** bg_stats_trigger_enable:
- *    @entry: pointer to instance private data
- *    @in_params: input data
- *
- * Set trigger enable.
- *
- * This function executes in ISP thread context
- *
- * Return 0 on success.
- **/
-static int bg_stats_trigger_enable(isp_stats_entry_t *entry,
-  isp_mod_set_enable_t *in_params)
-{
-  entry->trigger_enable = in_params->enable;
   return 0;
 }
 
@@ -219,13 +273,16 @@ static int bg_stats_set_params(void *ctrl, uint32_t param_id, void *in_params,
       in_param_size);
     break;
   case ISP_STATS_SET_TRIGGER_ENABLE:
-    rc = bg_stats_trigger_enable(entry, (isp_mod_set_enable_t *)in_params);
     break;
   case ISP_STATS_SET_TRIGGER_UPDATE:
     break;
   case ISP_STATS_SET_STREAM_CFG:
     break;
   case ISP_STATS_SET_STREAM_UNCFG:
+    break;
+  case ISP_HW_MOD_SET_STATS_FULLSIZE_CFG:
+    rc = bg_stats_fullsize_config(entry, (isp_hw_pix_setting_params_t *) in_params,
+      in_param_size);
     break;
   default:
     break;
@@ -286,9 +343,10 @@ static int bg_stats_do_hw_update(isp_stats_entry_t *entry)
 {
   int rc = 0;
   struct msm_vfe_cfg_cmd2 cfg_cmd;
+  ISP_StatsBg_CfgCmdType *pcmd = (ISP_StatsBg_CfgCmdType *)entry->reg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[1];
-
   if (entry->hw_update_pending) {
+    entry->is_current_stats_fullsize = entry->is_new_stats_full_size;
     cfg_cmd.cfg_data = (void *)entry->reg_cmd;
     cfg_cmd.cmd_len = sizeof(ISP_StatsBg_CfgCmdType);
     cfg_cmd.cfg_cmd = (void *)reg_cfg_cmd;
@@ -305,9 +363,14 @@ static int bg_stats_do_hw_update(isp_stats_entry_t *entry)
       return rc;
     }
     entry->hw_update_pending = 0;
-    entry->skip_stats = 1;
+    entry->is_new_stats_full_size = entry->is_fullsize_stats;
+    entry->hnum = pcmd->rgnHNum;
+    entry->vnum = pcmd->rgnVNum;
+	if (entry->roi_config_skip_stats) {
+		entry->skip_stats = 1;
+		entry->roi_config_skip_stats = FALSE;
+	}
   }
-
   return rc;
 }
 
@@ -324,13 +387,13 @@ static int bg_stats_do_hw_update(isp_stats_entry_t *entry)
  **/
 static int bg_stats_parse(isp_stats_entry_t *entry,
                    void *raw_buf,
-                   q3a_bg_stats_t *bg_stats)
+                   q3a_bg_stats_t *bg_stats,
+                   uint32_t hnum, uint32_t vnum)
 {
   uint32_t *SY,*Sr, *Sb, *Sgr, *Sgb;
   uint32_t *r_num, *b_num, *gr_num, *gb_num;
   uint32_t *current_region;
   uint32_t  i, x, y;
-  ISP_StatsBg_CfgCmdType *pcmd = entry->reg_cmd;
 
   Sr     = bg_stats->bg_r_sum;
   Sb     = bg_stats->bg_b_sum;
@@ -342,8 +405,8 @@ static int bg_stats_parse(isp_stats_entry_t *entry,
   gb_num = bg_stats->bg_gb_num;
 
   current_region = (uint32_t*)raw_buf;
-  bg_stats->bg_region_h_num = pcmd->rgnHNum + 1; /*64 * 48*/
-  bg_stats->bg_region_v_num = pcmd->rgnVNum + 1;
+  bg_stats->bg_region_h_num = hnum + 1; /*64 * 48*/
+  bg_stats->bg_region_v_num = vnum + 1;
   /*
    * BG Stats expect:
    * 1 - 23bit out of 32bit r_sum
@@ -354,7 +417,7 @@ static int bg_stats_parse(isp_stats_entry_t *entry,
    * 6 - 15bit out of 32bit USL gbnum, 15bit out of 32bit LSL grnum
    * Expect buf_size = 72*54 * 6 = 23328  (uint32)  93312
    */
-  for (i = 0; i < ((pcmd->rgnHNum + 1u) * (pcmd->rgnVNum + 1u)); i++) {
+  for (i = 0; i < ((hnum + 1u) * (vnum + 1u)); i++) {
     /* 64*48 regions, total 3072 */
     /* 23 bits sum of r, b, gr, gb. */
 
@@ -429,24 +492,30 @@ static int bg_stats_action(void *ctrl, uint32_t action_code, void *data,
     mct_event_stats_isp_data_t *stats_data = isp_stats_event->stats_data;
     int buf_idx =
       action_data->raw_stats_event->u.stats.stats_buf_idxs[MSM_ISP_STATS_BG];
+    uint32_t hnum = entry->hnum;
+    uint32_t vnum = entry->vnum;
     void *raw_buf = isp_get_buf_addr(entry->buf_mgr,
       entry->buf_handle, buf_idx);
     if(!raw_buf){
       CDBG_ERROR("%s: isp_get_buf_addr failed!\n", __func__);
       return -1;
     }
-
     if (entry->is_first == 1 || entry->skip_stats == 1) {
-      CDBG("%s: drop first stats\n", __func__);
+      ISP_DBG(ISP_MOD_STATS, "%s: drop first stats\n", __func__);
       entry->is_first = 0;
       entry->skip_stats = 0;
       isp_stats_enqueue_buf(entry, buf_idx);
       return rc;
     }
-
     q3a_bg_stats_t *bg_stats = entry->parsed_stats_buf;
-    isp_stats_event->stats_mask |= (1 << MSM_ISP_STATS_BG);
-    rc = bg_stats_parse(entry, raw_buf, bg_stats);
+    if (entry->is_current_stats_fullsize){
+      isp_stats_event->is_tintless_data = TRUE;
+    } else {
+      isp_stats_event->stats_mask |= (1 << MSM_ISP_STATS_BG);
+      isp_stats_event->is_tintless_data = FALSE;
+    }
+
+    rc = bg_stats_parse(entry, raw_buf, bg_stats, hnum, vnum);
     if (entry->num_bufs != 0) {
       rc |= isp_stats_enqueue_buf(entry, buf_idx);
     }
@@ -568,6 +637,7 @@ isp_ops_t *bg_stats32_open(isp_stats_mod_t *stats,
     return NULL;
   }
   entry->reg_cmd = cmd;
+  entry->is_tintless_stats_configured = FALSE;
   entry->ops.ctrl = (void *)entry;
   entry->ops.init = bg_stats_init;
   entry->ops.destroy = bg_stats_destroy;

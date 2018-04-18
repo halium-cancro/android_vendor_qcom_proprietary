@@ -61,7 +61,7 @@ static struct msm_sensor_power_setting power_setting[] = {
 
 static struct msm_camera_sensor_slave_info sensor_slave_info = {
   /* Camera slot where this camera is mounted */
-  .camera_id = CAMERA_2,
+  .camera_id = CAMERA_1,
   /* sensor slave address */
   .slave_addr = 0x6C,
   /* sensor address type */
@@ -78,6 +78,7 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
     .power_setting = power_setting,
     .size = ARRAY_SIZE(power_setting),
   },
+  .is_flash_supported = SENSOR_FLASH_NOT_SUPPORTED,
 };
 
 static struct msm_sensor_init_params sensor_init_params = {
@@ -117,6 +118,8 @@ static sensor_lens_info_t default_lens_info = {
   .total_f_dist = 1.2,
   .hor_view_angle = 54.8,
   .ver_view_angle = 42.5,
+  .sensing_method = SENSOR_SMETHOD_NOT_DEFINED,
+  .crop_factor = 1.33, //(4:3) its sensor's physical dimension dependent factor
 };
 
 static struct csi_lane_params_t csi_lane_params = {
@@ -124,7 +127,7 @@ static struct csi_lane_params_t csi_lane_params = {
   .csi_lane_mask = 0x7,
   .csi_if = 1,
   .csid_core = {0},
-  .csi_phy_sel = 2,
+  .csi_phy_sel = 1,
 };
 
 static struct msm_camera_i2c_reg_array init_reg_array[] = {

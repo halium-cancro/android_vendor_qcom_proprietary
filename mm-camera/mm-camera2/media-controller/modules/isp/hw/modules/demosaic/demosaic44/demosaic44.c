@@ -7,15 +7,16 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "demosaic44.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_DEMOSAIC_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -39,18 +40,18 @@ static int16_t tInterpDefault[ISP_DEMOSAIC40_CLASSIFIER_CNT] =
  *==========================================================================*/
 static void demosaic_debug(void *cmd, uint8_t update)
 {
-  CDBG("VFE_Demosaic40 config = %d or update = %d", !update, update);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "VFE_Demosaic40 config = %d or update = %d", !update, update);
 
   ISP_Demosaic40ConfigCmdType* pcmd = (ISP_Demosaic40ConfigCmdType *)cmd;
 
-  CDBG("ISP_Demosaic40CmdType rgWbGain %d", pcmd->rgWbGain);
-  CDBG("ISP_Demosaic40CmdType bgWbGain %d", pcmd->bgWbGain);
-  CDBG("ISP_Demosaic40CmdType grWbGain %d", pcmd->grWbGain);
-  CDBG("ISP_Demosaic40CmdType gbWbGain %d", pcmd->gbWbGain);
-  CDBG("ISP_Demosaic40CmdType bl %d", pcmd->bl);
-  CDBG("ISP_Demosaic40CmdType bu %d", pcmd->bu);
-  CDBG("ISP_Demosaic40CmdType dblu %d", pcmd->dblu);
-  CDBG("ISP_Demosaic40CmdType a %d", pcmd->a);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType rgWbGain %d", pcmd->rgWbGain);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType bgWbGain %d", pcmd->bgWbGain);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType grWbGain %d", pcmd->grWbGain);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType gbWbGain %d", pcmd->gbWbGain);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType bl %d", pcmd->bl);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType bu %d", pcmd->bu);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType dblu %d", pcmd->dblu);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "ISP_Demosaic40CmdType a %d", pcmd->a);
 
 }/*demosaic_debug*/
 
@@ -136,7 +137,7 @@ static int demosaic_trigger_update(isp_demosaic_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable) {
-    CDBG("%s:No trigger update for Demosaic: enable = %d, trigger_en = %d.\n",
+    ISP_DBG(ISP_MOD_DEMOSAIC, "%s:No trigger update for Demosaic: enable = %d, trigger_en = %d.\n",
          __func__, mod->enable, mod->trigger_enable);
     return 0;
   }
@@ -144,7 +145,7 @@ static int demosaic_trigger_update(isp_demosaic_mod_t *mod,
   is_burst = IS_BURST_STREAMING(&trigger_params->cfg);
   if (!is_burst) {
     if (!isp_util_aec_check_settled(aec_output)) {
-      CDBG("%s: aec not settled, skip trigger\n", __func__);
+      ISP_DBG(ISP_MOD_DEMOSAIC, "%s: aec not settled, skip trigger\n", __func__);
       return 0;
     }
   }
@@ -159,7 +160,7 @@ static int demosaic_trigger_update(isp_demosaic_mod_t *mod,
   /*Do interpolation by the aec ratio*/
   ratio = isp_util_get_aec_ratio(mod->notify_ops->parent,
                                  *tc, tp, aec_output, is_burst);
-  CDBG("%s: aec ratio %f", __func__, ratio);
+  ISP_DBG(ISP_MOD_DEMOSAIC, "%s: aec ratio %f", __func__, ratio);
 
   if (trigger_params->cfg.streaming_mode != mod->old_streaming_mode ||
     !F_EQUAL(ratio, mod->ratio.ratio)) {
@@ -185,7 +186,7 @@ static int demosaic_trigger_update(isp_demosaic_mod_t *mod,
   }
 
   /* update wb gains */
-  CDBG("%s: gains r %f g %f b %f", __func__,
+  ISP_DBG(ISP_MOD_DEMOSAIC, "%s: gains r %f g %f b %f", __func__,
     wb_gain->r_gain, wb_gain->g_gain, wb_gain->b_gain);
   p_cmd->rgWbGain = FLOAT_TO_Q(7, (wb_gain->r_gain / wb_gain->g_gain));
   p_cmd->bgWbGain = FLOAT_TO_Q(7, (wb_gain->b_gain / wb_gain->g_gain));
@@ -210,7 +211,7 @@ static int demosaic_config(isp_demosaic_mod_t *mod, isp_hw_pix_setting_params_t 
     return -1;
   }
   if (!mod->enable) {
-    CDBG("%s: demosaic enable = %d\n", __func__, mod->enable);
+    ISP_DBG(ISP_MOD_DEMOSAIC, "%s: demosaic enable = %d\n", __func__, mod->enable);
     return rc;
   }
 

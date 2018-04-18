@@ -20,6 +20,7 @@
 #define GAMMA40_CHROMATIX_LUT_SIZE    64
 #define MAX_GAMMA_TABLE_SIZE        1024
 #define GAMMA40_HW_PACK_BIT 8  /*delta << 8 | base_value*/
+#define GAMMA_REFLEX_POINT 128
 
 typedef enum {
   ISP_GAMMA_LINEAR_MAPPING_OF_10_BIT_GAMMA_TABLE,

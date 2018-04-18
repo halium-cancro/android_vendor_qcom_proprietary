@@ -1,6 +1,6 @@
 /* stats_module .h
  *
- * Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -20,6 +20,15 @@
 #include "awb.h"
 #include "af.h"
 #include "asd.h"
+#include "is_interface.h"
+
+typedef enum {
+  STATS_MASK_AEC     = (1 << 0),
+  STATS_MASK_AWB     = (1 << 1),
+  STATS_MASK_AF      = (1 << 2),
+  STATS_MASK_ASD     = (1 << 3),
+  STATS_MASK_AFD     = (1 << 4),
+} stats_mask_type;
 
 /** stats_set_param_t
  *
@@ -30,7 +39,7 @@ typedef enum {
   STATS_SET_Q3A_PARAM,
   STATS_SET_ASD_PARAM,
   STATS_SET_AFD_PARAM,
-  STATS_SET_EIS_PARAM,
+  STATS_SET_IS_PARAM,
   STATS_SET_GYRO_PARAM,
   STATS_SET_COMMON_PARAM,
 } stats_set_param_t;
@@ -131,6 +140,7 @@ typedef enum {
   COMMON_SET_PARAM_META_MODE,
   COMMON_SET_CAPTURE_INTENT,
   COMMON_SET_CROP_REGION,
+  COMMON_SET_PARAM_ALGO_OPTIMIZATIONS_MASK,
 } stats_common_set_param_type;
 
 /** stats_common_set_param_type
@@ -169,6 +179,7 @@ typedef struct {
     uint8_t                meta_mode;
     stats_capture_intent_t capture_type;
     cam_crop_region_t      crop_region;
+    uint32_t               algo_opt_mask;
   } u;
 } stats_common_set_parameter_t;
 
@@ -177,6 +188,7 @@ typedef struct {
  *    @q3a_set_params_type:           the structure for q3a parameter
  *    @asd_set_parameter_t:           the structure for asd parameter
  *    @cam_antibanding_mode_type:     the type of cam antibanding mode
+ *    @is_set_params_type:            is parameter
  *    @stats_common_set_parameter_t:  the structure for common stats
  *
  *  This structure is used to indicate the type of parameter set to stats submodules
@@ -188,6 +200,7 @@ typedef struct {
     q3a_set_params_type          q3a_param;
     asd_set_parameter_t          asd_param;
     cam_antibanding_mode_type    afd_param;
+    is_set_parameter_t           is_param;
     stats_common_set_parameter_t common_param;
   } u;
 } stats_set_params_type;
@@ -222,7 +235,8 @@ typedef enum {
   MCT_PORT_CAP_STATS_BHIST = (1 << 6),
   MCT_PORT_CAP_STATS_RS_CS = (1 << 7),
   MCT_PORT_CAP_STATS_GYRO = (1 << 8),
-  MCT_PORT_CAP_STATS_Q3A_VIRTUAL = (1 << 9), /*virtual cap for q3a module*/
+  MCT_PORT_CAP_STATS_IS = (1 << 9),
+  MCT_PORT_CAP_STATS_Q3A_VIRTUAL = (1 << 10), /*virtual cap for q3a module*/
 } stats_port_cap_type;
 
 /** stats_mode_change_event_data

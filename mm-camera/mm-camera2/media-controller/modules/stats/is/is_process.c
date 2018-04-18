@@ -37,12 +37,20 @@ static void is_process_is_initialize(is_info_t *is_info)
 
   /* For now, DIS and EIS initialization need to succeed */
   memset(&is_info->dis_context, 0, sizeof(dis_context_type));
+
+  /* If IS is enabled but user did not select IS technology preference, default
+     to DIS. */
+  if (is_info->is_mode == IS_TYPE_NONE) {
+    is_info->is_mode == IS_TYPE_DIS;
+    CDBG_HIGH("%s: Default to DIS", __func__);
+  }
+
   rc = dis_initialize(&is_info->dis_context, &is_init_data);
   if (rc == 0) {
-    if (is_info->is_mode == EIS_1) {
+    if (is_info->is_mode == IS_TYPE_EIS_1_0) {
       memset(&is_info->eis_context, 0, sizeof(eis_context_type));
       rc = eis_initialize(&is_info->eis_context, &is_init_data);
-    } else if (is_info->is_mode == EIS_2) {
+    } else if (is_info->is_mode == IS_TYPE_EIS_2_0) {
       memset(&is_info->eis2_context, 0, sizeof(eis2_context_type));
       rc = eis2_initialize(&is_info->eis2_context, &is_init_data);
     }
@@ -55,7 +63,7 @@ static void is_process_is_initialize(is_info_t *is_info)
     }
   }
 
-  if (rc == 0 && is_info->is_mode != DIS) {
+  if (rc == 0 && is_info->is_mode != IS_TYPE_DIS) {
     sns_eis2_init(NULL);
     is_info->sns_lib_offset_set = 0;
   }
@@ -75,13 +83,13 @@ static void is_process_is_initialize(is_info_t *is_info)
  **/
 static void is_process_is_deinitialize(is_info_t *is_info)
 {
-  if (is_info->is_mode != DIS) {
+  if (is_info->is_mode != IS_TYPE_DIS) {
     sns_eis2_stop();
   }
 
-  if (is_info->is_mode == EIS_1) {
+  if (is_info->is_mode == IS_TYPE_EIS_1_0) {
     eis_deinitialize(&is_info->eis_context);
-  } else if (is_info->is_mode == EIS_2) {
+  } else if (is_info->is_mode == IS_TYPE_EIS_2_0) {
     eis2_deinitialize(&is_info->eis2_context);
   }
   dis_exit(&is_info->dis_context);
@@ -128,9 +136,9 @@ static void is_process_run_gyro_dependent_is(is_info_t *is_info,
   frame_times.exposure_time = gyro_data->exposure_time;
   frame_times.frame_time = gyro_data->frame_time;
   CDBG("%s: gyro_data.sof = %llu", __func__, frame_times.sof);
-  if (is_info->is_mode == EIS_1) {
+  if (is_info->is_mode == IS_TYPE_EIS_1_0) {
     eis_process(&is_info->eis_context, &frame_times, is_output);
-  } else if (is_info->is_mode == EIS_2) {
+  } else if (is_info->is_mode == IS_TYPE_EIS_2_0) {
     eis2_process(&is_info->eis2_context, &frame_times, is_output);
   }
 
@@ -173,7 +181,7 @@ static boolean is_process_stats_event(is_stats_data_t *stats_data,
     is_output->frame_id = stats_data->frame_id;
     is_info->rs_cs_frame_id = stats_data->frame_id;
 
-    if (is_info->is_mode != DIS) {
+    if (is_info->is_mode != IS_TYPE_DIS) {
       if (is_info->gyro_frame_id >= is_info->rs_cs_frame_id) {
         CDBG("%s: Gyro is ready, can run IS, gyro_fid = %u, rs_cs_fid = %u",
           __func__, is_info->gyro_frame_id, is_info->rs_cs_frame_id);
@@ -250,7 +258,8 @@ boolean is_process(is_process_parameter_t *param, is_process_output_t *output)
 
   switch (param->type) {
   case IS_PROCESS_RS_CS_STATS:
-    CDBG("%s: IS_PROCESS_RS_CS_STATS, fid = %u", __func__, param->u.stats_data.frame_id);
+    CDBG("%s: IS_PROCESS_RS_CS_STATS, fid = %u", __func__,
+      param->u.stats_data.frame_id);
     output->type = IS_PROCESS_OUTPUT_RS_CS_STATS;
     if (param->u.stats_data.run_is) {
       rc = is_process_stats_event(&param->u.stats_data, output->is_output);
@@ -260,7 +269,8 @@ boolean is_process(is_process_parameter_t *param, is_process_output_t *output)
     break;
 
   case IS_PROCESS_GYRO_STATS:
-    CDBG("%s: IS_PROCESS_GYRO_STATS, fid = %u", __func__, param->u.gyro_data.frame_id);
+    CDBG("%s: IS_PROCESS_GYRO_STATS, fid = %u", __func__,
+      param->u.gyro_data.frame_id);
     rc = is_process_gyro_stats_event(&param->u.gyro_data, output->is_output);
     output->type = IS_PROCESS_OUTPUT_GYRO_STATS;
     break;
@@ -269,10 +279,8 @@ boolean is_process(is_process_parameter_t *param, is_process_output_t *output)
     CDBG("%s: IS_PROCESS_STREAM_EVENT, s = %d", __func__,
       param->u.stream_event_data.stream_event);
     output->type = IS_PROCESS_OUTPUT_STREAM_EVENT;
-    if (param->u.stream_event_data.stream_event == IS_VIDEO_STREAM_ON) {
-      output->video_stream_on = 1;
-    } else {
-      output->video_stream_on = 0;
+    output->is_stream_event = param->u.stream_event_data.stream_event;
+    if (param->u.stream_event_data.stream_event == IS_VIDEO_STREAM_OFF) {
       if (param->u.stream_event_data.is_info->is_inited) {
         is_process_is_deinitialize(param->u.stream_event_data.is_info);
       }

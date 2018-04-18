@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "fovcrop40.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_FOV_CROP_LOGGING
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 #undef CDBG_ERROR
 #define CDBG_ERROR ALOGE
@@ -52,23 +53,23 @@ typedef struct {
  **/
 static void vfe_fov_cmd_debug(ISP_FOV_CropConfigCmdType cmd ,int index)
 {
-  CDBG("%s: FOV[%d]\n", __func__, index);
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV[%d]\n", __func__, index);
 
-  CDBG("%s: FOV_CROP[%d] Y firstPixel %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] Y firstPixel %d\n",
     __func__, index, cmd.y_crop_cfg.firstPixel );
-  CDBG("%s: FOV_CROP[%d] Y lastPixel %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] Y lastPixel %d\n",
     __func__, index, cmd.y_crop_cfg.lastPixel );
-  CDBG("%s: FOV_CROP[%d] Y firstLine %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] Y firstLine %d\n",
     __func__, index, cmd.y_crop_cfg.firstLine );
-  CDBG("%s: FOV_CROP[%d] Y lastLine %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] Y lastLine %d\n",
     __func__, index, cmd.y_crop_cfg.lastLine );
-  CDBG("%s: FOV_CROP[%d] CbCr firstPixel %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] CbCr firstPixel %d\n",
     __func__, index, cmd.cbcr_crop_cfg.firstPixel );
-  CDBG("%s: FOV_CROP[%d] CbCr lastPixel %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] CbCr lastPixel %d\n",
     __func__, index, cmd.cbcr_crop_cfg.lastPixel );
-  CDBG("%s: FOV_CROP[%d] CbCr firstLine %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] CbCr firstLine %d\n",
     __func__, index, cmd.cbcr_crop_cfg.firstLine );
-  CDBG("%s: FOV_CROP[%d] CbCr lastLine %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: FOV_CROP[%d] CbCr lastLine %d\n",
     __func__, index, cmd.cbcr_crop_cfg.lastLine );
 } /* isp_fov_cmd_debug */
 
@@ -127,11 +128,11 @@ static int fov_config_entry(isp_fov_mod_t *mod, int entry_idx,
   if (pix_setting->outputs[entry_idx].stream_param.width == 0) {
     entry->is_used = 0;
     mod->hw_update_pending = 0;
-    CDBG("%s: FOV entry %d not used", __func__, entry_idx);
+    ISP_DBG(ISP_MOD_FOV, "%s: FOV entry %d not used", __func__, entry_idx);
     return 0;
   }
 
-  CDBG("%s: fov_entry[%d] input from scaler: width %d, height %d\n",
+  ISP_DBG(ISP_MOD_FOV, "%s: fov_entry[%d] input from scaler: width %d, height %d\n",
     __func__, entry_idx, pix_setting->outputs[entry_idx].stream_param.width,
        pix_setting->outputs[entry_idx].stream_param.height);
 
@@ -295,7 +296,7 @@ static int fov_config_entry_split(isp_fov_mod_t *mod, int entry_idx,
   if (pix_setting->outputs[entry_idx].stream_param.width == 0) {
     entry->is_used = 0;
     mod->hw_update_pending = 0;
-    CDBG("%s: FOV entry %d not used", __func__, entry_idx);
+    ISP_DBG(ISP_MOD_FOV, "%s: FOV entry %d not used", __func__, entry_idx);
     return 0;
   }
 
@@ -443,7 +444,7 @@ static int fov_config(isp_fov_mod_t *mod,
   int rc = 0;
   int i;
 
-  CDBG("%s\n",__func__);
+  ISP_DBG(ISP_MOD_FOV, "%s\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */
@@ -510,12 +511,12 @@ static int fov_trigger_update(isp_fov_mod_t *mod,
   }
 
   if (!mod->fov_enable) {
-    CDBG("%s: Pca Rolloff is disabled. Skip the trigger.\n", __func__);
+    ISP_DBG(ISP_MOD_FOV, "%s: Pca Rolloff is disabled. Skip the trigger.\n", __func__);
     return 0;
   }
 
   if (!mod->fov_trigger_enable) {
-    CDBG("%s: Trigger is disable. Skip the trigger update.\n", __func__);
+    ISP_DBG(ISP_MOD_FOV, "%s: Trigger is disable. Skip the trigger update.\n", __func__);
     return 0;
   }
 
@@ -793,7 +794,7 @@ static int fov_get_params (void *mod_ctrl, uint32_t param_id, void *in_params,
         fov_output[i].last_pixel = fov->fov[i].reg_cmd.y_crop_cfg.lastPixel;
         fov_output[i].first_line = fov->fov[i].reg_cmd.y_crop_cfg.firstLine;
         fov_output[i].last_line = fov->fov[i].reg_cmd.y_crop_cfg.lastLine;
-        CDBG("%s:fov[%d]:first_pix %d, last_pix %d, first_ln %d, last_ln %d\n",
+        ISP_DBG(ISP_MOD_FOV, "%s:fov[%d]:first_pix %d, last_pix %d, first_ln %d, last_ln %d\n",
            __func__, i, fov_output[i].first_pixel, fov_output[i].last_pixel,
            fov_output[i].first_line, fov_output[i].last_line);
       }
@@ -809,7 +810,7 @@ static int fov_get_params (void *mod_ctrl, uint32_t param_id, void *in_params,
       break;
     }
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_FOV, "%s: Populating vfe_diag data", __func__);
   }
     break;
 
@@ -832,7 +833,7 @@ static int fov_do_hw_update(isp_fov_mod_t *fov_mod)
 {
   int i, rc = 0;
 
-  CDBG("%s: HW_update, FOV[0] = %d, FOV[1] = %d\n", __func__,
+  ISP_DBG(ISP_MOD_FOV, "%s: HW_update, FOV[0] = %d, FOV[1] = %d\n", __func__,
     fov_mod->fov[0].hw_update_pending,
     fov_mod->fov[1].hw_update_pending);
 

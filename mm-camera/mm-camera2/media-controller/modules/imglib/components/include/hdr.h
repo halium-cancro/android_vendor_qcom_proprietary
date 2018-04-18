@@ -1,5 +1,5 @@
 /**********************************************************************
-* Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
 * Qualcomm Technologies Proprietary and Confidential.                 *
 **********************************************************************/
 
@@ -73,5 +73,11 @@ typedef struct {
  *   datastructure passed needs to be of type hdr_crop_t
  **/
 #define QHDR_OUT_CROP        (QIMG_HDR_PARAM_OFF +  5)
+
+/** QHDR_HDR_CHROMATIX
+ *
+ *   datastructure passed needs to be of type fd_chromatix_hdr_t
+ **/
+#define QHDR_HDR_CHROMATIX   (QIMG_HDR_PARAM_OFF +  6)
 
 #endif //__HDR_H__

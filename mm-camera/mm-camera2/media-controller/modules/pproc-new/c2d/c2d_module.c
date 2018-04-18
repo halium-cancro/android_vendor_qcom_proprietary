@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -9,9 +9,14 @@
 #include "c2d_log.h"
 #include "c2d_module_events.h"
 #include "pp_buf_mgr.h"
+#include <cutils/properties.h>
+#include "server_debug.h"
 
 #define C2D_NUM_SINK_PORTS    8
 #define C2D_NUM_SOURCE_PORTS  8
+
+volatile uint32_t gCamC2dLogLevel = 0;
+char c2d_prop[PROPERTY_VALUE_MAX];
 
 /** c2d_module_init:
  *  Args:
@@ -52,6 +57,7 @@ mct_module_t *c2d_module_init(const char *name)
       goto error_cleanup_module;
     }
     module->srcports = mct_list_append(module->srcports, port, NULL, NULL);
+    module->numsrcports++;
     MCT_PORT_PARENT(port) = mct_list_append(MCT_PORT_PARENT(port), module,
                               NULL, NULL);
   }
@@ -61,6 +67,7 @@ mct_module_t *c2d_module_init(const char *name)
       goto error_cleanup_module;
     }
     module->sinkports = mct_list_append(module->sinkports, port, NULL, NULL);
+    module->numsinkports++;
     MCT_PORT_PARENT(port) = mct_list_append(MCT_PORT_PARENT(port), module,
                               NULL, NULL);
   }
@@ -72,6 +79,88 @@ error_cleanup_module:
   return NULL;
 }
 
+/** get_c2d_loglevel:
+ *
+ *  Args:
+ *  Return:
+ *    void
+ **/
+
+void get_c2d_loglevel()
+{
+  uint32_t temp;
+  uint32_t log_level;
+  uint32_t debug_mask;
+  memset(c2d_prop, 0, sizeof(c2d_prop));
+  /**  Higher 4 bits : Value of Debug log level (Default level is 1 to print all CDBG_HIGH)
+       Lower 28 bits : Control mode for sub module logging(Only 3 sub modules in PPROC )
+       0x1 for PPROC
+       0x10 for C2D
+       0x100 for CPP  */
+  property_get("persist.camera.pproc.debug.mask", c2d_prop, "268435463"); // 0x10000007=268435463
+  temp = atoi(c2d_prop);
+  log_level = ((temp >> 28) & 0xF);
+  debug_mask = (temp & PPROC_DEBUG_MASK_C2D);
+  if (debug_mask > 0)
+      gCamC2dLogLevel = log_level;
+  else
+      gCamC2dLogLevel = 0; // Debug logs are not required if debug_mask is zero
+}
+
+/** c2d_module_free_port
+ *    @data: port object to free
+ *    @user_data: should be NULL
+ *
+ *  To free a sink or source port.
+ *
+ *  Return TRUE on success.
+ **/
+static boolean c2d_module_free_port(void *data, void *user_data)
+{
+  CDBG("%s:%d] E\n", __func__, __LINE__);
+  mct_port_t *port = MCT_PORT_CAST(data);
+  mct_module_t *module = (mct_module_t *)user_data;
+
+  if (!port) {
+    CDBG_ERROR("%s:%d] error because list data is null\n", __func__,
+      __LINE__);
+    return FALSE;
+  }
+  if (!module ) {
+    CDBG_ERROR("%s:%d] error because module is null\n", __func__,
+      __LINE__);
+    return FALSE;
+  }
+
+  if (strncmp(MCT_OBJECT_NAME(port), "c2d-src", strlen("c2d-src")) &&
+      strncmp(MCT_OBJECT_NAME(port), "c2d-sink", strlen("c2d-sink"))) {
+     CDBG_ERROR("%s:%d] error because port is invalid\n", __func__, __LINE__);
+     return FALSE;
+  }
+
+  switch (MCT_PORT_DIRECTION(port)) {
+    case MCT_PORT_SRC: {
+      module->srcports = mct_list_remove(module->srcports, port);
+      module->numsrcports--;
+      break;
+    }
+    case MCT_PORT_SINK: {
+      module->sinkports = mct_list_remove(module->sinkports, port);
+      module->numsinkports--;
+      break;
+    }
+    default:
+      break;
+  }
+
+  MCT_PORT_PARENT(port) = mct_list_remove(MCT_PORT_PARENT(port), module);
+  c2d_port_destroy(port);
+
+  CDBG("%s:%d] X\n", __func__, __LINE__);
+  return TRUE;
+}
+
+
 /** c2d_module_deinit:
  *
  *  Args:
@@ -81,10 +170,32 @@ error_cleanup_module:
  **/
 void c2d_module_deinit(mct_module_t *module)
 {
+  CDBG("%s E",__func__);
   c2d_module_ctrl_t *ctrl;
+  int i = 0;
+  int numsrcports = 0;
+  int numsinkports = 0;
+  if (!module || strcmp(MCT_OBJECT_NAME(module), "c2d")) {
+    CDBG_ERROR("%s, Invalid module",__func__);
+    return;
+  }
+
   ctrl = MCT_OBJECT_PRIVATE(module);
+
+  numsinkports = module->numsinkports;
+  numsrcports = module->numsrcports;
+  for (i = 0; i < numsinkports; i++) {
+    c2d_module_free_port(MCT_MODULE_SINKPORTS(module)->data,module);
+  }
+  for (i = 0; i < numsrcports; i++) {
+    c2d_module_free_port(MCT_MODULE_SRCPORTS(module)->data,module);
+  }
+
+  mct_list_free_list(MCT_MODULE_SRCPORTS(module));
+  mct_list_free_list(MCT_MODULE_SINKPORTS(module));
+
   c2d_module_destroy_c2d_ctrl(ctrl);
-  /* TODO: free other dynamically allocated resources in module */
+
   mct_module_destroy(module);
 }
 
@@ -127,6 +238,11 @@ static c2d_module_ctrl_t* c2d_module_create_c2d_ctrl(void)
 
   /* Create PIPE for communication with c2d_thread */
   rc = pipe(ctrl->pfd);
+  if ((ctrl->pfd[0]) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ctrl->pfd[0] = -1;
+    rc = -1;
+  }
   if(rc < 0) {
     CDBG_ERROR("%s:%d, pipe() failed", __func__, __LINE__);
     goto error_pipe;
@@ -211,12 +327,18 @@ boolean c2d_module_query_mod(mct_module_t *module, void *buf,
     return FALSE;
   }
   /* TODO: Need a linking function to fill pp cap based on HW caps? */
-  pp_cap->height_padding = CAM_PAD_NONE;
-  pp_cap->plane_padding = CAM_PAD_NONE;
-  pp_cap->width_padding = CAM_PAD_NONE;
+  if (pp_cap->height_padding < CAM_PAD_TO_32) {
+    pp_cap->height_padding = CAM_PAD_TO_32;
+  }
+  if (pp_cap->plane_padding < CAM_PAD_TO_32) {
+    pp_cap->plane_padding = CAM_PAD_TO_32;
+  }
+  if (pp_cap->width_padding < CAM_PAD_TO_32) {
+    pp_cap->width_padding = CAM_PAD_TO_32;
+  }
   pp_cap->min_num_pp_bufs += MODULE_C2D_MIN_NUM_PP_BUFS;
-  pp_cap->min_required_pp_mask |= 0;
-  pp_cap->feature_mask |= (CAM_QCOM_FEATURE_CROP | CAM_QCOM_FEATURE_FLIP| CAM_QCOM_FEATURE_SCALE);
+  pp_cap->feature_mask |= (CAM_QCOM_FEATURE_CROP | CAM_QCOM_FEATURE_FLIP|
+    CAM_QCOM_FEATURE_SCALE | CAM_QCOM_FEATURE_ROTATION);
   return TRUE;
 }
 
@@ -224,6 +346,7 @@ boolean c2d_module_start_session(mct_module_t *module, unsigned int sessionid)
 {
   int32_t rc;
   int32_t ion_fd;
+  get_c2d_loglevel(); //dynamic logging level
   CDBG_HIGH("%s:%d, info: starting session %d", __func__, __LINE__, sessionid);
   if(!module) {
     CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
@@ -241,6 +364,10 @@ boolean c2d_module_start_session(mct_module_t *module, unsigned int sessionid)
   }
 
   ion_fd = open("/dev/ion", O_RDWR|O_DSYNC);
+  if (ion_fd >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ion_fd = -1;
+  }
   if (ion_fd < 0) {
     CDBG_ERROR("%s:%d, Cannot open ION ",__func__,__LINE__);
     ion_fd = 0;
@@ -258,7 +385,12 @@ boolean c2d_module_start_session(mct_module_t *module, unsigned int sessionid)
       ctrl->session_params[i]->session_id = sessionid;
       ctrl->session_params[i]->frame_hold.is_frame_hold = FALSE;
       ctrl->session_params[i]->dis_hold.is_valid = FALSE;
+      ctrl->session_params[i]->fps_range.max_fps = 30.0f;
+      ctrl->session_params[i]->fps_range.min_fps = 30.0f;
+      ctrl->session_params[i]->fps_range.video_max_fps= 30.0f;
+      ctrl->session_params[i]->fps_range.video_min_fps= 30.0f;
       ctrl->session_params[i]->ion_fd = ion_fd;
+      pthread_mutex_init(&(ctrl->session_params[i]->dis_mutex), NULL);
       break;
     }
   }
@@ -271,7 +403,7 @@ boolean c2d_module_start_session(mct_module_t *module, unsigned int sessionid)
       CDBG_ERROR("%s:%d, c2d_thread_create() failed", __func__, __LINE__);
       return FALSE;
     }
-    CDBG_HIGH("%s:%d, info: c2d_thread created.", __func__, __LINE__);
+    CDBG("%s:%d, info: c2d_thread created.", __func__, __LINE__);
     /* Create buffer manager instance */
     ctrl->buf_mgr = pp_buf_mgr_open();
     if (!ctrl->buf_mgr) {
@@ -342,6 +474,8 @@ boolean c2d_module_stop_session(mct_module_t *module, unsigned int sessionid)
   for(i=0; i < C2D_MODULE_MAX_SESSIONS; i++) {
     if(ctrl->session_params[i]) {
       if(ctrl->session_params[i]->session_id == sessionid) {
+        pthread_mutex_destroy(
+                &(ctrl->session_params[i]->dis_mutex));
         if (ctrl->session_params[i]->ion_fd) {
           close(ctrl->session_params[i]->ion_fd);
         }
@@ -603,9 +737,13 @@ int32_t c2d_module_do_ack(c2d_module_ctrl_t *ctrl,
     CDBG_LOW("%s:%d, in_time=%ld.%ld us, out_time=%ld.%ld us, ",
       __func__, __LINE__, c2d_ack->in_time.tv_sec, c2d_ack->in_time.tv_usec,
       c2d_ack->out_time.tv_sec, c2d_ack->out_time.tv_usec);
-    CDBG_LOW("%s:%d, holding time = %6ld us, ", __func__, __LINE__,
+    CDBG("%s:%d, holding time = %6ld us,frame_id=%d,buf_idx=%d,identity=%d",
+      __func__, __LINE__,
       (c2d_ack->out_time.tv_sec - c2d_ack->in_time.tv_sec)*1000000L +
-      (c2d_ack->out_time.tv_usec - c2d_ack->in_time.tv_usec));
+      (c2d_ack->out_time.tv_usec - c2d_ack->in_time.tv_usec),
+      c2d_ack->isp_buf_divert_ack.frame_id,
+      c2d_ack->isp_buf_divert_ack.buf_idx,
+      key.identity);
     c2d_module_send_buf_divert_ack(ctrl, c2d_ack->isp_buf_divert_ack);
     gettimeofday(&tv, NULL);
     CDBG_LOW("%s:%d, upstream event time = %6ld us, ", __func__, __LINE__,
@@ -628,9 +766,10 @@ int32_t c2d_module_do_ack(c2d_module_ctrl_t *ctrl,
 static int32_t c2d_module_handle_ack_from_downstream(mct_module_t* module,
   mct_event_t* event)
 {
+  int32_t                      rc = 0;
   c2d_module_stream_params_t  *stream_params = NULL;
   c2d_module_session_params_t *session_params = NULL;
-  int32_t bool_ret = 0;
+  boolean                      bool_ret = 0;
 
   if(!module || !event) {
     CDBG_ERROR("%s:%d, failed, module=%p, event=%p\n", __func__, __LINE__,
@@ -654,10 +793,18 @@ static int32_t c2d_module_handle_ack_from_downstream(mct_module_t* module,
   isp_buf_divert_ack_t* isp_buf_ack =
     (isp_buf_divert_ack_t*)(event->u.module_event.module_event_data);
 
-  if (stream_params->stream_info->is_type == IS_TYPE_EIS_2_0) {
+  if (((stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+    stream_params->interleaved) &&
+    !stream_params->single_module) ||
+    stream_params->hw_params.processed_divert) {
   /* Put acked buffer */
     bool_ret = pp_buf_mgr_put_buf(ctrl->buf_mgr,isp_buf_ack->identity,
       isp_buf_ack->buf_idx, isp_buf_ack->frame_id, isp_buf_ack->timestamp);
+    if (bool_ret == FALSE) {
+      CDBG_ERROR("%s:%d pp_buf_mgr_put_buf idx %d frame id %d\n", __func__,
+        __LINE__, isp_buf_ack->buf_idx, isp_buf_ack->frame_id);
+      rc = -EINVAL;
+    }
   } else {
     c2d_module_ack_key_t key;
     key.identity = isp_buf_ack->identity;
@@ -667,7 +814,7 @@ static int32_t c2d_module_handle_ack_from_downstream(mct_module_t* module,
     c2d_module_do_ack(ctrl, key);
   }
 
-  return bool_ret;
+  return rc;
 }
 
 /* c2d_module_put_new_ack_in_list:
@@ -697,7 +844,12 @@ int32_t c2d_module_put_new_ack_in_list(c2d_module_ctrl_t *ctrl,
   c2d_ack->isp_buf_divert_ack.channel_id = key.channel_id;
   c2d_ack->isp_buf_divert_ack.frame_id = isp_buf->buffer.sequence;
   c2d_ack->isp_buf_divert_ack.timestamp = isp_buf->buffer.timestamp;
+  c2d_ack->isp_buf_divert_ack.meta_data = key.meta_data;
   c2d_ack->ref_count = ref_count;
+  c2d_ack->isp_buf_divert_ack.handle = isp_buf->handle;
+  c2d_ack->isp_buf_divert_ack.output_format = isp_buf->output_format;
+  c2d_ack->isp_buf_divert_ack.input_intf = isp_buf->input_intf;
+  c2d_ack->isp_buf_divert_ack.is_skip_pproc = isp_buf->is_skip_pproc;
   CDBG("%s:%d, adding ack in list, identity=0x%x", __func__, __LINE__,
     c2d_ack->isp_buf_divert_ack.identity);
   CDBG("%s:%d, buf_idx=%d, ref_count=%d", __func__, __LINE__,
@@ -740,8 +892,10 @@ int32_t c2d_module_process_downstream_event(mct_module_t* module,
       CDBG_LOW("%s:%d: MCT_EVENT_MODULE_ISP_OUTPUT_DIM: identity=0x%x", __func__,
         __LINE__, identity);
       rc = c2d_module_handle_isp_out_dim_event(module, event);
-      if(rc < 0) {
+      if (rc < 0) {
         CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+        //isp output dim should be passed to downstream no matter what
+        rc = c2d_module_send_event_downstream(module, event);
         return rc;
       }
       break;
@@ -767,6 +921,15 @@ int32_t c2d_module_process_downstream_event(mct_module_t* module,
       CDBG_LOW("%s:%d: MCT_EVENT_MODULE_SET_STREAM_CONFIG: identity=0x%x", __func__,
         __LINE__, identity);
       rc = c2d_module_handle_stream_cfg_event(module, event);
+      if(rc < 0) {
+        CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+        return rc;
+      }
+      break;
+    case MCT_EVENT_MODULE_SENSOR_UPDATE_FPS:
+      CDBG_LOW("%s:%d: MCT_EVENT_MODULE_SENSOR_UPDATE_FPS: identity=0x%x", __func__,
+        __LINE__, identity);
+      rc = c2d_module_handle_fps_update_event(module, event);
       if(rc < 0) {
         CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
         return rc;
@@ -853,15 +1016,36 @@ int32_t c2d_module_process_upstream_event(mct_module_t* module,
   switch(event->type) {
   case MCT_EVENT_MODULE_EVENT: {
     switch(event->u.module_event.type) {
-    case MCT_EVENT_MODULE_BUF_DIVERT_ACK:
+    case MCT_EVENT_MODULE_BUF_DIVERT_ACK: {
       CDBG("%s:%d: MCT_EVENT_MODULE_BUF_DIVERT_ACK: identity=0x%x", __func__,
         __LINE__, identity);
+      c2d_module_stream_params_t  *stream_params = NULL;
+      c2d_module_session_params_t *session_params = NULL;
+      c2d_module_ctrl_t* ctrl = (c2d_module_ctrl_t*) MCT_OBJECT_PRIVATE(module);
+      if(!ctrl) {
+        CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+        return -EINVAL;
+      }
+
+      c2d_module_get_params_for_identity(ctrl, event->identity, &session_params,
+         &stream_params);
+      if (!session_params || !stream_params) {
+        CDBG_ERROR("%s:%d: failed params %p %p\n", __func__, __LINE__,
+          session_params, stream_params);
+        return -EFAULT;
+      }
+
       rc = c2d_module_handle_ack_from_downstream(module, event);
       if(rc < 0) {
         CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+      }
+      if ((stream_params->stream_info->is_type == IS_TYPE_EIS_2_0 ||
+        stream_params->interleaved) &&
+        !stream_params->single_module) {
         return rc;
       }
       break;
+    }
     default:
       break;
     }
@@ -879,21 +1063,47 @@ int32_t c2d_module_process_upstream_event(mct_module_t* module,
   return 0;
 }
 
+/* c2d_module_get_input_format
+ *
+ *  @ peer_port_caps - port capabilities of the peer module
+ *  @ stream_info - stream info snet during link modules
+ *
+ *  Return the format of the input frame, based on the peer source port format
+ *
+ *  Return value is input frame format flag.
+ */
+cam_format_t c2d_module_get_input_format(mct_port_caps_t *peer_port_caps,
+  mct_stream_info_t* stream_info) {
+
+  if (peer_port_caps->u.frame.format_flag & MCT_PORT_CAP_FORMAT_YCBYCR) {
+    return CAM_FORMAT_YUV_RAW_8BIT_YUYV;
+  } else if (peer_port_caps->u.frame.format_flag & MCT_PORT_CAP_FORMAT_YCRYCB) {
+    return CAM_FORMAT_YUV_RAW_8BIT_YVYU;
+  } else if (peer_port_caps->u.frame.format_flag & MCT_PORT_CAP_FORMAT_CBYCRY) {
+    return CAM_FORMAT_YUV_RAW_8BIT_UYVY;
+  } else if (peer_port_caps->u.frame.format_flag & MCT_PORT_CAP_FORMAT_CRYCBY) {
+    return CAM_FORMAT_YUV_RAW_8BIT_VYUY;
+  } else {
+    return stream_info->fmt;
+  }
+}
+
 /* c2d_module_notify_add_stream:
  *
  * creates and initializes the stream-specific paramater structures when a
  * stream is reserved in port
  **/
 int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
-  mct_stream_info_t* stream_info)
+  mct_stream_info_t* stream_info, void *peer_caps)
 {
   int rc;
   cam_pp_feature_config_t *pp_config;
-  if(!module || !stream_info || !port) {
-    CDBG_ERROR("%s:%d, failed, module=%p, port=%p, stream_info=%p\n", __func__,
-      __LINE__, module, port, stream_info);
+  if(!module || !stream_info || !port || !peer_caps) {
+    CDBG_ERROR("%s:%d, failed, module=%p, port=%p, stream_info=%p peers %p\n", __func__,
+      __LINE__, module, port, stream_info, peer_caps);
     return -EINVAL;
   }
+  mct_port_caps_t *peer_port_caps = (mct_port_caps_t *)peer_caps;
   c2d_module_ctrl_t *ctrl = (c2d_module_ctrl_t *) MCT_OBJECT_PRIVATE(module);
   if(!ctrl) {
     CDBG_ERROR("%s:%d, failed, module=%p\n", __func__, __LINE__, module);
@@ -906,7 +1116,8 @@ int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
   boolean success = FALSE;
   c2d_hardware_params_t *hw_params;
   session_id = C2D_GET_SESSION_ID(identity);
-  CDBG("%s:%d: identity=0x%x\n", __func__, __LINE__, identity);
+  CDBG("%s:%d: identity=0x%x, stream type=%d\n",
+    __func__, __LINE__, identity,stream_info->stream_type);
 
   /* find if a stream is already added on this port. If yes, we need to link
      that stream with this. (only for continuous streams)*/
@@ -947,16 +1158,39 @@ int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
                 C2D_PRIORITY_REALTIME;
             }
             /* initialize input/output fps values */
-            ctrl->session_params[i]->stream_params[j]->
-              hfr_skip_info.input_fps = 30.0f;
-            ctrl->session_params[i]->stream_params[j]->
-              hfr_skip_info.output_fps = 30.0f;
+            /* initialize input/output fps values */
+            if(stream_info->stream_type == CAM_STREAM_TYPE_VIDEO)
+            {
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.input_fps =
+                  ctrl->session_params[i]->fps_range.video_max_fps;
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.output_fps =
+                  ctrl->session_params[i]->fps_range.video_max_fps;
+            }
+            else
+            {
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.input_fps =
+                  ctrl->session_params[i]->fps_range.max_fps;
+                ctrl->session_params[i]->stream_params[j]->
+                  hfr_skip_info.output_fps =
+                  ctrl->session_params[i]->fps_range.max_fps;
+            }
+
+            CDBG("%s:%d input_fps=%.2f, output_fps %f identity=0x%x",
+              __func__, __LINE__,
+              ctrl->session_params[i]->stream_params[j]->hfr_skip_info.input_fps,
+              ctrl->session_params[i]->stream_params[j]->hfr_skip_info.output_fps,
+              ctrl->session_params[i]->stream_params[j]->identity);
+
             ctrl->session_params[i]->stream_params[j]->
               hfr_skip_info.skip_count = 0;
             /* hfr_skip_required in only in preview stream */
             ctrl->session_params[i]->stream_params[j]->
               hfr_skip_info.skip_required =
-                (stream_info->stream_type == CAM_STREAM_TYPE_PREVIEW) ?
+                ((stream_info->stream_type == CAM_STREAM_TYPE_PREVIEW) ||
+                (stream_info->stream_type == CAM_STREAM_TYPE_VIDEO))?
                   TRUE : FALSE;
 
             /* init divert information */
@@ -965,11 +1199,27 @@ int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
             /* assign stream type */
             ctrl->session_params[i]->stream_params[j]->stream_type =
               stream_info->stream_type;
+            /* set interleaved */
+            if (peer_port_caps->u.frame.format_flag & MCT_PORT_CAP_INTERLEAVED) {
+              ctrl->session_params[i]->stream_params[j]->interleaved = 1;
+            } else {
+              ctrl->session_params[i]->stream_params[j]->interleaved = 0;
+            }
+
+            if (MCT_MODULE_FLAG_SINK == mct_module_find_type(module,identity)) {
+              ctrl->session_params[i]->stream_params[j]->single_module = TRUE;
+            }
+            else {
+              ctrl->session_params[i]->stream_params[j]->single_module = FALSE;
+            }
+
             hw_params = &ctrl->session_params[i]->stream_params[j]->hw_params;
             /* output dimensions */
             hw_params->output_info.width = stream_info->dim.width;
             hw_params->output_info.height = stream_info->dim.height;
-            if (stream_info->is_type == IS_TYPE_EIS_2_0){
+            if ((stream_info->is_type == IS_TYPE_EIS_2_0 ||
+                ctrl->session_params[i]->stream_params[j]->interleaved) &&
+                !ctrl->session_params[i]->stream_params[j]->single_module) {
               hw_params->output_info.stride =
                   stream_info->dim.width;
               hw_params->output_info.scanline =
@@ -1000,7 +1250,9 @@ int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
                  hw_params->rotation = 3;
             }
 
-            if (stream_info->is_type == IS_TYPE_EIS_2_0) {
+            if ((stream_info->is_type == IS_TYPE_EIS_2_0 ||
+              ctrl->session_params[i]->stream_params[j]->interleaved) &&
+              !ctrl->session_params[i]->stream_params[j]->single_module) {
               if ((hw_params->rotation == 1) || (hw_params->rotation == 3)) {
                 uint32_t temp_width;
                 temp_width = hw_params->output_info.width;
@@ -1015,25 +1267,25 @@ int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
             /* format info */
             if (stream_info->fmt == CAM_FORMAT_YUV_420_NV12 ||
                 stream_info->fmt == CAM_FORMAT_YUV_420_NV12_VENUS) {
-              hw_params->output_info.plane_fmt = C2D_PARAM_PLANE_CBCR;
+              hw_params->output_info.c2d_plane_fmt = C2D_PARAM_PLANE_CBCR;
             } else if (stream_info->fmt == CAM_FORMAT_YUV_420_NV21) {
-              hw_params->output_info.plane_fmt = C2D_PARAM_PLANE_CRCB;
+              hw_params->output_info.c2d_plane_fmt = C2D_PARAM_PLANE_CRCB;
             } else if (stream_info->fmt == CAM_FORMAT_YUV_422_NV16) {
-              hw_params->output_info.plane_fmt = C2D_PARAM_PLANE_CBCR422;
+              hw_params->output_info.c2d_plane_fmt = C2D_PARAM_PLANE_CBCR422;
             } else if (stream_info->fmt == CAM_FORMAT_YUV_422_NV61) {
-              hw_params->output_info.plane_fmt = C2D_PARAM_PLANE_CRCB422;
+              hw_params->output_info.c2d_plane_fmt = C2D_PARAM_PLANE_CRCB422;
             } else if (stream_info->fmt == CAM_FORMAT_YUV_420_YV12) {
-              hw_params->output_info.plane_fmt = C2D_PARAM_PLANE_CRCB420;
-            }
-            else {
+              hw_params->output_info.c2d_plane_fmt = C2D_PARAM_PLANE_CRCB420;
+            } else {
               CDBG_ERROR("%s:%d, failed. Format not supported\n", __func__,
                 __LINE__);
               return -EINVAL;
             }
+            hw_params->output_info.cam_fmt = stream_info->fmt;
             c2d_divert_info_t *div_config = NULL;
            if (!linked_stream_params) {
-              if (stream_info->fmt == CAM_FORMAT_YUV_420_YV12) {
-             ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.format =  CAM_FORMAT_YUV_420_NV12;
+             ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.format =
+                 c2d_module_get_input_format(peer_port_caps,stream_info);
              ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.surface_bit = C2D_SOURCE;
              rc = ctrl->c2d->func_tbl->process(ctrl->c2d_ctrl,
              PPROC_IFACE_CREATE_SURFACE,
@@ -1042,27 +1294,16 @@ int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
                CDBG_ERROR("%s:%d failed", __func__, __LINE__);
                return rc;
              }
-            }
-
-             else {
-             ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.format = stream_info->fmt;
-             ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.surface_bit = C2D_SOURCE;
-             rc = ctrl->c2d->func_tbl->process(ctrl->c2d_ctrl,
-             PPROC_IFACE_CREATE_SURFACE,
-             &ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params);
-             if (rc < 0) {
-               CDBG_ERROR("%s:%d failed", __func__, __LINE__);
-               return rc;
-             }
-           }
-           }  else {
-             if ((linked_stream_params->stream_info->dim.width * linked_stream_params->stream_info->dim.height <
-                                 stream_info->dim.width* stream_info->dim.height)) {
+           } else {
+             if ((linked_stream_params->stream_info->dim.width *
+                 linked_stream_params->stream_info->dim.height <
+                 stream_info->dim.width* stream_info->dim.height)) {
                  rc = ctrl->c2d->func_tbl->process(ctrl->c2d_ctrl,
                  PPROC_IFACE_DESTROY_SURFACE,
                  &linked_stream_params->c2d_input_lib_params.id);
 
-                 ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.format = stream_info->fmt;
+                 ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.format =
+                     c2d_module_get_input_format(peer_port_caps,stream_info);
                  ctrl->session_params[i]->stream_params[j]->c2d_input_lib_params.surface_bit = C2D_SOURCE;
                  rc = ctrl->c2d->func_tbl->process(ctrl->c2d_ctrl,
                  PPROC_IFACE_CREATE_SURFACE,

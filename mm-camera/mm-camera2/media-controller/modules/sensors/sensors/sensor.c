@@ -1,9 +1,10 @@
 /* sensor.c
  *
- * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
+#include <cutils/trace.h>
 #include <stdio.h>
 #include <dlfcn.h>
 #include <math.h>
@@ -24,8 +25,23 @@
 
 #define NANO_SEC_PER_SEC 1000000000
 #define NANO_SEC_TO_MICRO_SEC 1000
-
 #define MAX_FPS_VARIANCE 1.0f
+#define ATRACE_TAG ATRACE_TAG_CAMERA
+
+/*===========================================================================
+* FUNCTION - LOG_IOCTL -
+*
+* DESCRIPTION: Wrapper for logging and to trace ioctl calls.
+*==========================================================================*/
+static int LOG_IOCTL(int d, int request, void* par1)
+{
+  int ret;
+  ATRACE_BEGIN("Camera:sensorIoctl");
+  ret = ioctl(d, request, par1);
+  ATRACE_END();
+  return ret;
+}
+
 /*===========================================================================
  * FUNCTION    - sensor_load_library -
  *
@@ -38,13 +54,13 @@ int32_t sensor_load_library(const char *name, void *data)
   void *(*sensor_open_lib)(void) = NULL;
   sensor_lib_params_t *sensor_lib_params = (sensor_lib_params_t *)data;
   SLOW("enter");
-  sprintf(lib_name, "libmmcamera_%s.so", name);
+  snprintf(lib_name, BUFF_SIZE_255, "libmmcamera_%s.so", name);
   SLOW("lib_name %s", lib_name);
   sensor_lib_params->sensor_lib_handle = dlopen(lib_name, RTLD_NOW);
   if (!sensor_lib_params->sensor_lib_handle) {
     return -EINVAL;
   }
-  sprintf(open_lib_str, "%s_open_lib", name);
+  snprintf(open_lib_str, BUFF_SIZE_255, "%s_open_lib", name);
   *(void **)&sensor_open_lib = dlsym(sensor_lib_params->sensor_lib_handle,
     open_lib_str);
   if (!sensor_open_lib) {
@@ -126,6 +142,8 @@ int32_t sensor_probe(int32_t fd, const char *sensor_name)
     ret = FALSE;
     goto ERROR;
   }
+  /*enabling flash support to all sensors for backward compatibility*/
+  //sensor_lib_params.sensor_lib_ptr->sensor_slave_info->is_flash_supported = 1;
 
   struct msm_sensor_init_params *sensor_init_params;
   sensor_init_params = sensor_lib_params.sensor_lib_ptr->sensor_init_params;
@@ -154,7 +172,7 @@ int32_t sensor_probe(int32_t fd, const char *sensor_name)
   /* Pass slave information to kernel and probe */
   cfg.cfgtype = CFG_SINIT_PROBE;
   cfg.cfg.setting = slave_info;
-  if (ioctl(fd, VIDIOC_MSM_SENSOR_INIT_CFG, &cfg) < 0) {
+  if (LOG_IOCTL(fd, VIDIOC_MSM_SENSOR_INIT_CFG, &cfg) < 0) {
     SERR("failed");
     ret = FALSE;
     goto ERROR;
@@ -205,41 +223,14 @@ static int32_t sensor_set_stop_stream_settings(void *sctrl)
   sensor_lib_params_t *lib = ctrl->lib_params;
   SLOW("enter");
 
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 begin
-#ifdef ORIGINAL_VERSION
   cfg.cfgtype = CFG_SET_STOP_STREAM_SETTING;
   cfg.cfg.setting = (void *)lib->sensor_lib_ptr->stop_settings;
-  rc = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  rc = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (rc < 0) {
     SERR("failed rc %d", rc);
     return -EIO;
   }
-#else
-  int index = 0;
-  struct sensor_lib_reg_settings_array *stop_settings = NULL;
-  
-  if (lib->sensor_lib_ptr->private_cfg == 1 && 
-  	  lib->sensor_lib_ptr->priv_stop_settings) {
-	SLOW("Private stop setting");
-	stop_settings = ctrl->lib_params->sensor_lib_ptr->priv_stop_settings;
-	cfg.cfgtype = CFG_SET_STOP_STREAM_SETTING;
-	for (index = 0; index < stop_settings->size; index ++) {
-	  cfg.cfg.setting = &stop_settings->reg_settings[index];
-	  rc = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
-	}
-  } else {
-  	SLOW("Stop setting");
-	cfg.cfgtype = CFG_SET_STOP_STREAM_SETTING;
-	cfg.cfg.setting = (void *)lib->sensor_lib_ptr->stop_settings;
-	rc = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
-  }
-  
-  if (rc < 0) {
-    SERR("failed rc %d", rc);
-    return -EIO;
-  }
-#endif
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 end
+
   SLOW("exit");
   return 0;
 }
@@ -257,7 +248,7 @@ static int32_t sensor_power_up(void *sctrl)
   SLOW("enter");
 
   cfg.cfgtype = CFG_POWER_UP;
-  if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+  if (LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
     SERR("failed");
     return -EIO;
   }
@@ -286,23 +277,14 @@ static int32_t sensor_write_init_settings(void *sctrl)
     init_settings = lib->sensor_lib_ptr->init_settings_array;
     for (index = 0; index < init_settings->size; index++) {
       cfg.cfg.setting = &init_settings->reg_settings[index];
-      if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+      if (LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
         SERR("failed");
         return -EIO;
       }
     }
-
-	//trigger OTP writting, tanrifei, 20140624	
-    cfg.cfgtype = CFG_SET_INIT_SETTING;
-    if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
-      SERR("failed");
-      return -EIO;
-    }
-	//add end
-	
   } else {
     cfg.cfgtype = CFG_SET_INIT_SETTING;
-    if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+    if (LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
       SERR("failed");
       return -EIO;
     }
@@ -353,6 +335,7 @@ static int32_t sensor_init(void *sctrl)
   ctrl->s_data->cur_res = MSM_SENSOR_INVALID_RES;
   ctrl->s_data->hfr_mode = CAM_HFR_MODE_OFF;
   ctrl->s_data->video_hdr_enable = 0;
+  ctrl->s_data->snapshot_hdr_enable = 0;
   SLOW("exit");
   return 0;
 }
@@ -453,42 +436,6 @@ static int8_t sensor_set_aec_update(void *sctrl, void *data)
     return SENSOR_FAILURE;
   }
 
-  /* adjust exposure time to avoid banding, tanrifei, 20140414 */
-  {
-	  sensor_lib_params_t *lib = (sensor_lib_params_t *)ctrl->lib_params;
-	  uint8_t cur_res = ctrl->s_data->cur_res;
-	  float band_gap = (lib->sensor_lib_ptr->out_info_array->out_info[cur_res].max_fps *
-			lib->sensor_lib_ptr->out_info_array->out_info[cur_res].frame_length_lines / 100);
-	  float new_gain;
-	  uint32_t count;
-	  	
-	  switch (aec_update->cur_atb) {
-	  	case 1: //STATS_PROC_ANTIBANDING_60HZ:
-			band_gap = band_gap * 5 / 6;
-		case 2: //STATS_PROC_ANTIBANDING_50HZ:
-			band_gap = (uint32_t)(band_gap+0.5);
-			count = (aec_update->linecount + band_gap/2) / band_gap;
-			if (count >= 1) {
-				new_gain = (aec_update->linecount * aec_update->real_gain) / (band_gap*count);
-				if (new_gain < 1.0) {
-					if (count > 1) {
-						new_gain = (aec_update->linecount * aec_update->real_gain) / (band_gap*(count-1));
-					} else {
-						new_gain = aec_update->real_gain;
-					}
-				}
-				aec_update->linecount = (aec_update->linecount * aec_update->real_gain) / new_gain + 0.5;
-				aec_update->real_gain = new_gain;
-			} 
-			SLOW("%s, cur_atb %d, new gain %f, new line count %d", __func__,
-				aec_update->cur_atb, aec_update->real_gain, aec_update->linecount);
-			break;
-		default:
-			break;
-	  }
-  }
-  /* add end */
-
   if (!((ctrl->s_data->cur_stream_mask & (1 << CAM_STREAM_TYPE_SNAPSHOT))
     && (ctrl->s_data->ae_bracket_info.ae_bracket_config.mode ==
       CAM_EXP_BRACKETING_ON))) {
@@ -498,9 +445,11 @@ static int8_t sensor_set_aec_update(void *sctrl, void *data)
         exposure.real_gain = aec_update->real_gain;
         exposure.linecount = aec_update->linecount;
 
-        if (ctrl->s_data->video_hdr_enable) {
+        if ((ctrl->s_data->video_hdr_enable) ||
+            (ctrl->s_data->snapshot_hdr_enable)) {
           exposure.luma_hdr = aec_update->cur_luma;
           exposure.fgain_hdr = aec_update->luma_delta;
+          exposure.fgain_hdr |= aec_update->hdr_indoor_detected << 16;
         }
 
         sensor_set_exposure(sctrl, exposure);
@@ -530,15 +479,6 @@ static int8_t sensor_set_aec_init_settings(void *sctrl, void *data)
     SERR("no valid entries in aec_get");
     return SENSOR_FAILURE;
   }
-// Gionee <zhuangxiaojian> <2014-11-14> modify for CR01402320 begin
-#ifdef ORIGINAL_VERSION
-#else
-  if (!ctrl->s_data) {
-    SERR("Invalid s_data, failed");
-    return SENSOR_FAILURE;
-  }
-#endif
-// Gionee <zhuangxiaojian> <2014-11-14> modify for CR01402320 end
   if ((ctrl->s_data->cur_stream_mask & (1 << CAM_STREAM_TYPE_SNAPSHOT)) &&
      (ctrl->s_data->ae_bracket_info.ae_bracket_config.mode ==
      CAM_EXP_BRACKETING_ON)) {
@@ -556,15 +496,18 @@ static int8_t sensor_set_aec_init_settings(void *sctrl, void *data)
     ctrl->s_data->ae_bracket_info.apply_index = 0;
     ctrl->s_data->ae_bracket_info.sof_counter = aec_data->valid_entries;
     ctrl->s_data->sensor_skip_counter = 0;
+    ctrl->s_data->ae_bracket_info.sync_last_gain_needed = 0;
     ctrl->s_data->ae_bracket_info.post_meta_bus = 0;
     ctrl->s_data->ae_bracket_info.skip_frame = 0;
 
   } else {
     /* update exposure, first valid entry */
     sensor_exp_t exposure;
+    memset(&exposure, 0, sizeof(exposure));
     exposure.real_gain = aec_data->real_gain[0];
     exposure.linecount = aec_data->linecount[0];
     sensor_set_exposure(sctrl, exposure);
+    ctrl->s_data->apply_without_sync = TRUE;
     sensor_apply_exposure(sctrl);
   }
   return SENSOR_SUCCESS;
@@ -596,6 +539,26 @@ static int8_t sensor_set_hdr_zsl_mode(void *sctrl, void *data)
   ctrl->s_data->next_valid_frame = sensor_max_pipeline_frame_delay;
   return ret;
 }
+
+/*===========================================================================
+ * FUNCTION    - sensor_set_manual_exposure_mode -
+ *
+ * DESCRIPTION:
+ *==========================================================================*/
+static int8_t sensor_set_manual_exposure_mode(void *sctrl, void *data)
+{
+  if (!sctrl || !data) {
+    SERR("Failed");
+    return SENSOR_FAILURE;
+  }
+  sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
+  sensor_lib_params_t *lib = (sensor_lib_params_t *)ctrl->lib_params;
+  uint8_t manual_exposure_mode = *((uint8_t*)data);
+  SLOW("manual_exposure_mode = %d", manual_exposure_mode);
+  ctrl->s_data->manual_exposure_mode = manual_exposure_mode;
+  return SENSOR_SUCCESS;
+}
+
 /*===========================================================================
  * FUNCTION    - sensor_post_hdr_meta -
  *
@@ -670,8 +633,10 @@ static int8_t sensor_set_aec_zsl_settings(void *sctrl, void *data)
       ctrl->s_data->sensor_skip_counter = 0;
       ctrl->s_data->ae_bracket_info.apply_index = 0;
       ctrl->s_data->ae_bracket_info.sof_counter = aec_data->valid_entries;
+      ctrl->s_data->ae_bracket_info.sync_last_gain_needed = 0;
       ctrl->s_data->ae_bracket_info.post_meta_bus = 0;
       ctrl->s_data->ae_bracket_info.skip_frame = 1;
+      ctrl->s_data->apply_without_sync = FALSE;
     }
   }
 
@@ -688,9 +653,11 @@ static int32_t sensor_set_vfe_sof(void *sctrl, void *data)
 
   int32_t valid_entries;
   sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
-  if (!ctrl || !ctrl->s_data) {
+  sensor_lib_params_t *lib = NULL;
+  if (!ctrl || !ctrl->s_data  || !ctrl->lib_params) {
     return SENSOR_FAILURE;
   }
+  lib = (sensor_lib_params_t *)ctrl->lib_params;
   valid_entries = ctrl->s_data->ae_bracket_info.valid_entries;
   /* apply exposures in AE bracketing mode */
   if (ctrl->s_data->ae_bracket_info.ae_bracket_config.mode ==
@@ -702,10 +669,17 @@ static int32_t sensor_set_vfe_sof(void *sctrl, void *data)
       return SENSOR_SUCCESS;
     }
 
+    /* Disable bracketing once all exposures have been applied */
+    if ( ctrl->s_data->ae_bracket_info.apply_index == valid_entries){
+      ctrl->s_data->ae_bracket_info.apply_index = 0;
+      ctrl->s_data->ae_bracket_info.ae_bracket_config.mode = CAM_EXP_BRACKETING_OFF;
+    }
+
     if ((ctrl->s_data->ae_bracket_info.sof_counter > 0) &&
       (ctrl->s_data->sensor_skip_counter <= 0)) {
 
       sensor_exp_t exposure;
+      memset(&exposure, 0, sizeof(exposure));
       int32_t idx = ctrl->s_data->ae_bracket_info.apply_index % valid_entries;
 
       exposure.real_gain = ctrl->s_data->ae_bracket_info.real_gain[idx];
@@ -721,7 +695,25 @@ static int32_t sensor_set_vfe_sof(void *sctrl, void *data)
       ctrl->s_data->ae_bracket_info.sof_counter--;
       ctrl->s_data->ae_bracket_info.apply_index++;
       ctrl->s_data->sensor_skip_counter = ctrl->s_data->isp_frame_skip;
-    } else {
+      if(ctrl->s_data->ae_bracket_info.sof_counter == 0 &&
+        ctrl->s_data->stored_gain != ctrl->s_data->prev_gain &&
+        ctrl->s_data->sensor_skip_counter == 0 &&
+        lib->sensor_lib_ptr->sync_exp_gain == 1){
+        ctrl->s_data->ae_bracket_info.sync_last_gain_needed = 1;
+      } else if(ctrl->s_data->stored_gain != ctrl->s_data->prev_gain &&
+        ctrl->s_data->sensor_skip_counter > 0 &&
+        lib->sensor_lib_ptr->sync_exp_gain == 1){
+        ctrl->s_data->ae_bracket_info.next_gain_needed = 1;
+      }
+     } else {
+      if(ctrl->s_data->ae_bracket_info.sync_last_gain_needed){
+        sensor_apply_exposure(sctrl);
+        ctrl->s_data->ae_bracket_info.sync_last_gain_needed = 0;
+      }
+      if(ctrl->s_data->ae_bracket_info.next_gain_needed) {
+        sensor_apply_exposure(sctrl);
+        ctrl->s_data->ae_bracket_info.next_gain_needed = 0;
+      }
       SERR("AE bracket exposure not applied:"
         "sof counter=%d, sensor frame skip = %d",
         ctrl->s_data->ae_bracket_info.sof_counter,
@@ -755,20 +747,7 @@ static int8_t sensor_set_frame_rate(void *sctrl, void *data)
   }
   SLOW("max fps %f min fps %f", fps->max_fps,
     fps->min_fps);
-  
-//Gionee <zhaocuiqin> <2014-11-11> modify for CR01392102 begin
-#ifdef ORIGINAL_VERSION
-      ctrl->s_data->max_fps = ctrl->s_data->cur_fps = fps->video_max_fps;
-#else
-  if (ctrl->s_data)
-      ctrl->s_data->max_fps = ctrl->s_data->cur_fps = fps->video_max_fps;
-  else {
-      SERR("ctrl->s_data NULL");
-      return SENSOR_FAILURE;
-  }
-#endif
-//Gionee <zhaocuiqin> <2014-11-11> modify for CR01392102 end
-
+  ctrl->s_data->max_fps = ctrl->s_data->cur_fps = fps->video_max_fps;
   /* Update fps divider if cur stream type is preview or video */
   if ((ctrl->s_data->cur_stream_mask & (1 << CAM_STREAM_TYPE_PREVIEW) ||
     ctrl->s_data->cur_stream_mask & (1 << CAM_STREAM_TYPE_VIDEO)) &&
@@ -782,6 +761,8 @@ static int8_t sensor_set_frame_rate(void *sctrl, void *data)
     }
     ctrl->s_data->current_fps_div =
       (out_info_array->out_info[cur_res].max_fps * Q10) / ctrl->s_data->cur_fps;
+    ctrl->s_data->cur_fps =
+      (out_info_array->out_info[cur_res].max_fps * Q10) / ctrl->s_data->current_fps_div;
     ctrl->s_data->prev_gain = 0;
     ctrl->s_data->prev_linecount = 0;
     sensor_set_vfe_sof(sctrl, NULL);
@@ -803,8 +784,10 @@ static int32_t sensor_apply_exposure(void *sctrl)
   uint8_t offset;
   struct sensorb_cfg_data cfg;
   struct msm_camera_i2c_reg_setting exp_gain;
+  uint32_t gain_apply = 0;
 
   if (ctrl->s_data->prev_gain == ctrl->s_data->current_gain &&
+      ctrl->s_data->prev_gain == ctrl->s_data->stored_gain &&
       ctrl->s_data->prev_linecount == ctrl->s_data->current_linecount)
     return 0;
 
@@ -817,24 +800,6 @@ static int32_t sensor_apply_exposure(void *sctrl)
   if (ctrl->s_data->current_linecount > (fl_lines - offset))
     fl_lines = ctrl->s_data->current_linecount + offset;
 
-  //Gionee <tanrifei> <2013-10-24> add for avoid rolling banding under extreme bright light
-  #ifdef ORIGINAL_VERSION
-  #else
-  {
-  	uint8_t cur_res = ctrl->s_data->cur_res;
-	uint32_t limit;
-	
-	limit = (uint32_t)(lib->sensor_lib_ptr->out_info_array->out_info[cur_res].max_fps *
-		lib->sensor_lib_ptr->out_info_array->out_info[cur_res].frame_length_lines / 100 + 0.5);
-	
-	if ((ctrl->s_data->current_linecount < limit) && (limit > 0)) {
-		fl_lines = (uint32_t)((fl_lines + limit) / limit * limit);
-		SLOW("change fl_lines to %d", fl_lines);
-	}
-  }
-  #endif
-  //Gionee <tanrifei> <2013-10-24> modify  end
-
   memset(&exp_gain, 0, sizeof(exp_gain));
   exp_gain.reg_setting = malloc(lib->sensor_lib_ptr->exposure_table_size *
     sizeof(struct msm_camera_i2c_reg_array));
@@ -845,36 +810,29 @@ static int32_t sensor_apply_exposure(void *sctrl)
 
   memset(exp_gain.reg_setting, 0, lib->sensor_lib_ptr->exposure_table_size *
     sizeof(struct msm_camera_i2c_reg_array));
+
+  if(lib->sensor_lib_ptr->sync_exp_gain == 1)
+    gain_apply = ctrl->s_data->stored_gain;
+  else
+    gain_apply = ctrl->s_data->current_gain;
+
+  if(ctrl->s_data->apply_without_sync == TRUE){
+    gain_apply = ctrl->s_data->current_gain;
+    ctrl->s_data->apply_without_sync = FALSE;
+  }
+
   rc = lib->sensor_lib_ptr->exposure_func_table->
-    sensor_fill_exposure_array(ctrl->s_data->current_gain,
+    sensor_fill_exposure_array(gain_apply,
       ctrl->s_data->current_linecount, fl_lines,
       ctrl->s_data->current_luma_hdr,
       ctrl->s_data->current_fgain_hdr, &exp_gain);
   if ((rc < 0) || (exp_gain.size == 0)) {
     SERR("failed");
   } else {
-    SLOW("cur_gain=%d, cur_linecount=%d, fl_lines=%d",
-      ctrl->s_data->current_gain, ctrl->s_data->current_linecount, fl_lines);
-	
-	//Gionee <tanrifei> <2013-10-22> add for printing realtime framerate
-	#ifdef ORIGINAL_VERSION
-	#else
-	{
-	  float coe = 0.0;
-	  uint8_t cur_res = ctrl->s_data->cur_res;
-	  float max_fps;
-	
-	  max_fps = lib->sensor_lib_ptr->out_info_array->out_info[cur_res].max_fps;
-	  coe = ((float)fl_lines) / ctrl->s_data->cur_frame_length_lines;
-	  if (coe <= 1.0) {
-		  coe = 1.0;
-	  }
-	  SLOW("realtime framerate : %f, max framrate %f", max_fps/coe, max_fps);
-	}
-	#endif
-	//Gionee <tanrifei> <2013-10-22> modify  end
-
-	cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
+    SLOW("cur_gain=%d, applied gain=%d, cur_linecount=%d, fl_lines=%d",
+      ctrl->s_data->current_gain, gain_apply,
+      ctrl->s_data->current_linecount, fl_lines);
+    cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
     cfg.cfg.setting = &exp_gain;
     if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
         SERR("failed");
@@ -884,7 +842,8 @@ static int32_t sensor_apply_exposure(void *sctrl)
   }
   free(exp_gain.reg_setting);
 
-  ctrl->s_data->prev_gain = ctrl->s_data->current_gain;
+  ctrl->s_data->stored_gain = ctrl->s_data->current_gain;
+  ctrl->s_data->prev_gain = gain_apply;
   ctrl->s_data->prev_linecount = ctrl->s_data->current_linecount;
 
   return rc;
@@ -912,7 +871,7 @@ static int8_t sensor_set_exposure(void *sctrl, sensor_exp_t exposure)
   ctrl->s_data->current_gain = exp_info.reg_gain;
   ctrl->s_data->sensor_real_gain = exp_info.sensor_real_gain;
   ctrl->s_data->sensor_digital_gain = exp_info.sensor_digital_gain;
-  ctrl->s_data->current_linecount = exp_info.line_count;
+  ctrl->s_data->current_linecount = exposure.linecount;
   ctrl->s_data->digital_gain = exp_info.digital_gain;
   ctrl->s_data->current_luma_hdr = exposure.luma_hdr;
   ctrl->s_data->current_fgain_hdr = exposure.fgain_hdr;
@@ -952,7 +911,8 @@ static int8_t sensor_set_awb_video_hdr_update(void *sctrl, void *data)
   /*convert AWB gains to sensor register format (u5.8 fixed point)*/
   uint16_t awb_gain_r_reg = (uint16_t)(awb_hdr_update->gain.r_gain * 256.0);
   uint16_t awb_gain_b_reg = (uint16_t)(awb_hdr_update->gain.b_gain * 256.0);
-
+  SLOW("HDR--awb_gain_r_reg: %d, awb_gain_b_reg: %d",
+    awb_gain_r_reg, awb_gain_b_reg);
   awb_hdr.reg_setting = malloc(lib->sensor_lib_ptr->
     video_hdr_awb_lsc_func_table->awb_table_size *
     sizeof(struct msm_camera_i2c_seq_reg_array));
@@ -970,7 +930,7 @@ static int8_t sensor_set_awb_video_hdr_update(void *sctrl, void *data)
   } else {
     cfg.cfgtype = CFG_WRITE_I2C_SEQ_ARRAY;
     cfg.cfg.setting = &awb_hdr;
-    if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+    if (LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
         SERR("failed");
         free(awb_hdr.reg_setting);
         return -EIO;
@@ -997,53 +957,16 @@ static int8_t sensor_set_start_stream(void *sctrl)
   if (ctrl->s_data->fd < 0)
     return FALSE;
 
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 begin
-#ifdef ORIGINAL_VERSION
   if (lib->sensor_lib_ptr->sensor_output->output_format != SENSOR_YCBCR) {
     cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
     cfg.cfg.setting = ctrl->lib_params->sensor_lib_ptr->start_settings;
   } else {
     cfg.cfgtype = CFG_SET_START_STREAM;
   }
-  if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+  if (LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
     SLOW("failed");
     return 0;
   }
-#else
-  int index = 0;
-  struct sensor_lib_reg_settings_array *start_settings = NULL;
-  
-  if (lib->sensor_lib_ptr->sensor_output->output_format != SENSOR_YCBCR) {
-	if (lib->sensor_lib_ptr->private_cfg == 1 && 
-		lib->sensor_lib_ptr->priv_start_settings) {
-	  SERR("Private start setting");
-	  start_settings = ctrl->lib_params->sensor_lib_ptr->priv_start_settings;
-	  cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
-	  for (index = 0; index < start_settings->size; index ++) {
-		cfg.cfg.setting = &start_settings->reg_settings[index];
-		if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
-		  ALOGE("VIDIOC_MSM_SENSOR_CFG failed zhaocq--------");
-		  return 0;
-		}
-	  }
-	} else {
-		SERR("Start setting");
-		cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
-		cfg.cfg.setting = ctrl->lib_params->sensor_lib_ptr->start_settings;
-		if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
-		  SLOW("failed");
-		  return 0;
-		}
-	}
-  }else {
-	cfg.cfgtype = CFG_SET_START_STREAM;
-	if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
-	  SLOW("failed");
-	  return 0;
-	}
-  }
-#endif
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 end
   SLOW("exit");
   return TRUE;
 }
@@ -1063,53 +986,16 @@ static int8_t sensor_set_stop_stream(void *sctrl)
   if (ctrl->s_data->fd < 0)
     return FALSE;
 
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 begin
-#ifdef ORIGINAL_VERSION
   if (lib->sensor_lib_ptr->sensor_output->output_format != SENSOR_YCBCR) {
     cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
     cfg.cfg.setting = ctrl->lib_params->sensor_lib_ptr->stop_settings;
   } else {
     cfg.cfgtype = CFG_SET_STOP_STREAM;
   }
-  if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+  if (LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
     SLOW("failed");
     return 0;
   }
-#else
-
-  int index = 0;
-  struct sensor_lib_reg_settings_array *stop_settings = NULL;
-  if (lib->sensor_lib_ptr->sensor_output->output_format != SENSOR_YCBCR) {
-	if (lib->sensor_lib_ptr->private_cfg == 1 && 
-		lib->sensor_lib_ptr->priv_stop_settings) {
-	  SERR("Private stop setting");
-	  stop_settings = ctrl->lib_params->sensor_lib_ptr->priv_stop_settings;
-	  cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
-	  for (index = 0; index < stop_settings->size; index ++) {
-		cfg.cfg.setting = &stop_settings->reg_settings[index];
-		if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
-		  SLOW("failed");
-		  return 0;
-		}
-	  }
-	} else {
-		SERR("Stop setting");
-		cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
-		cfg.cfg.setting = ctrl->lib_params->sensor_lib_ptr->stop_settings;
-		if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
-		  SLOW("failed");
-		  return 0;
-		}
-	}
-  }else {
-	cfg.cfgtype = CFG_SET_STOP_STREAM;
-	if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
-	  SLOW("failed");
-	  return 0;
-	}
-  }
-#endif
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 end
   SLOW("exit");
   return TRUE;
 }
@@ -1178,11 +1064,15 @@ static int8_t sensor_get_actuator_name(void *sctrl, void *data)
   sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
   char **name = (char**) data;
   SLOW("enter");
-  if (!ctrl || !ctrl->lib_params ||
-      !ctrl->lib_params->sensor_lib_ptr || !data) {
-    SERR("failed, %p, %p, %p, %p",
-      ctrl, ctrl->lib_params, ctrl->lib_params->sensor_lib_ptr, data);
+  if (!ctrl || !data) {
+    SERR("failed, %p, %p", ctrl, data);
     return FALSE;
+  } else if (!ctrl->lib_params ) {
+     SERR("failed, %p", ctrl->lib_params);
+     return FALSE;
+  } else if (!ctrl->lib_params->sensor_lib_ptr) {
+     SERR("failed, %p", ctrl->lib_params->sensor_lib_ptr);
+     return FALSE;
   }
   *name = ctrl->lib_params->sensor_lib_ptr->actuator_name;
   SLOW("exit");
@@ -1322,6 +1212,60 @@ static int32_t sensor_get_cur_csid_cfg(void *sctrl, void *data)
       sensor_get->csid_params->lut_params.vc_cfg[i]->dt,
       sensor_get->csid_params->lut_params.vc_cfg[i]->decode_format);
   }
+  return SENSOR_SUCCESS;
+}
+
+/*==========================================================
+ * FUNCTION    - sensor_get_csi_clk_scale_cfg -
+ *
+ * DESCRIPTION:
+ *==========================================================*/
+static int32_t sensor_get_csi_clk_scale_cfg(void *sctrl, void *data)
+{
+  sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
+  struct msm_camera_csid_params   *csid_params;
+  uint32_t  *csi_clk = (uint32_t *) data;
+  uint32_t  temp_csi_clk;
+  uint32_t  op_pixel_clk;
+  uint32_t  bits_per_pixel;
+  if (!sctrl) {
+    SERR("sctrl NULL");
+    return SENSOR_FAILURE;
+  }
+
+  if (!data) {
+    SERR("data NULL");
+    return SENSOR_FAILURE;
+  }
+  csid_params = &ctrl->lib_params->sensor_lib_ptr->
+    csi_params_array->csi2_params[ctrl->s_data->cur_res]->csid_params;
+
+  switch(csid_params->lut_params.vc_cfg[0]->dt){
+    case CSI_RAW10:
+      bits_per_pixel = 10;
+      break;
+    case CSI_RAW8:
+      bits_per_pixel = 8;
+      break;
+    case CSI_RAW12:
+      bits_per_pixel = 12;
+      break;
+    case CSI_YUV422_8:
+      bits_per_pixel = 8;
+      break;
+    default :
+      bits_per_pixel = 10;
+      SHIGH("default bits per pixel = %u", bits_per_pixel);
+  }
+  op_pixel_clk = ctrl->lib_params->sensor_lib_ptr->
+    out_info_array->out_info[ctrl->s_data->cur_res].op_pixel_clk;
+
+  temp_csi_clk = ((op_pixel_clk / (8 * csid_params->lane_cnt))
+    * bits_per_pixel);
+
+  /*adding 10% buffer*/
+  *csi_clk = temp_csi_clk + temp_csi_clk/10;
+
   return SENSOR_SUCCESS;
 }
 
@@ -1577,8 +1521,7 @@ static int32_t sensor_pick_resolution(void *sctrl,
         req_fps);
 
       if (vfe_pixel_clk_max == 0) {
-        if (out_info_array->out_info[i].x_output >= width &&
-          out_info_array->out_info[i].y_output >= height &&
+        if (out_info_array->out_info[i].y_output >= height &&
           out_info_array->out_info[i].max_fps >= req_fps) {
           *pick_res = i;
           ctrl->s_data->cur_fps = out_info_array->out_info[i].max_fps;
@@ -1587,8 +1530,7 @@ static int32_t sensor_pick_resolution(void *sctrl,
           break;
         }
       } else {
-        if (out_info_array->out_info[i].x_output >= width &&
-          out_info_array->out_info[i].y_output >= height &&
+        if (out_info_array->out_info[i].y_output >= height &&
           out_info_array->out_info[i].max_fps >= req_fps &&
           out_info_array->out_info[i].op_pixel_clk <= vfe_pixel_clk_max) {
           *pick_res = i;
@@ -1598,7 +1540,6 @@ static int32_t sensor_pick_resolution(void *sctrl,
           break;
         }
       }
-
     }
 
   } else if ((ctrl->s_data->video_hdr_enable) &&
@@ -1608,16 +1549,45 @@ static int32_t sensor_pick_resolution(void *sctrl,
     /* In case of HDR mode */
     for (i = 0; i < out_info_array->size; i++) {
 
-      SLOW("hfr i %d x_output %d y_output %d max fps %f", i,
+      SLOW("hdr i %d x_output %d y_output %d max fps %f", i,
         out_info_array->out_info[i].x_output,
         out_info_array->out_info[i].y_output,
         out_info_array->out_info[i].max_fps);
 
-        if (out_info_array->out_info[i].mode == SENSOR_HDR_MODE) {
+        if (out_info_array->out_info[i].mode == SENSOR_HDR_MODE &&
+          out_info_array->out_info[i].max_fps + MAX_FPS_VARIANCE >=
+          ctrl->s_data->cur_fps &&
+          out_info_array->out_info[i].x_output >= width) {
           *pick_res = i;
           ctrl->s_data->cur_fps = out_info_array->out_info[i].max_fps;
+
           break;
         }
+
+      if ((*pick_res >= out_info_array->size) ||
+          (*pick_res == MSM_SENSOR_INVALID_RES)) {
+        *pick_res = out_info_array->size - 1;
+      }
+    }
+  } else if ((ctrl->s_data->snapshot_hdr_enable) &&
+          (res_cfg->stream_mask & (1 << CAM_STREAM_TYPE_PREVIEW) ||
+           res_cfg->stream_mask & (1 << CAM_STREAM_TYPE_SNAPSHOT))) {
+        /* In case of snapshot HDR mode */
+        for (i = 0; i < out_info_array->size; i++) {
+
+          SLOW("snapshot hdr i %d x_output %d y_output %d max fps %f", i,
+            out_info_array->out_info[i].x_output,
+            out_info_array->out_info[i].y_output,
+            out_info_array->out_info[i].max_fps);
+
+            if (out_info_array->out_info[i].mode == SENSOR_HDR_MODE &&
+              out_info_array->out_info[i].max_fps + MAX_FPS_VARIANCE  >=
+              ctrl->s_data->cur_fps &&
+              out_info_array->out_info[i].x_output >= width) {
+              *pick_res = i;
+              ctrl->s_data->cur_fps = out_info_array->out_info[i].max_fps;
+              break;
+            }
 
       if ((*pick_res >= out_info_array->size) ||
           (*pick_res == MSM_SENSOR_INVALID_RES)) {
@@ -1715,6 +1685,7 @@ static int32_t sensor_set_resolution(void *sctrl, void *data)
   uint16_t width = 0, height = 0;
   float fps = 0;
   enum msm_sensor_resolution_t res = MSM_SENSOR_INVALID_RES;
+  //enum msm_camera_stream_type_t stream_type = MSM_CAMERA_STREAM_INVALID;
   struct sensor_lib_out_info_array *out_info_array = NULL;
   sensor_lib_params_t *lib = (sensor_lib_params_t *)ctrl->lib_params;
   struct msm_camera_i2c_reg_setting *reg_settings = NULL;
@@ -1766,6 +1737,23 @@ static int32_t sensor_set_resolution(void *sctrl, void *data)
       SERR("Error: failed to find resolution requested w*h %d*%d fps %f",
         width, height, ctrl->s_data->cur_fps);
       return SENSOR_FAILURE;
+    }
+  }
+
+  if (lib->sensor_lib_ptr->sensor_output->output_format == SENSOR_YCBCR) {
+    if (res_cfg->stream_mask & (1 << CAM_STREAM_TYPE_VIDEO)) {
+       // stream_type = MSM_CAMERA_STREAM_VIDEO;
+    } else if (res_cfg->stream_mask & (1 << CAM_STREAM_TYPE_PREVIEW)) {
+       // stream_type = MSM_CAMERA_STREAM_PREVIEW;
+    } else if (res_cfg->stream_mask & (1 << CAM_STREAM_TYPE_SNAPSHOT)) {
+       // stream_type = MSM_CAMERA_STREAM_SNAPSHOT;
+    }
+    //SHIGH("stream_type set = %d", stream_type);
+    //cfg.cfgtype = CFG_SET_STREAM_TYPE;
+    //cfg.cfg.setting = &stream_type;
+    if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+      /* Ignore return value for backward compatibility */
+      SHIGH("Set stream_type to sensor is either unsupported or unsuccessful");
     }
   }
 
@@ -1829,7 +1817,7 @@ static int32_t sensor_set_resolution(void *sctrl, void *data)
     cfg.cfg.setting = reg_settings;
     cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
 
-    rc = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+    rc = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
     if (rc < 0) {
       SERR("failed");
       return rc;
@@ -1865,7 +1853,7 @@ static int32_t sensor_set_resolution(void *sctrl, void *data)
     };
 
     cfg.cfg.setting = &out_settings;
-    rc = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+    rc = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
     if (rc < 0) {
       SERR("failed");
       return rc;
@@ -1873,7 +1861,7 @@ static int32_t sensor_set_resolution(void *sctrl, void *data)
   } else {
     cfg.cfgtype = CFG_SET_RESOLUTION;
     cfg.cfg.setting = &res;
-    rc = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+    rc = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
     if (rc < 0) {
       SERR("failed");
       return rc;
@@ -1904,7 +1892,7 @@ static int32_t sensor_set_saturation(void * sctrl , void *data)
    cfg.cfg.setting = saturation_level;
    cfg.cfgtype = CFG_SET_SATURATION;
 
-   ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+   ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
     if (ret < 0) {
       SERR("failed");
       return ret;
@@ -1929,7 +1917,7 @@ static int32_t sensor_set_sharpness(void * sctrl , void *data)
    cfg.cfg.setting = sharpness_level;
    cfg.cfgtype = CFG_SET_SHARPNESS;
 
-   ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+   ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
     if (ret < 0) {
       SERR("failed");
       return ret;
@@ -1954,7 +1942,7 @@ static int32_t sensor_set_contrast(void * sctrl , void *data)
   cfg.cfg.setting = contrast_level;
   cfg.cfgtype = CFG_SET_CONTRAST;
 
-  ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (ret < 0) {
     SERR("failed");
     return ret;
@@ -1984,7 +1972,7 @@ static int32_t sensor_set_autofocus(void * sctrl , void *data)
    struct sensorb_cfg_data cfg;
    //af_status_thread.is_thread_started = FALSE;
    cfg.cfgtype = CFG_SET_AUTOFOCUS;
-   ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+   ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
     if (ret < 0) {
       SERR("failed");
       //return ret;
@@ -2018,7 +2006,7 @@ static int32_t sensor_cancel_autofocus(void * sctrl , void *data)
    sensor_info_t * sensor_info = (sensor_info_t*)data;
    struct sensorb_cfg_data cfg;
    cfg.cfgtype = CFG_CANCEL_AUTOFOCUS;
-   ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+   ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
     if (ret < 0) {
       SERR("failed");
    }
@@ -2042,7 +2030,7 @@ static int32_t sensor_set_iso(void * sctrl , void *data)
   cfg.cfg.setting = iso_level;
   cfg.cfgtype = CFG_SET_ISO;
 
-  ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (ret < 0) {
     SERR("failed");
     return ret;
@@ -2067,7 +2055,7 @@ static int32_t sensor_set_exposure_compensation(void * sctrl , void *data)
   cfg.cfg.setting = exposure_comp_level;
   cfg.cfgtype = CFG_SET_EXPOSURE_COMPENSATION;
 
-  ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (ret < 0) {
     SERR("failed");
     return ret;
@@ -2092,7 +2080,7 @@ static int32_t sensor_set_antibanding(void * sctrl , void *data)
   cfg.cfg.setting = antibanding_level;
   cfg.cfgtype = CFG_SET_ANTIBANDING;
 
-  ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (ret < 0) {
     SERR("failed");
     return ret;
@@ -2117,7 +2105,7 @@ static int32_t sensor_set_bestshot_mode(void * sctrl , void *data)
   cfg.cfg.setting = bestshot_mode;
   cfg.cfgtype = CFG_SET_BESTSHOT_MODE;
 
-  ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (ret < 0) {
     SERR("failed");
     return ret;
@@ -2142,7 +2130,7 @@ static int32_t sensor_set_effect(void * sctrl , void *data)
   cfg.cfg.setting = effect_mode;
   cfg.cfgtype = CFG_SET_EFFECT;
 
-  ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (ret < 0) {
     SERR("failed");
     return ret;
@@ -2167,7 +2155,7 @@ static int32_t sensor_set_white_balance(void * sctrl , void *data)
   cfg.cfg.setting = wb_mode;
   cfg.cfgtype = CFG_SET_WHITE_BALANCE;
 
-  ret = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  ret = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (ret < 0) {
     SERR("failed");
     return ret;
@@ -2279,6 +2267,7 @@ static int32_t sensor_get_capabilities(void *slib, void *data)
   struct sensor_lib_out_info_t *out_info = NULL;
   //msm_sensor_scale_size_t *scale_params = NULL;
   msm_sensor_dimension_t scale_tbl[MAX_SCALE_SIZES_CNT];
+  struct sensor_crop_parms_t *crop_info;
 
   if (!sensor_cap || !lib || !lib->sensor_lib_ptr ||
       !lib->sensor_lib_ptr->default_lens_info) {
@@ -2292,6 +2281,8 @@ static int32_t sensor_get_capabilities(void *slib, void *data)
     lib->sensor_lib_ptr->default_lens_info->hor_view_angle;
   sensor_cap->ver_view_angle =
     lib->sensor_lib_ptr->default_lens_info->ver_view_angle;
+  sensor_cap->near_end_distance =
+    lib->sensor_lib_ptr->default_lens_info->near_end_distance;
   if (lib->sensor_lib_ptr->video_hdr_awb_lsc_func_table) {
     sensor_cap->feature_mask =
       lib->sensor_lib_ptr->video_hdr_awb_lsc_func_table->video_hdr_capability;
@@ -2325,12 +2316,22 @@ static int32_t sensor_get_capabilities(void *slib, void *data)
     size = lib->sensor_lib_ptr->out_info_array->size;
   }
   out_info = lib->sensor_lib_ptr->out_info_array->out_info;
+  crop_info = lib->sensor_lib_ptr->crop_params_array->crop_params;
   sensor_cap->dim_fps_table_count = 0;
   for (i = 0; i < size; i++) {
-    sensor_cap->dim_fps_table[i].dim.width = out_info[i].x_output;
+    sensor_cap->dim_fps_table[i].dim.width = out_info[i].x_output -
+      crop_info[i].left_crop - crop_info[i].right_crop;
     if (lib->sensor_lib_ptr->sensor_output->output_format == SENSOR_YCBCR)
       sensor_cap->dim_fps_table[i].dim.width /= 2;
-    sensor_cap->dim_fps_table[i].dim.height = out_info[i].y_output;
+    sensor_cap->dim_fps_table[i].dim.height = out_info[i].y_output -
+      crop_info[i].top_crop - crop_info[i].bottom_crop;
+
+    /* Use 1052x760 as 720p*/
+    if( out_info[i].y_output == 760 )
+    {
+      sensor_cap->dim_fps_table[i].dim.width = 1280;
+      sensor_cap->dim_fps_table[i].dim.height = 720;
+    }
     sensor_cap->dim_fps_table[i].fps.min_fps = out_info[i].min_fps;
     sensor_cap->dim_fps_table[i].fps.max_fps = out_info[i].max_fps;
     sensor_cap->dim_fps_table[i].fps.video_min_fps =
@@ -2338,6 +2339,7 @@ static int32_t sensor_get_capabilities(void *slib, void *data)
     sensor_cap->dim_fps_table[i].fps.video_max_fps =
       sensor_cap->dim_fps_table[i].fps.max_fps;
     sensor_cap->dim_fps_table_count++;
+    sensor_cap->dim_fps_table[i].mode  = out_info[i].mode;
   }
 
   /* Fill scale size table*/
@@ -2365,7 +2367,7 @@ static int32_t sensor_get_capabilities(void *slib, void *data)
   sensor_cap->supported_raw_fmts_cnt = 0;
   sensor_stream_info_t *sensor_stream_info =
       &(lib->sensor_lib_ptr->sensor_stream_info_array->sensor_stream_info[0]);
-  int num_cid_ch = sensor_stream_info->vc_cfg_size;
+  uint16_t num_cid_ch = sensor_stream_info->vc_cfg_size;
   for (i = 0; i < num_cid_ch; i++) {
     switch (sensor_stream_info->pix_fmt_fourcc[i].fourcc) {
       case V4L2_PIX_FMT_SBGGR8: {
@@ -2549,6 +2551,22 @@ static int32_t sensor_get_capabilities(void *slib, void *data)
   /* Fill sensor pipeline delay */
   sensor_cap->max_pipeline_frame_delay =
       lib->sensor_lib_ptr->sensor_max_pipeline_frame_delay;
+
+  /* Fill sensor manual exposure info */
+  if(lib->sensor_lib_ptr->manual_exp_info){
+    sensor_cap->min_exposure_time =
+      lib->sensor_lib_ptr->manual_exp_info->min_exposure_time;
+    sensor_cap->max_exposure_time =
+      lib->sensor_lib_ptr->manual_exp_info->max_exposure_time;
+    sensor_cap->min_iso = lib->sensor_lib_ptr->manual_exp_info->min_iso;
+    sensor_cap->max_iso = lib->sensor_lib_ptr->manual_exp_info->max_iso;
+  } else {
+    sensor_cap->min_exposure_time = 0;
+    sensor_cap->max_exposure_time = 0;
+    sensor_cap->min_iso = 0;
+    sensor_cap->max_iso = 0;
+  }
+
   /* Fill sensor init params */
   sensor_cap->modes_supported =
     lib->sensor_lib_ptr->sensor_init_params->modes_supported;
@@ -2556,6 +2574,67 @@ static int32_t sensor_get_capabilities(void *slib, void *data)
   sensor_cap->sensor_mount_angle =
     lib->sensor_lib_ptr->sensor_init_params->sensor_mount_angle;
   return rc;
+}
+
+/*==========================================================
+ * FUNCTION    - sensor_set_metadata_hdr -
+ *
+ * DESCRIPTION:
+ *==========================================================*/
+static void sensor_set_metadata_hdr(void *sctrl, void *data)
+{
+  sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
+  sensor_lib_params_t *lib = (sensor_lib_params_t *)ctrl->lib_params;
+  sensor_out_info_t *sensor_out_info = (void *)data;
+  uint32_t i;
+
+  for (i = 0; i < sensor_out_info->meta_cfg.num_meta; i++) {
+    if(!lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].ebd) {
+      sensor_out_info->meta_cfg.sensor_meta_info[i].is_valid = TRUE;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].dump_to_fs = FALSE;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].dim.width =
+      lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].width;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].dim.height =
+      lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].height;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].fmt = CAM_FORMAT_META_RAW_8BIT;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].stats_type =
+        lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].stats_type;
+      if (lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].fmt == 10) {
+        sensor_out_info->meta_cfg.sensor_meta_info[i].fmt = CAM_FORMAT_META_RAW_10BIT;
+      }
+    }
+  }
+}
+
+
+/*==========================================================
+ * FUNCTION    - sensor_set_metadata_ebd -
+ *
+ * DESCRIPTION:
+ *==========================================================*/
+static void  sensor_set_metadata_ebd(void *sctrl, void *data)
+{
+  sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
+  sensor_lib_params_t *lib = (sensor_lib_params_t *)ctrl->lib_params;
+  sensor_out_info_t *sensor_out_info = (void *)data;
+  uint32_t i;
+  for (i = 0; i < sensor_out_info->meta_cfg.num_meta; i++) {
+    if(lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].ebd) {
+      sensor_out_info->meta_cfg.sensor_meta_info[i].is_valid = TRUE;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].dump_to_fs = FALSE;
+      if (ctrl->s_data->cur_stream_mask & (1 << CAM_STREAM_TYPE_RAW)) {
+        sensor_out_info->meta_cfg.sensor_meta_info[i].dump_to_fs = TRUE;
+      }
+      sensor_out_info->meta_cfg.sensor_meta_info[i].dim.width =
+      lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].width;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].dim.height =
+      lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].height;
+      sensor_out_info->meta_cfg.sensor_meta_info[i].fmt = CAM_FORMAT_META_RAW_8BIT;
+      if (lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].fmt == 10) {
+        sensor_out_info->meta_cfg.sensor_meta_info[i].fmt = CAM_FORMAT_META_RAW_10BIT;
+      }
+    }
+  }
 }
 
 /*==========================================================
@@ -2572,11 +2651,14 @@ static int32_t sensor_get_resolution_info(void *sctrl, void *data)
   enum msm_sensor_resolution_t cur_res;
   uint16_t i = 0;
   sensor_stream_info_array_t *sensor_stream_info_array = NULL;
-  if (!sensor_out_info) {
+  if ((!sensor_out_info) ||
+  (ctrl->s_data->cur_res >= MSM_SENSOR_INVALID_RES)) {
     SERR("failed");
     return SENSOR_ERROR_INVAL;
   }
   cur_res = ctrl->s_data->cur_res;
+  //sensor_out_info->csi_clk_scale_enable =
+  //  lib->sensor_lib_ptr->csi_params_array->csi2_params[cur_res]->csi_clk_scale_enable;
   /* Fill isp params */
   sensor_out_info->mode =
     lib->sensor_lib_ptr->sensor_init_params->modes_supported;
@@ -2602,8 +2684,9 @@ static int32_t sensor_get_resolution_info(void *sctrl, void *data)
      CAM_EXP_BRACKETING_ON) {
     sensor_out_info->num_frames_skip =
       lib->sensor_lib_ptr->sensor_num_HDR_frame_skip;
-  }
-  else {
+  } else if(ctrl->s_data->manual_exposure_mode == 1){
+    sensor_out_info->num_frames_skip = 0;
+  } else{
     sensor_out_info->num_frames_skip =
       lib->sensor_lib_ptr->sensor_num_frame_skip;
   }
@@ -2645,6 +2728,10 @@ static int32_t sensor_get_resolution_info(void *sctrl, void *data)
      lib->sensor_lib_ptr->default_lens_info->pix_size;
   sensor_out_info->af_lens_info.total_f_dist =
      lib->sensor_lib_ptr->default_lens_info->total_f_dist;
+  sensor_out_info->af_lens_info.um_per_dac =
+     lib->sensor_lib_ptr->default_lens_info->um_per_dac;
+  sensor_out_info->af_lens_info.dac_offset =
+     lib->sensor_lib_ptr->default_lens_info->dac_offset;
 
   /* Fill sensor pipeline delay */
   sensor_out_info->sensor_max_pipeline_frame_delay =
@@ -2653,16 +2740,23 @@ static int32_t sensor_get_resolution_info(void *sctrl, void *data)
   sensor_out_info->meta_cfg.num_meta = 0;
   memset(sensor_out_info->meta_cfg.sensor_meta_info, 0,
       sizeof(sensor_out_info->meta_cfg.sensor_meta_info));
-  if (ctrl->s_data->video_hdr_enable) {
-    sensor_out_info->meta_cfg.num_meta =
+
+  if (lib->sensor_lib_ptr->meta_data_out_info_array) {
+      sensor_out_info->meta_cfg.num_meta =
       lib->sensor_lib_ptr->meta_data_out_info_array->size;
-  for (i = 0; i < sensor_out_info->meta_cfg.num_meta; i++) {
-      sensor_out_info->meta_cfg.sensor_meta_info[i].is_valid = TRUE;
-      sensor_out_info->meta_cfg.sensor_meta_info[i].dim.width =
-      lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].width;
-      sensor_out_info->meta_cfg.sensor_meta_info[i].dim.height =
-        lib->sensor_lib_ptr->meta_data_out_info_array->meta_data_out_info[i].height;
-      sensor_out_info->meta_cfg.sensor_meta_info[i].fmt = CAM_FORMAT_META_RAW_8BIT;
+  }
+  if (sensor_out_info->meta_cfg.num_meta) {
+    if (ctrl->s_data->video_hdr_enable || ctrl->s_data->snapshot_hdr_enable) {
+        sensor_set_metadata_hdr(sctrl, data);
+    }
+    else if ((ctrl->s_data->cur_stream_mask & (1 << CAM_STREAM_TYPE_RAW)) || \
+      (ctrl->s_data->cur_stream_mask & (1 << CAM_STREAM_TYPE_PREVIEW))) {
+      sensor_set_metadata_ebd(sctrl, data);
+    }
+    else {
+      for (i = 0; i < sensor_out_info->meta_cfg.num_meta; i++) {
+        sensor_out_info->meta_cfg.sensor_meta_info[i].is_valid = FALSE;
+      }
     }
   }else {
   for (i = 0; i < sensor_out_info->meta_cfg.num_meta; i++) {
@@ -2711,6 +2805,28 @@ static int32_t sensor_set_video_hdr_enable(void *sctrl, void *data)
   SLOW("video_hdr enable %d", *video_hdr_enable);
   if(ctrl->s_data->video_hdr_enable != *video_hdr_enable)
     ctrl->s_data->video_hdr_enable = *video_hdr_enable;
+  else
+    /* not an error condition, just indicate that we are already in this mode */
+    return SENSOR_ERROR_INVAL;
+  return SENSOR_SUCCESS;
+}
+
+/*==========================================================
+ * FUNCTION    - sensor_set_snapshot_hdr_enable -
+ *
+ * DESCRIPTION:
+ *==========================================================*/
+static int32_t sensor_set_snapshot_hdr_enable(void *sctrl, void *data)
+{
+  sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
+  int32_t *snapshot_hdr_enable = (int32_t *)data;
+  if (!snapshot_hdr_enable) {
+    SERR("failed");
+    return SENSOR_FAILURE;
+  }
+  SLOW("snapshot_hdr enable %d", *snapshot_hdr_enable);
+  if(ctrl->s_data->snapshot_hdr_enable != *snapshot_hdr_enable)
+    ctrl->s_data->snapshot_hdr_enable = *snapshot_hdr_enable;
   else
     /* not an error condition, just indicate that we are already in this mode */
     return SENSOR_ERROR_INVAL;
@@ -2768,16 +2884,24 @@ static int32_t sensor_set_calibration_data(void *sctrl, void *data)
 {
   sensor_ctrl_t *ctrl = (sensor_ctrl_t *)sctrl;
   struct sensorb_cfg_data cfg;
+  struct msm_camera_i2c_reg_setting* setting =
+    (struct msm_camera_i2c_reg_setting*)data;
+
   if (!ctrl || !ctrl->s_data) {
     SERR("failed");
     return -EINVAL;
+  }
+
+  if(setting->size == 0){
+    SERR("%s:Golden module or OTP data is null", __func__);
+    return SENSOR_SUCCESS;
   }
 
   PTHREAD_MUTEX_LOCK(&ctrl->s_data->mutex);
 
   cfg.cfgtype = CFG_WRITE_I2C_ARRAY;
   cfg.cfg.setting = data;
-  if (ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
+  if (LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg) < 0) {
     SERR("failed");
     PTHREAD_MUTEX_UNLOCK(&ctrl->s_data->mutex);
     return -EIO;
@@ -2981,8 +3105,11 @@ static int32_t sensor_get_frame_metadata(void *sctrl, void *data)
   /* Fill per frame metadata */
   metadata->width = out_info_array->out_info[cur_res].x_output;
   metadata->height = out_info_array->out_info[cur_res].y_output;
-  metadata->sensor_real_gain = ctrl->s_data->sensor_real_gain * Q10;
-  metadata->sensor_digital_gain = ctrl->s_data->sensor_digital_gain;
+  metadata->sensor_real_gain = ctrl->s_data->sensor_real_gain;
+  metadata->sensor_digital_gain = ctrl->s_data->digital_gain;
+  metadata->total_gain = ctrl->s_data->sensor_real_gain *
+                                  ctrl->s_data->digital_gain *
+                                  ctrl->s_data->sensor_digital_gain;
   metadata->exposure_time = ctrl->s_data->cur_exposure_time;
 
   return SENSOR_SUCCESS;
@@ -3043,6 +3170,9 @@ static int32_t sensor_process(void *sctrl,
     break;
   case SENSOR_GET_CUR_CSID_CFG:
     rc = sensor_get_cur_csid_cfg(sctrl, data);
+    break;
+  case SENSOR_GET_CSI_CLK_SCALE_CFG:
+    rc = sensor_get_csi_clk_scale_cfg(sctrl, data);
     break;
   case SENSOR_GET_CUR_CHROMATIX_NAME:
     rc = sensor_get_cur_chromatix_name(sctrl, data);
@@ -3139,8 +3269,14 @@ static int32_t sensor_process(void *sctrl,
   case SENSOR_SET_HDR_ZSL_MODE:
     rc = sensor_set_hdr_zsl_mode(sctrl, data);
     break;
+  case SENSOR_SET_MANUAL_EXPOSURE_MODE:
+    rc = sensor_set_manual_exposure_mode(sctrl, data);
+    break;
   case SENSOR_SET_VIDEO_HDR_ENABLE:
     rc = sensor_set_video_hdr_enable(sctrl, data);
+    break;
+  case SENSOR_SET_SNAPSHOT_HDR_ENABLE:
+    rc = sensor_set_snapshot_hdr_enable(sctrl, data);
     break;
   case SENSOR_SET_DIS_ENABLE:
     rc = sensor_set_dis_enable(sctrl, data);
@@ -3210,7 +3346,7 @@ static int32_t sensor_close(void *sctrl)
   struct sensorb_cfg_data cfg;
 
   cfg.cfgtype = CFG_POWER_DOWN;
-  rc = ioctl(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
+  rc = LOG_IOCTL(ctrl->s_data->fd, VIDIOC_MSM_SENSOR_CFG, &cfg);
   if (rc < 0) {
     SERR("VIDIOC_MSM_SENSOR_CFG failed");
   }

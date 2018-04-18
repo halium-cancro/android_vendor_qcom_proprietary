@@ -20,8 +20,9 @@
 #include "mtype.h"
 #include "sensor_lib.h"
 #include "chromatix.h"
+#include "actuator_driver.h"
+#include "af_algo_tuning.h"
 #include "chromatix_common.h"
-#include "af_tuning.h"
 #include "mct_stream.h"
 
 #define SENSOR_SUCCESS 0
@@ -38,12 +39,34 @@
 #define SENSOR_IDENTITY(session_id, stream_id) \
   ((((session_id) & 0x0000FFFF) << 16) | ((stream_id) & 0x0000FFFF))
 
+/* This macro will return errval if evaluated expression returned NULL */
+#define RETURN_ERR_ON_NULL(expr, ret, args...)                \
+    if ((expr) == NULL) {                                     \
+        SERR("failed NULL pointer detected: "#expr" : "args); \
+        return ret;                                           \
+    }
+// This macro will return FALSE to ret if evaluated expression returned NULL.
+#define RETURN_ON_NULL(expr)         \
+    if ((expr) == NULL) {            \
+        SERR("failed NULL pointer detected "#expr); \
+        return FALSE;                \
+    }
+
+// This macro will call the process event function of submodule with event and puts the returned value in rc
+#define SENSOR_SUB_MODULE_PROCESS_EVENT(s_bundle, submodule, event, data, rc)       \
+    if (s_bundle->module_sensor_params[(submodule)]->func_tbl.process != NULL){     \
+        rc = s_bundle->module_sensor_params[(submodule)]->func_tbl.process(         \
+          s_bundle->module_sensor_params[(submodule)]->sub_module_private,            \
+		  (event), (data));                                                           \
+	}
+
 typedef enum {
   /* Sensor framework enums */
   /* Get enums */
   SENSOR_GET_CAPABILITIES, /* struct msm_camera_csiphy_params * */
   SENSOR_GET_CUR_CSIPHY_CFG, /* struct msm_camera_csiphy_params * */
   SENSOR_GET_CUR_CSID_CFG, /* struct msm_camera_csid_params * */
+  SENSOR_GET_CSI_CLK_SCALE_CFG, /* uint32_t */
   SENSOR_GET_CUR_CHROMATIX_NAME, /* char * */
   SENSOR_GET_CSI_LANE_PARAMS, /* struct csi_lane_params_t * */
   SENSOR_GET_CUR_FPS, /* uint32_t * */
@@ -75,6 +98,7 @@ typedef enum {
   SENSOR_SET_WAIT_FRAMES,
   SENSOR_SET_HDR_AE_BRACKET, /* cam_exp_bracketing_t* */
   SENSOR_SET_VIDEO_HDR_ENABLE, /* int32_t * */
+  SENSOR_SET_SNAPSHOT_HDR_ENABLE, /* int32_t * */
   SENSOR_SET_DIS_ENABLE, /* int32_t * */
   SENSOR_SET_OP_PIXEL_CLK_CHANGE, /* uint32_t * */
   SENSOR_SET_CALIBRATION_DATA, /* msm_camera_i2c_reg_setting * */
@@ -106,7 +130,8 @@ typedef enum {
 
   /* Actuator enums*/
   /* Get enums */
-  ACTUATOR_GET_AF_TUNE_PTR, /* af_tune_parms_t ** */
+  ACTUATOR_GET_AF_DRIVER_PARAM_PTR,
+  ACTUATOR_GET_AF_ALGO_PARAM_PTR,
   ACTUATOR_GET_DAC_VALUE,
   /* Set enums */
   ACTUATOR_INIT, /* NULL */
@@ -115,25 +140,20 @@ typedef enum {
   ACTUATOR_SET_POSITION,
   ACTUATOR_SET_PARAMETERS,
   ACTUATOR_FOCUS_TUNING,
-  ACTUATOR_LOAD_LIB,
-//Gionee <zhuangxiaojian> <2014-06-26> modify for CR01310542 begin
-#ifdef ORIGINAL_VERSION
-#else
-  ACTUATOR_SET_OIS_MODE,
-  LED_FLASH_SET_BURST_LEVEL,
-  LED_FLASH_GET_BURST_LEVEL,
-#endif
-//Gionee <zhuangxiaojian> <2014-06-26> modify for CR01310542 end
+  ACTUATOR_ENUM_MAX, /* End of Actuator enums*/
+  ACTUATOR_SET_EEBIN_DATA,
   /* End of Actuator enums*/
 
   /* EEPROM enums*/
   /* Get enums */
   EEPROM_READ_DATA, /*const char **/
   EEPROM_SET_BYTESTREAM,
-  EEPROM_SET_CHROMA_AF_PTR,
+  EEPROM_SET_CALIBRATE_CHROMATIX,
+  EEPROM_CALIBRATE_FOCUS_DATA,
   EEPROM_GET_ISINSENSOR_CALIB,
   EEPROM_GET_RAW_DATA,
   /* Set enums */
+  EEPROM_SET_FORMAT_DATA,
   EEPROM_OPEN_FD, /*const char **/
   EEPROM_CLOSE_FD, /*const char **/
   EEPROM_WRITE_DATA, /*const char **/
@@ -142,6 +162,8 @@ typedef enum {
   /* Get enums */
   LED_FLASH_GET_RER_CHROMATIX,  /* NULL */
   LED_FLASH_GET_CURRENT,        /* NULL */
+  LED_FLASH_GET_MAX_CURRENT,
+  LED_FLASH_GET_MAX_DURATION,
   /* Set enums */
   LED_FLASH_SET_RER_PARAMS,     /* NULL */
   LED_FLASH_SET_RER_PROCESS,    /* NULL */
@@ -173,6 +195,7 @@ typedef enum {
   /* End of CSID enums*/
   /* video hdr enums */
   SENSOR_SET_AWB_UPDATE, /* sensor_set_awb_data_t * */
+  SENSOR_SET_MANUAL_EXPOSURE_MODE, /*sensor_set_manual_exposure_mode */
 } sensor_submodule_event_type_t;
 
 typedef enum {
@@ -252,8 +275,9 @@ typedef struct {
 //} actuator_cam_mode_t;
 
 typedef struct {
-  sensor_chromatix_params_t chromatix;
-  af_tune_parms_t *af_tune_ptr;
+  sensor_chromatix_params_t     chromatix;
+  actuator_driver_params_t      *af_driver_ptr;
+  af_algo_tune_parms_t          *af_algo_ptr[2];
 } eeprom_set_chroma_af_t;
 
 typedef struct {
@@ -267,7 +291,7 @@ typedef struct {
   void (*get_calibration_items)(void *);
   void (*format_calibration_data)(void *);
   void (*get_dpc_calibration_info) (void *, int, void *);
-  void (*do_af_calibration) (void *);
+  boolean (*do_af_calibration) (void *);
   void (*do_wbc_calibration) (void *);
   void (*do_lsc_calibration) (void *);
   void (*do_dpc_calibration) (void *);
@@ -336,6 +360,14 @@ typedef struct {
   format_data_t eeprom_data;
 } sensor_eeprom_data_t;
 
+typedef struct {
+   uint32_t                  min_frame_idx;    /* cam_frame_idx_range_t */
+   uint32_t                  max_frame_idx;    /* cam_frame_idx_range_t */
+   uint32_t                  captured_count;   /* captured bracket count*/
+   uint8_t                   is_post_msg;      /* meta msg enable flag */
+   uint8_t                   enable;           /* enable*/
+} sensor_frame_order_ctrl_t;
+
 /* Sensor Bracketing common structures and macro*/
 #define ACTUATOR_MAX_WAIT_FRAME  30            /* maximum frames to wait
                                                   for lens movement */
@@ -345,15 +377,19 @@ typedef struct {
 
 /* Focus bracketing parameters */
 typedef struct {
-  uint32_t                  num_steps;         /* move steps for actuator */
-  uint8_t                   burst_count;       /* cam_af_bracketing_t */
-  uint8_t                   enable;            /* cam_af_bracketing_t */
-  uint32_t                  lens_reset;        /* flag indicating whether
-                                                  lens is reset */
-  pthread_mutex_t           lens_move_done_sig;/* mutex indicating
-                                                  end of lens movement */
-  uint32_t                  snapshot_identity; /* snapshot stream identity */
-  uint32_t                  preview_identity;  /* preview stream identity */
+  uint32_t                  num_steps;          /* move steps for actuator */
+  uint8_t                   burst_count;        /* cam_af_bracketing_t */
+  uint8_t                   enable;             /* cam_af_bracketing_t */
+  uint32_t                  lens_reset;         /* flag indicating whether
+                                                   lens is reset */
+  int32_t                   wait_frame;         /* actuator wait frame */
+  int32_t                   abs_steps_to_move[MAX_AF_BRACKETING_VALUES];
+                                                /* array containing
+                                                 # of step in each move*/
+  boolean                   lens_move_progress; /* flag to indicate lens movement */
+  pthread_mutex_t           lens_move_done_sig; /* mutex indicating
+                                                   end of lens movement */
+  sensor_frame_order_ctrl_t ctrl;
 } sensor_af_bracket_t;
 
 /* Flash bracketing parameters */
@@ -375,7 +411,6 @@ typedef struct {
 
 /* Data structure for general bracketing params */
 typedef struct {
-  sensor_af_bracket_t       af_bracket;        /* cam_af_bracketing_t */
   sensor_flash_bracket_t    flash_bracket;     /* cam_flash_bracketing_t*/
   sensor_bracket_ctrl_t     ctrl;              /* sensor_bracket_ctrl_t */
 } sensor_bracket_params_t;
@@ -411,13 +446,19 @@ typedef struct {
 } sensor_get_raw_dimension_t;
 
 typedef struct {
-  unsigned int width;
-  unsigned int height;
-  unsigned int bayer_pattern;
-  unsigned int sensor_real_gain; /* Q10 format */
-  unsigned int sensor_digital_gain;
-  unsigned int exposure_time;
-  unsigned int dac_value;
+  actuator_cam_mode_t cam_mode;
+  af_algo_tune_parms_t *af_tune_ptr;
+} sensor_get_af_algo_ptr_t;
+
+typedef struct {
+  uint32_t  width;
+  uint32_t  height;
+  uint32_t  bayer_pattern;
+  float     sensor_real_gain;
+  float     sensor_digital_gain;
+  uint32_t  exposure_time;
+  uint32_t  dac_value;
+  float     total_gain;
 } sensor_per_frame_metadata_t;
 
 typedef enum {
@@ -478,6 +519,7 @@ typedef struct {
   int32_t                        state;
   int32_t                        regular_led_trigger;
   int32_t                        regular_led_af;
+  uint32_t                       stream_thread_wait_time;
   /* store chromatix pointers to post to bus */
   mct_bus_msg_sensor_metadata_t    chromatix_metadata;
   /* store trigger update to post to bus */
@@ -486,12 +528,14 @@ typedef struct {
   /* Store sensor_params to post to bus */
   cam_sensor_params_t            sensor_params;
   int32_t                        torch_on;
+  int32_t                        longshot;
   cam_fps_range_t                fps_info;
   /* LED off Exposure settings */
   float                          led_off_gain;
   uint32_t                       led_off_linecount;
   /* Sensor Bracketing Feature Specific */
-  sensor_bracket_params_t        af_bracket_params;
+  sensor_af_bracket_t            af_bracket_params;
+  sensor_af_bracket_t            mtf_bracket_params;
   sensor_frame_ctrl_params_t     frame_ctrl;
   sensor_bracket_params_t        flash_bracket_params;
   /* Frame Control Information*/

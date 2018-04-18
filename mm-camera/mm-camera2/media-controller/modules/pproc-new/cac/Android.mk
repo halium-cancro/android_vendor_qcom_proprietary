@@ -8,6 +8,7 @@ LOCAL_MODULE_TAGS := optional
 
 PPROC_MODULE_PATH := $(LOCAL_PATH)/../../pproc
 MM_CAMERA_PATH := $(LOCAL_PATH)/../../../../../mm-camera2
+HAL_PATH := $(LOCAL_PATH)/../../../../../../../../../hardware/qcom/camera
 
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)
@@ -32,6 +33,7 @@ LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
 LOCAL_SRC_FILES := cac_module.c
 
 LOCAL_MODULE           := libmmcamera2_cac_module
+LOCAL_32_BIT_ONLY := true
 LOCAL_SHARED_LIBRARIES := libcutils liboemcamera
 #include $(LOCAL_PATH)/../../../../local_additional_dependency.mk
 
@@ -40,7 +42,8 @@ LOCAL_SHARED_LIBRARIES += liblog
 endif
 LOCAL_MODULE_TAGS      := optional eng
 LOCAL_ADDITIONAL_DEPENDENCIES  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

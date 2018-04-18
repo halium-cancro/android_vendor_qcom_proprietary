@@ -83,11 +83,7 @@ boolean module_cac_query_mod(mct_module_t *module, void *buf,
     return FALSE;
   }
   p_cap = &p_mct_cap->pp_cap;
-  p_cap->height_padding = CAM_PAD_NONE;
-  p_cap->plane_padding = CAM_PAD_NONE;
-  p_cap->width_padding = CAM_PAD_NONE;
   p_cap->min_num_pp_bufs += MODULE_CAC_MIN_NUM_PP_BUFS;
-  p_cap->min_required_pp_mask |= 0;
   p_cap->feature_mask |= CAM_QCOM_FEATURE_CAC;
 
  return TRUE;

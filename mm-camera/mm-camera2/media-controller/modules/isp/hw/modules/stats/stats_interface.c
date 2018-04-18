@@ -14,8 +14,9 @@
 extern isp_ops_t *stats40_open(uint32_t version);
 extern isp_ops_t *stats32_open(uint32_t version);
 
-isp_ops_t *ISP_MOD_STATS_open(uint32_t version)
+isp_ops_t *ISP_MOD_STATS_open(uint32_t isp_version)
 {
+  uint32_t version = GET_ISP_MAIN_VERSION(isp_version);
   switch(version) {
 #ifdef VFE_40
   case ISP_VERSION_40:
@@ -23,7 +24,7 @@ isp_ops_t *ISP_MOD_STATS_open(uint32_t version)
 #endif /* VFE_40 */
 #ifdef VFE_32
   case ISP_VERSION_32:
-  return stats32_open(version);
+  return stats32_open(isp_version);
 #endif /* VFE_32 */
   default:
   return NULL;

@@ -73,12 +73,12 @@ typedef struct {
   faceproc_history_entry_t entry[FACEPROC_STAB_HISTORY];
 } faceproc_history_holder_t;
 
-
 /** faceproc_faces_history_t
  *   @id: FAce unique ID
  *   @face_size: Face size history holder
  *   @face_position: Face position history holder
  *   @mouth_position: Mouth position history holder
+ *   @smile_degree: Smile degree history holder
  *
  *   Structure which holds face detection stabilization history parameters
  **/
@@ -87,6 +87,7 @@ typedef struct {
     faceproc_history_holder_t face_size;
     faceproc_history_holder_t face_position;
     faceproc_history_holder_t mouth_position;
+    faceproc_history_holder_t smile_degree;
 } faceproc_faces_history_t;
 
 /** faceproc_stabilization_t

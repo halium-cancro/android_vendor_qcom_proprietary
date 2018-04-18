@@ -14,6 +14,8 @@
 #include "colorxform40_reg.h"
 #include "chromatix.h"
 
+#define ISP_COLOR_XFORM_SVALUE_THRESHOLD 1.25
+
 typedef enum isp_color_xform_path{
   ISP_COLOR_XFORM_ENC,
   ISP_COLOR_XFORM_VIEWFINDER,

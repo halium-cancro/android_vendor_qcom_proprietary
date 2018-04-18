@@ -1,6 +1,6 @@
 /* mct_stream.c
  *
- * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 #include "mct_controller.h"
@@ -9,25 +9,47 @@
 #include "mct_module.h"
 #include "camera_dbg.h"
 #include "cam_intf.h"
+#include "server_debug.h"
 
 #include <media/msmb_generic_buf_mgr.h>
 
 #if 0
 #undef CDBG
-#define CDBG ALOGE
+#define CDBG CDBG_ERROR
 #endif
+
+/* forward declare tuning APIs */
+extern void mct_notify_metadata_frame(void *param);
+extern void mct_notify_snapshot_triggered(void);
 
 /** g_imglib_feature_mask:
  *
  *  Composite feature mask of the features supported by imglib
+ *  Incase of SW WNR, HDR will be part of pproc instead of imglib
+ *    CAM_QCOM_FEATURE_REFOCUS |
  **/
+#ifndef CAMERA_FEATURE_WNR_SW
 static uint32_t g_imglib_feature_mask =
   CAM_QCOM_FEATURE_REGISTER_FACE |
   CAM_QCOM_FEATURE_FACE_DETECTION |
   CAM_QCOM_FEATURE_HDR |
   CAM_QCOM_FEATURE_CHROMA_FLASH |
   CAM_QCOM_FEATURE_UBIFOCUS |
-  CAM_QCOM_FEATURE_OPTIZOOM;
+  CAM_QCOM_FEATURE_OPTIZOOM |
+  CAM_QCOM_FEATURE_TRUEPORTRAIT |
+  CAM_QCOM_FEATURE_FSSR |
+  CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS;
+#else
+ static uint32_t g_imglib_feature_mask =
+  CAM_QCOM_FEATURE_REGISTER_FACE |
+  CAM_QCOM_FEATURE_FACE_DETECTION |
+  CAM_QCOM_FEATURE_CHROMA_FLASH |
+  CAM_QCOM_FEATURE_UBIFOCUS |
+  CAM_QCOM_FEATURE_OPTIZOOM |
+  CAM_QCOM_FEATURE_TRUEPORTRAIT |
+  CAM_QCOM_FEATURE_FSSR |
+  CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS;
+#endif
 
 /** mct_stream_check_module:
  *    @
@@ -194,7 +216,7 @@ static boolean mct_pproc_sink_port_caps_reserve(void *data1, void *data2)
 
 static boolean mct_stream_start_link(mct_stream_t *stream)
 {
-  int sessionid;
+  uint32_t sessionid;
   cam_stream_info_t    *stream_info;
   boolean              ret = FALSE;
   mct_stream_map_buf_t *info    = MCT_STREAM_STREAMINFO(stream);
@@ -247,7 +269,7 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
     pproc  = mct_stream_get_module(modules, "pproc");
 
     if (!sensor || !iface || !isp || !stats || !pproc) {
-      ALOGE("%s:%d] Null: %p %p %p %p %p", __func__, __LINE__,
+      CDBG_ERROR("%s:%d] Null: %p %p %p %p %p", __func__, __LINE__,
         sensor, iface, isp, stats, pproc);
       return FALSE;
     }
@@ -292,7 +314,7 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
     imglib = mct_stream_get_module(modules, "imglib");
 
     if (!sensor || !iface || !isp || !stats || !pproc || !imglib) {
-      ALOGE("%s:%d] Null: %p %p %p %p %p %p", __func__, __LINE__,
+      CDBG_ERROR("%s:%d] Null: %p %p %p %p %p %p", __func__, __LINE__,
         sensor, iface, isp, stats, pproc, imglib);
       return FALSE;
     }
@@ -310,7 +332,7 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
       stream->streaminfo.identity);
 
     ret = mct_stream_link_modules(stream, sensor, iface, isp, pproc, imglib,
-      NULL);
+    NULL);
     if (ret == FALSE) {
       CDBG_ERROR("%s:%d] link failed", __func__, __LINE__);
       return FALSE;
@@ -345,31 +367,30 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
       /* this means this stream(list->data) has the same bundle_id
        * and it is ZSL snapshot stream, which doesn't need to link
        * pproc module */
-      ALOGE("%s: ZSL snapshot", __func__);
+      CDBG_HIGH("%s: ZSL snapshot", __func__);
       sensor = mct_stream_get_module(modules, "sensor");
       iface  = mct_stream_get_module(modules, "iface");
       isp    = mct_stream_get_module(modules, "isp");
       stats  = mct_stream_get_module(modules, "stats");
-      pproc  = NULL;
       if (!sensor || !iface || !isp || !stats) {
-        ALOGE("%s:%d] Null: %p %p %p %p", __func__, __LINE__,
+        CDBG_ERROR("%s:%d] Null: %p %p %p %p", __func__, __LINE__,
         sensor, iface, isp, stats);
         return FALSE;
       }
     } else {
       /* regular snapshot stream which needs to link pproc module */
 
-      ALOGE("%s: Regular snapshot", __func__);
+      CDBG_HIGH("%s: Regular snapshot", __func__);
       sensor = mct_stream_get_module(modules, "sensor");
       iface  = mct_stream_get_module(modules, "iface");
       isp    = mct_stream_get_module(modules, "isp");
       stats  = mct_stream_get_module(modules, "stats");
-      pproc  = mct_stream_get_module(modules, "pproc");
-      if (!sensor || !iface || !isp || !stats || !pproc) {
-        ALOGE("%s:%d] Null: %p %p %p %p %p", __func__, __LINE__,
-          sensor, iface, isp, stats, pproc);
+      if (!sensor || !iface || !isp || !stats) {
+        CDBG_ERROR("%s:%d] Null: %p %p %p %p", __func__, __LINE__,
+          sensor, iface, isp, stats);
           return FALSE;
       }
+      mct_notify_snapshot_triggered();
     }
     sensor->set_mod(sensor, MCT_MODULE_FLAG_SOURCE,
       stream->streaminfo.identity);
@@ -380,8 +401,13 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
     stats->set_mod(stats, MCT_MODULE_FLAG_SINK,
       stream->streaminfo.identity);
 
+    pproc  = NULL;
+    /* If the sensor outputs YUV422i use C2D to convert it to NV21 */
+    if((pipeline->query_data.sensor_cap.sensor_format == FORMAT_YCBCR) &&
+       !pipeline->query_data.isp_cap.use_pix_for_SOC){
+      pproc  = mct_stream_get_module(modules, "pproc");
+    }
     if (pproc) {
-      /* this is Regular snapshot */
       pproc->set_mod(pproc, MCT_MODULE_FLAG_SINK, stream->streaminfo.identity);
       ret = mct_stream_link_modules(stream, sensor, iface, isp, pproc, NULL);
       if (ret == FALSE)
@@ -394,7 +420,6 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
       }
     }
     } else {
-      /* this is ZSL snapshot */
       if(pipeline->query_data.sensor_cap.sensor_format != FORMAT_YCBCR)
         ret = mct_stream_link_modules(stream, sensor, iface, isp, stats, NULL);
       else
@@ -411,7 +436,7 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
     pproc  = mct_stream_get_module(modules, "pproc");
 
     if (!sensor || !iface || !isp || !stats || !pproc ) {
-      ALOGE("%s:%d] Null: %p %p %p %p %p", __func__, __LINE__,
+      CDBG_ERROR("%s:%d] Null: %p %p %p %p %p", __func__, __LINE__,
         sensor, iface, isp, stats, pproc);
       return FALSE;
     }
@@ -458,7 +483,7 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
     stats    = mct_stream_get_module(modules, "stats");
 
     if (!sensor || !iface || !isp || !stats) {
-      ALOGE("%s:Null: %p %p %p %p", __func__, sensor, iface, isp, stats);
+      CDBG_ERROR("%s:Null: %p %p %p %p", __func__, sensor, iface, isp, stats);
       return FALSE;
     }
 
@@ -489,7 +514,8 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
   case CAM_STREAM_TYPE_OFFLINE_PROC: {
     mct_module_t *single_module = NULL;
 
-    CDBG_HIGH("%s: Starting offline stream linking \n", __func__);
+    CDBG_HIGH("%s: Starting offline stream linking, 0x%x", __func__,
+      stream->streaminfo.reprocess_config.pp_feature_config.feature_mask);
 
     /*Check if imglib module is needed*/
     if (stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
@@ -497,9 +523,10 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
       imglib = mct_stream_get_module(modules, "imglib");
 
       if (!imglib) {
-        ALOGE("%s:Null: imglib Module", __func__);
+        CDBG_ERROR("%s:Null: imglib Module", __func__);
         return FALSE;
       }
+      CDBG_HIGH("Imglib obtained in offline stream");
     }
 
     if (stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
@@ -509,15 +536,19 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
       || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
         & CAM_QCOM_FEATURE_EFFECT
       || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
-        & CAM_QCOM_FEATURE_CPP
+        & CAM_QCOM_FEATURE_ROTATION
       || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
         & CAM_QCOM_FEATURE_CROP
+#ifdef CAMERA_FEATURE_WNR_SW
+      || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
+        & CAM_QCOM_FEATURE_HDR
+#endif
       || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
         & CAM_QCOM_FEATURE_SCALE) {
       pproc = mct_stream_get_module(modules, "pproc");
 
       if (!pproc) {
-        ALOGE("%s:Null: postproc Module", __func__);
+        CDBG_ERROR("%s:Null: postproc Module", __func__);
         return FALSE;
       }
     }
@@ -641,7 +672,7 @@ static boolean mct_stream_find_metadata_buf(void *data, void *user_data)
   boolean check_index;
 
   check_index = (((mct_stream_map_buf_t *)data)->buf_index ==
-      *((int *)user_data));
+      *((uint32_t *)user_data));
 
   return ((check_index) ? TRUE : FALSE);
 }
@@ -712,14 +743,19 @@ static boolean mct_stream_metabuf_find_bfr_mngr_subdev(int *buf_mgr_fd)
     int32_t num_entities = 1;
     snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
     dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
+    if (dev_fd >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      dev_fd = -1;
+      break;
+    }
     if (dev_fd < 0) {
-      ALOGE("%s:%d Done enumerating media devices\n", __func__, __LINE__);
+      CDBG_ERROR("%s:%d Done enumerating media devices\n", __func__, __LINE__);
       break;
     }
     num_media_devices++;
     ioctl_ret = ioctl(dev_fd, MEDIA_IOC_DEVICE_INFO, &mdev_info);
     if (ioctl_ret < 0) {
-      ALOGE("%s:%d Done enumerating media devices\n", __func__, __LINE__);
+      CDBG_ERROR("%s:%d Done enumerating media devices\n", __func__, __LINE__);
       close(dev_fd);
       break;
     }
@@ -734,7 +770,7 @@ static boolean mct_stream_metabuf_find_bfr_mngr_subdev(int *buf_mgr_fd)
       CDBG("%s:%d entity id %d", __func__, __LINE__, entity.id);
       ioctl_ret = ioctl(dev_fd, MEDIA_IOC_ENUM_ENTITIES, &entity);
       if (ioctl_ret < 0) {
-        ALOGE("%s:%d Done enumerating media entities\n", __func__, __LINE__);
+        CDBG_ERROR("%s:%d Done enumerating media entities\n", __func__, __LINE__);
         ret = FALSE;
         close(dev_fd);
         break;
@@ -752,8 +788,13 @@ static boolean mct_stream_metabuf_find_bfr_mngr_subdev(int *buf_mgr_fd)
 
         *buf_mgr_fd = open(subdev_name, O_RDWR);
         CDBG("%s: *buf_mgr_fd=%d\n", __func__, *buf_mgr_fd);
+      if ((*buf_mgr_fd) >= MAX_FD_PER_PROCESS) {
+        dump_list_of_daemon_fd();
+        *buf_mgr_fd = -1;
+        continue;
+    }
         if (*buf_mgr_fd < 0) {
-          ALOGE("%s: Open subdev failed\n", __func__);
+          CDBG_ERROR("%s: Open subdev failed\n", __func__);
           continue;
         }
         ret = TRUE;
@@ -780,7 +821,7 @@ static void add_metadata_entry(int meta_type, uint32_t meta_length,
   int current, next;
 
   if (position >= CAM_INTF_PARM_MAX) {
-    ALOGE("%s: position %d out of bound [0, %d]",
+    CDBG_ERROR("%s: position %d out of bound [0, %d]",
       __func__, position, CAM_INTF_PARM_MAX-1);
     return;
   }
@@ -805,7 +846,7 @@ static void add_metadata_entry(int meta_type, uint32_t meta_length,
   }
 
   if (meta_length > sizeof(metadata_type_t)) {
-    ALOGE("%s:Size of input larger than max entry size",__func__);
+    CDBG_ERROR("%s:Size of input larger than max entry size",__func__);
   }
   memcpy(POINTER_OF(meta_type, m_table), meta_value, meta_length);
 
@@ -832,14 +873,14 @@ static boolean mct_stream_send_event_stream_on(void *data, void *user_data)
 
   event_data.type = MCT_EVENT_CONTROL_STREAMON;
   event_data.control_event_data = (void *)&stream->streaminfo;
-  ALOGE("%s: stream_type = %d stream state = %d\n",
+  CDBG_HIGH("%s: stream_type = %d stream state = %d\n",
             __func__, stream->streaminfo.stream_type, stream->state);
 
   if (MCT_ST_STATE_PENDING_RESTART == stream->state) {
     event_data.type = MCT_EVENT_CONTROL_STREAMON;
     event_data.control_event_data = (void *)&stream->streaminfo;
 
-    ALOGE("SSS %s buff list %p\n", __func__, stream->streaminfo.img_buffer_list);
+    CDBG("SSS %s buff list %p\n", __func__, stream->streaminfo.img_buffer_list);
 
     cmd_event = mct_pipeline_pack_event(MCT_EVENT_CONTROL_CMD,
       (pack_identity(MCT_PIPELINE_SESSION(
@@ -849,7 +890,7 @@ static boolean mct_stream_send_event_stream_on(void *data, void *user_data)
     ret = stream->send_event(stream, &cmd_event);
     stream->state = MCT_ST_STATE_RUNNING;
   } else {
-    ALOGE("%s: Skip\n", __func__);
+    CDBG_ERROR("%s: Skip\n", __func__);
   }
 
   return ret;
@@ -875,7 +916,7 @@ static boolean mct_stream_send_event_stream_off(void *data, void *user_data)
 
   event_data.type = MCT_EVENT_CONTROL_STREAMOFF;
   event_data.control_event_data = (void *)&stream->streaminfo;
-  ALOGE("%s: stream_type = %d stream state = %d\n",
+  CDBG_HIGH("%s: stream_type = %d stream state = %d\n",
           __func__, stream->streaminfo.stream_type, stream->state);
 
   if (MCT_ST_STATE_RUNNING == stream->state) {
@@ -887,12 +928,12 @@ static boolean mct_stream_send_event_stream_off(void *data, void *user_data)
         MCT_PIPELINE_CAST(MCT_OBJECT_PARENT(stream)->data)), stream->streamid)),
         MCT_EVENT_DOWNSTREAM, &event_data);
 
-    ALOGE("%s: stream_type = %d\n", __func__, stream->streaminfo.stream_type);
+    CDBG_HIGH("%s: stream_type = %d\n", __func__, stream->streaminfo.stream_type);
 
     ret = stream->send_event(stream, &cmd_event);
     stream->state = MCT_ST_STATE_PENDING_RESTART;
   } else {
-    ALOGE("%s: Skip\n", __func__);
+    CDBG_ERROR("%s: Skip\n", __func__);
   }
 
   return ret;
@@ -992,14 +1033,21 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
 
   switch (type) {
   case MCT_BUS_MSG_Q3A_AF_STATUS:
-  case MCT_BUS_MSG_SENSOR_AF_STATUS:
-   {
+  case MCT_BUS_MSG_SENSOR_AF_STATUS: {
     mct_bus_msg_af_status_t *af_msg = (mct_bus_msg_af_status_t *)psrc;
 
     pdst->focus_data.focus_dist = af_msg->f_distance;
     pdst->focus_data.focus_state = af_msg->focus_state;
     pdst->focus_data.focus_pos = af_msg->focus_pos;
     pdst->is_focus_valid = TRUE;
+    }
+    break;
+
+  case MCT_BUS_MSG_UPDATE_AF_FOCUS_POS:{
+    cam_focus_pos_info_t *af_msg = (cam_focus_pos_info_t *)psrc;
+    //pdst->cur_pos_info.diopter = af_msg->diopter;
+    //pdst->cur_pos_info.scale = af_msg->scale;
+    //pdst->is_focus_pos_info_valid = TRUE;
     }
     break;
 
@@ -1046,13 +1094,13 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
     pdst->crop_data.crop_info[pdst->crop_data.num_of_streams]
       .stream_id = crop_msg->stream_id;
     pdst->crop_data.crop_info[pdst->crop_data.num_of_streams]
-      .crop.left = crop_msg->x;
+      .crop.left = (int32_t)crop_msg->x;
     pdst->crop_data.crop_info[pdst->crop_data.num_of_streams]
-      .crop.top = crop_msg->y;
+      .crop.top =  (int32_t)crop_msg->y;
     pdst->crop_data.crop_info[pdst->crop_data.num_of_streams]
-      .crop.width = crop_msg->crop_out_x;
+      .crop.width = (int32_t)crop_msg->crop_out_x;
     pdst->crop_data.crop_info[pdst->crop_data.num_of_streams]
-      .crop.height = crop_msg->crop_out_y;
+      .crop.height = (int32_t)crop_msg->crop_out_y;
     pdst->crop_data.num_of_streams++;
     }
     break;
@@ -1084,8 +1132,6 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
 
   case MCT_BUS_MSG_META_VALID: {
     mct_bus_msg_meta_valid *ptr = psrc;
-    pdst->is_meta_valid = 1;
-    pdst->meta_valid_params.meta_frame_id = ptr->frame_id;
     }
     break;
   case MCT_BUS_MSG_AE_INFO:
@@ -1096,16 +1142,44 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
     pdst->is_awb_params_valid = TRUE;
     memcpy(&pdst->awb_params, psrc, sizeof(cam_awb_params_t));
     break;
+  case MCT_BUS_MSG_AE_EXIF_DEBUG_INFO:
+    pdst->is_ae_exif_debug_valid = TRUE;
+    memcpy(&pdst->ae_exif_debug_params, psrc, sizeof(cam_ae_exif_debug_t));
+    break;
+  case MCT_BUS_MSG_AWB_EXIF_DEBUG_INFO:
+    pdst->is_awb_exif_debug_valid = TRUE;
+    memcpy(&pdst->awb_exif_debug_params, psrc, sizeof(cam_awb_exif_debug_t));
+    break;
+  case MCT_BUS_MSG_AF_EXIF_DEBUG_INFO:
+    pdst->is_af_exif_debug_valid = TRUE;
+    memcpy(&pdst->af_exif_debug_params, psrc, sizeof(cam_af_exif_debug_t));
+    break;
+  case MCT_BUS_MSG_ASD_EXIF_DEBUG_INFO:
+    pdst->is_asd_exif_debug_valid = TRUE;
+    memcpy(&pdst->asd_exif_debug_params, psrc, sizeof(cam_asd_exif_debug_t));
+    break;
+  case MCT_BUS_MSG_STATS_EXIF_DEBUG_INFO:
+    pdst->is_stats_buffer_exif_debug_valid = TRUE;
+    memcpy(&pdst->stats_buffer_exif_debug_params, psrc,
+      sizeof(cam_stats_buffer_exif_debug_t));
+    break;
   case MCT_BUS_MSG_SENSOR_INFO:
     pdst->is_sensor_params_valid = TRUE;
     memcpy(&pdst->sensor_params,  psrc,  sizeof(cam_sensor_params_t));
     break;
-
   case MCT_BUS_MSG_AUTO_SCENE_DECISION: {
     mct_bus_msg_asd_decision_t * asd_msg = (mct_bus_msg_asd_decision_t *)psrc;
     pdst->is_asd_decision_valid = TRUE;
     pdst->scene = asd_msg->scene;
     }
+    break;
+  case MCT_BUS_MSG_FRAME_INVALID:
+    pdst->is_preview_frame_skip_valid = 1;
+    memcpy(&pdst->preview_frame_skip_idx_range, psrc,
+      sizeof(cam_frame_idx_range_t));
+    CDBG("mct_stream: %d %d",
+      pdst->preview_frame_skip_idx_range.min_frame_idx,
+      pdst->preview_frame_skip_idx_range.max_frame_idx);
     break;
   case MCT_BUS_MSG_AE_EZTUNING_INFO:
     pdst->is_chromatix_lite_ae_stats_valid = TRUE;
@@ -1122,6 +1196,12 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
     memcpy(&pdst->chromatix_lite_af_stats_data, psrc, size);
     break;
 
+
+  case MCT_BUS_MSG_AF_MOBICAT_INFO:
+    pdst->is_chromatix_mobicat_af_valid= TRUE;
+    memcpy(&pdst->chromatix_mobicat_af_data, psrc, size);
+    break;
+
   case MCT_BUS_MSG_ISP_CHROMATIX_LITE:
     pdst->is_chromatix_lite_isp_valid = TRUE;
     memcpy(&pdst->chromatix_lite_isp_data, psrc, size);
@@ -1135,6 +1215,7 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
   case MCT_BUS_MSG_ISP_META: {
      isp_meta_t *isp_meta = (isp_meta_t *)psrc;
      int i;
+     pdst->tuning_params.tuning_vfe_data_size = 0;
      memcpy(&pdst->tuning_params.data[TUNING_VFE_DATA_OFFSET +
        pdst->tuning_params.tuning_vfe_data_size],
        isp_meta,
@@ -1175,7 +1256,15 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
   case MCT_BUS_MSG_SET_AF_ROI:
       /* Handle this messages for compatibility with HAL3. */
       break;
-
+  case MCT_BUS_MSG_PP_SET_META: {
+    mct_bus_msg_meta_valid *meta_valid = (mct_bus_msg_meta_valid *)psrc;
+    pdst->is_meta_valid = 1;
+    pdst->meta_valid_params.meta_frame_id = meta_valid->frame_id;
+    break;
+  }
+  case MCT_BUS_MSG_WM_BUS_OVERFLOW_RECOVERY:
+    //pdst->is_frame_id_reset = 1;
+    break;
   default:
      CDBG_ERROR("%s:%d Unsupported message type msg_type %d\n",
        __func__, __LINE__,type);
@@ -1262,10 +1351,10 @@ static void mct_stream_fill_metadata_v3(metadata_buffer_t *pdst,
       current = GET_NEXT_PARAM_ID(current, pdst);
     }
     crop_data.crop_info[num_of_streams].stream_id = crop_msg->stream_id;
-    crop_data.crop_info[num_of_streams].crop.left = crop_msg->x;
-    crop_data.crop_info[num_of_streams].crop.top = crop_msg->y;
-    crop_data.crop_info[num_of_streams].crop.width = crop_msg->crop_out_x;
-    crop_data.crop_info[num_of_streams].crop.height = crop_msg->crop_out_y;
+    crop_data.crop_info[num_of_streams].crop.left = (int32_t)crop_msg->x;
+    crop_data.crop_info[num_of_streams].crop.top = (int32_t)crop_msg->y;
+    crop_data.crop_info[num_of_streams].crop.width = (int32_t)crop_msg->crop_out_x;
+    crop_data.crop_info[num_of_streams].crop.height = (int32_t)crop_msg->crop_out_y;
     num_of_streams++;
     crop_data.num_of_streams = num_of_streams;
     add_metadata_entry(CAM_INTF_META_CROP_DATA,
@@ -1405,18 +1494,9 @@ boolean mct_stream_metadata_bus_msg(mct_stream_t *stream,
   mct_pipeline_t *pipeline;
   mct_stream_session_metadata_info *session_meta;
   mct_bus_msg_isp_sof_t *isp_sof_bus_msg = bus_msg->msg;
+  mct_bus_msg_meta_valid *meta_valid_bus_msg = NULL;
 
   pipeline = (MCT_PIPELINE_CAST(MCT_STREAM_PARENT(stream)->data));
-//Gionee <zhaocuiqin> <2014-11-20> modify for CR01395787 begin
-#ifdef ORIGINAL_VERSION
-#else
-  if(!pipeline)
-  {
-    CDBG_ERROR("%s: FATAL! Pipeline doesn't exist!", __func__);
-    return FALSE;
-  }
-#endif
-//Gionee <zhaocuiqin> <2014-11-20> modify for CR01395787 end
   session_meta = &stream->metadata_stream.session_meta;
   hal_version = pipeline->hal_version;
 
@@ -1427,6 +1507,11 @@ boolean mct_stream_metadata_bus_msg(mct_stream_t *stream,
       session_meta->frame_idx = isp_sof_bus_msg->frame_id;
     }
     session_meta->timestamp = isp_sof_bus_msg->timestamp;
+  }
+
+  if (MCT_BUS_MSG_META_VALID == bus_msg->type) {
+    meta_valid_bus_msg = (mct_bus_msg_meta_valid *)bus_msg->msg;
+    session_meta->frame_idx = meta_valid_bus_msg->frame_id;
   }
 
   if (!stream->metadata_stream.get_buf_err) {
@@ -1484,7 +1569,7 @@ boolean mct_stream_metadata_bus_msg(mct_stream_t *stream,
             &(stream->metadata_stream.session_meta),
             sizeof(mct_stream_session_metadata_info));
         else
-          ALOGE("%s: Private metadata not of sufficient size\n", __func__);
+          CDBG("%s: Private metadata not of sufficient size\n", __func__);
         if ((current_buf_v1->tuning_params.tuning_sensor_data_size > 0) &&
             (current_buf_v1->tuning_params.tuning_vfe_data_size > 0)) {
           current_buf_v1->is_tuning_params_valid = 1;
@@ -1514,25 +1599,29 @@ boolean mct_stream_metadata_bus_msg(mct_stream_t *stream,
       ret = ioctl(stream->metadata_stream.buf_mgr_dev_fd,
         VIDIOC_MSM_BUF_MNGR_BUF_DONE, &buf_info);
       if (ret < 0) {
-        ALOGE("%s:Failed to do buf_done", __func__);
+        CDBG_ERROR("%s:Failed to do buf_done", __func__);
         ret = FALSE;
       }
     }
 
-    get_buf.stream_id = stream->streamid;
+    get_buf.stream_id = (uint32_t)stream->streamid;
     get_buf.session_id = MCT_PIPELINE_SESSION(
             MCT_PIPELINE_CAST(MCT_OBJECT_PARENT(stream)->data));
+
+    //notify tuning server of new metadata frame
+    if (!stream->metadata_stream.get_buf_err)
+      mct_notify_metadata_frame(current_buf_v1);
 
     ret = ioctl(stream->metadata_stream.buf_mgr_dev_fd,
       VIDIOC_MSM_BUF_MNGR_GET_BUF, &get_buf);
     if (ret < 0) {
-      ALOGE("%s:Failed to get_buf", __func__);
+      CDBG_ERROR("%s:Failed to get_buf", __func__);
       ret = FALSE;
       stream->metadata_stream.get_buf_err = TRUE;
       stream->metadata_stream.current_buf_idx = -1;
     } else {
       stream->metadata_stream.get_buf_err = FALSE;
-      stream->metadata_stream.current_buf_idx = get_buf.index;
+      stream->metadata_stream.current_buf_idx = (int32_t)get_buf.index;
     }
 
     new_buf_holder = mct_list_find_custom(
@@ -1550,7 +1639,7 @@ boolean mct_stream_metadata_bus_msg(mct_stream_t *stream,
             ->first_flagged_entry = CAM_INTF_PARM_MAX;
       }
     } else {
-      ALOGE("%s:%d: NULL ptr\n", __func__, __LINE__);
+      CDBG_ERROR("%s:%d: NULL ptr\n", __func__, __LINE__);
       ret = FALSE;
     }
   }
@@ -1589,17 +1678,17 @@ boolean mct_stream_metadata_ctrl_event(mct_stream_t *stream,
        ret = mct_stream_metabuf_find_bfr_mngr_subdev(
          &stream->metadata_stream.buf_mgr_dev_fd);
        if (ret == FALSE) {
-         ALOGE("%s:failed to find buffer manager subdev \n", __func__);
+         CDBG_ERROR("%s:failed to find buffer manager subdev \n", __func__);
          break;
        }
-       buf_info.stream_id = stream->streamid;
+       buf_info.stream_id = (uint32_t)stream->streamid;
        buf_info.session_id = MCT_PIPELINE_SESSION(
                 MCT_PIPELINE_CAST(MCT_OBJECT_PARENT(stream)->data));
 
        ioctl_ret = ioctl(stream->metadata_stream.buf_mgr_dev_fd,
          VIDIOC_MSM_BUF_MNGR_GET_BUF, &buf_info);
        if (ioctl_ret < 0) {
-         ALOGE("%s:Failed to get_buf", __func__);
+         CDBG_ERROR("%s:Failed to get_buf", __func__);
          stream->metadata_stream.get_buf_err = TRUE;
          ret = FALSE;
          break;
@@ -1620,7 +1709,7 @@ boolean mct_stream_metadata_ctrl_event(mct_stream_t *stream,
             ->first_flagged_entry = CAM_INTF_PARM_MAX;
          }
        } else {
-         ALOGE("%s:%d: NULL ptr\n", __func__, __LINE__);
+         CDBG_ERROR("%s:%d: NULL ptr\n", __func__, __LINE__);
          ret = FALSE;
          break;
        }
@@ -1629,16 +1718,16 @@ boolean mct_stream_metadata_ctrl_event(mct_stream_t *stream,
 
     case MCT_EVENT_CONTROL_STREAMOFF: {
       if (!stream->metadata_stream.get_buf_err) {
-        buf_info.index = stream->metadata_stream.current_buf_idx;
+        buf_info.index = (uint32_t)stream->metadata_stream.current_buf_idx;
         buf_info.frame_id = 0;
-        buf_info.stream_id = stream->streamid;
+        buf_info.stream_id = (uint32_t)stream->streamid;
         buf_info.session_id = MCT_PIPELINE_SESSION(
           MCT_PIPELINE_CAST(MCT_OBJECT_PARENT(stream)->data));
 
         ret = ioctl(stream->metadata_stream.buf_mgr_dev_fd,
           VIDIOC_MSM_BUF_MNGR_PUT_BUF, &buf_info);
         if (ret < 0) {
-          ALOGE("%s:Failed to do buf_done at stream off - errno: %s!!! "
+          CDBG_ERROR("%s:Failed to do buf_done at stream off - errno: %s!!! "
             "for buffer info - index: %d, stream id: %d, session id: %d",
              __func__, strerror(errno),
               buf_info.index, buf_info.stream_id, buf_info.session_id);
@@ -1665,7 +1754,7 @@ boolean mct_stream_metadata_ctrl_event(mct_stream_t *stream,
 
     default: {
       ret = TRUE;
-      ALOGE("%s:%d: ret=%d Unsupported cmd\n", __func__, __LINE__, ret);
+      CDBG_ERROR("%s:%d: ret=%d Unsupported cmd\n", __func__, __LINE__, ret);
     }
       break;
   } /* ctrl event type switch*/
@@ -1673,7 +1762,7 @@ boolean mct_stream_metadata_ctrl_event(mct_stream_t *stream,
   break;
 
   default: {
-    ALOGE("%s:%d: ret=%d Unsupported cmd\n", __func__, __LINE__, ret);
+    CDBG_ERROR("%s:%d: ret=%d Unsupported cmd\n", __func__, __LINE__, ret);
     break;
   }
   } /* event type switch*/
@@ -1713,7 +1802,6 @@ static boolean mct_stream_send_event(mct_stream_t *stream, mct_event_t *event)
   }
   return ret;
 }
-
 /** Name:
  *
  *  Arguments/Fields:
@@ -1729,7 +1817,7 @@ static mct_stream_map_buf_t *mct_stream_create_buffers(
   cam_stream_info_t *stream_info, mct_list_t *img_list,
   mct_serv_ds_msg_t *msg)
 {
-  int i;
+  uint32_t i;
   mct_stream_map_buf_t *buf_holder;
   mct_list_t *buf_holder_list;
   boolean fd_mapped_flag;
@@ -1737,10 +1825,19 @@ static mct_stream_map_buf_t *mct_stream_create_buffers(
     mct_stream_find_stream_buf);
   cam_stream_buf_plane_info_t buf_planes;
 
-  if (msg->buf_type == CAM_MAPPING_BUF_TYPE_OFFLINE_INPUT_BUF)
+  switch (msg->buf_type) {
+  case CAM_MAPPING_BUF_TYPE_OFFLINE_META_BUF:
+    buf_planes.plane_info.num_planes = 1;
+    buf_planes.plane_info.frame_len = msg->size;
+    buf_planes.plane_info.sp.len = msg->size;
+    break;
+  case CAM_MAPPING_BUF_TYPE_OFFLINE_INPUT_BUF:
     buf_planes = stream_info->reprocess_config.offline.input_buf_planes;
-  else
+    break;
+  default:
     buf_planes = stream_info->buf_planes;
+    break;
+  }
 
   if (!buf_holder_list) {
     buf_holder = malloc(sizeof(mct_stream_map_buf_t));
@@ -1756,12 +1853,17 @@ static mct_stream_map_buf_t *mct_stream_create_buffers(
         (buf_holder->buf_planes[msg->plane_idx].buf != NULL))
       goto finish;
   }
-
+  //Before mmap lets check the fd value
+  if ((msg->fd) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    msg->fd = -1;
+    goto error1;
+  }
   if (buf_holder->num_planes == 1) {
     buf_holder->buf_planes[0].buf = mmap(NULL, msg->size,
       PROT_READ | PROT_WRITE, MAP_SHARED, msg->fd, 0);
     if (buf_holder->buf_planes[0].buf == MAP_FAILED) {
-      ALOGE("%s: Mapping failed with error %s\n", __func__, strerror(errno));
+      CDBG_ERROR("%s: Mapping failed with error %s\n", __func__, strerror(errno));
       goto error1;
     }
     buf_holder->buf_size             = msg->size;
@@ -1774,7 +1876,7 @@ static mct_stream_map_buf_t *mct_stream_create_buffers(
       buf_holder->buf_planes[0].buf = mmap(NULL, msg->size,
         PROT_READ | PROT_WRITE, MAP_SHARED, msg->fd, 0);
       if (buf_holder->buf_planes[0].buf == MAP_FAILED) {
-        ALOGE("%s: Mapping failed with error %s\n", __func__, strerror(errno));
+        CDBG_ERROR("%s: Mapping failed with error %s\n", __func__, strerror(errno));
         goto error1;
       }
 
@@ -1803,7 +1905,7 @@ static mct_stream_map_buf_t *mct_stream_create_buffers(
           buf_planes.plane_info.mp[i].scanline;
       }
       for (i = 0; i < buf_holder->num_planes; i++) {
-        ALOGV("%s: plane idx = %d, offset %d, stride %d, scanline = %d",
+        CDBG("%s: plane idx = %d, offset %d, stride %d, scanline = %d",
               __func__, i, buf_planes.plane_info.mp[i].offset,
               buf_planes.plane_info.mp[i].stride,
               buf_planes.plane_info.mp[i].scanline);
@@ -1854,7 +1956,7 @@ static boolean mct_stream_free_list_data(void *data, void *user_data)
 static boolean mct_stream_destroy_buffers(void *data, void *user_data)
 {
   mct_stream_map_buf_t *mbuf = (mct_stream_map_buf_t *)data;
-  int i,j;
+  uint32_t i,j;
 
   if (!mbuf)
     return FALSE;
@@ -1877,6 +1979,7 @@ static boolean mct_stream_destroy_buffers(void *data, void *user_data)
   }
 
   free(mbuf);
+  mbuf = NULL;
   return TRUE;
 }
 
@@ -1897,7 +2000,7 @@ static boolean mct_stream_map_buf(void *message, mct_stream_t *stream)
   mct_pipeline_t *pipeline;
 
   if (!msg || !stream || msg->operation != CAM_MAPPING_TYPE_FD_MAPPING ||
-      (unsigned int)msg->stream != stream->streamid) {
+      (uint32_t)msg->stream != stream->streamid) {
     ret = FALSE;
     goto finish;
   }
@@ -1906,11 +2009,16 @@ static boolean mct_stream_map_buf(void *message, mct_stream_t *stream)
   switch ((cam_mapping_buf_type)(msg->buf_type)) {
   /* Below message are per Stream */
   case CAM_MAPPING_BUF_TYPE_STREAM_INFO: {
+  if ((msg->fd) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    msg->fd = -1;
+    ret = FALSE;
+  }
     stream->buffers.stream_info = mmap(NULL, msg->size, PROT_READ | PROT_WRITE,
       MAP_SHARED, msg->fd, 0);
 
     if (stream->buffers.stream_info == MAP_FAILED) {
-      ALOGE("%s: Mapping failed with error %s\n", __func__, strerror(errno));
+      CDBG_ERROR("%s: Mapping failed with error %s\n", __func__, strerror(errno));
       ret = FALSE;
       break;
     }
@@ -1921,6 +2029,7 @@ static boolean mct_stream_map_buf(void *message, mct_stream_t *stream)
   }
     break;
 
+  case CAM_MAPPING_BUF_TYPE_OFFLINE_META_BUF:
   case CAM_MAPPING_BUF_TYPE_OFFLINE_INPUT_BUF:
   case CAM_MAPPING_BUF_TYPE_STREAM_BUF: {
     buf_holder = mct_stream_create_buffers(stream->buffers.stream_info,
@@ -1984,7 +2093,7 @@ boolean mct_stream_unmap_buf(void *message, mct_stream_t *stream)
   mct_list_t *buf_list;
 
   if (!msg || !stream || msg->operation != CAM_MAPPING_TYPE_FD_UNMAPPING ||
-      (unsigned int)msg->stream != stream->streamid) {
+      (uint32_t)msg->stream != stream->streamid) {
     ret = FALSE;
     goto finish;
   }
@@ -2004,6 +2113,7 @@ boolean mct_stream_unmap_buf(void *message, mct_stream_t *stream)
   }
     break;
 
+  case CAM_MAPPING_BUF_TYPE_OFFLINE_META_BUF:
   case CAM_MAPPING_BUF_TYPE_OFFLINE_INPUT_BUF:
   case CAM_MAPPING_BUF_TYPE_STREAM_BUF: {
     buf_holder_list = mct_list_find_custom(stream->buffers.img_buf,
@@ -2041,7 +2151,7 @@ finish:
  *  Description:
  *
  **/
-mct_stream_t* mct_stream_new(unsigned int stream_id)
+mct_stream_t* mct_stream_new(uint32_t stream_id)
 {
   mct_stream_t *stream;
 
@@ -2099,7 +2209,7 @@ boolean mct_stream_remvove_stream_from_module(void *data,
 
 static boolean mct_stream_streamoff(void *data, void *user_data)
 {
-  ALOGE("%s: Enter\n", __func__);
+  CDBG_HIGH("%s: Enter\n", __func__);
   mct_stream_t *stream   = (mct_stream_t *)data;
   mct_pipeline_t *pipeline = (mct_pipeline_t *)user_data;
   mct_event_t cmd_event;
@@ -2107,7 +2217,7 @@ static boolean mct_stream_streamoff(void *data, void *user_data)
   if (stream->state == MCT_ST_STATE_RUNNING) {
     event_data.type = MCT_EVENT_CONTROL_STREAMOFF;
     event_data.control_event_data = (void *)&stream->streaminfo;
-    ALOGE("%s: STREAMING OFFstream_type = %d\n", __func__, stream->streaminfo.stream_type);
+    CDBG_HIGH("%s: STREAMING OFFstream_type = %d\n", __func__, stream->streaminfo.stream_type);
     cmd_event = mct_pipeline_pack_event(MCT_EVENT_CONTROL_CMD,
     (pack_identity(MCT_PIPELINE_SESSION(pipeline), stream->streamid)),
     MCT_EVENT_DOWNSTREAM, &event_data);
@@ -2116,6 +2226,38 @@ static boolean mct_stream_streamoff(void *data, void *user_data)
   }
   return TRUE;
 }
+
+static boolean mct_del_offline_stream(void *data, void *user_data)
+{
+  CDBG_HIGH("%s: Enter\n", __func__);
+  mct_stream_t *stream   = (mct_stream_t *)data;
+  mct_pipeline_t *pipeline = (mct_pipeline_t *)user_data;
+  mct_event_t cmd_event;
+  mct_event_control_t event_data;
+
+  event_data.type = MCT_EVENT_CONTROL_DEL_OFFLINE_STREAM;
+  event_data.control_event_data = (void *)&stream->streaminfo;
+  cmd_event = mct_pipeline_pack_event(MCT_EVENT_CONTROL_CMD,
+    (pack_identity(MCT_PIPELINE_SESSION(pipeline), stream->streamid)),
+    MCT_EVENT_DOWNSTREAM, &event_data);
+    stream->send_event(stream, &cmd_event);
+  stream->state = MCT_ST_STATE_NONE;
+  return TRUE;
+}
+
+/** mct_stream_streamoff_no_offline:
+ *    @
+ *
+ **/
+static boolean mct_stream_streamoff_no_offline(void *data, void *user_data)
+{
+  mct_stream_t *stream   = (mct_stream_t *)data;
+  if (stream->streaminfo.stream_type != CAM_STREAM_TYPE_OFFLINE_PROC) {
+    return mct_stream_streamoff(data, user_data);
+  }
+  return TRUE;
+}
+
 /** mct_stream_destroy:
  *    @
  *
@@ -2131,16 +2273,20 @@ void mct_stream_destroy(mct_stream_t *stream)
     CDBG_ERROR("%s:%d] stream is NULL, return.", __func__, __LINE__);
     return;
   }
+  if (!MCT_STREAM_PARENT(stream)) {
+    CDBG_ERROR("%s:%d] stream parent is NULL, return.", __func__, __LINE__);
+    return;
+  }
   pipeline = MCT_PIPELINE_CAST((MCT_STREAM_PARENT(stream))->data);
 
   if (MCT_OBJECT_CHILDREN(stream)) {
     if (stream->streaminfo.stream_type != CAM_STREAM_TYPE_OFFLINE_PROC) {
-      /*make sure all streams are streamed off. In indeal case this should
-        already be true*/
-      mct_list_traverse(MCT_PIPELINE_CHILDREN(pipeline), mct_stream_streamoff,
+      mct_list_traverse(MCT_PIPELINE_CHILDREN(pipeline),
+        mct_stream_streamoff_no_offline,
         pipeline);
     } else if (stream->streaminfo.stream_type == CAM_STREAM_TYPE_OFFLINE_PROC) {
       mct_stream_streamoff(stream, pipeline);
+      mct_del_offline_stream(stream, pipeline);
     }
     if (MCT_OBJECT_NUM_CHILDREN(stream) > 1) {
       mct_list_operate_nodes(MCT_OBJECT_CHILDREN(stream),
@@ -2157,6 +2303,8 @@ void mct_stream_destroy(mct_stream_t *stream)
       mct_stream_remvove_stream_from_module, stream);
     MCT_OBJECT_CHILDREN(stream) = NULL;
     MCT_STREAM_NUM_CHILDREN(stream) = 0;
+  } else if (stream->streaminfo.stream_type == CAM_STREAM_TYPE_METADATA) {
+    mct_stream_streamoff(stream, pipeline);
   }
   mct_pipeline_remove_stream_from_linked_streams(pipeline, stream);
 

@@ -11,7 +11,6 @@
 #include <dlfcn.h>
 #include "mct_event_stats.h"
 #include "sensor_common.h"
-#include "af_tuning.h"
 #include "actuator.h"
 
 /** af_actuator_set_default_focus: function to move lens to
@@ -23,12 +22,13 @@
  *
  *  This function moves lens to infinity position **/
 
-static int af_actuator_set_default_focus(void *ptr)
+static int32_t af_actuator_set_default_focus(void *ptr)
 {
-  int rc = 0;
+  int32_t rc = 0;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
   struct msm_actuator_cfg_data cfg;
-  af_tune_parms_t *af_tune_ptr = &(af_actuator_ptr->ctrl->af_tune);
+  actuator_driver_params_t *af_driver_ptr =
+    af_actuator_ptr->ctrl->driver_ctrl;
   uint16_t curr_scene = 0;
   uint16_t scenario_size = 0;
   uint16_t index = 0;
@@ -43,18 +43,22 @@ static int af_actuator_set_default_focus(void *ptr)
   cfg.cfg.move.dest_step_pos = 0;
   curr_scene = 0;
   /* Determine scenario */
-  scenario_size = af_tune_ptr->actuator_tuned_params.
+  scenario_size = af_driver_ptr->actuator_tuned_params.
     scenario_size[MOVE_FAR];
+
+  if (scenario_size > MAX_ACTUATOR_SCENARIO)
+    scenario_size = MAX_ACTUATOR_SCENARIO;
+
   for (index = 0; index < scenario_size; index++) {
     if (af_actuator_ptr->curr_step_pos <=
-      af_tune_ptr->actuator_tuned_params.
+      af_driver_ptr->actuator_tuned_params.
       ringing_scenario[MOVE_FAR][index]) {
       curr_scene = index;
       break;
     }
   }
   cfg.cfg.move.ringing_params =
-    &(af_tune_ptr->actuator_tuned_params.
+    &(af_driver_ptr->actuator_tuned_params.
     damping[MOVE_FAR][curr_scene].ringing_params[0]);
 
   SLOW("dir:%d, steps:%d", cfg.cfg.move.dir, cfg.cfg.move.num_steps);
@@ -80,20 +84,21 @@ static int af_actuator_set_default_focus(void *ptr)
  *  This function moves lens to desired position as dictated
  *  by 3A algorithm **/
 
-static int af_actuator_move_focus(void *ptr, void *data)
+static int32_t af_actuator_move_focus(void *ptr, void *data)
 {
-  int rc = 0;
+  int32_t rc = 0;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
   struct msm_actuator_cfg_data cfg;
-  af_tune_parms_t *af_tune_ptr = &(af_actuator_ptr->ctrl->af_tune);
-  af_update_t *af_update = (af_update_t *)data;
-  uint16_t scenario_size = 0;
-  uint16_t index = 0;
-  uint16_t curr_scene = 0;
-  int16_t dest_step_pos = 0;
-  int8_t sign_dir = 0;
-  int32_t direction;
-  int32_t num_steps;
+  actuator_driver_params_t *af_driver_ptr =
+    af_actuator_ptr->ctrl->driver_ctrl;
+  af_update_t       *af_update = (af_update_t *)data;
+  uint16_t          scenario_size = 0;
+  uint16_t          index = 0;
+  uint16_t          curr_scene = 0;
+  int16_t           dest_step_pos = 0;
+  int8_t            sign_dir = 0;
+  int32_t           direction;
+  int32_t           num_steps;
 
   SLOW("Enter");
   if (af_actuator_ptr->fd <= 0 || !data) {
@@ -110,44 +115,52 @@ static int af_actuator_move_focus(void *ptr, void *data)
     return rc;
   }
 
-  if (af_update->move_lens != TRUE) {
+  num_steps = (int32_t)af_update->num_of_steps;
+  direction = af_update->direction;
+
+  if (af_update->move_lens != TRUE || num_steps == 0) {
     SERR("error");
     return rc;
   }
-  num_steps = af_update->num_of_steps;
-  direction = af_update->direction;
 
   SLOW("num steps %d dir %d",  num_steps, direction);
+  if ((direction != MOVE_NEAR) && (direction != MOVE_FAR))
+    direction = 0;
+
   if (direction == MOVE_NEAR)
     sign_dir = 1;
   else if (direction == MOVE_FAR)
     sign_dir = -1;
 
-  dest_step_pos = af_actuator_ptr->curr_step_pos +
-    (sign_dir * num_steps);
+  dest_step_pos = (int16_t)(af_actuator_ptr->curr_step_pos +
+    (sign_dir * num_steps));
 
   if (dest_step_pos < 0)
     dest_step_pos = 0;
   else if (dest_step_pos > af_actuator_ptr->total_steps)
-    dest_step_pos = af_actuator_ptr->total_steps;
+    dest_step_pos = (int16_t)af_actuator_ptr->total_steps;
 
-  cfg.cfgtype = CFG_MOVE_FOCUS;
-  cfg.cfg.move.dir = direction;
-  cfg.cfg.move.sign_dir = sign_dir;
-  cfg.cfg.move.num_steps = num_steps;
+  cfg.cfgtype                = CFG_MOVE_FOCUS;
+  cfg.cfg.move.dir           = (int8_t)direction;
+  cfg.cfg.move.sign_dir      = sign_dir;
+  cfg.cfg.move.num_steps      = num_steps;
   cfg.cfg.move.dest_step_pos = dest_step_pos;
   curr_scene = 0;
   /* Determine scenario */
-  scenario_size = af_tune_ptr->actuator_tuned_params.scenario_size[direction];
+  scenario_size = af_driver_ptr->actuator_tuned_params.scenario_size[direction];
+
+  if (scenario_size > MAX_ACTUATOR_SCENARIO)
+    scenario_size = MAX_ACTUATOR_SCENARIO;
+
   for (index = 0; index < scenario_size; index++) {
     if (num_steps <=
-      af_tune_ptr->actuator_tuned_params.ringing_scenario[direction][index]) {
+      af_driver_ptr->actuator_tuned_params.ringing_scenario[direction][index]) {
       curr_scene = index;
       break;
     }
   }
   cfg.cfg.move.ringing_params =
-    &(af_tune_ptr->actuator_tuned_params.
+    &(af_driver_ptr->actuator_tuned_params.
     damping[direction][curr_scene].ringing_params[0]);
 
   SLOW("dir:%d, steps:%d", cfg.cfg.move.dir, cfg.cfg.move.num_steps);
@@ -164,29 +177,6 @@ static int af_actuator_move_focus(void *ptr, void *data)
   return rc;
 }
 
-//gionee zhaocuiqin add for ois mode begin 20140626
-static int af_actuator_set_oismode(void *ptr, void *data)
-{
-  int rc = 0;
-  struct msm_actuator_cfg_data cfg;
-  actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
-  int32_t *oismode = (int32_t*)data;
-  SLOW("oismode = %d", *oismode);
-
-  //cfg.cfgtype = CFG_SET_OIS_MODE;
-  //cfg.cfg.ois_mode = *oismode;
-
-  /* Invoke the IOCTL to move the focus */
-  //rc = ioctl(af_actuator_ptr->fd, VIDIOC_MSM_ACTUATOR_CFG, &cfg);
-  if (rc < 0) {
-    SERR("failed rc %d", rc);
-  }
-
-  SLOW("Exit");
-  return rc;
-}
-//gionee zhaocuiqin add for ois mode end 20140626
-
 /** af_actuator_restore_focus: function to move lens to desired
  *  position
  *
@@ -198,13 +188,13 @@ static int af_actuator_set_oismode(void *ptr, void *data)
  *  This function moves lens to desired position as dictated
  *  by 3A algorithm **/
 
-static int af_actuator_restore_focus(void *ptr, int32_t direction)
+static int32_t __attribute__((unused)) af_actuator_restore_focus(void *ptr, int32_t direction)
 {
-  int rc = 0;
+  int32_t rc = 0;
   int16_t new_restore_pos = 0;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
   uint8_t af_restore =
-    af_actuator_ptr->ctrl->af_tune.actuator_params.af_restore_pos;
+    af_actuator_ptr->ctrl->driver_ctrl->actuator_params.af_restore_pos;
   af_update_t af_update;
   if (af_restore) {
     if (direction == MOVE_NEAR) {
@@ -231,11 +221,10 @@ static int af_actuator_restore_focus(void *ptr, int32_t direction)
  *
  *  This function returns 1 if af is supported, 0 otherwise **/
 
-static int af_actuator_get_info(void *ptr, void *data)
+static int32_t __attribute__((unused)) af_actuator_get_info(void *ptr, void *data)
 {
-  int rc = 0;
+  int32_t rc = 0;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
-  af_tune_parms_t *af_tune_ptr = &(af_actuator_ptr->ctrl->af_tune);
   uint8_t *af_support = (uint8_t *)data;
   if (!af_support) {
     SERR("failed");
@@ -245,8 +234,8 @@ static int af_actuator_get_info(void *ptr, void *data)
   return rc;
 }
 
-/** af_actuator_load_params: loads the header params to the
- *  af driver
+/** af_actuator_set_params: set the header params to the
+ *  af driver in kernel
  *
  *  @ptr: pointer to actuator_data_t struct
  *
@@ -254,32 +243,41 @@ static int af_actuator_get_info(void *ptr, void *data)
  *
  *  This function returns 1 if af is supported, 0 otherwise **/
 
-static int af_actuator_load_params(void *ptr)
+static int32_t af_actuator_set_params(void *ptr)
 {
-  int rc = 0;
+  int32_t rc = 0;
   struct msm_actuator_cfg_data cfg;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
-  uint8_t cnt = 0;
   uint16_t total_steps = 0;
-  af_tune_parms_t *af_tune_ptr = &(af_actuator_ptr->ctrl->af_tune);
+  actuator_driver_params_t *af_driver_ptr = NULL;
   actuator_tuned_params_t *actuator_tuned_params = NULL;
   actuator_params_t *actuator_params = NULL;
 
+  /* Validate parameters */
+  RETURN_ERR_ON_NULL(af_actuator_ptr, -EINVAL);
+  RETURN_ERR_ON_NULL(af_actuator_ptr->ctrl, -EINVAL);
+
+  af_driver_ptr = af_actuator_ptr->ctrl->driver_ctrl;
   if (af_actuator_ptr->is_af_supported) {
-    actuator_tuned_params = &af_tune_ptr->actuator_tuned_params;
-    actuator_params = &af_tune_ptr->actuator_params;
+    actuator_tuned_params = &af_driver_ptr->actuator_tuned_params;
+    actuator_params = &af_driver_ptr->actuator_params;
 
     SERR("E");
+    memset(&cfg, 0, sizeof(struct msm_actuator_cfg_data));
     cfg.cfgtype = CFG_SET_ACTUATOR_INFO;
-    total_steps = af_tune_ptr->af_algo.position_far_end + 1;
-    total_steps += af_tune_ptr->af_algo.undershoot_adjust;
 
+    total_steps = (uint16_t) actuator_tuned_params->region_params[
+      actuator_tuned_params->region_size - 1].step_bound[0] -
+      actuator_tuned_params->region_params[0].step_bound[1];
+
+    if (total_steps <= 0) {
+      SERR("Invalid total steps");
+      return -EFAULT;
+    }
     af_actuator_ptr->total_steps = total_steps;
     cfg.cfg.set_info.af_tuning_params.total_steps = total_steps;
     cfg.cfg.set_info.actuator_params.act_type =
       actuator_params->act_type;
-    cfg.cfg.set_info.af_tuning_params.pwd_step =
-      actuator_tuned_params->region_params[0].step_bound[1];
     cfg.cfg.set_info.af_tuning_params.initial_code =
       actuator_tuned_params->initial_code;
     cfg.cfg.set_info.actuator_params.reg_tbl_size =
@@ -314,43 +312,6 @@ static int af_actuator_load_params(void *ptr)
   return rc;
 }
 
-/** af_actuator_init: function to initialize actuator
- *
- *  @ptr: pointer to actuator_data_t struct
- *
- *  Return: 0 for success and negative error on failure
- *
- *  This function checks whether actuator is supported, gets
- *  cam name index and initializes actuator control pointer **/
-
-static int af_actuator_init(void *ptr, void* data)
-{
-  int rc = 0;
-  actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
-  char *name = (char *)data;
-  struct msm_actuator_cfg_data cfg;
-
-  if (af_actuator_ptr == NULL) {
-    SERR("Invalid Argument - af_actuator_ptr");
-    return -EINVAL;
-  }
-
-  SHIGH("name = %s", (name) ? name : "null");
-
-  af_actuator_ptr->ctrl = NULL;
-  af_actuator_ptr->curr_step_pos = 0;
-  af_actuator_ptr->cur_restore_pos = 0;
-  af_actuator_ptr->name = name;
-  af_actuator_ptr->is_af_supported = (name == NULL) ? 0 : 1;
-  af_actuator_ptr->params_loaded = 0;
-  int i;
-  for (i=0; i<ACTUATOR_NUM_MODES_MAX; i++) {
-    af_actuator_ptr->lib_handle[i] = NULL;
-    af_actuator_ptr->lib_data[i] = NULL;
-  }
-  return rc;
-}
-
 /** af_load_header: function to load the actuator header
  *
  *  @ptr: pointer to actuator_data_t struct
@@ -362,18 +323,21 @@ static int af_actuator_init(void *ptr, void* data)
 
 static int actuator_load_lib(void *ptr, actuator_cam_mode_t cam_mode)
 {
-  int rc = 0;
+  uint8_t i = 0;
+  int32_t rc = 0;
+  actuator_driver_ctrl_t* driver_lib_data = NULL;
+  af_algo_ctrl_t* af_algo_lib_data = NULL;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
 
-  if (af_actuator_ptr == NULL) {
-    SERR("Invalid Argument - af_actuator_ptr");
-    return -EINVAL;
-  }
+  RETURN_ERR_ON_NULL(af_actuator_ptr, -EINVAL);
+
   if (af_actuator_ptr->is_af_supported) {
     char *mode_str;
     void *(*open_lib_func)(void) = NULL;
-    char open_lib_func_name[64];
-    char lib_name[64];
+    char driver_lib_name[64];
+    char af_algo_lib_name[64];
+    char driver_open_lib_func_name[64];
+    char af_algo_open_lib_func_name[64];
 
     if (cam_mode == ACTUATOR_CAM_MODE_CAMERA) {
       mode_str = "camera";
@@ -382,49 +346,128 @@ static int actuator_load_lib(void *ptr, actuator_cam_mode_t cam_mode)
     } else {
       SERR("failed, invalid mode=%d", cam_mode);
     }
-    if (!af_actuator_ptr->name) {
-      SERR("failed, actuator_name=NULL");
-      return -EINVAL;
-    }
+    RETURN_ERR_ON_NULL(af_actuator_ptr->name, -EINVAL);
+
     SERR("name=%s, mode=%s", af_actuator_ptr->name, mode_str);
 
-    if (af_actuator_ptr->lib_handle[cam_mode] == NULL) {
-      snprintf(lib_name, 64, "libactuator_%s_%s.so",
+    if (af_actuator_ptr->driver_lib_handle == NULL) {
+      snprintf(driver_lib_name, 64, "libactuator_%s.so",
+        af_actuator_ptr->name);
+      snprintf(driver_open_lib_func_name, 64, "actuator_driver_open_lib");
+
+      /* open actuator driver library */
+      af_actuator_ptr->driver_lib_handle = dlopen(driver_lib_name, RTLD_NOW);
+      RETURN_ERR_ON_NULL(af_actuator_ptr->driver_lib_handle, -EINVAL,
+        "dlopen() failed to load %s", driver_lib_name);
+
+      *(void **)&open_lib_func = dlsym(af_actuator_ptr->driver_lib_handle,
+                                   driver_open_lib_func_name);
+      RETURN_ERR_ON_NULL(open_lib_func, -EINVAL,
+        "actuator_driver_open_lib failed");
+
+      driver_lib_data = (actuator_driver_ctrl_t *)open_lib_func();
+      RETURN_ERR_ON_NULL(driver_lib_data, -EINVAL);
+
+      af_actuator_ptr->ctrl->driver_ctrl =
+        &(driver_lib_data->actuator_driver_params);
+      SHIGH("library %s successfully loaded, idx=%d", driver_lib_name, cam_mode);
+    }
+
+    if (af_actuator_ptr->lib_af_algo_handle[cam_mode] == NULL) {
+      snprintf(af_algo_lib_name, 64, "libactuator_%s_%s.so",
         af_actuator_ptr->name, mode_str);
-      snprintf(open_lib_func_name, 64, "%s_%s_open_lib",
+      snprintf(af_algo_open_lib_func_name, 64, "%s_%s_af_algo_open_lib",
         af_actuator_ptr->name, mode_str);
 
-      SLOW("loading lib=%s", lib_name);
-      af_actuator_ptr->lib_handle[cam_mode] = dlopen(lib_name, RTLD_NOW);
-      if (!af_actuator_ptr->lib_handle[cam_mode]) {
-        SERR("dlopen() failed to load %s", lib_name);
-        return -EINVAL;
-      }
-      *(void **)&open_lib_func = dlsym(af_actuator_ptr->lib_handle[cam_mode],
-                                   open_lib_func_name);
-      if (!open_lib_func) {
-        SERR("dlsym() failed");
-        return -EINVAL;
-      }
-      af_actuator_ptr->lib_data[cam_mode] = (actuator_ctrl_t *)open_lib_func();
-      if (!af_actuator_ptr->lib_data[cam_mode]) {
-        SERR("open_lib_func() failed");
-        return -EFAULT;
-      }
-      SHIGH("library %s successfully loaded, idx=%d", lib_name, cam_mode);
+      /* open actuator driver library */
+      af_actuator_ptr->lib_af_algo_handle[cam_mode] =
+        dlopen(af_algo_lib_name, RTLD_NOW);
+      RETURN_ERR_ON_NULL(af_actuator_ptr->lib_af_algo_handle[cam_mode], -EINVAL,
+        "dlopen() failed to load %s", af_algo_lib_name);
+
+      *(void **)&open_lib_func = dlsym(af_actuator_ptr->lib_af_algo_handle[cam_mode],
+                                   af_algo_open_lib_func_name);
+      RETURN_ERR_ON_NULL(open_lib_func, -EINVAL,
+        "actuator_driver_open_lib failed");
+
+      af_algo_lib_data = (af_algo_ctrl_t *)open_lib_func();
+      RETURN_ERR_ON_NULL(af_algo_lib_data, -EINVAL);
+
+      SHIGH("library %s successfully loaded, idx=%d", af_algo_lib_name,
+        cam_mode);
+      af_actuator_ptr->lib_af_algo_data[cam_mode] =
+        &(af_algo_lib_data->af_algo_params);
     }
-    af_actuator_ptr->ctrl = af_actuator_ptr->lib_data[cam_mode];
-    if (af_actuator_ptr->params_loaded == 0) {
-//add by gionee zhaocq for camera CR01246208 AF begin
-#ifdef ORIGINAL_VERSION
-      af_actuator_load_params(ptr);
-      af_actuator_ptr->params_loaded == 1;
-#else
-      //af_actuator_load_params(ptr);
-      af_actuator_ptr->params_loaded = 1;
-#endif
-//add by gionee zhaocq for camera CR01246208 AF endif
-    }
+
+    af_actuator_ptr->ctrl->af_algo_ctrl =
+      af_actuator_ptr->lib_af_algo_data[cam_mode];
+  }
+  return rc;
+}
+
+/** af_actuator_init: function to initialize actuator
+ *
+ *  @ptr: pointer to actuator_data_t struct
+ *
+ *  Return: 0 for success and negative error on failure
+ *
+ *  This function checks whether actuator is supported, gets
+ *  cam name index and initializes actuator control pointer **/
+
+static int32_t af_actuator_init(void *ptr, void* data)
+{
+  int32_t rc = 0;
+  actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
+  char *name = (char *)data;
+  struct msm_actuator_cfg_data cfg;
+
+  if (af_actuator_ptr == NULL) {
+    SERR("Invalid Argument - af_actuator_ptr");
+    return -EINVAL;
+  }
+/* Validate parameters */
+  RETURN_ERR_ON_NULL(af_actuator_ptr, -EINVAL,
+    "Invalid Argument - af_actuator_ptr");
+  RETURN_ERR_ON_NULL(name, -EINVAL, "Invalid actuator name");
+
+  SHIGH("name = %s", (name) ? name : "null");
+
+  af_actuator_ptr->ctrl = NULL;
+  af_actuator_ptr->curr_step_pos = 0;
+  af_actuator_ptr->cur_restore_pos = 0;
+  af_actuator_ptr->name = name;
+  af_actuator_ptr->is_af_supported = (name == NULL) ? 0 : 1;
+  af_actuator_ptr->params_loaded = 0;
+  int32_t i;
+  for (i=0; i<ACTUATOR_NUM_MODES_MAX; i++) {
+    af_actuator_ptr->lib_af_algo_handle[i] = NULL;
+    af_actuator_ptr->lib_af_algo_handle[i] = NULL;
+  }
+
+  af_actuator_ptr->ctrl = malloc(sizeof(actuator_ctrl_t));
+  if (!af_actuator_ptr->ctrl) {
+    SERR("Error: malloc failed to allocate\n");
+    return -EINVAL;
+  }
+  af_actuator_ptr->ctrl->driver_ctrl = NULL;
+  af_actuator_ptr->ctrl->af_algo_ctrl = NULL;
+  //cfg.cfgtype = CFG_ACTUATOR_INIT;
+
+  /* Invoke the IOCTL to initialize the actuator */
+  rc = ioctl(af_actuator_ptr->fd, VIDIOC_MSM_ACTUATOR_CFG, &cfg);
+  if (rc < 0) {
+    SERR("CFG_ACTUATOR_INIT failed");
+    //return rc;
+  }
+  rc = actuator_load_lib(ptr, ACTUATOR_CAM_MODE_CAMERA);
+  if (rc < 0) {
+    SERR("actuator_load_lib for camera failed");
+    return rc;
+  }
+  rc = actuator_load_lib(ptr, ACTUATOR_CAM_MODE_CAMCORDER);
+  if (rc < 0) {
+    SERR("actuator_load_lib for camcorder failed");
+    return rc;
   }
   return rc;
 }
@@ -439,35 +482,42 @@ static int actuator_load_lib(void *ptr, actuator_cam_mode_t cam_mode)
  *  This function runs linearity test by moving alternatively in
  *  both direction with above mentioned step size **/
 
-static int af_actuator_linear_test(void *ptr, uint8_t stepsize)
+static int32_t af_actuator_linear_test(void *ptr, uint8_t stepsize)
 {
-  int rc = 0;
+  int32_t rc = 0;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
-  actuator_ctrl_t *ctrl = af_actuator_ptr->ctrl;
-  uint8_t index;
+  uint16_t index;
   af_update_t af_update;
   SLOW("set default focus");
   rc = af_actuator_set_default_focus(ptr);
   usleep(1000000);
 
+  if (rc < 0) {
+      SERR("failed rc %d",rc);
+      return rc;
+  }
+
+  if(stepsize == 0)
+     return rc;
+
   SLOW("linear test MOVE_NEAR");
   for (index = 0; index < af_actuator_ptr->total_steps;
-    index+=stepsize) {
+    index = (uint8_t)(index + stepsize)) {
     af_update.move_lens = TRUE;
     af_update.direction = MOVE_NEAR;
     af_update.num_of_steps = stepsize;
     rc = af_actuator_move_focus(ptr, &af_update);
-    usleep(1000000);
+    usleep(10000);
   }
 
   SLOW("linear test MOVE_FAR");
   for (index = 0; index < af_actuator_ptr->total_steps;
-    index+=stepsize) {
+    index = (uint8_t)(index + stepsize)) {
     af_update.move_lens = TRUE;
     af_update.direction = MOVE_FAR;
     af_update.num_of_steps = stepsize;
     rc = af_actuator_move_focus(ptr, &af_update);
-    usleep(1000000);
+    usleep(10000);
   }
   return rc;
 }
@@ -482,23 +532,30 @@ static int af_actuator_linear_test(void *ptr, uint8_t stepsize)
  *  This function runs ringing test by moving lens from macro
  *  position to infintity position **/
 
-static int af_actuator_ring_test(void *ptr, uint8_t stepsize)
+static int32_t af_actuator_ring_test(void *ptr, uint8_t stepsize)
 {
-  int rc = 0;
+  int32_t rc = 0;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
-  actuator_ctrl_t *ctrl = af_actuator_ptr->ctrl;
-  uint8_t index;
+  uint16_t index;
   af_update_t af_update;
 
   rc = af_actuator_set_default_focus(ptr);
   usleep(1000000);
 
+  if (rc < 0) {
+      SERR("failed rc %d",rc);
+      return rc;
+  }
+
+  if(stepsize == 0)
+     return rc;
+
   for (index = 0; index < af_actuator_ptr->total_steps;
-    index+=stepsize) {
+    index = (uint16_t)(index + stepsize)) {
     af_update.direction = MOVE_NEAR;
     af_update.num_of_steps = stepsize;
     rc = af_actuator_move_focus(ptr, &af_update);
-    usleep(60000);
+    usleep(10000);
   }
 
   rc = af_actuator_set_default_focus(ptr);
@@ -507,26 +564,60 @@ static int af_actuator_ring_test(void *ptr, uint8_t stepsize)
   return rc;
 }
 
-/** actuator_get_af_tune_ptr: function to return af tuned
+/** actuator_get_af_tune_ptr: function to return af tuned pointer
+ *
+ *  @ptr: pointer to actuator_data_t struct
+ *  @data: pointer to sensor_get_af_algo_ptr_t *
+ *
+ *  Return: 0 for success and negative error on failure
+ *
+ *  This function returns the af algo pointer of requested mode
+ **/
+
+static int32_t actuator_get_af_algo_param_ptr(void *ptr, void *data)
+{
+  actuator_data_t          *af_actuator_ptr = (actuator_data_t *)ptr;
+  sensor_get_af_algo_ptr_t *af_algo_data = (sensor_get_af_algo_ptr_t *)data;
+
+  /* Validate input parameters */\
+  RETURN_ERR_ON_NULL(af_actuator_ptr, -EINVAL,
+    "Invalid Argument - af_actuator_ptr");
+  RETURN_ERR_ON_NULL(af_algo_data, -EINVAL,
+    "Invalid Argument - af_algo_data");
+
+  if ((uint32_t)af_algo_data->cam_mode >= ACTUATOR_CAM_MODE_MAX)
+  {
+    SERR("requested invalid mode");
+    return -EINVAL;
+  }
+
+  af_actuator_ptr->ctrl->af_algo_ctrl =
+    af_actuator_ptr->lib_af_algo_data[af_algo_data->cam_mode];
+  af_algo_data->af_tune_ptr = af_actuator_ptr->ctrl->af_algo_ctrl;
+  return 0;
+}
+/** actuator_get_af_driver_param_ptr: function to return af driver
  *  pointer
  *
  *  @ptr: pointer to actuator_data_t struct
- *  @data: pointer to af_tune_parms_t *
+ *  @data: pointer to actuator_driver_params_t *
  *
  *  Return: 0 for success and negative error on failure
  *
  *  This function runs ringing test by moving lens from macro
  *  position to infintity position **/
 
-static int actuator_get_af_tune_ptr(void *ptr, void *data)
+static int32_t actuator_get_af_driver_param_ptr(void *ptr, void *data)
 {
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
-  af_tune_parms_t **af_tune = (af_tune_parms_t **)data;
-  if (!af_actuator_ptr || !af_tune) {
-    SERR("failed af_actuator_ptr %p af_tune %p", af_actuator_ptr, af_tune);
+  actuator_driver_params_t **af_driver_ptr = (actuator_driver_params_t **)data;
+  if (!af_actuator_ptr || !af_driver_ptr) {
+    SERR("failed af_actuator_ptr %p af_tune %p",
+      af_actuator_ptr, af_driver_ptr);
     return -EINVAL;
   }
-  *af_tune = &af_actuator_ptr->ctrl->af_tune;
+  *af_driver_ptr =
+    af_actuator_ptr->ctrl->driver_ctrl;
   return 0;
 }
 
@@ -542,8 +633,8 @@ static int actuator_get_af_tune_ptr(void *ptr, void *data)
  *  This function moves lens to set of desired positions as
  *  dictated by 3A algorithm **/
 
-static int actuator_set_position(void *ptr, void *data) {
-  int rc = 0;
+static int32_t actuator_set_position(void *ptr, void *data) {
+  int32_t rc = 0;
   int index;
   actuator_data_t *af_actuator_ptr = (actuator_data_t *)ptr;
   struct msm_actuator_cfg_data cfg;
@@ -581,7 +672,6 @@ static int32_t actuator_open(void **actuator_ctrl, const char *subdev_name)
 {
   int32_t rc = 0;
   actuator_data_t *ctrl = NULL;
-  struct msm_actuator_cfg_data cfg;
   char subdev_string[32];
 
   if (!actuator_ctrl || !subdev_name) {
@@ -593,6 +683,7 @@ static int32_t actuator_open(void **actuator_ctrl, const char *subdev_name)
     SERR("failed");
     return -EINVAL;
   }
+
   memset(ctrl, 0, sizeof(actuator_data_t));
 
   snprintf(subdev_string, sizeof(subdev_string), "/dev/%s", subdev_name);
@@ -603,7 +694,7 @@ static int32_t actuator_open(void **actuator_ctrl, const char *subdev_name)
     rc = -EINVAL;
     goto ERROR;
   }
-  ctrl->load_params = 1;
+
   *actuator_ctrl = (void *)ctrl;
   return rc;
 
@@ -622,15 +713,15 @@ ERROR:
  *  This function runs different tuning test for actuator
  *  tuning based on the input parameters **/
 
-static int actuator_set_af_tuning(void *actuator_ctrl, void *data)
+static int32_t actuator_set_af_tuning(void *actuator_ctrl, void *data)
 {
-  int rc = 0;
+  int32_t rc = 0;
   tune_actuator_t *tdata = (tune_actuator_t *)data;
   actuator_tuning_type_t ttype = (actuator_tuning_type_t)tdata->ttype;
   SERR("ttype =%d tdata->stepsize=%d", ttype, tdata->stepsize);
   switch (ttype) {
   case ACTUATOR_TUNE_RELOAD_PARAMS:
-    rc = af_actuator_load_params(actuator_ctrl);
+    rc = af_actuator_set_params(actuator_ctrl);
     break;
   case ACTUATOR_TUNE_TEST_LINEAR:
     rc = af_actuator_linear_test(actuator_ctrl, tdata->stepsize);
@@ -680,14 +771,12 @@ static int32_t actuator_process(void *actuator_ctrl,
   case ACTUATOR_MOVE_FOCUS:
     rc = af_actuator_move_focus(actuator_ctrl, data);
     break;
-  case ACTUATOR_LOAD_LIB:
-    rc = actuator_load_lib(actuator_ctrl, *((actuator_cam_mode_t*)data));
-    break;
   case ACTUATOR_SET_PARAMETERS: {
     actuator_data_t *af_actuator_ptr = (actuator_data_t *)actuator_ctrl;
-    if (af_actuator_ptr->load_params) {
-      af_actuator_load_params(actuator_ctrl);
-      af_actuator_ptr->load_params = 0;
+    if (af_actuator_ptr->params_loaded == 0) {
+      rc = af_actuator_set_params(actuator_ctrl);
+      if (!rc)
+        af_actuator_ptr->params_loaded = 1;
     }
     break;
   }
@@ -696,8 +785,11 @@ static int32_t actuator_process(void *actuator_ctrl,
     rc = actuator_set_af_tuning(actuator_ctrl, data);
     break;
     /* Get params */
-  case ACTUATOR_GET_AF_TUNE_PTR:
-    rc = actuator_get_af_tune_ptr(actuator_ctrl, data);
+  case ACTUATOR_GET_AF_ALGO_PARAM_PTR:
+    rc = actuator_get_af_algo_param_ptr(actuator_ctrl, data);
+    break;
+  case ACTUATOR_GET_AF_DRIVER_PARAM_PTR:
+    rc = actuator_get_af_driver_param_ptr(actuator_ctrl, data);
     break;
   case ACTUATOR_GET_DAC_VALUE: {
     uint32_t *dac_value = (uint32_t *)data;
@@ -709,14 +801,6 @@ static int32_t actuator_process(void *actuator_ctrl,
   case ACTUATOR_SET_POSITION:
     rc = actuator_set_position(actuator_ctrl, data);
     break;
-//Gionee <zhuangxiaojian> <2014-06-26> modify for CR01310542 begin
-#ifdef ORIGINAL_VERSION
-#else
-  case ACTUATOR_SET_OIS_MODE:
-  	rc = af_actuator_set_oismode(actuator_ctrl, data);
-  	break;
-#endif
-//Gionee <zhuangxiaojian> <2014-06-26> modify for CR01310542 end
   default:
     SERR("invalid event %d",  event);
     rc = -EINVAL;
@@ -742,16 +826,21 @@ static int32_t actuator_close(void *actuator_ctrl)
   int32_t rc = 0;
   actuator_data_t *ctrl = (actuator_data_t *)actuator_ctrl;
   struct msm_actuator_cfg_data cfg;
-  struct msm_camera_csi_lane_params csi_lane_params;
 
   /* unload libs */
-  int i;
+  int32_t i;
   for (i=0; i<ACTUATOR_NUM_MODES_MAX; i++) {
-   if (ctrl->lib_handle[i]) {
-    dlclose(ctrl->lib_handle[i]);
-    ctrl->lib_handle[i] = NULL;
+   if (ctrl->lib_af_algo_handle[i]) {
+    dlclose(ctrl->lib_af_algo_handle[i]);
+    ctrl->lib_af_algo_handle[i] = NULL;
    }
   }
+
+  if (ctrl->driver_lib_handle) {
+    dlclose(ctrl->driver_lib_handle);
+    ctrl->driver_lib_handle = NULL;
+  }
+  free(ctrl->ctrl);
   /* close subdev */
   close(ctrl->fd);
 

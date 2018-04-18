@@ -5,7 +5,9 @@
 
 #include "module_imglib_common.h"
 #include <media/msmb_generic_buf_mgr.h>
-
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+#include "server_debug.h"
 
 /** MOD_IMGLIB_ZOOM_DENUMINATOR
  *
@@ -72,6 +74,8 @@ void *module_imglib_msg_thread(void *data)
   mct_event_t mct_event;
   isp_buf_divert_ack_t buff_divert_ack;
 
+  IDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "imglib_thread", 0, 0, 0);
   /* signal the main thread */
   pthread_mutex_lock(&p_q->mutex);
   p_msg_th->is_ready = TRUE;
@@ -243,6 +247,7 @@ int module_imglib_create_msg_thread(mod_imglib_msg_th_t *p_msg_th)
   status = pthread_create(&p_msg_th->threadid, NULL,
     module_imglib_msg_thread,
     (void *)p_msg_th);
+  pthread_setname_np(p_msg_th->threadid, "CAM_img_msg");
   if (status < 0) {
     IDBG_ERROR("%s:%d] pthread creation failed %d",
       __func__, __LINE__, status);
@@ -378,7 +383,7 @@ int mod_imglib_convert_buffer(isp_buf_divert_t *p_isp_buf,
  **/
 void mod_imglib_dump_stream_info(mct_stream_info_t* info)
 {
-  int i;
+  uint32_t i;
 
   if (info) {
     IDBG_MED("info->stream_type %d", info->stream_type);
@@ -522,12 +527,12 @@ boolean mod_imglib_dump_frame(img_frame_t *img_frame, char* file_name,
   uint32_t size;
   uint32_t written_size;
   int32_t out_file_fd;
-  char out_file_name[64];
+  char out_file_name[80];
 
-  if (img_frame ) {
+  if (img_frame) {
     snprintf(out_file_name, sizeof(out_file_name),
       "%s%s_%d_width_%d_height_%d_stride_%d.yuv",
-      "/data/", file_name, number, img_frame->frame->plane[0].width,
+      "/data/misc/camera/", file_name, number, img_frame->frame->plane[0].width,
       img_frame->frame->plane[0].height, img_frame->frame->plane[0].stride);
     out_file_fd = open(out_file_name, O_RDWR | O_CREAT, 0777);
     if (out_file_fd >= 0) {
@@ -651,6 +656,11 @@ int module_imglib_common_get_bfr_mngr_subdev(int *buf_mgr_fd)
     int32_t num_entities = 1;
     snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
     dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
+    if (dev_fd >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      dev_fd = -1;
+      break;
+    }
     if (dev_fd < 0) {
       IDBG_ERROR("%s:%d Done enumerating media devices\n", __func__, __LINE__);
       break;
@@ -691,6 +701,11 @@ int module_imglib_common_get_bfr_mngr_subdev(int *buf_mgr_fd)
 
         *buf_mgr_fd = open(subdev_name, O_RDWR);
         IDBG_MED("%s: *buf_mgr_fd=%d\n", __func__, *buf_mgr_fd);
+        if ((*buf_mgr_fd) >= MAX_FD_PER_PROCESS) {
+          dump_list_of_daemon_fd();
+          *buf_mgr_fd = -1;
+          continue;
+        }
         if (*buf_mgr_fd < 0) {
           IDBG_ERROR("%s: Open subdev failed\n", __func__);
           continue;
@@ -866,3 +881,71 @@ int module_imglib_common_get_zoom_level(mct_pipeline_cap_t *p_mct_cap,
 
   return ret_val;
 }
+
+/**
+ * Function: module_imglib_common_get_meta_buff
+ *
+ * Description: Function used as callback to find
+ *   metadata buffer wht corresponding index
+ *
+ * Input parameters:
+ *   @data - MCT stream buffer mapping
+ *   @user_data - Pinter of searched buffer index
+ *
+ * Return values:
+ *     true/false
+ *
+ * Notes: none
+ **/
+static boolean module_imglib_common_get_meta_buff(void *data, void *user_data)
+{
+  mct_stream_map_buf_t *p_buf = (mct_stream_map_buf_t *)data;
+  uint8_t *p_buf_index = (uint8_t *)user_data;
+
+  if (!p_buf || !p_buf_index) {
+    IDBG_ERROR("%s:%d failed", __func__, __LINE__);
+    return FALSE;
+  }
+
+  IDBG_MED("%s:%d] buf type %d buff index %d search index %d",
+      __func__, __LINE__, p_buf->buf_type, p_buf->buf_index, *p_buf_index);
+
+  /* For face detection is used stream buff type */
+  if (p_buf->buf_type != CAM_MAPPING_BUF_TYPE_OFFLINE_META_BUF)
+    return FALSE;
+
+  return ((uint8_t)p_buf->buf_index == *p_buf_index);
+}
+
+/** module_imglib_common_get_metadata_buffer:
+ *  @info: Stream info
+ *  @meta_index: Metadata buffer index
+ *
+ * Function to get metadata buffer pointer
+ *
+ * Returns Pointer to metadata buffer / NULL on fail
+ **/
+cam_metadata_info_t *module_imglib_common_get_metadata(mct_stream_info_t *info,
+  uint8_t meta_index)
+{
+  cam_metadata_info_t *metadata_buff = NULL;
+  mct_list_t *temp_list;
+
+  if (!info) {
+    IDBG_ERROR("%s:%d Invalid input %p", __func__, __LINE__, info);
+    return NULL;
+  }
+
+  temp_list = mct_list_find_custom(info->img_buffer_list,
+      &meta_index, module_imglib_common_get_meta_buff);
+  if (temp_list && temp_list->data) {
+    mct_stream_map_buf_t *buff_holder = temp_list->data;
+    metadata_buff = buff_holder->buf_planes[0].buf;
+  } else {
+    IDBG_ERROR("%s:%d] Metadata buffer idx %d is not available",
+        __func__, __LINE__, meta_index);
+  }
+
+  return metadata_buff;
+}
+

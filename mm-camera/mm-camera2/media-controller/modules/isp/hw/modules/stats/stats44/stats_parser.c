@@ -14,13 +14,15 @@
 #include <errno.h>
 #include <poll.h>
 #include <media/msm_isp.h>
+#include "isp_log.h"
+#include "server_debug.h"
 
 #include "../isp_stats.h"
 
 #if 0
 #ifdef ENABLE_STATS_PARSER_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 
@@ -33,7 +35,7 @@ int vfe_stats_req_buf(int fd, int num_bufs, int stats_type, int reg_unreg)
 {
   int rc = 0;
   struct msm_stats_reqbuf reqbuf;
-  CDBG("%s: stats_type: %d, num_bufs : %d, reg_unreg : %d",
+  ISP_DBG(ISP_MOD_STATS, "%s: stats_type: %d, num_bufs : %d, reg_unreg : %d",
     __func__,stats_type, num_bufs, reg_unreg);
 
   /* If flag is REGBUF, do REQBUF's only*/
@@ -95,7 +97,7 @@ int vfe_stats_flush_bufq(int fd, int stats_type)
 int vfe_stats_enqueuebuf(int fd, int stats_type, int buf_idx,
   mem_buffer_struct_t *memBuf)
 {
-  CDBG("%s: stats_type : %d, buf_idx :%d\n", __func__, stats_type, buf_idx);
+  ISP_DBG(ISP_MOD_STATS, "%s: stats_type : %d, buf_idx :%d\n", __func__, stats_type, buf_idx);
   int rc = 0;
   struct msm_stats_buf_info qbuf;
   memset(&qbuf, 0, sizeof(struct msm_stats_buf_info));
@@ -166,7 +168,7 @@ static int  vfe_bayer_stats_buffer_init(void *ctrl)
   bayer_stats_buffer_t *stats_buf_data =
     &(p_obj->vfe_module.stats.parser_mod.stats_bufs.s.bayer_stats_buf);
 
-  CDBG("%s: E %d \n", __func__, *stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: E %d \n", __func__, *stats_marker);
     /* allocate PMEM buffer for BE stats*/
   rc = vfe_stats_req_buf(fd, BE_STATS_BUFNUM, MSM_STATS_TYPE_BE,
     VFE_STATS_REGBUF);
@@ -184,7 +186,7 @@ static int  vfe_bayer_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("Bayer Exposure stats buf = 0x%p, fd = %d\n",
+    ISP_DBG(ISP_MOD_STATS, "Bayer Exposure stats buf = 0x%p, fd = %d\n",
       stats_buf_data->BeBuf[cnt].buf, stats_buf_data->BeBuf[cnt].fd);
 
     if (!(stats_buf_data->BeBuf[cnt].buf)) {
@@ -218,7 +220,7 @@ static int  vfe_bayer_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("Bayer Grid stats buf = 0x%p, fd = %d\n",
+    ISP_DBG(ISP_MOD_STATS, "Bayer Grid stats buf = 0x%p, fd = %d\n",
       stats_buf_data->BgBuf[cnt].buf, stats_buf_data->BgBuf[cnt].fd);
 
     if (!(stats_buf_data->BgBuf[cnt].buf)) {
@@ -252,7 +254,7 @@ static int  vfe_bayer_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("Bayer Focus stats buf = 0x%p, fd = %d\n",
+    ISP_DBG(ISP_MOD_STATS, "Bayer Focus stats buf = 0x%p, fd = %d\n",
       stats_buf_data->BfBuf[cnt].buf, stats_buf_data->BfBuf[cnt].fd);
 
     if (!(stats_buf_data->BfBuf[cnt].buf)) {
@@ -286,7 +288,7 @@ static int  vfe_bayer_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("Bayer Hist stats buf = 0x%p, fd = %d\n",
+    ISP_DBG(ISP_MOD_STATS, "Bayer Hist stats buf = 0x%p, fd = %d\n",
       stats_buf_data->BhistBuf[cnt].buf, stats_buf_data->BhistBuf[cnt].fd);
 
     if (!(stats_buf_data->BhistBuf[cnt].buf)) {
@@ -303,7 +305,7 @@ static int  vfe_bayer_stats_buffer_init(void *ctrl)
   } /* for */
   *stats_marker |= STATS_BHIST;
 
-  CDBG("%s: stats_marker : %d X\n", __func__, *stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: stats_marker : %d X\n", __func__, *stats_marker);
   return VFE_SUCCESS;
 ERROR:
   vfe_stats_buffer_free(ctrl);
@@ -348,7 +350,7 @@ vfe_status_t vfe_legacy_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("AWB AEC stats buf = 0x%p, fd = %d\n",
+    ISP_DBG(ISP_MOD_STATS, "AWB AEC stats buf = 0x%p, fd = %d\n",
       stats_buf_data->AwbAecBuf[cnt].buf, stats_buf_data->AwbAecBuf[cnt].fd);
 
     if (!(stats_buf_data->AwbAecBuf[cnt].buf)) {
@@ -384,7 +386,7 @@ vfe_status_t vfe_legacy_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("AEC stats buf = 0x%p, fd = %d\n", stats_buf_data->AecBuf[cnt].buf,
+    ISP_DBG(ISP_MOD_STATS, "AEC stats buf = 0x%p, fd = %d\n", stats_buf_data->AecBuf[cnt].buf,
       stats_buf_data->AecBuf[cnt].fd);
 
     if (!(stats_buf_data->AecBuf[cnt].buf)) {
@@ -405,14 +407,14 @@ vfe_status_t vfe_legacy_stats_buffer_init(void *ctrl)
 #endif /* END of OTHER THAN VFE_2X */
 
   /* allocate PMEM buffer for AF  stats*/
-  CDBG("allocate PMEM buffer for AF stats\n");
+  ISP_DBG(ISP_MOD_STATS, "allocate PMEM buffer for AF stats\n");
 #ifdef VFE_2X
   af_buf_size = VFE2X_AF_BUF_SIZE;
 #else
   af_buf_size = VFE32_AF_BUF_SIZE;
 #endif
 
-  CDBG("%s: AF buf size %d", __func__, af_buf_size);
+  ISP_DBG(ISP_MOD_STATS, "%s: AF buf size %d", __func__, af_buf_size);
   rc = vfe_stats_req_buf(fd, AF_STATS_BUFNUM, MSM_STATS_TYPE_AF,
     VFE_STATS_REGBUF);
   if (rc < 0) {
@@ -430,7 +432,7 @@ vfe_status_t vfe_legacy_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("AF stats buf = 0x%p, fd = %d\n", stats_buf_data->AfBuf[cnt].buf,
+    ISP_DBG(ISP_MOD_STATS, "AF stats buf = 0x%p, fd = %d\n", stats_buf_data->AfBuf[cnt].buf,
       stats_buf_data->AfBuf[cnt].fd);
 
     if (!(stats_buf_data->AfBuf[cnt].buf)) {
@@ -447,7 +449,7 @@ vfe_status_t vfe_legacy_stats_buffer_init(void *ctrl)
   }
   *stats_marker |= STATS_AF;
 
-  CDBG("%s: stats_marker : %d X\n", __func__, *stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: stats_marker : %d X\n", __func__, *stats_marker);
   return VFE_SUCCESS;
 ERROR:
   vfe_stats_buffer_free(ctrl);
@@ -490,7 +492,7 @@ vfe_status_t vfe_common_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("IHIST stats buf = 0x%p, fd = %d\n", stats_buf_data->IhistBuf[cnt].buf,
+    ISP_DBG(ISP_MOD_STATS, "IHIST stats buf = 0x%p, fd = %d\n", stats_buf_data->IhistBuf[cnt].buf,
       stats_buf_data->IhistBuf[cnt].fd);
     if (!(stats_buf_data->IhistBuf[cnt].buf)) {
       CDBG_ERROR("%s : IHIST Buff failed\n", __func__);
@@ -525,7 +527,7 @@ vfe_status_t vfe_common_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("CS stats buf = 0x%p, fd = %d\n", stats_buf_data->CSBuf[cnt].buf,
+    ISP_DBG(ISP_MOD_STATS, "CS stats buf = 0x%p, fd = %d\n", stats_buf_data->CSBuf[cnt].buf,
       stats_buf_data->CSBuf[cnt].fd);
 
     if (!(stats_buf_data->CSBuf[cnt].buf)) {
@@ -561,7 +563,7 @@ vfe_status_t vfe_common_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("RS stats buf = 0x%p, fd = %d\n", stats_buf_data->RSBuf[cnt].buf,
+    ISP_DBG(ISP_MOD_STATS, "RS stats buf = 0x%p, fd = %d\n", stats_buf_data->RSBuf[cnt].buf,
       stats_buf_data->RSBuf[cnt].fd);
 
     if (!(stats_buf_data->RSBuf[cnt].buf)) {
@@ -585,7 +587,7 @@ vfe_status_t vfe_common_stats_buffer_init(void *ctrl)
   awb_buf_size = VFE32_AWB_BUF_SIZE;
 #endif
 
-  CDBG("%s: AWB buf size %d", __func__, awb_buf_size);
+  ISP_DBG(ISP_MOD_STATS, "%s: AWB buf size %d", __func__, awb_buf_size);
   /* allocate PMEM buffer for AWB stats*/
   rc = vfe_stats_req_buf(fd, AWB_STATS_BUFNUM, MSM_STATS_TYPE_AWB,
     VFE_STATS_REGBUF);
@@ -603,7 +605,7 @@ vfe_status_t vfe_common_stats_buffer_init(void *ctrl)
         goto ERROR;
     }
 
-    CDBG("AWB stats buf = 0x%p, fd = %d\n", stats_buf_data->AwbBuf[cnt].buf,
+    ISP_DBG(ISP_MOD_STATS, "AWB stats buf = 0x%p, fd = %d\n", stats_buf_data->AwbBuf[cnt].buf,
       stats_buf_data->AwbBuf[cnt].fd);
 
     if (!(stats_buf_data->AwbBuf[cnt].buf)) {
@@ -620,7 +622,7 @@ vfe_status_t vfe_common_stats_buffer_init(void *ctrl)
   } /* for */
   *stats_marker |= STATS_AWB;
 
-  CDBG("%s: stats_marker : %d X\n", __func__, *stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: stats_marker : %d X\n", __func__, *stats_marker);
   return VFE_SUCCESS;
 
 ERROR:
@@ -645,11 +647,11 @@ vfe_status_t vfe_legacy_stats_buffer_free(void *ctrl)
     p_obj->vfe_module.stats.parser_mod.stats_marker;
 
   int fd = p_obj->vfe_params.camfd;
-  CDBG("%s: E stats_marker : %d\n", __func__, stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: E stats_marker : %d\n", __func__, stats_marker);
 
 #ifdef VFE_2X
 
-  CDBG("deallocate PMEM buffer for AEC AWB stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for AEC AWB stats\n");
   if (stats_marker & STATS_AEAW) {
     rc = vfe_stats_req_buf(fd, AWB_AEC_STATS_BUFNUM, MSM_STATS_TYPE_AE_AW,
       VFE_STATS_UNREGBUF);
@@ -674,7 +676,7 @@ vfe_status_t vfe_legacy_stats_buffer_free(void *ctrl)
 
 #else /*  Other than VFE_2X */
 
-  CDBG("deallocate PMEM buffer for AEC stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for AEC stats\n");
 
   if (stats_marker & STATS_AEC) {
     rc = vfe_stats_req_buf(fd, AEC_STATS_BUFNUM, MSM_STATS_TYPE_AEC,
@@ -698,7 +700,7 @@ vfe_status_t vfe_legacy_stats_buffer_free(void *ctrl)
   } //stats_marker & STATS_AEC
 #endif
 
-  CDBG("deallocate PMEM buffer for AF stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for AF stats\n");
   if (stats_marker & STATS_AF) {
     rc = vfe_stats_req_buf(fd, AF_STATS_BUFNUM, MSM_STATS_TYPE_AF,
       VFE_STATS_UNREGBUF);
@@ -739,9 +741,9 @@ vfe_status_t vfe_common_stats_buffer_free(void *ctrl)
     p_obj->vfe_module.stats.parser_mod.stats_marker;
 
   int fd = p_obj->vfe_params.camfd;
-  CDBG("%s: E stats_marker : %d\n", __func__, stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: E stats_marker : %d\n", __func__, stats_marker);
 
-  CDBG("deallocate PMEM buffer for IHIST stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for IHIST stats\n");
   if (stats_marker & STATS_IHIST) {
     rc = vfe_stats_req_buf(fd, IHIST_STATS_BUFNUM, MSM_STATS_TYPE_IHIST,
       VFE_STATS_UNREGBUF);
@@ -763,7 +765,7 @@ vfe_status_t vfe_common_stats_buffer_free(void *ctrl)
     }
   } //stats_marker & STATS_IHIST
 
-  CDBG("deallocate PMEM buffer for CS stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for CS stats\n");
   if (stats_marker & STATS_CS) {
     rc = vfe_stats_req_buf(fd, CS_STATS_BUFNUM, MSM_STATS_TYPE_CS,
       VFE_STATS_UNREGBUF);
@@ -786,7 +788,7 @@ vfe_status_t vfe_common_stats_buffer_free(void *ctrl)
     }
   } //stats_marker & STATS_CS
 
-  CDBG("deallocate PMEM buffer for RS stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for RS stats\n");
   if (stats_marker & STATS_RS) {
     rc = vfe_stats_req_buf(fd, RS_STATS_BUFNUM, MSM_STATS_TYPE_RS,
       VFE_STATS_UNREGBUF);
@@ -808,7 +810,7 @@ vfe_status_t vfe_common_stats_buffer_free(void *ctrl)
     }
   } //stats_marker & STATS_RS
 
-  CDBG("deallocate PMEM buffer for AWB stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for AWB stats\n");
   if (stats_marker & STATS_AWB) {
     rc = vfe_stats_req_buf(fd, AWB_STATS_BUFNUM, MSM_STATS_TYPE_AWB,
       VFE_STATS_UNREGBUF);
@@ -850,9 +852,9 @@ vfe_status_t vfe_bayer_stats_buffer_free(void *ctrl)
     p_obj->vfe_module.stats.parser_mod.stats_marker;
   int fd = p_obj->vfe_params.camfd;
 
-  CDBG("%s: E stats_marker : %d\n", __func__, stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: E stats_marker : %d\n", __func__, stats_marker);
 
-  CDBG("deallocate PMEM buffer for BG stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for BG stats\n");
   if (stats_marker & STATS_BG) {
     rc = vfe_stats_req_buf(fd, BG_STATS_BUFNUM, MSM_STATS_TYPE_BG,
       VFE_STATS_UNREGBUF);
@@ -874,7 +876,7 @@ vfe_status_t vfe_bayer_stats_buffer_free(void *ctrl)
     }
   } //stats_marker & STATS_BG
 
-  CDBG("deallocate PMEM buffer for BE stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for BE stats\n");
   if (stats_marker & STATS_BE) {
     rc = vfe_stats_req_buf(fd, BE_STATS_BUFNUM, MSM_STATS_TYPE_BE,
       VFE_STATS_UNREGBUF);
@@ -896,7 +898,7 @@ vfe_status_t vfe_bayer_stats_buffer_free(void *ctrl)
     }
   } //stats_marker & STATS_BE
 
-  CDBG("deallocate PMEM buffer for BF stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for BF stats\n");
   if (stats_marker & STATS_BF) {
     rc = vfe_stats_req_buf(fd, BF_STATS_BUFNUM, MSM_STATS_TYPE_BF,
 	  VFE_STATS_UNREGBUF);
@@ -919,7 +921,7 @@ vfe_status_t vfe_bayer_stats_buffer_free(void *ctrl)
     }
   } //stats_marker & STATS_BF
 
-  CDBG("deallocate PMEM buffer for BHIST stats\n");
+  ISP_DBG(ISP_MOD_STATS, "deallocate PMEM buffer for BHIST stats\n");
   if (stats_marker & STATS_BHIST) {
     rc = vfe_stats_req_buf(fd, BHIST_STATS_BUFNUM, MSM_STATS_TYPE_BHIST,
       VFE_STATS_UNREGBUF);
@@ -942,7 +944,7 @@ vfe_status_t vfe_bayer_stats_buffer_free(void *ctrl)
     }
   } //stats_marker & STATS_BHIST
 
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: X\n", __func__);
   return VFE_SUCCESS;
 } /* vfe_stats_buffer_free */
 
@@ -955,7 +957,7 @@ vfe_status_t vfe_stats_buffer_init(void *ctrl)
 {
   vfe_status_t rc = VFE_SUCCESS;
   vfe_ctrl_info_t *p_obj = (vfe_ctrl_info_t *)ctrl;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
 
   p_obj->vfe_module.stats.parser_mod.stats_marker = 0;
 
@@ -993,7 +995,7 @@ vfe_status_t vfe_stats_buffer_free(void *ctrl)
   vfe_ctrl_info_t *p_obj = (vfe_ctrl_info_t *)ctrl;
   uint32_t *stats_marker =
     &(p_obj->vfe_module.stats.parser_mod.stats_marker);
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
 
   if(p_obj->vfe_module.stats.use_bayer_stats) {
     rc = vfe_bayer_stats_buffer_free(ctrl);
@@ -1030,7 +1032,7 @@ vfe_status_t vfe_stats_release_buf(vfe_ctrl_info_t *p_obj, int buf_type,
   struct msm_stats_buf *release_buf = (struct msm_stats_buf *)parm;
   mem_buffer_struct_t cache_buf;
 
-  CDBG("%s: releasing STATS buffer type %d buf = 0x%lx, fd: %d\n", __func__, buf_type,
+  ISP_DBG(ISP_MOD_STATS, "%s: releasing STATS buffer type %d buf = 0x%lx, fd: %d\n", __func__, buf_type,
     release_buf->buffer, release_buf->fd);
   release_buf->type = buf_type;
 
@@ -1077,7 +1079,7 @@ void vfe_release_all_stats_buff(vfe_ctrl_info_t *p_obj)
     p_obj->vfe_module.stats.parser_mod.stats_marker;
   int i =0, rc =0;
 
-  CDBG("%s: E : stats_marker: %d \n", __func__, stats_marker);
+  ISP_DBG(ISP_MOD_STATS, "%s: E : stats_marker: %d \n", __func__, stats_marker);
 
 #ifdef VFE_2X
   if (stats_marker & STATS_AEAW) {
@@ -1215,7 +1217,7 @@ void vfe_release_all_stats_buff(vfe_ctrl_info_t *p_obj)
       rc = vfe_stats_release_buf(p_obj, MSM_STATS_TYPE_CS, i,
            (void *)&release_buf);
       if (rc < 0) {
-        CDBG("%s: vfe_stats_release_buf failed\n", __func__);
+        ISP_DBG(ISP_MOD_STATS, "%s: vfe_stats_release_buf failed\n", __func__);
       }
     }
   } // *stats_marker | STATS_CS
@@ -1262,7 +1264,7 @@ void vfe_release_all_stats_buff(vfe_ctrl_info_t *p_obj)
       rc = vfe_stats_release_buf(p_obj, MSM_STATS_TYPE_BE, i,
         (void *)&release_buf);
       if (rc < 0) {
-        CDBG("%s: vfe_stats_release_buf failed\n", __func__);
+        ISP_DBG(ISP_MOD_STATS, "%s: vfe_stats_release_buf failed\n", __func__);
       }
     }
   }
@@ -1284,7 +1286,7 @@ void vfe_release_all_stats_buff(vfe_ctrl_info_t *p_obj)
       rc = vfe_stats_release_buf(p_obj, MSM_STATS_TYPE_BG, i,
         (void *)&release_buf);
       if (rc < 0) {
-        CDBG("%s: vfe_stats_release_buf failed\n", __func__);
+        ISP_DBG(ISP_MOD_STATS, "%s: vfe_stats_release_buf failed\n", __func__);
       }
     }
   }
@@ -1306,7 +1308,7 @@ void vfe_release_all_stats_buff(vfe_ctrl_info_t *p_obj)
       rc = vfe_stats_release_buf(p_obj, MSM_STATS_TYPE_BF, i,
         (void *)&release_buf);
       if (rc < 0) {
-        CDBG("%s: vfe_stats_release_buf failed\n", __func__);
+        ISP_DBG(ISP_MOD_STATS, "%s: vfe_stats_release_buf failed\n", __func__);
       }
     }
   }
@@ -1328,12 +1330,12 @@ void vfe_release_all_stats_buff(vfe_ctrl_info_t *p_obj)
       rc = vfe_stats_release_buf(p_obj, MSM_STATS_TYPE_BHIST, i,
         (void *)&release_buf);
       if (rc < 0) {
-        CDBG("%s: vfe_stats_release_buf failed\n", __func__);
+        ISP_DBG(ISP_MOD_STATS, "%s: vfe_stats_release_buf failed\n", __func__);
       }
     }
   } //*stats_marker | STATS_BHIST
 
-  CDBG("%s: X \n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: X \n", __func__);
 } /* vfe_release_all_stats_buff */
 
 #ifndef VFE_2X // for VFE31 and VFE32
@@ -1360,7 +1362,7 @@ static int vfe_stats_parse_AEC_stats_regions(
   ae_statsOutputBuffer = (uint32_t*)
   stats_buf_data->AecBuf[stats_buf_data->cur_AecBuf].buf;
 
-  CDBG("%s: ae buff: %p, vfe_stat_struct :%p\n", __func__, ae_statsOutputBuffer,
+  ISP_DBG(ISP_MOD_STATS, "%s: ae buff: %p, vfe_stat_struct :%p\n", __func__, ae_statsOutputBuffer,
     vfe_stats_struct);
 
   numRegions = MCTL_AEC_NUM_REGIONS;
@@ -1527,7 +1529,7 @@ static void vfe_stats_parse_AWB_stats_regions(vfe_ctrl_info_t *p_obj,
     //  p_cfg_ctrl->comp_ops[MCTL_COMPID_VFE].handle, VFE_GET_AWB_SHIFT_BITS, (void *)&vfe_out);
 
     shift_bits = p_obj->vfe_module.stats.awb_stats.VFE_StatsAwb_ConfigCmd.shiftBits;
-    CDBG("%s: AWB shift bits %d", __func__, shift_bits);
+    ISP_DBG(ISP_MOD_STATS, "%s: AWB shift bits %d", __func__, shift_bits);
 
     if (shift_bits < 16) {
       high_shift_bits = 16 - shift_bits;
@@ -1634,7 +1636,7 @@ static void vfe_stats_parse_RS_stats(vfe_ctrl_info_t *p_obj,
     num = p_obj->vfe_params.rs_cs_params.rs_num_rgns;
     shiftBits = p_obj->vfe_params.rs_cs_params.rs_shift_bits;
 
-    CDBG("%s: num = %d, shiftBits = %d\n", __func__, num, shiftBits);
+    ISP_DBG(ISP_MOD_STATS, "%s: num = %d, shiftBits = %d\n", __func__, num, shiftBits);
     for (i = 0; i < num; i++)
       *RSum++ = (*current_region++) << shiftBits;
   } else
@@ -1668,7 +1670,7 @@ static void vfe_stats_parse_CS_stats(vfe_ctrl_info_t *p_obj,
     /* to do regeion cnt & shift bits should come from ISP */
     num = p_obj->vfe_params.rs_cs_params.cs_num_rgns;
     shiftBits = p_obj->vfe_params.rs_cs_params.cs_shift_bits;
-    CDBG("%s: num = %d, shiftBits = %d\n", __func__, num, shiftBits);
+    ISP_DBG(ISP_MOD_STATS, "%s: num = %d, shiftBits = %d\n", __func__, num, shiftBits);
     for (i = 0; i < num; i++)
       *CSum++ = (*current_region++) << shiftBits;
   } else
@@ -1696,7 +1698,7 @@ static int vfe_stats_parse_BE_stats_regions(vfe_ctrl_info_t *p_obj,
   be_statsOutputBuffer = (uint32_t*)
   stats_buf_data->BeBuf[stats_buf_data->cur_be_idx].buf;
   if (be_statsOutputBuffer == NULL) {
-    CDBG("be_statsOutputBuffer == NULL\n");
+    ISP_DBG(ISP_MOD_STATS, "be_statsOutputBuffer == NULL\n");
   }
 
   if (be_statsOutputBuffer != NULL && vfe_stats_struct != NULL) {
@@ -1811,7 +1813,7 @@ static int vfe_stats_parse_BE_stats_regions(vfe_ctrl_info_t *p_obj,
       }
     }
   } else {
-    CDBG("%s: output Null pointer: %s %d ", __func__,__FILE__, __LINE__);
+    ISP_DBG(ISP_MOD_STATS, "%s: output Null pointer: %s %d ", __func__,__FILE__, __LINE__);
   }
   return 256;
 } /* vfe_stats_parse_BE_stats_regions */
@@ -1837,7 +1839,7 @@ static int vfe_stats_parse_BG_stats_regions(vfe_ctrl_info_t *p_obj,
   ae_statsOutputBuffer = (uint32_t*)
   stats_buf_data->BgBuf[stats_buf_data->cur_bg_idx].buf;
   if (ae_statsOutputBuffer == NULL) {
-    CDBG("ae_statsOutputBuffer == NULL\n");
+    ISP_DBG(ISP_MOD_STATS, "ae_statsOutputBuffer == NULL\n");
   }
 
   if (ae_statsOutputBuffer != NULL && vfe_stats_struct != NULL) {
@@ -1967,7 +1969,7 @@ static int vfe_stats_parse_BG_stats_regions(vfe_ctrl_info_t *p_obj,
       }
     }
   } else {
-    CDBG("%s: output Null pointer: %s %d ", __func__,__FILE__, __LINE__);
+    ISP_DBG(ISP_MOD_STATS, "%s: output Null pointer: %s %d ", __func__,__FILE__, __LINE__);
   }
   return 256;
 } /* vfe_stats_parse_BG_stats_regions */
@@ -1994,7 +1996,7 @@ static void vfe_stats_parse_BF_stats_regions(vfe_ctrl_info_t *p_obj,
   uint32_t *afStatsOutputPtr =(uint32_t *)
   stats_buf_data->BfBuf[stats_buf_data->cur_bf_idx].buf;
 #if 1
-  //CDBG("mctl_stats_AF_bayer_stats_regions 1 afStatsOutputPtr = %d\n",*afStatsOutputPtr);
+  //ISP_DBG(ISP_MOD_STATS, "mctl_stats_AF_bayer_stats_regions 1 afStatsOutputPtr = %d\n",*afStatsOutputPtr);
   if (afStatsOutputPtr != NULL && vfe_stats_struct != NULL) {
 
     bf_stats = vfe_stats_struct->bf_stats;
@@ -2013,7 +2015,7 @@ static void vfe_stats_parse_BF_stats_regions(vfe_ctrl_info_t *p_obj,
 
     current_region = afStatsOutputPtr;
 
-    //CDBG("mctl_stats_AF_bayer_stats_regions 2 afStatsOut/putPtr=%d\n",*afStatsOutputPtr);
+    //ISP_DBG(ISP_MOD_STATS, "mctl_stats_AF_bayer_stats_regions 2 afStatsOut/putPtr=%d\n",*afStatsOutputPtr);
     memcpy(bf_stats, current_region, sizeof(uint32_t) * 2520);
     current_region = bf_stats;
     //Expect buf_size = 14*18 * 10 = 2520  (uint32)  10080
@@ -2061,18 +2063,18 @@ static void vfe_stats_parse_BF_stats_regions(vfe_ctrl_info_t *p_obj,
     }
     vfe_stats_struct->af_op.NFocus = 1;
 
-    CDBG("%s:Focus=%d NRegions=%d \n", __func__, vfe_stats_struct->af_op.Focus,14*18);
+    ISP_DBG(ISP_MOD_STATS, "%s:Focus=%d NRegions=%d \n", __func__, vfe_stats_struct->af_op.Focus,14*18);
   }
 
 
 #if 0
-  CDBG("%s: Focus Rectangle=%d\n", __func__,
+  ISP_DBG(ISP_MOD_STATS, "%s: Focus Rectangle=%d\n", __func__,
        ctrl->afCtrl.parm_focusrect.current_value);
   switch (ctrl->afCtrl.parm_focusrect.current_value) {
   case AUTO:
     if (ctrl->afCtrl.roiInfo.num_roi >= 2) {
       autofocusMultiWindowGrid = af_face_detection_windows;
-      CDBG("%s: Multiple AF windows\n", __func__);
+      ISP_DBG(ISP_MOD_STATS, "%s: Multiple AF windows\n", __func__);
     }
     break;
 
@@ -2118,10 +2120,10 @@ static void vfe_stats_parse_BHIST_stats_regions(vfe_ctrl_info_t *p_obj,
   stats_buf_data->BhistBuf[stats_buf_data->cur_bhist_idx].buf;
 
   if (vfe_stats_struct == NULL) {
-    CDBG("vfe_stats_struct == NULL\n");
+    ISP_DBG(ISP_MOD_STATS, "vfe_stats_struct == NULL\n");
   }
   if (hist_statsOutputBuffer == NULL) {
-    CDBG("hist_statsOutputBuffer == NULL\n");
+    ISP_DBG(ISP_MOD_STATS, "hist_statsOutputBuffer == NULL\n");
   }
 
   if (hist_statsOutputBuffer != NULL && vfe_stats_struct != NULL) {
@@ -2166,7 +2168,7 @@ int vfe_stats_proc_MSG_ID_STATS_AE(void *vfe_ctrl_obj,
   struct msm_cam_evt_divert_frame div_frame;
   vfe_stats_ae_struct_t *aec_parse_op_buf = NULL;
 
-  CDBG("%s E: fd = %d\n", __func__, buf->fd);
+  ISP_DBG(ISP_MOD_STATS, "%s E: fd = %d\n", __func__, buf->fd);
 
   for (i = 0; i < AEC_STATS_BUFNUM; ++i) {
     if (buf->fd == stats_buf_data->AecBuf[i].fd) {
@@ -2186,7 +2188,7 @@ int vfe_stats_proc_MSG_ID_STATS_AE(void *vfe_ctrl_obj,
 
   if (!isp_started) {
     /*do nothing, if camera not started or af is active, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
 
     stats_output->numRegions =
@@ -2206,7 +2208,7 @@ int vfe_stats_proc_MSG_ID_STATS_AE(void *vfe_ctrl_obj,
         CDBG_HIGH("%s: get_stats_op_buffer failed\n", __func__);
       }
 
-      CDBG("%s: buffer : %p\n", __func__, aec_parse_op_buf);
+      ISP_DBG(ISP_MOD_STATS, "%s: buffer : %p\n", __func__, aec_parse_op_buf);
       if(aec_parse_op_buf != NULL) {
         aec_parse_op_buf->cm_data.height =
           stats_output->aec_params.rgn_height;
@@ -2237,7 +2239,7 @@ int vfe_stats_proc_MSG_ID_STATS_AE(void *vfe_ctrl_obj,
   }
 
   stats_output->aec_bg_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_AE */
 
@@ -2261,7 +2263,7 @@ int vfe_stats_proc_MSG_ID_STATS_AWB(void *vfe_ctrl_obj,
   struct msm_cam_evt_divert_frame div_frame;
   vfe_stats_awb_struct_t *parse_op_buf = NULL;
 
-  CDBG("%s E: fd = %d\n", __func__, buf->fd);
+  ISP_DBG(ISP_MOD_STATS, "%s E: fd = %d\n", __func__, buf->fd);
 
   for (i = 0; i < AWB_STATS_BUFNUM; ++i) {
     if (buf->fd == stats_buf_data->AwbBuf[i].fd) {
@@ -2280,7 +2282,7 @@ int vfe_stats_proc_MSG_ID_STATS_AWB(void *vfe_ctrl_obj,
   }
   if (!isp_started) {
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
     vfe_stats_parse_AWB_stats_regions(p_obj, stats_output);
     stats_output->awb_shift_bits =
@@ -2292,7 +2294,7 @@ int vfe_stats_proc_MSG_ID_STATS_AWB(void *vfe_ctrl_obj,
       } else
         CDBG_HIGH("%s: get_stats_op_buffer failed\n", __func__);
 
-      CDBG("%s: buffer : %p\n", __func__, parse_op_buf);
+      ISP_DBG(ISP_MOD_STATS, "%s: buffer : %p\n", __func__, parse_op_buf);
       if(parse_op_buf != NULL) {
         parse_op_buf->cm_data.height =
           stats_mod->VFE_StatsAwb_ConfigCmd.rgnHeight;
@@ -2321,7 +2323,7 @@ int vfe_stats_proc_MSG_ID_STATS_AWB(void *vfe_ctrl_obj,
   }
 
   stats_output->awb_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_AWB */
 /*===========================================================================
@@ -2347,7 +2349,7 @@ int vfe_stats_proc_MSG_ID_STATS_IHIST(void *vfe_ctrl_obj,
   struct msm_cam_evt_divert_frame div_frame;
   vfe_stats_ihist_struct_t *parse_op_buf = NULL;
 
-  CDBG("%s E: fd = %d\n", __func__, buf->fd);
+  ISP_DBG(ISP_MOD_STATS, "%s E: fd = %d\n", __func__, buf->fd);
   for (i = 0; i < IHIST_STATS_BUFNUM; ++i) {
     if (buf->ihist.fd == stats_buf_data->IhistBuf[i].fd) {
       stats_buf_data->cur_IhistBuf = i;
@@ -2360,7 +2362,7 @@ int vfe_stats_proc_MSG_ID_STATS_IHIST(void *vfe_ctrl_obj,
     }
   }
 
-  CDBG("%s: E fd : %d, index : %d \n", __func__, stats_buf_data->IhistBuf[i].fd,
+  ISP_DBG(ISP_MOD_STATS, "%s: E fd : %d, index : %d \n", __func__, stats_buf_data->IhistBuf[i].fd,
     stats_buf_data->cur_IhistBuf);
   if (i == IHIST_STATS_BUFNUM) {
     CDBG_ERROR("IHIST_STATS buffer mismatch: fd = %d, buffer = %lx\n",
@@ -2384,7 +2386,7 @@ int vfe_stats_proc_MSG_ID_STATS_IHIST(void *vfe_ctrl_obj,
   /* Avoiding LA algorithm execution if la disabled in chromatix */
   if (!isp_started) {
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
     stats_output->ihist_shift_bits =
       p_obj->vfe_module.stats.ihist_stats.ihist_stats_cmd.shiftBits;
@@ -2400,7 +2402,7 @@ int vfe_stats_proc_MSG_ID_STATS_IHIST(void *vfe_ctrl_obj,
       } else
         CDBG_HIGH("%s: get_stats_op_buffer failed\n", __func__);
 
-      CDBG("%s: buffer : %p\n", __func__, parse_op_buf);
+      ISP_DBG(ISP_MOD_STATS, "%s: buffer : %p\n", __func__, parse_op_buf);
       if(parse_op_buf != NULL) {
         parse_op_buf->cm_data.height = 0;
         parse_op_buf->cm_data.width = 0;
@@ -2428,7 +2430,7 @@ int vfe_stats_proc_MSG_ID_STATS_IHIST(void *vfe_ctrl_obj,
   }
 
   stats_output->ihist_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_IHIST */
 
@@ -2449,7 +2451,7 @@ int vfe_stats_proc_MSG_ID_STATS_RS(void *vfe_ctrl_obj,
   struct msm_cam_evt_msg *adsp = (struct msm_cam_evt_msg *) stats;
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
 
-  CDBG("%s E: fd = %d\n", __func__, buf->fd);
+  ISP_DBG(ISP_MOD_STATS, "%s E: fd = %d\n", __func__, buf->fd);
   for (i = 0; i < RS_STATS_BUFNUM; ++i) {
     if (buf->fd == stats_buf_data->RSBuf[i].fd) {
       stats_buf_data->cur_RSBuf = i;
@@ -2467,7 +2469,7 @@ int vfe_stats_proc_MSG_ID_STATS_RS(void *vfe_ctrl_obj,
   }
   if (!isp_started)
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   else
     vfe_stats_parse_RS_stats(p_obj, stats_output);
 
@@ -2479,7 +2481,7 @@ int vfe_stats_proc_MSG_ID_STATS_RS(void *vfe_ctrl_obj,
   }
 
   stats_output->rs_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_RS */
 
@@ -2500,7 +2502,7 @@ int vfe_stats_proc_MSG_ID_STATS_CS(void *vfe_ctrl_obj,
   struct msm_cam_evt_msg *adsp = (struct msm_cam_evt_msg *) stats;
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
 
-  CDBG("%s E: fd = %d\n", __func__, buf->fd);
+  ISP_DBG(ISP_MOD_STATS, "%s E: fd = %d\n", __func__, buf->fd);
   for (i = 0; i < CS_STATS_BUFNUM; ++i) {
     if (buf->fd == stats_buf_data->CSBuf[i].fd) {
       stats_buf_data->cur_CSBuf = i;
@@ -2518,7 +2520,7 @@ int vfe_stats_proc_MSG_ID_STATS_CS(void *vfe_ctrl_obj,
   }
   if (!isp_started)
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   else
     vfe_stats_parse_CS_stats(p_obj, stats_output);
 
@@ -2530,7 +2532,7 @@ int vfe_stats_proc_MSG_ID_STATS_CS(void *vfe_ctrl_obj,
   }
 
   stats_output->cs_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_CS */
 
@@ -2553,7 +2555,7 @@ int vfe_stats_proc_MSG_ID_STATS_BE(void *vfe_ctrl_obj,
   struct msm_cam_evt_msg *adsp = (struct msm_cam_evt_msg *) stats;
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
 
-  CDBG("%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
+  ISP_DBG(ISP_MOD_STATS, "%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
     buf->fd);
 
   for (i = 0; i < BE_STATS_BUFNUM; ++i) {
@@ -2571,14 +2573,14 @@ int vfe_stats_proc_MSG_ID_STATS_BE(void *vfe_ctrl_obj,
     }
   }
   if (i == BE_STATS_BUFNUM) {
-    CDBG("BE_STATS buffer mismatch: fd = %d, buffer = %lx\n",
+    ISP_DBG(ISP_MOD_STATS, "BE_STATS buffer mismatch: fd = %d, buffer = %lx\n",
       buf->fd, buf->buffer);
     rc = -ENOENT;
   }
 
   if (!isp_started) {
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
       stats_output->numRegions = vfe_stats_parse_BE_stats_regions(
                                    p_obj, stats_output);
@@ -2591,7 +2593,7 @@ int vfe_stats_proc_MSG_ID_STATS_BE(void *vfe_ctrl_obj,
   }
 
   stats_output->be_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_BE */
 
@@ -2613,7 +2615,7 @@ int vfe_stats_proc_MSG_ID_STATS_BG(void *vfe_ctrl_obj,
   struct msm_cam_evt_msg *adsp = (struct msm_cam_evt_msg *) stats;
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
 
-  CDBG("%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
+  ISP_DBG(ISP_MOD_STATS, "%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
     buf->fd);
 
   for (i = 0; i < BG_STATS_BUFNUM; ++i) {
@@ -2631,14 +2633,14 @@ int vfe_stats_proc_MSG_ID_STATS_BG(void *vfe_ctrl_obj,
     }
   }
   if (i == BG_STATS_BUFNUM) {
-    CDBG("BG_STATS buffer mismatch: fd = %d, buffer = %lx\n",
+    ISP_DBG(ISP_MOD_STATS, "BG_STATS buffer mismatch: fd = %d, buffer = %lx\n",
       buf->fd, buf->buffer);
     rc = -ENOENT;
   }
 
   if (!isp_started) {
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
       stats_output->numRegions = vfe_stats_parse_BG_stats_regions(
                                    p_obj, stats_output);
@@ -2651,7 +2653,7 @@ int vfe_stats_proc_MSG_ID_STATS_BG(void *vfe_ctrl_obj,
   }
 
   stats_output->aec_bg_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_BG */
 
@@ -2673,7 +2675,7 @@ int vfe_stats_proc_MSG_ID_STATS_BF(void *vfe_ctrl_obj,
   struct msm_cam_evt_msg *adsp = (struct msm_cam_evt_msg *) stats;
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
 
-  CDBG("%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
+  ISP_DBG(ISP_MOD_STATS, "%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
     buf->fd);
 
   for (i = 0; i < BF_STATS_BUFNUM; ++i) {
@@ -2690,16 +2692,16 @@ int vfe_stats_proc_MSG_ID_STATS_BF(void *vfe_ctrl_obj,
       break;
     }
   }
-  CDBG("cur_Bayer AFBuf = %d\n", stats_buf_data->cur_bf_idx);
+  ISP_DBG(ISP_MOD_STATS, "cur_Bayer AFBuf = %d\n", stats_buf_data->cur_bf_idx);
   if (i == BF_STATS_BUFNUM) {
-    CDBG("BF_STATS buffer mismatch: fd = %d, buffer = %lx\n",
+    ISP_DBG(ISP_MOD_STATS, "BF_STATS buffer mismatch: fd = %d, buffer = %lx\n",
       buf->fd, buf->buffer);
     rc = -ENOENT;
   }
 
   if (!isp_started) {
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
       vfe_stats_parse_BF_stats_regions(p_obj, stats_output);
   }
@@ -2710,7 +2712,7 @@ int vfe_stats_proc_MSG_ID_STATS_BF(void *vfe_ctrl_obj,
   }
 
   stats_output->af_bf_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_BF */
 
@@ -2732,7 +2734,7 @@ int vfe_stats_proc_MSG_ID_STATS_BHIST(void *vfe_ctrl_obj,
   struct msm_cam_evt_msg *adsp = (struct msm_cam_evt_msg *) stats;
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
 
-  CDBG("%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
+  ISP_DBG(ISP_MOD_STATS, "%s E: buf = 0x%lx, fd = %d\n", __func__, buf->buffer,
     buf->fd);
 
   for (i = 0; i < BHIST_STATS_BUFNUM; ++i) {
@@ -2750,14 +2752,14 @@ int vfe_stats_proc_MSG_ID_STATS_BHIST(void *vfe_ctrl_obj,
     }
   }
   if (i == BHIST_STATS_BUFNUM) {
-    CDBG("BHIST_STATS buffer mismatch: fd = %d, buffer = %lx\n",
+    ISP_DBG(ISP_MOD_STATS, "BHIST_STATS buffer mismatch: fd = %d, buffer = %lx\n",
       buf->fd, buf->buffer);
     rc = -ENOENT;
   }
 
   if (!isp_started) {
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
     //vfe_stats_parse_BHIST_stats_regions(p_obj, stats_output);
   }
@@ -2769,7 +2771,7 @@ int vfe_stats_proc_MSG_ID_STATS_BHIST(void *vfe_ctrl_obj,
   }
 
   stats_output->bhist_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_BHIST */
 
@@ -2788,7 +2790,7 @@ int vfe_stats_proc_MSG_ID_STATS_COMPOSITE(void *vfe_ctrl_obj,
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
   vfe_stats_output_t *vfe_output = stats_output;
 
-  CDBG("%s, vfe common message = 0x%x\n", __func__, buf->status_bits);
+  ISP_DBG(ISP_MOD_STATS, "%s, vfe common message = 0x%x\n", __func__, buf->status_bits);
   //TODO: Add Bayer stats
   if((buf->status_bits & VFE_STATS_AEC) && buf->aec.buff) {
     rc = vfe_stats_proc_MSG_ID_STATS_AE(p_obj, isp_started, type,
@@ -2849,7 +2851,7 @@ static int vfe_stats_parse_WB_EXP_stats_regions(vfe_ctrl_info_t *p_obj,
     &(p_obj->vfe_module.stats.parser_mod.stats_bufs.s.legacy_stats_buf);
   isp_stats_t *vfeStatStruct = &(p_stats_output->vfe_stats_struct);
 
-  CDBG("%s:\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:\n", __func__);
   /* TODO: hardcoding numRegions as inputNumReg is hardcoded to 16*16 */
   //if (inputNumReg == VFE_16x16)
     numRegions = 256;
@@ -2866,7 +2868,7 @@ static int vfe_stats_parse_WB_EXP_stats_regions(vfe_ctrl_info_t *p_obj,
      AWB control */
 
     /* copy pointer to VFE stat 2 output region, plus 1 for header */
-    CDBG("Entered the parsing\n");
+    ISP_DBG(ISP_MOD_STATS, "Entered the parsing\n");
     current_region = wb_expStatsOutputBuffer + 1;
 
     /* for 7500 EXP statistics, still need to input the MaxDY, MinY
@@ -2891,13 +2893,13 @@ static int vfe_stats_parse_WB_EXP_stats_regions(vfe_ctrl_info_t *p_obj,
 
       current_region += 8;	/* each region is 8 32 bit words or 32 bytes long */
       /* increment int32_t pointer to next region         */
-//      CDBG("index : %d :: SY : %d, SY1 : %d, SCb : %d, SCr : %d, NSCb : %d",
+//      ISP_DBG(ISP_MOD_STATS, "index : %d :: SY : %d, SY1 : %d, SCb : %d, SCr : %d, NSCb : %d",
 //      i, vfeStatStruct->SY[i], vfeStatStruct->SY1[i], vfeStatStruct->SCb[i], vfeStatStruct->SCr[i], vfeStatStruct->NSCb[i]);
     }
     return numRegions;
 
   } else
-        CDBG("%s: output Null pointer: %s %d ", __func__,
+        ISP_DBG(ISP_MOD_STATS, "%s: output Null pointer: %s %d ", __func__,
           __FILE__, __LINE__);
 
   //TODO: update 3A
@@ -2922,7 +2924,7 @@ int vfe_stats_proc_MSG_ID_STATS_WB_EXP(void *vfe_ctrl_obj,
   struct msm_cam_evt_msg *adsp = (struct msm_cam_evt_msg *) stats;
   struct msm_stats_buf *buf = (struct msm_stats_buf *) (adsp->data);
 
-  CDBG("%s E: fd = %d\n", __func__, buf->fd);
+  ISP_DBG(ISP_MOD_STATS, "%s E: fd = %d\n", __func__, buf->fd);
 
   for (i = 0; i < AWB_AEC_STATS_BUFNUM; ++i) {
     if (buf->fd == stats_buf_data->AwbAecBuf[i].fd) {
@@ -2942,7 +2944,7 @@ int vfe_stats_proc_MSG_ID_STATS_WB_EXP(void *vfe_ctrl_obj,
 
   if (!isp_started) {
     /*do nothing, just ack the buffer*/
-    CDBG("%s Camera not started yet. Just ACK the buffer ", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s Camera not started yet. Just ACK the buffer ", __func__);
   } else {
       stats_output->numRegions = vfe_stats_parse_WB_EXP_stats_regions(p_obj,
                                    stats_output);
@@ -2950,7 +2952,7 @@ int vfe_stats_proc_MSG_ID_STATS_WB_EXP(void *vfe_ctrl_obj,
         p_obj->vfe_module.stats.aecawb_stats.rgn_width;
       stats_output->aec_params.rgn_height =
         p_obj->vfe_module.stats.aecawb_stats.rgn_height;
-      CDBG("VFE_ID_STATS_WB_EXP numReg %d\n", stats_output->numRegions);
+      ISP_DBG(ISP_MOD_STATS, "VFE_ID_STATS_WB_EXP numReg %d\n", stats_output->numRegions);
   }
 
   rc = vfe_stats_release_buf(p_obj, MSM_STATS_TYPE_AE_AW,
@@ -2961,7 +2963,7 @@ int vfe_stats_proc_MSG_ID_STATS_WB_EXP(void *vfe_ctrl_obj,
   }
 
   stats_output->wbexp_done = TRUE;
-  CDBG("%s: X, rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X, rc = %d\n", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_WB_EXP */
 
@@ -2999,7 +3001,7 @@ static void vfe_stats_parse_AF_stats_regions(vfe_ctrl_info_t *p_obj,
 
   if (autofocusMultiWindowGrid == NULL) {
     /* Single window stats */
-    CDBG("%s: Single window stats\n", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: Single window stats\n", __func__);
 #ifdef VFE_2X
     afStatsOutputPtr++;
     for (i = 0; (uint32_t) i < vfe_stats_struct->af_op.NFocus; i++)
@@ -3010,7 +3012,7 @@ static void vfe_stats_parse_AF_stats_regions(vfe_ctrl_info_t *p_obj,
 #endif
   } else {
 
-    CDBG("%s: Multi window stats\n", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: Multi window stats\n", __func__);
     i = 0;
     uint32_t temp = 0;
     for (j = 0; j < NUM_AUTOFOCUS_MULTI_WINDOW_GRIDS * NUM_AUTOFOCUS_MULTI_WINDOW_GRIDS; j++) {
@@ -3019,7 +3021,7 @@ static void vfe_stats_parse_AF_stats_regions(vfe_ctrl_info_t *p_obj,
       if (j == autofocusMultiWindowGrid[i]) {
 
         vfe_stats_struct->af_op.Focus += temp << 1;
-        CDBG("%s: j=%d temp = %d vfeStatStruct->Focus=%d", __func__, j,
+        ISP_DBG(ISP_MOD_STATS, "%s: j=%d temp = %d vfeStatStruct->Focus=%d", __func__, j,
           temp, vfe_stats_struct->af_op.Focus);
         i++;
       }
@@ -3027,7 +3029,7 @@ static void vfe_stats_parse_AF_stats_regions(vfe_ctrl_info_t *p_obj,
   }
 
   vfe_stats_struct->af_op.NFocus = p_obj->vfe_stats_struct.af_op.NFocus;
-  CDBG("%s:Focus=%d NFocus=%d \n", __func__, vfe_stats_struct->af_op.Focus,
+  ISP_DBG(ISP_MOD_STATS, "%s:Focus=%d NFocus=%d \n", __func__, vfe_stats_struct->af_op.Focus,
     vfe_stats_struct->af_op.NFocus);
 } /* vfe_stats_parse_AF_stats_regions */
 
@@ -3052,7 +3054,7 @@ int vfe_stats_proc_MSG_ID_STATS_AF(void *vfe_ctrl_obj,
   struct msm_cam_evt_divert_frame div_frame;
   vfe_stats_af_struct_t *parse_op_buf = NULL;
 
-  CDBG("%s E: fd = %d\n", __func__, buf->fd);
+  ISP_DBG(ISP_MOD_STATS, "%s E: fd = %d\n", __func__, buf->fd);
   for (i = 0; i < AF_STATS_BUFNUM; ++i) {
     if (buf->fd == stats_buf_data->AfBuf[i].fd) {
       stats_buf_data->cur_AFBuf = i;
@@ -3075,7 +3077,7 @@ int vfe_stats_proc_MSG_ID_STATS_AF(void *vfe_ctrl_obj,
   } else {
     vfe_stats_parse_AF_stats_regions(p_obj, stats_output);
     /* Hand over the next stats buffer to VFE */
-    CDBG("curAfBuf = %d, releasing AF STATS buffer = %lu\n",
+    ISP_DBG(ISP_MOD_STATS, "curAfBuf = %d, releasing AF STATS buffer = %lu\n",
       stats_buf_data->cur_AFBuf, release_buf.buffer);
     if(stats_mod->use_hal_buf) {
       if(p_obj->ops->get_stats_op_buffer) {
@@ -3084,7 +3086,7 @@ int vfe_stats_proc_MSG_ID_STATS_AF(void *vfe_ctrl_obj,
       } else {
         CDBG_HIGH("%s: get_stats_op_buffer failed\n", __func__);
       }
-      CDBG("%s: buffer : %p\n", __func__, parse_op_buf);
+      ISP_DBG(ISP_MOD_STATS, "%s: buffer : %p\n", __func__, parse_op_buf);
       if(parse_op_buf != NULL) {
         parse_op_buf->cm_data.height = 0;
         parse_op_buf->cm_data.width = 0;
@@ -3112,7 +3114,7 @@ int vfe_stats_proc_MSG_ID_STATS_AF(void *vfe_ctrl_obj,
   }
 
   stats_output->af_bf_done = TRUE;
-  CDBG("%s: X rc = %d", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: X rc = %d", __func__, rc);
   return rc;
 } /* vfe_stats_proc_MSG_ID_STATS_AF */
 
@@ -3154,11 +3156,16 @@ static void vfe_stats_dump(void *vaddr, uint32_t len, int msg_id)
     return;
   }
   file_fdp = open(bufp, O_RDWR | O_CREAT, 0777);
-  if (file_fdp < 0) {
-    CDBG("cannot open file %s\n", bufp);
+  if (file_fdp >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    file_fdp = -1;
     goto end;
   }
-  CDBG("%s:dump frame to '%s'\n", __func__, bufp);
+  if (file_fdp < 0) {
+    ISP_DBG(ISP_MOD_STATS, "cannot open file %s\n", bufp);
+    goto end;
+  }
+  ISP_DBG(ISP_MOD_STATS, "%s:dump frame to '%s'\n", __func__, bufp);
   write(file_fdp,(const void *)vaddr, len);
   close(file_fdp);
 end:
@@ -3195,7 +3202,7 @@ static int8_t vfe_af_handle_default_roi(vfe_ctrl_info_t *p_obj)
   fovcrop_width = last_pixel - first_pixel + 1;
   fovcrop_height = last_line - first_line + 1;
 
-  CDBG("%s: AF stats for Default window\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: AF stats for Default window\n", __func__);
 
 #ifndef VFE_2X
   af_params->shift_bits = 1;
@@ -3207,7 +3214,7 @@ static int8_t vfe_af_handle_default_roi(vfe_ctrl_info_t *p_obj)
   uint32_t rgnHeight = ((uint32_t)(fovcrop_height *
     chromatix_ptr->af_config.verticalClipRatio) >> 1) << 1;
 
-  CDBG("%s: rgnWidth=%d,rgnHeight=%d,fovcrop_width=%d,fovcrop_height=%d,"
+  ISP_DBG(ISP_MOD_STATS, "%s: rgnWidth=%d,rgnHeight=%d,fovcrop_width=%d,fovcrop_height=%d,"
     "HClipRatio=%f, VClipRatio=%f,firstPixel=%d,firstLine=%d\n", __func__,
     rgnWidth, rgnHeight, fovcrop_width, fovcrop_height,
     chromatix_ptr->af_config.horizontalClipRatio,
@@ -3252,7 +3259,7 @@ static int8_t vfe_af_handle_single_roi(vfe_ctrl_info_t *p_obj,
   uint32_t camif_width = ip_af_params->camif_width;
   uint32_t camif_height = ip_af_params->camif_height;
 
-  CDBG("%s: AF stats for Single ROI\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: AF stats for Single ROI\n", __func__);
 
 #ifndef VFE_40
   uint32_t first_pixel = p_obj->vfe_module.fov_mod.fov_cmd.firstPixel;
@@ -3273,12 +3280,12 @@ static int8_t vfe_af_handle_single_roi(vfe_ctrl_info_t *p_obj,
   fovcrop_width = last_pixel - first_pixel + 1;
   fovcrop_height = last_line - first_line + 1;
 
-  CDBG("%s: fovcrop_width/height: %d x %d camif_width/height:"
+  ISP_DBG(ISP_MOD_STATS, "%s: fovcrop_width/height: %d x %d camif_width/height:"
     "%d x %d frame_width/height: %d x %d", __func__,
     fovcrop_width, fovcrop_height, camif_width, camif_height,
     frame_width, frame_height);
 
-  CDBG("%s: region: %d %d %d %d", __func__,
+  ISP_DBG(ISP_MOD_STATS, "%s: region: %d %d %d %d", __func__,
     region->x, region->y, region->x + region->dx, region->y + region->dy);
 
   /* Check if region sizes are same as frame sizes. If yes we'll use
@@ -3301,7 +3308,7 @@ static int8_t vfe_af_handle_single_roi(vfe_ctrl_info_t *p_obj,
   af_params->rgn_voffset += diff_vertical;
   af_params->rgn_hoffset += diff_horizontal;
 
-  CDBG("%s: %d = %d * %d / %d\n", __func__,
+  ISP_DBG(ISP_MOD_STATS, "%s: %d = %d * %d / %d\n", __func__,
     af_params->rgn_hoffset,
     region->x, fovcrop_width, frame_width);
 
@@ -3355,7 +3362,7 @@ static int8_t vfe_af_handle_single_roi(vfe_ctrl_info_t *p_obj,
     (af_params->rgn_vnum + 1) *
     (af_params->rgn_height + 1)) >
     camif_height) {
-    CDBG("%s:%d: rgnHOffset=%d rgnVOffset=%d co-orinates\
+    ISP_DBG(ISP_MOD_STATS, "%s:%d: rgnHOffset=%d rgnVOffset=%d co-orinates\
       are out of range.\n",__func__, __LINE__,
       af_params->rgn_hoffset,
       af_params->rgn_voffset);
@@ -3386,7 +3393,7 @@ static int8_t vfe_af_handle_single_roi(vfe_ctrl_info_t *p_obj,
 
   vfe_stats_struct->af_op.NFocus = (af_params->rgn_height >> 1) -1;
 
-  CDBG("%s: after: region width height H off and V off = %d %d %d %d",
+  ISP_DBG(ISP_MOD_STATS, "%s: after: region width height H off and V off = %d %d %d %d",
     __func__,
     af_params->rgn_width,
     af_params->rgn_height,
@@ -3409,7 +3416,7 @@ static int8_t vfe_af_handle_multiple_roi(
   unsigned int fovcrop_width, fovcrop_height;
   isp_stats_t *vfe_stats_struct = &(p_obj->vfe_stats_struct);
   vfe_af_params_t *af_params = &(p_obj->vfe_params.af_params);
-  CDBG("%s: AF stats for Multiple ROI\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: AF stats for Multiple ROI\n", __func__);
 
 #ifndef VFE_40
   uint32_t first_pixel = p_obj->vfe_module.fov_mod.fov_cmd.firstPixel;
@@ -3473,7 +3480,7 @@ vfe_status_t vfe_af_calc_roi(void *p_obj,
 {
   vfe_status_t status = VFE_SUCCESS;
   vfe_ctrl_info_t *vfe_ctrl_obj = (vfe_ctrl_info_t *)p_obj;
-  CDBG("%s E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s E\n", __func__);
   vfe_ctrl_obj->vfe_params.af_params.multi_roi_win =
     ip_af_params->af_mult_window;
 
@@ -3491,7 +3498,7 @@ vfe_status_t vfe_af_calc_roi(void *p_obj,
     CDBG_ERROR(":%s: Invalid roi type error\n", __func__);
     break;
   }
-  CDBG("%s X\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s X\n", __func__);
   return VFE_SUCCESS;
 }
 

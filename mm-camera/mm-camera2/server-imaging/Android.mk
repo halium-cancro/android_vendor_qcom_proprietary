@@ -4,8 +4,7 @@ ifeq ($(call is-vendor-board-platform,QCOM),true)
 #
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
-
-LOCAL_CFLAGS :=  \
+LOCAL_CFLAGS := \
   -DAMSS_VERSION=$(AMSS_VERSION) \
   $(mmcamera_debug_defines) \
   $(mmcamera_debug_cflags) \
@@ -35,11 +34,13 @@ LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/pipeline/
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/stream/
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/module/
 LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/port/
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
+LOCAL_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/debug/
+LOCAL_C_INCLUDES+= \
+ $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 
 include $(LOCAL_PATH)/../../local_additional_dependency.mk
 
-LOCAL_SHARED_LIBRARIES:= libcutils liboemcamera \
+LOCAL_SHARED_LIBRARIES:= libcutils libdl liboemcamera \
                                    libmmcamera2_stats_modules \
                                    libmmcamera2_iface_modules \
                                    libmmcamera2_isp_modules \
@@ -48,6 +49,7 @@ LOCAL_SHARED_LIBRARIES:= libcutils liboemcamera \
                                    libmmcamera2_imglib_modules
 
 LOCAL_MODULE:= mm-qcamera-daemon
+LOCAL_32_BIT_ONLY := true
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)

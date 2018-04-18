@@ -12,12 +12,6 @@
 
 #define CHROMATIX_VERSION 0x301
 
-/* define front/back camera mask, tanrifei, 20140225 */
-#define BACK_CAMERA  0x0100
-#define FRONT_CAMERA 0x0200
-#define CAMERA_TYPE_MASK 0x0300
-/* add end */
-
 #define MAX_EXPOSURE_TABLE_SIZE    500
 
 /*============================================================================

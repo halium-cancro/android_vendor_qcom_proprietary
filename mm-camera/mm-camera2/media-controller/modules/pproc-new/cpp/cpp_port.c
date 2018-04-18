@@ -75,7 +75,7 @@ static boolean cpp_port_check_caps_reserve(mct_port_t *port, void *peer_caps,
   int rc;
   session_id = CPP_GET_SESSION_ID(identity);
   stream_id = CPP_GET_STREAM_ID(identity);
-  CDBG_HIGH("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
+  CDBG("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
 
   if(port_data->num_streams >= CPP_MAX_STREAMS_PER_PORT) {
     CDBG_ERROR("%s:%d, failed. max streams reached, num=%d",
@@ -168,7 +168,7 @@ static boolean cpp_port_check_caps_unreserve(mct_port_t *port,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return FALSE;
   }
-  CDBG_HIGH("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
+  CDBG("%s:%d, identity=0x%x\n", __func__, __LINE__, identity);
   cpp_port_data_t *port_data = (cpp_port_data_t *) MCT_OBJECT_PRIVATE(port);
   int i, rc;
   for(i=0; i<CPP_MAX_STREAMS_PER_PORT; i++) {

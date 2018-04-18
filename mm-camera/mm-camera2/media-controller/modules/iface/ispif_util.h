@@ -292,8 +292,8 @@ void ispif_util_release_isp_resource(ispif_t *ispif, ispif_stream_t *stream);
  *  Return: msm_ispif_intftype enumeration of interface found
  *          INTF_MAX - invalid mask
  **/
-enum msm_ispif_intftype ispif_util_find_isp_intf_type(ispif_stream_t *stream);
-
+enum msm_ispif_intftype ispif_util_find_isp_intf_type(ispif_stream_t *stream,
+  uint32_t used_output_mask, uint32_t vfe_mask);
 /** ispif_util_set_bundle:
  *    @ispif: ispif instance
  *    @ispif_sink_port: ispif sink port

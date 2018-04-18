@@ -15,26 +15,14 @@ LOCAL_CFLAGS:= \
 
 ifeq ($(VFE_VERS),vfe40)
   LOCAL_CFLAGS += -DVFE_40
-else ifeq ($(VFE_VERS),vfe32)
-  LOCAL_CFLAGS += -DVFE_32
-  ifeq ($(FEATURE_GYRO), true)
-    LOCAL_CFLAGS += -DFEATURE_GYRO
-  endif
-else ifeq ($(VFE_VERS),vfe31)
-  LOCAL_CFLAGS += -DVFE_31
-  ifeq ($(MSM_VERSION), 7x30)
-    LOCAL_CFLAGS += -DVFE_31_7x30
-  else
-    LOCAL_CFLAGS += -DVFE_31_8x60
-  endif
-else ifeq ($(VFE_VERS),vfe2x)
-  LOCAL_CFLAGS += -DVFE_2X
 endif
 
 ifeq ($(MSM_VERSION),8974)
-LOCAL_CFLAGS += -D_TWO_VFE
+LOCAL_CFLAGS += -D_FULL_RES_30FPS
 else ifeq ($(MSM_VERSION),8226)
-LOCAL_CFLAGS += -D_ONE_VFE
+LOCAL_CFLAGS += -D_FULL_RES_30FPS
+else ifeq ($(MSM_VERSION),8916)
+LOCAL_CFLAGS += -D_MSM_BEAR -D_FULL_RES_30FPS
 endif
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../includes
@@ -44,13 +32,13 @@ LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 LOCAL_SRC_FILES:= imx135_lib.c
 LOCAL_MODULE           := libmmcamera_imx135
 LOCAL_SHARED_LIBRARIES := libcutils
-#include $(LOCAL_PATH)/../../../../local_additional_dependency.mk
 
 ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

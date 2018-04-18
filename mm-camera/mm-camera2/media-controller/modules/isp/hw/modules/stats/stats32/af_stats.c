@@ -7,11 +7,12 @@
 
 #include <unistd.h>
 #include "af_stats.h"
+#include "isp_log.h"
 
 #if 0 /*TODO */
 #ifdef ENABLE_AF_STATS_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 /*===========================================================================
@@ -53,7 +54,7 @@ vfe_status_t vfe_af_stats_config(int mod_id, void *stats_af, void *vparams)
   vfe_params_t *params = (vfe_params_t *)vparams;
 
   if (!mod->enable) {
-    CDBG("%s: AF not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: AF not enabled", __func__);
     return status;
   }
 
@@ -65,27 +66,27 @@ vfe_status_t vfe_af_stats_config(int mod_id, void *stats_af, void *vparams)
   mod->af_stats.rgnHNum = params->af_params.rgn_hnum;
   mod->af_stats.rgnVNum = params->af_params.rgn_vnum;
 
-  CDBG("%s:\n",__func__);
-  CDBG("rgnHOffset=%d",mod->af_stats.rgnHOffset);
-  CDBG("rgnVOffset=%d",mod->af_stats.rgnVOffset);
-  CDBG("shiftBits=%d",mod->af_stats.shiftBits);
-  CDBG("rgnHeight=%d",mod->af_stats.rgnHeight);
-  CDBG("rgnWidth=%d",mod->af_stats.rgnWidth);
-  CDBG("rgnHNum=%d",mod->af_stats.rgnHNum);
-  CDBG("rgnVNum=%d",mod->af_stats.rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:\n",__func__);
+  ISP_DBG(ISP_MOD_STATS, "rgnHOffset=%d",mod->af_stats.rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "rgnVOffset=%d",mod->af_stats.rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "shiftBits=%d",mod->af_stats.shiftBits);
+  ISP_DBG(ISP_MOD_STATS, "rgnHeight=%d",mod->af_stats.rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "rgnWidth=%d",mod->af_stats.rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "rgnHNum=%d",mod->af_stats.rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "rgnVNum=%d",mod->af_stats.rgnVNum);
 
-  CDBG("a00=%d",mod->af_stats.a00);
-  CDBG("a02=%d",mod->af_stats.a02);
-  CDBG("a04=%d",mod->af_stats.a04);
-  CDBG("a20=%d",mod->af_stats.a20);
-  CDBG("a21=%d",mod->af_stats.a21);
-  CDBG("a22=%d",mod->af_stats.a22);
-  CDBG("a23=%d",mod->af_stats.a23);
-  CDBG("a24=%d",mod->af_stats.a24);
-  CDBG("fvMin=%d",mod->af_stats.fvMin);
-  CDBG("fvMode=%d",mod->af_stats.fvMode);
+  ISP_DBG(ISP_MOD_STATS, "a00=%d",mod->af_stats.a00);
+  ISP_DBG(ISP_MOD_STATS, "a02=%d",mod->af_stats.a02);
+  ISP_DBG(ISP_MOD_STATS, "a04=%d",mod->af_stats.a04);
+  ISP_DBG(ISP_MOD_STATS, "a20=%d",mod->af_stats.a20);
+  ISP_DBG(ISP_MOD_STATS, "a21=%d",mod->af_stats.a21);
+  ISP_DBG(ISP_MOD_STATS, "a22=%d",mod->af_stats.a22);
+  ISP_DBG(ISP_MOD_STATS, "a23=%d",mod->af_stats.a23);
+  ISP_DBG(ISP_MOD_STATS, "a24=%d",mod->af_stats.a24);
+  ISP_DBG(ISP_MOD_STATS, "fvMin=%d",mod->af_stats.fvMin);
+  ISP_DBG(ISP_MOD_STATS, "fvMode=%d",mod->af_stats.fvMode);
 
-  CDBG("%s: Sending VFE command for type =%d", __func__,
+  ISP_DBG(ISP_MOD_STATS, "%s: Sending VFE command for type =%d", __func__,
     VFE_CMD_STATS_AF_START);
 
   status = vfe_util_write_hw_cmd(params->camfd, CMD_GENERAL,
@@ -110,7 +111,7 @@ vfe_status_t vfe_af_stats_enable(int mod_id, void *stats_af, void *vparams,
 
   if (!IS_BAYER_FORMAT(params))
     enable = FALSE;
-  CDBG("%s: %d", __func__, enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: %d", __func__, enable);
 
   mod->enable = enable;
   /* Don't enable AF in moduleCfg until AF_START.
@@ -148,7 +149,7 @@ vfe_status_t vfe_af_stats_stop(af_stats_t *stats, vfe_params_t *params)
 {
   vfe_status_t status = VFE_SUCCESS;
 
-  CDBG("vfe_af_stats_stop\n");
+  ISP_DBG(ISP_MOD_STATS, "vfe_af_stats_stop\n");
   status = vfe_util_write_hw_cmd(params->camfd,
     CMD_GENERAL, 0, 0, VFE_CMD_STATS_AF_STOP);
   if (VFE_SUCCESS != status) {

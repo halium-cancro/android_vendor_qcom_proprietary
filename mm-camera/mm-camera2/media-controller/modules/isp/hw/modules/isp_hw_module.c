@@ -14,6 +14,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_hw.h"
 #include "isp_hw_module_ops.h"
 #include "isp_hw_module_def.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -35,7 +36,7 @@ isp_ops_t *isp_hw_module_open(uint32_t isp_version,
 {
   uint32_t main_version = GET_ISP_MAIN_VERSION(isp_version);
 
-  CDBG("%s: open module %d\n", __func__, module_id);
+  ISP_DBG(ISP_MOD_COM,"%s: open module %d\n", __func__, module_id);
 
   switch (module_id) {
   case ISP_MOD_LINEARIZATION:
@@ -108,7 +109,7 @@ isp_ops_t *isp_hw_module_open(uint32_t isp_version,
     return ISP_MOD_COLOR_XFORM_open(main_version);
 
   case ISP_MOD_STATS:
-    return ISP_MOD_STATS_open(main_version);
+    return ISP_MOD_STATS_open(isp_version);
 
   default:
     return NULL;

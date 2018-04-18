@@ -12,6 +12,10 @@
 #include "sensor.h"
 #include "mct_pipeline.h"
 #include "sensor_thread.h"
+#include "camera_dbg.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+#include "server_debug.h"
 
 static long long sensor_current_timestamp(void)
 {
@@ -125,6 +129,8 @@ void* sensor_thread_func(void *data)
    pollfds.events = POLLIN | POLLPRI;
    cancel_autofocus = FALSE;
 
+   SHIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+   prctl(PR_SET_NAME, "sensor_thread", 0, 0, 0);
    while(!thread_exit){
      ready = poll(&pollfds, (nfds_t)num_of_fds, -1);
       if(ready > 0)
@@ -169,6 +175,10 @@ int32_t sensor_thread_create(mct_module_t *module)
   if(pipe(ctrl->pfd) < 0) {
      SERR("%s: Error in creating the pipe",__func__);
   }
+  if ((ctrl->pfd[0]) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ctrl->pfd[0] = -1;
+  }
 
    pthread_attr_init(&attr);
    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -178,10 +188,11 @@ int32_t sensor_thread_create(mct_module_t *module)
    thread.readfd = ctrl->pfd[0];
    thread.writefd = ctrl->pfd[1];
    ret = pthread_create(&thread.td, &attr, sensor_thread_func, &thread );
-   if(ret < 0) {
-     SERR("%s: Failed to create af_status thread",__func__);
+   if(0 != ret) {
+     SERR("%s: Failed to create af_status thread, ret = 0x%x",__func__, ret);
      return ret;
    }
+   pthread_setname_np(thread.td, "CAM_sensor");
    pthread_mutex_lock(&thread.mutex);
     while(thread.is_thread_started == FALSE) {
        pthread_cond_wait(&thread.cond, &thread.mutex);

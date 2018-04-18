@@ -8,6 +8,11 @@
 #include "mlro.h"
 #include "mlro_utils.h"
 #include "matrix_utils.h"
+#include <inttypes.h>
+#include "isp_pipeline.h"
+#include "isp_pipeline_util.h"
+#include "isp_hw_module_ops.h"
+#include "isp_log.h"
 
 
 /*==============================================================================
@@ -101,7 +106,7 @@ int subspaceoptim(double** x, int n, int c, int r, int nbases,
   }
 
   if (!is_bases_known) {
-    CDBG("%s: Bases are not known. Compute them\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Bases are not known. Compute them\n", __func__);
     /* form the covariance matrix and compute eigen vectors */
     transmat(x, c, r*n*nch, y);
 
@@ -124,7 +129,7 @@ int subspaceoptim(double** x, int n, int c, int r, int nbases,
         l[i] += optimbases[i][j] * optimbases[i][j];
     }
   } else {
-    CDBG("%s: Bases are known. Directly use them\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Bases are known. Directly use them\n", __func__);
   }
 
   /* compute eigen vector coefficients */

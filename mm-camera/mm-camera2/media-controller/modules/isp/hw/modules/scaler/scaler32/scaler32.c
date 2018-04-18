@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "scaler32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_SCALER_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #define VFE_DOWNSCALER_MN_FACTOR_OFFSET 13
@@ -22,17 +23,17 @@
  *============================================================================*/
 static void main_scaler_cmd_debug(ISP_Main_Scaler_ConfigCmdType* cmd)
 {
-  CDBG("%s: hEnable = %d vEnable = %d", __func__, cmd->hEnable, cmd->vEnable);
-  CDBG("%s: inWidth = %d outWidth = %d", __func__, cmd->inWidth, cmd->outWidth);
-  CDBG("%s: horizPhaseMult = %d horizInterResolution = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: hEnable = %d vEnable = %d", __func__, cmd->hEnable, cmd->vEnable);
+  ISP_DBG(ISP_MOD_SCALER, "%s: inWidth = %d outWidth = %d", __func__, cmd->inWidth, cmd->outWidth);
+  ISP_DBG(ISP_MOD_SCALER, "%s: horizPhaseMult = %d horizInterResolution = %d", __func__,
     cmd->horizPhaseMult, cmd->horizInterResolution);
-  CDBG("%s: horizMNInit = %d horizPhaseInit = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: horizMNInit = %d horizPhaseInit = %d", __func__,
     cmd->horizMNInit, cmd->horizPhaseInit);
-  CDBG("%s: inHeight = %d outHeight = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: inHeight = %d outHeight = %d", __func__,
     cmd->inHeight, cmd->outHeight);
-  CDBG("%s: vertPhaseMult = %d vertInterResolution = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: vertPhaseMult = %d vertInterResolution = %d", __func__,
     cmd->vertPhaseMult, cmd->vertInterResolution);
-  CDBG("%s: vertMNInit = %d vertPhaseInit = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: vertMNInit = %d vertPhaseInit = %d", __func__,
     cmd->vertMNInit, cmd->vertPhaseInit);
 } /* main_scaler_cmd_debug */
 
@@ -43,12 +44,12 @@ static void main_scaler_cmd_debug(ISP_Main_Scaler_ConfigCmdType* cmd)
  *============================================================================*/
 static void y_scaler_cmd_debug(ISP_Output_YScaleCfgCmdType *cmd)
 {
-  CDBG("%s: hEnable = %d vEnable = %d", __func__, cmd->hEnable, cmd->vEnable);
-  CDBG("%s: hIn = %d hOut = %d", __func__, cmd->hIn, cmd->hOut);
-  CDBG("%s: horizPhaseMult = %d horizInterResolution = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: hEnable = %d vEnable = %d", __func__, cmd->hEnable, cmd->vEnable);
+  ISP_DBG(ISP_MOD_SCALER, "%s: hIn = %d hOut = %d", __func__, cmd->hIn, cmd->hOut);
+  ISP_DBG(ISP_MOD_SCALER, "%s: horizPhaseMult = %d horizInterResolution = %d", __func__,
     cmd->horizPhaseMult, cmd->horizInterResolution);
-  CDBG("%s: vIn = %d vOut = %d", __func__, cmd->vIn, cmd->vOut);
-  CDBG("%s: vertPhaseMult = %d vertInterResolution = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: vIn = %d vOut = %d", __func__, cmd->vIn, cmd->vOut);
+  ISP_DBG(ISP_MOD_SCALER, "%s: vertPhaseMult = %d vertInterResolution = %d", __func__,
     cmd->vertPhaseMult, cmd->vertInterResolution);
 } /* y_scaler_cmd_debug */
 
@@ -59,12 +60,12 @@ static void y_scaler_cmd_debug(ISP_Output_YScaleCfgCmdType *cmd)
  *============================================================================*/
 static void cbcr_scaler_cmd_debug(ISP_Output_CbCrScaleCfgCmdType *cmd)
 {
-  CDBG("%s: hEnable = %d vEnable = %d", __func__, cmd->hEnable, cmd->vEnable);
-  CDBG("%s: hIn = %d hOut = %d", __func__, cmd->hIn, cmd->hOut);
-  CDBG("%s: horizPhaseMult = %d horizInterResolution = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: hEnable = %d vEnable = %d", __func__, cmd->hEnable, cmd->vEnable);
+  ISP_DBG(ISP_MOD_SCALER, "%s: hIn = %d hOut = %d", __func__, cmd->hIn, cmd->hOut);
+  ISP_DBG(ISP_MOD_SCALER, "%s: horizPhaseMult = %d horizInterResolution = %d", __func__,
     cmd->horizPhaseMult, cmd->horizInterResolution);
-  CDBG("%s: vIn = %d vOut = %d", __func__, cmd->vIn, cmd->vOut);
-  CDBG("%s: vertPhaseMult = %d vertInterResolution = %d", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: vIn = %d vOut = %d", __func__, cmd->vIn, cmd->vOut);
+  ISP_DBG(ISP_MOD_SCALER, "%s: vertPhaseMult = %d vertInterResolution = %d", __func__,
     cmd->vertPhaseMult, cmd->vertInterResolution);
 } /* cbcr_scaler_cmd_debug */
 
@@ -100,7 +101,7 @@ static int main_scaler_config(ISP_Main_Scaler_ConfigCmdType *main_scaler_cmd,
   scale_factor_vert = input_height / output_height;
 
   if (scale_factor_horiz < 1 || scale_factor_vert < 1) {
-    CDBG("Output2 is configure larger than camsensor FOV.\n");
+    ISP_DBG(ISP_MOD_SCALER, "Output2 is configure larger than camsensor FOV.\n");
     scale_factor_horiz = 1;
     scale_factor_vert = 1;
   }
@@ -123,7 +124,7 @@ static int main_scaler_config(ISP_Main_Scaler_ConfigCmdType *main_scaler_cmd,
   } else if (scale_factor_horiz >= 16 && scale_factor_horiz < 32) {
     hFactor = 0;
   } else {
-    CDBG("scale_factor_horiz is greater than 32, which is more than "
+    ISP_DBG(ISP_MOD_SCALER, "scale_factor_horiz is greater than 32, which is more than "
       "the supported maximum scale factor.\n");
   }
   main_scaler_cmd->horizInterResolution  = hFactor;
@@ -141,7 +142,7 @@ static int main_scaler_config(ISP_Main_Scaler_ConfigCmdType *main_scaler_cmd,
   } else if (scale_factor_vert >= 16 && scale_factor_vert < 32) {
     vFactor = 0;
   } else {
-    CDBG("scale_factor_vert is greater than 32, which is more than "
+    ISP_DBG(ISP_MOD_SCALER, "scale_factor_vert is greater than 32, which is more than "
       "the supported maximum scale factor.\n");
   }
   main_scaler_cmd->vertInterResolution    = vFactor;
@@ -149,21 +150,21 @@ static int main_scaler_config(ISP_Main_Scaler_ConfigCmdType *main_scaler_cmd,
     FLOAT_TO_Q(VFE_DOWNSCALER_MN_FACTOR_OFFSET + vFactor,
     (int32_t)input_height) / output_height;
 
-  CDBG("%s: main_scaler_cmd.inWidth = %d\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: main_scaler_cmd.inWidth = %d\n", __func__,
     main_scaler_cmd->inWidth);
-  CDBG("%s: main_scaler_cmd.outWidth = %d\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: main_scaler_cmd.outWidth = %d\n", __func__,
     main_scaler_cmd->outWidth);
-  CDBG("%s: main_scaler_cmd.inHeight = %d\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: main_scaler_cmd.inHeight = %d\n", __func__,
     main_scaler_cmd->inHeight);
-  CDBG("%s: main_scaler_cmd.outHeight = %d\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: main_scaler_cmd.outHeight = %d\n", __func__,
     main_scaler_cmd->outHeight);
-  CDBG("%s: main_scaler_cmd.horizInterResolution = %d\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: main_scaler_cmd.horizInterResolution = %d\n", __func__,
     main_scaler_cmd->horizInterResolution);
-  CDBG("%s main_scaler_cmd.horizPhaseMult = %u\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s main_scaler_cmd.horizPhaseMult = %u\n", __func__,
     main_scaler_cmd->horizPhaseMult);
-  CDBG("%s main_scaler_cmd.vertInterResolution = %d\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s main_scaler_cmd.vertInterResolution = %d\n", __func__,
     main_scaler_cmd->vertInterResolution);
-  CDBG("%s: main_scaler_cmd.vertPhaseMult = %u\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: main_scaler_cmd.vertPhaseMult = %u\n", __func__,
     main_scaler_cmd->vertPhaseMult);
 
   return rc;
@@ -194,7 +195,7 @@ static int y_scaler_config(ISP_Output_YScaleCfgCmdType *y_scaler_cmd,
   scale_factor_vert = output2_height / output1_height;
 
   if (scale_factor_horiz < 1 || scale_factor_vert < 1) {
-    CDBG("Output2 is configure larger than camsensor FOV.\n");
+    ISP_DBG(ISP_MOD_SCALER, "Output2 is configure larger than camsensor FOV.\n");
     scale_factor_horiz = 1;
     scale_factor_vert = 1;
   }
@@ -215,7 +216,7 @@ static int y_scaler_config(ISP_Output_YScaleCfgCmdType *y_scaler_cmd,
   } else if (scale_factor_horiz >= 16 && scale_factor_horiz < 32) {
     hFactor = 0;
   } else {
-    CDBG("scale_factor_horiz is greater than 32, which is more than "
+    ISP_DBG(ISP_MOD_SCALER, "scale_factor_horiz is greater than 32, which is more than "
       "the supported maximum scale factor.\n");
   }
   y_scaler_cmd->horizInterResolution = hFactor;
@@ -232,7 +233,7 @@ static int y_scaler_config(ISP_Output_YScaleCfgCmdType *y_scaler_cmd,
   } else if (scale_factor_vert >= 16 && scale_factor_vert < 32) {
     vFactor = 0;
   } else {
-    CDBG("scale_factor_vert is greater than 32, which is more than "
+    ISP_DBG(ISP_MOD_SCALER, "scale_factor_vert is greater than 32, which is more than "
       "the supported maximum scale factor.\n");
   }
   y_scaler_cmd->vertInterResolution = vFactor;
@@ -240,17 +241,17 @@ static int y_scaler_config(ISP_Output_YScaleCfgCmdType *y_scaler_cmd,
     FLOAT_TO_Q(VFE_DOWNSCALER_MN_FACTOR_OFFSET + vFactor,
     (int32_t)output2_height) / output1_height;
 
-  CDBG("y_scaler_cmd.hinputSize = %d\n",y_scaler_cmd->hIn);
-  CDBG("y_scaler_cmd.houtputSize = %d\n",y_scaler_cmd->hOut);
-  CDBG("y_scaler_cmd.vinputSize = %d\n",y_scaler_cmd->vIn);
-  CDBG("y_scaler_cmd.voutputSize = %d\n",y_scaler_cmd->vOut);
-  CDBG("y_scaler_cmd.hinterpolationResolution = %d\n",
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.hinputSize = %d\n",y_scaler_cmd->hIn);
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.houtputSize = %d\n",y_scaler_cmd->hOut);
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.vinputSize = %d\n",y_scaler_cmd->vIn);
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.voutputSize = %d\n",y_scaler_cmd->vOut);
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.hinterpolationResolution = %d\n",
     y_scaler_cmd->horizInterResolution);
-  CDBG("y_scaler_cmd.hphaseMultiplicationFactor = %u\n",
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.hphaseMultiplicationFactor = %u\n",
     y_scaler_cmd->horizPhaseMult);
-  CDBG("y_scaler_cmd.vinterpolationResolution = %d\n",
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.vinterpolationResolution = %d\n",
     y_scaler_cmd->vertInterResolution);
-  CDBG("y_scaler_cmd.vphaseMultiplicationFactor = %u\n",
+  ISP_DBG(ISP_MOD_SCALER, "y_scaler_cmd.vphaseMultiplicationFactor = %u\n",
     y_scaler_cmd->vertPhaseMult);
 
   return rc;
@@ -288,6 +289,7 @@ static int cbcr_scaler_config(ISP_Output_CbCrScaleCfgCmdType *cbcr_scaler_cmd,
     break;
   case CAM_FORMAT_YUV_420_NV12:
   case CAM_FORMAT_YUV_420_NV21:
+  case CAM_FORMAT_YUV_420_NV12_VENUS:
     cbcr_scaler_cmd->hOut = (nViewfinderOutWidth + 1) / 2;
     cbcr_scaler_cmd->vOut = (nViewfinderOutHeight + 1) / 2;
     break;
@@ -301,7 +303,7 @@ static int cbcr_scaler_config(ISP_Output_CbCrScaleCfgCmdType *cbcr_scaler_cmd,
   scale_factor_vert = cbcr_scaler_cmd->vIn / cbcr_scaler_cmd->vOut;
 
   if (scale_factor_horiz < 1 || scale_factor_vert < 1) {
-    CDBG("Output2 is configure larger than camsensor FOV.\n");
+    ISP_DBG(ISP_MOD_SCALER, "Output2 is configure larger than camsensor FOV.\n");
     scale_factor_horiz = 1;
     scale_factor_vert = 1;
   }
@@ -314,7 +316,7 @@ static int cbcr_scaler_config(ISP_Output_CbCrScaleCfgCmdType *cbcr_scaler_cmd,
   } else if (scale_factor_horiz >= 16 && scale_factor_horiz < 32) {
     hFactor = 0;
   } else {
-    CDBG("scale_factor_horiz is greater than 32, which is more than "
+    ISP_DBG(ISP_MOD_SCALER, "scale_factor_horiz is greater than 32, which is more than "
       "the supported maximum scale factor.\n");
   }
 
@@ -332,7 +334,7 @@ static int cbcr_scaler_config(ISP_Output_CbCrScaleCfgCmdType *cbcr_scaler_cmd,
   } else if (scale_factor_vert >= 16 && scale_factor_vert < 32) {
     vFactor = 0;
   } else {
-    CDBG("scale_factor_vert is greater than 32, which is more than "
+    ISP_DBG(ISP_MOD_SCALER, "scale_factor_vert is greater than 32, which is more than "
       "the supported maximum scale factor.\n");
   }
   cbcr_scaler_cmd->vertInterResolution = vFactor;
@@ -340,17 +342,17 @@ static int cbcr_scaler_config(ISP_Output_CbCrScaleCfgCmdType *cbcr_scaler_cmd,
     FLOAT_TO_Q(VFE_DOWNSCALER_MN_FACTOR_OFFSET + vFactor,
     (int32_t) cbcr_scaler_cmd->vIn) / (int) cbcr_scaler_cmd->vOut;
 
-  CDBG("cbcr_scaler_cmd.hinputSize = %d\n", cbcr_scaler_cmd->hIn);
-  CDBG("cbcr_scaler_cmd.houtputSize = %d\n", cbcr_scaler_cmd->hOut);
-  CDBG("cbcr_scaler_cmd.vinputSize = %d\n", cbcr_scaler_cmd->vIn);
-  CDBG("cbcr_scaler_cmd.voutputSize = %d\n", cbcr_scaler_cmd->vOut);
-  CDBG("cbcr_scaler_cmd.hinterpolationResolution = %d\n",
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.hinputSize = %d\n", cbcr_scaler_cmd->hIn);
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.houtputSize = %d\n", cbcr_scaler_cmd->hOut);
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.vinputSize = %d\n", cbcr_scaler_cmd->vIn);
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.voutputSize = %d\n", cbcr_scaler_cmd->vOut);
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.hinterpolationResolution = %d\n",
     cbcr_scaler_cmd->horizInterResolution);
-  CDBG("cbcr_scaler_cmd.hphaseMultiplicationFactor = %u\n",
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.hphaseMultiplicationFactor = %u\n",
     cbcr_scaler_cmd->horizPhaseMult);
-  CDBG("cbcr_scaler_cmd.vinterpolationResolution = %d\n",
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.vinterpolationResolution = %d\n",
     cbcr_scaler_cmd->vertInterResolution );
-  CDBG("cbcr_scaler_cmd.vphaseMultiplicationFactor = %u\n",
+  ISP_DBG(ISP_MOD_SCALER, "cbcr_scaler_cmd.vphaseMultiplicationFactor = %u\n",
     cbcr_scaler_cmd->vertPhaseMult );
 
   return rc;
@@ -417,12 +419,12 @@ static int scaler_config(isp_scaler_mod_t *scaler_mod,
   }
 
   if (!scaler_mod->enable) {
-    CDBG("%s: not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCALER, "%s: not enabled", __func__);
     /* not enabled no op */
     return rc;
   }
 
-  CDBG("%s: <<<camera>>> calling main_scaler_config", __func__);
+  ISP_DBG(ISP_MOD_SCALER, "%s: <<<camera>>> calling main_scaler_config", __func__);
 
   /* main scaler is always on */
   rc = main_scaler_config(&(scaler_mod->main_scaler_cmd), pix_setting);
@@ -443,33 +445,33 @@ static int scaler_config(isp_scaler_mod_t *scaler_mod,
     pix_setting->outputs[ISP_PIX_PATH_VIEWFINDER].stream_param.height) {
     //TODO: how to get the number of vfe output??
 
-    CDBG("%s SECONDARY SCALAR ENABLED ", __func__);
+    ISP_DBG(ISP_MOD_SCALER, "%s SECONDARY SCALAR ENABLED ", __func__);
     /* secondary scaler is only on when output path 1 is enabled. */
     //TODO: Need to check if Media controller is going to provide
     //output path and any check need to be performed for secondary scaler
     rc = y_scaler_config(&(scaler_mod->y_scaler_cmd),pix_setting);
     if (rc != 0) {
-      CDBG("%s:failed",__func__);
+      ISP_DBG(ISP_MOD_SCALER, "%s:failed",__func__);
       return rc;
     } else {
       scaler_mod->Y_scaler_hw_update_pending = TRUE;
     }
-    CDBG("sent yscale cfg comand \n");
+    ISP_DBG(ISP_MOD_SCALER, "sent yscale cfg comand \n");
 
     rc = cbcr_scaler_config(&(scaler_mod->cbcr_scaler_cmd), pix_setting);
     if (rc != 0) {
-      CDBG("%s:failed",__func__);
+      ISP_DBG(ISP_MOD_SCALER, "%s:failed",__func__);
       return rc;
     } else {
        scaler_mod->CbCr_scaler_hw_update_pending = TRUE;
     }
-    CDBG("sent CbCr scalar cfg comand \n");
+    ISP_DBG(ISP_MOD_SCALER, "sent CbCr scalar cfg comand \n");
 
     scaler_mod->scaling_factor *=
         (float)pix_setting->outputs[ISP_PIX_PATH_ENCODER].stream_param.width /
         (float)pix_setting->outputs[ISP_PIX_PATH_VIEWFINDER].stream_param.width;
   } else {
-    CDBG("%s SECONDARY SCALAR DISABLED ", __func__);
+    ISP_DBG(ISP_MOD_SCALER, "%s SECONDARY SCALAR DISABLED ", __func__);
   }
 
   return rc;
@@ -494,7 +496,7 @@ static int scaler_trigger_update(isp_scaler_mod_t *scaler,
   int rc = 0, i;
 
   if (!scaler->trigger_enable || !scaler->enable) {
-    CDBG("%s: SCALER trigger update not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCALER, "%s: SCALER trigger update not enabled", __func__);
     return 0;
   }
   rc = scaler_config(scaler, &params->cfg, sizeof(params->cfg));
@@ -604,7 +606,7 @@ static int scaler_do_hw_update(isp_scaler_mod_t *scaler_mod)
   struct msm_vfe_cfg_cmd2 cfg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[1];
 
-  CDBG("%s: HW_update = %d\n", __func__,
+  ISP_DBG(ISP_MOD_SCALER, "%s: HW_update = %d\n", __func__,
     scaler_mod->main_scaler_hw_update_pending);
 
   if (scaler_mod->main_scaler_hw_update_pending == TRUE) {

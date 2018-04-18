@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <math.h>
 #include "frame_skip32.h"
+#include "isp_log.h"
 
 
 /*===========================================================================
@@ -19,7 +20,7 @@ static int frame_skip_config(isp_frame_skip_mod_t *mod, isp_hw_pix_setting_param
 {
   int  rc = 0;
   uint32_t i;
-  CDBG("%s\n",__func__);
+  ISP_DBG(ISP_MOD_FRAME_SKIP, "%s\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */

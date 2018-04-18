@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "clamp40.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_CLAMP_LOGGING
-  #undef CDBG
-  #define CDBG ALOGE
+  #undef ISP_DBG
+  #define ISP_DBG ALOGE
 #endif
 
 /** vfe_clamp_cmd_debug:
@@ -21,20 +22,20 @@
  **/
 static void vfe_clamp_cmd_debug(ISP_OutputClampConfigCmdType cmd, int index)
 {
-  CDBG("%s: CLAMP[%d]\n", __func__, index);
+  ISP_DBG(ISP_MOD_CLAMP, "%s: CLAMP[%d]\n", __func__, index);
 
-  CDBG("%s: CLAMP[%d]  %d\n",
+  ISP_DBG(ISP_MOD_CLAMP, "%s: CLAMP[%d]  %d\n",
     __func__, index, cmd.yChanMax);
-  CDBG("%s: CLAMP[%d] %d\n",
+  ISP_DBG(ISP_MOD_CLAMP, "%s: CLAMP[%d] %d\n",
     __func__, index, cmd.cbChanMax);
-  CDBG("%s: CLAMP[%d] %d\n",
+  ISP_DBG(ISP_MOD_CLAMP, "%s: CLAMP[%d] %d\n",
     __func__, index, cmd.crChanMax);
 
-  CDBG("%s: CLAMP[%d] %d\n",
+  ISP_DBG(ISP_MOD_CLAMP, "%s: CLAMP[%d] %d\n",
     __func__, index, cmd.yChanMin);
-  CDBG("%s: CLAMP[%d] %d\n",
+  ISP_DBG(ISP_MOD_CLAMP, "%s: CLAMP[%d] %d\n",
     __func__, index, cmd.cbChanMin);
-  CDBG("%s: CLAMP[%d] %d\n",
+  ISP_DBG(ISP_MOD_CLAMP, "%s: CLAMP[%d] %d\n",
     __func__, index, cmd.crChanMin);
 
 } /* isp_clamp_cmd_debug */
@@ -175,7 +176,7 @@ static int clamp_do_hw_update(isp_clamp_mod_t *clamp_mod)
 static int clamp_config(isp_clamp_mod_t *mod,
   isp_hw_pix_setting_params_t *in_params, uint32_t in_param_size)
 {
-  CDBG("%s: enter, enable = %d", __func__, mod->enable);
+  ISP_DBG(ISP_MOD_CLAMP, "%s: enter, enable = %d", __func__, mod->enable);
   chromatix_parms_type *chroma_ptr =
     (chromatix_parms_type *)in_params->chromatix_ptrs.chromatixPtr;
   int rc = 0;
@@ -324,7 +325,7 @@ static int clamp_get_params(void *mod_ctrl, uint32_t param_id,
       break;
     }
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_CLAMP, "%s: Populating vfe_diag data", __func__);
   }
     break;
 
@@ -348,7 +349,7 @@ isp_ops_t *clamp40_open(uint32_t version)
 {
   isp_clamp_mod_t *mod = malloc(sizeof(isp_clamp_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_CLAMP, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

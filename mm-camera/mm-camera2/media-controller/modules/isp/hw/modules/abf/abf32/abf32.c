@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "abf32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_ABF_LOGGING
-  #undef CDBG
-  #define CDBG ALOGE
+  #undef ISP_DBG
+  #define ISP_DBG ALOGE
 #endif
 
 /** abf_set_params_common:
@@ -231,48 +232,48 @@ static void abf_debug(ISP_DemosaicABF_CmdType* pCmd)
   ISP_DemosaicABF_Lut* rPLut = (pCmd->rPosLut);
   ISP_DemosaicABF_Lut* bPLut = (pCmd->bPosLut);
 
-  CDBG("=====Green parametets ===============\n");
-  CDBG("abf2 green: cutoff1=0x%x, cutoff2=0x%x,cutoff3=0x%x.\n",
+  ISP_DBG(ISP_MOD_ABF, "=====Green parametets ===============\n");
+  ISP_DBG(ISP_MOD_ABF, "abf2 green: cutoff1=0x%x, cutoff2=0x%x,cutoff3=0x%x.\n",
     gCfg->Cutoff1, gCfg->Cutoff2, gCfg->Cutoff3);
-  CDBG("abf2 green: multiPositive=0x%x, multiNegative=0x%x.\n",
+  ISP_DBG(ISP_MOD_ABF, "abf2 green: multiPositive=0x%x, multiNegative=0x%x.\n",
     gCfg->MultPositive, gCfg->MultNegative);
-  CDBG("abf2 green: A0 = 0x%x, A1 = 0x%x.\n",
+  ISP_DBG(ISP_MOD_ABF, "abf2 green: A0 = 0x%x, A1 = 0x%x.\n",
     gCfg->SpatialKernelA0, gCfg->SpatialKernelA1);
 
   for (i = 0; i < 8; i++)
-    CDBG("Green PosLUT: coef%d=0x%x,coef%d=0x%x\n",
+    ISP_DBG(ISP_MOD_ABF, "Green PosLUT: coef%d=0x%x,coef%d=0x%x\n",
       2*i, gPLut[i].LUT0, 2*i+1, gPLut[i].LUT1);
 
   for (i = 0; i < 4; i++)
-    CDBG("Green NegLUT: coef%d=0x%x,coef%d=0x%x\n",
+    ISP_DBG(ISP_MOD_ABF, "Green NegLUT: coef%d=0x%x,coef%d=0x%x\n",
       2*i, gNLut[i].LUT0, 2*i+1, gNLut[i].LUT1);
 
-  CDBG("=====Red parametets ===============\n");
-  CDBG("abf2 red: cutoff1=0x%x, cutoff2=0x%x,cutoff3=0x%x.\n",
+  ISP_DBG(ISP_MOD_ABF, "=====Red parametets ===============\n");
+  ISP_DBG(ISP_MOD_ABF, "abf2 red: cutoff1=0x%x, cutoff2=0x%x,cutoff3=0x%x.\n",
     rCfg->Cutoff1, rCfg->Cutoff2, rCfg->Cutoff3);
-  CDBG("abf2 red: multiPositive=0x%x, multiNegative=0x%x.\n",
+  ISP_DBG(ISP_MOD_ABF, "abf2 red: multiPositive=0x%x, multiNegative=0x%x.\n",
     rCfg->MultPositive, rCfg->MultNegative);
 
   for (i = 0; i < 8; i++)
-    CDBG("Red PosLUT: coef%d=0x%x,coef%d=0x%x\n",
+    ISP_DBG(ISP_MOD_ABF, "Red PosLUT: coef%d=0x%x,coef%d=0x%x\n",
       2*i, rPLut[i].LUT0, 2*i+1, rPLut[i].LUT1);
 
   for (i = 0; i < 4; i++)
-    CDBG("Red NegLUT: coef%d=0x%x,coef%d=0x%x\n",
+    ISP_DBG(ISP_MOD_ABF, "Red NegLUT: coef%d=0x%x,coef%d=0x%x\n",
       2*i, rNLut[i].LUT0, 2*i+1, rNLut[i].LUT1);
 
-  CDBG("=====Blue parametets ===============\n");
-  CDBG("abf2 blue: cutoff1=0x%x, cutoff2=0x%x,cutoff3=0x%x.\n",
+  ISP_DBG(ISP_MOD_ABF, "=====Blue parametets ===============\n");
+  ISP_DBG(ISP_MOD_ABF, "abf2 blue: cutoff1=0x%x, cutoff2=0x%x,cutoff3=0x%x.\n",
     bCfg->Cutoff1, bCfg->Cutoff2, bCfg->Cutoff3);
-  CDBG("abf2 blue: multiPositive=0x%x, multiNegative=0x%x.\n",
+  ISP_DBG(ISP_MOD_ABF, "abf2 blue: multiPositive=0x%x, multiNegative=0x%x.\n",
     bCfg->MultPositive, bCfg->MultNegative);
 
   for (i = 0; i < 8; i++)
-    CDBG("Blue PosLUT: coef%d=0x%x,coef%d=0x%x\n",
+    ISP_DBG(ISP_MOD_ABF, "Blue PosLUT: coef%d=0x%x,coef%d=0x%x\n",
       2*i, bPLut[i].LUT0, 2*i+1, bPLut[i].LUT1);
 
   for (i = 0; i < 4; i++)
-    CDBG("Blue NegLUT: coef%d=0x%x,coef%d=0x%x\n",
+    ISP_DBG(ISP_MOD_ABF, "Blue NegLUT: coef%d=0x%x,coef%d=0x%x\n",
       2*i, bNLut[i].LUT0, 2*i+1, bNLut[i].LUT1);
 } /* abf_debug */
 
@@ -436,14 +437,14 @@ static int abf_trigger_update(isp_abf_mod_t *mod,
   uint8_t is_burst = IS_BURST_STREAMING((&trigger_params->cfg));
 
   if (!mod->enable || !mod->trigger_enable) {
-    CDBG("%s: no trigger for ABF, enable = %d, trigger_ena = %d\n",
+    ISP_DBG(ISP_MOD_ABF, "%s: no trigger for ABF, enable = %d, trigger_ena = %d\n",
       __func__, mod->enable, mod->trigger_enable);
     return 0;
   }
 
   if (!isp_util_aec_check_settled(
     &trigger_params->trigger_input.stats_update.aec_update)) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_ABF, "%s: AEC not settled", __func__);
     return 0;
   }
 
@@ -650,7 +651,7 @@ static int abf_get_params(void *mod_ctrl, uint32_t param_id, void *in_params,
     vfe_diag->control_abfilter.cntrlenable = mod->trigger_enable;
     abf_ez_isp_update(mod, abf);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_ABF, "%s: Populating vfe_diag data", __func__);
   }
     break;
 

@@ -82,6 +82,10 @@ int isp_util_stream_config_check_pix_caps(isp_t *isp,
                                          isp_port_t *isp_port,
                                          isp_stream_t *stream);
 
+boolean isp_util_check_yuv_sensor_from_stream(isp_t *isp, uint32_t session_id,
+  uint32_t stream_id);
+int isp_util_do_pproc_zoom(isp_t *isp, uint32_t session_id, int32_t* zoom_val);
+
 /** isp_util_set_bestshot_param
  *    @isp: isp root
  *    @session: isp session
@@ -167,7 +171,8 @@ int isp_util_set_saturation(isp_t *isp,
   isp_port_t *isp_sink_port,
   uint32_t session_id,
   uint32_t stream_id,
-  int32_t *saturation);
+  int32_t *saturation,
+  boolean is_init_setting);
 int isp_util_gen_init_stats_cfg(
   isp_session_t *isp_session,
   isp_stream_t *stream);
@@ -176,6 +181,10 @@ int isp_util_set_hfr(
   uint32_t session_id,
   uint32_t stream_id,
   int32_t *hfr_mode);
+int isp_util_set_stats_bf_filter_size(
+   isp_t *isp,
+   uint32_t session_id,
+   uint32_t stream_id);
 int isp_util_set_dis(
   isp_t *isp,
   uint32_t session_id,
@@ -185,6 +194,14 @@ int isp_util_set_vt(
   isp_t *isp,
   uint32_t session_id,
   int32_t *vt_enable);
+int isp_util_set_longshot(
+  isp_t *isp,
+  uint32_t session_id,
+  int32_t *longshot_enable);
+int isp_util_set_lowpowermode(
+  isp_t *isp,
+  uint32_t session_id,
+  boolean *lowpowermode_enable);
 int isp_util_ihist_la_trigger_update(
    isp_t *isp,
    isp_session_t *session);
@@ -276,7 +293,12 @@ int isp_util_streamoff(
   isp_t *isp,
   isp_session_t *session,
   int num_streams,
-  uint32_t *stream_ids);
+  uint32_t *stream_ids,
+  boolean stop_immediately);
+int isp_util_proc_restart(
+   isp_t *isp,
+   uint32_t session_id,
+   uint32_t *vfe_mask);
 void isp_util_broadcast_zoom_crop(
   isp_t *isp,
   uint32_t session_id,
@@ -337,5 +359,13 @@ int isp_util_set_param_tintless(isp_t *isp, uint32_t session_id,
 boolean isp_util_stream_use_pipeline(isp_t *isp,  isp_stream_t *stream);
 int isp_util_send_uv_subsample_cmd(isp_t *isp, isp_session_t *session,
   uint32_t uv_subsample);
+void isp_util_broadcast_pproc_zoom_crop (isp_t *isp, uint32_t session_id,
+  int num_streams, uint32_t *streamids, uint32_t frame_id,
+  struct timeval *timestamp);
+boolean isp_util_is_4k2k_resolution_set(cam_dimension_t dim);
+uint32_t isp_util_is_lowpowermode_feature_enable(isp_t *isp, uint32_t session_id);
+int isp_util_wm_bus_overflow_recovery(isp_t *isp,
+   isp_hw_t *isp_hw,
+   isp_hw_session_t *hw_session);
 #endif /* __ISP_UTIL_H__ */
 

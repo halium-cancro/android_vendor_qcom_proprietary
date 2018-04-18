@@ -1,6 +1,6 @@
 /* modules.h
  *
- * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -51,6 +51,14 @@ typedef enum _modulesEventID {
 } modulesEventID_t;
 #endif
 
+/** af_sw_filter_type: AF SW stats filter type
+ **/
+typedef enum {
+  AFS_OFF = 0,
+  AFS_ON_IIR,
+  AFS_ON_FIR,
+} af_sw_filter_type;
+
 typedef struct _modulesChromatix {
   void *chromatixPtr;
   void *chromatixComPtr;
@@ -86,13 +94,17 @@ typedef struct {
   float   total_f_dist;
   float   hor_view_angle;
   float   ver_view_angle;
+  float   um_per_dac;
+  int     dac_offset;
 } af_lens_info_t;
 
 typedef struct {
   boolean               is_valid;
+  enum sensor_stats_type   stats_type;
   sensor_dim_output_t   dim;
   sensor_request_crop_t request_crop;
   cam_format_t          fmt;
+  boolean dump_to_fs;
 } sensor_meta_t;
 
 typedef struct {
@@ -137,7 +149,12 @@ typedef struct {
   boolean                   prep_flash_on;
   /* Sensor frame delay to be exposed to other modules in pipeline*/
   uint32_t                  sensor_max_pipeline_frame_delay;
+  uint8_t                   csi_clk_scale_enable;
 } sensor_out_info_t;
+
+typedef struct _sensor_fps_update {
+  float max_fps;
+} sensor_fps_update_t;
 
 typedef enum {
   ISP_STRIPE_LEFT = 0,
@@ -222,6 +239,7 @@ typedef struct {
                                   * if buf_done is needed */
   boolean is_uv_subsampled;      /* indicates that the buffer is additionally
                                   * chroma subsampled on top of the subsampling format */
+  boolean is_cpp_processed;      /* indicates whether the buffer is touched by CPP */
   unsigned int identity;         /* identity 0x0000 0000
                                   * (session/stream index) */
   int channel_id;                /* channel id */
@@ -229,6 +247,10 @@ typedef struct {
                                     can simply by pass this event */
   void *meta_data;               /* This holds the pointer for meta data
                                     associated with this buffer */
+  boolean is_skip_pproc;         /* indicates if PProc skip */
+  uint32_t handle;
+  uint32_t output_format;
+  enum msm_vfe_input_src input_intf;
 } isp_buf_divert_t;
 typedef struct {
   int buf_idx;
@@ -239,6 +261,10 @@ typedef struct {
   struct timeval timestamp;
   void *meta_data;               /* This holds the pointer for meta data
                                     associated with this buffer */
+  boolean is_skip_pproc;         /* indicates if PProc skip */
+  uint32_t handle;
+  uint32_t output_format;
+  enum msm_vfe_input_src input_intf;
 } isp_buf_divert_ack_t;
 
 typedef struct {
@@ -353,6 +379,7 @@ typedef struct {
  *   @coeffa: filterA coefficients
  *   @coeffb: filterB coefficients
  *   @coeff_len: length of coefficient table
+ *   @sw_filter_type: SW filter type
  *
  *   Imglib preview assisted AF coefficients
  **/
@@ -362,7 +389,10 @@ typedef struct {
   cam_rect_t roi;
   double coeffa[6];
   double coeffb[6];
+  int coeff_fir[11];
   uint32_t coeff_len;
+  af_sw_filter_type filter_type;
+  double FV_min;
 } mct_imglib_af_config_t;
 
 /** mct_imglib_af_output_t

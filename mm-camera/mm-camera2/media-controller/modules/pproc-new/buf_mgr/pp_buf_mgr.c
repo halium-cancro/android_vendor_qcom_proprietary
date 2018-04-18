@@ -10,6 +10,7 @@
 #include <media/msmb_generic_buf_mgr.h>
 #include "camera_dbg.h"
 #include "pp_buf_mgr.h"
+#include "server_debug.h"
 
 /* macros for unpacking identity */
 #define BUF_MGR_GET_STREAM_ID(identity) ((identity) & 0xFFFF)
@@ -60,6 +61,10 @@ static boolean pp_buf_mgr_open_subdev(pp_buf_mgr_t *buf_mgr)
     int32_t num_entities = 1;
     snprintf(dev_name, sizeof(dev_name), "/dev/media%d", num_media_devices);
     dev_fd = open(dev_name, O_RDWR | O_NONBLOCK);
+    if (dev_fd >= MAX_FD_PER_PROCESS) {
+      dump_list_of_daemon_fd();
+      dev_fd = -1;
+    }
     if (dev_fd < 0) {
       CDBG("%s:%d Done enumerating media devices\n", __func__, __LINE__);
       break;
@@ -93,6 +98,10 @@ static boolean pp_buf_mgr_open_subdev(pp_buf_mgr_t *buf_mgr)
         snprintf(subdev_name, sizeof(dev_name), "/dev/%s", entity.name);
         CDBG("%s: subdev_name:%s\n", __func__, subdev_name);
         buf_mgr->fd = open(subdev_name, O_RDWR);
+        if (buf_mgr->fd >= MAX_FD_PER_PROCESS) {
+          dump_list_of_daemon_fd();
+          buf_mgr->fd = -1;
+        }
         if (buf_mgr->fd < 0) {
           CDBG("%s:Open subdev failed\n", __func__);
           continue;
@@ -118,7 +127,7 @@ static boolean pp_buf_mgr_open_subdev(pp_buf_mgr_t *buf_mgr)
 static boolean pp_buf_mgr_match_buf_index(void *data1, void *data2)
 {
   mct_stream_map_buf_t *list_buf = (mct_stream_map_buf_t *)data1;
-  int                  *user_buf_index = (int *)data2;
+  uint32_t *user_buf_index = (uint32_t *)data2;
 
   /* Validate input parameters */
   if (!list_buf || !user_buf_index) {
@@ -245,6 +254,8 @@ mct_stream_map_buf_t *pp_buf_mgr_get_buf(void *v_buf_mgr,
   if (!img_buf_list || !img_buf_list->data) {
     CDBG_ERROR("%s:%d failed: to match kernel buf index with stream buf list\n",
       __func__, __LINE__);
+    pp_buf_mgr_put_buf(v_buf_mgr, stream_info->identity,
+        buffer.index, buffer.frame_id, buffer.timestamp);
     goto ERROR;
   }
 

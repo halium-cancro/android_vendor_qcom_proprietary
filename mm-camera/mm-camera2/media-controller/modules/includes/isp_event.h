@@ -12,7 +12,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "cam_intf.h"
 #include "mct_controller.h"
 #include "modules.h"
-#include "sensor_lib.h"
+
 
 #if 0
 typedef enum {

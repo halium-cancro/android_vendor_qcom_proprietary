@@ -6,6 +6,7 @@
 ============================================================================*/
 #include <unistd.h>
 #include "ihist_stats.h"
+#include "isp_log.h"
 
 
 /** ihist_stats_get_shiftbits:
@@ -41,7 +42,7 @@ static int ihist_stats_config(isp_stats_entry_t *entry,
   int32_t shift_bits;
 
   if (!entry->enable) {
-    CDBG("%s: ihist not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: ihist not enabled", __func__);
     return 0;
   }
 
@@ -300,7 +301,7 @@ static int ihist_stats_action(void *ctrl, uint32_t action_code, void *data,
     }
 
     if (entry->is_first == 1) {
-      CDBG("%s: drop first ihist stats\n", __func__);
+      ISP_DBG(ISP_MOD_STATS, "%s: drop first ihist stats\n", __func__);
       entry->is_first = 0;
       isp_stats_enqueue_buf(entry, buf_idx);
       return rc;

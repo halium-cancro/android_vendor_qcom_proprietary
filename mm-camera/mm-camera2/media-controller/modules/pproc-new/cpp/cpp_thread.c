@@ -9,9 +9,14 @@
 #include "cpp_log.h"
 #include <poll.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
 #define PIPE_FD_IDX   0
 #define SUBDEV_FD_IDX 1
+
+/* forward declare tuning APIs */
+extern boolean mct_tunig_check_status(void);
 
 /** cpp_thread_func:
  *
@@ -29,6 +34,8 @@ void* cpp_thread_func(void* data)
   ctrl->cpp_thread_started = TRUE;
   pthread_cond_signal(&(ctrl->th_start_cond));
   PTHREAD_MUTEX_UNLOCK(&(ctrl->cpp_mutex));
+
+  prctl(PR_SET_NAME, "cpp_thread", 0, 0, 0);
 
   if(ctrl->cpphw->subdev_opened == FALSE) {
     CDBG_ERROR("%s:%d, failed, cpp subdev not open", __func__, __LINE__);
@@ -52,8 +59,8 @@ void* cpp_thread_func(void* data)
   pollfds[PIPE_FD_IDX].events = POLLIN|POLLPRI;
   pollfds[SUBDEV_FD_IDX].fd = ctrl->cpphw->subdev_fd;
   pollfds[SUBDEV_FD_IDX].events = POLLIN|POLLPRI;
-  CDBG_HIGH("%s:%d: cpp_thread entering the polling loop...",
-    __func__, __LINE__);
+  CDBG_HIGH("%s:%d: cpp_thread entering the polling loop...thread_id is %d\n",
+    __func__, __LINE__,syscall(SYS_gettid));
   while(1) {
     /* poll on the fds with no timeout */
     ready = poll(pollfds, (nfds_t)num_fds, -1);
@@ -225,7 +232,7 @@ static int32_t cpp_thread_handle_process_buf_event(cpp_module_ctrl_t* ctrl,
   if (rc < 0) {
     free(cookie);
     if (rc == -EAGAIN) {
-      CDBG_ERROR("%s:%d, dropped frame id=%d identity=0x%x\n",
+      CDBG("%s:%d, dropped frame id=%d identity=0x%x\n",
         __func__, __LINE__, hw_params->frame_id, hw_params->identity);
       return cpp_module_do_ack(ctrl, cpp_event->ack_key);
     }
@@ -427,6 +434,22 @@ static int32_t cpp_thread_send_processed_divert(cpp_module_ctrl_t *ctrl,
   return 0;
 }
 
+/* cpp_hardware_get_stream_status:
+ *
+ **/
+static cpp_hardware_stream_status_t*
+  cpp_hardware_get_stream_status(cpp_hardware_t* cpphw, uint32_t identity)
+{
+  int i;
+  for (i=0; i<CPP_HARDWARE_MAX_STREAMS; i++) {
+    if (cpphw->stream_status[i].valid == TRUE) {
+      if (cpphw->stream_status[i].identity == identity) {
+        return &(cpphw->stream_status[i]);
+      }
+    }
+  }
+  return NULL;
+}
 
 /* cpp_thread_process_hardware_event:
  *
@@ -439,6 +462,7 @@ static int32_t cpp_thread_process_hardware_event(cpp_module_ctrl_t *ctrl)
   cpp_hardware_cmd_t cmd;
   cpp_hardware_event_data_t event_data;
   cpp_module_event_t *cpp_event;
+  boolean is_eztune_running = FALSE;
 
   /* get the event data from hardware */
   cmd.type = CPP_HW_CMD_NOTIFY_EVENT;
@@ -470,8 +494,10 @@ static int32_t cpp_thread_process_hardware_event(cpp_module_ctrl_t *ctrl)
     return rc;
   }
 
+  is_eztune_running = mct_tunig_check_status();
   /* If processed divert is enabled send the processed buffer downstream */
-  if (cookie->proc_div_required) {
+  if (cookie->proc_div_required ||
+        TRUE == is_eztune_running) {
     isp_buf_divert_t buf_divert;
     struct v4l2_plane plane;
     memset(&buf_divert, 0, sizeof(buf_divert));
@@ -483,31 +509,65 @@ static int32_t cpp_thread_process_hardware_event(cpp_module_ctrl_t *ctrl)
     /* TODO: Need to consider multiplanar when sending downstream. */
     buf_divert.buffer.m.planes = &plane;
     buf_divert.buffer.m.planes[0].m.userptr = event_data.out_fd;
+    buf_divert.fd = event_data.out_fd;
     buf_divert.pass_through = 0;
     buf_divert.native_buf = 0;
     buf_divert.identity = event_data.identity;
-    rc = cpp_thread_send_processed_divert(ctrl, &buf_divert,
-      cookie->proc_div_identity);
-    if(rc < 0) {
-      CDBG_ERROR("%s:%d, failed processed divert\n", __func__, __LINE__);
+
+    if (cookie->proc_div_required) {
+      rc = cpp_thread_send_processed_divert(ctrl, &buf_divert,
+        cookie->proc_div_identity);
+      if(rc < 0) {
+        CDBG_ERROR("%s:%d, failed processed divert\n", __func__, __LINE__);
+      }
+
+      /* Release this processed divert buffer in kernel if downstream module is
+         giving piggy-back ack */
+      if (buf_divert.ack_flag == 1) {
+        event_data.is_buf_dirty = buf_divert.is_buf_dirty;
+        cmd.type = CPP_HW_CMD_QUEUE_BUF;
+        cmd.u.event_data = &event_data;
+        rc = cpp_hardware_process_command(ctrl->cpphw, cmd);
+        if(rc < 0) {
+          CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+          free(cookie);
+          cpp_thread_fatal_exit(ctrl, FALSE);
+        }
+      }
     }
 
-    /* Release this processed divert buffer in kernel if downstream module is
-       giving piggy-back ack */
-    if (buf_divert.ack_flag == 1) {
-      event_data.is_buf_dirty = buf_divert.is_buf_dirty;
-      cmd.type = CPP_HW_CMD_QUEUE_BUF;
-      cmd.u.event_data = &event_data;
-      rc = cpp_hardware_process_command(ctrl->cpphw, cmd);
-      if(rc < 0) {
-        CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
-        free(cookie);
-        cpp_thread_fatal_exit(ctrl, FALSE);
+    if (TRUE == is_eztune_running) {
+      mct_module_t *module = ctrl->p_module;
+      mct_stream_t *stream = cpp_module_util_find_parent(event_data.identity, module);
+
+      if (stream != NULL) {
+        if (stream->streaminfo.stream_type == CAM_STREAM_TYPE_PREVIEW) {
+          mct_tuning_notify_preview_frame(&buf_divert, stream);
+        }
       }
     }
   }
 
   free(cookie);
+  PTHREAD_MUTEX_LOCK(&(ctrl->cpphw->mutex));
+  cpp_hardware_stream_status_t *stream_status =
+    cpp_hardware_get_stream_status(ctrl->cpphw, event_data.identity);
+  if (!stream_status) {
+    CDBG_ERROR("%s:%d: failed\n", __func__, __LINE__);
+    PTHREAD_MUTEX_UNLOCK(&(ctrl->cpphw->mutex));
+    return -EFAULT;
+  }
+  stream_status->pending_buf--;
+  /* send signal to thread which is waiting on stream_off
+     for pending buffer to be zero */
+  if (stream_status->stream_off_pending == TRUE &&
+    stream_status->pending_buf == 0) {
+    CDBG("%s:%d, info: sending broadcast for pending stream-off",
+      __func__, __LINE__);
+    pthread_cond_broadcast(&(ctrl->cpphw->no_pending_cond));
+  }
+  PTHREAD_MUTEX_UNLOCK(&(ctrl->cpphw->mutex));
+
   /* if there is any pending valid event in queue, process it */
   while(1) {
     cpp_event = cpp_thread_get_event_from_queue(ctrl);
@@ -563,6 +623,7 @@ int32_t cpp_thread_create(mct_module_t *module)
   }
   ctrl->cpp_thread_started = FALSE;
   rc = pthread_create(&(ctrl->cpp_thread), NULL, cpp_thread_func, module);
+  pthread_setname_np(ctrl->cpp_thread, "CAM_cpp");
   if(rc < 0) {
     CDBG_ERROR("%s:%d, pthread_create() failed, rc= ", __func__, __LINE__);
     return rc;

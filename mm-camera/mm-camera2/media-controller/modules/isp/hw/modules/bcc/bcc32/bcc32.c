@@ -7,10 +7,19 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "bcc32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_BCC_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
+#endif
+
+#ifndef sign
+#define sign(x) (((x) < 0) ? (-1) : (1))
+#endif
+
+#ifndef Round
+#define Round(x) (int)((x) + sign(x)*0.5)
 #endif
 
 /** util_bcc_cmd_debug:
@@ -24,16 +33,16 @@
  **/
 static void util_bcc_cmd_debug(ISP_DemosaicDBCC_CmdType *cmd)
 {
-  CDBG("%s: cmd->fminThreshold = %d \n", __func__, cmd->fminThreshold);
-  CDBG("%s: cmd->fmaxThreshold = %d \n", __func__, cmd->fmaxThreshold);
-  CDBG("%s: cmd->rOffsetHi = %d \n", __func__, cmd->rOffsetHi);
-  CDBG("%s: cmd->rOffsetLo = %d \n", __func__, cmd->rOffsetLo);
-  CDBG("%s: cmd->bOffsetHi = %d \n", __func__, cmd->bOffsetHi);
-  CDBG("%s: cmd->bOffsetLo = %d \n", __func__, cmd->bOffsetLo);
-  CDBG("%s: cmd->grOffsetHi = %d \n", __func__, cmd->grOffsetHi);
-  CDBG("%s: cmd->grOffsetLo = %d \n", __func__, cmd->grOffsetLo);
-  CDBG("%s: cmd->gbOffsetHi = %d \n", __func__, cmd->gbOffsetHi);
-  CDBG("%s: cmd->gbOffsetLo = %d \n", __func__, cmd->gbOffsetLo);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->fminThreshold = %d \n", __func__, cmd->fminThreshold);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->fmaxThreshold = %d \n", __func__, cmd->fmaxThreshold);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->rOffsetHi = %d \n", __func__, cmd->rOffsetHi);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->rOffsetLo = %d \n", __func__, cmd->rOffsetLo);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->bOffsetHi = %d \n", __func__, cmd->bOffsetHi);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->bOffsetLo = %d \n", __func__, cmd->bOffsetLo);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->grOffsetHi = %d \n", __func__, cmd->grOffsetHi);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->grOffsetLo = %d \n", __func__, cmd->grOffsetLo);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->gbOffsetHi = %d \n", __func__, cmd->gbOffsetHi);
+  ISP_DBG(ISP_MOD_BCC, "%s: cmd->gbOffsetLo = %d \n", __func__, cmd->gbOffsetLo);
 } /* util_bcc_cmd_debug */
 
 /** util_bcc_cmd_config:
@@ -88,7 +97,7 @@ static int bcc_config(isp_bcc_mod_t *mod,
   }
 
   if (!mod->enable) {
-    CDBG("%s: Mod not Enable.", __func__);
+    ISP_DBG(ISP_MOD_BCC, "%s: Mod not Enable.", __func__);
     return rc;
   }
 
@@ -217,7 +226,7 @@ static int bcc_trigger_update(isp_bcc_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable || mod->skip_trigger) {
-    CDBG("%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
+    ISP_DBG(ISP_MOD_BCC, "%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
       __func__, mod->enable, mod->trigger_enable, mod->skip_trigger);
     return rc;
   }
@@ -226,7 +235,7 @@ static int bcc_trigger_update(isp_bcc_mod_t *mod,
   if (!is_snapmode
     && !isp_util_aec_check_settled(
       &(in_params->trigger_input.stats_update.aec_update))) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_BCC, "%s: AEC not settled", __func__);
     return rc;
   }
 
@@ -252,58 +261,58 @@ static int bcc_trigger_update(isp_bcc_mod_t *mod,
     || !F_EQUAL(mod->aec_ratio, aec_ratio));
 
   if (!update_cs) {
-    CDBG("%s: update not required", __func__);
+    ISP_DBG(ISP_MOD_BCC, "%s: update not required", __func__);
     return 0;
   }
 
   if (F_EQUAL(aec_ratio, 0.0)) {
-    CDBG("%s: Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_BCC, "%s: Low Light \n", __func__);
     mod->p_params.p_input_offset = bcc_lowlight_input_offset;
     mod->p_params.Fmin = Fmin_lowlight;
     mod->p_params.Fmax = Fmax_lowlight;
     util_bcc_cmd_config(mod);
   } else if (F_EQUAL(aec_ratio, 1.0)) {
-    CDBG("%s: Normal Light \n", __func__);
+    ISP_DBG(ISP_MOD_BCC, "%s: Normal Light \n", __func__);
     mod->p_params.p_input_offset = bcc_normal_input_offset;
     mod->p_params.Fmin = Fmin;
     mod->p_params.Fmax = Fmax;
     util_bcc_cmd_config(mod);
   } else {
-    CDBG("%s: Interpolate between Nomal and Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_BCC, "%s: Interpolate between Nomal and Low Light \n", __func__);
     /* Directly configure reg cmd.*/
-    Fmin = (uint8_t)LINEAR_INTERPOLATION(Fmin, Fmin_lowlight, aec_ratio);
+    Fmin = (uint8_t)Round(LINEAR_INTERPOLATION(Fmin, Fmin_lowlight, aec_ratio));
     mod->RegCmd.fminThreshold = MIN(63, Fmin);
 
-    Fmax = (uint8_t)LINEAR_INTERPOLATION(Fmax, Fmax_lowlight, aec_ratio);
+    Fmax = (uint8_t)Round(LINEAR_INTERPOLATION(Fmax, Fmax_lowlight, aec_ratio));
     mod->RegCmd.fmaxThreshold = MIN(127, Fmax);
 
-    mod->RegCmd.rOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.rOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_r_hi,
-        bcc_lowlight_input_offset->bpc_4_offset_r_hi, aec_ratio);
-    mod->RegCmd.rOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bcc_lowlight_input_offset->bpc_4_offset_r_hi, aec_ratio));
+    mod->RegCmd.rOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_r_lo,
-        bcc_lowlight_input_offset->bpc_4_offset_r_lo, aec_ratio);
+      bcc_lowlight_input_offset->bpc_4_offset_r_lo, aec_ratio));
 
-    mod->RegCmd.bOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.bOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_b_hi,
-        bcc_lowlight_input_offset->bpc_4_offset_b_hi, aec_ratio);
-    mod->RegCmd.bOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bcc_lowlight_input_offset->bpc_4_offset_b_hi, aec_ratio));
+    mod->RegCmd.bOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_b_lo,
-        bcc_lowlight_input_offset->bpc_4_offset_b_lo, aec_ratio);
+      bcc_lowlight_input_offset->bpc_4_offset_b_lo, aec_ratio));
 
-    mod->RegCmd.grOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.grOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_gr_hi,
-        bcc_lowlight_input_offset->bpc_4_offset_gr_hi, aec_ratio);
-    mod->RegCmd.grOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bcc_lowlight_input_offset->bpc_4_offset_gr_hi, aec_ratio));
+    mod->RegCmd.grOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_gr_lo,
-        bcc_lowlight_input_offset->bpc_4_offset_gr_lo, aec_ratio);
+      bcc_lowlight_input_offset->bpc_4_offset_gr_lo, aec_ratio));
 
-    mod->RegCmd.gbOffsetHi = (uint16_t)LINEAR_INTERPOLATION(
+    mod->RegCmd.gbOffsetHi = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_gb_hi,
-        bcc_lowlight_input_offset->bpc_4_offset_gb_hi, aec_ratio);
-    mod->RegCmd.gbOffsetLo = (uint16_t)LINEAR_INTERPOLATION(
+      bcc_lowlight_input_offset->bpc_4_offset_gb_hi, aec_ratio));
+    mod->RegCmd.gbOffsetLo = (uint16_t)Round(LINEAR_INTERPOLATION(
         bcc_normal_input_offset->bpc_4_offset_gb_lo,
-        bcc_lowlight_input_offset->bpc_4_offset_gb_lo, aec_ratio);
+      bcc_lowlight_input_offset->bpc_4_offset_gb_lo, aec_ratio));
   }
   mod->aec_ratio = aec_ratio;
 
@@ -426,7 +435,7 @@ static int bcc_get_params(void *mod_ctrl, uint32_t param_id, void *in_params,
     vfe_diag->control_bcc.cntrlenable = mod->trigger_enable;
     bcc_ez_isp_update(mod, bcc);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_BCC, "%s: Populating vfe_diag data", __func__);
   }
     break;
 

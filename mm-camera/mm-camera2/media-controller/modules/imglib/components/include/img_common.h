@@ -1,7 +1,6 @@
 /***************************************************************************
 * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
 * Qualcomm Technologies Proprietary and Confidential.                      *
-<<<<<<< HEAD
 ****************************************************************************/
 
 #ifndef __IMG_COMMON_H__
@@ -78,33 +77,53 @@
 #define IC2 2
 
 /* utility functions to get frame info */
-/** FD_ADDR
+/** IMG_ADDR
  *   @p: pointer to the frame
  *
  *   Returns the Y address from the frame
  **/
-#define IMG_ADDR(p) (p->frame[0].plane[0].addr)
+#define IMG_ADDR(p) ((p)->frame[0].plane[0].addr)
 
 /** IMG_WIDTH
  *   @p: pointer to the frame
  *
  *   Returns the Y plane width
  **/
-#define IMG_WIDTH(p) (p->frame[0].plane[0].width)
+#define IMG_WIDTH(p) ((p)->frame[0].plane[0].width)
 
 /** IMG_HEIGHT
  *   @p: pointer to the frame
  *
  *   Returns the Y plane height
  **/
-#define IMG_HEIGHT(p) (p->frame[0].plane[0].height)
+#define IMG_HEIGHT(p) ((p)->frame[0].plane[0].height)
 
-/** IMG_ADDR_LEN
+/** IMG_Y_LEN
  *   @p: pointer to the frame
  *
  *   Returns the length of Y plane
  **/
-#define IMG_Y_LEN(p) (p->frame[0].plane[0].length)
+#define IMG_Y_LEN(p) ((p)->frame[0].plane[0].length)
+
+/** IMG_FD
+ *   @p: pointer to the frame
+ *
+ *   Returns the fd of the frame
+ **/
+#define IMG_FD(p) ((p)->frame[0].plane[0].fd)
+
+/** IMG_FRAME_LEN
+ *   @p: pointer to the frame
+ *
+ *   Returns the fd of the frame
+ **/
+#define IMG_FRAME_LEN(p) ({ \
+  int i = 0, len = 0;; \
+  for (i = 0; i < (p)->frame[0].plane_cnt; i++) { \
+    len += (p)->frame[0].plane[i].length; \
+  } \
+  len; \
+})
 
 /** Imaging values error values
 *    IMG_SUCCESS - success
@@ -274,6 +293,17 @@
 **/
 extern float sigma_lut_in[RNR_LUT_SIZE];
 
+/** IMG_RETURN_IF_NULL
+ *   @p: pointer to be checked
+ *
+ *   Returns if pointer is null
+ **/
+#define IMG_RETURN_IF_NULL(ret, p) {if (!p) {\
+  IDBG_ERROR("%s:%d Null pointer detected %s %p\n",\
+    __func__, __LINE__, #p, p);\
+  ret;\
+}}
+
 /** img_plane_type_t
 *    PLANE_Y: Y plane
 *    PLANE_CB_CR: C plane for pseudo planar formats
@@ -381,8 +411,8 @@ typedef struct {
   uint64_t timestamp;
   img_sub_frame_t frame[MAX_FRAME_CNT];
   int frame_cnt;
-  int idx;
-  int frame_id;
+  uint32_t idx;
+  uint32_t frame_id;
   img_frame_info_t info;
   void *private_data;
   int ref_count;
@@ -795,9 +825,49 @@ int img_cache_ops_external (void *p_buffer, size_t size, int offset, int fd,
  *
  * Saves specified frame to folder /data/
  *
- * Returns TRUE in case of success
+ * Returns None.
  **/
 void img_dump_frame(img_frame_t *img_frame, char* file_name,
   uint32_t number);
+
+/** img_perf_lock_handle_create
+ *
+ * Creates new performance handle
+ *
+ * Returns new performance handle
+ **/
+void* img_perf_handle_create();
+
+/** img_perf_handle_destroy
+ *    @p_perf: performance handle
+ *
+ * Destoyes performance handle
+ *
+ * Returns None.
+ **/
+void img_perf_handle_destroy(void* p_perf);
+
+/** img_perf_lock_start
+ *    @p_perf: performance handle
+ *    @p_perf_lock_params: performance lock parameters
+ *    @perf_lock_params_size: size of performance lock parameters
+ *    @duration: duration
+ *
+ * Locks performance with specified parameters
+ *
+ * Returns new performance lock handle
+ **/
+void* img_perf_lock_start(void* p_perf, int32_t* p_perf_lock_params,
+  size_t perf_lock_params_size, int32_t duration);
+
+/** img_perf_lock_end
+ *    @p_perf: performance handle
+ *    @p_perf_lock: performance lock handle
+ *
+ * Locks performance with specified parameters
+ *
+ * Returns None.
+ **/
+void img_perf_lock_end(void* p_perf, void* p_perf_lock);
 
 #endif //__IMG_COMMON_H__

@@ -1,12 +1,13 @@
-/**********************************************************************
-* Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved. *
-* Qualcomm Technologies Proprietary and Confidential.                 *
-**********************************************************************/
-
+/***************************************************************************
+* Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Qualcomm Technologies Proprietary and Confidential.                      *
+***************************************************************************/
 #include <dlfcn.h>
 #include <math.h>
 
 #include "faceproc_comp.h"
+#define ATRACE_TAG ATRACE_TAG_CAMERA
+#include <cutils/trace.h>
 
 #ifdef FD_PROFILE
 #define FACEPROC_START_MEASURE \
@@ -1135,6 +1136,7 @@ static void faceproc_frame_dump(img_frame_t *p_frame)
 static int faceproc_fd_execute(faceproc_comp_t *p_comp, img_frame_t *p_frame,
   INT32 * num_faces)
 {
+  ATRACE_BEGIN("Camera:Faceproc");
   INT32 i;
   IDBG_MED("%s:%d] E", __func__, __LINE__);
 
@@ -1156,6 +1158,7 @@ static int faceproc_fd_execute(faceproc_comp_t *p_comp, img_frame_t *p_frame,
   if (frame_count < 10)
     FACEPROC_END_MEASURE;
 
+  ATRACE_END();
   if (p_comp->config.fd_feature_mask & FACE_PROP_DUMP_FRAMES)
     faceproc_frame_dump(p_frame);
 
@@ -1173,7 +1176,7 @@ static int faceproc_fd_execute(faceproc_comp_t *p_comp, img_frame_t *p_frame,
     IDBG_MED("%s:%d] no faces detected X", __func__, __LINE__);
     return IMG_SUCCESS;
   }
-  for (i = 0; i < *num_faces; i++) {
+  for (i = 0; ((i < *num_faces) && (i < MAX_FACE_ROI)); i++) {
 
   if (FD_FACEPT_ENABLE(p_comp)) {
 #if(FACE_PART_DETECT)

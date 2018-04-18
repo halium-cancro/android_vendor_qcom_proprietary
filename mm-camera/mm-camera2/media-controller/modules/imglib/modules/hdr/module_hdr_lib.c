@@ -1,5 +1,5 @@
 /*============================================================================
- Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  Qualcomm Technologies Proprietary and Confidential.
  ============================================================================*/
 
@@ -9,6 +9,7 @@
 #include "img_comp.h"
 #include "img_comp_factory.h"
 #include "hdr.h"
+#include "hdr_chromatix.h"
 
 /** MODULE_HDR_LIB_SINGLE_INSTANCE:
  *
@@ -24,10 +25,16 @@
  *
  *  This structure defines hdr library handle
  **/
+
+static hdr_chromatix_t g_hdr_chromatix = {
+  #include "hdr_chromatix_data.h"
+};
+
 typedef struct
 {
   img_core_ops_t core_ops;
   pthread_mutex_t mutex;
+  hdr_chromatix_t *hdr_chromatix;
 } hdr_lib_handle_t;
 
 /** hdr_lib_t:
@@ -293,6 +300,15 @@ static boolean module_hdr_lib_set_hdr_lib_params(void* lib_instance,
     goto end;
   }
 
+  rc = IMG_COMP_SET_PARAM(&hdr_lib->comp, QHDR_HDR_CHROMATIX,
+    (void *)hdr_lib->lib_handle->hdr_chromatix)
+  ;
+  if (rc != IMG_SUCCESS) {
+    IDBG_ERROR("%s:%d] rc %d", __func__, __LINE__, rc);
+    ret_val = FALSE;
+    goto end;
+  }
+
   /* Set gamma table :
    *
    * If session meta is NULL, pick default gamma table, else get
@@ -341,7 +357,7 @@ static boolean module_hdr_lib_start_hdr_filter(void* lib_instance)
 
   IDBG_MED("%s +", __func__);
 
-  if (hdr_lib ) {
+  if (hdr_lib) {
 
     rc = IMG_SUCCESS;
 
@@ -653,6 +669,7 @@ boolean module_hdr_lib_unload(void* lib_handle)
     }
 
     ret_val = GET_STATUS(rc);
+    free(hdr_lib_handle);
   } else
     IDBG_ERROR("Null pointer detected in %s\n", __func__);
 
@@ -687,6 +704,7 @@ void* module_hdr_lib_load()
           IDBG_ERROR("Cannot load hdr lib in %s\n", __func__);
       } else
         IDBG_ERROR("Cannot get hdr lib component in %s\n", __func__);
+      hdr_lib_handle->hdr_chromatix = &g_hdr_chromatix;
 
     } else
       IDBG_ERROR("Cannot create mutex\n");

@@ -254,6 +254,16 @@ error:
  **/
 void module_iface_deinit(mct_module_t *module)
 {
+  ispif_t *ispif = NULL;
+  if (module) {
+    ispif = (ispif_t*)module->module_private;
+    if (ispif) {
+      port_ispif_destroy_ports(ispif);
+      mct_module_destroy(ispif->module);
+      free(ispif);
+      module->module_private = NULL;
+    }
+  }
   return;
 }
 

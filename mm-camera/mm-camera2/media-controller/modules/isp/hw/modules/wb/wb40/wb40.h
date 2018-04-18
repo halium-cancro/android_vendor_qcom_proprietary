@@ -7,6 +7,7 @@
 #ifndef __WB40_H__
 #define __WB40_H__
 
+#include <stdbool.h>
 #include "camera_dbg.h"
 #include "isp_event.h"
 #include "isp_hw_module_ops.h"
@@ -32,17 +33,14 @@ typedef struct  {
   ISP_WhiteBalanceRightConfigCmdType ISP_WhiteBalanceRightCfgCmd;
   int8_t enable;
   int fd;
-  chromatix_manual_white_balance_type awb_gain;  
-  /* record led_off awb gain, added by tanrifei, 20140310*/
-  awb_gain_t led_off_awb_gain;
-  int trigger_cnt;
-  /* add end */
+  chromatix_manual_white_balance_type awb_gain;
   float dig_gain;
   int trigger_enable;
   uint8_t hw_update_pending;
   cam_streaming_mode_t old_streaming_mode;
   isp_ops_t ops;
   isp_notify_ops_t *notify_ops;
+  bool manual_wb;
 } isp_wb_mod_t;
 
 #endif //__WB40_H__

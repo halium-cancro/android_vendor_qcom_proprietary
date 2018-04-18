@@ -1,11 +1,12 @@
 /* csid.c
  *
- * Copyright (c) 2012-2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
 #include "csid.h"
 #include "sensor_common.h"
+#include "server_debug.h"
 
 /*==========================================================
  * FUNCTION    - csid_get_version -
@@ -63,10 +64,10 @@ static int csid_set_cfg(void *csid_ctrl, void *data)
     SERR("failed");
     return SENSOR_FAILURE;
   }
-  if (csid_params == ctrl->cur_csid_params) {
-    SLOW("same csid params");
-    return rc;
-  }
+  //if (csid_params->csi_clk == ctrl->cur_csid_params.csi_clk) {
+  //  SLOW("same csid params");
+  //  return rc;
+  //}
   csid_params->lane_assign = ctrl->csi_lane_params->csi_lane_assign;
   csid_params->phy_sel = ctrl->csi_lane_params->csi_phy_sel;
 
@@ -77,7 +78,8 @@ static int csid_set_cfg(void *csid_ctrl, void *data)
     SERR("VIDIOC_MSM_CSID_IO_CFG failed");
   }
 
-  ctrl->cur_csid_params = csid_params;
+  memcpy((void *)&(ctrl->cur_csid_params), (void *)csid_params,
+    sizeof(struct msm_camera_csid_params));
   return rc;
 
 }
@@ -111,6 +113,11 @@ static int32_t csid_open(void **csid_ctrl, const char *subdev_name)
   SLOW("sd name %s", subdev_string);
   /* Open subdev */
   ctrl->fd = open(subdev_string, O_RDWR);
+  if ((ctrl->fd) >= MAX_FD_PER_PROCESS) {
+    dump_list_of_daemon_fd();
+    ctrl->fd = -1;
+    goto ERROR;
+  }
   if (ctrl->fd < 0) {
     SERR("failed");
     rc = SENSOR_FAILURE;

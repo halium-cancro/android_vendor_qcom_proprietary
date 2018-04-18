@@ -9,6 +9,8 @@
 #include "stats_module.h"
 #include "modules.h"
 
+#include "camera_dbg.h"
+#define CDBG CDBG_ERROR
 
 /** afd_port_callback
  *
@@ -59,23 +61,36 @@ static void afd_port_callback(afd_output_data_t *output, void *p)
  *    @port: pointer to afd port
  *  Launch afd thread
  **/
-static boolean afd_port_start_threads(mct_port_t *port)
+static boolean afd_port_init_threads(mct_port_t *port)
 {
   boolean     rc = TRUE;
-  mct_event_t event;
   afd_port_private_t *private = port->port_private;
 
   private->thread_data = afd_thread_init();
+  CDBG("%s private->thread_data: %p", __func__, private->thread_data);
   if (private->thread_data == NULL) {
+    CDBG_ERROR("%s private->thread_data is NULL", __func__);
     rc = FALSE;
-  } else {
+  }
+  return rc;
+}
 
+/** afd_port_start_threads
+ *    @port: pointer to afd port
+ *  Launch afd thread
+ **/
+static boolean afd_port_start_threads(mct_port_t *port)
+{
+  boolean     rc = FALSE;
+  afd_port_private_t *private = port->port_private;
+
+  if (private->thread_data != NULL) {
     rc = afd_thread_start(port);
     if (rc == FALSE) {
       afd_thread_deinit(port);
     }
   }
-
+  CDBG("%s: Start afd thread", __func__);
   return rc;
 }
 
@@ -127,7 +142,23 @@ static boolean afd_port_proc_downstream_event(mct_port_t *port, mct_event_t *eve
     rc = afd_thread_en_q_msg(private->thread_data, afd_msg);
   } /* case MCT_EVENT_MODULE_SET_CHROMATIX_PTR */
     break;
+  case MCT_EVENT_MODULE_START_STOP_STATS_THREADS: {
+    uint8_t *start_flag = (uint8_t*)(mod_evt->module_event_data);
+    CDBG("%s MCT_EVENT_MODULE_START_STOP_STATS_THREADS start_flag: %d",
+      __func__,*start_flag);
 
+    if (*start_flag) {
+      if (afd_port_start_threads(port) == FALSE) {
+        CDBG("%s: afd thread start failed", __func__);
+        rc = FALSE;
+      }
+    } else {
+      if (private->thread_data) {
+        afd_thread_stop(private->thread_data);
+      }
+    }
+  }
+    break;
   case MCT_EVENT_MODULE_SET_STREAM_CONFIG: {
     afd_thread_msg_t *afd_msg   =
       (afd_thread_msg_t *)malloc(sizeof(afd_thread_msg_t));
@@ -221,24 +252,24 @@ static boolean afd_port_proc_downstream_event(mct_port_t *port, mct_event_t *eve
     mct_event_stats_isp_t *stats_event ;
     stats_event =(mct_event_stats_isp_t *)(mod_evt->module_event_data);
     if (stats_event) {
+      if(!(stats_event->stats_mask & (1 << MSM_ISP_STATS_RS))) {
+        return TRUE;
+      }
       afd_thread_msg_t *afd_msg   =
         (afd_thread_msg_t *)malloc(sizeof(afd_thread_msg_t));
       if (afd_msg == NULL)
         return FALSE;
       memset(afd_msg, 0 , sizeof(afd_thread_msg_t));
-      stats_t  * afd_stats;
-      afd_stats = &(private->afd_object.stats);
-      afd_msg->u.stats = afd_stats;
-      CDBG("%s: event stats_mask =0x%x,", __func__, stats_event->stats_mask);
-      if (stats_event->stats_mask & (1 << MSM_ISP_STATS_RS)) {
-        afd_msg->type = MSG_AFD_STATS;
-        afd_stats->stats_type_mask |= STATS_RS;
-        memcpy(&afd_stats->yuv_stats.q3a_rs_stats, stats_event->stats_data[MSM_ISP_STATS_RS].stats_buf,
-          sizeof(q3a_rs_stats_t));
-      }else {
+      stats_t * afd_stats = (stats_t *)calloc(1, sizeof(stats_t));
+      if(afd_stats == NULL) {
         free(afd_msg);
         break;
       }
+      afd_msg->u.stats = afd_stats;
+      afd_msg->type = MSG_AFD_STATS;
+      afd_stats->stats_type_mask |= STATS_RS;
+      memcpy(&afd_stats->yuv_stats.q3a_rs_stats, stats_event->stats_data[MSM_ISP_STATS_RS].stats_buf,
+        sizeof(q3a_rs_stats_t));
       rc = afd_thread_en_q_msg(private->thread_data, afd_msg);
     } /* if(stats_event)*/
 
@@ -271,11 +302,7 @@ static boolean afd_port_proc_fill_antibanding_parm(afd_thread_msg_t *afd_msg,
       break;
     case CAM_ANTIBANDING_MODE_AUTO:
       afd_msg->u.afd_set_parm.u.set_enable.afd_enable = TRUE;
-	  #if 0 //modify start, tanrifei, 20131125
       afd_msg->u.afd_set_parm.u.set_enable.afd_mode = AFD_TYPE_AUTO;
-	  #else
-      afd_msg->u.afd_set_parm.u.set_enable.afd_mode = AFD_TYPE_AUTO_50HZ;
-	  #endif //modify end
       break;
     case CAM_ANTIBANDING_MODE_AUTO_50HZ:
       afd_msg->u.afd_set_parm.u.set_enable.afd_enable = TRUE;
@@ -546,7 +573,7 @@ static boolean afd_port_check_caps_unreserve(mct_port_t *port,
 static boolean afd_port_ext_link(unsigned int identity,
   mct_port_t *port, mct_port_t *peer)
 {
-  boolean rc = FALSE, new_thread = FALSE;
+  boolean rc = FALSE, thread_init = FALSE;
   afd_port_private_t  *private;
   mct_event_t         event;
   if (strcmp(MCT_OBJECT_NAME(port), "afd_sink")){
@@ -567,14 +594,14 @@ static boolean afd_port_ext_link(unsigned int identity,
     }
   /* Fall through */
   case AFD_PORT_STATE_CREATED:
-    new_thread = TRUE;
+    thread_init = TRUE;
     rc = TRUE;
     break;
 
   case AFD_PORT_STATE_LINKED:
     if ((private->reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000)) {
       rc = TRUE;
-      new_thread = FALSE;
+      thread_init = FALSE;
     }
     break;
 
@@ -584,8 +611,8 @@ static boolean afd_port_ext_link(unsigned int identity,
 
   if (rc == TRUE) {
 
-    if (new_thread == TRUE) {
-      if (afd_port_start_threads(port) == FALSE) {
+    if (thread_init == TRUE) {
+      if (afd_port_init_threads(port) == FALSE) {
         rc = FALSE;
         goto afd_ext_link_done;
       }
@@ -627,9 +654,10 @@ static void afd_port_ext_unlink(unsigned int identity,
     ((private->reserved_id & 0xFFFF0000) == (identity & 0xFFFF0000))){
     MCT_OBJECT_REFCOUNT(port) -= 1;
     if (!MCT_OBJECT_REFCOUNT(port)){
+      CDBG("%s: afd_data=%p", __func__, private->thread_data);
       private->state = AFD_PORT_STATE_UNLINKED;
-      afd_thread_stop(private->thread_data);
       afd_thread_deinit(port);
+      MCT_PORT_PEER(port) = NULL;
     }
   }
 
@@ -708,6 +736,13 @@ boolean afd_port_init(mct_port_t *port, unsigned int identity)
   AFD_INITIALIZE_LOCK(&private->afd_object);
   private->afd_object.set_parameters = afd_set_parameters;
   private->afd_object.get_parameters = afd_get_parameters;
+          CDBG_ERROR("SnowCat: %s: afd_port_init", __func__);
+      if (private->afd_object.set_parameters == NULL){
+          CDBG_ERROR("SnowCat: %s: afd_set_parameters is NULL", __func__);
+      }
+      if (private->afd_object.set_parameters == NULL){
+          CDBG_ERROR("SnowCat: %s: afd_get_parameters is NULL", __func__);
+      }
   private->afd_object.process = afd_process;
   private->afd_object.afd_cb = afd_port_callback;
   private->afd_object.afd = afd_init();

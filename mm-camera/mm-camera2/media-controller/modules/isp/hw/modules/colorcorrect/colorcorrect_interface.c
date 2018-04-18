@@ -10,6 +10,7 @@
 #include "isp_event.h"
 #include "isp_hw_module_ops.h"
 #include "isp_pipeline.h"
+#include "isp_log.h"
 
 extern isp_ops_t *color_correct40_open(uint32_t version);
 extern isp_ops_t *color_correct32_open(uint32_t version);

@@ -6,10 +6,11 @@
 ============================================================================*/
 #include <unistd.h>
 #include "bf_stats.h"
+#include "isp_log.h"
 
 #ifdef BF_STATS_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -30,27 +31,27 @@
  **/
 static void vfe_bf_stats_debug(ISP_StatsBf_CfgCmdType *pcmd)
 {
-  CDBG("%s:Bayer Focus Stats Configurations\n", __func__);
-  CDBG("%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
-  CDBG("%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
-  CDBG("%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
-  CDBG("%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
-  CDBG("%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
-  CDBG("%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
-  CDBG("%s:r_fv_min   %d\n", __func__, pcmd->r_fv_min);
-  CDBG("%s:gr_fv_min  %d\n", __func__, pcmd->gr_fv_min);
-  CDBG("%s:b_fv_min   %d\n", __func__, pcmd->b_fv_min);
-  CDBG("%s:gb_fv_min  %d\n", __func__, pcmd->gb_fv_min);
-  CDBG("%s:a00        %d\n", __func__, pcmd->a00);
-  CDBG("%s:a01        %d\n", __func__, pcmd->a01);
-  CDBG("%s:a02        %d\n", __func__, pcmd->a02);
-  CDBG("%s:a03        %d\n", __func__, pcmd->a03);
-  CDBG("%s:a04        %d\n", __func__, pcmd->a04);
-  CDBG("%s:a10        %d\n", __func__, pcmd->a10);
-  CDBG("%s:a11        %d\n", __func__, pcmd->a11);
-  CDBG("%s:a12        %d\n", __func__, pcmd->a12);
-  CDBG("%s:a13        %d\n", __func__, pcmd->a13);
-  CDBG("%s:a14        %d\n", __func__, pcmd->a14);
+  ISP_DBG(ISP_MOD_STATS, "%s:Bayer Focus Stats Configurations\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHOffset %d\n", __func__, pcmd->rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVOffset %d\n", __func__, pcmd->rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnWidth   %d\n", __func__, pcmd->rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHeight  %d\n", __func__, pcmd->rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHNum    %d\n", __func__, pcmd->rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVNum    %d\n", __func__, pcmd->rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:r_fv_min   %d\n", __func__, pcmd->r_fv_min);
+  ISP_DBG(ISP_MOD_STATS, "%s:gr_fv_min  %d\n", __func__, pcmd->gr_fv_min);
+  ISP_DBG(ISP_MOD_STATS, "%s:b_fv_min   %d\n", __func__, pcmd->b_fv_min);
+  ISP_DBG(ISP_MOD_STATS, "%s:gb_fv_min  %d\n", __func__, pcmd->gb_fv_min);
+  ISP_DBG(ISP_MOD_STATS, "%s:a00        %d\n", __func__, pcmd->a00);
+  ISP_DBG(ISP_MOD_STATS, "%s:a01        %d\n", __func__, pcmd->a01);
+  ISP_DBG(ISP_MOD_STATS, "%s:a02        %d\n", __func__, pcmd->a02);
+  ISP_DBG(ISP_MOD_STATS, "%s:a03        %d\n", __func__, pcmd->a03);
+  ISP_DBG(ISP_MOD_STATS, "%s:a04        %d\n", __func__, pcmd->a04);
+  ISP_DBG(ISP_MOD_STATS, "%s:a10        %d\n", __func__, pcmd->a10);
+  ISP_DBG(ISP_MOD_STATS, "%s:a11        %d\n", __func__, pcmd->a11);
+  ISP_DBG(ISP_MOD_STATS, "%s:a12        %d\n", __func__, pcmd->a12);
+  ISP_DBG(ISP_MOD_STATS, "%s:a13        %d\n", __func__, pcmd->a13);
+  ISP_DBG(ISP_MOD_STATS, "%s:a14        %d\n", __func__, pcmd->a14);
 }
 
 /** bf_stats_check_stream_path:
@@ -111,7 +112,7 @@ static int bf_stats_config(isp_stats_entry_t *entry,
   int i;
 
   if (!entry->enable) {
-    CDBG("%s: BF not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: BF not enabled", __func__);
     return 0;
   }
 
@@ -144,7 +145,7 @@ static int bf_stats_config(isp_stats_entry_t *entry,
   /* min of pcmd->rgnHOffset = 4, min of pcmd->rgnVOffset = 2
    * based on system's input */
   pcmd->rgnHOffset =
-    (af_config->roi.left < 4) ? 4 : FLOOR2(af_config->roi.left);
+    (af_config->roi.left < 8) ? 8 : FLOOR2(af_config->roi.left);
   pcmd->rgnVOffset =
     (af_config->roi.top < 2) ? 2 : FLOOR2(af_config->roi.top);
 
@@ -197,13 +198,7 @@ static int bf_stats_config(isp_stats_entry_t *entry,
     }
     if (isp_out->stripe_id == ISP_STRIPE_LEFT) {
       /* Make sure if number of region is zero for each side, we don't actually program 0 region */
-	  /* modified by tanrifei, 20140809 */
-	  #if 0
       pcmd->rgnHNum = (entry->num_left_rgns > 0) ? entry->num_left_rgns - 1 : 1;
-	  #else
-      pcmd->rgnHNum = (entry->num_left_rgns > 0) ? entry->num_left_rgns : 1;
-	  #endif
-	  /* modify end */
       pcmd->rgnHOffset = (entry->num_left_rgns > 0) ? pcmd->rgnHOffset : 8; // Default offset for BF stats
     } else { /* ISP_STRIPE_RIGHT */
       pcmd->rgnHNum = (entry->num_right_rgns > 0) ? entry->num_right_rgns - 1 : 1;
@@ -326,7 +321,7 @@ static int bf_stats_get_params (void *ctrl, uint32_t param_id,
   isp_stats_entry_t *entry = ctrl;
   int rc = 0;
 
-  CDBG("%s: param_id = %d\n", __func__, param_id);
+  ISP_DBG(ISP_MOD_STATS, "%s: param_id = %d\n", __func__, param_id);
   switch (param_id) {
   case ISP_STATS_GET_ENABLE:
     break;
@@ -360,7 +355,7 @@ static int bf_stats_do_hw_update(isp_stats_entry_t *entry)
   struct msm_vfe_cfg_cmd2 cfg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[1];
 
-  CDBG("%s: E, hw_update = %d\n", __func__, entry->hw_update_pending);
+  ISP_DBG(ISP_MOD_STATS, "%s: E, hw_update = %d\n", __func__, entry->hw_update_pending);
   vfe_bf_stats_debug(pcmd);
   if (entry->hw_update_pending) {
     cfg_cmd.cfg_data = (void *)entry->reg_cmd;
@@ -641,7 +636,7 @@ static int bf_stats_action (void *ctrl, uint32_t action_code,
   int rc = 0;
   isp_stats_entry_t *entry = ctrl;
 
-  CDBG("%s: action code = %d\n", __func__, action_code);
+  ISP_DBG(ISP_MOD_STATS, "%s: action code = %d\n", __func__, action_code);
   switch ((isp_stats_action_code_t)action_code) {
   case ISP_STATS_ACTION_STREAM_START:
     break;
@@ -675,7 +670,7 @@ static int bf_stats_action (void *ctrl, uint32_t action_code,
     }
 
     if (entry->is_first == 1) {
-       CDBG("%s: drop first stats\n", __func__);
+       ISP_DBG(ISP_MOD_STATS, "%s: drop first stats\n", __func__);
        entry->is_first = 0;
        isp_stats_enqueue_buf(entry, buf_idx);
        return rc;
@@ -799,7 +794,7 @@ isp_ops_t *bf_stats_open(isp_stats_mod_t *stats,
   int rc = 0;
   isp_stats_entry_t *entry = NULL;
   ISP_StatsBf_CfgCmdType *cmd = NULL;
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E\n", __func__);
 
   entry = malloc(sizeof(isp_stats_entry_t));
   if (!entry) {

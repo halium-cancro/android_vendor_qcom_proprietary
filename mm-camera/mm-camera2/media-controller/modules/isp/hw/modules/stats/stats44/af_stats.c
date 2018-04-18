@@ -7,6 +7,7 @@
 
 #include <unistd.h>
 #include "af_stats.h"
+#include "isp_log.h"
 
 /** af_stats_set_params:
  *    @ctrl: Pointer to entry (ctrl) struct

@@ -7,10 +7,19 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "asf32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_ASF_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
+#endif
+
+#ifndef sign
+#define sign(x) (((x) < 0) ? (-1) : (1))
+#endif
+
+#ifndef Round
+#define Round(x) (int)((x) + sign(x)*0.5)
 #endif
 
 /** util_asf_cmd_debug:
@@ -24,37 +33,37 @@
  **/
 static void util_asf_cmd_debug(ISP_AdaptiveFilterConfigCmdType *asfCmd)
 {
-  CDBG("%s: smoothFilterEnabled = %d", __func__, asfCmd->smoothFilterEnabled);
-  CDBG("%s: sharpMode = %d, lpfMode = %d\n", __func__,
+  ISP_DBG(ISP_MOD_ASF, "%s: smoothFilterEnabled = %d", __func__, asfCmd->smoothFilterEnabled);
+  ISP_DBG(ISP_MOD_ASF, "%s: sharpMode = %d, lpfMode = %d\n", __func__,
     asfCmd->sharpMode, asfCmd->lpfMode);
-  CDBG("%s: smoothCoefCenter = %d smoothCoefSurr = %d\n", __func__,
+  ISP_DBG(ISP_MOD_ASF, "%s: smoothCoefCenter = %d smoothCoefSurr = %d\n", __func__,
     asfCmd->smoothCoefCenter, asfCmd->smoothCoefSurr);
-  CDBG("%s: pipeClubCount = %d pipeClubOvd = %d flushHalt Ovd = %d\n", __func__,
+  ISP_DBG(ISP_MOD_ASF, "%s: pipeClubCount = %d pipeClubOvd = %d flushHalt Ovd = %d\n", __func__,
     asfCmd->pipeFlushCount, asfCmd->pipeFlushOvd, asfCmd->flushHaltOvd);
-  CDBG("%s: cropEnable = %d\n", __func__, asfCmd->cropEnable);
-  CDBG("%s: sharpK1 = %d, sharpK2 = %d\n", __func__, asfCmd->sharpK1,
+  ISP_DBG(ISP_MOD_ASF, "%s: cropEnable = %d\n", __func__, asfCmd->cropEnable);
+  ISP_DBG(ISP_MOD_ASF, "%s: sharpK1 = %d, sharpK2 = %d\n", __func__, asfCmd->sharpK1,
     asfCmd->sharpK2);
-  CDBG("%s: normalizeFactor = %d\n", __func__, asfCmd->normalizeFactor);
-  CDBG("%s: sharpThresholdE[1..5] = %d %d %d %d %d\n", __func__,
+  ISP_DBG(ISP_MOD_ASF, "%s: normalizeFactor = %d\n", __func__, asfCmd->normalizeFactor);
+  ISP_DBG(ISP_MOD_ASF, "%s: sharpThresholdE[1..5] = %d %d %d %d %d\n", __func__,
     asfCmd->sharpThreshE1, asfCmd->sharpThreshE2, asfCmd->sharpThreshE3,
     asfCmd->sharpThreshE4, asfCmd->sharpThreshE5);
 
-  CDBG("%s: F1Coefficients[0-8]: %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
+  ISP_DBG(ISP_MOD_ASF, "%s: F1Coefficients[0-8]: %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
     __func__, asfCmd->F1Coeff0, asfCmd->F1Coeff1, asfCmd->F1Coeff2,
     asfCmd->F1Coeff3, asfCmd->F1Coeff4, asfCmd->F1Coeff5,
     asfCmd->F1Coeff6, asfCmd->F1Coeff7, asfCmd->F1Coeff8);
 
-  CDBG("%s: F2Coefficients[0-8]: %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
+  ISP_DBG(ISP_MOD_ASF, "%s: F2Coefficients[0-8]: %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
     __func__, asfCmd->F2Coeff0, asfCmd->F2Coeff1, asfCmd->F2Coeff2,
     asfCmd->F2Coeff3, asfCmd->F2Coeff4, asfCmd->F2Coeff5,
     asfCmd->F2Coeff6, asfCmd->F2Coeff7, asfCmd->F2Coeff8);
 
-  CDBG("%s: F3Coefficients[0-8]: %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
+  ISP_DBG(ISP_MOD_ASF, "%s: F3Coefficients[0-8]: %d, %d, %d, %d, %d, %d, %d, %d, %d\n",
     __func__, asfCmd->F3Coeff0, asfCmd->F3Coeff1, asfCmd->F3Coeff2,
   asfCmd->F3Coeff3, asfCmd->F3Coeff4, asfCmd->F3Coeff5,
     asfCmd->F3Coeff6, asfCmd->F3Coeff7, asfCmd->F3Coeff8);
 
-  CDBG("%s: NZflag[0-7]: %d, %d, %d, %d, %d, %d, %d\n", __func__,
+  ISP_DBG(ISP_MOD_ASF, "%s: NZflag[0-7]: %d, %d, %d, %d, %d, %d, %d\n", __func__,
     asfCmd->nzFlag1, asfCmd->nzFlag2, asfCmd->nzFlag3, asfCmd->nzFlag4,
     asfCmd->nzFlag5, asfCmd->nzFlag6, asfCmd->nzFlag7);
 
@@ -71,15 +80,15 @@ static void util_asf_cmd_debug(ISP_AdaptiveFilterConfigCmdType *asfCmd)
  **/
 static void util_asf_settings_debug(asf_setting_type *ip)
 {
-  CDBG("%s: lower_threshold = %d\n", __func__, ip->lower_threshold);
-  CDBG("%s: upper_threshold = %d\n", __func__, ip->upper_threshold);
-  CDBG("%s: negative_threshold = %d\n", __func__, ip->negative_threshold);
-  CDBG("%s: upper_threshold_f2 = %d\n", __func__, ip->upper_threshold_f2);
-  CDBG("%s: negative_threshold_f2 = %d\n", __func__, ip->negative_threshold_f2);
-  CDBG("%s: sharpen_degree_f1 = %f\n", __func__, ip->sharpen_degree_f1);
-  CDBG("%s: sharpen_degree_f2 = %f\n", __func__, ip->sharpen_degree_f2);
-  CDBG("%s: smoothing_percent = %d\n", __func__, ip->smoothing_percent);
-  CDBG("%s: smoothing_percent_5x5 = %d\n", __func__, ip->smoothing_percent_5x5);
+  ISP_DBG(ISP_MOD_ASF, "%s: lower_threshold = %d\n", __func__, ip->lower_threshold);
+  ISP_DBG(ISP_MOD_ASF, "%s: upper_threshold = %d\n", __func__, ip->upper_threshold);
+  ISP_DBG(ISP_MOD_ASF, "%s: negative_threshold = %d\n", __func__, ip->negative_threshold);
+  ISP_DBG(ISP_MOD_ASF, "%s: upper_threshold_f2 = %d\n", __func__, ip->upper_threshold_f2);
+  ISP_DBG(ISP_MOD_ASF, "%s: negative_threshold_f2 = %d\n", __func__, ip->negative_threshold_f2);
+  ISP_DBG(ISP_MOD_ASF, "%s: sharpen_degree_f1 = %f\n", __func__, ip->sharpen_degree_f1);
+  ISP_DBG(ISP_MOD_ASF, "%s: sharpen_degree_f2 = %f\n", __func__, ip->sharpen_degree_f2);
+  ISP_DBG(ISP_MOD_ASF, "%s: smoothing_percent = %d\n", __func__, ip->smoothing_percent);
+  ISP_DBG(ISP_MOD_ASF, "%s: smoothing_percent_5x5 = %d\n", __func__, ip->smoothing_percent_5x5);
 } /* util_asf_settings_print */
 
 /** util_asf_parm_interpolate:
@@ -155,13 +164,12 @@ static void util_asf_calc_5x5_lpf(
 
   int32_t i, j, k, l, rc = TRUE;
 
-  CDBG("%s: smoothening value = %d\n", __func__, *smoothing_percent);
+  ISP_DBG(ISP_MOD_ASF, "%s: smoothening value = %d\n", __func__, *smoothing_percent);
   if (*smoothing_percent <= 0) {
-    CDBG("%s: smoothening value <= 0, disable 5x5 LSF \n", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: smoothening value <= 0, disable 5x5 LSF \n", __func__);
     rc = FALSE;
-    goto end;
   } else if (*smoothing_percent > 100) {
-    CDBG("%s: smoothening value > 100, cap it. \n", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: smoothening value > 100, cap it. \n", __func__);
     *smoothing_percent = 100;
   }
 
@@ -218,8 +226,13 @@ static void util_asf_calc_5x5_lpf(
   sumF64 += Diff64;
 
   if (sumF64 != 64)
-    CDBG("%s: sum of the lsf co-efficients is incorrect\n", __func__);
-
+    ISP_DBG(ISP_MOD_ASF, "%s: sum of the lsf co-efficients is incorrect\n", __func__);
+  if (*smoothing_percent == 0) {
+    F64[0][0] = F64[0][1] = F64[0][2] = 0;
+    F64[1][0] = F64[1][1] = F64[1][2] = 0;
+    F64[2][0] = F64[2][1] = F64[2][2] = 0;
+    F64[2][2] = Q6 - 1;  // 8uQ7
+  }
   /* Update/Configure ASF input configuration */
   lpf_coeff[0] = MIN(31, MAX(-32, F64[0][0]));
   lpf_coeff[1] = MIN(31, MAX(-32, F64[0][1]));
@@ -266,9 +279,9 @@ static float util_asf_calc_sharpness_scale(isp_sharpness_info_t *sharp_info,
   float hw_sharp_ctrl_factor = 0;
   float downscale_factor_from_scaler = sharp_info->downscale_factor;
 
-  CDBG("%s: input sharp_ctrl_factor = %f, downscale_factor_from_scaler = %f",
+  ISP_DBG(ISP_MOD_ASF, "%s: input sharp_ctrl_factor = %f, downscale_factor_from_scaler = %f",
     __func__, sharp_info->ui_sharp_ctrl_factor, downscale_factor_from_scaler);
-  CDBG("%s: asd_soft_focus_dgr = %f, bst_soft_focus_dgr = %f\n",
+  ISP_DBG(ISP_MOD_ASF, "%s: asd_soft_focus_dgr = %f, bst_soft_focus_dgr = %f\n",
     __func__, sharp_info->asd_soft_focus_dgr, sharp_info->bst_soft_focus_dgr);
 
   /* Note 1: Clamp the downscale_factor */
@@ -294,7 +307,7 @@ static float util_asf_calc_sharpness_scale(isp_sharpness_info_t *sharp_info,
 
   hw_sharp_ctrl_factor *= sharp_info->ui_sharp_ctrl_factor *
       sharp_info->asd_soft_focus_dgr * sharp_info->bst_soft_focus_dgr;
-  CDBG("%s: downscale_sharp_ctrl_factor = %f.\n",
+  ISP_DBG(ISP_MOD_ASF, "%s: downscale_sharp_ctrl_factor = %f.\n",
     __func__, hw_sharp_ctrl_factor);
 
   return hw_sharp_ctrl_factor;
@@ -334,7 +347,7 @@ static void util_asf_threshold_and_degree_cmd_config(isp_asf_mod_t* mod,
    * chromatix smoothing_percent 100 is the smoothiest, whereas
    * VFE ps 0 is the smoothiest.
    */
-  CDBG("%s: smoothing_percent = %d\n", __func__, asfSetting->smoothing_percent);
+  ISP_DBG(ISP_MOD_ASF, "%s: smoothing_percent = %d\n", __func__, asfSetting->smoothing_percent);
   ps = (unsigned int)((1.0 - (float)asfSetting->smoothing_percent / 100.0)
     * 14.0);
   asfCmd->smoothCoefCenter = 16 + (ps << 3);
@@ -348,8 +361,8 @@ static void util_asf_threshold_and_degree_cmd_config(isp_asf_mod_t* mod,
   asfCmd->sharpThreshE4 = asfSetting->upper_threshold_f2;
   asfCmd->sharpThreshE5 = asfSetting->negative_threshold_f2;
 
-  sharp_ctrl_factor = util_asf_calc_sharpness_scale(&(mod->out_sharpness_info),
-    chrPtr);
+  sharp_ctrl_factor = Round(util_asf_calc_sharpness_scale(&(mod->out_sharpness_info),
+    chrPtr));
 
   asfCmd->sharpK1 =
     FLOAT_TO_Q(3, asfSetting->sharpen_degree_f1 * sharp_ctrl_factor);
@@ -372,10 +385,10 @@ static int util_asf_set_sharpness_parm(isp_sharpness_info_t *in,
 {
   int rc = FALSE;
 
-  CDBG("%s: In asd=%f, bst=%f, dcf=%f, port_sev=%f, ui_sharp=%f\n",
+  ISP_DBG(ISP_MOD_ASF, "%s: In asd=%f, bst=%f, dcf=%f, port_sev=%f, ui_sharp=%f\n",
     __func__, in->asd_soft_focus_dgr, in->bst_soft_focus_dgr,
     in->downscale_factor, in->portrait_severity, in->ui_sharp_ctrl_factor * 3.9);
-  CDBG("%s: Out asd=%f, bst=%f, dcf=%f, port_sev=%f, ui_sharp=%f\n",
+  ISP_DBG(ISP_MOD_ASF, "%s: Out asd=%f, bst=%f, dcf=%f, port_sev=%f, ui_sharp=%f\n",
     __func__, out->asd_soft_focus_dgr, out->bst_soft_focus_dgr,
     out->downscale_factor, out->portrait_severity, out->ui_sharp_ctrl_factor);
 
@@ -384,7 +397,7 @@ static int util_asf_set_sharpness_parm(isp_sharpness_info_t *in,
     || !F_EQUAL(in->downscale_factor, out->downscale_factor)
     || !F_EQUAL(in->portrait_severity, out->portrait_severity)
     || !F_EQUAL(3.9*in->ui_sharp_ctrl_factor, out->ui_sharp_ctrl_factor)) {
-    CDBG("%s: Update required\n", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: Update required\n", __func__);
 
     memcpy(out, in, sizeof(isp_sharpness_info_t));
     out->ui_sharp_ctrl_factor *= 3.9;
@@ -623,12 +636,12 @@ static int asf_trigger_update(isp_asf_mod_t *mod,
   int is_burst = IS_BURST_STREAMING(&(in_params->cfg));
 
   if (!mod->enable) {
-    CDBG("%s: ASF module is disabled. Skip the trigger update.\n", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: ASF module is disabled. Skip the trigger update.\n", __func__);
     return 0;
   }
 
   if (!mod->trigger_enable) {
-    CDBG("%s: Trigger is disable. Skip the trigger update.\n", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: Trigger is disable. Skip the trigger update.\n", __func__);
     return 0;
   }
 
@@ -639,11 +652,11 @@ static int asf_trigger_update(isp_asf_mod_t *mod,
   if (is_burst) {
     if (!isp_util_aec_check_settled(
       &(in_params->trigger_input.stats_update.aec_update))) {
-      CDBG("%s: AEC is not setteled. Skip the trigger\n", __func__);
+      ISP_DBG(ISP_MOD_ASF, "%s: AEC is not setteled. Skip the trigger\n", __func__);
       return 0;
     }
   }
-  CDBG("%s: aec update asf ratio.\n", __func__);
+  ISP_DBG(ISP_MOD_ASF, "%s: aec update asf ratio.\n", __func__);
   outdoor = &(ASF_5x5->asf_5x5_outdoor_trigger);
   lowlight = &(ASF_5x5->asf_5x5_lowlight_trigger);
   asf_outdoor = &(ASF_5x5->asf_5_5.setting[ASF_BRIGHT_LIGHT]);
@@ -664,7 +677,7 @@ static int asf_trigger_update(isp_asf_mod_t *mod,
       (new_trigger_ratio.lighting != mod->aec_ratio.lighting)    ||
       (!F_EQUAL(new_trigger_ratio.ratio, mod->aec_ratio.ratio))) {
 
-    CDBG("%s: lighting = %d\n", __func__, new_trigger_ratio.lighting);
+    ISP_DBG(ISP_MOD_ASF, "%s: lighting = %d\n", __func__, new_trigger_ratio.lighting);
     switch (new_trigger_ratio.lighting) {
     case TRIGGER_NORMAL:
       *asf_final = *asf_normal;
@@ -686,14 +699,14 @@ static int asf_trigger_update(isp_asf_mod_t *mod,
     mod->old_streaming_mode = in_params->cfg.streaming_mode;
     mod->aec_ratio = new_trigger_ratio;
   } else {
-    CDBG("%s: No update required.\n", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: No update required.\n", __func__);
   }
 
   mod->sharpness_update = util_asf_set_sharpness_parm(&(mod->in_sharpness_info),
     &(mod->out_sharpness_info));
 
   if (mod->skip_trigger && !mod->sharpness_update) {
-    CDBG("%s: No update required.\n", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: No update required.\n", __func__);
     return 0;
   }
 
@@ -715,7 +728,7 @@ static int asf_trigger_update(isp_asf_mod_t *mod,
 
   util_asf_cmd_debug(asfCmd);
 
-  CDBG("%s: send the update to ASF HW\n", __func__);
+  ISP_DBG(ISP_MOD_ASF, "%s: send the update to ASF HW\n", __func__);
 
   mod->hw_update_pending = TRUE;
   return 0;
@@ -742,7 +755,7 @@ static int asf_set_bestshot(isp_asf_mod_t *mod,
     return -1;
   }
 
-  CDBG("%s:", __func__);
+  ISP_DBG(ISP_MOD_ASF, "%s:", __func__);
 
   return 0;
 } /* asf_set_bestshot */
@@ -768,7 +781,7 @@ static int asf_set_effect(isp_asf_mod_t *mod,
     return -1;
   }
 
-  CDBG("%s:", __func__);
+  ISP_DBG(ISP_MOD_ASF, "%s:", __func__);
 
   return 0;
 } /* asf_set_effect */
@@ -790,10 +803,10 @@ static int asf_set_sharpness(isp_asf_mod_t *mod,
   int sharpness = *(int *)in_params;
   float sharpness_f = (float) sharpness;
 
-  CDBG("%s: %d\n", __func__, sharpness);
+  ISP_DBG(ISP_MOD_ASF, "%s: %d\n", __func__, sharpness);
 
   mod->in_sharpness_info.ui_sharp_ctrl_factor = sharpness_f / (36 - 0);
-  CDBG("%s: %f\n", __func__, mod->in_sharpness_info.ui_sharp_ctrl_factor);
+  ISP_DBG(ISP_MOD_ASF, "%s: %f\n", __func__, mod->in_sharpness_info.ui_sharp_ctrl_factor);
   return 0;
 } /* asf_set_effect */
 
@@ -953,7 +966,7 @@ static int asf_get_params(void *mod_ctrl, uint32_t param_id, void *in_params,
     vfe_diag->control_asf5x5.cntrlenable = mod->trigger_enable;
     asf_ez_isp_update(mod, asf_diag);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_ASF, "%s: Populating vfe_diag data", __func__);
   }
     break;
 
@@ -1057,7 +1070,7 @@ isp_ops_t *asf32_open(uint32_t version)
 {
   isp_asf_mod_t *mod = malloc(sizeof(isp_asf_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_ASF, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory", __func__);

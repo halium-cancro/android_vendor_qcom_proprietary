@@ -63,6 +63,7 @@ typedef struct {
   uint32_t          start_addr;
   float             lux_idx;
   float             gain;
+  uint32_t          component_revision_no;
   void             *pproc_meta_dump;
 } pproc_meta_entry_t;
 

@@ -8,6 +8,7 @@ Qualcomm Technologies Proprietary and Confidential.
 /* Function declaration */
 
 int8_t isp_util_aec_check_settled (aec_update_t* aec_params);
+int8_t isp_util_awb_restore_gains (awb_update_t* awb_params);
 float isp_util_get_aec_ratio(void *pipeline_ptr, unsigned char tunning,
   void *trigger, aec_update_t* aec_out, int8_t is_snap_mode);
 int isp_util_get_aec_ratio2(void *pipeline_ptr, unsigned char tuning,

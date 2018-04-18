@@ -13,7 +13,8 @@
 
 void eeprom_get_calibration_items(void *e_ctrl);
 void eeprom_format_calibration_data(void *e_ctrl);
-void eeprom_autofocus_calibration(void *e_ctrl);
+boolean eeprom_autofocus_calibration(void *e_ctrl);
+void eeprom_print_matrix(float *paramlist);
 void eeprom_lensshading_calibration(void *e_ctrl);
 void eeprom_whitebalance_calibration(void *e_ctrl);
 void eeprom_defectpixcel_calibration(void *e_ctrl);

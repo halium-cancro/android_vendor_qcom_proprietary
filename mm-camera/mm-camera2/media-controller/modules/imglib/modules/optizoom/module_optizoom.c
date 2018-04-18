@@ -40,6 +40,11 @@ static img_caps_t g_caps = {
 static module_imgbase_params_t g_params = {
   module_optizoom_query_mod,
   NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
 };
 
 /**
@@ -108,13 +113,23 @@ static boolean module_optizoom_query_mod(mct_pipeline_cap_t *p_mct_cap)
  **/
 mct_module_t *module_optizoom_init(const char *name)
 {
-  return module_imgbase_init(name,
-    IMG_COMP_GEN_FRAME_PROC,
-    "qcom.gen_frameproc",
-    NULL,
-    &g_caps,
-    "libmmcamera_optizoom_lib.so",
-    CAM_QCOM_FEATURE_OPTIZOOM,
-    &g_params);
+  //Get RAM size and disable features which are memory rich
+  struct sysinfo info;
+  sysinfo(&info);
+
+  IDBG_MED("%s: totalram = %ld, freeram = %ld ", __func__, info.totalram,
+    info.freeram);
+  if (info.totalram > RAM_SIZE_THRESHOLD_FOR_AOST) {
+    return module_imgbase_init(name,
+      IMG_COMP_GEN_FRAME_PROC,
+      "qcom.gen_frameproc",
+      NULL,
+      &g_caps,
+      "libmmcamera_optizoom_lib.so",
+      CAM_QCOM_FEATURE_OPTIZOOM,
+      &g_params);
+  } else {
+    return NULL;
+  }
 }
 

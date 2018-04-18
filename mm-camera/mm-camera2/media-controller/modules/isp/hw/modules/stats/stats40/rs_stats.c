@@ -6,10 +6,11 @@
 ============================================================================*/
 #include <unistd.h>
 #include "rs_stats.h"
+#include "isp_log.h"
 
 #ifdef RS_STATS_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #ifdef RS_DUMP
@@ -33,14 +34,14 @@
  **/
 static void rs_cmd_debug(ISP_StatsRs_CfgType *pcmd)
 {
-  CDBG("%s: RS Stats Configurations\n", __func__);
-  CDBG("%s: rgnHNum = %d \n", __func__, pcmd->rgnHNum);
-  CDBG("%s: rgnVNum = %d \n", __func__, pcmd->rgnVNum);
-  CDBG("%s: rgnWidth = %d \n", __func__, pcmd->rgnWidth);
-  CDBG("%s: rgnHeight = %d \n", __func__, pcmd->rgnHeight);
-  CDBG("%s: rgnHOffset = %d \n", __func__, pcmd->rgnHOffset);
-  CDBG("%s: rgnVOffset = %d \n", __func__, pcmd->rgnVOffset);
-  CDBG("%s: shiftBits = %d \n", __func__, pcmd->shiftBits);
+  ISP_DBG(ISP_MOD_STATS, "%s: RS Stats Configurations\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: rgnHNum = %d \n", __func__, pcmd->rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "%s: rgnVNum = %d \n", __func__, pcmd->rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s: rgnWidth = %d \n", __func__, pcmd->rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "%s: rgnHeight = %d \n", __func__, pcmd->rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "%s: rgnHOffset = %d \n", __func__, pcmd->rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s: rgnVOffset = %d \n", __func__, pcmd->rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s: shiftBits = %d \n", __func__, pcmd->shiftBits);
 }
 
 /** rs_stats_config:
@@ -64,7 +65,7 @@ static int rs_stats_config(isp_stats_entry_t *entry,
   rs_stat_config_type_t *priv_cfg = entry->private;
 
   if (!entry->enable) {
-    CDBG("%s: not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: not enabled", __func__);
     return 0;
   }
 
@@ -160,7 +161,7 @@ static int rs_stats_config(isp_stats_entry_t *entry,
 static int rs_stats_enable(isp_stats_entry_t *entry,
   isp_mod_set_enable_t *in_params)
 {
-  CDBG("%s: enable = %d\n", __func__, in_params->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: enable = %d\n", __func__, in_params->enable);
   entry->enable = in_params->enable;
   entry->is_first = 1;
   return 0;
@@ -178,7 +179,7 @@ static int rs_stats_enable(isp_stats_entry_t *entry,
 static int rs_stats_trigger_enable(isp_stats_entry_t *entry,
   isp_mod_set_enable_t *in_params)
 {
-  CDBG("%s: trigger_enable = %d\n", __func__, in_params->enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: trigger_enable = %d\n", __func__, in_params->enable);
   entry->trigger_enable = in_params->enable;
   return 0;
 }
@@ -266,7 +267,7 @@ static int rs_stats_get_params (void *ctrl, uint32_t param_id,
   isp_stats_entry_t *entry = ctrl;
   int rc = 0;
 
-  CDBG("%s: param_id = %d\n", __func__, param_id);
+  ISP_DBG(ISP_MOD_STATS, "%s: param_id = %d\n", __func__, param_id);
   switch (param_id) {
   case ISP_STATS_GET_ENABLE:
     break;
@@ -310,7 +311,7 @@ static int rs_stats_do_hw_update(isp_stats_entry_t *entry)
   struct msm_vfe_cfg_cmd2 cfg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[1];
 
-  CDBG("%s: hw_update_pending = %d\n", __func__, entry->hw_update_pending);
+  ISP_DBG(ISP_MOD_STATS, "%s: hw_update_pending = %d\n", __func__, entry->hw_update_pending);
   if (entry->hw_update_pending) {
     rs_cmd_debug(pcmd);
     cfg_cmd.cfg_data = (void *)entry->reg_cmd;
@@ -445,7 +446,7 @@ static int rs_stats_action (void *ctrl, uint32_t action_code,
   int rc = 0;
   isp_stats_entry_t *entry = ctrl;
 
-  CDBG("%s: action code = %d\n", __func__, action_code);
+  ISP_DBG(ISP_MOD_STATS, "%s: action code = %d\n", __func__, action_code);
   switch ((isp_stats_action_code_t)action_code) {
   case ISP_STATS_ACTION_STREAM_START:
     break;
@@ -478,7 +479,7 @@ static int rs_stats_action (void *ctrl, uint32_t action_code,
     }
 
     if (entry->is_first == 1) {
-       CDBG("%s: drop first stats\n", __func__);
+       ISP_DBG(ISP_MOD_STATS, "%s: drop first stats\n", __func__);
        entry->is_first = 0;
        isp_stats_enqueue_buf(entry, buf_idx);
        return rc;
@@ -590,7 +591,7 @@ isp_ops_t *rs_stats_open(isp_stats_mod_t *stats,
   ISP_StatsRs_CfgType *cmd = NULL;
   rs_stat_config_type_t *cfg = NULL;
 
-  CDBG("%s: E.\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: E.\n", __func__);
   entry = malloc(sizeof(isp_stats_entry_t));
   if (!entry) {
     CDBG_ERROR("%s: no mem for aec\n",  __func__);

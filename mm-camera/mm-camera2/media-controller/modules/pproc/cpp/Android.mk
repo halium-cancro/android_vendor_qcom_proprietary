@@ -33,12 +33,14 @@ endif
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../includes
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../includes
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
+LOCAL_C_INCLUDES += \
+ $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 
 LOCAL_SRC_FILES:= cpp_params.c
 LOCAL_SRC_FILES += cpp.c
 LOCAL_MODULE           := libmmcamera_cpp
+LOCAL_32_BIT_ONLY := true
 LOCAL_SHARED_LIBRARIES := libcutils
 #include $(LOCAL_PATH)/../../../../local_additional_dependency.mk
 
@@ -48,7 +50,8 @@ endif
 LOCAL_MODULE_TAGS      := optional eng
 LOCAL_ADDITIONAL_DEPENDENCIES  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

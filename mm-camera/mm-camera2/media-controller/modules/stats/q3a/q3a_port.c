@@ -49,37 +49,35 @@ static boolean q3a_port_start_threads(mct_port_t *port,
 
   switch (type) {
   case Q3A_THREAD_AECAWB: {
-    private->aecawb_data = q3a_thread_aecawb_init();
-
-    if (private->aecawb_data != NULL) {
+    q3a_thread_aecawb_data_t *aecawb_data;
+    aecawb_data = private->aecawb_data;
+    if (aecawb_data != NULL) {
       event.type      = MCT_EVENT_MODULE_EVENT;
       event.identity  = identity;
       event.direction = MCT_EVENT_DOWNSTREAM;
 
       event.u.module_event.type = MCT_EVENT_MODULE_STATS_GET_THREAD_OBJECT;
-      event.u.module_event.module_event_data = (void *)private->aecawb_data;
+      event.u.module_event.module_event_data = (void *)aecawb_data;
 
       if (MCT_PORT_EVENT_FUNC(private->aec_port)(private->aec_port, &event) ==
         FALSE ||
         MCT_PORT_EVENT_FUNC(private->awb_port)(private->awb_port, &event) ==
         FALSE) {
         CDBG_ERROR("%s: NOT Start AECAWB thread", __func__);
-        q3a_thread_aecawb_deinit(private->aecawb_data);
+        q3a_thread_aecawb_deinit(aecawb_data);
         return FALSE;
       }
 
       CDBG("%s: Start AEAWB thread", __func__);
-      q3a_thread_aecawb_start(private->aecawb_data);
+      q3a_thread_aecawb_start(aecawb_data);
     }
   } /* case Q3A_THREAD_AECAWB */
     break;
 
   case Q3A_THREAD_AF: {
     q3a_thread_af_data_t *af_data;
-
-    af_data = q3a_thread_af_init();
+    af_data = private->af_data;
     if (af_data != NULL) {
-      private->af_data = af_data;
       event.type       = MCT_EVENT_MODULE_EVENT;
       event.identity   = identity;
       event.direction  = MCT_EVENT_DOWNSTREAM;
@@ -108,6 +106,41 @@ static boolean q3a_port_start_threads(mct_port_t *port,
 
   return TRUE;
 } /* q3a_port_start_threads */
+
+/** q3a_port_skip_bad_frame
+ *  Inform HAL to skip current frame to avoid flicker
+ **/
+static void q3a_port_skip_bad_frame(
+  mct_port_t  *port, uint32_t start_idx, uint32_t skip_cnt)
+{
+  mct_event_t event;
+  mct_bus_msg_t bus_msg;
+  q3a_port_private_t *private;
+  cam_frame_idx_range_t range;
+  int size;
+  if (!port || !skip_cnt) {
+    CDBG_ERROR("%s: input error, port: %p, skip_cnt: %d",
+      __func__, port, skip_cnt);
+    return;
+  }
+  CDBG("%s start_idx: %d, skip_count: %d", __func__,
+    start_idx, skip_cnt);
+  private = port->port_private;
+  range.min_frame_idx = start_idx;
+  range.max_frame_idx = range.min_frame_idx + skip_cnt - 1;
+  bus_msg.sessionid = (private->reserved_id >> 16);
+  bus_msg.type = MCT_BUS_MSG_FRAME_INVALID;
+  bus_msg.msg = &range;
+  size = (int)sizeof(cam_frame_idx_range_t);
+  bus_msg.size = size;
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.identity = private->reserved_id;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.u.module_event.type = MCT_EVENT_MODULE_STATS_POST_TO_BUS;
+  event.u.module_event.module_event_data = (void *)(&bus_msg);
+  MCT_PORT_EVENT_FUNC(port)(port, &event);
+}
+
 
 /** q3a_port_send_event_to_aec_port
   *    @port:  module's port
@@ -222,24 +255,10 @@ static boolean q3a_port_proc_upstream_mod_event(mct_port_t *port,
 {
   boolean            rc = TRUE;
   q3a_port_private_t *private = port->port_private;
-  mct_event_stats_t  *stats =
-    (mct_event_stats_t *)(event->u.module_event.module_event_data);
 
   CDBG("%s: E stats->type=%d", __func__,event->u.module_event.type);
   /* Always send UPDATE or REQUEST upstream first */
-  if (event->u.module_event.type == MCT_EVENT_MODULE_STATS_AEC_UPDATE ||
-    event->u.module_event.type == MCT_EVENT_MODULE_STATS_AWB_UPDATE ||
-    event->u.module_event.type == MCT_EVENT_MODULE_STATS_AF_UPDATE  ||
-    event->u.module_event.type == MCT_EVENT_MODULE_STATS_CONFIG_UPDATE ||
-    event->u.module_event.type == MCT_EVENT_STATS_AEC_REQUEST||
-    event->u.module_event.type == MCT_EVENT_STATS_AWB_REQUEST||
-    event->u.module_event.type == MCT_EVENT_STATS_AF_REQUEST ||
-    event->u.module_event.type == MCT_EVENT_MODULE_BUF_DIVERT_ACK ||
-    event->u.module_event.type == MCT_EVENT_MODULE_FAST_AEC_CONVERGE_ACK ||
-    event->u.module_event.type == MCT_EVENT_MODULE_STATS_POST_TO_BUS){
-
-    mct_port_send_event_to_peer(port, event);
-  }
+  mct_port_send_event_to_peer(port, event);
 
   /* Check to see if need to redirect this event to sub-ports */
   event->direction = MCT_EVENT_DOWNSTREAM;
@@ -311,7 +330,7 @@ static boolean q3a_port_is_led_needed(mct_port_t *port)
 {
   q3a_port_private_t *private = port->port_private;
 
-  return private->af_led_data.led_needed;
+  return private->af_led_data.led_af_needed;
 }
 
 /** q3a_port_update_led_af_to_sensor
@@ -415,7 +434,7 @@ static boolean q3a_port_request_aec_roi_off(mct_port_t *port)
   stats_set_params_type   stats_set_param;
   mct_event_t             event;
 
-  CDBG("%s: Request AEC for AF: %d", __func__, mode);
+  CDBG("%s: called", __func__);
   event.u.ctrl_event.control_event_data =
     (stats_set_params_type*)&stats_set_param;
   event.identity = private->reserved_id;
@@ -606,18 +625,19 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
         stats_update_t *stats_update =
           (stats_update_t *)event->u.module_event.module_event_data;
 #if TAF_SAVE_AEC_AF
-        if(private->aec_roi_enable){
+        if(private->aec_roi_enable) {
           if (stats_update->aec_update.luma_settled_cnt > 3){
             private->aec_settled = TRUE;
           }
-          if(stats_update->aec_update.luma_settled_cnt == 0 && private->aec_settled == TRUE){
+          if (stats_update->aec_update.luma_settled_cnt == 0
+            && private->aec_settled == TRUE){
             private->aec_ocsillate_cnt++;
             if (private->aec_ocsillate_cnt == 5){
               private->aec_roi_enable = FALSE;
               private->aec_settled = FALSE;
               q3a_port_request_aec_roi_off(port);
             }
-          }else{
+          } else {
             private->aec_ocsillate_cnt=0;
           }
         }
@@ -646,7 +666,8 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
             AEC_EST_DONE;
         }
 
-        private->af_led_data.led_needed = stats_update->aec_update.led_needed;
+        private->af_led_data.led_af_needed = stats_update->aec_update.led_needed;
+        private->af_led_data.flash_needed = stats_update->aec_update.flash_needed;
 
         /* if we are about to send the the EST_DONE event, send it here,
          * but get the current sof_id and stats_frm_id. This will sync sending
@@ -662,8 +683,10 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
           private->af_led_data.aec_update_data.aec_update.stats_frm_id =
             stats_update->aec_update.stats_frm_id;
           /* switch the pointer of the event data to point to our saved data */
+          memcpy(&private->af_led_data.aec_output_data,
+            &private->af_led_data.aec_update_data, sizeof(stats_update_t));
           event->u.module_event.module_event_data =
-            &private->af_led_data.aec_update_data;
+            &private->af_led_data.aec_output_data;
         } else if (private->af_led_data.send_stored_no_led_data == TRUE) {
           CDBG("%s:%d Restore AEC update data with NO LED estimation!",
             __func__, __LINE__);
@@ -675,8 +698,18 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
             stats_update->aec_update.stats_frm_id;
 
           /* switch the pointer of the event data to point to our saved data */
+          memcpy(&private->af_led_data.aec_output_data,
+            &private->af_led_data.aec_no_led_data, sizeof(stats_update_t));
           event->u.module_event.module_event_data =
-            &private->af_led_data.aec_no_led_data;
+            &private->af_led_data.aec_output_data;
+        }
+        if (stats_update->aec_update.est_state == AEC_EST_DONE) {
+          /* Block regular aec update for one frame to first send event for skipping preview frames */
+          private->af_led_data.send_stored_update_data = TRUE;
+          private->af_led_data.aec_update_data = *stats_update;
+          q3a_port_skip_bad_frame(port, private->cur_sof_id,
+            NUMBER_OF_SKIP_FRAMES_PRE_FLASH_END);
+          rc = TRUE;
         }
       }
         break;
@@ -707,6 +740,12 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
             if (private->af_led_data.led_status == 1) {
               q3a_port_request_aec_est_for_af(port, FALSE);
               q3a_port_request_led_off(port, FALSE);
+              q3a_port_skip_bad_frame(port, private->cur_sof_id,
+                NUMBER_OF_SKIP_FRAMES_PRE_FLASH_END);
+              if(private->af_led_data.prepare_snapshot_trigger == TRUE){
+                private->af_led_data.state = AF_WITH_LED_STATE_IDLE;
+                private->af_led_data.prepare_snapshot_trigger = FALSE;
+              }
             }
             q3a_port_start_timer(port);
             pthread_mutex_unlock(&private->af_led_data.state_lock);
@@ -773,6 +812,14 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
             case AF_SET_PARAM_FOCUS_MODE:
               CDBG("%s:%d AF_SET_PARAM_FOCUS_MODE: %d", __func__, __LINE__,
                 parm->u.af_mode);
+              if (parm->u.af_mode == CAM_FOCUS_MODE_INFINITY ||
+                parm->u.af_mode == CAM_FOCUS_MODE_MANUAL ||
+                parm->u.af_mode == CAM_FOCUS_MODE_AUTO) {
+                private->af_led_data.af_focus_mode_block = TRUE;
+              }
+              else {
+                private->af_led_data.af_focus_mode_block = FALSE;
+              }
               break;
 
             case AF_SET_PARAM_START: {  // HAL3
@@ -795,11 +842,15 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
                 /* Tell the AC to do estimation for AF
                  * (don't tell the sensor to turn OFF the LED) */
                 q3a_port_request_aec_est_for_af(port, TRUE);
+
+                /* Request for preview frame skip to HAL */
+                q3a_port_skip_bad_frame(port, private->cur_sof_id,
+                  NUMBER_OF_SKIP_FRAMES_PRE_FLASH_START);
                 private->af_led_data.state = AF_WITH_LED_STATE_AEC_RUNNING;
                 private->af_led_data.led_status = 1;
                 pthread_mutex_unlock(&private->af_led_data.state_lock);
 
-                CDBG("%s:%d LED_NEEDED", __func__, __LINE__);
+                CDBG("%s:%d LED_AF_NEEDED", __func__, __LINE__);
               } else {
                 pthread_mutex_lock(&private->af_led_data.state_lock);
                 private->af_led_data.state = AF_WITH_LED_STATE_IDLE;
@@ -904,7 +955,36 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
                  * responsible for the right sequence, but we still need
                  * protection. */
                 q3a_port_update_led_af_to_sensor(port,FALSE);
-                parm->type = AEC_SET_PARAM_PREPARE_FOR_SNAPSHOT;
+                if (q3a_port_is_led_needed(port) == TRUE &&
+                      private->af_led_data.af_scene_mode_block == FALSE &&
+                      private->af_led_data.af_focus_mode_block == FALSE &&
+                      private->af_supported){
+                  parm->type = AF_SET_PARAM_START;
+                  stat_parm->param_type = STATS_SET_Q3A_PARAM;
+                  stat_parm->u.q3a_param.type = Q3A_SET_AF_PARAM;
+
+                  q3a_port_af_wait_for_aec_update(port, TRUE);
+                  /* Tell the AC to do estimation for AF
+                              * (don't tell the sensor to turn OFF the LED) */
+                  q3a_port_request_aec_est_for_af(port, TRUE);
+                  private->af_led_data.state = AF_WITH_LED_STATE_AEC_RUNNING;
+                  private->af_led_data.led_status = 1;
+                  private->af_led_data.prepare_snapshot_trigger = TRUE;
+
+                  /* Request for preview frame skip to HAL */
+                  q3a_port_skip_bad_frame(port, private->cur_sof_id,
+                    NUMBER_OF_SKIP_FRAMES_PRE_FLASH_START);
+                } else {
+                  /* To handle case when flash is forced on in bright light condition.
+                     Frame skip will be required when subject is too close */
+                  if (private->af_led_data.flash_needed) {
+                    /* Request for preview frame skip to HAL */
+                    q3a_port_skip_bad_frame(port, private->cur_sof_id,
+                      NUMBER_OF_SKIP_FRAMES_PRE_FLASH_START);
+                  }
+                  parm->type = AEC_SET_PARAM_PREPARE_FOR_SNAPSHOT;
+                }
+               pthread_mutex_unlock(&private->af_led_data.state_lock);
               } else {
                 /* This is a precapture command sent during estimation for AF */
                 CDBG("%s Precapture command sent during estimation for AF",
@@ -931,6 +1011,13 @@ static boolean q3a_port_process_event_for_led_af(mct_port_t *port,
               private->af_led_data.state = AF_WITH_LED_STATE_IDLE;
             }
             pthread_mutex_unlock(&private->af_led_data.state_lock);
+          }
+		  else if(common_param->type == COMMON_SET_PARAM_BESTSHOT){
+            if(common_param->u.bestshot_mode == CAM_SCENE_MODE_SUNSET ||
+                 common_param->u.bestshot_mode == CAM_SCENE_MODE_LANDSCAPE)
+              private->af_led_data.af_scene_mode_block = TRUE;
+            else
+              private->af_led_data.af_scene_mode_block = FALSE;
           }
         }
       }
@@ -1017,10 +1104,58 @@ static boolean q3a_port_event(mct_port_t *port, mct_event_t *event)
     break;
 
   case MCT_EVENT_DOWNSTREAM: {
+    if (event->type == MCT_EVENT_MODULE_EVENT &&
+      event->u.module_event.type == MCT_EVENT_MODULE_SET_STREAM_CONFIG) {
+
+      // Save the sensor af support info, used in led af
+      sensor_out_info_t *sensor_info =
+        (sensor_out_info_t *)(event->u.module_event.module_event_data);
+      private->af_supported = sensor_info->af_lens_info.af_supported;
+      CDBG("%s AF supported =%d", __func__,private->af_supported);
+    }
+    if (event->type == MCT_EVENT_MODULE_EVENT &&
+      event->u.module_event.type == MCT_EVENT_MODULE_START_STOP_STATS_THREADS) {
+
+      uint8_t *start_flag = (uint8_t*)(event->u.module_event.module_event_data);
+      CDBG("%s MCT_EVENT_MODULE_START_STOP_STATS_THREADS start_flag: %d",
+        __func__,*start_flag);
+
+      if (*start_flag) {
+        CDBG("%s: Starting AEC/AWB thread!", __func__);
+        if (q3a_port_start_threads(port, event->identity,
+          Q3A_THREAD_AECAWB) == FALSE) {
+          rc = FALSE;
+          CDBG_ERROR("%s: aec thread failed", __func__);
+        }
+        CDBG("%s: Starting AF thread!", __func__);
+        if (q3a_port_start_threads(port, event->identity,
+          Q3A_THREAD_AF) == FALSE) {
+          CDBG_ERROR("%s: Starting AF thread failed!", __func__);
+          rc = FALSE;
+        }
+      } else {
+        CDBG("%s: aecawb_data=%p, af_data: %p", __func__,
+          private->aecawb_data, private->af_data);
+        if (private->aecawb_data) {
+          /* Stop AECAWB thread */
+          q3a_thread_aecawb_stop(private->aecawb_data);
+        }
+        if (private->af_data) {
+          /* Stop AF thread */
+          q3a_thread_af_stop(private->af_data);
+        }
+      }
+    }
     if(MCT_EVENT_MODULE_EVENT == event->type
       && event->u.module_event.type == MCT_EVENT_MODULE_PREVIEW_STREAM_ID) {
+
+        mct_stream_info_t  *stream_info =
+          (mct_stream_info_t *)(event->u.module_event.module_event_data);
         private->preview_stream_id =
-          *(int *)(event->u.module_event.module_event_data);
+          (stream_info->identity & 0x0000FFFF);
+        if ((rc = q3a_port_send_event_downstream(port, event)) == FALSE) {
+          CDBG("Send downstream event failed.");
+        }
         break;
     }
     if(MCT_EVENT_MODULE_EVENT == event->type
@@ -1264,7 +1399,7 @@ static boolean q3a_port_ext_link(unsigned int identity, mct_port_t *port,
   mct_port_t *peer)
 {
   boolean            rc = FALSE;
-  boolean            new_thread = FALSE;
+  boolean            thread_init = FALSE;
   q3a_port_private_t *private;
   mct_event_t        event;
 
@@ -1291,7 +1426,7 @@ static boolean q3a_port_ext_link(unsigned int identity, mct_port_t *port,
   /* Fall through, no break */
   case Q3A_PORT_STATE_CREATED: {
     CDBG("%s:%d", __func__, __LINE__);
-    new_thread = TRUE;
+    thread_init = TRUE;
     rc = TRUE;
   }
     break;
@@ -1299,7 +1434,7 @@ static boolean q3a_port_ext_link(unsigned int identity, mct_port_t *port,
     CDBG("%s:%d", __func__, __LINE__);
     if (IS_Q3A_PORT_IDENTITY(private, identity)) {
       rc = TRUE;
-      new_thread = FALSE;
+      thread_init = FALSE;
     }
   }
     break;
@@ -1311,6 +1446,7 @@ static boolean q3a_port_ext_link(unsigned int identity, mct_port_t *port,
 
   if (rc == TRUE) {
     /* Invoke sub ports' ext link */
+    CDBG("%s: Invoke sub-ports ext link", __func__);
     if (MCT_PORT_EXTLINKFUNC(private->aec_port)) {
       if (MCT_PORT_EXTLINKFUNC(private->aec_port)(identity,
         private->aec_port, port) == FALSE) {
@@ -1338,19 +1474,18 @@ static boolean q3a_port_ext_link(unsigned int identity, mct_port_t *port,
       }
     }
 
-    if (new_thread == TRUE) {
-      CDBG("%s: Starting AEC/AWB thread!", __func__);
-      if (q3a_port_start_threads(port, identity,
-        Q3A_THREAD_AECAWB) == FALSE) {
-        rc = FALSE;
-        CDBG_ERROR("%s: aec thread failed", __func__);
-        goto start_thread_fail;
+    if (thread_init == TRUE) {
+      private->aecawb_data = q3a_thread_aecawb_init();
+      CDBG("%s aecawb data: %p", __func__, private->aecawb_data);
+      if (NULL == private->aecawb_data) {
+        CDBG_ERROR("%s: aecawb init failed", __func__);
+        goto init_thread_fail;
       }
-      CDBG("%s: Starting AF thread!", __func__);
-      if (q3a_port_start_threads(port, identity, Q3A_THREAD_AF) == FALSE) {
-        CDBG_ERROR("%s: Starting AF thread failed!", __func__);
-        rc = FALSE;
-        goto start_thread_fail;
+      private->af_data = q3a_thread_af_init();
+      CDBG("%s af data: %p", __func__, private->af_data);
+      if (NULL == private->af_data) {
+        CDBG_ERROR("%s: af init failed", __func__);
+        goto init_thread_fail;
       }
     }
 
@@ -1364,7 +1499,7 @@ static boolean q3a_port_ext_link(unsigned int identity, mct_port_t *port,
 
   return rc;
 
-start_thread_fail:
+init_thread_fail:
   MCT_PORT_EXTUNLINKFUNC(private->af_port)(identity, private->af_port, port);
 af_link_fail:
   MCT_PORT_EXTUNLINKFUNC(private->awb_port)(identity, private->awb_port, port);
@@ -1401,6 +1536,7 @@ static void q3a_port_unlink(unsigned int identity, mct_port_t *port,
 
   MCT_OBJECT_LOCK(port);
   if (private->state == Q3A_PORT_STATE_LINKED) {
+    CDBG("%s: Invoke sub-ports ext un link", __func__);
     if (private->aec_port->un_link)
       private->aec_port->un_link(identity, private->aec_port, port);
 
@@ -1412,14 +1548,12 @@ static void q3a_port_unlink(unsigned int identity, mct_port_t *port,
 
     MCT_OBJECT_REFCOUNT(port) -= 1;
     if (!MCT_OBJECT_REFCOUNT(port)) {
+      CDBG("%s deinit aecawb: %p,  af_data: %p", __func__,
+        private->aecawb_data, private->af_data);
       private->state = Q3A_PORT_STATE_UNLINKED;
-      CDBG("%s: aecawb_data=%p", __func__, private->aecawb_data);
-      /* Stop and deinit AECAWB thread */
-      q3a_thread_aecawb_stop(private->aecawb_data);
       q3a_thread_aecawb_deinit(private->aecawb_data);
-      /* Stop and deinit AF thread */
-      q3a_thread_af_stop(private->af_data);
       q3a_thread_af_deinit(private->af_data);
+      MCT_PORT_PEER(port) = NULL;
     }
   }
   MCT_OBJECT_UNLOCK(port);

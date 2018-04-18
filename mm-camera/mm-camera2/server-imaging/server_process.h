@@ -7,6 +7,7 @@
 #ifndef __SERVER_PROCESS_H__
 #define __SERVER_PROCESS_H__
 #define MAX_DEV_NAME_SIZE 32
+#define TOTAL_RAM_SIZE_512MB 536870912
 
 #include "mtype.h"
 #include "mct_list.h"
@@ -40,6 +41,7 @@ typedef struct _serv_proc_session_info {
 typedef enum _serv_ret_to_hal_type {
   SERV_RET_TO_HAL_CMDACK,
   SERV_RET_TO_HAL_NOTIFY,
+  SERV_RET_TO_KERNEL_NOTIFY_POSSIBLE_FREEZE,
   SERV_RET_TO_HAL_NOTIFY_ERROR,
 } serv_ret_to_hal_type_t;
 
@@ -65,7 +67,7 @@ typedef struct _serv_proc_ret {
 } serv_proc_ret_t;
 
 boolean server_process_module_init(void);
-
+boolean server_process_module_sensor_init(void);
 serv_proc_ret_t server_process_hal_event(struct v4l2_event *event);
 
 serv_proc_ret_t server_process_hal_ds_packet(const int fd,

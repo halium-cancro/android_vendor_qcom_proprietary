@@ -18,6 +18,7 @@
 
 #define ISP_GAMMA_NUM_ENTRIES         64
 #define GAMMA_TABLE_CHROMATICS_SIZE   1024
+#define GAMMA_REFLEX_POINT 128
 
 typedef enum {
   ISP_GAMMA_LINEAR_MAPPING_OF_10_BIT_GAMMA_TABLE,
@@ -63,7 +64,7 @@ typedef struct {
   uint32_t backlight_severity;
   int enable_backlight_compensation;
   int reload_params;
-  uint32_t vfe_reconfig;
+  uint32_t gamma_retrigger;
   uint8_t hw_update_pending;
   cam_streaming_mode_t old_streaming_mode;
   isp_ops_t ops;

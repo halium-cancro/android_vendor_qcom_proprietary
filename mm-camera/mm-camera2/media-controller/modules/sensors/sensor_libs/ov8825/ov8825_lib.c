@@ -62,12 +62,21 @@ static struct msm_sensor_power_setting power_setting[] = {
     .config_val = GPIO_OUT_HIGH,
     .delay = 40,
   },
+#ifndef _MSM_BEAR
   {
     .seq_type = SENSOR_CLK,
     .seq_val = SENSOR_CAM_MCLK,
     .config_val = 24000000,
     .delay = 5,
   },
+#else
+  {
+    .seq_type = SENSOR_CLK,
+    .seq_val = SENSOR_CAM_MCLK,
+    .config_val = 23880000,
+    .delay = 5,
+  },
+#endif
   {
     .seq_type = SENSOR_I2C_MUX,
     .seq_val = 0,
@@ -82,6 +91,8 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
   .camera_id = CAMERA_0,
   /* sensor slave address */
   .slave_addr = 0x6c,
+  /* sensor i2c frequency*/
+  .i2c_freq_mode = I2C_FAST_MODE,
   /* sensor address type */
   .addr_type = MSM_CAMERA_I2C_WORD_ADDR,
   /* sensor id info*/
@@ -96,6 +107,7 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
     .power_setting = power_setting,
     .size = ARRAY_SIZE(power_setting),
   },
+  .is_flash_supported = SENSOR_FLASH_SUPPORTED,
 };
 
 static struct msm_sensor_init_params sensor_init_params = {
@@ -1388,7 +1400,7 @@ static sensor_lib_t sensor_lib_ptr = {
   /* number of frames to skip after start stream */
   .sensor_num_frame_skip = 2,
   /* number of frames to skip after start HDR stream */
-  .sensor_num_HDR_frame_skip = 2,
+  .sensor_num_HDR_frame_skip = 1,
   /* sensor pipeline immediate delay */
   .sensor_max_pipeline_frame_delay = 2,
   /* sensor exposure table size */

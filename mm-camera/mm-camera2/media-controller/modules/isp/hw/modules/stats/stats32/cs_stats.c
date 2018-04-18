@@ -6,6 +6,7 @@
 ============================================================================*/
 #include <unistd.h>
 #include "cs_stats.h"
+#include "isp_log.h"
 
 
 /** cs_stats_config:
@@ -29,7 +30,7 @@ static int cs_stats_config(isp_stats_entry_t *entry,
   cs_stat_config_type_t *priv_cfg = entry->private;
 
   if (!entry->enable) {
-    CDBG("%s: not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: not enabled", __func__);
     return 0;
   }
   entry->ion_fd = pix_settings->ion_fd;

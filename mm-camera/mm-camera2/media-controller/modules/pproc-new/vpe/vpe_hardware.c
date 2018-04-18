@@ -29,6 +29,7 @@ vpe_hardware_t* vpe_hardware_create()
   rc = vpe_hardware_find_subdev(vpehw);
   if (rc < 0) {
     CDBG_ERROR("%s:%d: error: cannot find vpe subdev\n", __func__, __LINE__);
+    free(vpehw);
     return NULL;
   }
   vpehw->subdev_opened = FALSE;

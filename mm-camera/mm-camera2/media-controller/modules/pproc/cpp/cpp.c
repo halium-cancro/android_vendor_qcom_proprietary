@@ -21,6 +21,7 @@
 #include <linux/media.h>
 #include <cutils/log.h>
 #include <poll.h>
+#include <sys/syscall.h>
 
 //#include "camera.h"
 #include <media/msmb_camera.h>
@@ -398,6 +399,7 @@ void *cpp_processing_thread(void *data)
   struct msm_cpp_frame_info_t frame;
   pproc_interface_callback_params_t callback_params;
 
+  CDBG_ERROR("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
   pthread_mutex_lock(&cpp_driver.mutex);
   cpp_driver.is_cpp_thread_ready = TRUE;
   pthread_cond_signal(&cpp_driver.cond_v);

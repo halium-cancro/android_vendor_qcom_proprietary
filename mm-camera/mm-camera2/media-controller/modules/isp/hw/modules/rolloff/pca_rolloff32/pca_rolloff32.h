@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013, 2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -115,6 +115,7 @@ typedef struct {
   uint32_t pca_rolloff_reload_params;
   PCA_RollOffConfigCmdType pca_rolloff_cmd;
   pca_rolloff_params_t pca_rolloff_param;
+  PCA_RolloffStruct last_non_flash_tbl;
   pca_rolloff_tables_t pca_tbls;
   isp_rolloff_info_t rolloff_calibration_table;
   isp_rolloff_info_t rolloff_tbls;
@@ -124,6 +125,9 @@ typedef struct {
   isp_notify_ops_t *notify_ops;
   tintless_mesh_rolloff_array_t mesh_hw;
   uint32_t tintless_configured;
+  float tintless_lowlight_adjust[TINTLESS_ROLLOFF_TABLE_SIZE];
+  float tintless_current_adjust[TINTLESS_ROLLOFF_TABLE_SIZE];
+  uint32_t tintless_low_light_mode;
 }isp_pca_rolloff_mod_t;
 
 #endif /* __PCA_ROLLOFF32_H__ */

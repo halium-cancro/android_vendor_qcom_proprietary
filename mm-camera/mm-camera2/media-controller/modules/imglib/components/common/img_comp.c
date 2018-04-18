@@ -5,6 +5,17 @@
 
 #include "img_comp_priv.h"
 
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+#ifdef _ANDROID_
+  #include <cutils/properties.h>
+#endif
+
+/**
+ *  dynamic loglevel
+ **/
+volatile uint32_t g_imgloglevel;
+
 /**
  * Function: img_comp_init
  *
@@ -243,6 +254,8 @@ void *img_thread_loop(void *data)
 {
   img_component_t *p_comp = (img_component_t *)data;
 
+  IDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "imgcomp_thread", 0, 0, 0);
   /*signal the base class*/
   pthread_mutex_lock(&p_comp->mutex);
   p_comp->is_ready = TRUE;
@@ -288,6 +301,7 @@ int img_comp_start(void *handle, void *p_data)
   p_comp->is_ready = FALSE;
   status = pthread_create(&p_comp->threadid, NULL, img_thread_loop,
     (void *)p_comp);
+  pthread_setname_np(p_comp->threadid, "CAM_img");
   if (status < 0) {
     IDBG_ERROR("%s:%d] pthread creation failed %d",
       __func__, __LINE__, status);

@@ -1,6 +1,4 @@
-ifneq ($(strip $(USE_CAMERA_STUB)),true)
 COMPILE_CAMERA := true
-endif #!USE_CAMERA_STUB
 
 #default BUILD_CAM_FD to 0 (off)
 BUILD_CAM_FD := 0
@@ -25,6 +23,8 @@ BUILD_MM_CAMERA2_BOARD_PLATFORM_LIST := msm8960
 BUILD_MM_CAMERA2_BOARD_PLATFORM_LIST += msm8974
 BUILD_MM_CAMERA2_BOARD_PLATFORM_LIST += msm8226
 BUILD_MM_CAMERA2_BOARD_PLATFORM_LIST += msm8610
+BUILD_MM_CAMERA2_BOARD_PLATFORM_LIST += msm8916
+BUILD_MM_CAMERA2_BOARD_PLATFORM_LIST += msm8909
 ifeq ($(call is-board-platform-in-list,$(BUILD_MM_CAMERA2_BOARD_PLATFORM_LIST)),true)
   BUILD_MM_CAMERA2 := true
 endif
@@ -36,6 +36,9 @@ ifeq ($(call is-android-codename-in-list,JELLY_BEAN),true)
   FEATURE_GYRO := false
 else
   FEATURE_GYRO := true
+endif
+ifeq ($(call is-board-platform-in-list, msm8909),true)
+mmcamera_debug_defines  += -DAF_2X13_FILTER_SUPPORT
 endif
 
 ifeq ($(call is-board-platform,msm7627a),true)
@@ -113,9 +116,29 @@ else ifeq ($(call is-board-platform,msm8226),true)
   FEATURE_ZSL := true
   FEATURE_FACE_PROC := true
   FEATURE_VFE_TEST_VEC := false
+else ifeq ($(call is-board-platform,msm8916),true)
+  VFE_VERS := vfe40
+  MSM_VERSION := 8916
+  mmcamera_debug_defines += -DHW_ENCODE
+  mmcamera_debug_defines += -DCONFIG_MSG_THESHOLD=350
+  #FEATURE_WAVELET_DENOISE := true
+  TARGET_NEON_ENABLED := false
+  FEATURE_ZSL := true
+  FEATURE_FACE_PROC := true
+  FEATURE_VFE_TEST_VEC := false
 else ifeq ($(call is-board-platform,msm8610),true)
   VFE_VERS := vfe32
   MSM_VERSION := 8610
+  mmcamera_debug_defines += -DHW_ENCODE
+  mmcamera_debug_defines += -DCONFIG_MSG_THESHOLD=350
+  #FEATURE_WAVELET_DENOISE := true
+  TARGET_NEON_ENABLED := false
+  FEATURE_ZSL := true
+  FEATURE_FACE_PROC := true
+  FEATURE_VFE_TEST_VEC := false
+else ifeq ($(call is-board-platform,msm8909),true)
+  VFE_VERS := vfe32
+  MSM_VERSION := 8909
   mmcamera_debug_defines += -DHW_ENCODE
   mmcamera_debug_defines += -DCONFIG_MSG_THESHOLD=350
   #FEATURE_WAVELET_DENOISE := true
@@ -146,7 +169,7 @@ endif
 
 ifeq ($(MM_DEBUG),true)
   mmcamera_debug_defines += -DLOG_DEBUG -DLOG_TAG=\"CameraService\"
-  mmcamera_debug_cflags += -g -O0 -Werror
+  mmcamera_debug_cflags += -g -O0 
   mmcamera_debug_libs := liblog libutils
 endif #MM_DEBUG
 
@@ -154,7 +177,6 @@ endif #MM_DEBUG
 MY_PATH := $(call my-dir)
 
 ifeq ($(strip $(COMPILE_CAMERA)),true)
-
 
   ifeq ($(BUILD_SERVER), true)
     include $(MY_PATH)/apps/Android.mk
@@ -165,4 +187,5 @@ ifeq ($(strip $(COMPILE_CAMERA)),true)
     include $(MY_PATH)/apps/Android.mk
     include $(MY_PATH)/targets/Android.mk
   endif
+
 endif #COMPILE_CAMERA

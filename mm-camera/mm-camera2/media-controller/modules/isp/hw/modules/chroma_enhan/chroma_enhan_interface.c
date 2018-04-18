@@ -10,11 +10,12 @@
 #include "isp_event.h"
 #include "isp_hw_module_ops.h"
 #include "isp_pipeline.h"
+#include "isp_log.h"
 
 
 #ifdef ENABLE_CV_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 extern isp_ops_t *chroma_enhan40_open(uint32_t version);

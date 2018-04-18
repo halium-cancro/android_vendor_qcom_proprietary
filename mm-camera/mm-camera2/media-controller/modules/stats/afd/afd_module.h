@@ -52,7 +52,6 @@ typedef struct _afd_object {
 
   /* typecase to afd_algorithm_internal_control_t */
   void                     *afd;
-  stats_t                  stats;
 
   afd_module_set_parameters_func  set_parameters;
   afd_module_get_parameters_func  get_parameters;

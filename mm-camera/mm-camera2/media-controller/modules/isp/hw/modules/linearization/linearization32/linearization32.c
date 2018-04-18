@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -8,12 +8,25 @@
 #include <math.h>
 #include "camera_dbg.h"
 #include "linearization32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_LINEAR_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG ALOGE
 #endif
 
+#ifndef sign
+#define sign(x) (((x) < 0) ? (-1) : (1))
+#endif
+
+#ifndef Round
+#define Round(x) (int)((x) + sign(x)*0.5)
+#endif
+
+#define LINEAR_MAX_VAL 4095
+
+#define LINEAR_INTERPOLATION_LINEARIZATION(v1, v2, ratio) \
+ (((float)(v2)*(1-ratio)) + (float)((ratio) * (v1)))
 
 static const char * const aec_debug_str[] = {
   "LINEAR_AEC_BRIGHT",
@@ -42,77 +55,271 @@ static void print_isp_linearization_config(ISP_LinearizationCmdType *cmd)
   int i;
   uint32_t *ptr;
 
-  CDBG("%s: Linearization configurations\n", __func__);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: Linearization configurations\n", __func__);
 
-  CDBG("pointSlopeR.kneePoint_P0 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P0 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P0);
-  CDBG("pointSlopeR.kneePoint_P1 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P1 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P1);
-  CDBG("pointSlopeR.kneePoint_P2 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P2 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P2);
-  CDBG("pointSlopeR.kneePoint_P3 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P3 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P3);
-  CDBG("pointSlopeR.kneePoint_P4 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P4 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P4);
-  CDBG("pointSlopeR.kneePoint_P5 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P5 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P5);
-  CDBG("pointSlopeR.kneePoint_P6 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P6 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P6);
-  CDBG("pointSlopeR.kneePoint_P7 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeR.kneePoint_P7 = %d\n",
     cmd->CfgParams.pointSlopeR.kneePoint_P7);
 
-  CDBG("pointSlopeGb.kneePoint_P0 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P0 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P0);
-  CDBG("pointSlopeGb.kneePoint_P1 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P1 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P1);
-  CDBG("pointSlopeGb.kneePoint_P2 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P2 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P2);
-  CDBG("pointSlopeGb.kneePoint_P3 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P3 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P3);
-  CDBG("pointSlopeGb.kneePoint_P4 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P4 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P4);
-  CDBG("pointSlopeGb.kneePoint_P5 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P5 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P5);
-  CDBG("pointSlopeGb.kneePoint_P6 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P6 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P6);
-  CDBG("pointSlopeGb.kneePoint_P7 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGb.kneePoint_P7 = %d\n",
     cmd->CfgParams.pointSlopeGb.kneePoint_P7);
 
-  CDBG("pointSlopeB.kneePoint_P0 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P0 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P0);
-  CDBG("pointSlopeB.kneePoint_P1 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P1 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P1);
-  CDBG("pointSlopeB.kneePoint_P2 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P2 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P2);
-  CDBG("pointSlopeB.kneePoint_P3 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P3 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P3);
-  CDBG("pointSlopeB.kneePoint_P4 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P4 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P4);
-  CDBG("pointSlopeB.kneePoint_P5 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P5 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P5);
-  CDBG("pointSlopeB.kneePoint_P6 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P6 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P6);
-  CDBG("pointSlopeB.kneePoint_P7 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeB.kneePoint_P7 = %d\n",
     cmd->CfgParams.pointSlopeB.kneePoint_P7);
 
-  CDBG("pointSlopeGr.kneePoint_P0 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P0 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P0);
-  CDBG("pointSlopeGr.kneePoint_P1 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P1 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P1);
-  CDBG("pointSlopeGr.kneePoint_P2 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P2 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P2);
-  CDBG("pointSlopeGr.kneePoint_P3 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P3 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P3);
-  CDBG("pointSlopeGr.kneePoint_P4 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P4 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P4);
-  CDBG("pointSlopeGr.kneePoint_P5 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P5 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P5);
-  CDBG("pointSlopeGr.kneePoint_P6 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P6 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P6);
-  CDBG("pointSlopeGr.kneePoint_P7 = %d\n",
+  ISP_DBG(ISP_MOD_LINEARIZATION , "pointSlopeGr.kneePoint_P7 = %d\n",
     cmd->CfgParams.pointSlopeGr.kneePoint_P7);
 
 } /* print_vfe_linearization_config */
+
+static void linearization_compute_slope(chromatix_linearization_type *output,
+                    int is_not_interp)
+{
+  int i = 0;
+
+  if (is_not_interp) {
+    output->r_lut_base[0] = 0;
+    if (output->r_lut_p[0] != output->r_lut_base[1])
+      output->r_lut_base[1] = 0;
+
+    output->gr_lut_base[0] = 0;
+    if (output->gr_lut_p[0] != output->gr_lut_base[1])
+      output->gr_lut_base[1] = 0;
+
+    output->gb_lut_base[0] = 0;
+    if (output->gb_lut_p[0] != output->gb_lut_base[1])
+      output->gb_lut_base[1] = 0;
+
+    output->b_lut_base[0] = 0;
+    if (output->b_lut_p[0] != output->b_lut_base[1])
+      output->b_lut_base[1] = 0;
+  }
+
+  // All segment zero slopes are zero
+  output->r_lut_delta[0] = 0.0;
+  if (output->r_lut_p[i] != 0.0f)
+    output->r_lut_delta[i] = CALC_SLOPE(0, output->r_lut_p[i],
+               output->r_lut_base[i], output->r_lut_base[i+1]);
+  output->gr_lut_delta[0] = 0.0;
+  if (output->gr_lut_p[i] != 0)
+    output->gr_lut_delta[i] = CALC_SLOPE(0, output->gr_lut_p[i],
+               output->gr_lut_base[i], output->gr_lut_base[i+1]);
+  output->gb_lut_delta[0] = 0.0;
+  if (output->gb_lut_p[i] != 0)
+    output->gb_lut_delta[i] = CALC_SLOPE(0, output->gb_lut_p[i],
+               output->gb_lut_base[i], output->gb_lut_base[i+1]);
+  output->b_lut_delta[0] = 0.0;
+  if (output->b_lut_p[i] != 0)
+    output->b_lut_delta[i] = CALC_SLOPE(0, output->b_lut_p[i],
+               output->b_lut_base[i], output->b_lut_base[i+1]);
+
+  // calculate slope for segements 1 - 7
+  for (i = 1 ; i < 8 ; i++) {
+    output->r_lut_delta[i] = CALC_SLOPE(output->r_lut_p[i-1],
+      output->r_lut_p[i], output->r_lut_base[i], output->r_lut_base[i+1]);
+
+    output->gr_lut_delta[i] = CALC_SLOPE(output->gr_lut_p[i-1],
+      output->gr_lut_p[i], output->gr_lut_base[i], output->gr_lut_base[i+1]);
+
+    output->gb_lut_delta[i] = CALC_SLOPE(output->gb_lut_p[i-1],
+      output->gb_lut_p[i], output->gb_lut_base[i], output->gb_lut_base[i+1]);
+
+    output->b_lut_delta[i] = CALC_SLOPE(output->b_lut_p[i-1],
+      output->b_lut_p[i], output->b_lut_base[i], output->b_lut_base[i+1]);
+  }
+
+  // calculate slope for  last segements, last base and knee points = 4095
+  // R channel
+  output->r_lut_delta[8] = CALC_SLOPE(output->r_lut_p[7], 4095,
+    output->r_lut_base[8], 4095);
+  // GR channel
+  output->gr_lut_delta[8] = CALC_SLOPE(output->gr_lut_p[7], 4095,
+    output->gr_lut_base[8], 4095);
+  // GB channel
+  output->gb_lut_delta[8] = CALC_SLOPE(output->gb_lut_p[7], 4095,
+    output->gb_lut_base[8], 4095);
+  // B channel
+  output->b_lut_delta[8] = CALC_SLOPE(output->b_lut_p[7], 4095,
+    output->b_lut_base[8], 4095);
+}
+
+/** linearization_compute_base
+ *
+ *  @input_x: handle to chromatix_linearization_type
+ *  @input_base: base for the linearization curve
+  *  @output_x: delta for the linearization curve
+  *..@baseTmp
+ *
+ *  convert lut_delta to HW format(Q9) fill in reg cmd with
+ *  lut_base, slope and delta
+ *
+ *  Return none
+ **/
+static void linearization_compute_base(
+    float *input_x,
+    float *input_base,
+    float *output_x,
+    float *baseTmp)
+{
+    float x1, x2, y1, y2;
+    int i, j;
+
+    if (*output_x < input_x[0]) {
+      x1 = 0;
+      x2 = input_x[0];
+      y1 = input_base[0];
+      y2 = input_base[1];
+    }
+    else if (*output_x >= input_x[7]) {
+      x1 = input_x[7];
+      x2 = (float)LINEAR_MAX_VAL;
+      y1 = input_base[8];
+      y2 = (float)LINEAR_MAX_VAL;
+    }
+    else {
+      for (j = 0; j <7; j++) {
+        x1 = input_x[j];
+        x2 = input_x[j+1];
+        if(*output_x >= x1 && *output_x < x2)
+          break;
+      }
+      ++j;
+      y1 = input_base[j];
+      y2 = input_base[j+1];
+    }
+    if (x1 != x2)
+      *baseTmp = (y2 + (*output_x - x2) * ((y2 - y1)/(x2 - x1)));
+    else
+      *baseTmp = (float)LINEAR_MAX_VAL;
+}
+
+
+static void linearization_compute_knee_points(unsigned short *x1,
+  unsigned short *y1, unsigned short *x2, unsigned short *y2,
+  unsigned short *xnew, unsigned short *ynew, float ratio)
+{
+  int i = 0;
+  float y1New, y2New, xTmp, yTmp;
+  float x1Tmp[9], x2Tmp[9], y1Tmp[10], y2Tmp[10];
+
+  for(i = 0; i < 8; i++) {
+    x1Tmp[i] = (float)(x1[i]);
+    x2Tmp[i] = (float)(x2[i]);
+  }
+
+  for(i = 0; i < 9; i++) {
+    y1Tmp[i] = (float)(y1[i]);
+    y2Tmp[i] = (float)(y2[i]);
+  }
+
+  ynew[0] =0;
+  for(i = 0; i < 8; i++) {
+    xTmp = LINEAR_INTERPOLATION_LINEARIZATION(x1Tmp[i], x2Tmp[i], ratio);
+    linearization_compute_base(x1Tmp, y1Tmp, &xTmp, &y1New);
+    linearization_compute_base(x2Tmp, y2Tmp, &xTmp, &y2New);
+    xnew[i] = (unsigned short)Round((xTmp));
+    yTmp = LINEAR_INTERPOLATION_LINEARIZATION(y1New, y2New, ratio);
+    ynew[i+1] = (unsigned short)Round((yTmp));
+    ISP_DBG(ISP_MOD_LINEARIZATION, " xnew[%d]=%3.9f, ynew[%d]=%3.9f", i,  xTmp, i+1,
+      yTmp);
+    ISP_DBG(ISP_MOD_LINEARIZATION, " y1new[%d]=%3.9f, y2new[%d]=%3.9f", i+1, y1New, i+1, y2New);
+  }
+  if (xnew[0] != ynew[1]) {
+    ynew[1] = 0;
+  }
+}
+
+/** linearization_interpolate_linear_table
+ *
+ *  @input1: handle to chromatix_linearization_type
+ *  @input2: handle to chromatix_linearization_type
+ *  @ratio: aec ratio
+ *  @output: handle to chromatix_linearization_type
+ *
+ *  interpolate tables
+ *
+ *  Return none
+ **/
+static void linearization_interpolate_linear_table(
+  chromatix_linearization_type *input1, chromatix_linearization_type *input2,
+  float ratio, chromatix_linearization_type *output)
+{
+  ISP_DBG(ISP_MOD_LINEARIZATION, "%s: R compute_knee_points \n", __func__);
+  linearization_compute_knee_points(input1->r_lut_p, input1->r_lut_base,
+    input2->r_lut_p, input2->r_lut_base, output->r_lut_p, output->r_lut_base,
+    ratio);
+
+  ISP_DBG(ISP_MOD_LINEARIZATION, "%s: Gr compute_knee_points \n", __func__);
+  linearization_compute_knee_points(input1->gr_lut_p, input1->gr_lut_base,
+    input2->gr_lut_p, input2->gr_lut_base, output->gr_lut_p,
+    output->gr_lut_base, ratio);
+
+  ISP_DBG(ISP_MOD_LINEARIZATION, "%s: B compute_knee_points \n", __func__);
+  linearization_compute_knee_points(input1->b_lut_p, input1->b_lut_base,
+    input2->b_lut_p, input2->b_lut_base, output->b_lut_p, output->b_lut_base,
+    ratio);
+
+  ISP_DBG(ISP_MOD_LINEARIZATION, "%s: Gb compute_knee_points \n", __func__);
+  linearization_compute_knee_points(input1->gb_lut_p, input1->gb_lut_base,
+    input2->gb_lut_p, input2->gb_lut_base, output->gb_lut_p,
+    output->gb_lut_base, ratio);
+
+} /* linearization40_interpolate_linear_table */
 
 /*===========================================================================
  * FUNCTION    - vfe_convert_linearization_tbl -
@@ -249,81 +456,6 @@ static void config_linearization_cmd(
 }/* vfe_config_linearization_cmd */
 
 /*===========================================================================
- * FUNCTION    - trigger_interpolate_linear_table -
- *
- * DESCRIPTION:
- *==========================================================================*/
-static void trigger_interpolate_linear_table(
-  chromatix_linearization_type *input1, chromatix_linearization_type*input2,
-  float ratio, chromatix_linearization_type *output)
-{
-  int i;
-
-  // Interpolate the knee points (x - cooridnate)
-  TBL_INTERPOLATE(input1->r_lut_p, input2->r_lut_p, output->r_lut_p,
-    ratio, 8, i);
-  TBL_INTERPOLATE(input1->gr_lut_p, input2->gr_lut_p, output->gr_lut_p,
-    ratio, 8, i);
-  TBL_INTERPOLATE(input1->gb_lut_p, input2->gb_lut_p, output->gb_lut_p,
-    ratio, 8, i);
-  TBL_INTERPOLATE(input1->b_lut_p, input2->b_lut_p, output->b_lut_p,
-    ratio, 8, i);
-
-  // Interpolate the base co-ordinates (y - cooridnate)
-  TBL_INTERPOLATE(input1->r_lut_base, input2->r_lut_base, output->r_lut_base,
-    ratio, 9, i);
-  TBL_INTERPOLATE(input1->gr_lut_base, input2->gr_lut_base, output->gr_lut_base,
-    ratio, 9, i);
-  TBL_INTERPOLATE(input1->gb_lut_base, input2->gb_lut_base, output->gb_lut_base,
-    ratio, 9, i);
-  TBL_INTERPOLATE(input1->b_lut_base, input2->b_lut_base, output->b_lut_base,
-    ratio, 9, i);
-
-  /* Calculate Slope from knee point co-ordinates, no interpolation
-     p[1]-p[0] / base[1] - base[0]
-     first knee point = 0
-     Last knee point and base(in normal light) = 4095
-     first slope = 0
-  */
-
-  // All segment zero slopes are zero
-  output->r_lut_delta[0] = 0.0;
-  output->gr_lut_delta[0] = 0.0;
-  output->gb_lut_delta[0] = 0.0;
-  output->b_lut_delta[0] = 0.0;
-
-  // calculate slope for segements 1 - 7
-  for (i = 1 ; i < 8 ; i++) {
-    output->r_lut_delta[i] = CALC_SLOPE(output->r_lut_p[i-1],
-      output->r_lut_p[i], output->r_lut_base[i], output->r_lut_base[i+1]);
-
-    output->gr_lut_delta[i] = CALC_SLOPE(output->gr_lut_p[i-1],
-      output->gr_lut_p[i], output->gr_lut_base[i], output->gr_lut_base[i+1]);
-
-    output->gb_lut_delta[i] = CALC_SLOPE(output->gb_lut_p[i-1],
-      output->gb_lut_p[i], output->gb_lut_base[i], output->gb_lut_base[i+1]);
-
-    output->b_lut_delta[i] = CALC_SLOPE(output->b_lut_p[i-1],
-      output->b_lut_p[i], output->b_lut_base[i], output->b_lut_base[i+1]);
-  }
-
-  // calculate slope for  last segements, last base and knee points = 4095
-  // R channel
-  output->r_lut_delta[8] = CALC_SLOPE(output->r_lut_p[7], 4095,
-    output->r_lut_base[8], 4095);
-  // GR channel
-  output->gr_lut_delta[8] = CALC_SLOPE(output->gr_lut_p[7], 4095,
-    output->gr_lut_base[8], 4095);
-  // GB channel
-  output->gb_lut_delta[8] = CALC_SLOPE(output->gb_lut_p[7], 4095,
-    output->gb_lut_base[8], 4095);
-  // B channel
-  output->b_lut_delta[8] = CALC_SLOPE(output->b_lut_p[7], 4095,
-    output->b_lut_base[8], 4095);
-
-} /* trigger_interpolate_linear_table */
-
-/*===========================================================================
  * FUNCTION    - isp_linear_update_lowlight_table -
  *
  * DESCRIPTION:
@@ -336,10 +468,10 @@ static void linear_update_lowlight_table(chromatix_linearization_type *ip,
   uint32_t virtual_base;
 
   for (i = 0; i < 8; i++) {
-    op->r_lut_p[i] = (ip->r_lut_p[i] - (1.0 - ratio) * max_blk_increase);
-    op->gr_lut_p[i] = (ip->gr_lut_p[i] - (1.0 - ratio) * max_blk_increase);
-    op->gb_lut_p[i] = (ip->gb_lut_p[i] - (1.0 - ratio) * max_blk_increase);
-    op->b_lut_p[i] = (ip->b_lut_p[i] - (1.0 - ratio) * max_blk_increase);
+    op->r_lut_p[i] = Round(ip->r_lut_p[i] - (1.0 - ratio) * max_blk_increase);
+    op->gr_lut_p[i] = Round(ip->gr_lut_p[i] - (1.0 - ratio) * max_blk_increase);
+    op->gb_lut_p[i] = Round(ip->gb_lut_p[i] - (1.0 - ratio) * max_blk_increase);
+    op->b_lut_p[i] = Round(ip->b_lut_p[i] - (1.0 - ratio) * max_blk_increase);
   }
 
   for (i = 0 ; i < 9 ; i++) {
@@ -368,44 +500,44 @@ static void linear_update_lowlight_table(chromatix_linearization_type *ip,
     the last base point to 4095
   */
   // calculate the virtual base point
-  virtual_base = ip->r_lut_base[8] +
-      (ip->r_lut_delta[8]) * (4095 - ip->r_lut_p[7]);
-  CDBG("R calc_base : %u\n", virtual_base);
+  virtual_base = Round(ip->r_lut_base[8] +
+      (ip->r_lut_delta[8]) * (4095 - ip->r_lut_p[7]));
+  ISP_DBG(ISP_MOD_LINEARIZATION , "R calc_base : %u\n", virtual_base);
   // clamp the virtual base to 4095
   virtual_base = MIN(4095, virtual_base);
-  CDBG("R virtual_base : %u, input_slope : %f\n", virtual_base, ip->r_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "R virtual_base : %u, input_slope : %f\n", virtual_base, ip->r_lut_delta[8]);
   // recalculate the new slope
   op->r_lut_delta[8] = CALC_SLOPE(op->r_lut_p[7], 4095,
     op->r_lut_base[8], virtual_base);
-  CDBG("R virtual_base : %u, output_slope : %f\n", virtual_base, op->r_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "R virtual_base : %u, output_slope : %f\n", virtual_base, op->r_lut_delta[8]);
 
   // Gr channel
-  virtual_base = ip->gr_lut_base[8] +
-      (ip->gr_lut_delta[8]) * (4095 - ip->gr_lut_p[7]);
-  CDBG("GR calc_base : %u\n", virtual_base);
+  virtual_base = Round(ip->gr_lut_base[8] +
+      (ip->gr_lut_delta[8]) * (4095 - ip->gr_lut_p[7]));
+  ISP_DBG(ISP_MOD_LINEARIZATION , "GR calc_base : %u\n", virtual_base);
   virtual_base = MIN(4095, virtual_base);
-  CDBG("GR virtual_base : %u, input_slope : %f\n", virtual_base, ip->gr_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "GR virtual_base : %u, input_slope : %f\n", virtual_base, ip->gr_lut_delta[8]);
   op->gr_lut_delta[8] = CALC_SLOPE(op->gr_lut_p[7], 4095,
     op->gr_lut_base[8], virtual_base);
-  CDBG("GR virtual_base : %u, output_slope : %f\n", virtual_base, op->gr_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "GR virtual_base : %u, output_slope : %f\n", virtual_base, op->gr_lut_delta[8]);
 
-  virtual_base = ip->gb_lut_base[8] +
-      (ip->gb_lut_delta[8]) * (4095 - ip->gb_lut_p[7]);
-  CDBG("GB calc_base : %u\n", virtual_base);
+  virtual_base = Round(ip->gb_lut_base[8] +
+      (ip->gb_lut_delta[8]) * (4095 - ip->gb_lut_p[7]));
+  ISP_DBG(ISP_MOD_LINEARIZATION , "GB calc_base : %u\n", virtual_base);
   virtual_base = MIN(4095, virtual_base);
-  CDBG("GB virtual_base : %u, input_slope : %f\n", virtual_base, ip->gb_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "GB virtual_base : %u, input_slope : %f\n", virtual_base, ip->gb_lut_delta[8]);
   op->gb_lut_delta[8] = CALC_SLOPE(op->gb_lut_p[7], 4095,
     op->gb_lut_base[8], virtual_base);
-  CDBG("GB virtual_base : %u, output_slope : %f\n", virtual_base, op->gb_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "GB virtual_base : %u, output_slope : %f\n", virtual_base, op->gb_lut_delta[8]);
 
-  virtual_base = ip->b_lut_base[8] +
-      (ip->b_lut_delta[8]) * (4095 - ip->b_lut_p[7]);
-  CDBG("B calc_base : %u\n", virtual_base);
+  virtual_base = Round(ip->b_lut_base[8] +
+      (ip->b_lut_delta[8]) * (4095 - ip->b_lut_p[7]));
+  ISP_DBG(ISP_MOD_LINEARIZATION , "B calc_base : %u\n", virtual_base);
   virtual_base = MIN(4095, virtual_base);
-  CDBG("B virtual_base : %u, input_slope : %f\n", virtual_base, ip->b_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "B virtual_base : %u, input_slope : %f\n", virtual_base, ip->b_lut_delta[8]);
   op->b_lut_delta[8] = CALC_SLOPE(op->b_lut_p[7], 4095,
     op->b_lut_base[8], virtual_base);
-  CDBG("B virtual_base : %u, output_slope : %f\n", virtual_base, op->b_lut_delta[8]);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "B virtual_base : %u, output_slope : %f\n", virtual_base, op->b_lut_delta[8]);
 
 } /* isp_linear_update_lowlight_table */
 
@@ -418,7 +550,7 @@ static void select_linear_table(isp_linear_mod_t *mod,
   isp_linear_lux_t lux, awb_cct_type cct, chromatix_linearization_type* output,
   isp_pix_trigger_update_input_t *trigger_params)
 {
-  int rc = 0;
+  int rc = 0, is_not_interp = 0;
   chromatix_linearization_type output1, output2;
   chromatix_parms_type *pchromatix =
     (chromatix_parms_type *)&trigger_params->cfg.chromatix_ptrs.chromatixPtr;
@@ -435,18 +567,24 @@ static void select_linear_table(isp_linear_mod_t *mod,
   trigger_point_type blk_lowlight_trigger;
   int is_burst = IS_BURST_STREAMING(&trigger_params->cfg);
 
+  trigger_point_type outdoor_trigger;
+
   aec_rt.ratio = 0.0;
   aec_rt.lighting = TRIGGER_NORMAL;
 
   max_blk_increase = pchromatix_black_level->max_blk_increase;
   blk_lowlight_trigger = pchromatix_black_level->blk_lowlight_trigger;
 
+  outdoor_trigger.lux_index_start = 0;
+  outdoor_trigger.lux_index_end = 1;
+
   rc =  isp_util_get_aec_ratio2(mod->notify_ops->parent,
                                 pchromatix_L->control_linearization,
-                                &(pchromatix_L->linearization_lowlight_trigger),
-                                &blk_lowlight_trigger,
+                                &outdoor_trigger,
+                                &(pchromatix_L->
+                                linearization_lowlight_trigger),
                                 &(trigger_params->trigger_input.
-                                  stats_update.aec_update),
+                                stats_update.aec_update),
                                 is_burst,
                                 &aec_rt);
 
@@ -457,117 +595,109 @@ static void select_linear_table(isp_linear_mod_t *mod,
     awb_ratio = GET_INTERPOLATION_RATIO(mod->trigger_info.mired_color_temp,
       mod->trigger_info.trigger_d65.mired_end, mod->trigger_info.trigger_d65.mired_start);
 
-  CDBG("%s: aec_ratio : %f :: awb_ratio : %f\n",__func__, aec_rt.ratio, awb_ratio);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s: aec_ratio : %f :: awb_ratio : %f\n",__func__, aec_rt.ratio, awb_ratio);
   switch (lux) {
-  /* Bright */
-  case LINEAR_AEC_BRIGHT:
+  /* Low */
+  case LINEAR_AEC_LOW:
     switch(cct) {
     case AWB_CCT_TYPE_A:
       *output = pchromatix_L->linear_table_A_lowlight;
+      is_not_interp = 1;
       break;
     case AWB_CCT_TYPE_D65:
       *output = pchromatix_L->linear_table_Day_lowlight;
+      is_not_interp = 1;
       break;
     case AWB_CCT_TYPE_TL84_A:
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_TL84_lowlight),
         &(pchromatix_L->linear_table_A_lowlight), awb_ratio, output);
       break;
     case AWB_CCT_TYPE_D65_TL84:
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_Day_lowlight),
         &(pchromatix_L->linear_table_TL84_lowlight), awb_ratio, output);
       break;
     case AWB_CCT_TYPE_TL84:
     default:
       *output = pchromatix_L->linear_table_TL84_lowlight;
+      is_not_interp = 1;
       break;
     }
   break;
   /* b/n Bright and Normal */
-  case LINEAR_AEC_BRIGHT_NORMAL:
+  case LINEAR_AEC_NORMAL_LOW:
     switch(cct) {
     case AWB_CCT_TYPE_A:
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_A_normal),
         &(pchromatix_L->linear_table_A_lowlight), aec_rt.ratio, output);
       break;
     case AWB_CCT_TYPE_D65:
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_Day_normal),
         &(pchromatix_L->linear_table_Day_lowlight), aec_rt.ratio, output);
       break;
     case AWB_CCT_TYPE_TL84_A:
       /* Bilinear Interpolation */
       // Interpolate A bright and TL84 bright
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_TL84_lowlight),
         &(pchromatix_L->linear_table_A_lowlight), awb_ratio, &output1);
       // Interpolate A normal and TL84 normal
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_TL84_normal),
         &(pchromatix_L->linear_table_A_normal), awb_ratio, &output2);
       // Interpolate b/n the o/p1 and o/p2
-      trigger_interpolate_linear_table(&(output2), &(output1),
+      linearization_interpolate_linear_table(&(output2), &(output1),
         aec_rt.ratio, output);
       break;
     case AWB_CCT_TYPE_D65_TL84:
       // Interpolate TL84 bright and D65 bright
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_Day_lowlight),
         &(pchromatix_L->linear_table_TL84_lowlight), awb_ratio, &output1);
       // Interpolate TL84 normal and D65 normal
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_Day_normal),
         &(pchromatix_L->linear_table_TL84_normal), awb_ratio, &output2);
       // Interpolate
-      trigger_interpolate_linear_table(&(output2), &(output1),
+      linearization_interpolate_linear_table(&(output2), &(output1),
         aec_rt.ratio, output);
       break;
     case AWB_CCT_TYPE_TL84:
     default:
-      trigger_interpolate_linear_table(
+      linearization_interpolate_linear_table(
         &(pchromatix_L->linear_table_TL84_normal),
         &(pchromatix_L->linear_table_TL84_lowlight), aec_rt.ratio, output);
       break;
     }
   break;
-    case LINEAR_AEC_NORMAL:
-      switch(cct) {
-      case AWB_CCT_TYPE_A:
-        linear_update_lowlight_table(
-          &(pchromatix_L->linear_table_A_normal), output, aec_rt.ratio,
-          max_blk_increase);
-        break;
-      case AWB_CCT_TYPE_D65:
-        linear_update_lowlight_table(
-          &(pchromatix_L->linear_table_Day_normal), output, aec_rt.ratio,
-          max_blk_increase);
-          break;
-      case AWB_CCT_TYPE_TL84_A:
-        /* Bilinear Interpolation */
-        // Interpolate TL84 normal and A normal
-        trigger_interpolate_linear_table(
-          &(pchromatix_L->linear_table_TL84_normal),
-          &(pchromatix_L->linear_table_A_normal), awb_ratio, &output1);
-        linear_update_lowlight_table(
-          &(output1), output, aec_rt.ratio, max_blk_increase);
-        break;
-      case AWB_CCT_TYPE_D65_TL84:
-        /* Bilinear Interpolation */
-        // Interpolate A bright and TL84 bright
-        trigger_interpolate_linear_table(
-          &(pchromatix_L->linear_table_Day_normal),
-          &(pchromatix_L->linear_table_TL84_normal), awb_ratio, &output1);
-        linear_update_lowlight_table(&(output1), output,
-          aec_rt.ratio, max_blk_increase);
-        break;
-      case AWB_CCT_TYPE_TL84:
-      default:
-        linear_update_lowlight_table(
-          &(pchromatix_L->linear_table_TL84_normal), output, aec_rt.ratio,
-          max_blk_increase);
-        break;
+  case LINEAR_AEC_NORMAL:
+    switch(cct) {
+    case AWB_CCT_TYPE_A:
+      *output = pchromatix_L->linear_table_A_normal;
+      is_not_interp = 1;
+      break;
+    case AWB_CCT_TYPE_D65:
+      *output = pchromatix_L->linear_table_Day_normal;
+      is_not_interp = 1;
+      break;
+    case AWB_CCT_TYPE_TL84_A:
+      linearization_interpolate_linear_table(
+        &(pchromatix_L->linear_table_TL84_normal),
+        &(pchromatix_L->linear_table_A_normal), awb_ratio, output);
+      break;
+    case AWB_CCT_TYPE_D65_TL84:
+      linearization_interpolate_linear_table(
+        &(pchromatix_L->linear_table_Day_normal),
+        &(pchromatix_L->linear_table_TL84_normal), awb_ratio, output);
+      break;
+    case AWB_CCT_TYPE_TL84:
+    default:
+      *output = pchromatix_L->linear_table_TL84_normal;
+      is_not_interp = 1;
+      break;
     }
     mod->blk_inc_comp = (1.0 - aec_rt.ratio) * max_blk_increase;
   break;
@@ -575,6 +705,8 @@ static void select_linear_table(isp_linear_mod_t *mod,
       CDBG_HIGH("%s: Not Expected: lux : %d :: CCT : %d", __func__, lux, cct);
       break;
   }
+  /* Compute the slope */
+  linearization_compute_slope(output, is_not_interp);
 } /* vfe_select_linear_table */
 
 /*===========================================================================
@@ -612,17 +744,19 @@ static int linearization_trigger_update(isp_linear_mod_t *linear_mod,
   }
 
   if (!linear_mod->linear_enable) {
-    CDBG("%s: linearization not enabled", __func__);
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: linearization not enabled", __func__);
     return 0;
   }
 
-  if (!linear_mod->linear_trigger) {
-    CDBG("%s: linearization tigger not enabled", __func__);
+  if (!linear_mod->linear_trigger_enable) {
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: linearization tigger not enabled", __func__);
     return 0;
   }
 
-  if (!isp_util_aec_check_settled(&(trigger_params->trigger_input.stats_update.aec_update))) {
-    CDBG("%s: AEC not settled", __func__);
+  if ((!isp_util_aec_check_settled(
+    &(trigger_params->trigger_input.stats_update.aec_update))) &&
+      (trigger_params->trigger_input.flash_mode != CAM_FLASH_MODE_TORCH)) {
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: AEC not settled", __func__);
     return 0;
   }
 
@@ -638,24 +772,25 @@ static int linearization_trigger_update(isp_linear_mod_t *linear_mod,
 	                                     &linear_mod->trigger_info, chroma3a);
 
   // get the low light trigger points
-  bl_lux_index_end = pchromatix_L->linearization_lowlight_trigger.lux_index_end;
-  bl_lux_index_start = pchromatix_L->linearization_lowlight_trigger.lux_index_start;
+  ll_lux_index_end = pchromatix_L->linearization_lowlight_trigger.lux_index_end;
+  ll_lux_index_start = pchromatix_L->linearization_lowlight_trigger.lux_index_start;
 
   // get the low light trigger points
-  ll_lux_index_end =
+  bl_lux_index_end =
       pchromatix_black_level->blk_lowlight_trigger.lux_index_end;
-  ll_lux_index_start =
+  bl_lux_index_start =
       pchromatix_black_level->blk_lowlight_trigger.lux_index_start;
 
   /*============================================*/
   /* AEC :Decision */
   /*============================================*/
   float lux_idx = trigger_params->trigger_input.stats_update.aec_update.lux_idx;
-  if (lux_idx <= bl_lux_index_end)
-    lux = LINEAR_AEC_BRIGHT;
-  else if (lux_idx > bl_lux_index_end  &&  lux_idx <= bl_lux_index_start)
-    lux = LINEAR_AEC_BRIGHT_NORMAL;
-  else if (lux_idx > bl_lux_index_start)
+
+  if (lux_idx >= ll_lux_index_end)
+    lux = LINEAR_AEC_LOW;
+  else if (lux_idx < ll_lux_index_end  &&  lux_idx >= ll_lux_index_start)
+    lux = LINEAR_AEC_NORMAL_LOW;
+  else if (lux_idx < ll_lux_index_start)
     lux = LINEAR_AEC_NORMAL;
   else
     CDBG_HIGH("%s: Lux index is invalid\n", __func__);
@@ -664,20 +799,25 @@ static int linearization_trigger_update(isp_linear_mod_t *linear_mod,
   update_linear = ((linear_mod->old_streaming_mode != trigger_params->cfg.streaming_mode) ||
     !F_EQUAL(linear_mod->prev_lux, lux) || !F_EQUAL(linear_mod->prev_cct_type, cct_type));
 
-  if (update_linear) {
+  if ((update_linear) || (!F_EQUAL(linear_mod->prev_lux_idx, lux_idx) &
+      ( lux == LINEAR_AEC_NORMAL_LOW ))) {
     select_linear_table(linear_mod, lux, cct_type, &output,
       trigger_params);
     config_linearization_cmd(linear_mod, &output);
     linear_mod->hw_update_pending = TRUE;
-    CDBG("%s: color temp %d", __func__, trigger_params->trigger_input.stats_update.awb_update.color_temp);
-    CDBG("%s: lux index %f", __func__, trigger_params->trigger_input.stats_update.aec_update.lux_idx);
-    CDBG("%s: AEC type prev %s new %s", __func__, aec_debug_str[linear_mod->prev_lux],
-      aec_debug_str[lux]);
-    CDBG("%s: AWB type prev %s new %s", __func__, awb_debug_str[linear_mod->prev_cct_type],
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: color temp %d", __func__, trigger_params->trigger_input.
+      stats_update.awb_update.color_temp);
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: lux index %f", __func__, trigger_params->trigger_input.
+      stats_update.aec_update.lux_idx);
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: AEC type prev %s new %s", __func__,
+      aec_debug_str[linear_mod->prev_lux],aec_debug_str[lux]);
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: AWB type prev %s new %s", __func__,
+      awb_debug_str[linear_mod->prev_cct_type],
       awb_debug_str[cct_type]);
     linear_mod->old_streaming_mode = trigger_params->cfg.streaming_mode;
     linear_mod->prev_lux = lux;
     linear_mod->prev_cct_type = cct_type;
+    linear_mod->prev_lux_idx = lux_idx;
   }
   return 0;
 
@@ -715,7 +855,7 @@ static int linearization_config(isp_linear_mod_t *linear_mod, isp_hw_pix_setting
   chromatix_L_type *pchromatix_L =
     &pchromatix_common->chromatix_L;
 
-  CDBG("%s\n",__func__);
+  ISP_DBG(ISP_MOD_LINEARIZATION , "%s\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */
@@ -731,7 +871,7 @@ static int linearization_config(isp_linear_mod_t *linear_mod, isp_hw_pix_setting
   linear_mod->prev_cct_type = AWB_CCT_TYPE_TL84;
   linear_mod->prev_lux = LINEAR_AEC_NORMAL;
   linear_mod->old_streaming_mode = CAM_STREAMING_MODE_MAX;
-
+  linear_mod-> prev_lux_idx = 0;
 
   linear_mod->hw_update_pending = TRUE;
 
@@ -875,7 +1015,7 @@ static int linearization_get_params (void *mod_ctrl, uint32_t param_id,
     vfe_diag->control_linear.cntrlenable = linear->linear_trigger_enable;
     linearization_ez_isp_update(linear, linDiag);
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_LINEARIZATION , "%s: Populating vfe_diag data", __func__);
   }
     break;
 

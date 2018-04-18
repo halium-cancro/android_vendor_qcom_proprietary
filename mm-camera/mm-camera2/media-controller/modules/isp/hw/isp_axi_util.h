@@ -8,6 +8,8 @@ Qualcomm Technologies Proprietary and Confidential.
 
 isp_axi_stream_t *isp_axi_util_find_stream(isp_axi_t *axi, uint32_t session_id,
   uint32_t stream_id);
+isp_axi_stream_t *isp_axi_util_find_active_video_stream(isp_axi_t *axi,
+  uint32_t session_id);
 isp_axi_stream_t *isp_axi_util_find_stream_handle(isp_axi_t *axi,
   uint32_t handle);
 uint32_t isp_axi_util_cam_fmt_to_v4l2_fmt(cam_format_t fmt,

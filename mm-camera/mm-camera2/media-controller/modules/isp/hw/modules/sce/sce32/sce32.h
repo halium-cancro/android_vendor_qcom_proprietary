@@ -61,7 +61,11 @@ typedef struct {
   sce_cr_cb_triangle_set origin_triangles_A;
   sce_cr_cb_triangle_set origin_triangles_D65;
   sce_cr_cb_triangle_set origin_triangles_TL84;
+  sce_cr_cb_triangle_set destination_triangles_A;
+  sce_cr_cb_triangle_set destination_triangles_D65;
+  sce_cr_cb_triangle_set destination_triangles_TL84;
   sce_cr_cb_triangle_set *orig;
+  sce_cr_cb_triangle_set *dest;
   sce_shift_vector interp_vector;
   ISP_Skin_enhan_range interp_range;
   double sce_adjust_factor;

@@ -206,16 +206,24 @@ void *frameproc_thread_loop(void *handle)
   count = img_q_count(&p_comp->msgQ);
   IDBG_MED("%s:%d] buf count %d", __func__, __LINE__, count);
 
-  while ((p_msg = img_q_wait(&p_comp->msgQ,
-    frameproc_can_wait, p_comp)) != NULL) {
+  while (TRUE) {
+    p_msg = img_q_wait(&p_comp->msgQ, frameproc_can_wait, p_comp);
+
+    if (!frameproc_can_wait(p_comp))
+      break;
+    else if (!p_msg)
+      continue;
+
     switch (p_msg->type) {
     case IMG_MSG_BUNDLE:
       if (p_comp->p_lib->img_algo_process) {
         p_comp->p_lib->img_algo_process(p_comp->p_algocontext,
           p_msg->bundle.p_input,
           p_base->caps.num_input,
-          p_msg->bundle.p_output,
-          p_base->caps.num_output,
+          (!p_base->caps.inplace_algo) ? p_msg->bundle.p_output :
+            p_msg->bundle.p_input,
+          (!p_base->caps.inplace_algo) ? p_base->caps.num_output :
+            p_base->caps.num_input,
           p_msg->bundle.p_meta,
           p_base->caps.num_meta);
       }
@@ -234,7 +242,8 @@ void *frameproc_thread_loop(void *handle)
       break;
     default:;
     }
-    free(p_msg);
+    if (p_msg)
+      free(p_msg);
   }
 
   /* flush rest of the buffers */
@@ -666,8 +675,16 @@ int frameproc_comp_start(void *handle, void *p_data)
     return IMG_ERR_NOT_SUPPORTED;
   }
 
+  if (p_data != NULL) {
+     img_caps_t* update_caps = p_data;
+     p_base->caps.num_input = update_caps->num_input;
+     p_base->caps.num_output = update_caps->num_output;
+     IDBG_HIGH("%s: updated # input = %d, # output = %d",
+       __func__, p_base->caps.num_input, p_base->caps.num_output);
+  }
+
   if ((p_base->caps.num_input <= 0) ||
-    (p_base->caps.num_output <= 0) ||
+    (p_base->caps.num_output < 0) ||
     (p_base->caps.num_meta < 0) ||
     (p_base->caps.num_input > IMG_MAX_INPUT_FRAME) ||
     (p_base->caps.num_output > IMG_MAX_OUTPUT_FRAME) ||

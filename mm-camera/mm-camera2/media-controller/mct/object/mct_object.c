@@ -14,7 +14,7 @@
 char* mct_strdup (const char *str)
 {
   char *new_str;
-  int  length;
+  size_t length;
 
   if (str) {
     length = strlen (str) + 1;

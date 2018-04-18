@@ -42,12 +42,14 @@ Qualcomm Technologies Proprietary and Confidential.
 static boolean port_ispif_free_mem_func(void *data, void *user_data)
 {
   mct_port_t *port = (mct_port_t *)data;
-
+  mct_module_t *module = (mct_module_t *)user_data;
   assert(port != NULL);
   assert(port->private != NULL);
 
+  mct_object_unparent(MCT_OBJECT_CAST(port), MCT_OBJECT_CAST(module));
   if (port->port_private){
     free (port->port_private);
+    mct_port_destroy(port);
     port->port_private = NULL;
   }
 
@@ -67,13 +69,13 @@ void port_ispif_destroy_ports(ispif_t *ispif)
 {
   if (ispif->module->sinkports) {
     mct_list_traverse(ispif->module->sinkports,
-              port_ispif_free_mem_func, NULL);
+              port_ispif_free_mem_func, ispif->module);
     mct_list_free_list(ispif->module->sinkports);
     ispif->module->sinkports= NULL;
   }
   if (ispif->module->srcports) {
     mct_list_traverse(ispif->module->srcports,
-              port_ispif_free_mem_func, NULL);
+              port_ispif_free_mem_func, ispif->module);
     mct_list_free_list(ispif->module->srcports);
     ispif->module->srcports= NULL;
   }
@@ -401,6 +403,9 @@ retry:
         event->identity >> 16,     // session id
         mod_event->module_event_data);
     }
+    break;
+  case MCT_EVENT_MODULE_ISPIF_RESET:
+    rc = ispif_util_proc_reset(ispif, event);
     break;
 
   default:

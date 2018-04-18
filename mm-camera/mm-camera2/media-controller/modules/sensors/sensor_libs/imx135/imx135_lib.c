@@ -9,20 +9,13 @@
 
 static sensor_lib_t sensor_lib_ptr;
 
-
 static struct msm_sensor_power_setting power_setting[] = {
   {
-    .seq_type = SENSOR_GPIO,  //add by chenqiang for camera imx135
-    .seq_val = SENSOR_GPIO_VDIG,
-    .config_val = GPIO_OUT_HIGH,
+    .seq_type = SENSOR_VREG,
+    .seq_val = CAM_VDIG,
+    .config_val = 0,
     .delay = 0,
   },
-  {
-    .seq_type = SENSOR_VREG,
-    .seq_val =  CAM_VDIG,   //SUB DVDD GPIO POWER
-    .config_val = 0,
-    .delay = 10,
-	},
   {
     .seq_type = SENSOR_VREG,
     .seq_val = CAM_VANA,
@@ -49,12 +42,6 @@ static struct msm_sensor_power_setting power_setting[] = {
   },
   {
     .seq_type = SENSOR_GPIO,
-    .seq_val = SENSOR_GPIO_VAF, //add by gionee zhaocuiqin for CR01324957 20140721
-    .config_val = GPIO_OUT_HIGH,
-    .delay = 10,
-  },
-  {
-    .seq_type = SENSOR_GPIO,
     .seq_val = SENSOR_GPIO_RESET,
     .config_val = GPIO_OUT_HIGH,
     .delay = 30,
@@ -74,7 +61,7 @@ static struct msm_sensor_power_setting power_setting[] = {
   {
     .seq_type = SENSOR_CLK,
     .seq_val = SENSOR_CAM_MCLK,
-    .config_val = 0,
+    .config_val = 24000000,
     .delay = 1,
   },
   {
@@ -90,6 +77,8 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
   .camera_id = CAMERA_0,
   /* sensor slave address */
   .slave_addr = 0x20,
+  /*sensor i2c frequency*/
+  .i2c_freq_mode = I2C_FAST_MODE,
   /* sensor address type */
   .addr_type = MSM_CAMERA_I2C_WORD_ADDR,
   /* sensor id info*/
@@ -104,6 +93,7 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
     .power_setting = power_setting,
     .size = ARRAY_SIZE(power_setting),
   },
+  .is_flash_supported = SENSOR_FLASH_SUPPORTED,
 };
 
 static struct msm_sensor_init_params sensor_init_params = {
@@ -131,18 +121,28 @@ static struct msm_sensor_exp_gain_info_t exp_gain_info = {
   .vert_offset = 4,
 };
 
+static sensor_manual_exposure_info_t manual_exp_info = {
+  .min_exposure_time = 10587,/*in nano sec = 1line*/
+  .max_exposure_time = 693863262,/*in nano sec = FFFF lines*/
+  .min_iso = 100,
+  .max_iso = 1554,
+};
+
 static sensor_aec_data_t aec_info = {
   .max_gain = 8.0,
-  .max_linecount = 106840,
+  .max_linecount = 65525,
 };
 
 static sensor_lens_info_t default_lens_info = {
-  .focal_length = 3.83,
-  .pix_size = 1.12,
-  .f_number = 2.0,
-  .total_f_dist = 3.27,
-  .hor_view_angle = 62.5,
-  .ver_view_angle = 48.6,
+  .focal_length = 4.6,
+  .pix_size = 1.4,
+  .f_number = 2.65,
+  .total_f_dist = 1.97,
+  .hor_view_angle = 54.8,
+  .ver_view_angle = 42.5,
+  .near_end_distance = 7,/*in cm*/
+   .sensing_method = SENSOR_SMETHOD_NOT_DEFINED,
+   .crop_factor = 1.33, //(4:3) its sensor's physical dimension dependent factor
 };
 
 #ifndef VFE_40
@@ -255,6 +255,7 @@ static struct msm_camera_csi2_params imx135_csi_params = {
     .lane_cnt = 4,
     .settle_cnt = 0x1B,
   },
+  .csi_clk_scale_enable = 1,
 };
 
 static struct sensor_pix_fmt_info_t imx135_pix_fmt0_fourcc[] = {
@@ -277,7 +278,7 @@ static sensor_stream_info_array_t imx135_stream_info_array = {
 };
 
 static struct msm_camera_i2c_reg_setting res_settings[] = {
-#if ENABLE_RES0_2VFE_REGISTER_SETTINGS
+#ifdef _FULL_RES_30FPS
   {
     .reg_setting = res0_2vfe_reg_array,
     .size = ARRAY_SIZE(res0_2vfe_reg_array),
@@ -285,7 +286,7 @@ static struct msm_camera_i2c_reg_setting res_settings[] = {
     .data_type = MSM_CAMERA_I2C_BYTE_DATA,
     .delay = 0,
   },
-#endif
+#else
   {
     .reg_setting = res0_1vfe_reg_array,
     .size = ARRAY_SIZE(res0_1vfe_reg_array),
@@ -293,15 +294,14 @@ static struct msm_camera_i2c_reg_setting res_settings[] = {
     .data_type = MSM_CAMERA_I2C_BYTE_DATA,
     .delay = 0,
   },
-#if ENABLE_RES1_REGISTER_SETTINGS
+#endif
   {
-    .reg_setting = res1_reg_array,
-    .size = ARRAY_SIZE(res1_reg_array),
+    .reg_setting = res7_reg_array,
+    .size = ARRAY_SIZE(res7_reg_array),
     .addr_type = MSM_CAMERA_I2C_WORD_ADDR,
     .data_type = MSM_CAMERA_I2C_BYTE_DATA,
     .delay = 0,
   },
-#endif
   {
     .reg_setting = res2_reg_array,
     .size = ARRAY_SIZE(res2_reg_array),
@@ -337,22 +337,6 @@ static struct msm_camera_i2c_reg_setting res_settings[] = {
     .data_type = MSM_CAMERA_I2C_BYTE_DATA,
     .delay = 0,
   },
-#if ENABLE_RES7_REGISTER_SETTINGS
-  {
-    .reg_setting = res7_1vfe_reg_array,
-    .size = ARRAY_SIZE(res7_1vfe_reg_array),
-    .addr_type = MSM_CAMERA_I2C_WORD_ADDR,
-    .data_type = MSM_CAMERA_I2C_BYTE_DATA,
-    .delay = 0,
-  },
-#endif
-  {
-    .reg_setting = res8_1vfe_reg_array,
-    .size = ARRAY_SIZE(res8_1vfe_reg_array),
-    .addr_type = MSM_CAMERA_I2C_WORD_ADDR,
-    .data_type = MSM_CAMERA_I2C_BYTE_DATA,
-    .delay = 0,
-  },
 };
 
 static struct sensor_lib_reg_settings_array res_settings_array = {
@@ -361,22 +345,17 @@ static struct sensor_lib_reg_settings_array res_settings_array = {
 };
 
 static struct msm_camera_csi2_params* csi_params[] = {
-#if ENABLE_RES0_2VFE_REGISTER_SETTINGS
+#ifdef _FULL_RES_30FPS
+  &imx135_csi_params, /* RES 0 */
+#else
   &imx135_csi_params, /* RES 0 */
 #endif
-  &imx135_csi_params, /* RES 0 */
-#if ENABLE_RES1_REGISTER_SETTINGS
   &imx135_csi_params, /* RES 1 */
-#endif
   &imx135_csi_params, /* RES 2 */
   &imx135_csi_params, /* RES 3 */
   &imx135_csi_params, /* RES 4 */
   &imx135_csi_params, /* RES 5 */
   &imx135_csi_params, /* RES 6 */
-#if ENABLE_RES7_REGISTER_SETTINGS
-  &imx135_csi_params, /* RES 7 */
-#endif
-  &imx135_csi_params, /* RES 8 */
 };
 
 static struct sensor_lib_csi_params_array csi_params_array = {
@@ -385,22 +364,17 @@ static struct sensor_lib_csi_params_array csi_params_array = {
 };
 
 static struct sensor_crop_parms_t crop_params[] = {
-#if ENABLE_RES0_2VFE_REGISTER_SETTINGS
+#ifdef _FULL_RES_30FPS
+  { 0, 0, 0, 0 }, /* RES 0 */
+#else
   { 0, 0, 0, 0 }, /* RES 0 */
 #endif
-  { 0, 0, 0, 0 }, /* RES 0 */
-#if ENABLE_RES1_REGISTER_SETTINGS
   { 0, 0, 0, 0 }, /* RES 1 */
-#endif
   { 0, 0, 0, 0 }, /* RES 2 */
   { 0, 0, 0, 0 }, /* RES 3 */
   { 0, 0, 0, 0 }, /* RES 4 */
   { 0, 0, 0, 0 }, /* RES 5 */
   { 0, 0, 0, 0 }, /* RES 6 */
-#if ENABLE_RES7_REGISTER_SETTINGS
-  { 0, 0, 0, 0 }, /* RES 7 */
-#endif
-  { 0, 0, 0, 0 }, /* RES 7 */
 };
 
 static struct sensor_lib_crop_params_array crop_params_array = {
@@ -409,35 +383,36 @@ static struct sensor_lib_crop_params_array crop_params_array = {
 };
 
 static struct sensor_lib_out_info_t sensor_out_info[] = {
-#if ENABLE_RES0_2VFE_REGISTER_SETTINGS
+#ifdef _FULL_RES_30FPS
   {
-    /* full size @ 24 fps*/
+    /* full size 4:3 @ 30 fps*/
+    .x_output = 4208,
+    .y_output = 3120,
+    .line_length_pclk = 4572,
+    .frame_length_lines = 3148,
+    .vt_pixel_clk = 432000000,
+    .op_pixel_clk = 432000000,
+    .binning_factor = 1,
+    .max_fps = 30,
+    .min_fps = 7.5,
+    .mode = SENSOR_DEFAULT_MODE,
+  },
+#else
+  {
+    /* full size @ 22.27 fps*/
     .x_output = 4208,
     .y_output = 3120,
     .line_length_pclk = 4572,
     .frame_length_lines = 3142,
-    .vt_pixel_clk = 360000000,
-    .op_pixel_clk = 360000000,
+    .vt_pixel_clk = 320000000,
+    .op_pixel_clk = 320000000,
     .binning_factor = 1,
-    .max_fps = 24.01,
+    .max_fps = 22.27,
     .min_fps = 7.5,
     .mode = SENSOR_DEFAULT_MODE,
   },
 #endif
-  {
-    /* full size @ 22 fps*/
-    .x_output = 4208,
-    .y_output = 3120,
-    .line_length_pclk = 4572,
-    .frame_length_lines = 3180, 
-    .vt_pixel_clk = 320000000,  
-    .op_pixel_clk = 320000000,  
-    .binning_factor = 0,
-    .max_fps = 22.0,           
-    .min_fps = 7.5,
-    .mode = SENSOR_DEFAULT_MODE,
-  },
-#if ENABLE_RES1_REGISTER_SETTINGS
+#if 0
   {
     /* full size 16:9 @ 30 fps */
     .x_output = 4208,
@@ -451,23 +426,38 @@ static struct sensor_lib_out_info_t sensor_out_info[] = {
     .min_fps = 7.5,
     .mode = SENSOR_DEFAULT_MODE,
   },
-#endif
+#else
   {
-	/* 1/2 HV @ 29.99 fps */
-	.x_output = 2104,
-	.y_output = 1560,
-	.line_length_pclk = 4572,
-	.frame_length_lines = 1750,
-	.vt_pixel_clk = 240000000,		//360000000,//Gionee 20140606 liusb modify for CR01275701 
-	.op_pixel_clk = 120000000,		//180000000,
-	.binning_factor = 1,
-	.max_fps = 29.99,				//30.00,
-	.min_fps = 7.5,
-	.mode = SENSOR_DEFAULT_MODE,
+    /*1080P 16:9 @ 30 fps */
+    .x_output = 1920,
+    .y_output = 1080,
+    .line_length_pclk = 4572,
+    .frame_length_lines = 1312,
+    .vt_pixel_clk = 180000000,
+    .op_pixel_clk = 180000000,//90000000, 
+    .binning_factor = 1,
+    .max_fps = 30,
+    .min_fps = 7.5,
+    .mode = SENSOR_DEFAULT_MODE,
   },
+  #endif
+  {
+    /* 1/2 HV @ 30 fps */
+    .x_output = 2104,
+    .y_output = 1560,
+    .line_length_pclk = 4572,
+    .frame_length_lines = 2624,
+    .vt_pixel_clk = 360000000,
+    .op_pixel_clk = 180000000,
+    .binning_factor = 1,
+    .max_fps = 30.00,
+    .min_fps = 7.5,
+    .mode = SENSOR_DEFAULT_MODE,
+  },
+#ifndef _MSM_BEAR
   {
      /* 1080p at 60 fps */
-     .x_output = 2104,
+    .x_output = 2104,
     .y_output = 1184,
     .line_length_pclk = 4572,
     .frame_length_lines = 1312,
@@ -478,6 +468,21 @@ static struct sensor_lib_out_info_t sensor_out_info[] = {
     .min_fps = 7.5,
     .mode = SENSOR_HFR_MODE,
   },
+#else
+  {
+     /* 1080p at 60 fps */
+    .x_output = 2104,
+    .y_output = 1184,
+    .line_length_pclk = 4572,
+    .frame_length_lines = 1312,
+    .vt_pixel_clk = 360000000,
+    .op_pixel_clk = 360000000,
+    .binning_factor = 1,
+    .max_fps = 60.00,
+    .min_fps = 7.5,
+    .mode = SENSOR_HFR_MODE,
+  },
+#endif
   {
     /* 720p at 90 fps */
     .x_output = 1296,
@@ -517,34 +522,6 @@ static struct sensor_lib_out_info_t sensor_out_info[] = {
     .min_fps = 7.5,
     .mode = SENSOR_HDR_MODE,
   },
-#if ENABLE_RES7_REGISTER_SETTINGS
-  {
-    /* full size @ 30.00 fps*/
-    .x_output = 4208,
-    .y_output = 3120,
-    .line_length_pclk = 4572,
-    .frame_length_lines = 3166,
-    .vt_pixel_clk = 432000000,
-    .op_pixel_clk = 392000000,
-    .binning_factor = 1,
-    .max_fps = 29.84,
-    .min_fps = 7.5,
-    .mode = SENSOR_DEFAULT_MODE,
-  },
-#endif
-  {
-	/*1080P 16:9 @ 30 fps */
-	.x_output = 1920,
-	.y_output = 1080,
-	.line_length_pclk = 4572,
-	.frame_length_lines = 1748,
-	.vt_pixel_clk = 240000000,
-	.op_pixel_clk = 120000000,//90000000, 
-	.binning_factor = 1,
-	.max_fps = 30.03,
-	.min_fps = 7.5,
-	.mode = SENSOR_DEFAULT_MODE,
-  },
 };
 
 static struct sensor_lib_out_info_array out_info_array = {
@@ -557,6 +534,7 @@ static struct sensor_meta_data_out_info_t sensor_meta_data_out_info[] = {
     /* meta data info */
     .width  = 2096,
     .height = 1,
+    .stats_type = YRGB,
   },
 };
 
@@ -581,7 +559,16 @@ static struct sensor_res_cfg_table_t imx135_res_table = {
 };
 
 static struct sensor_lib_chromatix_t imx135_chromatix[] = {
-#if ENABLE_RES0_2VFE_REGISTER_SETTINGS
+#ifdef _FULL_RES_30FPS
+  {
+    .common_chromatix = IMX135_LOAD_CHROMATIX(common),
+    .camera_preview_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES0 */
+    .camera_snapshot_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES0 */
+    .camcorder_chromatix = IMX135_LOAD_CHROMATIX(default_video), /* RES0 */
+    .liveshot_chromatix = IMX135_LOAD_CHROMATIX(liveshot), /* RES0 */
+
+  },
+#else
   {
     .common_chromatix = IMX135_LOAD_CHROMATIX(common),
     .camera_preview_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES0 */
@@ -590,14 +577,6 @@ static struct sensor_lib_chromatix_t imx135_chromatix[] = {
     .liveshot_chromatix = IMX135_LOAD_CHROMATIX(liveshot), /* RES0 */
   },
 #endif
-  {
-    .common_chromatix = IMX135_LOAD_CHROMATIX(common),
-    .camera_preview_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES0 */
-    .camera_snapshot_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES0 */
-    .camcorder_chromatix = IMX135_LOAD_CHROMATIX(default_video), /* RES0 */
-    .liveshot_chromatix = IMX135_LOAD_CHROMATIX(liveshot), /* RES0 */
-  },
-#if	ENABLE_RES1_REGISTER_SETTINGS
   {
     .common_chromatix = IMX135_LOAD_CHROMATIX(common),
     .camera_preview_chromatix = IMX135_LOAD_CHROMATIX(preview), /* RES1 */
@@ -605,7 +584,6 @@ static struct sensor_lib_chromatix_t imx135_chromatix[] = {
     .camcorder_chromatix = IMX135_LOAD_CHROMATIX(default_video), /* RES1 */
     .liveshot_chromatix = IMX135_LOAD_CHROMATIX(liveshot), /* RES1 */
   },
-#endif
   {
     .common_chromatix = IMX135_LOAD_CHROMATIX(common),
     .camera_preview_chromatix = IMX135_LOAD_CHROMATIX(preview), /* RES2 */
@@ -640,22 +618,6 @@ static struct sensor_lib_chromatix_t imx135_chromatix[] = {
     .camera_snapshot_chromatix = IMX135_LOAD_CHROMATIX(video_hd), /* RES6 */
     .camcorder_chromatix = IMX135_LOAD_CHROMATIX(video_hd), /* RES6 */
     .liveshot_chromatix = IMX135_LOAD_CHROMATIX(liveshot), /* RES6 */
-  },
-#if ENABLE_RES7_REGISTER_SETTINGS
-  {
-    .common_chromatix = IMX135_LOAD_CHROMATIX(common),
-    .camera_preview_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES7 */
-    .camera_snapshot_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES7 */
-    .camcorder_chromatix = IMX135_LOAD_CHROMATIX(default_video), /* RES7 */
-    .liveshot_chromatix = IMX135_LOAD_CHROMATIX(liveshot), /* RES7 */
-  },
-#endif
-  {
-    .common_chromatix = IMX135_LOAD_CHROMATIX(common),
-    .camera_preview_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES8 */
-    .camera_snapshot_chromatix = IMX135_LOAD_CHROMATIX(snapshot), /* RES8 */
-    .camcorder_chromatix = IMX135_LOAD_CHROMATIX(default_video), /* RES8 */
-    .liveshot_chromatix = IMX135_LOAD_CHROMATIX(liveshot), /* RES8 */
   },
 };
 
@@ -698,14 +660,20 @@ float imx135_register_to_real_gain(uint16_t reg_gain) {
  * DESCRIPTION:
  *==========================================================================*/
 static int32_t imx135_calculate_exposure(float real_gain,
-                                         uint16_t line_count, sensor_exposure_info_t* exp_info) {
+                                         uint32_t line_count, sensor_exposure_info_t* exp_info) {
   if (!exp_info) {
     return -1;
+  }
+  if(exp_info->use_long_exposure == 1) {
+    exp_info->long_line_count = line_count;
+  }
+  else {
+    exp_info->line_count = line_count & 0xFFFF;
   }
   exp_info->reg_gain = imx135_real_to_register_gain(real_gain);
   exp_info->sensor_real_gain = imx135_register_to_real_gain(exp_info->reg_gain);
   exp_info->digital_gain = real_gain / exp_info->sensor_real_gain;
-  exp_info->line_count = line_count;
+
   exp_info->sensor_digital_gain = 0x1;
   return 0;
 }
@@ -724,6 +692,8 @@ static int32_t imx135_fill_exposure_array(uint16_t gain, uint32_t line,
   uint16_t shortshutter_expratio = 8;
   uint16_t atr_out_noise = 0;
   uint16_t atr_out_mid = 0;
+  uint16_t atr_noise_brate = 0;
+  uint16_t atr_mid_brate = 0;
   uint16_t reg_count = 0;
   uint16_t i = 0;
   uint16_t luma_delta = 0;
@@ -801,10 +771,6 @@ static int32_t imx135_fill_exposure_array(uint16_t gain, uint32_t line,
       reg_setting->reg_setting[reg_count].reg_data = 0x00;
       reg_count = reg_count + 1;
     } else {
-      /* change to adaptive tone curve */
-      reg_setting->reg_setting[reg_count].reg_addr = TC_SWITCH_BYTE_ADDR;
-      reg_setting->reg_setting[reg_count].reg_data = 0x00;
-      reg_count = reg_count + 1;
       /* extract average of max 20 and min 20*/
       luma_delta_h = (luma_delta >> 8) & 0xFF;
       luma_delta_l = luma_delta & 0xFF;
@@ -813,12 +779,9 @@ static int32_t imx135_fill_exposure_array(uint16_t gain, uint32_t line,
         atr_out_noise = 0;
         atr_out_mid = 0;
       } else if (luma_avg < THRESHOLD_1) {
-        atr_out_noise =
-          INIT_ATR_OUT_NOISE *
-          (luma_avg - THRESHOLD_0)/
+        atr_out_noise = INIT_ATR_OUT_NOISE * (luma_avg - THRESHOLD_0) /
           (THRESHOLD_1 - THRESHOLD_0);
-        atr_out_mid = INIT_ATR_OUT_MID *
-          (luma_avg - THRESHOLD_0)/
+        atr_out_mid = INIT_ATR_OUT_MID * (luma_avg - THRESHOLD_0) /
           (THRESHOLD_1 - THRESHOLD_0);
       } else {
         atr_out_noise = INIT_ATR_OUT_NOISE;
@@ -826,6 +789,9 @@ static int32_t imx135_fill_exposure_array(uint16_t gain, uint32_t line,
       }
       atr_out_noise += ATR_OFFSET;
       atr_out_mid += ATR_OFFSET;
+
+      atr_noise_brate = 0x18 * 1 + ATR_OFFSET;
+      atr_mid_brate = 0x18 * 1 + ATR_OFFSET;
 
       reg_setting->reg_setting[reg_count].reg_addr = TC_OUT_NOISE_WORD_ADDR;
       reg_setting->reg_setting[reg_count].reg_data =
@@ -847,6 +813,19 @@ static int32_t imx135_fill_exposure_array(uint16_t gain, uint32_t line,
         TC_OUT_MID_WORD_ADDR + 1;
       reg_setting->reg_setting[reg_count].reg_data =
         (atr_out_mid & 0xFF);
+      reg_count = reg_count + 1;
+
+      reg_setting->reg_setting[reg_count].reg_addr = TC_NOISE_BRATE_REGADDR;
+      reg_setting->reg_setting[reg_count].reg_data = atr_noise_brate;
+      reg_count = reg_count + 1;
+
+      reg_setting->reg_setting[reg_count].reg_addr = TC_MID_BRATE_REGADDR;
+      reg_setting->reg_setting[reg_count].reg_data = atr_mid_brate;
+      reg_count = reg_count + 1;
+
+      /* change to adaptive tone curve */
+      reg_setting->reg_setting[reg_count].reg_addr = TC_SWITCH_BYTE_ADDR;
+      reg_setting->reg_setting[reg_count].reg_data = 0x00;
       reg_count = reg_count + 1;
 
       /*right-shift 2 bits to get 10-bit values*/
@@ -958,16 +937,16 @@ static sensor_lib_t sensor_lib_ptr = {
   .sensor_slave_info = &sensor_slave_info,
   /* sensor init params */
   .sensor_init_params = &sensor_init_params,
-  /* sensor eeprom name */
-  .eeprom_name = "liteon_imx135",
   /* sensor actuator name */
-  .actuator_name = "lc898122",
+  .actuator_name = "dw9714",
   /* sensor output settings */
   .sensor_output = &sensor_output,
   /* sensor output register address */
   .output_reg_addr = &output_reg_addr,
   /* sensor exposure gain register address */
   .exp_gain_info = &exp_gain_info,
+  /* manual_exp_info */
+  .manual_exp_info = &manual_exp_info,
   /* sensor aec info */
   .aec_info = &aec_info,
   /* sensor snapshot exposure wait frames info */
@@ -975,11 +954,11 @@ static sensor_lib_t sensor_lib_ptr = {
   /* number of frames to skip after start stream */
   .sensor_num_frame_skip = 2,
   /* number of frames to skip after start HDR stream */
-  .sensor_num_HDR_frame_skip = 2,
+  .sensor_num_HDR_frame_skip = 1,
   /* sensor pipeline immediate delay */
   .sensor_max_pipeline_frame_delay = 1,
   /* sensor exposure table size */
-  .exposure_table_size = 25,
+  .exposure_table_size = 27,
   /* sensor lens info */
   .default_lens_info = &default_lens_info,
   /* csi lane params */

@@ -6,7 +6,11 @@
 #include <pthread.h>
 #include "mct_queue.h"
 #include "q3a_thread.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+#include "camera_dbg.h"
 
+#define Q3A_THREAD_DEBUG 1
 
 #if Q3A_THREAD_DEBUG
 #undef CDBG
@@ -53,6 +57,7 @@ q3a_thread_aecawb_data_t* q3a_thread_aecawb_init(void)
   sem_init(&aecawb->thread_data->sem_launch, 0, 0);
   pthread_cond_init(&(aecawb->thread_data->thread_cond), NULL);
   pthread_mutex_init(&(aecawb->thread_data->thread_mutex), NULL);
+  CDBG("%s private->thread_data: %p", __func__, aecawb->thread_data);
 
   return aecawb;
 } /* q3a_thread_aecawb_init */
@@ -67,6 +72,7 @@ q3a_thread_aecawb_data_t* q3a_thread_aecawb_init(void)
  **/
 void q3a_thread_aecawb_deinit(q3a_thread_aecawb_data_t *aecawb)
 {
+  CDBG("%s thread_data: %p", __func__, aecawb->thread_data);
   pthread_mutex_destroy(&aecawb->thread_data->thread_mutex);
   pthread_cond_destroy(&aecawb->thread_data->thread_cond);
   mct_queue_free(aecawb->thread_data->msg_q);
@@ -110,6 +116,12 @@ boolean q3a_aecawb_thread_en_q_msg(void *aecawb_data,
     }
     CDBG("%s:%d, lock Q", __func__, __LINE__);
     //If its a priority event, queue to priority queue, else to normal queue
+    if (msg->type == MSG_BG_AEC_STATS) {
+      thread_data->aec_bg_stats_cnt++;
+    }
+    if (msg->type == MSG_BG_AWB_STATS) {
+      thread_data->awb_bg_stats_cnt++;
+    }
     if (msg->is_priority) {
       mct_queue_push_tail(thread_data->p_msg_q, msg);
     } else {
@@ -160,6 +172,8 @@ static void* aecawb_thread_handler(void *aecawb_data)
   aecawb->thread_data->active = 1;
   sem_post(&aecawb->thread_data->sem_launch);
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "aecawb_thread", 0, 0, 0);
   do {
     pthread_mutex_lock(&aecawb->thread_data->thread_mutex);
     while ((aecawb->thread_data->msg_q->length == 0) &&
@@ -241,13 +255,25 @@ static void* aecawb_thread_handler(void *aecawb_data)
 
     case MSG_AEC_STATS_HDR:
     case MSG_BG_AEC_STATS: {
-      rc = aecawb->aec_obj->process(msg->u.stats, aecawb->aec_obj->aec,
-        &(aecawb->aec_obj->output));
-      if ((rc == TRUE)||(aecawb->aec_obj->output.eztune.lock)) {
-        aecawb->aec_obj->output.type = AEC_UPDATE;
-        aecawb->aec_cb(& (aecawb->aec_obj->output), aecawb->aec_port);
+      if ((aecawb->thread_data->aec_bg_stats_cnt < 3) ||
+        (msg->type == MSG_AEC_STATS_HDR)) {
+        memset(&(aecawb->aec_obj->output), 0, sizeof(aec_output_data_t));
+        ATRACE_BEGIN("Camera:AEC");
+        rc = aecawb->aec_obj->process(msg->u.stats, aecawb->aec_obj->aec,
+          &(aecawb->aec_obj->output));
+        ATRACE_END();
+        if (rc == TRUE) {
+          aecawb->aec_obj->output.type = AEC_UPDATE;
+          aecawb->aec_cb(& (aecawb->aec_obj->output), aecawb->aec_port);
+        }
       }
       if (msg->u.stats) {
+        if (aecawb->thread_data->aec_bg_stats_cnt && msg->type ==
+          MSG_BG_AEC_STATS) {
+          pthread_mutex_lock(&aecawb->thread_data->msg_q_lock);
+          aecawb->thread_data->aec_bg_stats_cnt--;
+          pthread_mutex_unlock(&aecawb->thread_data->msg_q_lock);
+        }
         free(msg->u.stats);
       }
     }
@@ -282,9 +308,19 @@ static void* aecawb_thread_handler(void *aecawb_data)
       break;
 
     case MSG_BG_AWB_STATS: {
-      aecawb->awb_obj->awb_ops.process(
-        msg->u.stats, aecawb->awb_obj->awb, &(aecawb->awb_obj->output));
-      aecawb->awb_cb(&(aecawb->awb_obj->output), aecawb->awb_port);
+      if (aecawb->thread_data->awb_bg_stats_cnt < 3) {
+        memset(&(aecawb->awb_obj->output), 0, sizeof(awb_output_data_t));
+        ATRACE_BEGIN("Camera:AWB");
+        aecawb->awb_obj->awb_ops.process(
+          msg->u.stats, aecawb->awb_obj->awb, &(aecawb->awb_obj->output));
+        ATRACE_END();
+        aecawb->awb_cb(&(aecawb->awb_obj->output), aecawb->awb_port);
+      }
+      if (aecawb->thread_data->awb_bg_stats_cnt) {
+        pthread_mutex_lock(&aecawb->thread_data->msg_q_lock);
+        aecawb->thread_data->awb_bg_stats_cnt--;
+        pthread_mutex_unlock(&aecawb->thread_data->msg_q_lock);
+      }
     }
       break;
 
@@ -322,7 +358,10 @@ boolean q3a_thread_aecawb_start(q3a_thread_aecawb_data_t *aecawb_data)
 {
   pthread_create(&aecawb_data->thread_data->thread_id, NULL,
     aecawb_thread_handler, aecawb_data);
+  pthread_setname_np(aecawb_data->thread_data->thread_id, "AECAWB");
   sem_wait(&aecawb_data->thread_data->sem_launch);
+  aecawb_data->thread_data->aec_bg_stats_cnt = 0;
+  aecawb_data->thread_data->awb_bg_stats_cnt = 0;
   return TRUE;
 } /* q3a_thread_aecawb_start */
 
@@ -346,7 +385,8 @@ boolean q3a_thread_aecawb_stop(q3a_thread_aecawb_data_t *aecawb_data)
     CDBG_ERROR("%s:%d MSG_STOP_THREAD", __func__, __LINE__);
     memset(msg, 0, sizeof(q3a_thread_aecawb_msg_t));
     msg->type = MSG_STOP_THREAD;
-
+    aecawb_data->thread_data->aec_bg_stats_cnt = 0;
+    aecawb_data->thread_data->awb_bg_stats_cnt = 0;
     rc = q3a_aecawb_thread_en_q_msg(aecawb_data->thread_data,msg);
 
     if (rc) {
@@ -375,6 +415,8 @@ static void* af_thread_handler(void *af_data)
   q3a_thread_af_msg_t  *msg = NULL;
   int                  exit_flag = 0;
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "af_thread", 0, 0, 0);
   af->thread_data->active = 1;
   sem_post(&af->thread_data->sem_launch);
   CDBG("%s: %d: Starting AF thread handler", __func__,__LINE__);
@@ -455,18 +497,26 @@ static void* af_thread_handler(void *af_data)
 
     case MSG_AF_SET: {
       CDBG("%s: Set AF parameters ", __func__);
+//	SnowCat AF FAILED AND CRASH
+      if (af->af_obj->af_ops.set_parameters == NULL){
+          CDBG_ERROR("SnowCat: %s: Set AF set_parameters is NULL", __func__);
+          break;
+      }
+	// FALED set_param
       af->af_obj->af_ops.set_parameters(&msg->u.af_set_parm,
         &(af->af_obj->output), af->af_obj->af);
       af->af_cb(& (af->af_obj->output), af->af_port);
     }
-      break;
+    break;
 
     case MSG_AF_STATS:
     case MSG_BF_STATS: {
       /*AF_OUTPUT_EZ_METADATA help to stop MSG_AF_SET case,when update af info to metadata*/
       CDBG("%s: Process AF stats", __func__);
+      ATRACE_BEGIN("Camera:AF");
       af->af_obj->af_ops.process(msg->u.stats, &(af->af_obj->output),
         af->af_obj->af);
+      ATRACE_END();
       free(msg->u.stats);
       af->af_cb(& (af->af_obj->output), af->af_port);
     }
@@ -506,7 +556,13 @@ boolean q3a_thread_af_start(q3a_thread_af_data_t *af_data)
 {
   pthread_create(&af_data->thread_data->thread_id, NULL,
     af_thread_handler, af_data);
+  pthread_setname_np(af_data->thread_data->thread_id, "AF");
   sem_wait(&af_data->thread_data->sem_launch);
+
+      if (af_data->af_obj->af_ops.set_parameters == NULL){
+          CDBG_ERROR("SnowCat: %s: Set AF set_parameters is NULL", __func__);
+      }
+
   return TRUE;
 } /* q3a_thread_af_start */
 
@@ -527,12 +583,14 @@ boolean q3a_thread_af_stop(q3a_thread_af_data_t *af_data)
   msg = malloc(sizeof(q3a_thread_af_msg_t));
 
   if (msg) {
+    CDBG_ERROR("%s:%d MSG_STOP_THREAD", __func__, __LINE__);
     memset(msg, 0, sizeof(q3a_thread_af_msg_t));
     msg->type = MSG_AF_STOP_THREAD;
     rc = q3a_af_thread_en_q_msg(af_data->thread_data, msg);
 
     if (rc) {
       pthread_join(af_data->thread_data->thread_id, NULL);
+      CDBG("%s:%d pthread_join", __func__, __LINE__);
     }
   } else {
     rc = FALSE;
@@ -654,6 +712,7 @@ q3a_thread_af_data_t* q3a_thread_af_init(void)
   pthread_cond_init(&af->thread_data->thread_cond, NULL);
   pthread_mutex_init(&af->thread_data->thread_mutex, NULL);
   sem_init(&af->thread_data->sem_launch, 0, 0);
+  CDBG("%s private->thread_data: %p", __func__, af->thread_data);
 
   return af;
 } /* q3a_thread_af_init */
@@ -668,6 +727,7 @@ q3a_thread_af_data_t* q3a_thread_af_init(void)
  **/
 void q3a_thread_af_deinit(q3a_thread_af_data_t *af)
 {
+  CDBG("%s thread_data: %p", __func__, af->thread_data);
   pthread_mutex_destroy(&af->thread_data->thread_mutex);
   pthread_cond_destroy(&af->thread_data->thread_cond);
   mct_queue_free(af->thread_data->msg_q);

@@ -7,6 +7,8 @@
 #define __IMG_DBG_H__
 #include <stdio.h>
 
+#define IMG_USE_DYNAMIC_LOGGING
+
 #ifndef IDBG_LOG_LEVEL
 #define IDBG_LOG_LEVEL 2
 #endif
@@ -15,8 +17,31 @@
 #define IDBG_LOG_TAG "mm-camera-img"
 #endif
 
+/** Loglevels
+ * g_imgloglevel = 1 -> only error logs
+ * g_imgloglevel = 2 -> error and high
+ * g_imgloglevel = 3 -> error, high, medium
+ * g_imgloglevel = 4 -> error, high, medium and low
+ */
+extern volatile uint32_t g_imgloglevel;
+
 #undef IDBG
-#if (IDBG_LOG_LEVEL > 0)
+#ifdef IMG_USE_DYNAMIC_LOGGING
+    #ifdef _ANDROID_
+        #undef LOG_NIDEBUG
+        #undef LOG_TAG
+        #define LOG_NIDEBUG 0
+        #define LOG_TAG IDBG_LOG_TAG
+        #include <utils/Log.h>
+        #define IDBG_HIGH(fmt, args...) ALOGD_IF(g_imgloglevel >= 2, fmt, ##args)
+        #define IDBG_MED(fmt, args...) ALOGD_IF(g_imgloglevel >= 3, fmt, ##args)
+        #define IDBG_LOW(fmt, args...) ALOGD_IF(g_imgloglevel >= 4, fmt, ##args)
+    #else
+        #define IDBG_HIGH(fmt, args...) fprintf(stderr, fmt, ##args)
+        #define IDBG_MED(fmt, args...) fprintf(stderr, fmt, ##args)
+        #define IDBG_LOW(fmt, args...) fprintf(stderr, fmt, ##args)
+    #endif
+#elif (IDBG_LOG_LEVEL > 0)
     #ifdef _ANDROID_
         #undef LOG_NIDEBUG
         #undef LOG_TAG
@@ -33,6 +58,9 @@
     #define INDBG(fmt, args...) do{}while(0)
 #endif
 
+#define IDBG_ERROR(fmt, args...) ALOGE(fmt, ##args)
+
+#ifndef IMG_USE_DYNAMIC_LOGGING
 #if (IDBG_LOG_LEVEL >= 4)
   #define IDBG_ERROR(...)  IDBG(__VA_ARGS__)
   #define IDBG_HIGH(...)   IDBG(__VA_ARGS__)
@@ -58,6 +86,7 @@
   #define IDBG_HIGH(...)   INDBG(__VA_ARGS__)
   #define IDBG_MED(...)    INDBG(__VA_ARGS__)
   #define IDBG_LOW(...)    INDBG(__VA_ARGS__)
+#endif
 #endif
 
 /** IDBG_HERE:

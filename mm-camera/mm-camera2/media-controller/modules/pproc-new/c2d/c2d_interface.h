@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 - 2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013 - 2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -14,7 +14,7 @@
 #include "mtype.h"
 #include "cam_intf.h"
 #include "c2d2.h"
-//#include "c2dExt.h"
+#include "c2dExt.h"
 
 #define BUFF_SIZE_255 255
 //#define MAX_PLANES 3
@@ -240,7 +240,7 @@ typedef struct _c2d_frame {
 
 typedef enum {
   C2D_FLIP_H = 1 << 0,
-  C2D_FLIP_V = 1 << 2,
+  C2D_FLIP_V = 1 << 1,
 } c2d_flip_type;
 
 typedef struct _c2d_gpu_buf_t{

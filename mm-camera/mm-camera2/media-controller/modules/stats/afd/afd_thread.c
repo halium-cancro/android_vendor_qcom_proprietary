@@ -1,12 +1,16 @@
 /* afd_thread.c
  *
- * Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 #include <pthread.h>
 #include "mct_queue.h"
 #include "afd_thread.h"
 #include "afd_port.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
+
+#include "camera_dbg.h"
 /** afd_thread_init
  *
  *  Initialize afd thread
@@ -47,11 +51,12 @@ void afd_thread_deinit(void *p)
   mct_port_t *port    = (mct_port_t *)p;
 
   private = (afd_port_private_t *)port->port_private;
-  if (!private)
+  if (!private) {
+    CDBG_ERROR("%s port private is NULL", __func__);
     return;
-
+  }
+  CDBG("%s thread_data: %p", __func__, private->thread_data);
   thread_data = private->thread_data;
-
   pthread_mutex_destroy(&thread_data->thread_mutex);
   pthread_cond_destroy(&thread_data->thread_cond);
   mct_queue_free(thread_data->msg_q);
@@ -101,6 +106,9 @@ static void* afd_thread_handler(void *port_info)
   afd_module_object_t *afd_obj;
   mct_port_t *port = (mct_port_t *)port_info;
   int exit_flag = 0;
+
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "afd_thread", 0, 0, 0);
   private = (afd_port_private_t *)port->port_private;
   if (!private)
     return NULL;
@@ -130,6 +138,8 @@ static void* afd_thread_handler(void *port_info)
 
     if(private->thread_data->active == 0) {
       if(msg->type != MSG_STOP_AFD_THREAD) {
+        if (msg->type == MSG_AFD_STATS && msg->u.stats)
+          free(msg->u.stats);
           free(msg);
           msg = NULL;
           continue;
@@ -156,10 +166,16 @@ static void* afd_thread_handler(void *port_info)
       break;
     case MSG_AFD_STATS: {
       boolean rc;
+      ATRACE_BEGIN("Camera:AFD");
       rc = afd_obj->process(msg->u.stats, afd_obj->afd,
         &(afd_obj->output));
+      ATRACE_END();
       if (rc == TRUE)
         afd_obj->afd_cb(&(afd_obj->output), port);
+      /* Free Rs stats buffer */
+      if (msg->u.stats){
+       free(msg->u.stats);
+       }
       }
       break;
     default:
@@ -185,6 +201,7 @@ boolean afd_thread_start(void *p)
   afd_thread_data_t   *thread_data;
   mct_port_t *port    = (mct_port_t *)p;
   pthread_create(&id, NULL, afd_thread_handler, (void *)port);
+  pthread_setname_np(id, "AFD");
   private = (afd_port_private_t *)port->port_private;
   if (!private)
     return FALSE;

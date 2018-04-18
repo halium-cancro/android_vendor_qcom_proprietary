@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "chroma_suppress44.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_CHROMA_SUPP_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #define CHROMA_SUPPRESS_DIFF_MIN 4
@@ -29,15 +30,15 @@ static void util_chroma_suppress_cmd_debug(ISP_ChromaSuppress_ConfigCmdType *cmd
   ISP_ChromaSuppress_Mix1_ConfigCmdType *mix1_cmd,
   ISP_ChromaSuppress_Mix2_ConfigCmdType *mix2_cmd)
 {
-  CDBG("%s:\n", __func__);
-  CDBG("%s: ySup1 : %d ySup2 : %d ySup3 : %d ySup4 : %d\n", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s:\n", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: ySup1 : %d ySup2 : %d ySup3 : %d ySup4 : %d\n", __func__,
     cmd->ySup1, cmd->ySup2, cmd->ySup3, cmd->ySup4);
 
-  CDBG("%s: ySupM1 : %d ySupM3 : %d ySupS1 : %d ySupS3 : %d\n", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: ySupM1 : %d ySupM3 : %d ySupS1 : %d ySupS3 : %d\n", __func__,
     mix1_cmd->ySupM1, mix1_cmd->ySupM3, mix1_cmd->ySupS1, mix1_cmd->ySupS3);
 
-  CDBG("%s: chromaSuppressEn : %d", __func__, mix1_cmd->chromaSuppressEn);
-  CDBG("%s: cSup1 : %d cSup2 : %d cSupM1 : %d cSupS1 : %d", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: chromaSuppressEn : %d", __func__, mix1_cmd->chromaSuppressEn);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: cSup1 : %d cSup2 : %d cSupM1 : %d cSupS1 : %d", __func__,
     mix2_cmd->cSup1, mix2_cmd->cSup2, mix2_cmd->cSupM1, mix2_cmd->cSupS1);
 } /* util_chroma_suppress_cmd_debug */
 
@@ -155,10 +156,10 @@ static int chroma_suppress_config(isp_chroma_suppress_mod_t *mod,
     return -1;
   }
 
-  CDBG("%s: enter", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: enter", __func__);
 
   if (!mod->enable) {
-    CDBG("%s: Mod not Enable.", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Mod not Enable.", __func__);
     return rc;
   }
 
@@ -282,7 +283,7 @@ static int chroma_suppress_trigger_update(isp_chroma_suppress_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable || mod->skip_trigger) {
-    CDBG("%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
       __func__, mod->enable, mod->trigger_enable, mod->skip_trigger);
     return rc;
   }
@@ -291,11 +292,11 @@ static int chroma_suppress_trigger_update(isp_chroma_suppress_mod_t *mod,
 
   if (!is_burst && !isp_util_aec_check_settled(
                       &in_params->trigger_input.stats_update.aec_update)) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: AEC not settled", __func__);
     return rc;
   }
 
-  CDBG("%s: Calculate table with AEC", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Calculate table with AEC", __func__);
 
   p_trigger_point = &(chromatix_CS_MCE->cs_lowlight_trigger);
   cs_luma_threshold = &(chromatix_CS_MCE->cs_normal);
@@ -308,18 +309,18 @@ static int chroma_suppress_trigger_update(isp_chroma_suppress_mod_t *mod,
   update_cs = !F_EQUAL(mod->aec_ratio.ratio, ratio);
 
   if (!update_cs) {
-    CDBG("%s: Chroma Suppression update not required", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Chroma Suppression update not required", __func__);
     return 0;
   }
 
   if (F_EQUAL(ratio, 0.0)) {
-    CDBG("%s: Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Low Light \n", __func__);
     mod->thresholds = *(cs_luma_threshold_lowlight);
   } else if (F_EQUAL(ratio, 1.0)) {
-    CDBG("%s: Normal Light \n", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Normal Light \n", __func__);
     mod->thresholds = *(cs_luma_threshold);
   } else {
-    CDBG("%s: Interpolate between Normal and Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Interpolate between Normal and Low Light \n", __func__);
     mod->thresholds.cs_luma_threshold1 = LINEAR_INTERPOLATION_INT(
       cs_luma_threshold->cs_luma_threshold1,
       cs_luma_threshold_lowlight->cs_luma_threshold1, ratio);
@@ -373,7 +374,7 @@ static int chroma_suppress_set_chromatix(isp_chroma_suppress_mod_t *mod,
   chromatix_CS_MCE_type *chromatix_CS_MCE =
     &chromatix_ptr->chromatix_VFE.chromatix_CS_MCE;
 
-  CDBG("%s: E.", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: E.", __func__);
 
   mod->reg_cmd.ySup1 = chromatix_CS_MCE->cs_normal.cs_luma_threshold1;
   mod->reg_cmd.ySup2 = chromatix_CS_MCE->cs_normal.cs_luma_threshold2;
@@ -609,7 +610,7 @@ isp_ops_t *chroma_suppress44_open(uint32_t version)
 {
   isp_chroma_suppress_mod_t *mod = malloc(sizeof(isp_chroma_suppress_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

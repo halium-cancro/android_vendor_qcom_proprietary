@@ -10,7 +10,15 @@
 #include "mct_object.h"
 #include "mct_queue.h"
 #include "mct_pipeline.h"
+#include <pthread.h>
+#include <sys/sysinfo.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <errno.h>
 
+#define MCT_DEBUG_MASK                 (1<<0)
 typedef struct _mct_controller mct_controller_t;
 
 struct _mct_controller {
@@ -56,13 +64,13 @@ typedef enum _mct_serv_msg_type {
  *  via domain socket
  **/
 typedef struct _mct_serv_ds_msg {
-  unsigned int buf_type;
-  unsigned int operation;
-  unsigned int session;
-  unsigned int stream;
-  int size;
-  int index;
-  int plane_idx;
+  uint32_t buf_type;
+  uint32_t operation;
+  uint32_t session;
+  uint32_t  stream;
+  size_t size;
+  uint32_t index;
+  int32_t plane_idx;
   int fd;
 } mct_serv_ds_msg_t;
 
@@ -92,6 +100,7 @@ typedef struct _mct_serv_msg {
 typedef enum _mct_process_ret_type {
   MCT_PROCESS_RET_SERVER_MSG,
   MCT_PROCESS_RET_BUS_MSG,
+  MCT_PROCESS_DUMP_INFO,
   MCT_PROCESS_RET_ERROR_MSG,
 } mct_process_ret_type;
 

@@ -10,6 +10,7 @@
 #include "server_process.h"
 
 #include "camera_dbg.h"
+#include <sys/sysinfo.h>
 
 #if 0
 #undef CDBG
@@ -146,6 +147,17 @@ static boolean get_server_node_name(char *node_name)
 
   return FALSE;
 }
+/** server_t_handler:
+ *    @data: signal value
+ *
+ * mct stuck thread
+ **/
+void server_t_handler(union sigval val)
+{
+  CDBG_ERROR("%s:Error Backend stuck during NEW/DEL session\n",__func__);
+  raise(SIGABRT);
+  sleep(1);
+}
 
 /** main:
  *
@@ -160,14 +172,24 @@ int main(int argc, char *argv[])
   server_select_fds_t        select_fds;
   serv_proc_ret_t            proc_ret;
   struct msm_v4l2_event_data *ret_data;
-
   char *serv_hal_node_name;
   char dev_name[MAX_DEV_NAME_SIZE];
   int  ret, i, j;
   mode_t old_mode;
+  struct sysinfo info;
+  uint32_t result;
+
+  int serv_t_ret = 0;
+  struct sigevent serv_t_sig;
+  timer_t serv_timerid;
+  pthread_attr_t serv_t_attr;
+  struct itimerspec serv_in, serv_out;
+  int32_t enabled_savemem = 0;
+  char savemem[92];
 
   old_mode = umask(S_IRWXO);
 
+  CDBG("CAMERA_DAEMON: start of camera Daemon\n");
   /* 1. find server node name and open the node */
   serv_hal_node_name = malloc((size_t)MAX_DEV_NAME_SIZE);
   if (!serv_hal_node_name)
@@ -190,9 +212,21 @@ int main(int argc, char *argv[])
   if (!(listen_fd_list = mct_list_append(listen_fd_list, hal_fd, NULL, NULL)))
     goto list_append_fail;
 
+  property_get("cameradaemon.SaveMemAtBoot", savemem, "0");
+  enabled_savemem = atoi(savemem);
+
+  CDBG("CAMERA_DAEMON: start all modules init\n");
   /* 2. after open node, initialize modules */
-  if(server_process_module_init() == FALSE)
+  if(server_process_module_sensor_init() == FALSE)
     goto module_init_fail;
+  CDBG("CAMERA_DAEMON:End of all modules init\n");
+
+  result = sysinfo(&info);
+
+  if (enabled_savemem != 1) {
+    if (server_process_module_init() == FALSE)
+      goto module_init_fail;
+  }
 
   /* Subcribe V4L2 event */
   memset(&subscribe, 0, sizeof(struct v4l2_event_subscription));
@@ -205,6 +239,22 @@ int main(int argc, char *argv[])
 
   select_fds.select_fd = hal_fd->fd[0];
 
+  /* create a timer */
+  serv_t_sig.sigev_notify = SIGEV_THREAD;
+  serv_t_sig.sigev_notify_function = server_t_handler;
+  serv_t_sig.sigev_value.sival_ptr = NULL;
+  pthread_attr_init(&serv_t_attr);
+  serv_t_sig.sigev_notify_attributes = &serv_t_attr;
+
+  serv_t_ret = timer_create(CLOCK_REALTIME, &serv_t_sig, &serv_timerid);
+  if (!serv_t_ret) {
+    serv_in.it_value.tv_sec = 0;
+    serv_in.it_value.tv_nsec = 0;
+    serv_in.it_interval.tv_sec = serv_in.it_value.tv_sec;
+    serv_in.it_interval.tv_nsec = serv_in.it_value.tv_nsec;
+    timer_settime(serv_timerid, 0, &serv_in, &serv_out);
+  }
+  CDBG("CAMERA_DAEMON:waiting for camera to open\n");
   do {
 
     FD_ZERO(&(select_fds.fds));
@@ -242,7 +292,25 @@ int main(int argc, char *argv[])
          *      to kernel immediately so that HAL thread which sends this
          *      event can be blocked.
          */
+        if (event.id == MSM_CAMERA_NEW_SESSION) {
+          serv_in.it_value.tv_sec = 5;
+          serv_in.it_value.tv_nsec = 0;
+          serv_in.it_interval.tv_sec = serv_in.it_value.tv_sec;
+          serv_in.it_interval.tv_nsec = serv_in.it_value.tv_nsec;
+          timer_settime(serv_timerid, 0, &serv_in, &serv_out);
+        } else if (event.id == MSM_CAMERA_DEL_SESSION) {
+          serv_in.it_value.tv_sec = 5;
+          serv_in.it_value.tv_nsec = 0;
+          serv_in.it_interval.tv_sec = serv_in.it_value.tv_sec;
+          serv_in.it_interval.tv_nsec = serv_in.it_value.tv_nsec;
+          timer_settime(serv_timerid, 0, &serv_in, &serv_out);
+	}
         proc_ret = server_process_hal_event(&event);
+        serv_in.it_value.tv_sec = 0;
+        serv_in.it_value.tv_nsec = 0;
+        serv_in.it_interval.tv_sec = serv_in.it_value.tv_sec;
+        serv_in.it_interval.tv_nsec = serv_in.it_value.tv_nsec;
+        timer_settime(serv_timerid, 0, &serv_in, &serv_out);
       }
         break;
 
@@ -265,6 +333,9 @@ int main(int argc, char *argv[])
 
       switch (proc_ret.result) {
       case RESULT_NEW_SESSION: {
+       struct msm_v4l2_event_data *ret_data =
+        (struct msm_v4l2_event_data *)proc_ret.ret_to_hal.ret_event.u.data;
+       if( ret_data->status == MSM_CAMERA_CMD_SUCESS) {
         hal_ds_fd = malloc(sizeof(read_fd_info_t));
         if (!hal_ds_fd) {
           /* Shouldn't end directly, need to shutdown MCT thread */
@@ -299,7 +370,10 @@ int main(int argc, char *argv[])
           free(mct_fds);
           goto server_proc_new_session_error;
         }
-
+        } else {
+          CDBG_ERROR("%s: New session [%d] creation failed with error",
+            __func__, ret_data->session_id);
+        }
         goto check_proc_ret;
       } /* RESULT_NEW_SESSION */
         break;
@@ -369,7 +443,7 @@ check_proc_ret:
          */
         case SERV_RET_TO_HAL_CMDACK:
           ioctl(hal_fd->fd[0], MSM_CAM_V4L2_IOCTL_CMD_ACK,
-            (struct v4l2_event *)&(proc_ret.ret_to_hal.ret_event));
+            (struct msm_v4l2_event_data *)&(proc_ret.ret_to_hal.ret_event.u.data));
           break;
 
         /* @MSM_CAM_V4L2_IOCTL_NOTIFY is MCT originated event such
@@ -379,16 +453,20 @@ check_proc_ret:
          */
         case SERV_RET_TO_HAL_NOTIFY:
           ioctl(hal_fd->fd[0], MSM_CAM_V4L2_IOCTL_NOTIFY,
-            &(proc_ret.ret_to_hal.ret_event));
+            &(proc_ret.ret_to_hal.ret_event.u.data));
           break;
 
         /* @MMSM_CAM_V4L2_IOCTL_NOTIFY_META is Meta data notification
          *   sent back to HAL during streaming. It is generated by
          *   BUS message.
          */
+        case SERV_RET_TO_KERNEL_NOTIFY_POSSIBLE_FREEZE:
+          ioctl(hal_fd->fd[0], MSM_CAM_V4L2_IOCTL_NOTIFY_FREEZE,
+            &(proc_ret.ret_to_hal.ret_event.u.data));
+          break;
         case SERV_RET_TO_HAL_NOTIFY_ERROR:
           ioctl(hal_fd->fd[0], MSM_CAM_V4L2_IOCTL_NOTIFY_ERROR,
-            &(proc_ret.ret_to_hal.ret_event));
+            &(proc_ret.ret_to_hal.ret_event.u.data));
           break;
 
         default:

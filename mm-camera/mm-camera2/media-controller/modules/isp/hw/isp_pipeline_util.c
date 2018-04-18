@@ -15,6 +15,8 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_pipeline.h"
 #include "camera_dbg.h"
 #include "q3a_stats_hw.h"
+#include "isp_log.h"
+#include <stats/isp_stats.h>
 
 #ifdef ENABLE_VFE_LOGGING
   #undef CDBG
@@ -91,11 +93,22 @@ cam_streaming_mode_t isp_util_get_streaming_mode(isp_pipeline_t *pipeline)
  *==========================================================================*/
 int8_t isp_util_aec_check_settled (aec_update_t* aec_params)
 {
-  /* check whether aec is settled or not
-  * use the same flag regardless flash or regular shot
-  */
-  return (aec_params->settled == 1) ? 1 : 0;
+  /* check whether aec is settled or not */
+  return (aec_params->led_state != Q3A_LED_OFF) ? 1 : aec_params->settled;
+
 } /* isp_trigger_aec_check_settled */
+
+/*===========================================================================
+ * FUNCTION    - isp_util_awb_restore_gains -
+ *
+ * DESCRIPTION:
+ *==========================================================================*/
+int8_t isp_util_awb_restore_gains (awb_update_t* awb_params)
+{
+  /* check whether gains need to be restored */
+  return awb_params->gains_restored;
+
+} /* isp_util_awb_restore_gains */
 
 /*===========================================================================
  * FUNCTION    - isp_util_calc_interpolation_weight -
@@ -117,7 +130,7 @@ float isp_util_calc_interpolation_weight(float value,
     else
       return(value  - start) / (end - start);
   } else {
-    CDBG("Trigger Warning: same value %f\n", start);
+    ISP_DBG(ISP_MOD_COM,"Trigger Warning: same value %f\n", start);
     return 0.0;
   }
 } /* isp_trigger_calc_interpolation_weight */
@@ -138,7 +151,7 @@ uint32_t isp_util_calculate_shift_bits(uint32_t pixels_in_ae_rgn)
   uint32_t shift_bits;
 
   log2_val = isp_util_calculate_ceil_log_2(pixels_in_ae_rgn);
-    CDBG("%s: line %d\n", __func__, __LINE__);
+    ISP_DBG(ISP_MOD_COM,"%s: line %d\n", __func__, __LINE__);
   if (log2_val > 8) {
     shift_bits = log2_val - 8;
   } else {
@@ -221,6 +234,7 @@ uint32_t isp_cam_fmt_to_v4l2_fmt(cam_format_t fmt, uint32_t uv_subsample)
   case CAM_FORMAT_JPEG_RAW_8BIT:
     return V4L2_PIX_FMT_JPEG;
   case CAM_FORMAT_META_RAW_8BIT:
+  case CAM_FORMAT_META_RAW_10BIT:
     return V4L2_PIX_FMT_META;
   case CAM_FORMAT_YUV_RAW_8BIT_YUYV:
     return V4L2_PIX_FMT_YUYV;
@@ -327,7 +341,7 @@ void isp_pipeline_util_dump_stream_dim(isp_pipeline_t *pix)
   isp_hwif_output_cfg_t *outputs = pix->pix_params.cfg_and_3a_params.cfg.outputs;
 
   if (outputs[0].stream_param.num_cids > 0) {
-    CDBG("%s: Encoder path: width = %d, heght = %d, fmt = %d, "
+    ISP_DBG(ISP_MOD_COM,"%s: Encoder path: width = %d, heght = %d, fmt = %d, "
          "burst = %d, session id = %d, stream id = %d\n",
          __func__,
          outputs[0].stream_param.width, outputs[0].stream_param.height,
@@ -335,7 +349,7 @@ void isp_pipeline_util_dump_stream_dim(isp_pipeline_t *pix)
          outputs[0].stream_param.session_id, outputs[0].stream_param.stream_id);
   }
   if (outputs[1].stream_param.num_cids > 0) {
-    CDBG("%s: Viewfinder path: width = %d, heght = %d, fmt = %d, "
+    ISP_DBG(ISP_MOD_COM,"%s: Viewfinder path: width = %d, heght = %d, fmt = %d, "
          "burst = %d, session id = %d, stream id = %d\n",
          __func__,
          outputs[1].stream_param.width, outputs[1].stream_param.height,
@@ -389,6 +403,8 @@ int isp_pipeline_util_stats_start(isp_pipeline_t *pix, uint8_t start)
     cmd = ISP_HW_MOD_ACTION_STREAMOFF;
 
   if (params->cur_module_mask & (1 << ISP_MOD_STATS)) {
+    ((isp_stats_mod_t *)pix->mod_ops[ISP_MOD_STATS]->ctrl)->stats_burst_len
+      = pix->stats_burst_len;
     rc = pix->mod_ops[ISP_MOD_STATS]->action(
       pix->mod_ops[ISP_MOD_STATS]->ctrl, cmd,
       &stats_mask, sizeof(stats_mask));
@@ -451,7 +467,7 @@ int isp_pipeline_util_trigger_start(isp_pipeline_t *pix)
 
   for (i = 0; i < num; i++) {
     if (((1 << module_ids[i]) & pix->pix_params.cur_module_mask) &&
-        pix->mod_ops[module_ids[i]] && (module_ids[i]!= ISP_MOD_STATS)) {
+        pix->mod_ops[module_ids[i]] && (module_ids[i] != ISP_MOD_STATS)) {
       rc = pix->mod_ops[module_ids[i]]->set_params(
              pix->mod_ops[module_ids[i]]->ctrl,
              ISP_HW_MOD_SET_TRIGGER_UPDATE,
@@ -510,10 +526,9 @@ int isp_pipeline_util_trigger_update(isp_pipeline_t *pix)
     CDBG_ERROR("%s: zero color temperture. No update needed\n", __func__);
     return 0;
   }
-
   for (i = 0; i < num; i++) {
     if (((1 << module_ids[i]) & pix->pix_params.cur_module_mask) &&
-        pix->mod_ops[module_ids[i]] && (module_ids[i]!= ISP_MOD_STATS)) {
+        pix->mod_ops[module_ids[i]] && (module_ids[i] != ISP_MOD_STATS)) {
       rc = pix->mod_ops[module_ids[i]]->set_params(
              pix->mod_ops[module_ids[i]]->ctrl,
              ISP_HW_MOD_SET_TRIGGER_UPDATE,
@@ -688,7 +703,7 @@ void isp_pipeline_util_reset(isp_pipeline_t *pipeline)
 
   for (i = 0; i < ISP_MOD_MAX_NUM; i++) {
     if (pipeline->mod_ops[i] && pipeline->mod_ops[i]->action) {
-      CDBG("%s: module id = %d, action = %p\n",
+      ISP_DBG(ISP_MOD_COM,"%s: module id = %d, action = %p\n",
         __func__, i, pipeline->mod_ops[i]->action);
       rc = pipeline->mod_ops[i]->action(
         pipeline->mod_ops[i]->ctrl,

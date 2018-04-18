@@ -1,6 +1,6 @@
 /* af_port.c
  *
- * Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 #include "af_module.h"
@@ -16,11 +16,29 @@
 #include "stats_event.h"
 
 #define USE_HAL_3    0
+#define DBG_AF_PORT 1
 
 #ifdef DBG_AF_PORT
 #undef CDBG
 #define CDBG CDBG_ERROR
 #endif
+
+
+/** _af_pre_init_updates:
+ *    @is_stream_info_updated: TRUE if stream info update
+ *     received before AF init.
+ *    @stream_info: saved isp dim output.
+ *
+ *  Any updates received before AF is initiliazed will be saved
+ *  locally and then updated to AF algorithm once we get tuning
+ *  pointer update.
+ */
+typedef struct _af_pre_init_updates {
+  boolean is_stream_info_updated;
+  mct_stream_info_t stream_info;
+
+} af_pre_init_updates_t;
+
 
 /** af_port_private:
  *  private data structure of AF port
@@ -41,6 +59,7 @@ typedef struct _af_port_private {
   q3a_thread_data_t *thread_data;
   boolean           af_initialized;
   af_fdprio_t       fd_prio_data;
+  cam_focus_mode_type prev_af_mode;
   cam_focus_mode_type af_mode;
   af_status_type    af_status;
   boolean           af_trigger_called;
@@ -55,7 +74,17 @@ typedef struct _af_port_private {
   af_input_from_isp_t isp_info;
   af_preview_size_t preview_size;
   boolean force_af_update;
+  af_sw_stats_t     *p_sw_stats;
+  af_input_from_aec_t latest_aec_info;
+  char                af_debug_data_array[AF_DEBUG_DATA_SIZE];
+  uint32_t            af_debug_data_size;
+  af_pre_init_updates_t pre_init_updates;
+  boolean               reconfigure_ISP_pending;
 } af_port_private_t;
+
+/* Static Function Definitions */
+static boolean af_port_handle_isp_output_dim_event(af_port_private_t *af_port,
+  mct_stream_info_t *stream_info);
 
 /** af_port_map_input_roi_to_camif: Map input ROI to camif size.
  *
@@ -517,6 +546,11 @@ static boolean af_port_update_af_state(mct_port_t  *port,
      state to INACTIVE irrespective of other conditions */
   if (cause == AF_PORT_TRANS_CAUSE_MODE_CHANGE) {
     CDBG("%s: AF mode changed. Set AF state to Inactive!", __func__);
+    if (af_port->prev_af_mode == CAM_FOCUS_MODE_AUTO &&
+      (af_port->af_mode == CAM_FOCUS_MODE_CONTINOUS_PICTURE ||
+      af_port->af_mode == CAM_FOCUS_MODE_CONTINOUS_VIDEO))
+      new_state = CAM_AF_STATE_PASSIVE_FOCUSED;
+    else
     new_state = CAM_AF_STATE_INACTIVE;
   } else {
     /* If current mode is CONTINOUS_PICTURE */
@@ -650,26 +684,42 @@ static boolean af_port_send_legacy_status_update(mct_port_t  *port) {
 
   memset(&af_msg, 0, sizeof(mct_bus_msg_af_status_t));
 
-  CDBG("%s: Send AF Status Update!", __func__);
+  CDBG_ERROR("%s: Send AF Status Update! af_state=%d", __func__,af_port->af_trans.af_state);
 
   /* update AF status */
   switch (af_port->af_trans.af_state) {
-  case CAM_AF_STATE_PASSIVE_FOCUSED:
+  case CAM_AF_STATE_PASSIVE_FOCUSED: {
+    af_msg.focus_state = CAM_AF_PASSIVE_FOCUSED;
+  }
+    break;
+
   case CAM_AF_STATE_FOCUSED_LOCKED: {
     af_msg.focus_state = CAM_AF_FOCUSED;
   }
     break;
 
-  case CAM_AF_STATE_INACTIVE:
-  case CAM_AF_STATE_NOT_FOCUSED_LOCKED:
-  case CAM_AF_STATE_PASSIVE_UNFOCUSED: {
+  case CAM_AF_STATE_NOT_FOCUSED_LOCKED: {
     af_msg.focus_state = CAM_AF_NOT_FOCUSED;
   }
     break;
 
-  case CAM_AF_STATE_PASSIVE_SCAN:
+  case CAM_AF_STATE_PASSIVE_UNFOCUSED: {
+    af_msg.focus_state = CAM_AF_PASSIVE_UNFOCUSED;
+  }
+    break;
+
+  case CAM_AF_STATE_PASSIVE_SCAN: {
+    af_msg.focus_state = CAM_AF_PASSIVE_SCANNING;
+  }
+    break;
+
   case CAM_AF_STATE_ACTIVE_SCAN: {
     af_msg.focus_state = CAM_AF_SCANNING;
+  }
+    break;
+
+  case CAM_AF_STATE_INACTIVE: {
+    af_msg.focus_state = CAM_AF_INACTIVE;
   }
     break;
 
@@ -693,10 +743,10 @@ static boolean af_port_send_legacy_status_update(mct_port_t  *port) {
     sizeof(mct_bus_msg_af_status_t), af_port->sof_id);
 
   if (rc == TRUE)
-    CDBG("%s: Send AF Status update to af port: %d", __func__,
+    CDBG_ERROR("%s: Send AF Status update to af port: %d", __func__,
       af_msg.focus_state);
   else
-    CDBG("%s: Send AF Status update to af port: %d failed!", __func__,
+    CDBG_ERROR("%s: Send AF Status update to af port: %d failed!", __func__,
       af_msg.focus_state);
 
   return rc;
@@ -776,7 +826,7 @@ static boolean af_port_send_stats_config(mct_port_t *port,
   af_port_private_t *af_port = (af_port_private_t *)(port->port_private);
   mct_event_t       event;
   boolean           rc = TRUE;
-
+  int i;
   memset(&stats_config, 0, sizeof(stats_config_t));
 
   af_conf.stream_id = af_port->reserved_id;
@@ -807,14 +857,9 @@ static boolean af_port_send_stats_config(mct_port_t *port,
     af_conf.grid_info.v_num, af_conf.r_min, af_conf.b_min,
     af_conf.gr_min, af_conf.gb_min);
   CDBG("%s: HPF:", __func__);
-  CDBG("a00: %d a01: %d a02: %d a03: %d a04: %d",
-    af_conf.hpf[0], af_conf.hpf[1],
-    af_conf.hpf[2], af_conf.hpf[3],
-    af_conf.hpf[4]);
-  CDBG("a10: %d a11: %d a12: %d a13: %d a14: %d",
-    af_conf.hpf[0], af_conf.hpf[1],
-    af_conf.hpf[2], af_conf.hpf[3],
-    af_conf.hpf[4]);
+  for (i = 0; i < MAX_HPF_COEFF; i++) {
+    CDBG("hpf[%d]: %d", i, af_conf.hpf[i]);
+  }
 
   /* update stats_config data structure */
   stats_config.stats_mask = (1 << MSM_ISP_STATS_BF);
@@ -866,7 +911,6 @@ static void af_port_send_af_info_to_metadata(
   bus_msg.size = size;
 
   memcpy(&af_info, &output->eztune.eztune_data, size);
-  af_info.peak_location_index = output->eztune.peakpos_index;
 
   CDBG("%s: peak_location_index:%d", __func__, af_info.peak_location_index);
   event.direction = MCT_EVENT_UPSTREAM;
@@ -921,6 +965,184 @@ uint8_t af_port_handle_set_focus_mode_to_hal_type(af_port_private_t *af_port,
   return hal_mode;
 }
 
+/** af_port_send_af_mobicat_info_to_metadata
+ *  update af peak_location_index to metadata
+ *  only AF_STATUS_FOCUSED case, the value is valid
+ *  other cases the value will reset to zero
+ **/
+static void af_port_send_af_mobicat_info_to_metadata(
+  mct_port_t  *port,
+  af_output_data_t *output)
+{
+  mct_event_t             event;
+  mct_bus_msg_t           bus_msg;
+  af_output_mobicat_data_t af_info;
+  af_port_private_t       *private;
+  int size;
+  if (!output || !port) {
+    ALOGE("%s: input error", __func__);
+    return;
+  }
+  private = (af_port_private_t *)(port->port_private);
+  bus_msg.sessionid = (private->reserved_id >> 16);
+  bus_msg.type = MCT_BUS_MSG_AF_MOBICAT_INFO;
+  bus_msg.msg = (void *)&af_info;
+  size = (int)sizeof(af_output_mobicat_data_t);
+  bus_msg.size = size;
+
+  memcpy(&af_info, &output->mobicat.mobicat_data, size);
+  af_info.peak_location_index = output->mobicat.peakpos_index;
+
+  ALOGD("%s: peak_location_index:%d", __func__,af_info.peak_location_index);
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.identity = private->reserved_id;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.u.module_event.type = MCT_EVENT_MODULE_STATS_POST_TO_BUS;
+  event.u.module_event.module_event_data = (void *)(&bus_msg);
+  MCT_PORT_EVENT_FUNC(port)(port, &event);
+}
+
+/** af_port_send_afs_config:
+ *    @port:   port info
+ *    @af_out: output af data
+ *
+ * Send software AF configuration to the AFS module.
+ *
+ * Return TRUE on success, FALSE on failure.
+ **/
+static boolean af_port_send_afs_config(mct_port_t *port,
+  af_output_data_t *af_out)
+{
+  mct_imglib_af_config_t imglib_af_config;
+  af_config_t            af_conf;
+  af_port_private_t      *af_port = (af_port_private_t *)(port->port_private);
+  mct_event_t            event;
+  boolean                rc = TRUE;
+
+  /* Copy the ASF configuration info from the algorithm output */
+  imglib_af_config.enable     = af_out->swaf_config.enable;
+  imglib_af_config.frame_id   = af_out->swaf_config.frame_id;
+  imglib_af_config.coeff_len  = af_out->swaf_config.coeff_len;
+  imglib_af_config.roi.left   = af_out->swaf_config.roi.x;
+  imglib_af_config.roi.top    = af_out->swaf_config.roi.y;
+  imglib_af_config.roi.width  = af_out->swaf_config.roi.dx;
+  imglib_af_config.roi.height = af_out->swaf_config.roi.dy;
+  imglib_af_config.filter_type = af_out->swaf_config.sw_filter_type;
+  imglib_af_config.FV_min     = af_out->swaf_config.fv_min;
+
+  memcpy(&imglib_af_config.coeffa, &af_out->swaf_config.coeffa,
+    sizeof(double) * MAX_SWAF_COEFFA_NUM);
+  memcpy(&imglib_af_config.coeffb, &af_out->swaf_config.coeffb,
+    sizeof(double) * MAX_SWAF_COEFFB_NUM);
+  memcpy(&imglib_af_config.coeff_fir, &af_out->swaf_config.coeff_fir,
+    sizeof(int) * MAX_SWAF_COEFFFIR_NUM);
+
+  /* pack into an mct_event object*/
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.identity = af_port->reserved_id;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.u.module_event.type = MCT_EVENT_MODULE_IMGLIB_AF_CONFIG;
+  event.u.module_event.module_event_data = (void *)(&imglib_af_config);
+
+  CDBG("%s: Send software AF CONFIG data to SAF, port =%p, event =%p",
+    __func__, port, &event);
+
+  rc = MCT_PORT_EVENT_FUNC(port)(port, &event);
+  /* Allocate memory to create AF message. we'll post it to AF thread.*/
+    q3a_thread_af_msg_t *af_msg = (q3a_thread_af_msg_t *)
+      malloc(sizeof(q3a_thread_af_msg_t));
+    if (af_msg == NULL) {
+      return FALSE;
+    }
+    memset(af_msg, 0, sizeof(q3a_thread_af_msg_t));
+    af_msg->u.af_set_parm.u.p_sw_stats = af_port->p_sw_stats;
+    af_msg->type = MSG_AF_SET;
+    af_msg->u.af_set_parm.type = AF_SET_PARAM_SW_STATS_POINTER;
+    CDBG("%s: Set sw stats backup pointer:%p", __func__, af_port->p_sw_stats);
+    q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
+  return rc;
+} /* af_port_send_afs_config */
+
+
+/** af_port_send_exif_debug_data:
+ *    @port:   TODO
+ *    @stats_update_t: TODO
+ *
+ * TODO description
+ *
+ * Return nothing
+ **/
+static void af_port_send_exif_debug_data(mct_port_t *port)
+{
+  mct_event_t          event;
+  mct_bus_msg_t        bus_msg;
+  cam_af_exif_debug_t  *af_info;
+  af_port_private_t    *private;
+  int                  size;
+
+  if (!port) {
+    CDBG_ERROR("%s: input error", __func__);
+    return;
+  }
+  private = (af_port_private_t *)(port->port_private);
+  if (private == NULL) {
+    return;
+  }
+
+  /* Send exif data if data size is valid */
+  if (!private->af_debug_data_size) {
+    CDBG("af_port: Debug data not available");
+    return;
+  }
+  af_info = (cam_af_exif_debug_t *)malloc(sizeof(cam_af_exif_debug_t));
+  if (!af_info) {
+    CDBG_ERROR("Failure allocating memory for debug data");
+    return;
+  }
+  bus_msg.sessionid = (private->reserved_id >> 16);
+  bus_msg.type = MCT_BUS_MSG_AF_EXIF_DEBUG_INFO;
+  bus_msg.msg = (void *)af_info;
+  size = (int)sizeof(cam_af_exif_debug_t);
+  bus_msg.size = size;
+  memset(af_info, 0, size);
+  af_info->af_debug_data_size = private->af_debug_data_size;
+
+  CDBG("%s af_debug_data_size: %d", __func__, private->af_debug_data_size);
+  memcpy(&(af_info->af_private_debug_data[0]), private->af_debug_data_array,
+    private->af_debug_data_size);
+  event.direction = MCT_EVENT_UPSTREAM;
+  event.identity = private->reserved_id;
+  event.type = MCT_EVENT_MODULE_EVENT;
+  event.u.module_event.type = MCT_EVENT_MODULE_STATS_POST_TO_BUS;
+  event.u.module_event.module_event_data = (void *)(&bus_msg);
+  MCT_PORT_EVENT_FUNC(port)(port, &event);
+  if (af_info) {
+    free(af_info);
+  }
+}
+
+
+/** af_port_send_ISP_reconfig_msg:
+ *    @af_port:   private port data
+ *
+ *  Send a message to the AF algorithm to request ISP AF stats reconfiguration
+ *  after each streamon.
+ *
+ * Return TRUE on success, FALSE on failure.
+ **/
+static boolean af_port_send_ISP_reconfig_msg(af_port_private_t *af_port) {
+  q3a_thread_af_msg_t *af_msg = (q3a_thread_af_msg_t *)
+    malloc(sizeof(q3a_thread_af_msg_t));
+  if (af_msg == NULL) {
+    CDBG_ERROR("%s: Not Enough memory.", __func__);
+    return FALSE;
+  }
+
+  af_msg->type = MSG_AF_SET;
+  af_msg->u.af_set_parm.type = AF_SET_PARAM_RECONFIG_ISP;
+
+  return q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
+}
 
 /** af_port_callback: Callback function once AF module has some
  *  updates to send.
@@ -945,6 +1167,7 @@ static void af_port_callback(af_output_data_t *af_out, void *p)
     CDBG_ERROR("%s: input error", __func__);
     return;
   }
+
   private = (af_port_private_t *)(port->port_private);
   if (!private) {
     return;
@@ -977,6 +1200,13 @@ static void af_port_callback(af_output_data_t *af_out, void *p)
       af_port_send_stats_config(port, af_out);
     }
 
+    if (af_out->type & AF_OUTPUT_SWAF_CONFIG) {
+      /* Send event to AFS module to configure frame assisted AF */
+      CDBG("%s: Send event to AFS module to configure frame assisted AF",
+        __func__);
+      af_port_send_afs_config(port, af_out);
+    }
+
     if (af_out->type & AF_OUTPUT_STOP_AF) {
       /* stop AF. */
       CDBG("%s: Send Stop AF to ISP", __func__);
@@ -990,17 +1220,26 @@ static void af_port_callback(af_output_data_t *af_out, void *p)
       af_update.check_led = af_out->check_led;
       send_update = TRUE;
     }
+    if (af_out->type & AF_OUTPUT_UPDATE_FOCUS_POS){
+      cam_focus_pos_info_t cur_pos;
+      cur_pos.scale = af_out->cur_lens_pos.scale;
+      cur_pos.diopter = af_out->cur_lens_pos.diopter;
+      CDBG("%s: Send lens position data to HAL:scale:%d;diopter: %f",
+        __func__,cur_pos.scale,cur_pos.diopter);
+      af_send_bus_msg(port, MCT_BUS_MSG_UPDATE_AF_FOCUS_POS,
+        &cur_pos,sizeof(cam_focus_pos_info_t),private->sof_id);
+    }
   }
   af_send_bus_msg(port, MCT_BUS_MSG_SET_AF_STATE, &private->af_trans.af_state,
     sizeof(cam_af_state_t), private->sof_id);
 
    if (legacy_sent == TRUE) {
     /* Avoid double sending the update */
-    af_port_send_legacy_status_update(port);
     private->force_af_update = FALSE;
+    af_port_send_legacy_status_update(port);
    } else if (legacy_sent == FALSE && private->force_af_update) {
-    af_port_send_legacy_status_update(port);
     private->force_af_update = FALSE;
+    af_port_send_legacy_status_update(port);
   }
 
   if (!private->af_initialized) {
@@ -1029,12 +1268,25 @@ static void af_port_callback(af_output_data_t *af_out, void *p)
     }
   }
 
+  if(af_out->type & AF_OUTPUT_MOBICAT_METADATA) {
+    af_port_send_af_mobicat_info_to_metadata(port, af_out);
+  }
+
   if (af_out->type & AF_OUTPUT_RESET_AEC) {
     CDBG("%s: Send update AEC reset!", __func__);
     af_send_bus_msg(port, MCT_BUS_MSG_SET_AEC_RESET,
       NULL, 0, private->sof_id);
   }
+  if (af_out->type & AF_OUTPUT_UPDATE_EVENT) {
 
+    /* Save the debug data in private data struct to be sent out later */
+    CDBG("%s: Save debug data in port private", __func__);
+    private->af_debug_data_size = af_out->af_debug_data_size;
+    if (af_out->af_debug_data_size) {
+      memcpy(private->af_debug_data_array, af_out->af_debug_data_array,
+        af_out->af_debug_data_size);
+    }
+  }
   if (send_update) {
     CDBG("%s: Creating output msg to send!", __func__);
     stats_update.flag = STATS_UPDATE_AF;
@@ -1057,6 +1309,7 @@ static void af_port_callback(af_output_data_t *af_out, void *p)
   }
   CDBG("%s: x", __func__);
 }
+
 
 /** af_port_send_move_lens_cmd:
  *    @output: output AF data
@@ -1104,8 +1357,9 @@ static boolean af_port_send_move_lens_cmd(void *output, int32_t p)
         af_update.direction);
     } else {
       int i;
-      CDBG("%s: Use DAC. Num of steps: %d", __func__,
+      CDBG("%s: Use DAC. Num of interval: %d", __func__,
         af_out->move_lens.num_of_interval);
+      af_update.move_lens = af_out->move_lens.move_lens;
       af_update.use_dac_value = TRUE;
       af_update.num_of_interval = af_out->move_lens.num_of_interval;
       for (i = 0; i < af_update.num_of_interval; i++) {
@@ -1289,9 +1543,9 @@ static void af_port_handle_stream_mode_update(af_port_private_t *af_port) {
 static void af_port_handle_af_tuning_update(af_port_private_t * af_port,
   mct_event_module_t *mod_evt)
 {
-  af_tune_parms_t *tuning_info;
+  af_algo_tune_parms_t *tuning_info;
   CDBG("%s: Handle af_tuning header update event!", __func__);
-  tuning_info = (af_tune_parms_t *)mod_evt->module_event_data;
+  tuning_info = (af_algo_tune_parms_t *)mod_evt->module_event_data;
 
   /* Allocate memory to create AF message. we'll post it to AF thread.*/
   q3a_thread_af_msg_t *af_msg = (q3a_thread_af_msg_t *)
@@ -1323,6 +1577,15 @@ static void af_port_handle_af_tuning_update(af_port_private_t * af_port,
 
     CDBG("%s: Preview Size: %dx%d", __func__, af_port->preview_size.width,
       af_port->preview_size.height);
+
+    /* Also update any pre-init module updates we've received so far */
+    if (af_port->pre_init_updates.is_stream_info_updated == TRUE) {
+      CDBG("%s: Update saved ISP info!", __func__);
+      af_port_handle_isp_output_dim_event(af_port,
+        &af_port->pre_init_updates.stream_info);
+      af_port->pre_init_updates.is_stream_info_updated == FALSE;
+    }
+
     /* Now we can start sending events to AF algorithm to process */
     af_port->af_initialized = TRUE;
   }
@@ -1408,9 +1671,15 @@ static void af_port_handle_aec_update(af_port_private_t * af_port,
     if (stats_update->aec_update.SY) {
       memcpy(aec_info->SY, stats_update->aec_update.SY,
         sizeof(unsigned long) * MAX_YUV_STATS_NUM);
-
+      aec_info->Av_af = stats_update->aec_update.Av;
+      aec_info->Tv_af = stats_update->aec_update.Tv;
+      aec_info->Bv_af = stats_update->aec_update.Bv;
+      aec_info->Sv_af = stats_update->aec_update.Sv;
+      aec_info->Ev_af = stats_update->aec_update.Ev;
       CDBG("%s: preview_fps %f, exp time %f",__func__,
         (float)aec_info->preview_fps/256.0,aec_info->exp_time);
+      CDBG("%s: Bv_af: %f", __func__, aec_info->Bv_af);
+      af_port->latest_aec_info = *aec_info;
       q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
     }
   }
@@ -1499,6 +1768,8 @@ static void af_port_handle_sensor_update(af_port_private_t * af_port,
       sensor_update->af_lens_info.hor_view_angle;
     sensor_info->actuator_info.ver_view_angle =
       sensor_update->af_lens_info.ver_view_angle;
+    sensor_info->actuator_info.um_per_dac = sensor_update->af_lens_info.um_per_dac;
+    sensor_info->actuator_info.dac_offset = sensor_update->af_lens_info.dac_offset;
     sensor_info->sensor_res_height =
       sensor_update->request_crop.last_line -
       sensor_update->request_crop.first_line + 1;
@@ -1555,11 +1826,14 @@ static boolean af_port_handle_fd_event(af_port_private_t *af_port,
  * @mod_event: module event
  *
  **/
-static boolean af_port_handle_sof_event(af_port_private_t *af_port,
+static boolean af_port_handle_sof_event(mct_port_t *port,
   mct_event_module_t *mod_evt) {
   boolean rc = TRUE;
   mct_bus_msg_isp_sof_t *sof_event;
+  af_port_private_t *af_port =
+    (af_port_private_t *)(port->port_private);
   sof_event = (mct_bus_msg_isp_sof_t *)(mod_evt->module_event_data);
+
   /* Allocate memory to create AF message. we'll post it to AF thread.*/
   q3a_thread_af_msg_t *af_msg = (q3a_thread_af_msg_t *)
     malloc(sizeof(q3a_thread_af_msg_t));
@@ -1569,8 +1843,11 @@ static boolean af_port_handle_sof_event(af_port_private_t *af_port,
     /* Update message contents - first set param type */
     af_msg->u.af_set_parm.type = AF_SET_PARAM_SOF;
     af_msg->u.af_set_parm.u.af_set_sof_id = sof_event->frame_id;
-    q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
+    rc &= q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
   }
+
+  CDBG("%s: Send exif info update with debug data", __func__);
+  af_port_send_exif_debug_data(port);
   return rc;
 } /* af_port_handle_sof_event */
 
@@ -1710,6 +1987,13 @@ static boolean af_port_handle_stream_crop_event(af_port_private_t * af_port,
     stream_crop->width_map, stream_crop->height_map);
   rc = q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
 
+  if (af_port->reconfigure_ISP_pending == TRUE) {
+    /* Keep trying if failure occurs while sending the message. */
+    if (af_port_send_ISP_reconfig_msg(af_port) == TRUE) {
+      af_port->reconfigure_ISP_pending = FALSE;
+    }
+  }
+
   return rc;
 } /* af_port_handle_stream_crop_event */
 
@@ -1724,13 +2008,10 @@ static boolean af_port_handle_stream_crop_event(af_port_private_t * af_port,
  * Return TRUE on success, FALSE on failure.
  **/
 static boolean af_port_handle_isp_output_dim_event(af_port_private_t *af_port,
-  mct_event_module_t *mod_evt) {
+  mct_stream_info_t *stream_info) {
   boolean rc = TRUE;
-
-  mct_stream_info_t *stream_info = NULL;
   af_input_from_isp_t *isp_info = NULL;
 
-  stream_info = (mct_stream_info_t *)mod_evt->module_event_data;
   if (!stream_info) {
     CDBG_ERROR("%s:%d failed\n", __func__, __LINE__);
     return FALSE;
@@ -1748,13 +2029,15 @@ static boolean af_port_handle_isp_output_dim_event(af_port_private_t *af_port,
   isp_info->width = stream_info->dim.width;
   isp_info->height = stream_info->dim.height;
 
+  /* save the isp info here too */
+  memcpy(&af_port->isp_info, isp_info, sizeof(af_input_from_isp_t));
+
   af_msg->type = MSG_AF_SET;
   af_msg->u.af_set_parm.type = AF_SET_PARAM_UPDATE_ISP_INFO;
 
   rc = q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
 
-  /* save the isp info here too */
-  memcpy(&af_port->isp_info, isp_info, sizeof(af_input_from_isp_t));
+
   return rc;
 } /* af_port_handle_isp_output_dim_event */
 
@@ -1788,6 +2071,93 @@ static void af_port_set_move_lens_cb_data(mct_port_t *port)
   }
 } /* af_port_set_move_lens_cb_data */
 
+/** af_port_handle_imglib_output:
+ *    @af_port:   private port data
+ *    @mod_event: module event
+ *
+ * Handle new face detection ROIs
+ *
+ * Return TRUE on success, FALSE on failure.
+ **/
+static boolean af_port_handle_imglib_output(af_port_private_t * af_port,
+  mct_event_module_t * mod_evt)
+{
+  boolean                rc = TRUE;
+  mct_imglib_af_output_t *imglib_af_output;
+  af_sw_stats_t          *sw_stats;
+
+  imglib_af_output = (mct_imglib_af_output_t *)mod_evt->module_event_data;
+  if (!imglib_af_output) {
+    CDBG_ERROR("%s:%d failed\n", __func__, __LINE__);
+    return FALSE;
+  }
+
+  /* Copy stats from imglib to AF Port */
+  af_port->p_sw_stats->frame_id = imglib_af_output->frame_id;
+  af_port->p_sw_stats->fV = imglib_af_output->fV;
+  af_port->p_sw_stats->pending = FALSE;
+  /* Allocate memory to create AF message. we'll post it to AF thread.*/
+  q3a_thread_af_msg_t *af_msg = (q3a_thread_af_msg_t *)
+    malloc(sizeof(q3a_thread_af_msg_t));
+  if (af_msg == NULL) {
+    return FALSE;
+  }
+  memset(af_msg, 0, sizeof(q3a_thread_af_msg_t));
+  /* Pack imglib stats to Core */
+  sw_stats = &(af_msg->u.af_set_parm.u.sw_stats);
+  sw_stats->frame_id = imglib_af_output->frame_id;
+  sw_stats->fV = imglib_af_output->fV;
+  sw_stats->pending = FALSE;
+
+  af_msg->type = MSG_AF_SET;
+  af_msg->u.af_set_parm.type = AF_SET_PARAM_IMGLIB_OUTPUT;
+
+  rc = q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
+
+  return rc;
+} /* af_port_handle_imglib_output */
+
+/** af_port_handle_isp_stats_info:
+ *    @af_port: private port data
+ *    @mod_evt: module event structure
+ *
+ * Send AF stats capabilities to the library.
+ *
+ * Return void.
+ **/
+static void af_port_handle_isp_stats_info(af_port_private_t * af_port,
+  mct_event_module_t * mod_evt)
+{
+  mct_stats_info_t *stats_info =
+    (mct_stats_info_t *)mod_evt->module_event_data;
+  int kernel_size = 0;
+
+  /* Inform AF algorithm about how big is the kernel size */
+  /* This is till the time when there is a better mechanism
+     to handle multiple AF kernel sizes */
+
+  /* Allocate memory to create AF message. we'll post it to AF thread.*/
+  CDBG("%s: HPF kernel size: %d", __func__, stats_info->kernel_size);
+  if (stats_info->kernel_size == MCT_EVENT_STATS_HPF_LEGACY) {
+    kernel_size = AF_STATS_HPF_LEGACY;
+  } else if (stats_info->kernel_size == MCT_EVENT_STATS_HPF_2X13) {
+    kernel_size = AF_STATS_HPF_2x13;
+  } else {
+    kernel_size = AF_STATS_HPF_2x5;
+  }
+
+  q3a_thread_af_msg_t *af_msg2 = (q3a_thread_af_msg_t *)
+    malloc(sizeof(q3a_thread_af_msg_t));
+  if (af_msg2 != NULL) {
+    memset(af_msg2, 0, sizeof(q3a_thread_af_msg_t));
+    af_msg2->type = MSG_AF_SET;
+    /* Update message contents - first set param type*/
+    af_msg2->u.af_set_parm.type = AF_SET_PARAM_UPDATE_KERNEL_SIZE;
+    af_msg2->u.af_set_parm.u.kernel_size = kernel_size;
+    q3a_af_thread_en_q_msg(af_port->thread_data, af_msg2);
+  }
+
+} /* af_port_handle_stats_info */
 
 /** af_port_handle_module_event:
  *    @port:    AF port data
@@ -1838,16 +2208,18 @@ static void af_port_handle_module_event(mct_port_t *port,
     data->af_port = port;
     data->af_cb = af_port_callback;
     data->af_obj = &(af_port->af_object);
+      if (data->af_obj->af_ops.set_parameters == NULL){
+          CDBG_ERROR("SnowCat: %s: afd_set_parameters is NULL", __func__);
+      }
   }
-    break;
+  break;
 
   case MCT_EVENT_MODULE_SET_STREAM_CONFIG: {
     /* Update sensor info */
     CDBG("%s: Update sensor info!", __func__);
     af_port_handle_sensor_update(af_port, mod_evt);
-#if !USE_HAL_3
     af_port_handle_stream_mode_update(af_port);
-#endif
+
   }
     break;
 
@@ -1879,9 +2251,19 @@ static void af_port_handle_module_event(mct_port_t *port,
     break;
 
   case MCT_EVENT_MODULE_ISP_OUTPUT_DIM: {
+    CDBG("%s: Event MCT_EVENT_MODULE_ISP_OUTPUT_DIM received!", __func__);
+    mct_stream_info_t *stream_info =
+      (mct_stream_info_t *)mod_evt->module_event_data;
+
     if (af_port->af_initialized) {
       CDBG("%s: Handle ISP output dim event", __func__);
-      af_port_handle_isp_output_dim_event(af_port, mod_evt);
+      af_port_handle_isp_output_dim_event(af_port, stream_info);
+    } else {
+      /* save the stream info locally */
+      CDBG("%s: AF Not initialized. Save locally!", __func__);
+      af_port->pre_init_updates.is_stream_info_updated = TRUE;
+      memcpy(&af_port->pre_init_updates.stream_info, stream_info,
+        sizeof(mct_stream_info_t));
     }
   }
     break;
@@ -1895,6 +2277,14 @@ static void af_port_handle_module_event(mct_port_t *port,
   }
     break;
 
+  case MCT_EVENT_MODULE_PREVIEW_STREAM_ID: {
+    mct_stream_info_t  *stream_info =
+          (mct_stream_info_t *)(mod_evt->module_event_data);
+    af_port->stream_info.dim.width = stream_info->dim.width;
+    af_port->stream_info.dim.height = stream_info->dim.height;
+  }
+    break;
+
   case MCT_EVENT_MODULE_FACE_INFO: {
     if (af_port->af_initialized) {
       CDBG("%s: New Face ROI received", __func__);
@@ -1902,9 +2292,12 @@ static void af_port_handle_module_event(mct_port_t *port,
     }
   }
     break;
-  case MCT_EVENT_MODULE_SOF_NOTIFY:
-  {
-    af_port_handle_sof_event(af_port, mod_evt);
+  case MCT_EVENT_MODULE_SOF_NOTIFY: {
+    if (af_port->af_initialized) {
+      if (!af_port_handle_sof_event(port, mod_evt)) {
+        CDBG_ERROR("%s Error in posting SoF mesg to AF port", __func__);
+      }
+    }
   } /*MCT_EVENT_MODULE_SOF_NOTIFY*/
     break;
 
@@ -1951,6 +2344,70 @@ static void af_port_handle_module_event(mct_port_t *port,
   }
     break;
 
+  case MCT_EVENT_MODULE_IMGLIB_AF_OUTPUT: {
+    if (af_port->af_initialized) {
+      CDBG("%s: Handle imglib output data update!", __func__);
+      af_port_handle_imglib_output(af_port, mod_evt);
+    }
+  }
+    break;
+
+  case MCT_EVENT_MODULE_GET_AF_SW_STATS_FILTER_TYPE: {
+    boolean rc = TRUE;
+    CDBG("%s: Get AFS filter type", __func__);
+    /* Allocate memory to create AF message. we'll post it to AF thread.*/
+    q3a_thread_af_msg_t *af_msg = (q3a_thread_af_msg_t *)
+      malloc(sizeof(q3a_thread_af_msg_t));
+    if (af_msg == NULL) {
+      return;
+    }
+    memset(af_msg, 0, sizeof(q3a_thread_af_msg_t));
+
+    af_msg->type = MSG_AF_GET;
+    af_msg->u.af_get_parm.type = AF_GET_PARAM_SW_STATS_FILTER_TYPE;
+    af_msg->sync_flag = TRUE;
+    rc = q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
+    if (rc) {
+      af_sw_filter_type *sw_stats_type =
+            (af_sw_filter_type *)mod_evt->module_event_data;
+          *sw_stats_type = af_msg->u.af_get_parm.u.af_sw_stats_filter_type;
+    }
+    free(af_msg);
+  }
+    break;
+
+  case MCT_EVENT_MODULE_HFR_MODE_NOTIFY: {
+    int32_t *hfr_mode = (int32_t *)(mod_evt->module_event_data);
+    boolean rc = TRUE;
+    CDBG_ERROR("%s: HFR Mode: %d!", __func__, *hfr_mode);
+
+    /* Allocate memory to create AF message. we'll post it to AF thread.*/
+    q3a_thread_af_msg_t *af_msg = (q3a_thread_af_msg_t *)
+      malloc(sizeof(q3a_thread_af_msg_t));
+    if (af_msg == NULL) {
+      return;
+    }
+    memset(af_msg, 0, sizeof(q3a_thread_af_msg_t));
+
+    af_msg->type = MSG_AF_SET;
+    af_msg->u.af_set_parm.type = AF_SET_PARAM_HFR_MODE;
+    af_msg->u.af_set_parm.u.hfr_mode = *hfr_mode;
+    af_msg->sync_flag = TRUE;
+    rc = q3a_af_thread_en_q_msg(af_port->thread_data, af_msg);
+    free(af_msg);
+  }
+    break;
+  case MCT_EVENT_MODULE_GET_AEC_LUX_INDEX: {
+    float *lux_index = (float *)mod_evt->module_event_data;
+    *lux_index = af_port->latest_aec_info.lux_idx;
+  }
+    break;
+  case MCT_EVENT_MODULE_ISP_STATS_INFO: {
+    CDBG("%s: Handle ISP stats info event!", __func__);
+    af_port_handle_isp_stats_info(af_port, mod_evt);
+  }
+    break;
+
   default: {
     CDBG("%s: Default. no action!", __func__);
   }
@@ -1971,30 +2428,41 @@ static boolean af_port_handle_set_roi_evt(
   af_port_private_t *af_port,
   af_set_parameter_t *set_parm,
   af_roi_info_t *roi_input) {
-  af_roi_t roi;
+  af_roi_info_t temp_roi;
   boolean rc = FALSE;
-  CDBG("%s: Set ROI params: frm_id: %d num_roi: %d", __func__,
-    roi_input->frm_id, roi_input->num_roi);
+  CDBG("%s: Set ROI params: frm_id: %d num_roi: %d roi_update: %d", __func__,
+    roi_input->frm_id, roi_input->num_roi, roi_input->roi_updated);
 
+  /* Copy roi data into temp before making adjustment for preview to
+   * camif conversion. this will avoid overwriting event data. */
+  memcpy(&temp_roi, roi_input, sizeof(af_roi_info_t));
+
+  /* set updated flag to false to avoid duplicate roi calls.
+   * that comes because of issue in stats_port where it sends
+   * multiple event for same event during stream on. */
+  if (roi_input->roi_updated == true) {
+    roi_input->roi_updated = false;
+  } else {
+    CDBG("%s: InValid ROI. return!", __func__);
+    return FALSE;
+  }
   /* For HAL1 we'll need to map the ROI to CAMIF size. For HAL3
      Applicaiton will give ROI in terms of CAMIF size */
 #if !USE_HAL_3
-  memcpy(&roi, &roi_input->roi[0], sizeof(af_roi_t));
-  rc = af_port_map_input_roi_to_camif(af_port, &roi);
 
-  if (rc == FALSE) {
-    CDBG("%s: Failure mapping ROI. return!", __func__);
-    return FALSE;
+  if (roi_input->num_roi > 0) {
+    memcpy(&temp_roi.roi[0], &roi_input->roi[0], sizeof(af_roi_t));
+    rc = af_port_map_input_roi_to_camif(af_port, &temp_roi.roi[0]);
+
+    if (rc == FALSE) {
+      CDBG("%s: Failure mapping ROI. return!", __func__);
+      return FALSE;
+    }
   }
-
-  /* update ROI */
-  /* Note - We currently only use single ROI for AF.*/
-  memset(roi_input->roi, 0, sizeof(af_roi_t) * MAX_STATS_ROI_NUM);
-  memcpy(&roi_input->roi[0], &roi, sizeof(af_roi_t));
 #endif
   /* Update parameter message to be sent */
   set_parm->type = AF_SET_PARAM_ROI;
-  memcpy(&set_parm->u.af_roi_info, roi_input, sizeof(af_roi_info_t));
+  memcpy(&set_parm->u.af_roi_info, &temp_roi, sizeof(af_roi_info_t));
 
   return TRUE;
 } /* af_port_handle_set_roi_evt */
@@ -2063,6 +2531,7 @@ static boolean af_port_handle_set_focus_mode_evt(mct_port_t *port,
 
   if (mode_change) {
     CDBG("%s: Focus mode has changed! Update!", __func__);
+    af_port->prev_af_mode = af_port->af_mode;
     af_port->af_mode = mode;
     af_port_update_af_state(port, AF_PORT_TRANS_CAUSE_MODE_CHANGE);
   }
@@ -2083,8 +2552,14 @@ static boolean af_port_handle_set_focus_manual_pos_evt(
   af_set_parameter_t * set_parm, af_input_manual_focus_t * manual_pos_info)
 {
   boolean rc = TRUE;
+  /*All modes except diopter; use ratio for log*/
+  if(manual_pos_info->flag != AF_MANUAL_FOCUS_MODE_DIOPTER)
+    CDBG("%s: Set manual focus position: %ld Type: %d", __func__,
+      manual_pos_info->af_manual_lens_position_ratio, (int)manual_pos_info->flag);
+  else /*diopter mode */
+    CDBG("%s: Set manual focus diopter position: %f Type: %d", __func__,
+      manual_pos_info->af_manual_diopter, (int)manual_pos_info->flag);
 
-  CDBG("%s: Set manual focus position: %ld", __func__, pos);
   /* Update parameter message to be sent */
   set_parm->type = AF_SET_PARAM_FOCUS_MANUAL_POSITION;
   set_parm->u.af_manual_focus_info = *manual_pos_info;
@@ -2566,11 +3041,16 @@ static boolean af_port_handle_set_parm_event(mct_port_t *port,
     CDBG("%s: TRIGGER_CANCEL: Trigger-ID received: %d", __func__,
       af_port->af_trans.trigger_id);
     af_port->af_trigger_called = FALSE;
-    rc = af_port_handle_cancel_af_event(af_port);
-    /* change AF state */
-    if (rc) {
-      sent = TRUE;
-      af_port_update_af_state(port, AF_PORT_TRANS_CAUSE_CANCEL);
+    //Do not need to do cancel if not locked or scanning
+    if (af_port->af_trans.af_state != CAM_AF_STATE_PASSIVE_FOCUSED &&
+      af_port->af_trans.af_state != CAM_AF_STATE_PASSIVE_UNFOCUSED &&
+      af_port->af_trans.af_state != CAM_AF_STATE_INACTIVE) {
+      rc = af_port_handle_cancel_af_event(af_port);
+      /* change AF state */
+      if (rc) {
+        sent = TRUE;
+        af_port_update_af_state(port, AF_PORT_TRANS_CAUSE_CANCEL);
+      }
     }
   }
     break;
@@ -2721,6 +3201,7 @@ static void af_port_handle_control_event(mct_port_t * port,
 
   case MCT_EVENT_CONTROL_STREAMON: {
     CDBG("%s: STREAMON received!", __func__);
+    af_port->reconfigure_ISP_pending = TRUE;
   }
   break;
 
@@ -2949,6 +3430,7 @@ static void af_port_ext_unlink(unsigned int identity, mct_port_t *port,
     MCT_OBJECT_REFCOUNT(port) -= 1;
     if (!MCT_OBJECT_REFCOUNT(port)) {
       private->state = AF_PORT_STATE_UNLINKED;
+      MCT_PORT_PEER(port) = NULL;
     }
   }
   MCT_OBJECT_UNLOCK(port);
@@ -3136,6 +3618,11 @@ void af_port_deinit(mct_port_t *port)
     return;
   }
 
+  if (private->p_sw_stats) {
+    free(private->p_sw_stats);
+    private->p_sw_stats = NULL;
+  }
+
   AF_DESTROY_LOCK(&private->af_object);
   af_destroy(private->af_object.af);
   free(private);
@@ -3183,6 +3670,7 @@ boolean af_port_init(mct_port_t *port, unsigned int *session_id)
     return FALSE;
   }
 
+  private->p_sw_stats = (af_sw_stats_t *)malloc(sizeof(af_sw_stats_t));
   private->reserved_id = *session_id;
   private->state       = AF_PORT_STATE_CREATED;
   private->af_initialized = FALSE;

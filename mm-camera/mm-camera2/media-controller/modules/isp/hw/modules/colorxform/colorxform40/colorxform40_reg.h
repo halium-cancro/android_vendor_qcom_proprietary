@@ -20,7 +20,7 @@ typedef struct ISP_colorXformCfgCmdType {
   uint32_t        m02                   :   13;
   uint32_t        /* reserveed */       :    1;
   uint32_t        o0                    :    9;
-  uint32_t        S0                    :    9;
+  uint32_t        s0                    :    9;
    /*  VFE_COLOR_XFORM_ENC_CB_MATRIX_0   */
   uint32_t        m10                   :   13;
   uint32_t      /* reserved */          :    3;

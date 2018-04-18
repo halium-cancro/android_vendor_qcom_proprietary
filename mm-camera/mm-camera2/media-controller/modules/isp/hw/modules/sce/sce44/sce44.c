@@ -9,10 +9,11 @@
 #include "camera_dbg.h"
 #include "sce44.h"
 #include "isp_pipeline_util.h"
+#include "isp_log.h"
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -28,8 +29,8 @@
 })
 
 #ifdef ENABLE_SCE_LOGGING
-  #undef CDBG
-  #define CDBG ALOGE
+  #undef ISP_DBG
+  #define ISP_DBG ALOGE
 #endif
 
 #define FLOAT_EPS       (0.0000001)
@@ -106,7 +107,7 @@ static boolean sce_find_intersection(ISP_Skin_enhan_line *line1,
       ((FLOAT_EQ(line1->shift_cr, 0) && FLOAT_EQ(line2->shift_cr, 0)))){
     /* Lines are parallel */
 
-    CDBG("%s: parallel lines", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: parallel lines", __func__);
     return FALSE;
   }
 
@@ -126,7 +127,7 @@ static boolean sce_find_intersection(ISP_Skin_enhan_line *line1,
 
   if ((t2 < 0) || (t2 > 1)){
     /* Lines intersect outside poligon */
-    CDBG("%s: outside intersection", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: outside intersection", __func__);
     return FALSE;
   }
 
@@ -209,7 +210,7 @@ static int sce_found_boundaries(sce_cr_cb_triangle_set *triangles,
   *t_pos *= 2.0/3.0;
   *t_neg *= 2.0/3.0;
 
-  CDBG("%s: Boundaries %lf,%lf and %lf,%lf",__func__,
+  ISP_DBG(ISP_MOD_SCE, "%s: Boundaries %lf,%lf and %lf,%lf",__func__,
     line->point0.cr + line->shift_cr * *t_pos,
     line->point0.cb + line->shift_cb * *t_pos,
     line->point0.cr + line->shift_cr * *t_neg,
@@ -233,7 +234,7 @@ static void sce_reorder_triangles(isp_sce_mod_t *sce_mod, isp_hw_pix_setting_par
   sce_mod->origin_triangles_D65 = p_sce->origin_triangles_D65;
   sce_mod->origin_triangles_TL84 = p_sce->origin_triangles_TL84;
 
-  CDBG("%s:\n", __func__);
+  ISP_DBG(ISP_MOD_SCE, "%s:\n", __func__);
 }
 
 /** calc_sce_shiftbits
@@ -310,7 +311,7 @@ static int32_t calc_sce_transform(ISP_Skin_enhan_range *interp_range,
   int32_t rc = TRUE, i;
 
   if (pOrigVert == NULL || pTransform == NULL){
-    CDBG(" Null pointer in vfe_util_sce_transform\n");
+    ISP_DBG(ISP_MOD_SCE, " Null pointer in vfe_util_sce_transform\n");
     return FALSE;
   }
 
@@ -387,11 +388,11 @@ static void calc_sce_mapping (sce_affine_transform_2d *Tx,
     if (i%3 == 2) {
       coeff[i] = (int32_t)((*TxElem) * (1<<(*offset_shift)));
       if (coeff[i] <= -65536 || coeff[i] > 65536)
-        CDBG("ERROR: -65536 < coeffE <= 65536 is violated\n");
+        ISP_DBG(ISP_MOD_SCE, "ERROR: -65536 < coeffE <= 65536 is violated\n");
     } else {
       coeff[i] = (int32_t)((*TxElem) * (1<<((*matrix_shift)+(*offset_shift))));
       if (coeff[i] <= -2047 || coeff[i] > 2047)
-        CDBG("ERROR: -2047 < coeffA <= 2047 is violated\n");
+        ISP_DBG(ISP_MOD_SCE, "ERROR: -2047 < coeffA <= 2047 is violated\n");
     }
     TxElem++;
   }
@@ -445,10 +446,10 @@ static void config_sce_cmd(isp_sce_mod_t *sce_mod,
     sce_adj_factor = sce_mod->sce_adjust_factor;
   }
 
-  CDBG("%s:\n",__func__);
-  CDBG("%s: Portrait severity :%f\n",__func__, portrait_severity);
-  CDBG("%s: Portrait adj factor :%f\n",__func__, portrait_sce);
-  CDBG("%s: sce_adj_factor :%f\n",__func__, sce_adj_factor);
+  ISP_DBG(ISP_MOD_SCE, "%s:\n",__func__);
+  ISP_DBG(ISP_MOD_SCE, "%s: Portrait severity :%f\n",__func__, portrait_severity);
+  ISP_DBG(ISP_MOD_SCE, "%s: Portrait adj factor :%f\n",__func__, portrait_sce);
+  ISP_DBG(ISP_MOD_SCE, "%s: sce_adj_factor :%f\n",__func__, sce_adj_factor);
   /* Cr cordintates for Triangle 0-4 */
   sce_mod->sce_cmd.crcoord.vertex00 = sce_mod->orig->triangle1.point1.cr;
   sce_mod->sce_cmd.crcoord.vertex01 = sce_mod->orig->triangle1.point2.cr;
@@ -608,7 +609,7 @@ static void trigger_sce_get_triangles(isp_sce_mod_t *sce_mod,
     (chromatix_parms_type *)trigger_params->cfg.chromatix_ptrs.chromatixPtr;
   chromatix_SCE_type *p_sce = &chroma_ptr->chromatix_VFE.chromatix_SCE;
 
-  CDBG("%s:cct type: %d, aec ratio: %f\n",__func__,cct_type, aec_ratio);
+  ISP_DBG(ISP_MOD_SCE, "%s:cct type: %d, aec ratio: %f\n",__func__,cct_type, aec_ratio);
   switch (cct_type) {
     case AWB_CCT_TYPE_A:
       sce_mod->orig = &(sce_mod->origin_triangles_A);
@@ -664,7 +665,7 @@ static void trigger_sce_get_triangles(isp_sce_mod_t *sce_mod,
   sce_found_boundaries(&sce_mod->origin_triangles_A,
     &sce_mod->interp_range.interpolation_line, &sce_mod->interp_range.pos_step,
     &sce_mod->interp_range.neg_step);
-  CDBG("%s: Interpolation parameter range -  %6.4lf to %6.4lf",
+  ISP_DBG(ISP_MOD_SCE, "%s: Interpolation parameter range -  %6.4lf to %6.4lf",
       __func__, sce_mod->interp_range.neg_step, sce_mod->interp_range.pos_step);
 
 } /* trigger_sce_get_triangles */
@@ -688,15 +689,15 @@ static int sce_trigger_update( isp_sce_mod_t *sce_mod,
   uint8_t is_burst = IS_BURST_STREAMING((&trigger_params->cfg));
 
   if (!sce_mod->sce_enable) {
-    CDBG("%s: SCE not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE not enabled", __func__);
     return 0;
   }
   if (!sce_mod->sce_trigger_enable) {
-    CDBG("%s: SCE trigger not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE trigger not enabled", __func__);
     return 0;
   }
   if (trigger_params->trigger_input.stats_update.awb_update.color_temp == 0) {
-    CDBG("%s: SCE zero color temperature", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE zero color temperature", __func__);
     return 0;
   }
 
@@ -719,11 +720,11 @@ static int sce_trigger_update( isp_sce_mod_t *sce_mod,
     !F_EQUAL(sce_mod->prev_aec_ratio, aec_ratio) || !F_EQUAL(sce_mod->prev_cct_type, cct_type));
 
   if(update_sce) {
-    CDBG("Prev SCE Adj factor: %lf new: %lf", sce_mod->prev_sce_adj,
+    ISP_DBG(ISP_MOD_SCE, "Prev SCE Adj factor: %lf new: %lf", sce_mod->prev_sce_adj,
       sce_mod->sce_adjust_factor);
-    CDBG("Prev mode: %d new: %d", sce_mod->old_streaming_mode, trigger_params->cfg.streaming_mode);
-    CDBG("Prev aec ratio %f new %f", sce_mod->prev_aec_ratio, aec_ratio);
-    CDBG("Prev cct type %d new %d", sce_mod->prev_cct_type, cct_type);
+    ISP_DBG(ISP_MOD_SCE, "Prev mode: %d new: %d", sce_mod->old_streaming_mode, trigger_params->cfg.streaming_mode);
+    ISP_DBG(ISP_MOD_SCE, "Prev aec ratio %f new %f", sce_mod->prev_aec_ratio, aec_ratio);
+    ISP_DBG(ISP_MOD_SCE, "Prev cct type %d new %d", sce_mod->prev_cct_type, cct_type);
     trigger_sce_get_triangles(sce_mod, trigger_params, aec_ratio, cct_type);
     config_sce_cmd(sce_mod, trigger_params);
     sce_mod->old_streaming_mode = trigger_params->cfg.streaming_mode;
@@ -732,7 +733,7 @@ static int sce_trigger_update( isp_sce_mod_t *sce_mod,
     sce_mod->prev_sce_adj = sce_mod->sce_adjust_factor;
     sce_mod->hw_update_pending = TRUE;
   } else {
-      CDBG("%s: no updates\n",__func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: no updates\n",__func__);
   }
 
   return 0;
@@ -757,12 +758,12 @@ static int sce_set_factor(isp_sce_mod_t *sce_mod,
   }
 
   if (!sce_mod->sce_enable) {
-    CDBG("%s: SCE not enabled", __func__);
+    ISP_DBG(ISP_MOD_SCE, "%s: SCE not enabled", __func__);
     return 0;
   }
 
   sce_mod->sce_adjust_factor = (double)(*sce_factor)/100.0;
-  CDBG("%s:UI : %d Adj factor = %lf\n", __func__, *sce_factor,
+  ISP_DBG(ISP_MOD_SCE, "%s:UI : %d Adj factor = %lf\n", __func__, *sce_factor,
     sce_mod->sce_adjust_factor);
 
   return rc;
@@ -824,7 +825,7 @@ static int sce_set_bestshot(isp_sce_mod_t *mod,
     return -1;
   }
 
-  CDBG("%s: Bestshot mode: %d", __func__, pix_settings->bestshot_mode);
+  ISP_DBG(ISP_MOD_SCE, "%s: Bestshot mode: %d", __func__, pix_settings->bestshot_mode);
   switch (pix_settings->bestshot_mode) {
   case CAM_SCENE_MODE_PORTRAIT:
   case CAM_SCENE_MODE_PARTY:
@@ -833,12 +834,12 @@ static int sce_set_bestshot(isp_sce_mod_t *mod,
     tEnable.enable = TRUE;
     rc = sce_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0) {
-      CDBG("%s: cannot enable SCE", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot enable SCE", __func__);
       break;
     }
     rc = sce_trigger_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0) {
-      CDBG("%s: cannot enable trigger", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot enable trigger", __func__);
     }
   }
     break;
@@ -850,12 +851,12 @@ static int sce_set_bestshot(isp_sce_mod_t *mod,
     mod->sce_adjust_factor = 0;
     rc = sce_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0) {
-      CDBG("%s: cannot disable SCE", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot disable SCE", __func__);
       break;
     }
     rc = sce_trigger_enable(mod, &tEnable, sizeof(isp_mod_set_enable_t));
     if (rc != 0)
-      CDBG("%s: cannot disable trigger", __func__);
+      ISP_DBG(ISP_MOD_SCE, "%s: cannot disable trigger", __func__);
 
     break;
   }
@@ -920,7 +921,7 @@ static int sce_config(isp_sce_mod_t *sce_mod, isp_hw_pix_setting_params_t *in_pa
   int32_t coeff[6];
   uint32_t matrix_shift, offset_shift;
 
-  CDBG("%s:sce_adjust_factor : %lf\n",__func__,sce_mod->sce_adjust_factor);
+  ISP_DBG(ISP_MOD_SCE, "%s:sce_adjust_factor : %lf\n",__func__,sce_mod->sce_adjust_factor);
   sce_set_factor (sce_mod,&(in_params->sce_factor), sizeof(in_params->sce_factor));
   sce_mod->prev_cct_type = AWB_CCT_TYPE_TL84;
   sce_mod->prev_sce_adj = 0.0;
@@ -1145,7 +1146,7 @@ static int sce_do_hw_update(isp_sce_mod_t *sce_mod)
   struct msm_vfe_cfg_cmd2 cfg_cmd;
   struct msm_vfe_reg_cfg_cmd reg_cfg_cmd[1];
 
-  CDBG("%s: E: hw_update = %d\n", __func__, sce_mod->hw_update_pending);
+  ISP_DBG(ISP_MOD_SCE, "%s: E: hw_update = %d\n", __func__, sce_mod->hw_update_pending);
   if (sce_mod->hw_update_pending) {
     cfg_cmd.cfg_data = (void *) &sce_mod->sce_cmd;
     cfg_cmd.cmd_len = sizeof(sce_mod->sce_cmd);

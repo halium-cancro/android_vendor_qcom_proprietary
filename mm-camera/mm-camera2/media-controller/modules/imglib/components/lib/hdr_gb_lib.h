@@ -1,5 +1,5 @@
 /**********************************************************************
-* Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
 * Qualcomm Technologies Proprietary and Confidential.                 *
 **********************************************************************/
 
@@ -547,8 +547,16 @@ typedef struct {
  *    @minJ - Internal use for lib
  *    @maxJ - Internal use for lib
  *    @cropdimension - Algorithm fills in for the caller,  crop dimensions
- *  HDR Configuration structure
- *  hdr_config_t
+ *    @contrastControl - contrast control parameter tunable
+ *    @chromaSat_wgt - chroma desaturation control overall
+ *    @chromaSat_clamp - chroma desaturation control bright
+ *    @chromaSat_shift - chroma desaturation control dark
+ *    @LUT_256 - Internal use for lib
+ *    @LUT_1024 - Internal use for lib
+ *    @pGammaStruct - Gamma R 64 entry 16 bit
+ *    @pGammaStructG - Gamma G 64 entry 16 bit
+ *    @pGammaStructB - Gamma B 64 entry 16 bit
+ *   HDR Configuration structure hdr_config_t
  **/
 typedef struct {
   void  *pHdrBuffer1Y;
@@ -602,6 +610,15 @@ typedef struct {
   int32_t minJ;
   int32_t maxJ;
   crop_dim_t cropdimension;
+  uint32_t contrastControl;
+  float chromaSat_wgt;
+  uint8_t chromaSat_clamp;
+  uint8_t chromaSat_shift;
+  int32_t LUT_256[256];
+  uint32_t LUT_1024[1024];
+  hdr_gamma_table_struct_t *pGammaStruct;
+  hdr_gamma_table_struct_t *pGammaStructG;
+  hdr_gamma_table_struct_t *pGammaStructB;
 } hdr_config_t;
 
 

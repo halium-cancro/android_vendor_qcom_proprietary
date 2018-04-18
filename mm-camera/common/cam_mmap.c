@@ -1,7 +1,9 @@
 /*============================================================================
-   Copyright (c) 2010-2012 Qualcomm Technologies, Inc.  All Rights Reserved.
+   Copyright (c) 2010-2014 Qualcomm Technologies, Inc.  All Rights Reserved.
    Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
+#define ATRACE_TAG ATRACE_TAG_CAMERA
+#include <cutils/trace.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -81,12 +83,14 @@ int do_munmap(int pmem_fd, void *addr, size_t size)
 uint8_t *do_mmap_ion(int ion_fd, struct ion_allocation_data *alloc,
   struct ion_fd_data *ion_info_fd, int *mapFd)
 {
+  ATRACE_BEGIN("Camera:alloc");
   void *ret; /* returned virtual address */
   int rc = 0;
   struct ion_handle_data handle_data;
 
   /* to make it page size aligned */
   alloc->len = (alloc->len + 4095) & (~4095);
+  ALOGD("%s : alloc: E size=%d", __func__, alloc->len);
 #ifdef TARGET_7x27A
   alloc->flags = ION_HEAP(CAMERA_ION_HEAP_ID);
 #endif
@@ -115,12 +119,15 @@ uint8_t *do_mmap_ion(int ion_fd, struct ion_allocation_data *alloc,
     goto ION_MAP_FAILED;
   }
 
+  ATRACE_END();
+  ALOGD("%s : alloc: X", __func__);
   return ret;
 
 ION_MAP_FAILED:
   handle_data.handle = ion_info_fd->handle;
   ioctl(ion_fd, ION_IOC_FREE, &handle_data);
 ION_ALLOC_FAILED:
+  ATRACE_END();
   return NULL;
 }
 

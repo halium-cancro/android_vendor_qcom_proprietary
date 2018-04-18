@@ -15,7 +15,7 @@
 
 #if 0
 #undef CDBG
-#define CDBG ALOGE
+#define CDBG CDBG_ERROR
 #endif
 
 /** Name:
@@ -333,7 +333,7 @@ static boolean mct_module_stop_session_default(mct_module_t *module,
  *
  **/
 void *mct_module_get_stream_info(mct_module_t *module, unsigned int session_id,
-  unsigned int stream_id)
+  int32_t stream_id)
 {
   mct_stream_t *stream = NULL;
 
@@ -362,7 +362,7 @@ void *mct_module_get_stream_info(mct_module_t *module, unsigned int session_id,
  *    @
  *
  **/
-void *mct_module_get_buffer_ptr(int buf_idx, mct_module_t *module,
+void *mct_module_get_buffer_ptr(uint32_t buf_idx, mct_module_t *module,
   unsigned int session_id, unsigned int stream_id)
 {
   mct_stream_map_buf_t *current_buf;
@@ -379,7 +379,7 @@ void *mct_module_get_buffer_ptr(int buf_idx, mct_module_t *module,
  *    Get the buffer of type mct_stream_map_buf_t
  *    based on stream id and session id
  **/
-void *mct_module_get_buffer(int buf_idx, mct_module_t *module,
+void *mct_module_get_buffer(uint32_t buf_idx, mct_module_t *module,
   unsigned int session_id, unsigned int stream_id)
 {
   mct_stream_t *stream = NULL;

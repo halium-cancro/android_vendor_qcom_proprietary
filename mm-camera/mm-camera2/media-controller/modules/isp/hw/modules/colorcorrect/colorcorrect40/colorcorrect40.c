@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "colorcorrect40.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_CC_LOGGING
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #define MAX_CC_GAIN 3.9
@@ -29,15 +30,15 @@
   /* Chromatix stores the coeffs in RGB order whereas              *
    * VFE stores the coeffs in GBR order. Hence c0 maps to M[1][1]  */
 #define SET_ISP_CC_MATRIX(CC, M, q) ({ \
-  CC->C0 = M[1][1]; \
-  CC->C1 = M[1][2]; \
-  CC->C2 = M[1][0]; \
-  CC->C3 = M[2][1]; \
-  CC->C4 = M[2][2]; \
-  CC->C5 = M[2][0]; \
-  CC->C6 = M[0][1]; \
-  CC->C7 = M[0][2]; \
-  CC->C8 = M[0][0]; })
+  CC->C0 = FLOAT_TO_Q(0, M[1][1]); \
+  CC->C1 = FLOAT_TO_Q(0, M[1][2]); \
+  CC->C2 = FLOAT_TO_Q(0, M[1][0]); \
+  CC->C3 = FLOAT_TO_Q(0, M[2][1]); \
+  CC->C4 = FLOAT_TO_Q(0, M[2][2]); \
+  CC->C5 = FLOAT_TO_Q(0, M[2][0]); \
+  CC->C6 = FLOAT_TO_Q(0, M[0][1]); \
+  CC->C7 = FLOAT_TO_Q(0, M[0][2]); \
+  CC->C8 = FLOAT_TO_Q(0, M[0][0]); })
 
 #define CC_APPLY_GAIN(cc, gain) ({ \
   cc->c0 *= gain; \
@@ -87,7 +88,7 @@
 static void util_color_correct_convert_table(
   chromatix_color_correction_type *pInCC, color_correct_type* pOutCC)
 {
-  CDBG("%s: enter.", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: enter.", __func__);
   pOutCC->c0 = CC_COEFF(pInCC->c0, pInCC->q_factor+7);
   pOutCC->c1 = CC_COEFF(pInCC->c1, pInCC->q_factor+7);
   pOutCC->c2 = CC_COEFF(pInCC->c2, pInCC->q_factor+7);
@@ -149,13 +150,13 @@ static void util_color_correct_convert_table_all(isp_color_correct_mod_t *mod,
  **/
 static void util_color_correct_debug(ISP_ColorCorrectionCfgCmdType* p_cmd)
 {
-  CDBG("%s: coefQFactor = %d\n", __func__, p_cmd->coefQFactor);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: coefQFactor = %d\n", __func__, p_cmd->coefQFactor);
 
-  CDBG("%s: C[0-8] = %d, %d, %d, %d, %d, %d, %d, %d, %d\n", __func__, p_cmd->C0,
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: C[0-8] = %d, %d, %d, %d, %d, %d, %d, %d, %d\n", __func__, p_cmd->C0,
     p_cmd->C1, p_cmd->C2, p_cmd->C3, p_cmd->C4, p_cmd->C5, p_cmd->C6, p_cmd->C7,
     p_cmd->C8);
 
-  CDBG("%s: K[0-2] = %d, %d, %d\n", __func__, p_cmd->K0, p_cmd->K1, p_cmd->K2);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: K[0-2] = %d, %d, %d\n", __func__, p_cmd->K0, p_cmd->K1, p_cmd->K2);
 
 }/* util_color_correct_debug*/
 
@@ -214,10 +215,10 @@ static void util_set_color_correction_params(
 #endif
 
   if (IS_UNITY_MATRIX(effects_matrix, 3)) {
-    CDBG("%s: No effects enabled", __func__);
+    ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: No effects enabled", __func__);
     GET_CC_MATRIX(p_cc, out_coeff);
   } else {
-    CDBG("%s: Effects enabled", __func__);
+    ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: Effects enabled", __func__);
     GET_CC_MATRIX(p_cc, coeff);
     MATRIX_MULT(effects_matrix, coeff, out_coeff, 3, 3, 3);
   }
@@ -227,7 +228,7 @@ static void util_set_color_correction_params(
 #endif
 
   SET_ISP_CC_MATRIX(p_cmd, out_coeff, (p_cc->q_factor));
-  CDBG("%s: dig_gain %5.3f", __func__, dig_gain);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: dig_gain %5.3f", __func__, dig_gain);
 
   p_cmd->K0 = p_cc->k1;
   p_cmd->K1 = p_cc->k2;
@@ -250,7 +251,7 @@ static void util_set_color_correction_params(
  **/
 static void util_color_correct_populate_matrix(float m[3][3], float s)
 {
-  CDBG("%s: satuation = %f\n", __func__, s);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: satuation = %f\n", __func__, s);
   m[0][0] = 0.2990 + 1.4075 * 0.498 * s;
   m[0][1] = 0.5870 - 1.4075 * 0.417 * s;
   m[0][2] = 0.1140 - 1.4075 * 0.081 * s;
@@ -294,18 +295,24 @@ static void util_color_correct_calc_flash_trigger(
     tblFlash = &(mod->table.chromatix_STROBE_color_correction);
     flash_start = chromatix_CC->CC_strobe_start;
     flash_end = chromatix_CC->CC_strobe_end;
-    ratio = flash_params->sensitivity_led_off /
-      flash_params->sensitivity_led_low;
   } else {
     tblFlash = &(mod->table.chromatix_LED_color_correction_VF);
     flash_start = chromatix_CC->CC_LED_start;
     flash_end = chromatix_CC->CC_LED_end;
-    ratio = flash_params->sensitivity_led_off /
-      flash_params->sensitivity_led_hi;
-  }
+ }
 
-  CDBG("%s: flash_start %5.2f flash_end %5.2f \n", __func__, flash_start,
-    flash_end);
+  if (*flash_mode == CAM_FLASH_MODE_ON){
+    if (flash_params->sensitivity_led_hi != 0){
+       ratio = flash_params->sensitivity_led_off / flash_params->sensitivity_led_hi;
+    }
+    else //assume flash off. To be changed when AUTO mode is added
+       ratio = flash_start;
+  }
+  else
+    ratio = flash_end;
+
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: flash_start %5.2f flash_end %5.2f,  ratio is %f, sensitivity off is %f, high %f \n",
+  __func__, flash_start, flash_end, ratio,flash_params->sensitivity_led_off, flash_params->sensitivity_led_hi);
 
   if (ratio >= flash_end)
     *tblOut = *tblFlash;
@@ -375,7 +382,7 @@ static int util_color_correct_calc_aec_trigger(isp_color_correct_mod_t *mod,
     break;
 
   default:
-    CDBG("%s: invalid lighting type, lighting type %d\n",
+    ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: invalid lighting type, lighting type %d\n",
       __func__, aec_ratio_type.lighting);
     break;
   }
@@ -416,7 +423,7 @@ static void util_color_correct_calc_awb_trigger(isp_color_correct_mod_t* mod,
   awb_cct_type cct_type = isp_util_get_awb_cct_type(
     mod->notify_ops->parent, &trigger_info, in_params);
 
-  CDBG("%s: cct type %d", __func__, cct_type);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: cct type %d", __func__, cct_type);
   switch (cct_type) {
     case AWB_CCT_TYPE_A:
       *tbl_out = mod->table.chromatix_A_color_correction_VF;
@@ -476,7 +483,7 @@ static int color_correct_set_effect(isp_color_correct_mod_t *mod,
   }
 
   if (!mod->enable) {
-  CDBG("%s: CC not enabled", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: CC not enabled", __func__);
   return 0;
   }
   type = in_params->effects.effect_type_mask;
@@ -525,7 +532,7 @@ static int color_correct_asd_adjust_saturation(isp_color_correct_mod_t *mod,
   }
 
   if (!mod->enable) {
-  CDBG("%s: CC not enabled", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: CC not enabled", __func__);
   return 0;
   }
 
@@ -584,7 +591,7 @@ static int color_correct_set_bestshot(isp_color_correct_mod_t *mod,
   return -1;
   }
 
-  CDBG("%s: mode %d", __func__, mode);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: mode %d", __func__, mode);
   switch(mode) {
     case CAM_SCENE_MODE_NIGHT:
       mod->final_table = mod->table.chromatix_yhi_ylo_color_correction;
@@ -680,7 +687,7 @@ static int color_correct_config(isp_color_correct_mod_t *mod,
     return -1;
   }
 
-  CDBG("%s: enter\n", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: enter\n", __func__);
 
   if (!mod->enable) {
     CDBG_HIGH("%s: Mod not Enable.", __func__);
@@ -803,7 +810,8 @@ static int color_correct_trigger_update(isp_color_correct_mod_t *mod,
     in_params->cfg.chromatix_ptrs.chromatixPtr;
   chromatix_CC_type *chromatix_CC = &chromatix_ptr->chromatix_VFE.chromatix_CC;
   int update_cc;
-  color_correct_type tblCCT;
+  cam_flash_mode_t *flash_mode = &(in_params->trigger_input.flash_mode);
+  color_correct_type tblCCT, tblFlash;
   float (*p_effects_matrix)[3] = NULL, effects_matrix[3][3];
   int is_burst = IS_BURST_STREAMING(&(in_params->cfg));
   ISP_ColorCorrectionCfgCmdType* p_cmd = &mod->RegCmd;
@@ -818,25 +826,31 @@ static int color_correct_trigger_update(isp_color_correct_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable || mod->skip_trigger) {
-    CDBG("%s: no trigger update, enable %d, trigger_enb %d, skip trigger %d\n",
+    ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: no trigger update, enable %d, trigger_enb %d, skip trigger %d\n",
        __func__, mod->enable, mod->trigger_enable, mod->skip_trigger);
 
     return rc;
   }
 
   if(in_params->trigger_input.stats_update.awb_update.color_temp == 0) {
-    CDBG("%s: zero color temperature\n", __func__);
+    ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: zero color temperature\n", __func__);
 
     return rc;
   }
 
   if (!isp_util_aec_check_settled(
         &in_params->trigger_input.stats_update.aec_update) &&
-      !is_burst) {
-    CDBG("%s: AEC not settled\n", __func__);
-
-    return rc;
+      !is_burst && !in_params->trigger_input.is_init_setting) {
+    if (isp_util_awb_restore_gains(awb_update)) {
+      /* In case awb restore gains is enabled for viewfinder
+         update the hardware modules even if AEC is NOT settled */
+      CDBG_ERROR("%s: Ignore AEC settled\n", __func__);
+    } else {
+      ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: AEC not settled\n", __func__);
+      return rc;
+     }
   }
+  in_params->trigger_input.is_init_setting = FALSE;
 
   /* If Bestshot enabled, use all 1 effect matrix*/
   if (in_params->cfg.bestshot_mode != CAM_SCENE_MODE_OFF &&
@@ -858,7 +872,7 @@ static int color_correct_trigger_update(isp_color_correct_mod_t *mod,
       in_params->trigger_input.stats_update.awb_update.color_temp);
 
   if (!update_cc) {
-     CDBG("%s: no update CC, update_cc = %d\n", __func__, update_cc);
+     ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: no update CC, update_cc = %d\n", __func__, update_cc);
     mod->hw_update_pending = FALSE;
 
     return 0;
@@ -868,7 +882,7 @@ static int color_correct_trigger_update(isp_color_correct_mod_t *mod,
    *  skip all interpolation including awb, aec, effects and write to hw */
   if (awb_update->ccm_flag != 0) {
     SET_CC_FROM_AWB_MATRIX(p_cmd, awb_update->cur_ccm);
-    CDBG("%s: dig_gain %5.3f", __func__, mod->dig_gain);
+    ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: dig_gain %5.3f", __func__, mod->dig_gain);
 
     p_cmd->C2 = (int32_t)(128 * mod->dig_gain) - ( p_cmd->C0 + p_cmd->C1);
     p_cmd->C5 = (int32_t)(128 * mod->dig_gain) - ( p_cmd->C3 + p_cmd->C4);
@@ -891,8 +905,13 @@ static int color_correct_trigger_update(isp_color_correct_mod_t *mod,
 
   /* Do AEC trigger: Flash Interpolate.
      Lowlight, Outdoor(use gamma outdoor trigger as system workaround).*/
-  if (in_params->cfg.flash_params.flash_type != CAMERA_FLASH_NONE) {
-    util_color_correct_calc_flash_trigger(mod, &tblCCT, &mod->final_table, in_params);
+  if (*flash_mode == CAM_FLASH_MODE_ON) {
+    util_color_correct_calc_flash_trigger(mod, &tblCCT, &tblFlash, in_params);
+    rc = util_color_correct_calc_aec_trigger(mod, &tblFlash, &mod->final_table,in_params);
+    if (rc < 0) {
+      ALOGE("%s: failed calculate aec trigger, rc = %d\n", __func__, rc);
+      return rc;
+    }
   } else {
     rc = util_color_correct_calc_aec_trigger(mod, &tblCCT, &mod->final_table,
       in_params);
@@ -903,7 +922,8 @@ static int color_correct_trigger_update(isp_color_correct_mod_t *mod,
     }
   }
 
-  util_set_color_correction_params(p_cmd,
+
+   util_set_color_correction_params(p_cmd,
     p_effects_matrix, &(mod->final_table), mod->dig_gain);
 
   mod->prev_lux_index = in_params->trigger_input.stats_update.aec_update.lux_idx;
@@ -937,7 +957,7 @@ static int color_correct_set_chromatix(isp_color_correct_mod_t *mod,
   return -1;
   }
 
-  CDBG("%s:", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s:", __func__);
 
   util_color_correct_convert_table_all(mod, in_params);
 
@@ -1061,18 +1081,18 @@ static void colorcorr_ez_vfe_update(colorcorrection_t *colorcorr,
   ISP_ColorCorrectionCfgCmdType *colorcorrCfg)
 {
     colorcorr->coef_qfactor = colorcorrCfg->coefQFactor;
-    colorcorr->coef_rtor    = colorcorrCfg->C0;
-    colorcorr->coef_gtor    = colorcorrCfg->C1;
-    colorcorr->coef_btor    = colorcorrCfg->C2;
-    colorcorr->coef_rtog    = colorcorrCfg->C3;
-    colorcorr->coef_gtog    = colorcorrCfg->C4;
-    colorcorr->coef_btog    = colorcorrCfg->C5;
-    colorcorr->coef_rtob    = colorcorrCfg->C6;
-    colorcorr->coef_gtob    = colorcorrCfg->C7;
-    colorcorr->coef_btob    = colorcorrCfg->C8;
-    colorcorr->roffset      = colorcorrCfg->K0;
-    colorcorr->boffset      = colorcorrCfg->K1;
-    colorcorr->goffset      = colorcorrCfg->K2;
+    colorcorr->coef_rtor    = colorcorrCfg->C8;
+    colorcorr->coef_gtor    = colorcorrCfg->C6;
+    colorcorr->coef_btor    = colorcorrCfg->C7;
+    colorcorr->coef_rtog    = colorcorrCfg->C2;
+    colorcorr->coef_gtog    = colorcorrCfg->C0;
+    colorcorr->coef_btog    = colorcorrCfg->C1;
+    colorcorr->coef_rtob    = colorcorrCfg->C5;
+    colorcorr->coef_gtob    = colorcorrCfg->C3;
+    colorcorr->coef_btob    = colorcorrCfg->C4;
+    colorcorr->roffset      = colorcorrCfg->K2;
+    colorcorr->boffset      = colorcorrCfg->K0;
+    colorcorr->goffset      = colorcorrCfg->K1;
 }
 
 /** color_correct_get_params:
@@ -1119,7 +1139,7 @@ static int color_correct_get_params (void *mod_ctrl, uint32_t param_id,
       break;
     }
     /*Populate vfe_diag data for example*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: Populating vfe_diag data", __func__);
     if (NULL == colorcorr || NULL == mod ) {
       CDBG_ERROR("%s: NULL colorcorr %x mod %x", __func__,
         (unsigned int)colorcorr, (unsigned int)mod);
@@ -1192,7 +1212,7 @@ isp_ops_t *color_correct40_open(uint32_t version)
 {
   isp_color_correct_mod_t *mod = malloc(sizeof(isp_color_correct_mod_t));
 
-  CDBG("%s: E\n", __func__);
+  ISP_DBG(ISP_MOD_COLOR_CORRECT, "%s: E\n", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

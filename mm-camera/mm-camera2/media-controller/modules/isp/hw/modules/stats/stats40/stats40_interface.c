@@ -17,10 +17,11 @@
 #include "rs_stats.h"
 #include "bhist_stats.h"
 #include "ihist_stats.h"
+#include "isp_log.h"
 
 #ifdef STATS40_INTF_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -190,7 +191,7 @@ static int stats_set_params (void *mod_ctrl, uint32_t params_id,
   isp_stats_mod_t *stats = mod_ctrl;
   int rc = 0;
 
-  CDBG("%s: E, params_id = %d\n", __func__, params_id);
+  ISP_DBG(ISP_MOD_STATS, "%s: E, params_id = %d\n", __func__, params_id);
   switch (params_id) {
   case ISP_HW_MOD_SET_MOD_ENABLE:
     rc = stats_enable_substats(stats, in_params, in_params_size);
@@ -209,7 +210,7 @@ static int stats_set_params (void *mod_ctrl, uint32_t params_id,
     rc = -EAGAIN; /* nop */
     break;
   }
-  CDBG("%s: perer X rc = %d\n", __func__, rc);
+  ISP_DBG(ISP_MOD_STATS, "%s: perer X rc = %d\n", __func__, rc);
   return rc;
 }
 
@@ -304,10 +305,10 @@ static int stats_action_hw_update(isp_stats_mod_t *stats, uint32_t stats_mask)
   int rc = 0;
   uint32_t cmd = ISP_STATS_ACTION_HW_CFG_UPDATE;
 
-  CDBG("%s: E,  stats_mask = 0x%x\n", __func__, stats_mask);
+  ISP_DBG(ISP_MOD_STATS, "%s: E,  stats_mask = 0x%x\n", __func__, stats_mask);
   for (i = 0; i < MSM_ISP_STATS_MAX; i++) {
     if (stats_mask & (1 << i)) {
-      CDBG("%s: match i = %d\n", __func__, i);
+      ISP_DBG(ISP_MOD_STATS, "%s: match i = %d\n", __func__, i);
       rc = stats->stats_ops[i]->action(stats->stats_ops[i]->ctrl,
         cmd, NULL, 0);
       if (rc < 0) {
@@ -526,10 +527,10 @@ static int stats_init (void *mod_ctrl, void *in_params,
   stats->buf_mgr = init_params->buf_mgr;
   stats->dev_idx = init_params->dev_idx;
 
-  CDBG("%s: stats_max_mask = %x\n", __func__, stats->stats_max_mask);
+  ISP_DBG(ISP_MOD_STATS, "%s: stats_max_mask = %x\n", __func__, stats->stats_max_mask);
   for (i = 0; i < MSM_ISP_STATS_MAX; i++) {
     if (stats->stats_max_mask == 0){
-      CDBG("%s: sub-stats mask = %x\n", __func__, stats->stats_max_mask);
+      ISP_DBG(ISP_MOD_STATS, "%s: sub-stats mask = %x\n", __func__, stats->stats_max_mask);
       break;
     }
 
@@ -563,7 +564,7 @@ isp_ops_t *stats40_open(uint32_t version)
 {
   isp_stats_mod_t *stats = malloc(sizeof(isp_stats_mod_t));
 
-  CDBG("%s: open STATS40 module\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s: open STATS40 module\n", __func__);
   if (!stats) {
     /* no memory */
     CDBG_ERROR("%s: no mem",  __func__);

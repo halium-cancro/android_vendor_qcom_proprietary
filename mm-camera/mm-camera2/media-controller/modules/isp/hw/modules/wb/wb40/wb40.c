@@ -8,10 +8,11 @@
 #include <math.h>
 #include "camera_dbg.h"
 #include "wb40.h"
+#include "isp_log.h"
 
 #ifdef WB_DEBUG
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #undef CDBG_ERROR
 #define CDBG_ERROR ALOGE
 #endif
@@ -29,11 +30,11 @@
  **/
 static void wb_debug(ISP_WhiteBalanceConfigCmdType* p_cmd)
 {
-  CDBG("ISP_WhiteBalanceCfgCmd.ch0Gain = %d\n",
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch0Gain = %d\n",
     p_cmd->ch0Gain);
-  CDBG("ISP_WhiteBalanceCfgCmd.ch1Gain = %d\n",
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch1Gain = %d\n",
     p_cmd->ch1Gain);
-  CDBG("ISP_WhiteBalanceCfgCmd.ch2Gain = %d\n",
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch2Gain = %d\n",
     p_cmd->ch2Gain);
 }/*wb_debug*/
 
@@ -82,7 +83,7 @@ static int wb_set_manual_wb(isp_wb_mod_t *mod,
   return -1;
   }
 
-  CDBG("%s: old g= %f b= %f r= %f new g= %f b= %f r= %f", __func__,
+  ISP_DBG(ISP_MOD_WB, "%s: old g= %f b= %f r= %f new g= %f b= %f r= %f", __func__,
   mod->awb_gain.g_gain, mod->awb_gain.b_gain,
   mod->awb_gain.r_gain, awb_gain->g_gain,
   awb_gain->b_gain, awb_gain->r_gain);
@@ -99,6 +100,7 @@ static int wb_set_manual_wb(isp_wb_mod_t *mod,
     mod->awb_gain.r_gain = awb_gain->r_gain;
     wb_update_hw_gain_reg(mod);
     mod->hw_update_pending = TRUE;
+    mod->manual_wb = true;
   }
 
   return rc;
@@ -129,30 +131,12 @@ static int wb_trigger_update(isp_wb_mod_t *wb_mod,
   }
 
   if (!wb_mod->enable || !wb_mod->trigger_enable) {
-      CDBG("%s: enable = %d, trigger_enable = %d",
+      ISP_DBG(ISP_MOD_WB, "%s: enable = %d, trigger_enable = %d",
          __func__, wb_mod->enable, wb_mod->trigger_enable);
       return 0;
   }
 
-  /* use recorded awb gain when new stream starts, added by tanrifei, 20140310 */
-  if (trigger_params->trigger_input.flash_mode == 0) {
-	  if (trigger_params->trigger_input.stats_update.aec_update.use_led_estimation == 0) {
-			if (wb_mod->trigger_cnt > 3) {
-				wb_mod->led_off_awb_gain = *awb_gain;
-			}
-			wb_mod->trigger_cnt++;
-	  } 
-
-	  if ((wb_mod->trigger_cnt <= 3)) {
-		  if ((wb_mod->led_off_awb_gain.r_gain != 0) && (wb_mod->led_off_awb_gain.g_gain != 0) &&
-	  			(wb_mod->led_off_awb_gain.b_gain != 0)) {
-				*awb_gain = wb_mod->led_off_awb_gain;
-		  }
-	  }
-  }
-  /* add end */
-
-  CDBG("%s: old gain  g=%f b=%f r=%f new g=%f b=%f r=%f", __func__,
+  ISP_DBG(ISP_MOD_WB, "%s: old gain  g=%f b=%f r=%f new g=%f b=%f r=%f", __func__,
     wb_mod->awb_gain.g_gain, wb_mod->awb_gain.b_gain,
     wb_mod->awb_gain.r_gain, awb_gain->g_gain,
     awb_gain->b_gain, awb_gain->r_gain);
@@ -192,7 +176,7 @@ static int wb_set_bestshot(isp_wb_mod_t *mod,
   return -1;
   }
 
-  CDBG("%s: bestshot mode %d", __func__, pix_settings->bestshot_mode);
+  ISP_DBG(ISP_MOD_WB, "%s: bestshot mode %d", __func__, pix_settings->bestshot_mode);
   switch(pix_settings->bestshot_mode) {
     case CAM_SCENE_MODE_FIREWORKS:
       pix_settings->wb_mode = CAM_WB_MODE_CLOUDY_DAYLIGHT;
@@ -223,9 +207,7 @@ static void wb_reset(isp_wb_mod_t *mod)
   mod->trigger_enable = 0;
   mod->dig_gain = 0.0;
   mod->hw_update_pending = 0;
-  /* clear trigger count, added by tanrifei, 20140310 */
-  mod->trigger_cnt = 0;
-  /* add end */
+  mod->manual_wb = false;
   memset(&mod->ISP_WhiteBalanceCfgCmd, 0, sizeof(mod->ISP_WhiteBalanceCfgCmd));
   memset(&mod->ISP_WhiteBalanceRightCfgCmd, 0, sizeof(mod->ISP_WhiteBalanceRightCfgCmd));
   memset(&mod->awb_gain, 0, sizeof(mod->awb_gain));
@@ -269,19 +251,29 @@ static int wb_config(isp_wb_mod_t *mod, isp_hw_pix_setting_params_t *in_params,
 {
   int  rc = 0;
   uint32_t i;
+  mod->dig_gain= 1.0; //apply aec gain for now, could be used in the future
+
+  //if not in manual mode, print warning and ignore wb config
+  if(mod->manual_wb == false) {
+    CDBG_HIGH("WB config ignored as not in manual mode");
+    rc = 0;
+    goto end;
+  }
+
   chromatix_parms_type *chroma_ptr =
    (chromatix_parms_type *)in_params->chromatix_ptrs.chromatixPtr;
   chromatix_MWB_type *chromatix_MWB = &chroma_ptr->chromatix_MWB;
   Bayer_AWB_parameters_type *AWB_bayer_algo_data =
     &chroma_ptr->AWB_bayer_algo_data;
 
-  CDBG("%s\n",__func__);
+  ISP_DBG(ISP_MOD_WB, "%s\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */
   CDBG_ERROR("%s: size mismatch, expecting = %d, received = %d",
          __func__, sizeof(isp_hw_pix_setting_params_t), in_param_size);
-  return -1;
+  rc = -1;
+  goto end;
   }
 
   mod->awb_gain.b_gain = chromatix_MWB->MWB_tl84.b_gain *
@@ -289,16 +281,12 @@ static int wb_config(isp_wb_mod_t *mod, isp_hw_pix_setting_params_t *in_params,
   mod->awb_gain.r_gain = chromatix_MWB->MWB_tl84.b_gain *
     AWB_bayer_algo_data->gain_adj[AGW_AWB_WARM_FLO].red_gain_adj;
   mod->awb_gain.g_gain = chromatix_MWB->MWB_tl84.b_gain;
-  
-  /* clear trigger count, added by tanrifei, 20140310 */
-  mod->trigger_cnt = 0;
-  /* add end */
 
-  mod->dig_gain= 1.0; //no apply aec gain for now, could be used in the future
   wb_update_hw_gain_reg(mod);
 
   mod->hw_update_pending = TRUE;
 
+end:
   return rc;
 }
 
@@ -453,8 +441,11 @@ static int wb_get_params (void *mod_ctrl, uint32_t param_id,
         __func__, param_id);
       break;
     }
+    vfe_diag->control_wb.enable = wb->enable;
+    vfe_diag->control_wb.cntrlenable = wb->trigger_enable;
+
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_WB, "%s: Populating vfe_diag data", __func__);
   }
     break;
 

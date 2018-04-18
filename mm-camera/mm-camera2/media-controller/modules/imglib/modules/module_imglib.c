@@ -1,11 +1,16 @@
 /***************************************************************************
-* Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved. *
 * Qualcomm Technologies Proprietary and Confidential.                      *
 ***************************************************************************/
 #include "module_imglib.h"
 #include "module_imglib_defs.h"
 #include "module_imglib_common.h"
 #include "mct_pipeline.h"
+
+/**
+ *  dynamic loglevel
+ **/
+extern volatile uint32_t g_imgloglevel;
 
 /* Static declaration of imglib topology */
 MOD_IMGLIB_TOPOLOGY_REGISTER(mod_imglib_topology);
@@ -554,7 +559,7 @@ static boolean module_imglib_destroy_topology(module_imglib_t *p_mod)
   mct_module_init_name_t *curr_mod;
   unsigned int top_c, par_c, mod_c;
 
-  if (!(p_mod && p_mod->imglib_modules ))
+  if (!(p_mod && p_mod->imglib_modules/* && p_mod->topology*/))
     return FALSE;
 
   /* Add to separate function As Create topology  */
@@ -823,6 +828,475 @@ static int module_imglib_forward_event_to_port(mct_module_t *module,
 }
 
 /**
+ * module_imglib_find_buff:
+ *  @list_data: buffer instance
+ *  @user_data: required buffer index
+ *
+ * Function to get specified buffer
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: Handler to mapped buffer or NULL
+ **/
+static boolean module_imglib_find_buff(void *list_data, void *user_data)
+{
+  boolean ret_val = FALSE;
+  mct_stream_map_buf_t *img_buf = list_data;
+  uint32_t *buff_index = user_data;
+
+  if (img_buf && buff_index) {
+    if (*buff_index == img_buf->buf_index) {
+      ret_val = TRUE;
+    }
+  } else {
+    IDBG_ERROR("%s:%d] Null pointer detected\n", __func__, __LINE__);
+  }
+
+  return ret_val;
+}
+
+/**
+ * module_imglib_get_buffer_holder:
+ *   @stream_info: stream info
+ *   @buf_index: buf index
+ *
+ * This function gets requested buffer holder
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: Buff holder or NULL
+ **/
+static mct_stream_map_buf_t* module_imglib_get_buffer_holder(
+  mct_stream_info_t *stream_info, uint32_t buf_index)
+{
+  void* ret_val = NULL;
+  mct_list_t* list;
+
+  list = mct_list_find_custom(stream_info->img_buffer_list, &buf_index,
+      module_imglib_find_buff);
+
+  if (list && list->data) {
+    ret_val = list->data;
+  }
+
+  return ret_val;
+}
+
+/**
+ * module_imglib_send_buffer:
+ *   @port: port instance
+ *   @buf_holder: buffer holder
+ *   @stream_info: stream info
+ *   @parm_buf: hal buffer payload
+ *
+ * This sends the buffer to the specified port
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_send_buffer(mct_port_t *port,
+  mct_stream_map_buf_t *buf_holder, mct_stream_info_t *stream_info,
+  cam_stream_parm_buffer_t *parm_buf, uint32_t identity)
+{
+  boolean rc;
+  isp_buf_divert_t isp_buf;
+  mct_event_t event;
+
+  memset(&isp_buf, 0, sizeof(isp_buf_divert_t));
+
+  isp_buf.is_uv_subsampled = parm_buf->reprocess.frame_pp_config.uv_upsample;
+
+  /* Use native buffer for now */
+  isp_buf.native_buf = TRUE;
+  isp_buf.fd = buf_holder->buf_planes[0].fd;
+  isp_buf.vaddr = (buf_holder->buf_planes[0].buf);
+  isp_buf.buffer.sequence = parm_buf->reprocess.frame_idx;
+
+  isp_buf.buffer.length = buf_holder->num_planes;
+  isp_buf.buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+  isp_buf.buffer.index = buf_holder->buf_index;
+  isp_buf.buffer.memory = V4L2_MEMORY_USERPTR;
+
+  /* Fill timestamp */
+  gettimeofday(&isp_buf.buffer.timestamp, NULL);
+
+  /* Fill event parameters */
+  event.identity  = identity;
+  event.type      = MCT_EVENT_MODULE_EVENT;
+  event.direction = MCT_EVENT_DOWNSTREAM;
+  event.u.module_event.type = MCT_EVENT_MODULE_BUF_DIVERT;
+  event.u.module_event.module_event_data = (void *)&isp_buf;
+
+  rc = MCT_PORT_EVENT_FUNC(port) (port , &event);
+
+  if (!rc) {
+    IDBG_ERROR("%s:%d] failed to send event to %s\n", __func__, __LINE__,
+        MCT_OBJECT_NAME(port));
+    return IMG_ERR_GENERAL;
+  }
+
+  return IMG_SUCCESS;
+}
+
+/**
+ * module_imglib_extract_chromatix:
+ *   @metadata: metadata
+ *   @module_chromatix: chromatix
+ *
+ * This function extracts chromatix from metadata
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_extract_chromatix(cam_metadata_info_t *metadata,
+  modulesChromatix_t *module_chromatix)
+{
+  mct_stream_session_metadata_info *priv_metadata;
+
+  priv_metadata =
+    (mct_stream_session_metadata_info *)metadata->private_metadata;
+  if (!priv_metadata) {
+    IDBG_ERROR("%s:%d] Private metadata pointer is Null\n", __func__, __LINE__);
+    return IMG_ERR_GENERAL;
+  }
+
+  module_chromatix->chromatixComPtr =
+    priv_metadata->sensor_data.common_chromatix_ptr;
+  module_chromatix->chromatixPtr = priv_metadata->sensor_data.chromatix_ptr;
+
+  return IMG_SUCCESS;
+}
+
+/**
+ * module_imglib_extract_gamma:
+ *   @metadata: metadata
+ *   @gamma: gamma
+ *
+ * This function extracts gamma from metadata
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_extract_gamma(cam_metadata_info_t *metadata,
+  uint16_t *gamma)
+{
+  mct_stream_session_metadata_info *priv_metadata;
+
+  priv_metadata =
+    (mct_stream_session_metadata_info *)metadata->private_metadata;
+  if (!priv_metadata) {
+    IDBG_ERROR("%s:%d] Private metadata pointer is Null\n", __func__, __LINE__);
+    return IMG_ERR_GENERAL;
+  }
+
+  memcpy(gamma, &priv_metadata->isp_gamma_data, (sizeof(uint16_t) * 64));
+
+  return IMG_SUCCESS;
+}
+
+/**
+ * module_imglib_extract_aec_data:
+ *   @metadata: metadata
+ *   @stats_update: stats update
+ *
+ * This function extracts aec data from metadata
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_extract_aec_data(cam_metadata_info_t *metadata,
+  stats_update_t *stats_update)
+{
+  mct_stream_session_metadata_info *priv_metadata;
+  stats_get_data_t *stats_get;
+  aec_update_t *aec_update;
+
+  priv_metadata =
+    (mct_stream_session_metadata_info *)metadata->private_metadata;
+  if (!priv_metadata) {
+    IDBG_ERROR("%s:%d] Private metadata pointer is Null\n", __func__, __LINE__);
+    return IMG_ERR_GENERAL;
+  }
+  stats_get = (stats_get_data_t *)&priv_metadata->stats_aec_data.private_data;
+  aec_update = &stats_update->aec_update;
+
+  memset(stats_update, 0, sizeof(stats_update_t));
+  stats_update->flag = STATS_UPDATE_AEC;
+  aec_update->lux_idx = stats_get->aec_get.lux_idx;
+  aec_update->real_gain = stats_get->aec_get.real_gain[0];
+
+  return IMG_SUCCESS;
+}
+
+/**
+ * module_imglib_extract_awb_data:
+ *   @metadata: metadata
+ *   @awb_update: awb data
+ *
+ * This function extracts awb data from metadata
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_extract_awb_data(cam_metadata_info_t *metadata,
+   awb_update_t *awb_update)
+{
+  mct_stream_session_metadata_info *priv_metadata;
+
+  priv_metadata =
+    (mct_stream_session_metadata_info *)metadata->private_metadata;
+  if (!priv_metadata) {
+    IDBG_ERROR("%s:%d] Private metadata pointer is Null\n", __func__, __LINE__);
+    return IMG_ERR_GENERAL;
+  }
+
+  memcpy(awb_update, &priv_metadata->isp_stats_awb_data, sizeof(awb_update_t));
+
+  return IMG_SUCCESS;
+}
+
+/**
+ * module_imglib_send_event:
+ *   @port: port instance
+ *   @identity: identity
+ *   @event_type: event type
+ *   @data: event payload
+ *
+ * This function sends module event
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_send_event(mct_port_t *port, uint32_t identity,
+  uint32_t event_type, void *data)
+{
+  boolean rc;
+  mct_event_t event;
+
+  event.identity  = identity;
+  event.type      = MCT_EVENT_MODULE_EVENT;
+  event.direction = MCT_EVENT_DOWNSTREAM;
+  event.u.module_event.type = event_type;
+  event.u.module_event.module_event_data = data;
+
+  rc = MCT_PORT_EVENT_FUNC(port) (port , &event);
+
+  if (!rc) {
+    IDBG_ERROR("%s:%d] failed to send event to %s\n", __func__, __LINE__,
+        MCT_OBJECT_NAME(port));
+    return IMG_ERR_GENERAL;
+  }
+
+  return IMG_SUCCESS;
+}
+
+/**
+ * module_imglib_meta_parse:
+ *   @port: port instance
+ *   @identity: identity
+ *   @metadata: metadata
+ *
+ * This function parses meta data and sends the information as module events
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_meta_parse(mct_port_t *port, uint32_t identity,
+  cam_metadata_info_t *metadata)
+{
+  int ret_val;
+  modulesChromatix_t module_chromatix;
+  uint16_t gamma_update[64];
+  stats_update_t stats_update;
+  awb_update_t awb_update;
+
+  ret_val = module_imglib_extract_chromatix(metadata, &module_chromatix);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot extract chromatix\n", __func__, __LINE__);
+    return ret_val;
+  }
+  ret_val = module_imglib_send_event(port, identity,
+    MCT_EVENT_MODULE_SET_CHROMATIX_PTR, &module_chromatix);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot send chromatix\n", __func__, __LINE__);
+    return ret_val;
+  }
+
+  ret_val = module_imglib_extract_aec_data(metadata, &stats_update);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot extract aec data\n", __func__, __LINE__);
+    return ret_val;
+  }
+  ret_val = module_imglib_send_event(port, identity,
+    MCT_EVENT_MODULE_STATS_AEC_UPDATE, &stats_update);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot send aec data\n", __func__, __LINE__);
+    return ret_val;
+  }
+
+  ret_val = module_imglib_extract_gamma(metadata, &gamma_update[0]);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot extract gamma\n", __func__, __LINE__);
+    return ret_val;
+  }
+  ret_val = module_imglib_send_event(port, identity,
+    MCT_EVENT_MODULE_ISP_GAMMA_UPDATE, &gamma_update[0]);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot send gamma\n", __func__, __LINE__);
+    return ret_val;
+  }
+
+  ret_val = module_imglib_extract_awb_data(metadata, &awb_update);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot extract awb data\n", __func__, __LINE__);
+    return ret_val;
+  }
+  ret_val = module_imglib_send_event(port, identity,
+    MCT_EVENT_MODULE_STATS_AWB_UPDATE, &awb_update);
+  if (IMG_SUCCESS != ret_val) {
+    IDBG_ERROR("%s:%d] Cannot send awb data\n", __func__, __LINE__);
+    return ret_val;
+  }
+
+  return IMG_SUCCESS;
+}
+
+/**
+ * module_imglib_do_reprocess_handle:
+ *   @module: module instance
+ *   @event: mct event
+ *
+ * This function handles DO_REPROCESS in MCT_EVENT_CONTROL_PARM_STREAM_BUF event
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: image lib return codes
+ **/
+static int module_imglib_do_reprocess_handle(mct_module_t *module,
+  mct_event_t *event)
+{
+  mct_stream_info_t *input_stream_info;
+  mct_stream_info_t *stream_info;
+  mct_port_t *port;
+  mct_stream_t *stream;
+  cam_metadata_info_t *metadata;
+  cam_stream_parm_buffer_t *parm_buf;
+  mct_stream_map_buf_t *buf_holder;
+  int ret_val;
+
+  parm_buf = event->u.ctrl_event.control_event_data;
+
+  // Get current stream
+  stream = mod_imglib_find_module_parent(event->identity, module);
+  if (!stream) {
+    IDBG_ERROR("%s:%d] Module is orphan does not have parent\n",
+        __func__, __LINE__);
+    return IMG_ERR_NOT_FOUND;
+  }
+
+  // Get current port
+  MCT_OBJECT_LOCK(module);
+  port = module_imglib_get_port_with_identity(module, event->identity,
+    MCT_PORT_SINK);
+  MCT_OBJECT_UNLOCK(module);
+  if (!port) {
+    IDBG_ERROR("%s:%d] Module doesn't have port linked with identity 0x%x\n",
+        __func__, __LINE__, event->identity);
+    return IMG_ERR_NOT_FOUND;
+  }
+
+  // Get current stream info
+  stream_info = &stream->streaminfo;
+
+  // Get input stream info
+  if (CAM_ONLINE_REPROCESS_TYPE == stream_info->reprocess_config.pp_type) {
+    input_stream_info = (mct_stream_info_t *)mct_module_get_stream_info(module,
+        IMGLIB_SESSIONID(event->identity),
+        stream_info->reprocess_config.online.input_stream_id);
+    if (!input_stream_info) {
+      IDBG_ERROR("%s:%d] input stream_info is NULL\n", __func__, __LINE__);
+      return IMG_ERR_NOT_FOUND;
+    }
+  } else {
+    input_stream_info = stream_info;
+  }
+
+  // Parse metadata and extract needed data
+  if (parm_buf->reprocess.meta_present == 1) {
+    metadata = (cam_metadata_info_t *)mct_module_get_buffer_ptr(
+        parm_buf->reprocess.meta_buf_index, module,
+        IMGLIB_SESSIONID(event->identity),
+        parm_buf->reprocess.meta_stream_handle);
+    if (!metadata) {
+      IDBG_ERROR("%s:%d] metadata is NULL\n", __func__, __LINE__);
+      return IMG_ERR_NOT_FOUND;
+    }
+
+    ret_val = module_imglib_meta_parse(port, event->identity, metadata);
+    if (IMG_SUCCESS != ret_val) {
+      IDBG_ERROR("%s:%d] Cannot parse metadata\n", __func__, __LINE__);
+      return ret_val;
+    }
+  }
+
+  // Get input buffer
+  buf_holder = module_imglib_get_buffer_holder(input_stream_info,
+      stream_info->parm_buf.reprocess.buf_index);
+  if (!buf_holder) {
+    IDBG_ERROR("%s:%d] Input buffer holder is NULL\n", __func__, __LINE__);
+    return IMG_ERR_NOT_FOUND;
+  }
+
+  // Send buffer
+  return module_imglib_send_buffer(port, buf_holder, input_stream_info,
+      parm_buf, event->identity);
+}
+
+/**
+ * module_imglib_stream_buf_handle:
+ *   @module: module instance
+ *   @event: mct event
+ *
+ * This function handles MCT_EVENT_CONTROL_PARM_STREAM_BUF event
+ *
+ * This function executes in Imaging Server context
+ *
+ * Return values: TRUE in case of success
+ **/
+static boolean module_imglib_stream_buf_handle(mct_module_t *module,
+  mct_event_t *event)
+{
+  cam_stream_parm_buffer_t *parm_buf;
+  boolean ret_val = FALSE;
+  int rc;
+
+  parm_buf = event->u.ctrl_event.control_event_data;
+
+  if (parm_buf) {
+
+    if (parm_buf->type == CAM_STREAM_PARAM_TYPE_DO_REPROCESS) {
+      rc = module_imglib_do_reprocess_handle(module, event);
+    } else {
+      rc = module_imglib_forward_event_to_port(module, event);
+    }
+    ret_val = (rc == IMG_SUCCESS) ? TRUE : FALSE;
+
+  } else {
+    IDBG_ERROR("%s:%d] MCT_EVENT_CONTROL_PARM_STREAM_BUF payload is NULL\n",
+        __func__, __LINE__);
+  }
+
+  return ret_val;
+}
+
+/**
  * Function: module_imglib_query_mod
  *
  * Description: This function is used to query the imglib module info
@@ -886,10 +1360,22 @@ static boolean module_imglib_process_event(mct_module_t *module,
   mct_event_t *event)
 {
   boolean ret_val = TRUE;
+  mct_module_type_t module_type;
   int rc;
 
   if (!module || !event) {
     IDBG_ERROR("%s:%d Invalid input", __func__, __LINE__);
+    return FALSE;
+  }
+
+  MCT_OBJECT_LOCK(module);
+  module_type = mct_module_find_type(module, event->identity);
+  MCT_OBJECT_UNLOCK(module);
+
+  if ((MCT_MODULE_FLAG_PEERLESS != module_type) &&
+      (MCT_MODULE_FLAG_SOURCE != module_type)) {
+    IDBG_ERROR("%s:%d Module %s is not source", __func__, __LINE__,
+        MCT_OBJECT_NAME(module));
     return FALSE;
   }
 
@@ -902,6 +1388,9 @@ static boolean module_imglib_process_event(mct_module_t *module,
     case MCT_EVENT_CONTROL_STREAMOFF:
       /*  Unreserve the port which is needed for redirecting module events */
       ret_val = module_imglib_forward_event_and_destroy_port(module, event);
+      break;
+    case MCT_EVENT_CONTROL_PARM_STREAM_BUF:
+      ret_val = module_imglib_stream_buf_handle(module, event);
       break;
     default:
       rc = module_imglib_forward_event_to_port(module, event);
@@ -917,9 +1406,11 @@ static boolean module_imglib_process_event(mct_module_t *module,
     }
     break;
   }
-  /* Todo missing implementatnion */
   case MCT_EVENT_MODULE_EVENT:
   default:
+    IDBG_ERROR("%s:%d] Event type %d must not be sent to module event",
+        __func__, __LINE__, event->type);
+    ret_val = FALSE;
     break;
   }
 
@@ -948,6 +1439,12 @@ static boolean module_imglib_start_session(mct_module_t *module,
   cam_stream_type_t stream;
   module_imglib_t *p_mod;
   boolean ret;
+#ifdef _ANDROID_
+  char prop[PROPERTY_VALUE_MAX];
+  property_get("persist.camera.imglib.logs", prop, "0");
+  g_imgloglevel = atoi(prop);
+  IDBG_ERROR("%s:%d ###Img_Loglevel %d", __func__, __LINE__, g_imgloglevel);
+#endif
 
   if (!(module && module->module_private)) {
     IDBG_ERROR("%s:%d Invalid input", __func__, __LINE__);
@@ -1168,6 +1665,7 @@ void module_imglib_deinit(mct_module_t *p_mct_mod)
 
   /* Destroy module ports */
   mct_list_free_list(MCT_MODULE_CHILDREN(p_mct_mod));
+  free(p_mod);
   mct_module_destroy(p_mct_mod);
   p_mct_mod = NULL;
 }

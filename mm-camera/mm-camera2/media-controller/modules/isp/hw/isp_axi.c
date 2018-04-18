@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -18,6 +18,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_axi_util.h"
 #include "isp_hw.h"
 #include "isp.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -47,7 +48,7 @@ static int isp_axi_stream_config(isp_axi_t *axi,
   uint8_t buf_divert;
   uint32_t stream_id;
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: E", __func__);
 
   for (i = 0; i < ISP_AXI_STREAM_MAX; i++) {
     /* for first time config we reserve the stream */
@@ -57,7 +58,8 @@ static int isp_axi_stream_config(isp_axi_t *axi,
     }
 
     if (axi->streams[i].state != ISP_AXI_STREAM_STATE_INVALID &&
-        axi->streams[i].cfg.stream_param.stream_id == in_params->stream_param.stream_id) {
+        axi->streams[i].cfg.stream_param.stream_id == in_params->stream_param.stream_id &&
+        axi->streams[i].cfg.stream_param.session_id == in_params->stream_param.session_id) {
       stream = &axi->streams[i];
       break;
     }
@@ -88,7 +90,7 @@ static int isp_axi_stream_config(isp_axi_t *axi,
       CDBG_ERROR("%s: isp_axi_wm_cfg error = %d\n", __func__, rc);
   }
 
-  CDBG("%s: X, rc = %d, session_id = %d, stream_id = %d",
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d, session_id = %d, stream_id = %d",
     __func__, rc, stream->cfg.stream_param.session_id,
     stream->cfg.stream_param.stream_id);
 
@@ -119,7 +121,7 @@ static void isp_dump_axi_plane_config(isp_axi_stream_t *stream,
     hw_stream_id = stream->cfg.stream_param.stream_id;
   }
 
-  CDBG("%s:=== AXI DUMP: session_id %d, stream_id %x, hw_stream_id %x ====\n",
+  ISP_DBG(ISP_MOD_COM,"%s:=== AXI DUMP: session_id %d, stream_id %x, hw_stream_id %x ====\n",
     __func__, stream->cfg.stream_param.session_id, stream->cfg.stream_param.stream_id, hw_stream_id);
 
   switch (cam_format) {
@@ -148,16 +150,16 @@ static void isp_dump_axi_plane_config(isp_axi_stream_t *stream,
   }
 
   for (i = 0; i < plane_num; i++) {
-    CDBG("%s: plane[%d]: plane_fmt %d, address_offset %x\n", __func__, i,
+    ISP_DBG(ISP_MOD_COM,"%s: plane[%d]: plane_fmt %d, address_offset %x\n", __func__, i,
        axi_plane_cfg[i].output_plane_format, /*Y/Cb/Cr/CbCr*/
        axi_plane_cfg[i].plane_addr_offset);
-    CDBG("%s: plane[%d]: width = %d\n", __func__, i,
+    ISP_DBG(ISP_MOD_COM,"%s: plane[%d]: width = %d\n", __func__, i,
       axi_plane_cfg[i].output_width);
-    CDBG("%s: plane[%d]: height = %d\n", __func__, i,
+    ISP_DBG(ISP_MOD_COM,"%s: plane[%d]: height = %d\n", __func__, i,
       axi_plane_cfg[i].output_height);
-    CDBG("%s: plane[%d]: stride = %d\n", __func__, i,
+    ISP_DBG(ISP_MOD_COM,"%s: plane[%d]: stride = %d\n", __func__, i,
       axi_plane_cfg[i].output_stride);
-    CDBG("%s: plane[%d]: scanlines = %d\n", __func__, i,
+    ISP_DBG(ISP_MOD_COM,"%s: plane[%d]: scanlines = %d\n", __func__, i,
       axi_plane_cfg[i].output_scan_lines);
    }
 
@@ -231,7 +233,13 @@ static int isp_axi_stream_set_skip_pattern(isp_axi_t *axi,
   if (!stream) {
     CDBG_ERROR("%s: cannot find stream, session_id = %d, stream_id = %d\n",
       __func__, skip_pattern->session_id, skip_pattern->stream_id);
-    return 0;
+    /* Skip can be applied to either preview or video stream in camcorder mode */
+    stream = isp_axi_util_find_active_video_stream(axi, skip_pattern->session_id);
+    if (!stream) {
+      CDBG_ERROR("%s: cannot find VIDEO stream, session_id = %d, stream_id = %d\n",
+        __func__, skip_pattern->session_id, skip_pattern->stream_id);
+      return 0;
+    }
   }
 
   update_cmd->num_streams = 1;
@@ -456,6 +464,7 @@ static int isp_axi_create_stream(isp_axi_t *axi, start_stop_stream_t *params)
     request_cfg->init_frame_drop = stream->cfg.stream_param.sensor_skip_cnt;
     request_cfg->axi_stream_handle = 0; /*Return values*/
     request_cfg->buf_divert = stream->cfg.need_divert;
+    request_cfg->burst_len = stream->cfg.burst_len;
 
     isp_dump_axi_plane_config(stream, &request_cfg->plane_cfg[0],
       stream->cfg.stream_param.fmt);
@@ -470,7 +479,7 @@ static int isp_axi_create_stream(isp_axi_t *axi, start_stop_stream_t *params)
 
     /* save the handle */
     stream->axi_stream_handle = request_cfg->axi_stream_handle;
-    CDBG("%s: axi_stream: stream id = %d, handle = %x\n", __func__,
+    ISP_DBG(ISP_MOD_COM,"%s: axi_stream: stream id = %d, handle = %x\n", __func__,
       stream->cfg.stream_param.stream_id, stream->axi_stream_handle);
   }
 
@@ -543,10 +552,15 @@ static int isp_axi_reg_buf(isp_axi_t *axi, start_stop_stream_t *params)
   for (i = 0; i < params->num_streams; i++) {
     stream = isp_axi_util_find_stream(axi, params->session_id,
                params->stream_ids[i]);
+
     if (stream == NULL) {
       CDBG_ERROR("%s: cannot find the stream\n", __func__);
       return -1;
     }
+
+    /* If stream is in desired state, do not configure it */
+    if (!(stream->state == ISP_AXI_STREAM_STATE_CFG))
+      continue;
 
     if (stream->cfg.use_native_buf) {
       request_stream_id =
@@ -599,11 +613,14 @@ static int isp_axi_unreg_buf(isp_axi_t *axi, start_stop_stream_t *params)
   for (i = 0; i < params->num_streams; i++) {
     stream = isp_axi_util_find_stream(axi, params->session_id,
                params->stream_ids[i]);
-
     if (stream == NULL) {
       CDBG_ERROR("%s: cannot find the stream\n", __func__);
       continue;
     }
+
+    /* If stream is in desired state, do not configure it */
+    if (!(stream->state == ISP_AXI_STREAM_STATE_CFG))
+      continue;
 
     if (stream->buf_handle == 0) {
       CDBG_ERROR("%s: cannot find buf handle, sessid = %d, straemid = %d\n",
@@ -641,30 +658,49 @@ static int isp_axi_streamon(isp_axi_t *axi, start_stop_stream_t *params,
   boolean start)
 {
   int rc = 0;
-  int i;
+  int i,j;
   isp_axi_stream_t *stream;
   struct msm_vfe_axi_stream_cfg_cmd *cmd;
+  struct msm_vfe_axi_src_state src_state;
 
-  CDBG("%s: E, start_flag = %d, sessionid = %d", __func__, start,
+  ISP_DBG(ISP_MOD_COM,"%s: E, start_flag = %d, sessionid = %d", __func__, start,
     params->session_id);
+
 
   cmd = &axi->work_struct.u.stream_start_stop_cmd;
   memset(&axi->work_struct, 0, sizeof(axi->work_struct));
+  memset(&src_state, 0, sizeof(src_state));
 
+
+  j = 0;
   for (i = 0; i < params->num_streams; i++) {
+
     stream = isp_axi_util_find_stream(axi, params->session_id,
       params->stream_ids[i]);
+
     if (stream == NULL) {
-      CDBG_ERROR("%s: cannot find the stream\n", __func__);
+      CDBG_ERROR("%s: cannot find the stream %d\n", __func__,
+        params->stream_ids[i]);
       rc = -100;
       goto end;
     }
 
-    cmd->stream_handle[i] = stream->axi_stream_handle;
+    /* If stream is in desired state, do not configure it */
+    if (!(((stream->state == ISP_AXI_STREAM_STATE_CFG) && (start == TRUE)) ||
+        ((stream->state == ISP_AXI_STREAM_STATE_ACTIVE) && (start == FALSE))))
+      continue;
+
+    if (start == TRUE) {
+      stream->state = ISP_AXI_STREAM_STATE_ACTIVE;
+    } else {
+      stream->state = ISP_AXI_STREAM_STATE_CFG;
+    }
+
+    cmd->stream_handle[j] = stream->axi_stream_handle;
 
     if (stream->cfg.need_divert) {
       stream->divert_event_id = ISP_EVENT_BUF_DIVERT +
-        (cmd->stream_handle[i] & 0xFF);
+        (cmd->stream_handle[j] & 0xFF);
       rc = isp_axi_util_subscribe_v4l2_event(axi, stream->divert_event_id,
              start);
       if (rc < 0) {
@@ -672,20 +708,46 @@ static int isp_axi_streamon(isp_axi_t *axi, start_stop_stream_t *params,
         goto end;
       }
     }
+    j++;
   }
 
-  cmd->num_streams = params->num_streams;
+  /* No stream for starting/stopping */
+  if(j == 0)
+    return(0);
 
-  if (start == TRUE) {
+  cmd->num_streams = j;
+
+  if (start == TRUE)
     cmd->cmd = START_STREAM;
-  } else {
-    cmd->cmd = STOP_STREAM;
+  else {
+    cmd->cmd = STOP_IMMEDIATELY;
+    if (!params->stop_immediately)
+      cmd->cmd = STOP_STREAM;
   }
 
   rc = ioctl(axi->fd, VIDIOC_MSM_ISP_CFG_STREAM, cmd);
   if (rc < 0) {
     CDBG_ERROR("%s: ISP_CFG_STREAM error = %d, start_straem = %d\n",
                __func__, rc, start);
+    stream->state = ISP_AXI_STREAM_STATE_INVALID;
+  }
+
+  if (start == TRUE) {
+    if (params->num_streams && params->frame_id != 0) {
+      if ((stream->cfg.isp_output_interface == ISP_INTF_RDI0
+        || stream->cfg.isp_output_interface == ISP_INTF_RDI1
+        || stream->cfg.isp_output_interface == ISP_INTF_RDI2)) {
+        src_state.input_src = (enum msm_vfe_input_src)stream->cfg.isp_output_interface;
+        params->frame_id += 1;
+        src_state.src_frame_id = params->frame_id;
+        rc = ioctl(axi->fd, VIDIOC_MSM_ISP_SET_SRC_STATE, &src_state);
+        if (rc < 0) {
+         CDBG_ERROR("%s: VIDIOC_MSM_ISP_SET_SRC_STATE error = %d, start_straem = %d\n",
+             __func__, rc, start);
+         stream->state = ISP_AXI_STREAM_STATE_INVALID;
+        }
+      }
+    }
   }
 
 end:
@@ -758,7 +820,6 @@ static int isp_axi_stop_stream(isp_axi_t *axi,
      * reset VFE, free memory, send error to media bus */
     /* TODO */
   }
-
   rc = isp_axi_unreg_buf(axi, action_data);
   if (rc < 0) {
     CDBG_ERROR("%s: isp_axi_wm_uncfg error = %d\n", __func__, rc);
@@ -848,6 +909,18 @@ int isp_axi_action(void *ctrl, uint32_t action_code, void *action_data,
     rc = isp_axi_do_hw_update(axi);
   }
     break;
+  case ISP_AXI_ACTION_CODE_HALT: {
+    rc = isp_axi_halt(axi);
+  }
+    break;
+  case ISP_AXI_ACTION_CODE_RESET: {
+    rc = isp_axi_reset(axi, action_data, action_data_size);
+  }
+    break;
+  case ISP_AXI_ACTION_CODE_RESTART: {
+    rc = isp_axi_restart(axi);
+  }
+    break;
 
   default: {
   }
@@ -907,7 +980,7 @@ void *isp_hw_create_axi(int fd, uint32_t isp_version, int dev_idx,
   axi = malloc(sizeof(isp_axi_t));
   if (!axi) {
     /* no mem */
-    CDBG("%s: error, no mem", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: error, no mem", __func__);
     return NULL;
   }
 
@@ -919,4 +992,66 @@ void *isp_hw_create_axi(int fd, uint32_t isp_version, int dev_idx,
   axi->buf_mgr = buf_mgr;
 
   return axi;
+}
+
+int isp_axi_halt(isp_axi_t *axi)
+{
+  int rc = 0;
+  struct msm_vfe_axi_halt_cmd *halt_cmd;
+
+  halt_cmd = &axi->work_struct.u.halt_cmd;
+  memset(halt_cmd, 0, sizeof(struct msm_vfe_axi_halt_cmd));
+  halt_cmd->stop_camif = 1;
+  halt_cmd->overflow_detected = 1;
+
+  rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_HALT, halt_cmd);
+  if (rc < 0) {
+    CDBG_ERROR("%s ioctl VIDIOC_MSM_ISP_AXI_HALT failed \n", __func__);
+  }
+
+  return rc;
+}
+
+int isp_axi_reset(isp_axi_t *axi, void *action_data,
+  uint32_t action_data_size)
+{
+  int rc = 0;
+  struct msm_vfe_axi_reset_cmd *reset_cmd;
+  uint32_t *frame_id = NULL;
+
+  if (!action_data) {
+    CDBG_ERROR("%s Error! Invalid arguments \n", __func__);
+    return -1;
+  }
+  if (action_data_size != sizeof(uint32_t)) {
+    CDBG_ERROR("%s Error! Size mismatch \n", __func__);
+    return -1;
+  }
+
+  frame_id = (uint32_t *)action_data;
+  reset_cmd = &axi->work_struct.u.reset_cmd;
+  memset(reset_cmd, 0, sizeof(struct msm_vfe_axi_reset_cmd));
+  reset_cmd->blocking = 1;
+  reset_cmd->frame_id = (unsigned long)(*frame_id);
+  rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_RESET, reset_cmd);
+  if (rc < 0) {
+    CDBG_ERROR("%s ioctl VIDIOC_MSM_ISP_AXI_RESET failed \n", __func__);
+  }
+  return rc;
+}
+
+int isp_axi_restart(isp_axi_t *axi)
+{
+  int rc = 0;
+  struct msm_vfe_axi_restart_cmd *restart_cmd;
+
+  restart_cmd = &axi->work_struct.u.restart_cmd;
+  memset(restart_cmd, 0, sizeof(struct msm_vfe_axi_restart_cmd));
+  restart_cmd->enable_camif = 1;
+
+  rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_RESTART, restart_cmd);
+  if (rc < 0) {
+    CDBG_ERROR("%s ioctl VIDIOC_MSM_ISP_AXI_RESTART failed \n", __func__);
+  }
+  return rc;
 }

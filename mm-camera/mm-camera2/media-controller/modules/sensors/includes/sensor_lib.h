@@ -25,6 +25,8 @@
 #define SENSOR_MOUNTANGLE_180 180
 #define SENSOR_MOUNTANGLE_270 270
 
+#define SENSOR_FLASH_SUPPORTED 1
+#define SENSOR_FLASH_NOT_SUPPORTED 0
 /* OEM's can extend these modes */
 
 typedef enum {
@@ -96,6 +98,16 @@ typedef enum {
   SENSOR_LOAD_CHROMATIX,
 } sensor_res_cfg_type_t;
 
+typedef enum {
+  SENSOR_SMETHOD_NOT_DEFINED = 1,
+  SENSOR_SMETHOD_ONE_CHIP_COLOR_AREA_SENSOR=2,
+  SENSOR_SMETHOD_TWO_CHIP_COLOR_AREA_SENSOR=3,
+  SENSOR_SMETHOD_THREE_CHIP_COLOR_AREA_SENSOR=4,
+  SENSOR_SMETHOD_COLOR_SEQ_AREA_SENSOR=5,
+  SENSOR_SMETHOD_TRILINEAR_SENSOR=7,
+  SENSOR_SMETHOD_COLOR_SEQ_LINEAR_SENSOR=8
+}sensor_sensing_method_type_t;
+
 struct sensor_crop_parms_t {
   uint16_t top_crop;
   uint16_t bottom_crop;
@@ -122,12 +134,24 @@ typedef struct {
 } sensor_aec_data_t;
 
 typedef struct {
+  uint64_t min_exposure_time;
+  uint64_t max_exposure_time;
+  uint32_t min_iso;
+  uint32_t max_iso;
+} sensor_manual_exposure_info_t;
+
+typedef struct {
   float focal_length;
   float pix_size;
   float f_number;
   float total_f_dist;
   float hor_view_angle;
   float ver_view_angle;
+  float um_per_dac;
+  int   dac_offset;
+  uint32_t near_end_distance;
+  sensor_sensing_method_type_t sensing_method;
+  float crop_factor; //depends on sensor physical dimentions
 } sensor_lens_info_t;
 
 /* sensor_lib_out_info_t: store information about different resolution
@@ -152,11 +176,13 @@ struct sensor_lib_out_info_t {
   uint16_t frame_length_lines;
   uint32_t vt_pixel_clk;
   uint32_t op_pixel_clk;
-  uint16_t binning_factor;
+  uint32_t binning_factor;
   float    min_fps;
   float    max_fps;
   uint32_t mode;
-};
+  uint32_t unknown;
+
+  };
 
 struct sensor_lib_out_info_array {
   /* sensor output for each resolutions */
@@ -187,6 +213,7 @@ struct sensor_lib_chromatix_t {
   char *camera_snapshot_chromatix;
   char *camcorder_chromatix;
   char *liveshot_chromatix;
+  char* unknown;
 };
 
 struct sensor_lib_chromatix_array {
@@ -208,6 +235,9 @@ typedef struct {
   float digital_gain;
   float sensor_real_gain;
   float sensor_digital_gain;
+  uint16_t use_long_exposure;
+  uint16_t unknown;
+  uint32_t long_line_count;
 } sensor_exposure_info_t;
 
 struct sensor_pix_fmt_info_t {
@@ -252,6 +282,9 @@ struct msm_sensor_exp_gain_info_t {
 struct sensor_meta_data_out_info_t {
   int32_t width;
   int32_t height;
+  int32_t fmt;
+  int32_t ebd;
+  enum sensor_stats_type stats_type;
 };
 
 struct sensor_lib_meta_data_info_array {
@@ -267,7 +300,7 @@ typedef struct {
    *  linecount value, 1st param - real gain, 2nd param -
    *  linecount, 3rd param - exposure info output, return staus -
    *  success / failure */
-  int32_t (*sensor_calculate_exposure) (float, uint16_t,
+  int32_t (*sensor_calculate_exposure) (float, uint32_t,
     sensor_exposure_info_t *);
 
   /** Function to create register table from exposure settings
@@ -303,7 +336,7 @@ typedef struct {
 
   /* sensor info */
   struct msm_sensor_init_params *sensor_init_params;
-
+  
   /* name of the AF actuator (if any)*/
   char* actuator_name;
 
@@ -312,12 +345,17 @@ typedef struct {
 
   /* sensor output settings */
   sensor_output_t *sensor_output;
-
+  
   /* sensor output register address */
   struct msm_sensor_output_reg_addr_t *output_reg_addr;
 
   /* sensor exposure gain register address */
   struct msm_sensor_exp_gain_info_t *exp_gain_info;
+  
+  uint32_t unknown3;
+
+  /*sensor manual exposure info */
+  sensor_manual_exposure_info_t *manual_exp_info;
 
   /* sensor aec info */
   sensor_aec_data_t *aec_info;
@@ -329,16 +367,19 @@ typedef struct {
   uint16_t sensor_num_frame_skip;
 
   /* number of frames to skip after start HDR stream info */
-  uint16_t sensor_num_HDR_frame_skip;
+  uint32_t sensor_num_HDR_frame_skip;
 
   /* sensor pipeline delay */
   uint32_t sensor_max_pipeline_frame_delay;
 
   /* sensor exposure table size */
-  uint16_t exposure_table_size;
+  uint32_t exposure_table_size;
 
   /* sensor lens info */
   sensor_lens_info_t *default_lens_info;
+  
+  /* flag to sync exp and gain */
+   uint32_t sync_exp_gain;
 
   /* csi lane params */
   struct csi_lane_params_t *csi_lane_params;
@@ -350,31 +391,16 @@ typedef struct {
   sensor_stream_info_array_t *sensor_stream_info_array;
 
   /* csi cid params size */
-  uint16_t csi_cid_params_size;
+  uint32_t csi_cid_params_size;
 
   /* init settings */
   struct sensor_lib_reg_settings_array *init_settings_array;
-  //Gionee liushengbin 20131108 modify for ov4688 otp
-  uint16_t init_inform_kernel;
+
   /* start settings */
   struct msm_camera_i2c_reg_setting *start_settings;
 
   /* stop settings */
   struct msm_camera_i2c_reg_setting *stop_settings;
-
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 begin
-#ifdef ORIGINAL_VERSION
-#else
-  /* setting flag: whether use private setting */
-  uint16_t private_cfg;
-
-  /* private start settings */
-  struct sensor_lib_reg_settings_array *priv_start_settings;
-
-  /* private stop settings */
-  struct sensor_lib_reg_settings_array *priv_stop_settings;
-#endif
-//Gionee <zhuangxiaojian> <2014-03-12> modify for CR01090346 end
 
   /* group on settings */
   struct msm_camera_i2c_reg_setting *groupon_settings;
@@ -405,7 +431,8 @@ typedef struct {
   sensor_video_hdr_table_t *video_hdr_awb_lsc_func_table;
 
   /* scale size tbl count*/
-  uint8_t scale_tbl_cnt;
+  uint32_t scale_tbl_cnt;
+
   /* function to get scale size tbl*/
   int32_t (*get_scale_tbl)(msm_sensor_dimension_t *);
 

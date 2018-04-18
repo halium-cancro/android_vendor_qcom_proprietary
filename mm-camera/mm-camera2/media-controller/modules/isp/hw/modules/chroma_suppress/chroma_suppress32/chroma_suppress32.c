@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "chroma_suppress32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_CHROMA_SUPP_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #define CHROMA_SUPPRESS_DIFF_MIN 4
@@ -28,15 +29,15 @@
 static void util_chroma_suppress_cmd_debug(ISP_ChromaSuppress_ConfigCmdType *cmd,
    ISP_ChromaSuppress_Mix1_ConfigCmdType *mix1_cmd, ISP_ChromaSuppress_Mix2_ConfigCmdType *mix2_cmd)
 {
-  CDBG("%s:\n", __func__);
-  CDBG("%s: ySup1 : %d ySup2 : %d ySup3 : %d ySup4 : %d\n", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s:\n", __func__);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: ySup1 : %d ySup2 : %d ySup3 : %d ySup4 : %d\n", __func__,
     cmd->ySup1, cmd->ySup2, cmd->ySup3, cmd->ySup4);
 
-  CDBG("%s: ySupM1 : %d ySupM3 : %d ySupS1 : %d ySupS3 : %d\n", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: ySupM1 : %d ySupM3 : %d ySupS1 : %d ySupS3 : %d\n", __func__,
     mix1_cmd->ySupM1, mix1_cmd->ySupM3, mix1_cmd->ySupS1, mix1_cmd->ySupS3);
 
-  CDBG("%s: chromaSuppressEn : %d", __func__, mix1_cmd->chromaSuppressEn);
-  CDBG("%s: cSup1 : %d cSup2 : %d cSupM1 : %d cSupS1 : %d", __func__,
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: chromaSuppressEn : %d", __func__, mix1_cmd->chromaSuppressEn);
+  ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: cSup1 : %d cSup2 : %d cSupM1 : %d cSupS1 : %d", __func__,
     mix2_cmd->cSup1, mix2_cmd->cSup2, mix2_cmd->cSupM1, mix2_cmd->cSupS1);
 } /* util_chroma_suppress_cmd_debug *//* util_chroma_suppress_cmd_debug */
 
@@ -102,9 +103,10 @@ static int chroma_suppress_init(void *mod_ctrl, void *in_params,
 
   mod->fd = init_params->fd;
   mod->notify_ops = notify_ops;
-  mod->reg_mix_cmd_1.hw_mask = 0x0FFFFFFF;
-  mod->reg_mix_cmd_2.hw_mask = 0x0FFFFFFF;
+  mod->reg_mix_cmd_1.hw_mask = 0x01777F7F;
+  mod->reg_mix_cmd_2.hw_mask = 0x077FFFFF;
   mod->old_streaming_mode = CAM_STREAMING_MODE_MAX;
+  mod->aec_ratio.ratio = 1.0f;
 
   return 0;
 } /* chroma_suppress_init */
@@ -138,7 +140,7 @@ static int chroma_suppress_config(isp_chroma_suppress_mod_t *mod,
   }
 
   if (!mod->enable) {
-    CDBG("%s: Mod not Enable.", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Mod not Enable.", __func__);
     return rc;
   }
 
@@ -271,7 +273,7 @@ static int chroma_suppress_trigger_update(isp_chroma_suppress_mod_t *mod,
   }
 
   if (!mod->enable || !mod->trigger_enable || mod->skip_trigger) {
-    CDBG("%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Skip Trigger update. enable %d, trig_enable %d, skip_trigger %d",
       __func__, mod->enable, mod->trigger_enable, mod->skip_trigger);
     return rc;
   }
@@ -280,7 +282,7 @@ static int chroma_suppress_trigger_update(isp_chroma_suppress_mod_t *mod,
 
   if (!is_burst && !isp_util_aec_check_settled(
                       &in_params->trigger_input.stats_update.aec_update)) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: AEC not settled", __func__);
     return rc;
   }
 
@@ -293,20 +295,20 @@ static int chroma_suppress_trigger_update(isp_chroma_suppress_mod_t *mod,
     &(in_params->trigger_input.stats_update.aec_update), is_burst);
 
   update_cs = !F_EQUAL(mod->aec_ratio.ratio, ratio);
-
+  mod->aec_ratio.ratio = ratio;
   if (!update_cs) {
-    CDBG("%s: Chroma Suppression update not required", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Chroma Suppression update not required", __func__);
     return 0;
   }
 
   if (F_EQUAL(ratio, 0.0)) {
-    CDBG("%s: Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Low Light \n", __func__);
     mod->thresholds = *(cs_luma_threshold_lowlight);
   } else if (F_EQUAL(ratio, 1.0)) {
-    CDBG("%s: Normal Light \n", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Normal Light \n", __func__);
     mod->thresholds = *(cs_luma_threshold);
   } else {
-    CDBG("%s: Interpolate between Normal and Low Light \n", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Interpolate between Normal and Low Light \n", __func__);
     mod->thresholds.cs_luma_threshold1 = LINEAR_INTERPOLATION_INT(
         cs_luma_threshold->cs_luma_threshold1,
         cs_luma_threshold_lowlight->cs_luma_threshold1, ratio);
@@ -559,7 +561,7 @@ static int chroma_suppress_get_params(void *mod_ctrl, uint32_t param_id,
       break;
     }
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_CHROMA_SUPPRESS, "%s: Populating vfe_diag data", __func__);
     if (NULL == chromasupp || NULL == mod ) {
       CDBG_ERROR("%s: NULL chromasupp %x mod %x", __func__,
         (unsigned int)chromasupp, (unsigned int)mod);

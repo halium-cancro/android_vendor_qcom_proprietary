@@ -33,6 +33,7 @@ endif
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../includes
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../chromatix/0301
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../actuator_libs/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../actuators/0301
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../eeprom
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../module
@@ -47,7 +48,8 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../mct/stream
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../mct/tools
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../includes
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../includes
-LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
+LOCAL_C_INCLUDES += \
+ $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
@@ -60,7 +62,8 @@ ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
 
-LOCAL_MODULE_OWNER := qcom
+LOCAL_MODULE_OWNER := qcom 
+LOCAL_32_BIT_ONLY := true
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

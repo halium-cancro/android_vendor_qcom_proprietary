@@ -1,7 +1,7 @@
-/**********************************************************************
-* Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved. *
-* Qualcomm Technologies Proprietary and Confidential.                 *
-**********************************************************************/
+/***************************************************************************
+* Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Qualcomm Technologies Proprietary and Confidential.                      *
+***************************************************************************/
 
 #include <cutils/properties.h>
 #include <linux/media.h>
@@ -10,6 +10,8 @@
 #include "mct_stream.h"
 #include "modules.h"
 #include "fd_chromatix.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
 //#define FD_RESULT_DEBUG
 //#define FD_USE_PROP
@@ -154,6 +156,8 @@ int module_faceproc_client_update_face_info(cam_face_detection_info_t *faces,
 
   faces->mouth_center.x = roi->fp.face_pt[FACE_PART_MOUTH].x;
   faces->mouth_center.y = roi->fp.face_pt[FACE_PART_MOUTH].y;
+  faces->roll_dir       = roi->fp.direction_roll;
+  faces->updown_dir     = roi->fp.direction_up_down;
 #endif
 
   return IMG_SUCCESS;
@@ -311,6 +315,9 @@ void module_faceproc_client_send_faceinfo(faceproc_client_t *p_client,
     }
   }
 
+  faces_data.fd_frame_dim.width  = p_client->stream_info->dim.width;
+  faces_data.fd_frame_dim.height = p_client->stream_info->dim.height;
+
   /* create bus message ToDo: move to another function */
   mct_bus_msg_t bus_msg;
   mct_module_t *p_mct_mod =
@@ -388,7 +395,7 @@ int module_faceproc_sort_results(faceproc_result_t *p_result,
  *
  * Notes: none
  **/
-inline boolean module_faceproc_client_check_boundary(
+static inline boolean module_faceproc_client_check_boundary(
   faceproc_client_t *p_client,
   fd_rect_t *p_fd_rect,
   img_rect_t *p_img_rect)
@@ -498,11 +505,11 @@ void module_faceproc_client_send_roi_event(faceproc_client_t *p_client,
       continue;
 #else
     out_region.pos.x =
-      IMG_TRANSLATE(in_region.pos.x,
+      IMG_TRANSLATE2(in_region.pos.x,
       p_client->camif_trans_info.h_scale,
       p_client->camif_trans_info.h_offset);
     out_region.pos.y =
-      IMG_TRANSLATE(in_region.pos.y,
+      IMG_TRANSLATE2(in_region.pos.y,
       p_client->camif_trans_info.v_scale,
       p_client->camif_trans_info.v_offset);
     out_region.size.width =
@@ -846,6 +853,8 @@ void *module_faceproc_client_thread_func(void *data)
   int rc = IMG_SUCCESS;
   faceproc_client_t *p_client = (faceproc_client_t *)data;
 
+  IDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "faceproc_thread", 0, 0, 0);
   /*signal the base class*/
   pthread_mutex_lock(&p_client->mutex);
   pthread_cond_signal(&p_client->cond);
@@ -1041,8 +1050,16 @@ int module_faceproc_client_map_buffers(faceproc_client_t *p_client)
     p_buf_info->p_buffer[i].frame.frame[0].plane[0].height =
       stream_info->dim.height;
     p_buf_info->p_buffer[i].frame.frame[0].plane[0].plane_type = PLANE_Y;
+
+    // width/height are equal to stride/scanline since
+    // library doesn't support stride and scanline
+    p_buf_info->p_buffer[i].frame.frame[0].plane[0].stride =
+      p_buf_info->p_buffer[i].frame.frame[0].plane[0].width;
+    p_buf_info->p_buffer[i].frame.frame[0].plane[0].scanline =
+      p_buf_info->p_buffer[i].frame.frame[0].plane[0].height;
     p_buf_info->p_buffer[i].frame.frame[0].plane[0].length =
-      stream_info->dim.width * stream_info->dim.height;
+      p_buf_info->p_buffer[i].frame.frame[0].plane[0].stride *
+      p_buf_info->p_buffer[i].frame.frame[0].plane[0].scanline;
 
     if (p_client->mode == FACE_REGISTER) {
       int  p_cnt, plane_cnt = p_buf_info->p_buffer[i].frame.frame[0].plane_cnt;
@@ -1217,6 +1234,7 @@ int module_faceproc_client_start(faceproc_client_t *p_client)
     rc = pthread_create(&p_client->threadid, NULL,
        module_faceproc_client_thread_func,
       (void *)p_client);
+    pthread_setname_np(p_client->threadid, "CAM_fd_client");
     if (rc < 0) {
       IDBG_ERROR("%s:%d] pthread creation failed %d",
         __func__, __LINE__, rc);
@@ -1271,12 +1289,27 @@ int module_faceproc_client_stop(faceproc_client_t *p_client)
   int rc = IMG_SUCCESS;
   img_component_ops_t *p_comp = &p_client->comp;
   module_faceproc_t *p_mod = (module_faceproc_t *)(p_client->p_mod);
+  mct_event_t mct_event;
+  mct_face_info_t face_info;
 
   rc = IMG_COMP_ABORT(p_comp, NULL);
   if (IMG_ERROR(rc)) {
     IDBG_ERROR("%s:%d] create failed %d", __func__, __LINE__, rc);
     return rc;
   }
+
+  /* reset the face info passed to 3A before closing the FD module.
+     other wise 3A holds the old face info and uses in video mode too
+     where FD is disabled */
+  memset(&mct_event, 0x0, sizeof(mct_event_t));
+  memset(&face_info, 0x0, sizeof(mct_face_info_t));
+  mct_event.u.module_event.type = MCT_EVENT_MODULE_FACE_INFO;
+  mct_event.u.module_event.module_event_data = (void *)&face_info;
+  mct_event.type = MCT_EVENT_MODULE_EVENT;
+  mct_event.identity = p_client->identity;
+  mct_event.direction = MCT_EVENT_UPSTREAM;
+  mct_port_send_event_to_peer(p_client->port, &mct_event);
+
   p_client->state = IMGLIB_STATE_INIT;
   return rc;
 }
@@ -1358,6 +1391,9 @@ int module_faceproc_client_handle_buffer(faceproc_client_t *p_client,
   img_component_ops_t *p_comp = &p_client->comp;
   int img_idx;
   mct_stream_map_buf_t *p_map_buf;
+  int i;
+  uint8_t *src;
+  uint8_t *dst;
 
   /* process the frame only in IMGLIB_STATE_PROCESSING state */
   pthread_mutex_lock(&p_client->mutex);
@@ -1377,8 +1413,9 @@ int module_faceproc_client_handle_buffer(faceproc_client_t *p_client,
     IDBG_LOW("%s:%d] Skip frame", __func__, __LINE__);
     p_client->current_count =
       (p_client->current_count + 1)%(p_client->frame_skip_cnt+1);
-    /* Send metadata to avoid flickering */
-  //  module_faceproc_client_send_info(p_client, frame_id);
+    /* Don't send the FD info for each frame to save
+       power consumed by GPU to draw the FD rectangles */
+    //module_faceproc_client_send_info(p_client);
     pthread_mutex_unlock(&p_client->mutex);
     return IMG_SUCCESS;
   }
@@ -1405,8 +1442,15 @@ int module_faceproc_client_handle_buffer(faceproc_client_t *p_client,
     p_frame->frame[0].plane[0].addr,
     p_map_buf->buf_planes[0].buf);
 
-  memcpy(p_frame->frame[0].plane[0].addr, p_map_buf->buf_planes[0].buf,
-    p_frame->frame[0].plane[0].length);
+  // remove stride and scanline during buffer copy since
+  // library doesn't support stride and scanline
+  dst = (uint8_t *)p_frame->frame[0].plane[0].addr;
+  src = (uint8_t *)p_map_buf->buf_planes[0].buf;
+  for (i = 0; i < p_frame->frame[0].plane[0].height; i++) {
+    memcpy(dst, src, p_frame->frame[0].plane[0].width);
+    dst += p_frame->frame[0].plane[0].width;
+    src += p_map_buf->buf_planes[0].stride;
+  }
 
   p_frame->frame_id = frame_id;
 

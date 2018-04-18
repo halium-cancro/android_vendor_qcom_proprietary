@@ -1,6 +1,7 @@
+
 /*============================================================================
 
-  Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -95,10 +96,12 @@ static int32_t cpp_module_send_buf_divert_event(mct_module_t* module,
   uint32_t frame_id = isp_buf->buffer.sequence;
   int32_t ret = 0;
 
-  CDBG_HIGH("%s:%d frame id %d\n", __func__, __LINE__, frame_id);
+  CDBG("%s:%d frame id %d and identity 0x%x\n",
+    __func__, __LINE__, frame_id,identity);
   /* get stream parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params, *linked_stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_stream_params_t *linked_stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, identity, &session_params,
      &stream_params);
   if(!stream_params) {
@@ -209,13 +212,13 @@ static int32_t cpp_module_send_buf_divert_event(mct_module_t* module,
     return -EFAULT;
   }
 
-  if (!linked_stream_params) {
-    /* decide if processed/unprocessed divert is required.
-       Currently, only one kind of divert is supported. */
-    if(divert_info->divert_flags & PPROC_DIVERT_UNPROCESSED) {
-      unproc_div_required = TRUE;
-      unproc_div_identity = divert_info->div_unproc_identity;
-    }
+  /* decide if processed/unprocessed divert is required.
+     Currently, only one kind of divert is supported. */
+  CDBG("%s:%d, ###CPP divert flag %x",
+    __func__, __LINE__, divert_info->divert_flags);
+  if(divert_info->divert_flags & PPROC_DIVERT_UNPROCESSED) {
+    unproc_div_required = TRUE;
+    unproc_div_identity = divert_info->div_unproc_identity;
   }
 
   /* create a key for ack with original event identity, this key will be
@@ -232,7 +235,14 @@ static int32_t cpp_module_send_buf_divert_event(mct_module_t* module,
   /* based on configuration, at max 3 events are queued for one buffer */
   cpp_module_event_t *cpp_event[3];
 
-  /* Step 1. if unprocessed divert is needed, add an event for that */
+  int32_t i = 0, j = 0;
+  int32_t num_passes = 0;
+  boolean skip_frame = FALSE;
+
+  if(divert_info->num_passes != 0)
+    isp_buf->is_cpp_processed = TRUE;
+
+   /* Step 1. if unprocessed divert is needed, add an event for that */
   if(unproc_div_required == TRUE) {
     cpp_event[event_idx] = cpp_module_create_cpp_event(key, NULL, isp_buf,
       identity, unproc_div_identity, duplicate_output);
@@ -246,9 +256,6 @@ static int32_t cpp_module_send_buf_divert_event(mct_module_t* module,
     event_idx++;
   }
 
-  int32_t i = 0, j = 0;
-  int32_t num_passes = 0;
-  boolean skip_frame = FALSE;
   /* Step 2. Based on the number of process identities set in divert config,
      generate cpp events accordingly */
   for (i = 0; i < divert_info->num_passes; i++) {
@@ -275,10 +282,33 @@ static int32_t cpp_module_send_buf_divert_event(mct_module_t* module,
       }
 
       if (skip_frame == FALSE) {
+          boolean final_dup_output = duplicate_output;
+          if (duplicate_output &&
+            linked_stream_list[j]->linked_stream_params &&
+            linked_stream_list[j]->linked_stream_params\
+            ->hfr_skip_info.skip_required) {
+            if ((cpp_decide_hfr_skip(frame_id -
+              linked_stream_list[j]->linked_stream_params\
+              ->hfr_skip_info.frame_offset,
+              linked_stream_list[j]->linked_stream_params\
+              ->hfr_skip_info.skip_count)) == TRUE) {
+              /* duplication not required as linked stream has to be skipped */
+              final_dup_output = FALSE;
+              CDBG("%s:%d, disable duplication "
+                "skip_count=%d, offset=%d frame_id=%d for identity=0x%x",
+                __func__, __LINE__,
+                linked_stream_list[j]->linked_stream_params\
+                ->hfr_skip_info.skip_count,
+                linked_stream_list[j]->linked_stream_params\
+                ->hfr_skip_info.frame_offset,
+                frame_id, linked_stream_list[j]->identity);
+            }
+        }
+
         cpp_event[event_idx] = cpp_module_create_cpp_event(key,
           &(linked_stream_list[j]->hw_params), isp_buf,
           linked_stream_list[j]->identity,
-          divert_info->div_proc_identity[i],duplicate_output);
+          divert_info->div_proc_identity[i],final_dup_output);
         if(!cpp_event[event_idx]) {
           CDBG_ERROR("%s:%d, malloc() failed\n", __func__, __LINE__);
           if(linked_stream_params)
@@ -399,7 +429,8 @@ int32_t cpp_module_handle_buf_divert_event(mct_module_t* module,
 
   frame_id = isp_buf->buffer.sequence;
 
-  CDBG("%s:%d received buffer divert for %d\n", __func__, __LINE__, frame_id);
+  CDBG("%s:%d received buffer divert for %d and identity 0x%x\n",
+    __func__, __LINE__, frame_id,event->identity);
   cpp_module_get_params_for_identity(ctrl, event->identity, &session_params,
      &stream_params);
   if (!session_params || !stream_params) {
@@ -408,6 +439,7 @@ int32_t cpp_module_handle_buf_divert_event(mct_module_t* module,
     return -EFAULT;
   }
 
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   /* Check whether DIS is enabled */
   if (session_params->dis_enable == 0) {
     CDBG("%s:%d send %d for processing\n", __func__, __LINE__,
@@ -440,13 +472,18 @@ int32_t cpp_module_handle_buf_divert_event(mct_module_t* module,
           __func__, __LINE__, isp_buf->buffer.sequence);
         /* Send current frame for processing */
         cpp_module_send_buf_divert_event(module, event->identity, isp_buf);
-      } else {
+      } else if(stream_params->is_stream_on ||
+          linked_stream_params->is_stream_on){
         /* DIS frame id is either invalid or DIS crop event for this frame
            has not arrived yet. HOLD this frame */
         CDBG("%s:%d HOLD %d\n", __func__, __LINE__, isp_buf->buffer.sequence);
         frame_hold->is_frame_hold = TRUE;
         frame_hold->identity = event->identity;
         memcpy(&frame_hold->isp_buf, isp_buf, sizeof(isp_buf_divert_t));
+      } else {
+        /* Send acknowledge to free  the buffer. */
+        isp_buf->ack_flag = 1;
+        isp_buf->is_buf_dirty = 1;
       }
     } else {
       /* This frame does not belong to preview / video.
@@ -462,6 +499,7 @@ int32_t cpp_module_handle_buf_divert_event(mct_module_t* module,
     cpp_module_send_buf_divert_event(module, event->identity, isp_buf);
 
   }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
   return 0;
 }
@@ -495,8 +533,8 @@ int32_t cpp_module_handle_isp_out_dim_event(mct_module_t* module,
   CDBG("%s:%d identity=0x%x, dim=%dx%d\n", __func__, __LINE__,
     event->identity, stream_info->dim.width, stream_info->dim.height);
   /* get stream parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -504,6 +542,7 @@ int32_t cpp_module_handle_isp_out_dim_event(mct_module_t* module,
     return -EFAULT;
   }
   PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
+
   /* update the dimension of the stream */
   stream_params->hw_params.input_info.width = stream_info->dim.width;
   stream_params->hw_params.input_info.height = stream_info->dim.height;
@@ -543,6 +582,7 @@ int32_t cpp_module_handle_isp_out_dim_event(mct_module_t* module,
   stream_params->hw_params.crop_info.is_crop.dx = stream_info->dim.width;
   stream_params->hw_params.crop_info.is_crop.dy = stream_info->dim.height;
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+  cpp_module_set_clock_freq(ctrl, stream_params, 1);
   rc = cpp_module_send_event_downstream(module, event);
   if(rc < 0) {
     CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
@@ -565,8 +605,8 @@ int32_t cpp_module_handle_aec_update_event(mct_module_t* module,
   float                        aec_trigger_input;
   chromatix_parms_type        *chromatix_ptr;
   wavelet_denoise_type        *wavelet_denoise;
-  cpp_module_stream_params_t  *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t  *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   int32_t                      rc;
 
   if(!module || !event) {
@@ -588,6 +628,9 @@ int32_t cpp_module_handle_aec_update_event(mct_module_t* module,
   aec_update = &stats_update->aec_update;
 
   if (stats_update->flag & STATS_UPDATE_AEC) {
+    cpp_hardware_params_t        *running_hw_params = NULL;
+    cpp_hardware_params_t        *linked_hw_params = NULL;
+
     /* get stream parameters based on the event identity */
     cpp_module_get_params_for_identity(ctrl, event->identity,
       &session_params, &stream_params);
@@ -596,25 +639,39 @@ int32_t cpp_module_handle_aec_update_event(mct_module_t* module,
       return -EFAULT;
     }
 
+    running_hw_params = &stream_params->hw_params;
+    if (stream_params->linked_stream_params)
+    {
+      linked_hw_params = &stream_params->linked_stream_params->hw_params;
+      if (stream_params->is_stream_on == FALSE)
+      {
+        if (stream_params->linked_stream_params->is_stream_on == TRUE)
+        {
+          //swap
+          running_hw_params = &stream_params->linked_stream_params->hw_params;
+          linked_hw_params = &stream_params->hw_params;
+        }
+      }
+    }
+
     /* For WNR update */
     /* 1. AEC update needs to interpolate WNR values and store the output.
        2. For interpolation we also need,
          a. Chromatix ptr from session params.
          b. Session's SET_PARAM (enable/disable). */
     /* 3. Determine the control method to select lux_idx or gain */
-
     session_params->aec_trigger.gain = aec_update->real_gain;
     session_params->aec_trigger.lux_idx = aec_update->lux_idx;
-    stream_params->hw_params.aec_trigger.lux_idx =
+    running_hw_params->aec_trigger.lux_idx =
       session_params->aec_trigger.lux_idx;
-    stream_params->hw_params.aec_trigger.gain =
+    running_hw_params->aec_trigger.gain =
       session_params->aec_trigger.gain;
 
     chromatix_ptr = stream_params->module_chromatix.chromatixPtr;
 
-    if (stream_params->hw_params.denoise_enable == TRUE) {
+    if (running_hw_params->denoise_enable == TRUE) {
       cpp_hw_params_update_wnr_params(chromatix_ptr,
-        &stream_params->hw_params, &session_params->aec_trigger);
+        running_hw_params, &session_params->aec_trigger);
     }
 
     /* For ASF update */
@@ -622,21 +679,21 @@ int32_t cpp_module_handle_aec_update_event(mct_module_t* module,
        2. For interpolation we also need,
          a. Chromatix ptr from session params.
          b. Session's SET_PARAM (sharpness level). */
-      cpp_hw_params_asf_interpolate(&stream_params->hw_params, chromatix_ptr,
+      cpp_hw_params_asf_interpolate(ctrl->cpphw, running_hw_params, chromatix_ptr,
         &session_params->aec_trigger);
 
     /* Check for existence of linked_stream_params.
        If it exist apply the same aec update */
     if (stream_params->linked_stream_params) {
-      memcpy(stream_params->linked_stream_params->hw_params.denoise_info,
-        stream_params->hw_params.denoise_info,
-        sizeof(stream_params->hw_params.denoise_info));
-      memcpy(&stream_params->linked_stream_params->hw_params.asf_info,
-        &stream_params->hw_params.asf_info,
-        sizeof(stream_params->hw_params.asf_info));
-      stream_params->linked_stream_params->hw_params.aec_trigger.lux_idx =
+      memcpy(&(linked_hw_params->denoise_info),
+        &(running_hw_params->denoise_info),
+        sizeof(running_hw_params->denoise_info));
+      memcpy(&(linked_hw_params->asf_info),
+        &(running_hw_params->asf_info),
+        sizeof(running_hw_params->asf_info));
+      linked_hw_params->aec_trigger.lux_idx =
         session_params->aec_trigger.lux_idx;
-      stream_params->linked_stream_params->hw_params.aec_trigger.gain =
+      linked_hw_params->aec_trigger.gain =
         session_params->aec_trigger.gain;
 
     }
@@ -674,8 +731,8 @@ int32_t cpp_module_handle_chromatix_ptr_event(mct_module_t* module,
   }
   CDBG("%s:%d, identity=0x%x\n", __func__, __LINE__, event->identity);
   /* get stream parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -717,6 +774,7 @@ int32_t cpp_module_handle_stream_crop_event(mct_module_t* module,
   mct_event_t* event)
 {
   int32_t rc;
+  cpp_hardware_params_t *hw_params = NULL;
   if(!module || !event) {
     CDBG_ERROR("%s:%d, failed, module=%p, event=%p\n", __func__, __LINE__,
       module, event);
@@ -735,8 +793,8 @@ int32_t cpp_module_handle_stream_crop_event(mct_module_t* module,
     return -EFAULT;
   }
   /* get stream parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -744,25 +802,33 @@ int32_t cpp_module_handle_stream_crop_event(mct_module_t* module,
     return -EFAULT;
   }
 
-// Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 begin
-#ifdef ORIGINAL_VERSION
-#else
-  if ((stream_crop->remain_mask & (1 << stream_params->stream_type))) {
-	return 0;
+  hw_params = &stream_params->hw_params;
+  if (((stream_crop->x  + stream_crop->crop_out_x) <=
+    (uint32_t)(hw_params->input_info.width)) &&
+    ((stream_crop->y + stream_crop->crop_out_y) <=
+    (uint32_t)(hw_params->input_info.height))) {
+      PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
+      stream_params->hw_params.crop_info.stream_crop.x = stream_crop->x;
+      stream_params->hw_params.crop_info.stream_crop.y = stream_crop->y;
+      stream_params->hw_params.crop_info.stream_crop.dx = stream_crop->crop_out_x;
+      stream_params->hw_params.crop_info.stream_crop.dy = stream_crop->crop_out_y;
+      stream_params->hw_params.isp_width_map = stream_crop->width_map;
+      stream_params->hw_params.isp_height_map = stream_crop->height_map;
+      PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+      CDBG("%s:%d stream_crop.x=%d, stream_crop.y=%d, stream_crop.dx=%d,"
+        " stream_crop.dy=%d, identity=0x%x,width_map = %d,height_map = %d",
+        __func__,__LINE__, stream_crop->x, stream_crop->y,
+        stream_crop->crop_out_x, stream_crop->crop_out_y,
+        event->identity,stream_crop->width_map,
+        stream_crop->height_map);
+      PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+  } else {
+    CDBG_HIGH("%s:%d frame id %d stream_crop.x=%d, stream_crop.y=%d, stream_crop.dx=%d,"
+             " stream_crop.dy=%d, width %d height %d identity=0x%x", __func__, __LINE__,
+             stream_crop->frame_id, stream_crop->x, stream_crop->y,
+             stream_crop->crop_out_x,stream_crop->crop_out_y, hw_params->input_info.width,
+             hw_params->input_info.height, event->identity);
   }
-#endif
-// Gionee <zhuangxiaojian> <2014-11-24> modify for CR01415653 end
-  PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
-  CDBG_HIGH("%s:%d frame id %d\n", __func__, __LINE__, stream_crop->frame_id);
-  stream_params->hw_params.crop_info.stream_crop.x = stream_crop->x;
-  stream_params->hw_params.crop_info.stream_crop.y = stream_crop->y;
-  stream_params->hw_params.crop_info.stream_crop.dx = stream_crop->crop_out_x;
-  stream_params->hw_params.crop_info.stream_crop.dy = stream_crop->crop_out_y;
-  CDBG_LOW("%s:%d stream_crop.x=%d, stream_crop.y=%d, stream_crop.dx=%d,"
-           " stream_crop.dy=%d, identity=0x%x", __func__, __LINE__,
-           stream_crop->x, stream_crop->y, stream_crop->crop_out_x,
-           stream_crop->crop_out_y, event->identity);
-  PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
 
   /* This crop info event cannot be sent out as it is. This need to be a
      new crop event based on whether CPP can handle the requested crop.
@@ -804,9 +870,9 @@ int32_t cpp_module_handle_dis_update_event(mct_module_t* module,
     return -EFAULT;
   }
   /* get stream parameters based on the event identity */
-  cpp_module_stream_params_t  *stream_params;
-  cpp_module_session_params_t *session_params;
-  cpp_module_stream_params_t  *linked_stream_params;
+  cpp_module_stream_params_t  *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
+  cpp_module_stream_params_t  *linked_stream_params = NULL;
   cpp_module_frame_hold_t     *frame_hold = FALSE;
   cpp_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
@@ -816,24 +882,50 @@ int32_t cpp_module_handle_dis_update_event(mct_module_t* module,
     return -EFAULT;
   }
 
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   /* Check whether DIS is enabled, else return without storing */
   if (session_params->dis_enable == 0) {
     CDBG_LOW("%s:%d dis enable %d\n", __func__, __LINE__,
       session_params->dis_enable);
+    PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
     return 0;
   }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
   PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
-  CDBG_HIGH("%s:%d frame id %d\n", __func__, __LINE__, is_update->frame_id);
-  /* Update frame id in session_params */
+   /* Update is_crop in stream_params */
+   if (((is_update->x  + is_update->width) <=
+     stream_params->hw_params.input_info.width) &&
+   ((is_update->y + is_update->height) <=
+     stream_params->hw_params.input_info.height)) {
+     CDBG("%s:%d frame id %d x %d y %d dx %d dy %d"
+      " width %d height %d iden 0x%x\n",
+      __func__, __LINE__, is_update->frame_id,
+       is_update->x, is_update->y, is_update->width, is_update->height,
+       stream_params->hw_params.input_info.width, stream_params->hw_params.input_info.height,
+       stream_params->identity);
+       stream_params->hw_params.crop_info.is_crop.x = is_update->x;
+       stream_params->hw_params.crop_info.is_crop.y = is_update->y;
+       stream_params->hw_params.crop_info.is_crop.dx = is_update->width;
+       stream_params->hw_params.crop_info.is_crop.dy = is_update->height;
+   } else {
+     CDBG_HIGH("%s:%d frame id %d x %d y %d dx %d dy %d"
+      " width %d height %d iden 0x%x\n",
+      __func__, __LINE__, is_update->frame_id,
+       is_update->x, is_update->y, is_update->width, is_update->height,
+       stream_params->hw_params.input_info.width, stream_params->hw_params.input_info.height,
+       stream_params->identity);
+     PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+     return 0;
+   }
+
+  PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
+   /* Update frame id in session_params */
   session_params->dis_hold.is_valid = TRUE;
   session_params->dis_hold.dis_frame_id = is_update->frame_id;
-  /* Update is_crop in stream_params */
-  stream_params->hw_params.crop_info.is_crop.x = is_update->x;
-  stream_params->hw_params.crop_info.is_crop.y = is_update->y;
-  stream_params->hw_params.crop_info.is_crop.dx = is_update->width;
-  stream_params->hw_params.crop_info.is_crop.dy = is_update->height;
-  PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
   /* Update is_crop in linked_stream_params */
   linked_stream_params = stream_params->linked_stream_params;
@@ -845,6 +937,8 @@ int32_t cpp_module_handle_dis_update_event(mct_module_t* module,
     linked_stream_params->hw_params.crop_info.is_crop.dy = is_update->height;
     PTHREAD_MUTEX_UNLOCK(&(linked_stream_params->mutex));
   }
+
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   frame_hold = &session_params->frame_hold;
   /* Check whether frame is on HOLD &&
      DIS crop event is for frame on HOLD */
@@ -863,6 +957,8 @@ int32_t cpp_module_handle_dis_update_event(mct_module_t* module,
   CDBG_LOW("%s:%d is_crop.x=%d, is_crop.y=%d, is_crop.dx=%d, is_crop.dy=%d,"
     " identity=0x%x", __func__, __LINE__, is_update->x, is_update->y,
     is_update->width, is_update->height, event->identity);
+
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
   /* TODO: Review where DIS info needs to be sent out. */
 #if 0
@@ -902,24 +998,36 @@ int32_t cpp_module_handle_stream_cfg_event(mct_module_t* module,
     return -EFAULT;
   }
   /* get stream parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
-  if(!stream_params) {
+  if(!session_params) {
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
-  PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
-  stream_params->hfr_skip_info.frame_offset =
-    sensor_out_info->num_frames_skip + 1;
-  stream_params->hfr_skip_info.input_fps = sensor_out_info->max_fps;
-  CDBG("%s:%d frame_offset=%d, input_fps=%.2f, identity=0x%x",
-    __func__, __LINE__, stream_params->hfr_skip_info.frame_offset,
-    stream_params->hfr_skip_info.input_fps, event->identity);
-  cpp_module_update_hfr_skip(stream_params);
-  PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
-
+  /* apply this to all streams for that session */
+  int i;
+  for(i=0; i<CPP_MODULE_MAX_STREAMS; i++) {
+    if(session_params->stream_params[i]) {
+      PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
+      session_params->stream_params[i]->hfr_skip_info.frame_offset =
+        sensor_out_info->num_frames_skip + 1;
+      session_params->stream_params[i]->hfr_skip_info.input_fps =
+        sensor_out_info->max_fps;
+      session_params->stream_params[i]->hw_params.sensor_dim_info.width =
+        sensor_out_info->dim_output.width;
+      session_params->stream_params[i]->hw_params.sensor_dim_info.height =
+        sensor_out_info->dim_output.height;
+      cpp_module_update_hfr_skip(session_params->stream_params[i]);
+      PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
+      CDBG("%s:%d frame_offset=%d, input_fps=%.2f, identity=0x%x",
+        __func__, __LINE__,
+        session_params->stream_params[i]->hfr_skip_info.frame_offset,
+        session_params->stream_params[i]->hfr_skip_info.input_fps,
+        session_params->stream_params[i]->identity);
+    }
+  }
   rc = cpp_module_send_event_downstream(module, event);
   if(rc < 0) {
     CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
@@ -929,6 +1037,107 @@ int32_t cpp_module_handle_stream_cfg_event(mct_module_t* module,
   return 0;
 }
 
+/* cpp_module_handle_fps_update_event:
+ *
+ * Description:
+ *
+ **/
+int32_t cpp_module_handle_fps_update_event(mct_module_t* module,
+  mct_event_t* event)
+{
+  int32_t rc;
+  if(!module || !event) {
+    CDBG_ERROR("%s:%d, failed, module=%p, event=%p\n", __func__, __LINE__,
+      module, event);
+    return -EINVAL;
+  }
+  cpp_module_ctrl_t* ctrl = (cpp_module_ctrl_t*) MCT_OBJECT_PRIVATE(module);
+  if(!ctrl) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+
+  sensor_fps_update_t *fps_update =
+    (sensor_fps_update_t *)(event->u.module_event.module_event_data);
+
+  /* get stream parameters based on the event identity */
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
+  cpp_module_get_params_for_identity(ctrl, event->identity,
+    &session_params, &stream_params);
+  if(!session_params) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+  /* apply this to all streams for that session */
+  int i;
+  for(i=0; i<CPP_MODULE_MAX_STREAMS; i++) {
+    if(session_params->stream_params[i]) {
+      PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
+      session_params->stream_params[i]->hfr_skip_info.input_fps =
+        fps_update->max_fps;
+      cpp_module_update_hfr_skip(session_params->stream_params[i]);
+      PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
+      CDBG("%s:%d input_fps=%.2f, identity=0x%x",
+        __func__, __LINE__,
+        session_params->stream_params[i]->hfr_skip_info.input_fps,
+        session_params->stream_params[i]->identity);
+    }
+  }
+  rc = cpp_module_send_event_downstream(module, event);
+  if(rc < 0) {
+    CDBG_ERROR("%s:%d, failed, module_event_type=%d, identity=0x%x",
+      __func__, __LINE__, event->u.module_event.type, event->identity);
+    return -EFAULT;
+  }
+  return 0;
+}
+
+/* cpp_module_handle_set_output_buff_event:
+ *
+ * Description:
+ *
+ **/
+int32_t cpp_module_handle_set_output_buff_event(mct_module_t* module,
+  mct_event_t* event)
+{
+  int32_t               rc;
+  mct_stream_map_buf_t *img_buf;
+
+  if(!module || !event) {
+    CDBG_ERROR("%s:%d, failed, module=%p, event=%p\n", __func__, __LINE__,
+      module, event);
+    return -EINVAL;
+  }
+  cpp_module_ctrl_t* ctrl = (cpp_module_ctrl_t*) MCT_OBJECT_PRIVATE(module);
+  if(!ctrl) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+  img_buf = (mct_stream_map_buf_t *)(event->u.module_event.module_event_data);
+  if (!img_buf) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+  /* get stream parameters based on the event identity */
+  cpp_module_stream_params_t *stream_params;
+  cpp_module_session_params_t *session_params;
+  cpp_module_get_params_for_identity(ctrl, event->identity,
+    &session_params, &stream_params);
+  if(!stream_params) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    return -EFAULT;
+  }
+  PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
+  stream_params->hw_params.output_buffer_info.fd = img_buf->buf_planes[0].fd;
+  stream_params->hw_params.output_buffer_info.index = img_buf->buf_index;
+  stream_params->hw_params.output_buffer_info.native_buff = TRUE;
+  stream_params->hw_params.output_buffer_info.offset = 0;
+  stream_params->hw_params.output_buffer_info.processed_divert = 0;
+  PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
+
+  return 0;
+}
 
 /**cpp_module_handle_div_info_event:
  *
@@ -971,8 +1180,8 @@ int32_t cpp_module_handle_div_info_event(mct_module_t* module,
     return 0;
   }
   /* get stream parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, event->identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -1045,7 +1254,7 @@ int32_t cpp_module_handle_load_chromatix_event(mct_module_t* module,
           &session_params->stream_params[i]->hw_params,
           &session_params->aec_trigger);
 
-        cpp_hw_params_asf_interpolate(
+        cpp_hw_params_asf_interpolate(ctrl->cpphw,
           &session_params->stream_params[i]->hw_params,
           chromatix_param->chromatixPtr,&session_params->aec_trigger);
       }
@@ -1061,8 +1270,8 @@ int32_t cpp_module_handle_load_chromatix_event(mct_module_t* module,
 static int32_t cpp_module_set_parm_sharpness(cpp_module_ctrl_t *ctrl,
   uint32_t identity, int32_t value)
 {
-  cpp_module_stream_params_t  *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t  *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   chromatix_parms_type        *chromatix_ptr;
   float                        trigger_input;
   int                          i = 0;
@@ -1078,7 +1287,14 @@ static int32_t cpp_module_set_parm_sharpness(cpp_module_ctrl_t *ctrl,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
-  session_params->hw_params.sharpness_level = cpp_get_sharpness_ratio(value);
+  if (session_params->sensor_format != FORMAT_BAYER) {
+    session_params->hw_params.sharpness_level = 0.0f;
+    CDBG_LOW("%s:%d,Sharpness feature disabled,sharpness_level = 0.0f",
+      __func__,
+      __LINE__);
+  } else {
+    session_params->hw_params.sharpness_level = cpp_get_sharpness_ratio(value);
+  }
 
   if (session_params->hw_params.sharpness_level ==
     0.0f) {
@@ -1094,16 +1310,15 @@ static int32_t cpp_module_set_parm_sharpness(cpp_module_ctrl_t *ctrl,
         CPP_PARAM_ASF_DUAL_FILTER;
     }
   }
-
   CDBG("%s:%d] value:%d, sharpness_level:%f\n", __func__, __LINE__, value,
     session_params->hw_params.sharpness_level);
+
   /* apply this to all streams in session */
   for(i = 0; i < CPP_MODULE_MAX_STREAMS; i++) {
     if(session_params->stream_params[i]) {
       PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
       session_params->stream_params[i]->hw_params.sharpness_level =
         cpp_get_sharpness_ratio(value);
-
       if (session_params->stream_params[i]->hw_params.sharpness_level ==
         0.0f) {
         if (session_params->stream_params[i]->hw_params.asf_mode ==
@@ -1118,12 +1333,10 @@ static int32_t cpp_module_set_parm_sharpness(cpp_module_ctrl_t *ctrl,
             CPP_PARAM_ASF_DUAL_FILTER;
         }
       }
-      if (stream_params->module_chromatix.chromatixPtr != NULL) {
-        chromatix_ptr = stream_params->module_chromatix.chromatixPtr;
-        cpp_hw_params_asf_interpolate(
-          &session_params->stream_params[i]->hw_params, chromatix_ptr,
-          &session_params->aec_trigger);
-      }
+      chromatix_ptr = stream_params->module_chromatix.chromatixPtr;
+      cpp_hw_params_asf_interpolate(ctrl->cpphw,
+        &session_params->stream_params[i]->hw_params, chromatix_ptr,
+        &session_params->aec_trigger);
       PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
     }
   }
@@ -1138,8 +1351,8 @@ static int32_t cpp_module_set_parm_sharpness(cpp_module_ctrl_t *ctrl,
 static int32_t cpp_module_set_parm_sceneMode(cpp_module_ctrl_t *ctrl,
   uint32_t identity, int32_t value)
 {
-  cpp_module_stream_params_t  *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t  *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
 
   if(!ctrl) {
     CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
@@ -1172,8 +1385,8 @@ static int32_t cpp_module_set_parm_sceneMode(cpp_module_ctrl_t *ctrl,
 static int32_t cpp_module_set_parm_effect(cpp_module_ctrl_t *ctrl,
   uint32_t identity, int32_t value)
 {
-  cpp_module_stream_params_t  *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t  *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   chromatix_parms_type        *chromatix_ptr;
   float                        trigger_input;
   int                          i;
@@ -1215,6 +1428,11 @@ static int32_t cpp_module_set_parm_effect(cpp_module_ctrl_t *ctrl,
       }
     }
   }
+  if (session_params->sensor_format != FORMAT_BAYER) {
+    session_params->hw_params.asf_mode = CPP_PARAM_ASF_OFF;
+    session_params->hw_params.sharpness_level = 0.0f;
+    CDBG_LOW("%s:%d,Sharpness feature disabled",__func__,__LINE__);
+  }
   CDBG_LOW("%s:%d] effect:%d\n", __func__, __LINE__,
     session_params->hw_params.asf_mode);
   /* TODO: SET_PARAM will be triggered intially before any streamon etc.,
@@ -1227,7 +1445,7 @@ static int32_t cpp_module_set_parm_effect(cpp_module_ctrl_t *ctrl,
       session_params->stream_params[i]->hw_params.asf_mode =
         session_params->hw_params.asf_mode;
       PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
-      cpp_hw_params_asf_interpolate(
+      cpp_hw_params_asf_interpolate(ctrl->cpphw,
         &session_params->stream_params[i]->hw_params, chromatix_ptr,
         &session_params->aec_trigger);
     }
@@ -1242,8 +1460,8 @@ static int32_t cpp_module_set_parm_denoise(cpp_module_ctrl_t *ctrl,
   uint32_t identity, cam_denoise_param_t parm)
 {
   int                          i;
-  cpp_module_stream_params_t  *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t  *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   chromatix_parms_type        *chromatix_ptr;
   float                        trigger_input;
 
@@ -1258,7 +1476,11 @@ static int32_t cpp_module_set_parm_denoise(cpp_module_ctrl_t *ctrl,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
-  session_params->hw_params.denoise_enable = parm.denoise_enable;
+  if (session_params->sensor_format != FORMAT_BAYER) {
+    session_params->hw_params.denoise_enable = 0;
+  } else {
+    session_params->hw_params.denoise_enable = parm.denoise_enable;
+  }
   /* TODO: SET_PARAM will be triggered intially before any streamon etc.,
      and also when ever there is UI change */
   chromatix_ptr = stream_params->module_chromatix.chromatixPtr;
@@ -1286,16 +1508,16 @@ static int32_t cpp_module_set_parm_denoise(cpp_module_ctrl_t *ctrl,
 static int32_t cpp_module_set_parm_fps_range(cpp_module_ctrl_t *ctrl,
   uint32_t identity, cam_fps_range_t *fps_range)
 {
-  if(!ctrl) {
+  if((!ctrl) || (!fps_range)){
     CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
     return -EFAULT;
   }
   /* get parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, identity,
     &session_params, &stream_params);
-  if(!session_params) {
+  if (!session_params) {
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
@@ -1303,15 +1525,28 @@ static int32_t cpp_module_set_parm_fps_range(cpp_module_ctrl_t *ctrl,
   int i;
   session_params->fps_range.max_fps = fps_range->max_fps;
   session_params->fps_range.min_fps = fps_range->min_fps;
+  session_params->fps_range.video_max_fps = fps_range->video_max_fps;
+  session_params->fps_range.video_min_fps = fps_range->video_min_fps;
+  CDBG("%s:%d, max_fps %f video_max_fps %f", __func__, __LINE__,
+    fps_range->max_fps, fps_range->video_max_fps);
   for(i=0; i<CPP_MODULE_MAX_STREAMS; i++) {
-    if(session_params->stream_params[i]) {
-      PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
-      if(session_params->stream_params[i]->hfr_skip_info.skip_required) {
+   if(session_params->stream_params[i]) {
+    PTHREAD_MUTEX_LOCK(&(session_params->stream_params[i]->mutex));
+    if(session_params->stream_params[i]->hfr_skip_info.skip_required) {
+      if(session_params->stream_params[i]->stream_type ==
+        CAM_STREAM_TYPE_VIDEO)
+      {
         session_params->stream_params[i]->hfr_skip_info.output_fps =
-         fps_range->max_fps;
-        cpp_module_update_hfr_skip(session_params->stream_params[i]);
+          fps_range->video_max_fps;
       }
-      PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
+      else
+      {
+        session_params->stream_params[i]->hfr_skip_info.output_fps =
+          fps_range->max_fps;
+      }
+      cpp_module_update_hfr_skip(session_params->stream_params[i]);
+      }
+    PTHREAD_MUTEX_UNLOCK(&(session_params->stream_params[i]->mutex));
     }
   }
   return 0;
@@ -1328,8 +1563,8 @@ static int32_t cpp_module_set_parm_rotation(cpp_module_ctrl_t *ctrl,
     return -EFAULT;
   }
   /* get parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, identity,
     &session_params, &stream_params);
   if(!session_params) {
@@ -1347,6 +1582,7 @@ static int32_t cpp_module_set_parm_rotation(cpp_module_ctrl_t *ctrl,
   } else if (rotation == ROTATE_270) {
     stream_params->hw_params.rotation = 3;
   }
+  cpp_module_set_output_duplication_flag(stream_params);
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
 
   return 0;
@@ -1372,6 +1608,8 @@ static int32_t cpp_module_set_parm_dis(cpp_module_ctrl_t *ctrl,
     CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
     return -EFAULT;
   }
+
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   /* Update dis_enable flag in session_params */
   session_params->dis_enable = dis_enable;
   CDBG("%s:%d dis_enable %d\n", __func__, __LINE__, dis_enable);
@@ -1379,6 +1617,7 @@ static int32_t cpp_module_set_parm_dis(cpp_module_ctrl_t *ctrl,
     /* Invalidate DIS hold flag */
     session_params->dis_hold.is_valid = FALSE;
   }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
   return 0;
 }
 
@@ -1400,8 +1639,8 @@ static int32_t cpp_module_set_parm_flip(cpp_module_ctrl_t *ctrl,
     return -EFAULT;
   }
   /* get parameters based on the event identity */
-  cpp_module_stream_params_t *stream_params;
-  cpp_module_session_params_t *session_params;
+  cpp_module_stream_params_t *stream_params = NULL;
+  cpp_module_session_params_t *session_params = NULL;
   cpp_module_get_params_for_identity(ctrl, identity,
     &session_params, &stream_params);
   if(!stream_params) {
@@ -1411,6 +1650,7 @@ static int32_t cpp_module_set_parm_flip(cpp_module_ctrl_t *ctrl,
 
   PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
   stream_params->hw_params.mirror = flip_mask;
+  cpp_module_set_output_duplication_flag(stream_params);
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
 
   return 0;
@@ -1509,7 +1749,7 @@ int32_t cpp_module_handle_set_parm_event(mct_module_t* module,
       return -EFAULT;
     }
     cam_fps_range_t *fps_range = (cam_fps_range_t *)(ctrl_parm->parm_data);
-    CDBG_LOW("%s:%d, CAM_INTF_PARM_FPS_RANGE,, max_fps=%.2f, identity=0x%x",
+    CDBG("%s:%d, CAM_INTF_PARM_FPS_RANGE,, max_fps=%.2f, identity=0x%x",
       __func__, __LINE__, fps_range->max_fps, event->identity);
     rc = cpp_module_set_parm_fps_range(ctrl, event->identity, fps_range);
     if(rc < 0) {
@@ -1705,6 +1945,91 @@ int32_t cpp_module_handle_set_stream_parm_event(mct_module_t* module,
   return 0;
 }
 
+/* cpp_module_handle_update_buf_info
+ *
+ *  @ module - structure that holds current module information.
+ *  @ event - structure that holds event data.
+ *
+ *  Event handler that creates buff info list send it to hardware layer for
+ *  process. Send downstream event also.
+ *
+ *  Returns 0 on success.
+ *
+**/
+int32_t cpp_module_handle_update_buf_info(mct_module_t* module,
+  mct_event_t* event)
+{
+  cpp_module_stream_buff_info_t   stream_buff_info;
+  cpp_hardware_stream_buff_info_t hw_strm_buff_info;
+  mct_stream_map_buf_t *buf_holder =
+    (mct_stream_info_t *)event->u.ctrl_event.control_event_data;
+  cpp_module_ctrl_t              *ctrl =
+    (cpp_module_ctrl_t *)MCT_OBJECT_PRIVATE(module);
+  cpp_hardware_cmd_t              cmd;
+  boolean                         rc = -EINVAL;
+
+
+  memset(&stream_buff_info, 0, sizeof(cpp_module_stream_buff_info_t));
+  memset(&hw_strm_buff_info, 0, sizeof(cpp_hardware_stream_buff_info_t));
+
+  /* attach the identity */
+  stream_buff_info.identity = event->identity;
+  /* Apend the new buffer to cpp module's  own list of buffer info */
+  if (cpp_module_util_map_buffer_info(buf_holder, &stream_buff_info) == FALSE) {
+    CDBG_ERROR("%s:%d, error creating stream buff list\n", __func__,
+      __LINE__);
+    goto CPP_MODULE_BUF_UPDATE_ERROR1;
+  }
+
+  /* create and translate to hardware buffer array */
+  hw_strm_buff_info.buffer_info = (cpp_hardware_buffer_info_t *)malloc(
+    sizeof(cpp_hardware_buffer_info_t) * stream_buff_info.num_buffs);
+  if(NULL == hw_strm_buff_info.buffer_info) {
+    CDBG_ERROR("%s:%d, error creating hw buff list\n", __func__,
+      __LINE__);
+    goto CPP_MODULE_BUF_UPDATE_ERROR1;
+  }
+
+  hw_strm_buff_info.identity = stream_buff_info.identity;
+  if (mct_list_traverse(stream_buff_info.buff_list,
+    cpp_module_util_create_hw_stream_buff, &hw_strm_buff_info) == FALSE) {
+    CDBG_ERROR("%s:%d, error creating stream buff list\n", __func__,
+      __LINE__);
+    goto CPP_MODULE_BUF_UPDATE_ERROR2;
+  }
+
+  if(hw_strm_buff_info.num_buffs != stream_buff_info.num_buffs) {
+    CDBG_ERROR("%s:%d, error creating stream buff list\n", __func__,
+      __LINE__);
+    goto CPP_MODULE_BUF_UPDATE_ERROR2;
+  }
+
+  cmd.type = CPP_HW_CMD_BUF_UPDATE;
+  cmd.u.stream_buff_list = &hw_strm_buff_info;
+  rc = cpp_hardware_process_command(ctrl->cpphw, cmd);
+  if(rc < 0) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    goto CPP_MODULE_BUF_UPDATE_ERROR2;
+  }
+  rc = cpp_module_send_event_downstream(module,event);
+  if(rc < 0) {
+    CDBG_ERROR("%s:%d, failed\n", __func__, __LINE__);
+    goto CPP_MODULE_BUF_UPDATE_ERROR2;
+  }
+
+  rc = 0;
+
+CPP_MODULE_BUF_UPDATE_ERROR2:
+  free(hw_strm_buff_info.buffer_info);
+CPP_MODULE_BUF_UPDATE_ERROR1:
+  mct_list_traverse(stream_buff_info.buff_list,
+    cpp_module_util_free_buffer_info, &stream_buff_info);
+  mct_list_free_list(stream_buff_info.buff_list);
+
+  return rc;
+}
+
+
 /* cpp_module_handle_streamon_event:
  *
  **/
@@ -1770,6 +2095,8 @@ int32_t cpp_module_handle_streamon_event(mct_module_t* module,
     goto CPP_MODULE_STREAMON_ERROR2;
   }
 
+  cpp_module_set_clock_freq(ctrl, stream_params, 1);
+
   cmd.type = CPP_HW_CMD_STREAMON;
   cmd.u.stream_buff_list = &hw_strm_buff_info;
   rc = cpp_hardware_process_command(ctrl->cpphw, cmd);
@@ -1785,6 +2112,12 @@ int32_t cpp_module_handle_streamon_event(mct_module_t* module,
   /* change state to stream ON */
   PTHREAD_MUTEX_LOCK(&(stream_params->mutex));
   stream_params->is_stream_on = TRUE;
+  stream_params->hw_params.diagnostic_enable =
+    session_params->hw_params.diagnostic_enable;
+  stream_params->hw_params.scene_mode_on =
+    session_params->hw_params.scene_mode_on;
+  CDBG_LOW("%s:%d] scene_mode_on:%d", __func__, __LINE__,
+    stream_params->hw_params.scene_mode_on);
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
   CDBG_HIGH("%s:%d, identity=0x%x, stream-on done", __func__, __LINE__,
     event->identity);
@@ -1812,16 +2145,12 @@ int32_t cpp_module_handle_streamon_event(mct_module_t* module,
       goto CPP_MODULE_STREAMON_ERROR2;
     }
 
-    stream_params->hw_params.scene_mode_on =
-      session_params->hw_params.scene_mode_on;
     stream_params->hw_params.denoise_enable =
       session_params->hw_params.denoise_enable;
     stream_params->hw_params.sharpness_level =
       session_params->hw_params.sharpness_level;
     stream_params->hw_params.asf_mode =
       session_params->hw_params.asf_mode;
-    stream_params->hw_params.diagnostic_enable =
-      session_params->hw_params.diagnostic_enable;
     stream_params->hw_params.aec_trigger.lux_idx =
       session_params->aec_trigger.lux_idx;
     stream_params->hw_params.aec_trigger.gain =
@@ -1837,7 +2166,7 @@ int32_t cpp_module_handle_streamon_event(mct_module_t* module,
        cpp_hw_params_update_wnr_params(chromatix_ptr,
          &stream_params->hw_params, &session_params->aec_trigger);
     }
-    cpp_hw_params_asf_interpolate(&stream_params->hw_params, chromatix_ptr,
+    cpp_hw_params_asf_interpolate(ctrl->cpphw,&stream_params->hw_params, chromatix_ptr,
         &session_params->aec_trigger);
 
     /* Check for existence of linked_stream_params and apply */
@@ -1880,7 +2209,7 @@ int32_t cpp_module_handle_streamoff_event(mct_module_t* module,
   mct_stream_info_t *streaminfo =
     (mct_stream_info_t *)event->u.ctrl_event.control_event_data;
   uint32_t identity = event->identity;
-  CDBG_HIGH("%s:%d, info: doing stream-off for identity 0x%x",
+  CDBG("%s:%d, info: doing stream-off for identity 0x%x",
     __func__, __LINE__, identity);
 
   cpp_module_ctrl_t* ctrl = (cpp_module_ctrl_t *) MCT_OBJECT_PRIVATE(module);
@@ -1904,6 +2233,8 @@ int32_t cpp_module_handle_streamoff_event(mct_module_t* module,
   PTHREAD_MUTEX_UNLOCK(&(stream_params->mutex));
 
   linked_stream_params = stream_params->linked_stream_params;
+
+  PTHREAD_MUTEX_LOCK(&(session_params->dis_mutex));
   /* Check whether there is a frame on HOLD */
   frame_hold = &session_params->frame_hold;
   if (frame_hold->is_frame_hold == TRUE) {
@@ -1953,6 +2284,7 @@ int32_t cpp_module_handle_streamoff_event(mct_module_t* module,
       PTHREAD_MUTEX_UNLOCK(&(linked_stream_params->mutex));
     }
   }
+  PTHREAD_MUTEX_UNLOCK(&(session_params->dis_mutex));
 
   /* send stream_off to downstream. This blocking call ensures
      downstream modules are streamed off and no acks pending from them */
@@ -1972,13 +2304,15 @@ int32_t cpp_module_handle_streamoff_event(mct_module_t* module,
     return -EFAULT;
   }
 
+  cpp_module_set_clock_freq(ctrl, stream_params, 0);
+
   /* process hardware command for stream off, this ensures
      hardware is done with this identity */
   cpp_hardware_cmd_t cmd;
   cmd.type = CPP_HW_CMD_STREAMOFF;
   cmd.u.streamoff_data.streamoff_identity = streaminfo->identity;
   cmd.u.streamoff_data.duplicate_identity = 0;
-  CDBG_ERROR("%s:%d] iden:0x%x, linked_params:%p\n",
+  CDBG("%s:%d] iden:0x%x, linked_params:%p\n",
     __func__, __LINE__, streaminfo->identity, stream_params->linked_stream_params);
   if (stream_params->linked_stream_params) {
     cmd.u.streamoff_data.duplicate_identity =

@@ -50,6 +50,7 @@ typedef enum {
  **/
 typedef struct _is_port_private {
   unsigned int video_reserved_id;
+  unsigned int reserved_id;
   is_port_state_t state;
   int RSCS_stats_ready;
   is_output_type is_output;

@@ -22,6 +22,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_util.h"
 #include "isp_buf_mgr.h"
 #include "isp_resource_mgr.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -339,7 +340,7 @@ int isp_set_zoom_scaling_parm(isp_zoom_session_t *session,
 {
   isp_zoom_t *pzoom = session->pzoom;
 
-  CDBG("%s: num_fov = %d\n", __func__, session->num_fovs);
+  ISP_DBG(ISP_MOD_COM,"%s: num_fov = %d\n", __func__, session->num_fovs);
 
   if (session->num_fovs == 1) {
     return isp_zoom_set_scaling_single_fov(session, hw_zoom_parm);
@@ -349,6 +350,13 @@ int isp_set_zoom_scaling_parm(isp_zoom_session_t *session,
     CDBG_ERROR("%s: not supported\n", __func__);
     return -1;
   }
+}
+
+uint32_t isp_zoom_calc_dim(isp_zoom_session_t *session, uint32_t dim,
+  uint32_t crop_factor)
+{
+  isp_zoom_t *pzoom = session->pzoom;
+  return(dim * pzoom->zoom_data.zoom_table[0] / crop_factor);
 }
 
 /** isp_zoom_get_crop_factor:

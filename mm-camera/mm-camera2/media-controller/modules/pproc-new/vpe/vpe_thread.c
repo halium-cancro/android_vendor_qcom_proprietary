@@ -8,6 +8,7 @@
 #include "vpe_log.h"
 #include <poll.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 
 #define PIPE_FD_IDX   0
 #define SUBDEV_FD_IDX 1
@@ -22,6 +23,7 @@ void* vpe_thread_func(void* data)
   pthread_cond_signal(&(ctrl->th_start_cond));
   PTHREAD_MUTEX_UNLOCK(&(ctrl->vpe_mutex));
 
+  CDBG_ERROR("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
   if(ctrl->vpehw->subdev_opened == FALSE) {
     CDBG_ERROR("%s:%d, failed, vpe subdev not open", __func__, __LINE__);
     vpe_thread_fatal_exit(ctrl, FALSE);
@@ -428,6 +430,7 @@ int32_t vpe_thread_create(mct_module_t *module)
   }
   ctrl->vpe_thread_started = FALSE;
   rc = pthread_create(&(ctrl->vpe_thread), NULL, vpe_thread_func, module);
+  pthread_setname_np(ctrl->vpe_thread, "CAM_vpe");
   if(rc < 0) {
     CDBG_ERROR("%s:%d, pthread_create() failed, rc= ", __func__, __LINE__);
     return rc;

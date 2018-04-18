@@ -54,6 +54,8 @@ typedef struct {
   pthread_mutex_t thread_mutex;
   pthread_t       thread_id;
   sem_t           sem_launch; /* semaphore to sync thread create */
+  uint8_t         aec_bg_stats_cnt;
+  uint8_t         awb_bg_stats_cnt;
 } q3a_thread_data_t;
 
 /** q3a_thread_aecawb_data_t

@@ -11,7 +11,10 @@
 #define ISP_DBPC32_DEMOSAIC_MIX_CFG_LEN  1
 
 #define ISP_DBPC32_CFG_OFF  0x0000029C
-#define ISP_DBPC32_LEN 4
+#define ISP_DBPC32_LEN 2
+
+#define ISP_DBPC32_CFG_OFF_1 0x00000604
+#define ISP_DBPC32_LEN_1 2
 
 /* Demosaic DBPC Update Command */
 typedef union  ISP_DemosaicDBPCCfg_CmdType {

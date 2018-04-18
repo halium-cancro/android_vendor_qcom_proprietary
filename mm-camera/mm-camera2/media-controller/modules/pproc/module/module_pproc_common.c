@@ -1928,7 +1928,7 @@ boolean module_pproc_common_query_mod(mct_module_t *module, void *query_buf,
   pproc_caps->min_num_pp_bufs = 2;
   pproc_caps->min_required_pp_mask = CAM_QCOM_FEATURE_SHARPNESS;
   pproc_caps->feature_mask |= (CAM_QCOM_FEATURE_DENOISE2D |
-    CAM_QCOM_FEATURE_CROP | CAM_QCOM_FEATURE_ROTATION | CAM_QCOM_FEATURE_FLIP);
+    CAM_QCOM_FEATURE_CROP | CAM_QCOM_FEATURE_CPP | CAM_QCOM_FEATURE_FLIP);
   CDBG("%s:%d hp %d wp %d pp %d min pp buf %d mask %x, %x\n", __func__,
     __LINE__, pproc_caps->height_padding, pproc_caps->width_padding,
     pproc_caps->plane_padding, pproc_caps->min_num_pp_bufs,

@@ -1438,84 +1438,84 @@ Diversion contrary to U.S. law prohibited.
       {
          {
             /* a_m, a_p */
-            0.4390f, 0.4390f,
+            0.0000f, 0.0000f,
             /* b_m, b_p */
-            -0.2300f, -0.2300f,
+            0.0000f, 0.0000f,
             /* c_m, c_p */
-             0.4390f, 0.4390f,
+            0.0000f, 0.0000f,
             /* d_m, d_p */
-            -0.0911f, -0.0911f,
+            0.0000f, 0.0000f,
             /* k_cb, k_cr */
             128, 128
          },
          {
             /* v0, v1, v2 */
-            0.1830f, 0.6140f, 0.0620f,
+            0.2990f, 0.5870f, 0.1140f,
             /* k */
-            16
+            0
          }
       },
       /* Sepia Color Conversion */
       {
          {
             /* a_m, a_p */
-            0.4390f, 0.4390f,
+            0.0000f, 0.0000f,
             /* b_m, b_p */
-            -0.2300f, -0.2300f,
+            0.0000f, 0.0000f,
             /* c_m, c_p */
-             0.4390f, 0.4390f,
+            0.0000f, 0.0000f,
             /* d_m, d_p */
-            -0.0911f, -0.0911f,
+            0.0000f, 0.0000f,
             /* k_cb, k_cr */
-            128, 128
+            110, 140
          },
          {
             /* v0, v1, v2 */
-            0.1830f, 0.6140f, 0.0620f,
+            0.2990f, 0.5870f, 0.1140f,
             /* k */
-            16
+            0
          }
       },
       /* Negative Color Conversion */
       {
          {
             /* a_m, a_p */
-            0.4390f, 0.4390f,
+            -0.5000f, -0.5000f,
             /* b_m, b_p */
-            -0.2300f, -0.2300f,
+            -0.3380f, -0.3380f,
             /* c_m, c_p */
-             0.4390f, 0.4390f,
+            -0.5000f, -0.5000f,
             /* d_m, d_p */
-            -0.0911f, -0.0911f,
+            -0.1620f, -0.1620f,
             /* k_cb, k_cr */
             128, 128
          },
          {
             /* v0, v1, v2 */
-            0.1830f, 0.6140f, 0.0620f,
+            -0.2990f, -0.5870f, -0.1140f,
             /* k */
-            16
+            255
          }
       },
       /* Aqua Color Conversion */
       {
          {
             /* a_m, a_p */
-            0.4390f, 0.4390f,
+            0.0000f, 0.0000f,
             /* b_m, b_p */
-            -0.2300f, -0.2300f,
+            0.0000f, 0.0000f,
             /* c_m, c_p */
-             0.4390f, 0.4390f,
+            0.0000f, 0.0000f,
             /* d_m, d_p */
-            -0.0911f, -0.0911f,
+            0.0000f, 0.0000f,
             /* k_cb, k_cr */
-            128, 128
+            160, 80
          },
          {
             /* v0, v1, v2 */
-            0.1830f, 0.6140f, 0.0620f,
+            0.2990f, 0.5870f, 0.1140f,
             /* k */
-            16
+            0
          }
       },
       1.100000f, /* Saturated Color Conversion Factor */
@@ -4865,18 +4865,18 @@ Diversion contrary to U.S. law prohibited.
 
    /* R/Gr */
    {
-      1.000000f, /* Golden Module R/Gr ratio D65 */
-      1.000000f, /* Golden Module R/Gr ratio D75 */
-      1.000000f, /* Golden Module R/Gr ratio A */
-      1.000000f, /* Golden Module R/Gr ratio TL84 */
-      1.000000f, /* Golden Module R/Gr ratio CW */
-      1.000000f, /* Golden Module R/Gr ratio H */
-      1.000000f, /* Golden Module R/Gr ratio D50 */
-      1.000000f, /* Golden Module R/Gr ratio Cust F */
-      1.000000f, /* Golden Module R/Gr ratio Noon */
-      1.000000f, /* Golden Module R/Gr ratio Cust Daylight */
-      1.000000f, /* Golden Module R/Gr ratio Cust A */
-      1.000000f, /* Golden Module R/Gr ratio U30 */
+      0.545898f, /* Golden Module R/Gr ratio D65 */
+      0.545898f, /* Golden Module R/Gr ratio D75 */
+      0.545898f, /* Golden Module R/Gr ratio A */
+      0.545898f, /* Golden Module R/Gr ratio TL84 */
+      0.545898f, /* Golden Module R/Gr ratio CW */
+      0.545898f, /* Golden Module R/Gr ratio H */
+      0.545898f, /* Golden Module R/Gr ratio D50 */
+      0.545898f, /* Golden Module R/Gr ratio Cust F */
+      0.545898f, /* Golden Module R/Gr ratio Noon */
+      0.545898f, /* Golden Module R/Gr ratio Cust Daylight */
+      0.545898f, /* Golden Module R/Gr ratio Cust A */
+      0.545898f, /* Golden Module R/Gr ratio U30 */
    },
    /* Gb/Gr */
    {
@@ -4895,18 +4895,18 @@ Diversion contrary to U.S. law prohibited.
    },
    /* B/Gr */
    {
-      1.000000f, /* Golden Module B/Gr ratio D65 */
-      1.000000f, /* Golden Module B/Gr ratio D75 */
-      1.000000f, /* Golden Module B/Gr ratio A */
-      1.000000f, /* Golden Module B/Gr ratio TL84 */
-      1.000000f, /* Golden Module B/Gr ratio CW */
-      1.000000f, /* Golden Module B/Gr ratio H */
-      1.000000f, /* Golden Module B/Gr ratio D50 */
-      1.000000f, /* Golden Module B/Gr ratio Cust F */
-      1.000000f, /* Golden Module B/Gr ratio Noon */
-      1.000000f, /* Golden Module B/Gr ratio Cust Daylight */
-      1.000000f, /* Golden Module B/Gr ratio Cust A */
-      1.000000f, /* Golden Module B/Gr ratio U30 */
+      0.574219f, /* Golden Module B/Gr ratio D65 */
+      0.574219f, /* Golden Module B/Gr ratio D75 */
+      0.574219f, /* Golden Module B/Gr ratio A */
+      0.574219f, /* Golden Module B/Gr ratio TL84 */
+      0.574219f, /* Golden Module B/Gr ratio CW */
+      0.574219f, /* Golden Module B/Gr ratio H */
+      0.574219f, /* Golden Module B/Gr ratio D50 */
+      0.574219f, /* Golden Module B/Gr ratio Cust F */
+      0.574219f, /* Golden Module B/Gr ratio Noon */
+      0.574219f, /* Golden Module B/Gr ratio Cust Daylight */
+      0.574219f, /* Golden Module B/Gr ratio Cust A */
+      0.574219f, /* Golden Module B/Gr ratio U30 */
    },
    0, /* Enable AWB Module Cal */
    /* AWB Motion Sensor */

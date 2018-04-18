@@ -1,6 +1,6 @@
 /* mct_pipeline.h
  *
- * Copyright (c) 2012,2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2012, 2014-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -9,11 +9,12 @@
 
 #include "mct_object.h"
 #include "mct_stream.h"
-#include "cam_intf.h"
-#include "cam_types.h"
+
 /* Maximum number of resolution for non HFR and HFR mode */
 #define SENSOR_MAX_RESOLUTION 10
-
+#define TOTAL_RAM_SIZE_512MB 536870912
+#define PICTURE_SIZE_5MP_WIDTH 2592
+#define PICTURE_SIZE_5MP_HEIGHT 1944
 
 /** Name:
  *
@@ -29,6 +30,7 @@
 typedef struct {
   cam_dimension_t  dim;
   cam_fps_range_t fps;
+  int32_t mode;
 } mct_pipeline_sensor_res_table_t;
 
 /** Name:
@@ -80,9 +82,9 @@ typedef struct {
   cam_flash_mode_t                supported_flash_modes[CAM_FLASH_MODE_MAX];
   uint8_t                         supported_focus_modes_cnt;
   cam_focus_mode_type             supported_focus_modes[CAM_FOCUS_MODE_MAX];
-  int                             supported_raw_fmts_cnt;
+  uint32_t                        supported_raw_fmts_cnt;
   cam_format_t                    supported_raw_fmts[CAM_FORMAT_MAX];
-  int                             feature_mask;
+  uint32_t                        feature_mask;
   uint32_t                        max_pipeline_frame_delay;
   uint32_t                        max_frame_delay;
   float                           min_focus_distance;
@@ -100,6 +102,11 @@ typedef struct {
   uint8_t                         scale_picture_sizes_cnt;
   uint32_t                        sensor_supported_scene_modes;
   uint32_t                        sensor_supported_effect_modes;
+  uint64_t                        min_exposure_time;
+  uint64_t                        max_exposure_time;
+  uint32_t                        min_iso;
+  uint32_t                        max_iso;
+  uint32_t                        near_end_distance;
 } mct_pipeline_sensor_cap_t;
 
 /** Name:
@@ -120,11 +127,13 @@ typedef struct {
   cam_scene_mode_type    supported_scene_modes[CAM_SCENE_MODE_MAX];
   uint8_t                zoom_ratio_tbl_cnt;
   int                    zoom_ratio_tbl[MAX_ZOOMS_CNT];
-  int                    feature_mask;
+  uint32_t               feature_mask;
   uint32_t               max_frame_delay;
   int32_t                histogram_size;
   int32_t                max_histogram_count;
   int32_t                max_sharpness_map_value;
+  uint8_t                low_power_mode_supported;
+  boolean                use_pix_for_SOC;
 } mct_pipeline_isp_cap_t;
 
 /** Name:
@@ -163,7 +172,7 @@ typedef struct {
   uint8_t                     video_stablization_supported;
   uint8_t                     max_num_focus_areas;
   uint8_t                     max_num_metering_areas;
-  int                         feature_mask;
+  uint32_t                    feature_mask;
   uint32_t                    max_frame_delay;
   int64_t                     exposure_time_range[2];
 } mct_pipeline_stats_cap_t;
@@ -186,10 +195,16 @@ typedef struct {
   cam_pad_format_t       height_padding;
   cam_pad_format_t       plane_padding;
   int8_t                 min_num_pp_bufs;
-  uint32_t               min_required_pp_mask;
-  int                    feature_mask;
+  uint32_t               feature_mask;
   uint32_t               max_frame_delay;
+  boolean                is_sw_wnr;
 } mct_pipeline_pp_cap_t;
+
+typedef struct {
+  uint32_t        cond_posted;
+  pthread_cond_t  cond;
+  pthread_mutex_t mutex;
+} mct_sync_data_t;
 
 /** Name:
  *
@@ -207,8 +222,10 @@ typedef struct{
   mct_module_t *module;
   unsigned int session_id;
   pthread_cond_t cond_v;
+  mct_sync_data_t sync;
   pthread_mutex_t mutex;
   unsigned int started_num;
+  unsigned int started_num_success;
   unsigned int modules_num;
 }mct_pipeline_thread_data_t;
 
@@ -221,20 +238,26 @@ typedef struct{
  *    @max_frame_delay: maximum frame delay
  *    @max_face_detection_count: face detection count
  *    @hdr_bracketing_setting: AE bracketting config
- *    @ubifocus_af_bracketing: AF bracketting config
+ *    @ubifocus_af_bracketing_need: AF bracketting config
+ *    @refocus_af_bracketing_need: AF bracketting config
  *    @opti_zoom_settings: optizoom configuration
+ *    @true_portrait_settings: trueportrait configuration
  *
  *  Structure to define the imaging capabilities
  *
  **/
 typedef struct {
   uint8_t max_num_roi;
-  int     feature_mask;
+  uint32_t feature_mask;
   uint32_t max_frame_delay;
   uint32_t max_face_detection_count;
   cam_hdr_bracketing_info_t hdr_bracketing_setting;
-  cam_af_bracketing_t ubifocus_af_bracketing;
+  cam_af_bracketing_t ubifocus_af_bracketing_need;
+  cam_af_bracketing_t refocus_af_bracketing_need;
+  cam_af_bracketing_t mtf_af_bracketing;
   cam_opti_zoom_t opti_zoom_settings;
+  cam_true_portrait_t true_portrait_settings;
+  cam_fssr_t fssr_settings;
 } mct_pipeline_imaging_cap_t;
 
 /** Name:
@@ -257,13 +280,13 @@ typedef struct {
 } mct_pipeline_cap_t;
 
 typedef boolean (* mct_pipeline_add_stream_func)
-  (mct_pipeline_t *pipeline, unsigned int stream_id);
+  (mct_pipeline_t *pipeline, uint32_t stream_id);
 
 typedef boolean (* mct_pipeline_remove_stream_func)
   (mct_pipeline_t *pipeline, mct_stream_t *stream);
 
 typedef boolean (* mct_pipeline_event_func)
-  (mct_pipeline_t *pipeline, unsigned int stream_id, mct_event_t *event);
+  (mct_pipeline_t *pipeline, uint32_t stream_id, mct_event_t *event);
 
 typedef boolean (* mct_pipeline_set_bus_func)
   (mct_pipeline_t *pipeline, mct_bus_t *bus);
@@ -314,15 +337,15 @@ struct _mct_pipeline {
   mct_pipeline_cap_t       query_data;
 
   void                    *config_parm;
-  int                      config_parm_size;
+  size_t                   config_parm_size;
   int                      config_parm_fd;
 
   void                    *query_buf;
-  int                      query_buf_size;
+  size_t                   query_buf_size;
   int                      query_buf_fd;
 
   mct_list_t              *modules;
-  unsigned int             session;
+  uint32_t                 session;
 
   parm_buffer_new_t        *pending_set_parm;
   parm_buffer_new_t        *pending_get_parm;
@@ -351,26 +374,30 @@ struct _mct_pipeline {
 #define MCT_PIPELINE_SESSION(mod)      (MCT_PIPELINE_CAST(mod)->session)
 #define MCT_PIPELINE_MODULES(mod)      (MCT_PIPELINE_CAST(mod)->modules)
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 mct_pipeline_t* mct_pipeline_new(void);
 void mct_pipeline_destroy(mct_pipeline_t *pipeline);
 
-void mct_pipeline_start_session(mct_pipeline_t *pipeline);
+boolean mct_pipeline_start_session(mct_pipeline_t *pipeline);
 void mct_pipeline_stop_session(mct_pipeline_t *pipeline);
 
 boolean mct_pipeline_send_ctrl_events(mct_pipeline_t *pipeline,
-  unsigned int stream_id, mct_event_control_type_t event_type);
+  uint32_t stream_id, mct_event_control_type_t event_type);
 
 mct_stream_t* mct_pipeline_find_stream (mct_module_t *module,
   unsigned int session_id);
 
-void *mct_pipeline_get_buffer_ptr(mct_pipeline_t *pipeline, int buf_idx,
-  unsigned int stream_id);
+void *mct_pipeline_get_buffer_ptr(mct_pipeline_t *pipeline, uint32_t buf_idx,
+  uint32_t stream_id);
 
 mct_stream_map_buf_t *mct_pipeline_get_buffer(mct_pipeline_t *pipeline,
-  int buf_idx, unsigned int stream_id);
+  uint32_t buf_idx, uint32_t stream_id);
 
 mct_stream_t* mct_pipeline_find_stream_from_stream_id
-  (mct_pipeline_t *pipeline, unsigned int stream_id);
+  (mct_pipeline_t *pipeline, uint32_t stream_id);
 
 mct_event_t mct_pipeline_pack_event(mct_event_type type, unsigned int identity,
   mct_event_direction direction, void *payload);
@@ -380,5 +407,9 @@ void mct_pipeline_add_stream_to_linked_streams(mct_pipeline_t *pipeline,
 
 void mct_pipeline_remove_stream_from_linked_streams(mct_pipeline_t *pipeline,
   mct_stream_t *stream);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* __MCT_PIPELINE_H__ */

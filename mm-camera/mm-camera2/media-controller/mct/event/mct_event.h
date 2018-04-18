@@ -1,6 +1,6 @@
 /* mct_event.h
  *                                                           .
- * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 
@@ -70,7 +70,7 @@ typedef enum _mct_event_module_type {
   MCT_EVENT_MODULE_SOF,
   MCT_EVENT_MODULE_SET_DIGITAL_GAIN, /* float * */
   MCT_EVENT_MODULE_STATS_GET_THREAD_OBJECT,
-  MCT_EVENT_MODULE_SET_AF_TUNE_PTR, /* af_tune_parms_t * */
+  MCT_EVENT_MODULE_SET_AF_TUNE_PTR, /* af_algo_tune_parms_t * */
   MCT_EVENT_MODULE_SET_RELOAD_AFTUNE, /*EZTuning reload aftune*/
   MCT_EVENT_MODULE_SOF_NOTIFY, /* mct_bus_msg_isp_sof_t * */
   MCT_EVENT_MODULE_BUF_DIVERT, /* 20 */ /* isp_buf_divert_t * */
@@ -114,6 +114,14 @@ typedef enum _mct_event_module_type {
   MCT_EVENT_MODULE_IMGLIB_AF_CONFIG, /* mct_imglib_af_config_t */
   MCT_EVENT_MODULE_IMGLIB_AF_OUTPUT, /* mct_imglib_af_output_t */
   MCT_EVENT_MODULE_SENSOR_BRACKET_CTRL, /* mct_bracket_ctrl_t */
+  MCT_EVENT_MODULE_GET_AF_SW_STATS_FILTER_TYPE, /* mct_imglib_af_output_t */
+  MCT_EVENT_MODULE_HFR_MODE_NOTIFY,
+  MCT_EVENT_MODULE_GET_AEC_LUX_INDEX,
+  MCT_EVENT_MODULE_START_STOP_STATS_THREADS,
+  MCT_EVENT_MODULE_ISP_STATS_INFO, /* mct_stats_info_t */
+  MCT_EVENT_MODULE_ISPIF_RESET,
+  MCT_EVENT_MODULE_ISP_RESTART,
+  MCT_EVENT_MODULE_SENSOR_UPDATE_FPS,
   MCT_EVENT_MODULE_MAX
 } mct_event_module_type_t;
 
@@ -146,6 +154,7 @@ typedef enum _mct_event_control_type {
   MCT_EVENT_CONTROL_START_ZSL_SNAPSHOT,
   MCT_EVENT_CONTROL_STOP_ZSL_SNAPSHOT,
   MCT_EVENT_CONTROL_UPDATE_BUF_INFO,
+  MCT_EVENT_CONTROL_DEL_OFFLINE_STREAM,
   MCT_EVENT_CONTROL_MAX
 } mct_event_control_type_t;
 
@@ -164,14 +173,14 @@ typedef struct _mct_ctrl_prarm_set_type {
 
 typedef struct _mct_event_module {
   mct_event_module_type_t type;
-  unsigned int            current_frame_id;
-  void                    *module_event_data;
+  uint32_t current_frame_id;
+  void *module_event_data;
 } mct_event_module_t;
 
 typedef struct _mct_event_control {
   mct_event_control_type_t type;
-  unsigned int             current_frame_id;
-  void                     *control_event_data;
+  uint32_t current_frame_id;
+  void *control_event_data;
 } mct_event_control_t;
 
 /** _mct_event:
@@ -185,9 +194,9 @@ typedef struct _mct_event_control {
  * any of the Modules, event Ports
  **/
 struct _mct_event {
-  mct_event_type      type;
-  unsigned int        identity;
-  mct_event_direction direction;
+  mct_event_type       type;
+  uint32_t             identity;
+  mct_event_direction  direction;
 
   union {
     mct_event_control_t ctrl_event;

@@ -15,6 +15,7 @@
 #include "mct_module.h"
 #include "cam_intf.h"
 #include "camera_dbg.h"
+#include <sys/sysinfo.h>
 
 #if 0
 #undef CDBG
@@ -22,15 +23,16 @@
 #endif
 
 static mct_module_init_name_t modules_list[] = {
-  {"sensor", module_sensor_init,   module_sensor_deinit},
-  {"iface",  module_iface_init,   module_iface_deinit},
-  {"isp",    module_isp_init,      module_isp_deinit},
-  {"stats",  stats_module_init,    stats_module_deinit},
-  {"pproc",  pproc_module_init,    pproc_module_deinit},
-  {"imglib", module_imglib_init, module_imglib_deinit},
+  {"sensor", module_sensor_init,   module_sensor_deinit, NULL},
+  {"iface",  module_iface_init,   module_iface_deinit, NULL},
+  {"isp",    module_isp_init,      module_isp_deinit, NULL},
+  {"stats",  stats_module_init,    stats_module_deinit, NULL},
+  {"pproc",  pproc_module_init,    pproc_module_deinit, NULL},
+  {"imglib", module_imglib_init, module_imglib_deinit, NULL},
 };
 
 static mct_list_t *modules = NULL;
+static mct_list_t *modules_all = NULL;
 
 /** server_process_module_deinit:
  *    @data: MctModule_t from link list
@@ -39,8 +41,40 @@ static mct_list_t *modules = NULL;
  * server_process_module_init() fails. We shouldn't
  * hit here for all other scenarios.
  **/
-static boolean server_process_module_deinit(void *data, void *user_data)
+static boolean server_process_module_deinit()
 {
+  mct_module_t *temp = NULL;
+  int          i;
+
+  CDBG("CAMERA_DAEMON: %s:%d, deint mods", __func__, __LINE__);
+  for (i = 1;
+       i < (int)(sizeof(modules_list)/sizeof(mct_module_init_name_t)); i++) {
+    if( NULL == modules_list[i].deinit_mod)
+      continue;
+    CDBG("CAMERA_DAEMON: module name : %s: E\n", modules_list[i].name);
+    modules_list[i].deinit_mod(modules_list[i].module);
+    CDBG("CAMERA_DAEMON: module name : %s: X\n", modules_list[i].name);
+  } /* for */
+
+  mct_list_free_all(modules_all, NULL);
+  modules_all = NULL;
+
+  CDBG("CAMERA_DAEMON: %s:%d, deint mods done ", __func__, __LINE__);
+
+  mct_list_free_all(modules, NULL);
+  modules = NULL;
+
+  temp = modules_list[0].module;
+
+  if (temp) {
+    if ((modules = mct_list_append(modules, temp, NULL, NULL)) == NULL) {
+      if (modules) {
+        modules_list[0].deinit_mod(temp);
+        modules_list[0].module = NULL;
+        return FALSE;
+      }
+    }
+  }
   return TRUE;
 }
 
@@ -56,29 +90,58 @@ boolean server_process_module_init(void)
   mct_module_t *temp = NULL;
   int          i;
 
-  CDBG_ERROR("%s:%d, int mods", __func__, __LINE__);
-  for (i = 0;
+  CDBG("CAMERA_DAEMON: %s:%d, int mods", __func__, __LINE__);
+  for (i = 1;
        i < (int)(sizeof(modules_list)/sizeof(mct_module_init_name_t)); i++) {
     if( NULL == modules_list[i].init_mod)
       continue;
-
+    CDBG("CAMERA_DAEMON: module name : %s: E\n", modules_list[i].name);
     temp = modules_list[i].init_mod(modules_list[i].name);
+    CDBG("CAMERA_DAEMON: module name : %s: X\n", modules_list[i].name);
     if (temp) {
+      modules_list[i].module = temp;
       if ((modules = mct_list_append(modules, temp, NULL, NULL)) == NULL) {
         if (modules) {
-          for (i--; i >= 0; i--)
+          for (i--; i >= 0; i--) {
             modules_list[i].deinit_mod(temp);
+            modules_list[i].module = NULL;;
+          }
 
           mct_list_free_all(modules, NULL);
           return FALSE;
         }
+        mct_list_append(modules_all, temp, NULL, NULL);
       }
     }
   } /* for */
+  CDBG("CAMERA_DAEMON: %s:%d, int mods done ", __func__, __LINE__);
 
   return TRUE;
 }
 
+boolean server_process_module_sensor_init(void)
+{
+  mct_module_t *temp = NULL;
+
+  CDBG("CAMERA_DAEMON: %s:%d, sensor int mods ", __func__, __LINE__);
+    if( NULL == modules_list[0].init_mod)
+      return FALSE;
+
+    temp = modules_list[0].init_mod(modules_list[0].name);
+    if (temp) {
+      modules_list[0].module = temp;
+      if ((modules = mct_list_append(modules, temp, NULL, NULL)) == NULL) {
+        if (modules) {
+            modules_list[0].deinit_mod(temp);
+            modules_list[0].module = NULL;
+            return FALSE;
+        }
+      }
+    }
+  CDBG("CAMERA_DAEMON: %s:%d, sensoer int mods done ", __func__, __LINE__);
+
+  return TRUE;
+}
 /** server_process_bind_hal_dsocket
  *    @session: new session index
  *    @ds_fd:   domain socket file descriptor with HAL
@@ -89,12 +152,12 @@ static boolean server_process_bind_hal_ds(int session,
   int *ds_fd)
 {
   struct sockaddr_un addr;
-  struct cmsghdr *cmhp;
 
   memset(&addr, 0, sizeof(struct sockaddr_un));
   addr.sun_family = AF_UNIX;
 
-  snprintf(addr.sun_path, UNIX_PATH_MAX, "/data/cam_socket%d", session);
+  snprintf(addr.sun_path,
+           UNIX_PATH_MAX, "/data/misc/camera/cam_socket%d", session);
 
   /* remove the socket path if it already exists, otherwise bind might fail */
   unlink(addr.sun_path);
@@ -105,10 +168,11 @@ static boolean server_process_bind_hal_ds(int session,
 
   if (bind(*ds_fd, (struct sockaddr *)&addr,
       sizeof(struct sockaddr_un)) == -1) {
+    ALOGE("%s:%d: Error in bind socket_fd=%d %s ", __func__, __LINE__,
+      *ds_fd, strerror(errno));
     close(*ds_fd);
     return FALSE;
   }
-
   return TRUE;
 }
 
@@ -127,6 +191,10 @@ serv_proc_ret_t server_process_hal_event(struct v4l2_event *event)
     (struct msm_v4l2_event_data *)(event->u.data);
   struct msm_v4l2_event_data *ret_data =
     (struct msm_v4l2_event_data *)(ret.ret_to_hal.ret_event.u.data);
+  struct sysinfo info;
+  uint32_t result;
+  int32_t enabled_savemem = 0;
+  char savemem[92];
 
   /* by default don't return command ACK to HAL,
    * return ACK only for two cases:
@@ -138,12 +206,23 @@ serv_proc_ret_t server_process_hal_event(struct v4l2_event *event)
   ret.ret_to_hal.ret       = FALSE;
   ret.ret_to_hal.ret_type  = SERV_RET_TO_HAL_CMDACK;
   ret.ret_to_hal.ret_event = *event;
+  ret_data->v4l2_event_type   = event->type;
+  ret_data->v4l2_event_id     = event->id;
   ret.result               = RESULT_SUCCESS;
+
+  result = sysinfo(&info);
+  property_get("cameradaemon.SaveMemAtBoot", savemem, "0");
+  enabled_savemem = atoi(savemem);
 
   switch (event->id) {
   case MSM_CAMERA_NEW_SESSION: {
     ret.ret_to_hal.ret = TRUE;
     ret.result = RESULT_NEW_SESSION;
+
+    if(enabled_savemem == 1) {
+      if (server_process_module_init() == FALSE)
+        goto error_return;
+    }
 
     /* new session starts, need to create a MCT:
      * open a pipe first.
@@ -176,6 +255,8 @@ serv_proc_ret_t server_process_hal_event(struct v4l2_event *event)
     } else {
       close(pipe_fd[0]);
       close(pipe_fd[1]);
+      ret.ret_to_hal.ret_type       = SERV_RET_TO_HAL_NOTIFY_ERROR;
+      ret_data->session_id          = data->session_id;
       goto error_return;
     }
   } /* case MSM_CAMERA_NEW_SESSION */
@@ -186,8 +267,12 @@ serv_proc_ret_t server_process_hal_event(struct v4l2_event *event)
     ret.ret_to_hal.ret = FALSE;
 
     if (mct_controller_destroy(data->session_id) == FALSE) {
+      if (enabled_savemem == 1)
+        server_process_module_deinit();
       goto error_return;
     } else {
+      if (enabled_savemem == 1)
+        server_process_module_deinit();
       goto process_done;
     }
   } /* case MSM_CAMERA_DEL_SESSION */
@@ -277,6 +362,7 @@ serv_proc_ret_t server_process_hal_ds_packet(const int fd,
   ret.ret_to_hal.ret         = TRUE;
   ret.ret_to_hal.ret_type    = SERV_RET_TO_HAL_NOTIFY;
   ret.ret_to_hal.ret_event.type  = MSM_CAMERA_V4L2_EVENT_TYPE;
+  ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
   ret.result = RESULT_SUCCESS;
 
   if (server_process_read_ds_packet(fd, &packet) == FALSE) {
@@ -332,7 +418,6 @@ error_return:
       /*ret_data->command = packet.payload.buf_unmap.type;*/
     }
   }
-
   return ret;
 }
 
@@ -376,13 +461,15 @@ serv_proc_ret_t server_process_mct_msg(const int fd, const unsigned int session)
 
       ret.ret_to_hal.ret_type  = SERV_RET_TO_HAL_CMDACK;
       ret.ret_to_hal.ret_event = *msg;
+      ret_data->v4l2_event_type   = msg->type;
+      ret_data->v4l2_event_id     = msg->id;
+
       ret_data->status         = (mct_ret.u.serv_msg_ret.error == TRUE) ?
         MSM_CAMERA_CMD_SUCESS : MSM_CAMERA_ERR_CMD_FAIL;
     } else if (mct_ret.u.serv_msg_ret.msg.msg_type == SERV_MSG_DS) {
       /* Note we just processed a Domain Socket mapping,
        * need to send an event to HAL */
        mct_serv_ds_msg_t *msg = &(mct_ret.u.serv_msg_ret.msg.u.ds_msg);
-
       if (msg->session!= session) {
         ALOGE("%s: ERROR - session ID: %d is different than expected: %d", __func__, msg->session, session);
         goto error;
@@ -391,6 +478,8 @@ serv_proc_ret_t server_process_mct_msg(const int fd, const unsigned int session)
       ret.ret_to_hal.ret_type       = SERV_RET_TO_HAL_NOTIFY;
       ret.ret_to_hal.ret_event.type = MSM_CAMERA_V4L2_EVENT_TYPE;
       ret.ret_to_hal.ret_event.id = MSM_CAMERA_MSM_NOTIFY;
+      ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
+      ret_data->v4l2_event_id     = MSM_CAMERA_MSM_NOTIFY;
       ret_data->command           = CAM_EVENT_TYPE_MAP_UNMAP_DONE;
       ret_data->session_id        = msg->session;
       ret_data->stream_id         = msg->stream;
@@ -410,16 +499,27 @@ serv_proc_ret_t server_process_mct_msg(const int fd, const unsigned int session)
     ret.ret_to_hal.ret_type       = SERV_RET_TO_HAL_NOTIFY;
     ret.ret_to_hal.ret_event.type = MSM_CAMERA_V4L2_EVENT_TYPE;
     ret.ret_to_hal.ret_event.id   = MSM_CAMERA_MSM_NOTIFY;
+    ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
+    ret_data->v4l2_event_id     = MSM_CAMERA_MSM_NOTIFY;
 
-    if (mct_ret.u.bus_msg_ret.msg_type == MCT_BUS_MSG_REPROCESS_STAGE_DONE)
+    if (mct_ret.u.bus_msg_ret.msg_type == MCT_BUS_MSG_REPROCESS_STAGE_DONE) {
       ret_data->command = CAM_EVENT_TYPE_REPROCESS_STAGE_DONE;
+    }
+
+    if (mct_ret.u.bus_msg_ret.msg_type == MCT_BUS_MSG_SEND_EZTUNE_EVT) {
+      ret_data->command = CAM_EVENT_TYPE_INT_TAKE_PIC;
+    }
 
     ret_data->session_id          = mct_ret.u.bus_msg_ret.session;
     ret_data->status              = (mct_ret.u.bus_msg_ret.error == TRUE) ?
       MSM_CAMERA_STATUS_SUCCESS : MSM_CAMERA_STATUS_FAIL;
   }
     break;
-
+  case MCT_PROCESS_DUMP_INFO: {
+    ret.ret_to_hal.ret_type       = SERV_RET_TO_KERNEL_NOTIFY_POSSIBLE_FREEZE;
+    ret_data->session_id          = mct_ret.u.bus_msg_ret.session;
+  }
+    break;
   case MCT_PROCESS_RET_ERROR_MSG: {
     ret.ret_to_hal.ret_type       = SERV_RET_TO_HAL_NOTIFY_ERROR;
     ret_data->session_id          = mct_ret.u.bus_msg_ret.session;
@@ -428,7 +528,6 @@ serv_proc_ret_t server_process_mct_msg(const int fd, const unsigned int session)
   default:
     break;
   }
-
   return ret;
 
 error:

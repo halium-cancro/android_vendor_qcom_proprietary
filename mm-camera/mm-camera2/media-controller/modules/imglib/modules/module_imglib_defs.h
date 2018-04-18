@@ -1,5 +1,5 @@
 /***************************************************************************
-* Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved. *
+* Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved. *
 * Qualcomm Technologies Proprietary and Confidential.                      *
 ***************************************************************************/
 
@@ -131,10 +131,21 @@ typedef struct {
   .init_mod = NULL, \
   .deinit_mod = NULL, } \
 
+#ifdef CAMERA_FEATURE_WNR_SW
+
+#define MOD_IMGLIB_HDR { \
+  .name = "hdr", \
+  .init_mod = NULL, \
+  .deinit_mod = NULL, } \
+
+#else
+
 #define MOD_IMGLIB_HDR { \
   .name = "hdr", \
   .init_mod = module_hdr_init, \
   .deinit_mod = module_hdr_deinit, } \
+
+#endif
 
 #define MOD_IMGLIB_CAC { \
   .name = "imglib_cac", \
@@ -156,11 +167,37 @@ typedef struct {
   .init_mod = module_ubifocus_init, \
   .deinit_mod = module_ubifocus_deinit, } \
 
+#define MOD_IMGLIB_REFOCUS { \
+  .name = "imglib_refocus", \
+  .init_mod = module_refocus_init, \
+  .deinit_mod = module_refocus_deinit, } \
+
+#define MOD_IMGLIB_FSSR { \
+  .name = "imglib_fssr", \
+  .init_mod = module_fssr_init, \
+  .deinit_mod = module_fssr_deinit, } \
+
+#define MOD_IMGLIB_AFS { \
+  .name = "imglib_afs", \
+  .init_mod = module_afs_init, \
+  .deinit_mod = module_afs_deinit, } \
+
+#define MOD_IMGLIB_TRUEPORTRAIT { \
+  .name = "imglib_trueportrait", \
+  .init_mod = module_trueportrait_init, \
+  .deinit_mod = module_trueportrait_deinit, } \
+
+#define MOD_IMGLIB_MULTI_TOUCH_FOCUS { \
+  .name = "imglib_multitouchfocus", \
+  .init_mod = module_multitouch_focus_init, \
+  .deinit_mod = module_multitouch_focus_deinit, } \
+
+
 /* Topology definitions */
 #define MOD_IMGLIB_TOPOLOGY_REGISTER(t) \
   static module_imglib_topology_t (t)[] = { \
     { .stream_type = CAM_STREAM_TYPE_PREVIEW, \
-      .modules[0] = {MOD_IMGLIB_FACEPROC}, \
+      .modules[0] = {MOD_IMGLIB_AFS, MOD_IMGLIB_FACEPROC}, \
       .session_params = {CAM_INTF_PARM_FD, CAM_INTF_PARM_MAX}, \
     }, \
     { .feature_mask = CAM_QCOM_FEATURE_DENOISE2D, \
@@ -191,6 +228,26 @@ typedef struct {
     { .feature_mask = CAM_QCOM_FEATURE_UBIFOCUS, \
       .stream_type = CAM_STREAM_TYPE_OFFLINE_PROC, \
       .modules[0] = {MOD_IMGLIB_UBIFOCUS}, \
+      .session_params = {CAM_INTF_PARM_MAX}, \
+    }, \
+    { .feature_mask = CAM_QCOM_FEATURE_TRUEPORTRAIT, \
+      .stream_type = CAM_STREAM_TYPE_OFFLINE_PROC, \
+      .modules[0] = {MOD_IMGLIB_TRUEPORTRAIT}, \
+      .session_params = {CAM_INTF_PARM_MAX}, \
+    }, \
+    { .feature_mask = CAM_QCOM_FEATURE_FSSR, \
+      .stream_type = CAM_STREAM_TYPE_OFFLINE_PROC, \
+      .modules[0] = {MOD_IMGLIB_FSSR}, \
+      .session_params = {CAM_INTF_PARM_MAX}, \
+    }, \
+    { .feature_mask = CAM_QCOM_FEATURE_MULTI_TOUCH_FOCUS, \
+      .stream_type = CAM_STREAM_TYPE_OFFLINE_PROC, \
+      .modules[0] = {MOD_IMGLIB_MULTI_TOUCH_FOCUS}, \
+      .session_params = {CAM_INTF_PARM_MULTI_TOUCH_FOCUS_BRACKETING, CAM_INTF_PARM_MAX}, \
+    }, \
+    { .feature_mask = CAM_QCOM_FEATURE_REFOCUS, \
+      .stream_type = CAM_STREAM_TYPE_OFFLINE_PROC, \
+      .modules[0] = {MOD_IMGLIB_REFOCUS}, \
       .session_params = {CAM_INTF_PARM_MAX}, \
     }, \
   } \

@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013, 2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -87,7 +87,7 @@ int isp_tintless_chroma_config(isp_tintless_session_t *session,
 int isp_tintless_rolloff_config(isp_tintless_session_t *session,
   isp_tintless_notify_data_t *tintless_data);
 int isp_tintless_trigger_update(isp_tintless_session_t *session,
-  void *be_stats, int type);
+  void *be_stats, int type, int hfr_mode);
 int isp_tintless_get_table(isp_tintless_session_t *session,
   isp_tintless_notify_data_t *tintless_data_out);
 

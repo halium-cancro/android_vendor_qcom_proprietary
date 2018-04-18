@@ -27,7 +27,7 @@
 #include "c2d_hardware.h"
 #include "c2d_interface.h"
 #include "c2d2.h"
-//#include "c2dExt.h"
+#include "c2dExt.h"
 
 #define READ_FD   0
 #define WRITE_FD  1
@@ -35,14 +35,18 @@
 #define C2D_MODULE_MAX_STREAMS   32
 #define C2D_MODULE_MAX_SESSIONS  4
 
-#define MODULE_C2D_MIN_NUM_PP_BUFS 2
+#define MODULE_C2D_MIN_NUM_PP_BUFS 1
 
 /* macros for unpacking identity */
 #define C2D_GET_STREAM_ID(identity) (identity & 0xFFFF)
 #define C2D_GET_SESSION_ID(identity) ((identity & 0xFFFF0000) >> 16)
 
+// Debug mask
+#define PPROC_DEBUG_MASK_C2D                 (1<<1)
+
 /* forward declaration of thread data structures */
 typedef struct _c2d_thread_msg_t  c2d_thread_msg_t;
+extern volatile uint32_t gCamC2dLogLevel;
 
 typedef enum {
   C2D_DIVERT_UNPROCESSED,
@@ -89,6 +93,7 @@ typedef struct _c2d_module_ack_key_t {
   uint32_t identity;
   int buf_idx;
   int channel_id;
+  void *meta_data;
 } c2d_module_ack_key_t;
 
 typedef struct _c2d_module_hw_cookie_t {
@@ -199,6 +204,8 @@ typedef struct _c2d_module_stream_params_t {
   c2d_module_stream_params_t  *linked_stream_params;
   c2d_libparams               c2d_input_lib_params;
   c2d_libparams               c2d_output_lib_params;
+  int32_t                      interleaved;
+  boolean                     single_module;
 } c2d_module_stream_params_t;
 
 /* session specific parameters */
@@ -214,6 +221,9 @@ typedef struct _c2d_module_session_params_t {
   /* Hold frame until DIS crop is received for this frame */
   c2d_module_frame_hold_t       frame_hold;
   int32_t                       ion_fd;
+  cam_fps_range_t               fps_range;
+  pthread_mutex_t               dis_mutex;
+  boolean                       lpm_enable;
 } c2d_module_session_params_t;
 
 typedef struct _c2d_module_buffer_info {
@@ -276,7 +286,7 @@ int32_t c2d_module_send_event_downstream(mct_module_t* module,
 int32_t c2d_module_send_event_upstream(mct_module_t* module,
    mct_event_t* event);
 int32_t c2d_module_notify_add_stream(mct_module_t* module, mct_port_t* port,
-  mct_stream_info_t* stream_info);
+  mct_stream_info_t* stream_info, void *peer_caps);
 int32_t c2d_module_notify_remove_stream(mct_module_t* module,
   uint32_t identity);
 int32_t c2d_module_do_ack(c2d_module_ctrl_t *ctrl,
@@ -316,6 +326,7 @@ int32_t c2d_module_set_divert_cfg_identity(uint32_t key_identity,
 int32_t c2d_module_set_divert_cfg_entry(uint32_t identity,
   pproc_cfg_update_t update_mode, pproc_divert_info_t *divert_info,
   c2d_divert_info_t *c2d_divert_info);
+static void get_c2d_loglevel();
 /* -------------------------------------------------------------------------*/
 
 #endif

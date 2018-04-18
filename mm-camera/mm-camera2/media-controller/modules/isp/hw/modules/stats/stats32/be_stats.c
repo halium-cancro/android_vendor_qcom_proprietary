@@ -6,11 +6,12 @@
 ============================================================================*/
 #include <unistd.h>
 #include "be_stats.h"
+#include "isp_log.h"
 
 #if 0 /*TODO */
 #ifdef ENABLE_BAYER_EXPOSURE_LOGGING
-#undef CDBG
-#define CDBG LOGE
+#undef ISP_DBG
+#define ISP_DBG LOGE
 #endif
 
 /*===========================================================================
@@ -20,17 +21,17 @@
  *==========================================================================*/
 static void vfe_be_stats_debug(be_stats_t *be_stats)
 {
-  CDBG("%s:Bayer Exposure Stats Configurations\n", __func__);
-  CDBG("%s:rgnHOffset %d\n", __func__, be_stats->be_stats_cmd.rgnHOffset);
-  CDBG("%s:rgnVOffset %d\n", __func__, be_stats->be_stats_cmd.rgnVOffset);
-  CDBG("%s:rgnWidth   %d\n", __func__, be_stats->be_stats_cmd.rgnWidth);
-  CDBG("%s:rgnHeight  %d\n", __func__, be_stats->be_stats_cmd.rgnHeight);
-  CDBG("%s:rgnHNum    %d\n", __func__, be_stats->be_stats_cmd.rgnHNum);
-  CDBG("%s:rgnVNum    %d\n", __func__, be_stats->be_stats_cmd.rgnVNum);
-  CDBG("%s:r_max      %d\n", __func__, be_stats->be_stats_cmd.rMax);
-  CDBG("%s:gr_max     %d\n", __func__, be_stats->be_stats_cmd.grMax);
-  CDBG("%s:b_max      %d\n", __func__, be_stats->be_stats_cmd.bMax);
-  CDBG("%s:gb_max     %d\n", __func__, be_stats->be_stats_cmd.gbMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:Bayer Exposure Stats Configurations\n", __func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHOffset %d\n", __func__, be_stats->be_stats_cmd.rgnHOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVOffset %d\n", __func__, be_stats->be_stats_cmd.rgnVOffset);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnWidth   %d\n", __func__, be_stats->be_stats_cmd.rgnWidth);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHeight  %d\n", __func__, be_stats->be_stats_cmd.rgnHeight);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnHNum    %d\n", __func__, be_stats->be_stats_cmd.rgnHNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:rgnVNum    %d\n", __func__, be_stats->be_stats_cmd.rgnVNum);
+  ISP_DBG(ISP_MOD_STATS, "%s:r_max      %d\n", __func__, be_stats->be_stats_cmd.rMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:gr_max     %d\n", __func__, be_stats->be_stats_cmd.grMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:b_max      %d\n", __func__, be_stats->be_stats_cmd.bMax);
+  ISP_DBG(ISP_MOD_STATS, "%s:gb_max     %d\n", __func__, be_stats->be_stats_cmd.gbMax);
 } /* vfe_be_stats_debug */
 
 /*===========================================================================
@@ -69,7 +70,7 @@ vfe_status_t vfe_be_stats_config(int mod_id, void *stats, void *vparams)
 
   uint32_t camif_window_w_t, camif_window_h_t;
   if (!mod->enable) {
-    CDBG("%s: BE not enabled", __func__);
+    ISP_DBG(ISP_MOD_STATS, "%s: BE not enabled", __func__);
     return status;
   }
 
@@ -78,7 +79,7 @@ vfe_status_t vfe_be_stats_config(int mod_id, void *stats, void *vparams)
   camif_window_h_t = params->sensor_parms.lastLine -
     params->sensor_parms.firstLine + 1;
 
-  CDBG("%s:\n",__func__);
+  ISP_DBG(ISP_MOD_STATS, "%s:\n",__func__);
 
   mod->be_stats_cmd.rgnHOffset = FLOOR2(camif_window_w_t%32);
   mod->be_stats_cmd.rgnVOffset = FLOOR2(camif_window_h_t%24);
@@ -116,7 +117,7 @@ vfe_status_t vfe_be_stats_enable(int mod_id, void *stats, void *vparams,
   be_stats_t* be_stats = (be_stats_t *)stats;
   vfe_params_t *params = (vfe_params_t *)vparams;
 
-  CDBG("%s: %d", __func__, enable);
+  ISP_DBG(ISP_MOD_STATS, "%s: %d", __func__, enable);
 
   be_stats->enable = enable;
   params->moduleCfg->statsBeEnable = enable;

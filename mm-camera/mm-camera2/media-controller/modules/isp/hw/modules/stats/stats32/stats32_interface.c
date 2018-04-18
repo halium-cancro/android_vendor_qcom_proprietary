@@ -121,17 +121,34 @@ static int stats_config_update_substats(void *mod_ctrl, void *in_params,
         CDBG_ERROR("%s: stats BF config failed\n", __func__);
         return rc;
       }
-
-      rc = stats->stats_ops[i]->action(
-        stats->stats_ops[i]->ctrl,
-        ISP_STATS_ACTION_HW_CFG_UPDATE, NULL, 0);
-      if (rc < 0) {
-        CDBG_ERROR("%s: stats BF hw update failed, rc = %d\n", __func__, rc);
-        return rc;
-      }
     }
   }
 
+  return rc;
+}
+
+/** stats_enable_trigger
+ *  @mod_ctrl: pointer to the instance private data
+ *  @in_params: input data
+ *  @in_params_size: size of input data
+ *
+ *  Calls trigger enable for BG submodule
+ *
+ *  Return 0 on Success.
+ *
+ **/
+static int stats_enable_trigger(void *mod_ctrl, void *in_params,
+  uint32_t in_params_size)
+{
+  isp_stats_mod_t *stats = mod_ctrl;
+  int rc = 0;
+
+  rc =  stats->stats_ops[MSM_ISP_STATS_BG]->set_params(
+    stats->stats_ops[MSM_ISP_STATS_BG]->ctrl,
+    ISP_STATS_SET_TRIGGER_ENABLE, in_params, in_params_size);
+  if (rc < 0) {
+    CDBG_ERROR("%s: Stats  enable trigger update failed\n", __func__);
+  }
   return rc;
 }
 
@@ -166,6 +183,26 @@ static int stats_config_substats(void *mod_ctrl, void *in_params,
   return rc;
 }
 
+/** isp_stats_stats_fullsize_config
+ *  @stats: pointer to instance private data
+ *  @in_params: Pointer to the input params
+ *  @size: Size of input data size
+ *
+ *  Return 0 on Success
+ *
+ **/
+static int isp_set_stats_fullsize_config(isp_stats_mod_t *stats, void* in_params,
+  uint32_t size)
+{
+  int rc = 0;
+  rc = stats->stats_ops[MSM_ISP_STATS_BG]->set_params(stats->stats_ops[MSM_ISP_STATS_BG]->ctrl,
+    ISP_HW_MOD_SET_STATS_FULLSIZE_CFG, in_params, size);
+  if (rc < 0) {
+    CDBG_ERROR("%s: Stats Trigger update failed\n", __func__);
+  }
+  return rc;
+}
+
 /** stats_set_params:
  *    @mod_ctrl: pointer to instance private data
  *    @params_id: parameter ID
@@ -192,11 +229,15 @@ static int stats_set_params(void *mod_ctrl, uint32_t params_id, void *in_params,
     rc = stats_config_substats(stats, in_params, in_params_size);
     break;
   case ISP_HW_MOD_SET_TRIGGER_ENABLE:
+    rc = stats_enable_trigger(stats, in_params, in_params_size);
     break;
   case ISP_HW_MOD_SET_CONFIG_UPDATE:
     rc = stats_config_update_substats(stats, in_params, in_params_size);
     break;
   case ISP_HW_MOD_SET_ZOOM_RATIO:
+    break;
+  case ISP_HW_MOD_SET_STATS_FULLSIZE_CFG:
+    rc = isp_set_stats_fullsize_config(stats, in_params, in_params_size);
     break;
   default:
     rc = -EAGAIN; /* nop */
@@ -429,7 +470,12 @@ static int stats_open_sub_module(isp_stats_mod_t *stats,
     }
     break;
   case MSM_ISP_STATS_BF:
-    stats->stats_ops[stats_type] = bf_stats32_open(stats, stats_type);
+    if (GET_ISP_MAIN_VERSION(stats->isp_version) == ISP_VERSION_32 &&
+        GET_ISP_SUB_VERSION(stats->isp_version) == ISP_REVISION_V3) {
+      stats->stats_ops[stats_type] = bf_stats33_open(stats, stats_type);
+    } else {
+      stats->stats_ops[stats_type] = bf_stats32_open(stats, stats_type);
+    }
     if (stats->stats_ops[stats_type] == NULL) {
       CDBG_ERROR("%s: cannot open bf stats\n", __func__);
       return -1;
@@ -548,6 +594,7 @@ isp_ops_t *stats32_open(uint32_t version)
 
   memset(stats, 0, sizeof(isp_stats_mod_t));
   stats->ops.ctrl = (void *)stats;
+  stats->isp_version = version;
   stats->ops.init = stats_init;
   /* destroy the module object */
   stats->ops.destroy = stats_destroy;

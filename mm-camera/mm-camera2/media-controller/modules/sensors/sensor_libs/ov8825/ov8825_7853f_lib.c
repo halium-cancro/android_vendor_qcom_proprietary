@@ -62,12 +62,21 @@ static struct msm_sensor_power_setting power_setting[] = {
     .config_val = GPIO_OUT_HIGH,
     .delay = 10,
   },
+#ifndef _MSM_BEAR
   {
     .seq_type = SENSOR_CLK,
     .seq_val = SENSOR_CAM_MCLK,
     .config_val = 24000000,
     .delay = 10,
   },
+#else
+  {
+    .seq_type = SENSOR_CLK,
+    .seq_val = SENSOR_CAM_MCLK,
+    .config_val = 23880000,
+    .delay = 10,
+  },
+#endif
   {
     .seq_type = SENSOR_I2C_MUX,
     .seq_val = 0,
@@ -96,6 +105,7 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
     .power_setting = power_setting,
     .size = ARRAY_SIZE(power_setting),
   },
+  .is_flash_supported = SENSOR_FLASH_SUPPORTED,
 };
 
 static struct msm_sensor_init_params sensor_init_params = {

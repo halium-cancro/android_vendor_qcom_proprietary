@@ -11,7 +11,7 @@
 
 typedef struct {
   int                              fd;
-  struct msm_camera_csiphy_params *cur_csiphy_params;
+  struct msm_camera_csiphy_params  cur_csiphy_params;
   struct csi_lane_params_t        *csi_lane_params;
 } sensor_csiphy_data_t;
 

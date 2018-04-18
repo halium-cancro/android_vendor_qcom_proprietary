@@ -31,6 +31,8 @@ typedef struct {
   uint32_t applied_crop_factor;   /* Q12 = 1x */
   isp_ops_t ops;
   isp_notify_ops_t *notify_ops;
+  uint32_t max_scaler_out_width;
+  uint32_t max_scaler_out_height;
 }isp_scaler_mod_t;
 
 #endif /* __SCALER40_H__ */

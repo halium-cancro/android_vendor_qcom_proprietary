@@ -6,16 +6,17 @@
 ============================================================================*/
 #include "camera_dbg.h"
 #include "gamma32.h"
+#include "isp_log.h"
 
 
 #ifdef ENABLE_GAMMA_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -696,9 +697,9 @@ static const uint8_t VFE_Blackboard_GammaTable[1024] = {
 
 #define PRINT_TABLE(table) ({ \
   int i; \
-  CDBG("gamma table from chromatix"); \
+  ISP_DBG(ISP_MOD_GAMMA, "gamma table from chromatix"); \
   for(i=0; i<GAMMA_TABLE_SIZE/16; i++) \
-    CDBG("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", \
+    ISP_DBG(ISP_MOD_GAMMA, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d", \
       table[i], table[i+1], table[i+2], table[i+3], table[i+4], \
       table[i+5], table[i+6], table[i+7], table[i+8], \
       table[i+9], table[i+10], table[i+11], table[i+12], \
@@ -719,10 +720,10 @@ static int8_t gamma_update_tab_on_contrast(int contrast, int ibits,
 
   /* Apply Sigmoid Gamma Table */
   if (input_table == NULL || output_table == NULL) {
-    CDBG("%s: input improper\n", __func__);
+    ISP_DBG(ISP_MOD_GAMMA, "%s: input improper\n", __func__);
     return FALSE;
   }
-  CDBG("%s: E, contrast = %d\n", __func__, contrast);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: E, contrast = %d\n", __func__, contrast);
   switch (contrast) {
     case 10:
       gamma_table = ipl_gammaSigmoid2_4;
@@ -760,7 +761,7 @@ static int8_t gamma_update_tab_on_contrast(int contrast, int ibits,
       gamma_table = ipl_gammaSigmoid0_5;
     break;
     default:
-      CDBG(" %s: invalid contrast\n", __func__);
+      ISP_DBG(ISP_MOD_GAMMA, " %s: invalid contrast\n", __func__);
       return FALSE;
   }
 
@@ -769,7 +770,7 @@ static int8_t gamma_update_tab_on_contrast(int contrast, int ibits,
     output_table[i] = gamma_table[input_table[i]];
   }
 
-  CDBG("%s: success\n", __func__);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: success\n", __func__);
 
   return TRUE;
 } /* gamma_update_tab_on_contrast */
@@ -790,19 +791,19 @@ static void gamma_update_vfe_table(volatile ISP_GammaConfigCmdType *
   /* this is the ratio between number of LUT entries in Tuning data vs number of
      actual VFE gamma LUT entries. */
   const int skipRatio = size / ISP_GAMMA_NUM_ENTRIES;
-  CDBG("%s: skipRatio= %d\n", __func__, skipRatio);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: skipRatio= %d\n", __func__, skipRatio);
 
   for (i = 0; i < ISP_GAMMA_NUM_ENTRIES - 1; i++) {
     /* The higher 8 bits in the configuration contains the delta between the
        current GammaTable value and the next value, while the lower 8 bits
        contains the current GammaTable value */
     newSettings = table[skipRatio*(i+1)] - table[skipRatio * i];
-    newSettings = (int16_t)(newSettings << 8) + table[skipRatio * i];
+    newSettings = (uint16_t)(newSettings << 8) + table[skipRatio * i];
     gamma_config_cmd->Gamatbl.table[i] = newSettings;
   }
   /* this is effectively  table[63] - table[62];
      this part is the delta */
-  newSettings = 255 -
+  newSettings = 256 -
     table[(ISP_GAMMA_NUM_ENTRIES - 1) * skipRatio];
   /* scale the delta */
   newSettings = newSettings * (float)(16/15);
@@ -831,7 +832,7 @@ static void gamma_get_vfe_table(const uint8_t *table, int16_t *out_table)
   /* this is the ratio between number of LUT entries in Tuning data vs number of
      actual VFE gamma LUT entries. */
   const int skipRatio = GAMMA_TABLE_SIZE / gamma_entries;
-  CDBG("%s: skipRatio= %d\n", __func__, skipRatio);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: skipRatio= %d\n", __func__, skipRatio);
 
   for (i = 0; i < gamma_entries - 1; i++) {
     /* The higher 8 bits in the configuration contains the delta between the
@@ -879,14 +880,14 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
   uint8_t final_gamma_table[GAMMA_TABLE_SIZE];
   uint8_t* p_gamma_table = mod->p_gamma_table;
 
-  CDBG("%s: enable %d", __func__, mod->enable);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: enable %d", __func__, mod->enable);
   if (!mod->enable) {
-    CDBG("%s: gamma not enabled", __func__);
+    ISP_DBG(ISP_MOD_GAMMA, "%s: gamma not enabled", __func__);
     return 0;
   }
 
   if (!mod->trigger_enable) {
-    CDBG("%s: gamma trigger not enabled", __func__);
+    ISP_DBG(ISP_MOD_GAMMA, "%s: gamma trigger not enabled", __func__);
     return 0;
   }
 
@@ -895,11 +896,11 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
   case CAM_EFFECT_MODE_SOLARIZE:
   case CAM_EFFECT_MODE_WHITEBOARD:
   case CAM_EFFECT_MODE_BLACKBOARD:
-    CDBG("%s: Special effect %d applied skip trigger",
+    ISP_DBG(ISP_MOD_GAMMA, "%s: Special effect %d applied skip trigger",
       __func__, trigger_params->cfg.effects.spl_effect);
     gamma_update_vfe_table(&mod->ISP_GammaCfgCmd, p_gamma_table,
       1 << mod->p_gamma_table_size_bits);
-    CDBG("%s: Update gamma %d status %d, hw_update = %d",
+    ISP_DBG(ISP_MOD_GAMMA, "%s: Update gamma %d status %d, hw_update = %d",
       __func__, update_gamma, rc, mod->hw_update_pending);
     return 0;
   default:
@@ -907,8 +908,8 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
   }
 
   if (!is_burst && !isp_util_aec_check_settled(&trigger_params->trigger_input.stats_update.aec_update)) {
-    CDBG("%s: AEC not settled", __func__);
-    //return 0;  //TODO remove this after 3a stable
+    ISP_DBG(ISP_MOD_GAMMA, "%s: AEC not settled", __func__);
+    return 0;
   }
 
   lowlight =  &(pchromatix_gamma->gamma_lowlight_trigger);
@@ -924,16 +925,16 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
     trigger_params->trigger_input.stats_update.asd_update.backlight_detected &&
     (mod->backlight_severity != trigger_params->trigger_input.stats_update.asd_update.backlight_scene_severity);
 
-  CDBG("%s: bklight %d severity %d", __func__, backlight_comp_update,
+  ISP_DBG(ISP_MOD_GAMMA, "%s: bklight %d severity %d", __func__, backlight_comp_update,
      trigger_params->trigger_input.stats_update.asd_update.backlight_scene_severity);
 
   update_gamma =
     ((trigger_params->cfg.streaming_mode != mod->old_streaming_mode) ||
       !F_EQUAL(trigger_ratio.ratio, mod->gamma_ratio.ratio)) ||
-    backlight_comp_update || mod->reload_params||
+    backlight_comp_update || mod->reload_params|| mod->gamma_retrigger ||
     (trigger_ratio.lighting != mod->gamma_ratio.lighting);
 
-  CDBG("%s: update %d ratio %f lighting %d", __func__, update_gamma,
+  ISP_DBG(ISP_MOD_GAMMA, "%s: update %d ratio %f lighting %d", __func__, update_gamma,
      trigger_ratio.ratio, trigger_ratio.lighting);
 
   if (update_gamma) {
@@ -949,7 +950,7 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
 
     if (backlight_comp_update) {
       float bl_ratio = (float)trigger_params->trigger_input.stats_update.asd_update.backlight_scene_severity/255.0;
-      CDBG("%s: bl_ratio %f", __func__, bl_ratio);
+      ISP_DBG(ISP_MOD_GAMMA, "%s: bl_ratio %f", __func__, bl_ratio);
       bl_ratio = MIN(0, MAX(1.0, bl_ratio));
 #if 0
       /* FIXME: there is no backlight gamma in chromatix 301 */
@@ -962,6 +963,8 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
     mod->old_streaming_mode = trigger_params->cfg.streaming_mode;
     mod->gamma_ratio = trigger_ratio;
     mod->hw_update_pending = TRUE;
+    mod->reload_params = 0;
+    mod->gamma_retrigger = 0;
   }
 
   /* update based on contrast */
@@ -970,11 +973,11 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
       case GAMMA_TABLE_SOLARIZE:
       case GAMMA_TABLE_POSTERIZE:
       case GAMMA_TABLE_BACKLIGHT: {
-        CDBG("%s: Dont apply contrast", __func__);
+        ISP_DBG(ISP_MOD_GAMMA, "%s: Dont apply contrast", __func__);
         break;
       }
       default: {
-        CDBG("%s: Apply contrast %d trig_update %d", __func__, mod->contrast,
+        ISP_DBG(ISP_MOD_GAMMA, "%s: Apply contrast %d trig_update %d", __func__, mod->contrast,
           mod->trigger_update);
         if (mod->contrast != DEFAULT_CONTRAST) {
           gamma_update_tab_on_contrast(mod->contrast,
@@ -988,7 +991,7 @@ static int gamma_trigger_update(isp_gamma_mod_t *mod,
 
   gamma_update_vfe_table(&mod->ISP_GammaCfgCmd, p_gamma_table,
     1 << mod->p_gamma_table_size_bits);
-  CDBG("%s: Update gamma %d status %d, hw_update = %d",
+  ISP_DBG(ISP_MOD_GAMMA, "%s: Update gamma %d status %d, hw_update = %d",
     __func__, update_gamma, rc, mod->hw_update_pending);
 
   memcpy(trigger_params->cfg.gamma_rgb.gamma_r, mod->ISP_GammaCfgCmd.Gamatbl.table,
@@ -1015,7 +1018,7 @@ static int gamma_set_table(isp_gamma_mod_t* mod,
    chromatix_gamma_type *pchromatix_gamma =
      &(chromatix_ptr->chromatix_VFE.chromatix_gamma);
 
-  CDBG("%s: gamma_table_type %d", __func__, gamma_table_type);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: gamma_table_type %d", __func__, gamma_table_type);
 
   mod->p_gamma_table_size_bits = 6;
   switch (gamma_table_type) {
@@ -1064,7 +1067,7 @@ static int gamma_set_bestshot(isp_gamma_mod_t* mod,
   isp_hw_pix_setting_params_t *pix_settings, uint32_t in_param_size)
 {
   int rc = 0;
-  CDBG("%s: mode %d", __func__, pix_settings->bestshot_mode);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: mode %d", __func__, pix_settings->bestshot_mode);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */
@@ -1097,7 +1100,7 @@ static int gamma_set_bestshot(isp_gamma_mod_t* mod,
   mod->trigger_enable = TRUE;
 
   if (rc == 0){
-    CDBG("%s: enable update through BSM for mode : %d",__func__, pix_settings->bestshot_mode);
+    ISP_DBG(ISP_MOD_GAMMA, "%s: enable update through BSM for mode : %d",__func__, pix_settings->bestshot_mode);
     mod->hw_update_pending = TRUE;
   }
   return rc;
@@ -1118,7 +1121,7 @@ static int gamma_set_spl_effect(isp_gamma_mod_t* mod,
   chromatix_parms_type *chromatix =
     (chromatix_parms_type *)pix_settings->chromatix_ptrs.chromatixPtr;
 
-  CDBG("%s: E\n",__func__);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: E\n",__func__);
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
     /* size mismatch */
     CDBG_ERROR("%s: size mismatch, expecting = %d, received = %d",
@@ -1132,7 +1135,7 @@ static int gamma_set_spl_effect(isp_gamma_mod_t* mod,
   }
 
   type = pix_settings->effects.spl_effect;
-  CDBG("%s: contrast %d effect type %d", __func__, mod->contrast, type);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: contrast %d effect type %d", __func__, mod->contrast, type);
 
   if(mod->contrast != DEFAULT_CONTRAST)
     switch(type) {
@@ -1148,7 +1151,7 @@ static int gamma_set_spl_effect(isp_gamma_mod_t* mod,
         break;
     }
 
-  CDBG("%s: type %d", __func__, type);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: type %d", __func__, type);
   switch (type) {
     case CAM_EFFECT_MODE_POSTERIZE:
      rc = gamma_set_table(mod, pix_settings, GAMMA_TABLE_POSTERIZE);
@@ -1168,7 +1171,7 @@ static int gamma_set_spl_effect(isp_gamma_mod_t* mod,
   }
 
   if (rc == 0){
-    CDBG("%s: enable update through special effect type %d",__func__, type);
+    ISP_DBG(ISP_MOD_GAMMA, "%s: enable update through special effect type %d",__func__, type);
     mod->hw_update_pending = TRUE;
   }
 
@@ -1185,21 +1188,25 @@ static void gamma_set_solarize_table(isp_gamma_mod_t *mod,
 {
   /* FIXME: There is no solorize reflection point in chromatix 301 */
   int i;
-  uint16_t solarize_reflection_point = 32;
+  uint16_t solarize_reflection_point = 0;
   chromatix_gamma_type *pchromatix_gamma =
     &(chromatix_ptr->chromatix_VFE.chromatix_gamma);
   uint8_t* Gamma_Solarize = mod->solarize_gamma_table;
   uint8_t *Gamma_Lut = pchromatix_gamma->default_gamma_table.gamma;
-  CDBG("%s: E", __func__);
-  /* Chromatix reflection point is based on 256 (8 bit) gamma entries,
-   * whereas VFE gamma has 1024 (10 bit) entries. So we multiple the
-   * reflection point by 4 here */
-  memcpy(Gamma_Solarize, Gamma_Lut, solarize_reflection_point-1);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: E", __func__);
+  /* The solarize effect is achieved by inverting the output of the gamma table
+     if the input is larger than reflex point. The output remains the same if                                                   .
+     the input is less than or equal to the reflex point.
+     The recommended reflex point is the midpoint of the input range e.g.
+     128 for an 8-bit input */
+  while( Gamma_Lut[solarize_reflection_point] <= GAMMA_REFLEX_POINT )
+    solarize_reflection_point++;
+  memcpy(Gamma_Solarize, Gamma_Lut, solarize_reflection_point);
 
-  for (i = solarize_reflection_point - 1; i < GAMMA_TABLE_SIZE; ++i)
+  for (i = solarize_reflection_point - 1; i < GAMMA_TABLE_SIZE; i++)
     Gamma_Solarize[i] =
-      ((255-Gamma_Lut[i])*Gamma_Lut[solarize_reflection_point-1] /
-      (255-Gamma_Lut[solarize_reflection_point-1]));
+      ((255-Gamma_Lut[i])*Gamma_Lut[solarize_reflection_point] /
+      (255-Gamma_Lut[solarize_reflection_point]));
 
 }
 
@@ -1220,12 +1227,12 @@ static int vfe_gamma_get_table(isp_gamma_mod_t* mod, isp_hw_pix_setting_params_t
   uint8_t* p_gamma_table = mod->p_gamma_table;
 
   if (!mod->enable) {
-    CDBG("%s: gamma not enabled", __func__);
+    ISP_DBG(ISP_MOD_GAMMA, "%s: gamma not enabled", __func__);
     *pp_out_table = NULL;
     *size = 0;
     return rc;
   }
-  CDBG("%s: type %d", __func__, mod->gamma_table_type);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: type %d", __func__, mod->gamma_table_type);
 
   *pp_out_table = (int16_t *)malloc(ISP_GAMMA_NUM_ENTRIES * sizeof(int16_t));
   if (NULL == *pp_out_table) {
@@ -1263,7 +1270,7 @@ static int vfe_gamma_set_contrast(isp_gamma_mod_t *mod, isp_hw_pix_setting_param
   return -1;
   }
 
-  CDBG("%s: bs_mode %d", __func__, pix_settings->bestshot_mode);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: bs_mode %d", __func__, pix_settings->bestshot_mode);
   if (pix_settings->bestshot_mode != CAM_SCENE_MODE_OFF) {
     CDBG_HIGH("%s: Best shot enabled, ignore contrast", __func__);
     return 0;
@@ -1280,11 +1287,11 @@ static int vfe_gamma_set_contrast(isp_gamma_mod_t *mod, isp_hw_pix_setting_param
       break;
   }
   if (mod->contrast != pix_settings->effects.contrast) {
-     CDBG("%s: contrast changed contrast = %d\n", __func__, mod->contrast);
+     ISP_DBG(ISP_MOD_GAMMA, "%s: contrast changed contrast = %d\n", __func__, mod->contrast);
      mod->contrast = pix_settings->effects.contrast;
      mod->hw_update_pending = TRUE;
   }
-  CDBG("%s: X, hw_update = %d\n", __func__, mod->hw_update_pending);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: X, hw_update = %d\n", __func__, mod->hw_update_pending);
   return rc;
 } /* vfe_gamma_set_contrast */
 
@@ -1336,6 +1343,7 @@ static int gamma_init (void *mod_ctrl, void *in_params, isp_notify_ops_t *notify
   gamma->fd = init_params->fd;
   gamma->notify_ops = notify_ops;
   gamma->old_streaming_mode = CAM_STREAMING_MODE_MAX;
+  gamma->gamma_retrigger = 0;
   return 0;
 }/* gamma_init */
 
@@ -1380,10 +1388,10 @@ static int gamma_config(isp_gamma_mod_t *gamma, isp_hw_pix_setting_params_t *pix
       case GAMMA_TABLE_SOLARIZE:
       case GAMMA_TABLE_POSTERIZE:
       case GAMMA_TABLE_BACKLIGHT:
-        CDBG("%s: Dont apply contrast", __func__);
+        ISP_DBG(ISP_MOD_GAMMA, "%s: Dont apply contrast", __func__);
         break;
       default:
-        CDBG("%s: no effect & bs mode, Apply contrast %d",
+        ISP_DBG(ISP_MOD_GAMMA, "%s: no effect & bs mode, Apply contrast %d",
           __func__, gamma->contrast);
         if (gamma->contrast != DEFAULT_CONTRAST) {
           gamma_update_tab_on_contrast(gamma->contrast,
@@ -1402,8 +1410,9 @@ static int gamma_config(isp_gamma_mod_t *gamma, isp_hw_pix_setting_params_t *pix
   gamma->ISP_GammaCfgCmd.LutSel.ch0BankSelect = 0;
   gamma->ISP_GammaCfgCmd.LutSel.ch1BankSelect = 0;
   gamma->ISP_GammaCfgCmd.LutSel.ch2BankSelect = 0;
+  gamma->reload_params = 1;
   gamma->hw_update_pending = TRUE;
-  CDBG("%s: X\n", __func__);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: X\n", __func__);
   return rc;
 }
 
@@ -1467,7 +1476,7 @@ static int gamma_set_params (void *mod_ctrl, uint32_t param_id,
 {
   isp_gamma_mod_t *gamma = mod_ctrl;
   int rc = 0;
-  CDBG("%s: param id = %d\n", __func__, param_id);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: param id = %d\n", __func__, param_id);
   switch (param_id) {
   case ISP_HW_MOD_SET_MOD_ENABLE:
     rc = gamma_enable(gamma, (isp_mod_set_enable_t *)in_params,
@@ -1543,7 +1552,7 @@ static int gamma_get_params (void *mod_ctrl, uint32_t param_id,
     vfe_diag->control_gamma.enable = gamma->enable;
     vfe_diag->control_gamma.cntrlenable = gamma->trigger_enable;
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_GAMMA, "%s: Populating vfe_diag data", __func__);
   }
     break;
 
@@ -1701,7 +1710,7 @@ static int gamma_dmi_hw_update(isp_gamma_mod_t *gamma_mod, ISP_GammaLutSelect ba
 static int gamma_do_hw_update(isp_gamma_mod_t *gamma_mod)
 {
   int i, rc = 0;
-  CDBG("%s: hw_pending = %d\n", __func__, gamma_mod->hw_update_pending);
+  ISP_DBG(ISP_MOD_GAMMA, "%s: hw_pending = %d\n", __func__, gamma_mod->hw_update_pending);
   if (gamma_mod->hw_update_pending) {
 
     gamma_dmi_hw_update(gamma_mod,

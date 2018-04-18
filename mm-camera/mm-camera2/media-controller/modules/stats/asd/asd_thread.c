@@ -1,6 +1,6 @@
 /* asd_thread.c
  *
- * Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
  * Qualcomm Technologies Proprietary and Confidential.
  */
 #include <pthread.h>
@@ -8,7 +8,10 @@
 #include "asd_thread.h"
 #include "modules.h"
 #include <math.h>
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
+#include "camera_dbg.h"
 /** asd_thread_init
  *
  **/
@@ -45,9 +48,11 @@ asd_thread_data_t* asd_thread_init(void)
  **/
 void asd_thread_deinit(asd_thread_data_t *thread_data)
 {
-  if (!thread_data)
+  if (!thread_data) {
+    CDBG_ERROR("%s thread_data is NULL", __func__);
     return;
-
+  }
+  CDBG("%s thread_data: %p", __func__, thread_data);
   pthread_mutex_destroy(&thread_data->thread_mutex);
   pthread_cond_destroy(&thread_data->thread_cond);
   mct_queue_free(thread_data->msg_q);
@@ -119,6 +124,8 @@ static void* asd_thread_handler(asd_thread_data_t *thread_data)
 
   sem_post(&thread_data->sem_launch);
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "asd_thread", 0, 0, 0);
   if (!thread_data)
     return NULL;
 
@@ -191,8 +198,10 @@ static void* asd_thread_handler(asd_thread_data_t *thread_data)
         CDBG("%s: Store AWB data and start ASD process now!", __func__);
         thread_data->process_data.awb_data = msg->u.awb_data;
 
+        ATRACE_BEGIN("Camera:ASD");
         asd_obj->asd_ops.process(&(thread_data->process_data),
           asd_obj->asd, &(asd_obj->output));
+        ATRACE_END();
         thread_data->asd_cb(&(asd_obj->output), thread_data->asd_port);
 
         thread_data->process = ASD_NO_ACTION;
@@ -287,6 +296,7 @@ boolean asd_thread_start(asd_thread_data_t *thread_data)
   pthread_t id;
 
   pthread_create(&id, NULL, asd_thread_handler, thread_data);
+  pthread_setname_np(id, "ASD");
   sem_wait(&thread_data->sem_launch);
   thread_data->thread_id = id;
   thread_data->active    = 1;

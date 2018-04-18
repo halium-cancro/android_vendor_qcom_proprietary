@@ -38,7 +38,7 @@
  * This structure represents the IS internal variables.
  **/
 typedef struct _is_info {
-  is_mode_t is_mode;
+  cam_is_type_t is_mode;
   unsigned int rs_cs_frame_id;
   struct timeval timestamp;
   rs_cs_data_t rs_cs_data;
@@ -64,40 +64,6 @@ typedef struct _is_info {
 } is_info_t;
 
 
-/** is_set_parameter_type:
- * List of IS parameters that can be set by other componenets.
- **/
-typedef enum {
-  IS_SET_PARAM_STREAM_CONFIG = 1,
-  IS_SET_PARAM_DIS_CONFIG
-} is_set_parameter_type;
-
-
-/** is_sensor_info:
- *    @sensor_mount_angle: sensor mount angle (0, 90, 180, 270)
- *    @camera_position: camera position (front or back)
- **/
-typedef struct _is_sensor_info {
-  unsigned int sensor_mount_angle;
-  enum camb_position_t camera_position;
-} is_sensor_info_t;
-
-
-/** _is_set_parameter:
- *    @type: parameter type
- *
- * Used for setting IS parameters
- **/
-typedef struct _is_set_parameter {
-  is_set_parameter_type type;
-
-  union {
-    is_sensor_info_t is_sensor_info;
-    isp_dis_config_info_t is_config_info;
-  } u;
-} is_set_parameter_t;
-
-
 typedef enum {
   IS_PROCESS_STREAM_EVENT = 1,
   IS_PROCESS_RS_CS_STATS,
@@ -107,7 +73,8 @@ typedef enum {
 
 typedef enum {
   IS_VIDEO_STREAM_OFF = 1,
-  IS_VIDEO_STREAM_ON
+  IS_VIDEO_STREAM_ON,
+  IS_OTHER_STREAM_ON_OFF
 } is_stream_event_t;
 
 
@@ -156,7 +123,7 @@ typedef enum {
 
 typedef struct _is_process_output {
   is_process_output_type_t type;
-  int video_stream_on;
+  is_stream_event_t is_stream_event;
   is_output_type *is_output;
 } is_process_output_t;
 

@@ -10,6 +10,7 @@
 #include <math.h>
 #include "img_common.h"
 
+#define MAX_FACES_SUPPORTED_BY_TP 5
 /**
  * CONSTANTS and MACROS
  **/
@@ -49,6 +50,7 @@ typedef struct {
 *    AF info
 **/
 typedef struct {
+  uint32_t dummy;
 } img_af_info_t;
 
 /** img_meta_type_t
@@ -77,6 +79,21 @@ typedef enum {
   IMG_META_MAX,
 } img_meta_type_t;
 
+/** img_fd_info_t
+*   @faceROIx: face start poistion x
+*   @faceROIy: face start poistion y
+*   @faceROIWidth: face width
+*   @faceROIHeight: face height
+*
+*    face detection info
+**/
+typedef struct {
+  uint32_t faceROIx[MAX_FACES_SUPPORTED_BY_TP];
+  uint32_t faceROIy[MAX_FACES_SUPPORTED_BY_TP];
+  uint32_t faceROIWidth[MAX_FACES_SUPPORTED_BY_TP];
+  uint32_t faceROIHeight[MAX_FACES_SUPPORTED_BY_TP];
+} img_fd_info_t;
+
 /** img_meta_t
 *    @valid: check if meta is valid
 *    @gamma_R: R gamma table
@@ -88,6 +105,9 @@ typedef enum {
 *    @output_crop: output crop info
 *    @zoom_factor: zoom factor 1x-6x
 *    @output_dim: output dimension
+*    @valid_faces_detected: number of valid faces for Tp
+*    @rotation: rotation requested for snapshot frame
+*    @fd_frame_dim: frame dimension on which fd is applied
 *
 *    Imaging metadata structure
 **/
@@ -103,6 +123,10 @@ typedef struct {
   img_rect_t output_crop;
   float zoom_factor;
   img_size_t output_dim;
+  uint8_t valid_faces_detected;
+  img_fd_info_t fd_info;
+  int32_t rotation;
+  img_size_t fd_frame_dim;
 } img_meta_t;
 
 

@@ -89,6 +89,7 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
     .power_setting = power_setting,
     .size = ARRAY_SIZE(power_setting),
   },
+  .is_flash_supported = SENSOR_FLASH_NOT_SUPPORTED,
 };
 
 static struct msm_sensor_init_params sensor_init_params = {
@@ -112,12 +113,12 @@ static struct msm_sensor_output_reg_addr_t output_reg_addr = {
 
 static struct msm_sensor_exp_gain_info_t exp_gain_info = {
   .coarse_int_time_addr = 0x0202,
-  .global_gain_addr = 0x0204,
+  .global_gain_addr = 0x0205,
   .vert_offset = 6,
 };
 
 static sensor_aec_data_t aec_info = {
-  .max_gain = 8.0,
+  .max_gain = 15.5,
   .max_linecount = 18240, /* updated in PLD gating */
 };
 
@@ -392,36 +393,30 @@ static struct sensor_lib_chromatix_array ov9724_lib_chromatix_array = {
 static uint16_t ov9724_real_to_register_gain(float gain)
 {
 
-  uint16_t reg_gain, multiply_factor;
-  uint16_t reg_gain_first=0;
-  uint16_t reg_gain_last = 0;
+  uint16_t reg_gain;
+  uint16_t reg_gain_bits_6_4;
+  uint16_t reg_gain_bits_3_0;
 
   if (gain < 1) {
-    gain =1;
+    /* Clamped to Min analog gain x1.0 */
+    /* gain = 1.0 */
     reg_gain = 0x00;
-  } else if (gain >= 32) {
-    gain =32;
-    reg_gain = 0xFF;
+  } else if (gain >= 15.5) {
+    /* Clamped to Max analog gain x15.5 */
+    /* gain = 15.5 */
+    reg_gain = 0x7F;
   } else {
-    multiply_factor = 1;
-    while (gain >= 2) {
-      reg_gain_first += multiply_factor;
-      multiply_factor *=2;
+    /* Calculate analog gain register */
+    reg_gain_bits_6_4 = 0;
+    /* Max gain of 0x0205[3:0] is 1.9375 -> 1+(15/16) */
+    while (gain >= 2.0) {
+      reg_gain_bits_6_4 = (reg_gain_bits_6_4 << 1) | 1;
       gain /= 2.0;
     }
-
-    reg_gain_last = (uint16_t)((gain-1.0)*16.0);
-
-    if (reg_gain_last == 16) {
-      if(multiply_factor < 16)
-        reg_gain_first += multiply_factor;
-      else
-        reg_gain_last = 0xf;
-    }
-      reg_gain = (reg_gain_first << 4) | reg_gain_last;
+    reg_gain_bits_3_0 = (uint16_t)((gain - 1.0) * 16.0);
+    reg_gain = (reg_gain_bits_6_4 << 4) | reg_gain_bits_3_0;
   }
-  return reg_gain;
-
+  return (reg_gain & 0x7F);
 }
 
 /*===========================================================================
@@ -433,8 +428,19 @@ static float ov9724_register_to_real_gain(uint16_t reg_gain)
 {
 
   float real_gain;
-  real_gain = (float)((((float)(reg_gain >> 4) + 1.0) * \
-    (16.0 + (float)(reg_gain % 16))) / 16.0);
+  uint16_t reg_gain_bit_4, reg_gain_bit_5, reg_gain_bit_6;
+  uint16_t reg_gain_bits_3_0;
+
+  reg_gain_bit_6 = (reg_gain & 0x40) >> 6;
+  reg_gain_bit_5 = (reg_gain & 0x20) >> 5;
+  reg_gain_bit_4 = (reg_gain & 0x10) >> 4;
+  reg_gain_bits_3_0 = reg_gain & 0x0F;
+
+  real_gain =
+    (float)(reg_gain_bit_6 + 1.0) *
+    (float)(reg_gain_bit_5 + 1.0) *
+    (float)(reg_gain_bit_4 + 1.0) *
+    (float)(1.0 + ((float)reg_gain_bits_3_0 / 16.0)) ;
 
   return real_gain;
 }

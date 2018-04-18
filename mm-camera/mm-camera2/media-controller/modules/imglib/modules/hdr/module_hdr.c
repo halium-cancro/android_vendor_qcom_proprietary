@@ -1,5 +1,5 @@
 /*============================================================================
- Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+ Copyright (c) 2013,2015 Qualcomm Technologies, Inc. All Rights Reserved.
  Qualcomm Technologies Proprietary and Confidential.
  ============================================================================*/
 
@@ -405,8 +405,13 @@ static boolean module_hdr_query_mod(mct_module_t *module, void *query_buf,
   if (module && query_buf) {
     if (MODULE_HDR_VALIDATE_NAME(module)) {
 
-      if (buf->sensor_cap.sensor_format != FORMAT_YCBCR)
+      if (buf->sensor_cap.sensor_format != FORMAT_YCBCR) {
         ret_val = module_hdr_lib_query_mod(&buf->imaging_cap);
+        //update pp mask to enable hdr
+        buf->pp_cap.feature_mask |= CAM_QCOM_FEATURE_HDR;
+        IDBG_MED("%s hdr feature mask: %x %x\n", __func__,
+          buf->imaging_cap.feature_mask, buf->pp_cap.feature_mask);
+      }
       else
         ret_val = TRUE;
     } else {
@@ -563,12 +568,13 @@ static mct_port_t *module_hdr_request_new_port(void *stream_info,
     hdr_context = module->module_private;
     if (MODULE_HDR_VALIDATE_NAME(module)) {
       if (!caps || caps->port_caps_type == MCT_PORT_CAPS_FRAME) {
-        if (MCT_PORT_SINK == direction)
+        if (MCT_PORT_SINK == direction) {
           snprintf(port_name, sizeof(port_name), "%s_%d",
             MODULE_HDR_PORT_SINK_NAME, module->numsinkports);
-        else
+        } else {
           snprintf(port_name, sizeof(port_name), "%s_%d",
             MODULE_HDR_PORT_SRC_NAME, module->numsrcports);
+        }
         port = mct_port_create(port_name);
         if (port) {
           if (module_hdr_port_init(port, direction, &info->identity,
@@ -576,10 +582,11 @@ static mct_port_t *module_hdr_request_new_port(void *stream_info,
             MCT_OBJECT_LOCK(module);
             if (mct_module_add_port(module, port)) {
               if (port->check_caps_reserve(port, &hdr_context->dummy_port->caps,
-                stream_info))
+                stream_info)) {
                 port_created = TRUE;
-              else
+              } else {
                 mct_module_remove_port(module, port);
+              }
             }
 
             if (!port_created) {
@@ -588,9 +595,10 @@ static mct_port_t *module_hdr_request_new_port(void *stream_info,
             MCT_OBJECT_UNLOCK(module);
           }
 
-          if (port_created)
-            IDBG_HIGH("New port %s created", MCT_OBJECT_NAME(port));
-          else {
+          if (port_created) {
+            IDBG_HIGH("New port %s created, port = %p",
+              MCT_OBJECT_NAME(port), port);
+          } else {
             IDBG_ERROR("Cannot initialize new port in %s\n", __func__);
             mct_port_destroy(port);
             port = NULL;
@@ -710,6 +718,7 @@ module_hdr_init(const char *name)
 
         hdr_context = malloc(sizeof(module_hdr_context_t));
         if (hdr_context) {
+          memset(hdr_context, 0, sizeof(module_hdr_context_t));
           module_hdr->module_private = hdr_context;
 
           hdr_context->lib_handle = module_hdr_lib_load();
@@ -741,8 +750,6 @@ module_hdr_init(const char *name)
             IDBG_ERROR("Cannot load library in %s module\n", name);
         } else
           IDBG_ERROR("Cannot allocate private data for %s module\n", name);
-        if (!status)
-          module_hdr_deinit(module_hdr);
       } else
         IDBG_ERROR("Cannot create %s module\n", name);
     } else {
@@ -751,6 +758,11 @@ module_hdr_init(const char *name)
     }
   } else
     IDBG_ERROR("Null pointer detected in %s\n", __func__);
+
+  if (!status) {
+    module_hdr_deinit(module_hdr);
+    module_hdr = NULL;
+  }
 
   IDBG_MED("%s -", __func__);
 

@@ -1,5 +1,5 @@
 /*============================================================================
-Copyright (c) 2013-2014 Qualcomm Technologies, Inc. All Rights Reserved.
+Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
 Qualcomm Technologies Proprietary and Confidential.
 ============================================================================*/
 
@@ -7,6 +7,9 @@ Qualcomm Technologies Proprietary and Confidential.
 #include <semaphore.h>
 #include "camera_dbg.h"
 #include "isp_tintless.h"
+#include "isp_log.h"
+#include <sys/syscall.h>
+#include <sys/prctl.h>
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -52,12 +55,12 @@ static void isp_tintless_debug_BE(q3a_be_stats_t *be_stats, uint32_t frame_id)
     return;
   }
 
-  CDBG("%s: BE stats: h_num %d v_num %d\n", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: BE stats: h_num %d v_num %d\n", __func__,
     be_stats->be_region_h_num, be_stats->be_region_v_num);
 
 
   if (be_stats != NULL) {
-     snprintf(buf, sizeof(buf), "/data/BE_%d.txt", frame_id);
+     snprintf(buf, sizeof(buf), "/data/misc/camera/BE_%d.txt", frame_id);
      fptr = fopen(buf, "w+");
      if (!fptr) {
        CDBG_ERROR("%s: error open files! fptr = %p\n", __func__, fptr);
@@ -76,7 +79,7 @@ static void isp_tintless_debug_BE(q3a_be_stats_t *be_stats, uint32_t frame_id)
     fclose(fptr);
   }
 
- CDBG("%s: X\n", __func__);
+ ISP_DBG(ISP_MOD_COM,"%s: X\n", __func__);
 
  return;
 } /* isp_tintless_debug_BE */
@@ -97,7 +100,7 @@ static void isp_tintless_table_dump(tintless_mesh_rolloff_array_t *data,
   ALOGE("%s: start dump tintless\n", __func__);
 
   if (data != NULL) {
-    snprintf(buf, sizeof(buf), "/data/%s_%d.txt", fname, frame_id);
+    snprintf(buf, sizeof(buf), "/data/misc/camera/%s_%d.txt", fname, frame_id);
     fptr = fopen(buf, "w+");
     if (!fptr) {
        CDBG_ERROR("%s: error open files! fptr = %p\n", __func__, fptr);
@@ -168,6 +171,8 @@ static void *isp_tintless_main_loop(void *data)
   char value[PROPERTY_VALUE_MAX];
   uint32_t ready_frame_id;
 
+  CDBG_HIGH("%s thread_id is %d\n",__func__, syscall(SYS_gettid));
+  prctl(PR_SET_NAME, "isp_tintless", 0, 0, 0);
   while(!(thread_data->thread_exit)) {
     sem_wait(&thread_data->wait_sem);
 
@@ -175,7 +180,7 @@ static void *isp_tintless_main_loop(void *data)
     if(thread_data->algo_requested) {
       pthread_mutex_unlock(&thread_data->lock_mutex);
 
-    CDBG("%s: run tintless algo, stats type = %d\n",
+    ISP_DBG(ISP_MOD_COM,"%s: run tintless algo, stats type = %d\n",
       __func__, tintless->tintless_data.stats_support_type);
       /* Tintless core algorithm*/
     if(tintless->tintless_data.stats_support_type == ISP_TINTLESS_STATS_TYPE_BG){
@@ -206,7 +211,7 @@ static void *isp_tintless_main_loop(void *data)
 
       property_get("persist.camera.tintless.dump", value, "0");
       dump_to_file = atoi(value);
-      CDBG("%s: frame_id: %d\n", __func__, ready_frame_id);
+      ISP_DBG(ISP_MOD_COM,"%s: frame_id: %d\n", __func__, ready_frame_id);
       if (dump_to_file) {
         isp_tintless_table_dump(in_table, "algo_in", ready_frame_id);
         isp_tintless_table_dump(&out_table, "algo_out", ready_frame_id);
@@ -282,6 +287,7 @@ static int isp_tintless_start_task(isp_tintless_session_t *session)
 
   rc = pthread_create(&thread_data->pid, NULL,
     isp_tintless_main_loop, (void *)session);
+  pthread_setname_np(thread_data->pid, "CAM_isp_tintless");
   if(rc) {
     CDBG_ERROR("%s: pthread_create error = %d\n",
       __func__, rc);
@@ -323,7 +329,7 @@ isp_tintless_session_t *isp_tintless_open_session(isp_tintless_t *tintless,
         goto ver_failed;
       }
 
-      CDBG("%s: versionX %d.%d\n", __func__,
+      ISP_DBG(ISP_MOD_COM,"%s: versionX %d.%d\n", __func__,
         tintless->tintless_data.version.api_version,
         tintless->tintless_data.version.minor_version);
 
@@ -391,7 +397,7 @@ void isp_tintless_close_session(isp_tintless_session_t *session)
   }
 
   if (session->tinstance == NULL) {
-    CDBG("%s: session already closed\n", __func__);
+    ISP_DBG(ISP_MOD_COM,"%s: session already closed\n", __func__);
     return;
   }
 
@@ -425,11 +431,6 @@ void isp_tintless_set_param(isp_tintless_session_t *session, uint8_t *enabled)
    tintless->tintless_data.is_enabled = 0;
    return;
   }
-  
-  /* force tintless feature open, tanrifei, 20140120 */
-  *enabled = 1;
-  /* add end */
-  
   tintless->tintless_data.is_enabled = *enabled;
 }
 
@@ -470,9 +471,9 @@ int isp_tintless_be_config(isp_tintless_session_t *session,
   }
   stats_cfg = tintless_data->notify_data;
 
-  CDBG("%s: tintless be_stats_cfg: camif_w = %d, camif_h = %d, elem_w = %d, "
-    "elem_h = %d, num_stat_elem_rows = %d, num_stat_elem_cols = %d\n",
-    __func__, stats_cfg->camif_win_w, stats_cfg->camif_win_h,
+  ISP_DBG(ISP_MOD_COM,"%s: tintless be_stats_cfg: camif_w = %d, camif_h = %d,"
+    "elem_w = %d, elem_h = %d, num_stat_elem_rows = %d, num_stat_elem_cols ="
+    "%d\n",__func__, stats_cfg->camif_win_w, stats_cfg->camif_win_h,
     stats_cfg->stat_elem_w, stats_cfg->stat_elem_h,
     stats_cfg->num_stat_elem_rows, stats_cfg->num_stat_elem_cols);
 
@@ -624,9 +625,9 @@ int isp_tintless_rolloff_config(isp_tintless_session_t *session,
     session->curr_rolloff_hw = isp_mesh_cfg->mesh_fixed;
   }
 
-  CDBG("%s: tintless_mesh_cfg: num_rows = %d, num_cols = %d, offset_Hori =%d,"
-    " offset_Vert = %d, subgrid_Width = %d,subgrid_Height = %d\n", __func__,
-    isp_mesh_cfg->mesh_cfg.num_mesh_elem_rows,
+  ISP_DBG(ISP_MOD_COM,"%s: tintless_mesh_cfg: num_rows = %d, num_cols = %d,"
+    "offset_Hori =%d, offset_Vert = %d, subgrid_Width = %d,subgrid_Height ="
+    "%d\n", __func__, isp_mesh_cfg->mesh_cfg.num_mesh_elem_rows,
     isp_mesh_cfg->mesh_cfg.num_mesh_elem_cols,
     isp_mesh_cfg->mesh_cfg.offset_horizontal,
     isp_mesh_cfg->mesh_cfg.offset_vertical,
@@ -706,7 +707,7 @@ static void isp_tintless_parse_stats(void *stats,
  *  Return 0 on success, -1 on error
  **/
 int isp_tintless_trigger_update(isp_tintless_session_t *session,
-  void *stats, int type)
+  void *stats, int type, int hfr_mode)
 {
   int rc =0;
   int skip_count = TINTLESS_ALGO_SKIP_COUNT;
@@ -723,14 +724,39 @@ int isp_tintless_trigger_update(isp_tintless_session_t *session,
     goto error;
   }
 
+  /* Tintless needs to be applied at 30FPS in case of BG stats.
+     This is especially applicable to VFE32 where stats are not
+     dropped in hardware */
+  if (type == MSM_ISP_STATS_BG) {
+    switch (hfr_mode) {
+      case CAM_HFR_MODE_60FPS:
+        skip_count = 2;
+        break;
+      case CAM_HFR_MODE_90FPS:
+        skip_count = 3;
+        break;
+      case CAM_HFR_MODE_120FPS:
+        skip_count = 4;
+        break;
+      case CAM_HFR_MODE_150FPS:
+        skip_count = 5;
+        break;
+      case CAM_HFR_MODE_OFF:
+      default:
+        skip_count = 1;
+        break;
+    }
+  }
+
   /*configurable tintless algo running frequency
     value 1 means run every frame*/
   if ((session->frame_id % skip_count) != 0) {
-     CDBG("%s: skip algo for frame %d, skip_count = %d\n", __func__, session->frame_id, skip_count);
+     ISP_DBG(ISP_MOD_COM,"%s: skip algo for frame %d, skip_count = %d\n",
+       __func__, session->frame_id, skip_count);
      return 0;
   }
 
-  CDBG("%s: frame_id: %d\n", __func__, session->frame_id);
+  ISP_DBG(ISP_MOD_COM,"%s: frame_id: %d\n", __func__, session->frame_id);
 
   pthread_mutex_lock(&session->thread_data.lock_mutex);
   if(!session->thread_data.algo_requested) {
@@ -791,12 +817,12 @@ int isp_tintless_get_table(isp_tintless_session_t *session,
   mesh_hw_out = tintless_data_out->notify_data;
 
   pthread_mutex_lock(&session->thread_data.lock_mutex);
-  CDBG("%s: fetch tintles table!\n", __func__);
+  ISP_DBG(ISP_MOD_COM,"%s: fetch tintles table!\n", __func__);
   *mesh_hw_out = session->mesh_hw;
   ready_frame_id = session->ready_frame_id;
   pthread_mutex_unlock(&session->thread_data.lock_mutex);
 
-  CDBG("%s: frame_id: %d\n", __func__, ready_frame_id);
+  ISP_DBG(ISP_MOD_COM,"%s: frame_id: %d\n", __func__, ready_frame_id);
 
 error:
   return rc;

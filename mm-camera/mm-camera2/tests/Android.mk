@@ -7,7 +7,7 @@ include $(CLEAR_VARS)
 #
 
 # Global flag and include definitions
-TEST_CFLAGS := -Werror \
+TEST_CFLAGS := \
   -DAMSS_VERSION=$(AMSS_VERSION) \
   $(mmcamera_debug_defines) \
   $(mmcamera_debug_cflags) \
@@ -34,7 +34,7 @@ TEST_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/stream/
 TEST_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/module/
 TEST_C_INCLUDES+= $(LOCAL_PATH)/../media-controller/mct/port/
 TEST_C_INCLUDES+= \
- $(LOCAL_PATH)/../../../../../../hardware/qcom/camera/QCamera2/stack/common
+ $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface
 
 #
 # test_pipeline
@@ -73,6 +73,7 @@ LOCAL_SRC_FILES:= test_list.c
 LOCAL_SHARED_LIBRARIES:= libcutils liboemcamera
 
 LOCAL_MODULE:= test_list
+LOCAL_32_BIT_ONLY := true
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)
@@ -92,7 +93,8 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/module/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/includes/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/sensors/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/actuators/
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/actuators/0301/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/actuator_libs/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/actuators/$(CHROMATIX_VERSION)
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/chromatix/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/chromatix/$(CHROMATIX_VERSION)
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/csid/
@@ -122,33 +124,37 @@ LOCAL_SHARED_LIBRARIES:= libcutils liboemcamera \
                                    libmmcamera2_isp_modules \
                                    libmmcamera2_sensor_modules
 LOCAL_MODULE:= test_sensor
+LOCAL_32_BIT_ONLY := true
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)
 
+
 #
-# test_cpp_lib
+# test_cpp
 #
-#include $(CLEAR_VARS)
+include $(CLEAR_VARS)
 
-#LOCAL_CFLAGS := $(TEST_CFLAGS)
-#LOCAL_C_INCLUDES := $(TEST_C_INCLUDES)
-#LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
-#LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-#LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/includes/
-#LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/
-#LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/pproc/includes/
-#LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/pproc/cpp/
-#LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/pproc/module/
-#LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+LOCAL_CFLAGS := $(TEST_CFLAGS)
+CHROMATIX_VERSION := 0301
+LOCAL_CFLAGS  += -D_ANDROID_
+LOCAL_C_INCLUDES := $(TEST_C_INCLUDES)
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/includes/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/sensors/chromatix/$(CHROMATIX_VERSION)
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../media-controller/modules/pproc-new/
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../server-imaging/
+LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-#LOCAL_SRC_FILES:= test_cpp.c
+LOCAL_SRC_FILES:= test_cpp.c
 
-#LOCAL_SHARED_LIBRARIES:= libcutils liboemcamera libmmcamera_cpp libmmcamera2_pproc_modules libdl
+LOCAL_SHARED_LIBRARIES:= libcutils liboemcamera libmmcamera2_pproc_modules libdl
 
-#LOCAL_MODULE:= test_module_cpp
-#LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE:= test_module_pproc
+LOCAL_32_BIT_ONLY := true
+LOCAL_MODULE_TAGS := optional
 
-#include $(BUILD_EXECUTABLE)
+include $(BUILD_EXECUTABLE)
 #END
 endif

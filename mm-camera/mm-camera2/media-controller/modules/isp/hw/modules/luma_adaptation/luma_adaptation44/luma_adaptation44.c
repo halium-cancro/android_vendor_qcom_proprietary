@@ -9,10 +9,11 @@
 #include <stdlib.h>
 #include "camera_dbg.h"
 #include "luma_adaptation44.h"
+#include "isp_log.h"
 
 #if 0
-#undef CDBG
-#define CDBG ALOGE
+#undef ISP_DBG
+#define ISP_DBG ALOGE
 #endif
 
 #undef CDBG_ERROR
@@ -196,7 +197,7 @@ static int stats_calc_hist_curve(isp_ihist_params_t *ihist_stats,
   }
   /*if overall histogram is bright and saturated, then return from LA*/
   if (H[250] < la_get_min_pdf_count(num_hist_pixels)) {
-    CDBG("%s: pdf count %llu", __func__, H[250]);
+    ISP_DBG(ISP_MOD_LA, "%s: pdf count %llu", __func__, H[250]);
     free(hist);
     free(H);
     free(threshold);
@@ -251,12 +252,12 @@ static int stats_calc_hist_curve(isp_ihist_params_t *ihist_stats,
                     full_bin++;
           }
        }
-       CDBG("iterartion %d,", iter_cnt);
+       ISP_DBG(ISP_MOD_LA, "iterartion %d,", iter_cnt);
        if ((full_bin+high_bin) < 256)  /*alway true*/
          /* Distribute capped histogram counts to uncapped bins */
          avg_inc = capped_count / (256-full_bin-high_bin);
          iter_cnt++;
-        CDBG("full_bin, %d, high_bin, %d, avg_inc, %d\n",
+        ISP_DBG(ISP_MOD_LA, "full_bin, %d, high_bin, %d, avg_inc, %d\n",
           full_bin, high_bin, avg_inc);
   } while (high_bin > 0 && iter_cnt < 10);
   /* Adjust histogram: Offset, Low light boost, High light boost */
@@ -444,13 +445,13 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
   equalize = la_mod->la_config.offset;
 
   if (la_mod->bracketing_data.state != MCT_BRACKET_CTRL_OFF) {
-    CDBG("%s: luma adaptation need to be disabled for bracketing mode\n",
+    ISP_DBG(ISP_MOD_LA, "%s: luma adaptation need to be disabled for bracketing mode\n",
       __func__);
     return 0;
   }
 
   if (!isp_util_aec_check_settled(&(in_params->trigger_input.stats_update.aec_update))) {
-      CDBG("%s: AEC is not setteled. Skip the trigger\n", __func__);
+      ISP_DBG(ISP_MOD_LA, "%s: AEC is not setteled. Skip the trigger\n", __func__);
       return 0;
   }
 
@@ -466,7 +467,7 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
   rc = stats_calc_hist_curve(ihist_stats, la_mod, offset, la_curve);
   if (rc != 0) {
     /* since we cannot calculate the new curve, use the old table */
-    CDBG("%s: calculate new la curve fail, use previous table\n", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: calculate new la curve fail, use previous table\n", __func__);
     return 0;
   }
 
@@ -479,7 +480,7 @@ static int la_hist_trigger_update(isp_la_mod_t *la_mod,
   /* system algo: to pack la_curve to hw dmi entry*/
   rc = la_prepare_hw_entry(la_mod, la_curve_avg, in_params);
   if (rc != 0) {
-    CDBG("%s: pack la curve to hw entry fail, use previous table\n", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: pack la curve to hw entry fail, use previous table\n", __func__);
     return 0;
   }
 
@@ -576,7 +577,7 @@ static int la_set_bestshot(isp_la_mod_t *la_mod, isp_hw_pix_setting_params_t *in
   }
 
   if(0 != la_enable(la_mod, &mod_enable, sizeof(isp_mod_set_enable_t))) {
-    CDBG("%s: LA Enable/Diable Failed", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: LA Enable/Diable Failed", __func__);
   }
 
   return 0;
@@ -588,15 +589,15 @@ static int la_set_bestshot(isp_la_mod_t *la_mod, isp_hw_pix_setting_params_t *in
  *
  **/
 static void la_param_debug(isp_la_mod_t *la_mod){
-  CDBG("%s:\n",__func__);
+  ISP_DBG(ISP_MOD_LA, "%s:\n",__func__);
 
   /*LA algo params*/
-  CDBG("%s: la_config.offset: %f\n", __func__, la_mod->la_config.offset);
-  CDBG("%s: low beam: %f\n", __func__, la_mod->la_config.low_beam);
-  CDBG("%s: high beam: %f\n", __func__, la_mod->la_config.high_beam);
-  CDBG("%s: histogram cap: %f\n", __func__, la_mod->la_config.histogram_cap);
-  CDBG("%s: cap high: %f\n", __func__, la_mod->la_config.cap_high);
-  CDBG("%s: cap low: %f\n", __func__, la_mod->la_config.cap_low);
+  ISP_DBG(ISP_MOD_LA, "%s: la_config.offset: %f\n", __func__, la_mod->la_config.offset);
+  ISP_DBG(ISP_MOD_LA, "%s: low beam: %f\n", __func__, la_mod->la_config.low_beam);
+  ISP_DBG(ISP_MOD_LA, "%s: high beam: %f\n", __func__, la_mod->la_config.high_beam);
+  ISP_DBG(ISP_MOD_LA, "%s: histogram cap: %f\n", __func__, la_mod->la_config.histogram_cap);
+  ISP_DBG(ISP_MOD_LA, "%s: cap high: %f\n", __func__, la_mod->la_config.cap_high);
+  ISP_DBG(ISP_MOD_LA, "%s: cap low: %f\n", __func__, la_mod->la_config.cap_low);
 
 }
 
@@ -609,10 +610,10 @@ static void la_cfg_debug(isp_la_mod_t *la_mod){
   int i;
 
   /*LA DMI table SEL*/
-  CDBG("%s: lutBankSelect: %d\n", __func__, la_mod->la_cmd.CfgCmd.lutBankSelect);
+  ISP_DBG(ISP_MOD_LA, "%s: lutBankSelect: %d\n", __func__, la_mod->la_cmd.CfgCmd.lutBankSelect);
 
   for (i = 0; i < ISP_LA_TABLE_LENGTH ; i++) {
-    CDBG("%s: TblEntry.table[%d] = %d\n", __func__, i, la_mod->la_cmd.TblEntry.table[i]);
+    ISP_DBG(ISP_MOD_LA, "%s: TblEntry.table[%d] = %d\n", __func__, i, la_mod->la_cmd.TblEntry.table[i]);
 
   }
 }
@@ -669,7 +670,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
   uint32_t backlight_scene_severity = 0;
 
   if (!la_mod->la_enable || !la_mod->la_trigger_enable) {
-    CDBG("%s: no trigger update fo LA:LA enable = %d, trigger_enable = %d",
+    ISP_DBG(ISP_MOD_LA, "%s: no trigger update fo LA:LA enable = %d, trigger_enable = %d",
          __func__, la_mod->la_enable, la_mod->la_trigger_enable);
     return 0;
   }
@@ -680,7 +681,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
     backlight_scene_severity =
       MIN(255, sd_out->backlight_scene_severity);
 
-  CDBG("%s: current streaming mode = %d", __func__, trigger_params->cfg.streaming_mode);
+  ISP_DBG(ISP_MOD_LA, "%s: current streaming mode = %d", __func__, trigger_params->cfg.streaming_mode);
 
   la_cfg_set_from_chromatix(&la_8k_config_indoor, &chromatix_LA->LA_config);
   la_cfg_set_from_chromatix(&la_8k_config_outdoor,
@@ -696,7 +697,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
   else if (ratio < 0.0)
     ratio = 0.0;
 
-  CDBG("%s: aec ratio = %f\n", __func__, ratio);
+  ISP_DBG(ISP_MOD_LA, "%s: aec ratio = %f\n", __func__, ratio);
   la_mod->la_config.offset = (float) (LINEAR_INTERPOLATION(
     la_8k_config_indoor.offset, la_8k_config_outdoor.offset, ratio));
   la_mod->la_config.low_beam = (float) (LINEAR_INTERPOLATION(
@@ -758,7 +759,7 @@ static int la_trigger_update(isp_la_mod_t *la_mod,
         / 255.0;
   }
 
-  CDBG("%s: backlight_scene_severity :%d \n", __func__, sd_out->backlight_scene_severity);
+  ISP_DBG(ISP_MOD_LA, "%s: backlight_scene_severity :%d \n", __func__, sd_out->backlight_scene_severity);
 
   /*update LA HW write command*/
   for (i = 0; i<ISP_LA_TABLE_LENGTH ; i++)
@@ -791,14 +792,14 @@ static int la_set_spl_effect(isp_la_mod_t *mod, isp_hw_pix_setting_params_t *pix
   }
 
   if (pix_settings->bestshot_mode != CAM_SCENE_MODE_OFF) {
-    CDBG("%s: Best shot enabled, skip seteffect", __func__);
+    ISP_DBG(ISP_MOD_LA, "%s: Best shot enabled, skip seteffect", __func__);
     return 0;
   }
 
   /* no need to trigger update for special effect */
   mod->la_trigger_enable = FALSE;
 
-  CDBG("%s: effect %d", __func__, pix_settings->effects.spl_effect);
+  ISP_DBG(ISP_MOD_LA, "%s: effect %d", __func__, pix_settings->effects.spl_effect);
   switch (pix_settings->effects.spl_effect) {
   case CAM_EFFECT_MODE_POSTERIZE: {
     pLUT_Yratio = mod->posterize_la_tbl;
@@ -872,7 +873,7 @@ static int la_config(isp_la_mod_t *la_mod, isp_hw_pix_setting_params_t *in_param
   int  rc = 0;
   uint32_t i;
 
-  CDBG("%s: E\n",__func__);
+  ISP_DBG(ISP_MOD_LA, "%s: E\n",__func__);
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
   /* size mismatch */

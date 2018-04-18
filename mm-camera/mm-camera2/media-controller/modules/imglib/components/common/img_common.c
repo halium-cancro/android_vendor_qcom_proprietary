@@ -5,7 +5,7 @@
 
 #include "img_common.h"
 #include <errno.h>
-
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include "img_meta.h"
@@ -79,6 +79,29 @@
   1.8658f, 1.8783f, 1.8907f, 1.9032f,
   1.9157f, 1.9281f, 1.9406f, 1.9530f, 1.9655f, 1.9780f, 1.9780f, 1.9780f
 };
+
+/** img_perf_handle_t
+ *   @instance: performance lib instance
+ *   @perf_lock_acq: performance lib acquire function
+ *   @perf_lock_rel: performance lib release function
+ *
+ *   Performance Lib Handle
+ **/
+typedef struct {
+  void* instance;
+  int32_t (*perf_lock_acq)(unsigned long handle, int32_t duration,
+    int32_t list[], int32_t numArgs);
+  int32_t (*perf_lock_rel)(unsigned long handle);
+} img_perf_handle_t;
+
+/** img_perf_lock_handle_t
+ *   @instance: performance lock instance
+ *
+ *   Performance Lock Handle
+ **/
+typedef struct {
+  int32_t instance;
+} img_perf_lock_handle_t;
 
 /**
  * Function: img_get_subsampling_factor
@@ -744,7 +767,7 @@ int img_alloc_ion(img_mmap_info_ion *mapion_list, int num, uint32_t ionheapid,
 
   alloc.len = mapion_list->bufsize;
   alloc.align = 4096;
-  alloc.heap_mask = ionheapid;
+  alloc.heap_id_mask = ionheapid;
   alloc.flags = 0;
   if (ION_HEAP(ION_CP_MM_HEAP_ID) == ionheapid) {
     alloc.flags |= ION_SECURE;
@@ -896,10 +919,10 @@ int img_cache_ops_external (void *p_buffer, size_t size, int offset, int fd,
 
   switch (type) {
   case CACHE_INVALIDATE:
-    cmd = ION_IOC_CLEAN_CACHES;
+    cmd = ION_IOC_INV_CACHES;
     break;
   case CACHE_CLEAN:
-    cmd = ION_IOC_INV_CACHES;
+    cmd = ION_IOC_CLEAN_CACHES;
     break;
   default:
   case CACHE_CLEAN_INVALIDATE:
@@ -941,7 +964,7 @@ void img_dump_frame(img_frame_t *img_frame, char* file_name,
   uint32_t size;
   uint32_t written_size;
   int32_t out_file_fd;
-  char out_file_name[64];
+  char out_file_name[80];
   time_t rawtime;
   struct tm *currenttime = NULL;
   char value[PROPERTY_VALUE_MAX];
@@ -951,7 +974,7 @@ void img_dump_frame(img_frame_t *img_frame, char* file_name,
     return;
   }
 
-  if (img_frame ) {
+  if (img_frame) {
     char timestamp[30];
     timestamp[0] = '\0';
     rawtime = time(NULL);
@@ -964,7 +987,7 @@ void img_dump_frame(img_frame_t *img_frame, char* file_name,
     }
 
     snprintf(out_file_name, sizeof(out_file_name), "%s%s_%s_%dx%d_%d_%d.yuv",
-      "/data/", file_name, timestamp,
+      "/data/misc/camera/", file_name, timestamp,
       img_frame->frame->plane[0].stride,
       img_frame->frame->plane[0].scanline,
       img_frame->frame_id,
@@ -1039,4 +1062,141 @@ void *img_get_meta(img_meta_t *p_meta, img_meta_type_t type)
     }
   }
   return val;
+}
+
+/** img_perf_lock_handle_create
+ *
+ * Creates new performance handle
+ *
+ * Returns new performance handle
+ **/
+void* img_perf_handle_create()
+{
+  img_perf_handle_t *perf_handle;
+  char qcopt_lib_path[PATH_MAX] = {0};
+
+  perf_handle = calloc(1, sizeof(img_perf_handle_t));
+  if (!perf_handle) {
+    IDBG_ERROR("%s:%d Not enough memory\n", __func__, __LINE__);
+    return NULL;
+  }
+
+  if (!property_get("ro.vendor.extension_library", qcopt_lib_path, NULL)) {
+    IDBG_ERROR("%s:%d Cannot get performance lib name\n", __func__, __LINE__);
+    free(perf_handle);
+    return NULL;
+  }
+
+  dlerror();
+  perf_handle->instance = dlopen(qcopt_lib_path, RTLD_NOW);
+  if (!perf_handle->instance) {
+    IDBG_ERROR("%s:%d Unable to open %s: %s\n", __func__, __LINE__,
+      qcopt_lib_path, dlerror());
+    free(perf_handle);
+    return NULL;
+  }
+
+  perf_handle->perf_lock_acq = dlsym(perf_handle->instance, "perf_lock_acq");
+
+  if (!perf_handle->perf_lock_acq) {
+    IDBG_ERROR("%s:%d Unable to get perf_lock_acq function handle\n", __func__,
+      __LINE__);
+    if (dlclose(perf_handle->instance)) {
+      IDBG_ERROR("%s:%d Error occurred while closing qc-opt library\n",
+        __func__, __LINE__);
+    }
+    free(perf_handle);
+    return NULL;
+  }
+
+  perf_handle->perf_lock_rel = dlsym(perf_handle->instance, "perf_lock_rel");
+
+  if (!perf_handle->perf_lock_rel) {
+    IDBG_ERROR("%s:%d Unable to get perf_lock_rel function handle\n", __func__,
+      __LINE__);
+    if (dlclose(perf_handle->instance)) {
+      IDBG_ERROR("%s:%d Error occurred while closing qc-opt library\n",
+        __func__, __LINE__);
+    }
+    free(perf_handle);
+    return NULL;
+  }
+
+  return perf_handle;
+}
+
+/** img_perf_handle_destroy
+ *    @p_perf: performance handle
+ *
+ * Destoyes performance handle
+ *
+ * Returns None.
+ **/
+void img_perf_handle_destroy(void* p_perf)
+{
+  img_perf_handle_t *perf_handle = (img_perf_handle_t*)p_perf;
+
+  IMG_RETURN_IF_NULL(return, perf_handle)
+  IMG_RETURN_IF_NULL(return, perf_handle->instance)
+
+  if (dlclose(perf_handle->instance)) {
+    IDBG_ERROR("%s:%d Error occurred while closing qc-opt library\n",
+      __func__, __LINE__);
+  }
+
+  free(perf_handle);
+}
+
+/** img_perf_lock_start
+ *    @p_perf: performance handle
+ *    @p_perf_lock_params: performance lock parameters
+ *    @perf_lock_params_size: size of performance lock parameters
+ *    @duration: duration
+ *
+ * Locks performance with specified parameters
+ *
+ * Returns new performance lock handle
+ **/
+void* img_perf_lock_start(void* p_perf, int32_t* p_perf_lock_params,
+  size_t perf_lock_params_size, int32_t duration)
+{
+  img_perf_handle_t *perf_handle = (img_perf_handle_t*)p_perf;
+  img_perf_lock_handle_t *lock_handle;
+
+  IMG_RETURN_IF_NULL(return NULL, perf_handle)
+  IMG_RETURN_IF_NULL(return NULL, p_perf_lock_params)
+  IMG_RETURN_IF_NULL(return NULL, perf_handle->perf_lock_acq)
+
+  lock_handle = calloc(1, sizeof(img_perf_lock_handle_t));
+  if (!lock_handle) {
+    IDBG_ERROR("%s:%d Not enough memory\n", __func__, __LINE__);
+    return NULL;
+  }
+
+  lock_handle->instance = perf_handle->perf_lock_acq(lock_handle->instance,
+    duration, p_perf_lock_params, perf_lock_params_size);
+
+  return lock_handle;
+}
+
+/** img_perf_lock_end
+ *    @p_perf: performance handle
+ *    @p_perf_lock: performance lock handle
+ *
+ * Locks performance with specified parameters
+ *
+ * Returns None.
+ **/
+void img_perf_lock_end(void* p_perf, void* p_perf_lock)
+{
+  img_perf_handle_t *perf_handle = (img_perf_handle_t*)p_perf;
+  img_perf_lock_handle_t *lock_handle = (img_perf_lock_handle_t*)p_perf_lock;
+
+  IMG_RETURN_IF_NULL(return, perf_handle)
+  IMG_RETURN_IF_NULL(return, lock_handle)
+  IMG_RETURN_IF_NULL(return, perf_handle->perf_lock_rel)
+
+  perf_handle->perf_lock_rel(lock_handle->instance);
+
+  free(lock_handle);
 }

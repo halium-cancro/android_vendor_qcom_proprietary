@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2013-2015 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -10,9 +10,11 @@
 #include <inttypes.h>
 #include "pca_rolloff32.h"
 #include "../mlro_to_plro/mlro.h"
+#include "isp_log.h"
 
 #define PCA_ROLLOFF_TABLE_DEBUG 0
-
+#define PCA_ROLLOFF_TINTLESS_CONVERT_TABLE_SIZE 1
+#define TINTLESS_TEMPORAL_RATIO 0.4
 #define USE_FIXED_TAB 0
 #if USE_FIXED_TAB
 static float fixed_rolloff[4][13][8] = {
@@ -93,8 +95,8 @@ static float fixed_rolloff[4][13][8] = {
 })
 
 #ifdef ENABLE_PCA_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 #define PCA_TBL_INTERPOLATE(in1, in2, out, ratio, isize, i, jsize, j) \
@@ -122,7 +124,7 @@ static void rolloff_normalize_table(isp_pca_rolloff_mod_t *mod,
   chrComPtr = in_params->chromatix_ptrs.chromatixComPtr;
   chromatix_rolloff_type *rolloffPtr = &chrComPtr->chromatix_rolloff;
 
-  for (i = ISP_ROLLOFF_TL84_LIGHT; i < ROLLOFF_MAX_LIGHT; i++) {
+  for (i = ISP_ROLLOFF_TL84_LIGHT; i < ISP_ROLLOFF_MAX_LIGHT; i++) {
     for (j = 0; j < MESH_ROLLOFF_SIZE; j++) {
       if (is_left_table) {
         outTbl = &(mod->rolloff_tbls.left[i]);
@@ -132,13 +134,19 @@ static void rolloff_normalize_table(isp_pca_rolloff_mod_t *mod,
         deltaTbl = &(mod->rolloff_calibration_table.right[i]);
       }
 
-      if (i == ISP_ROLLOFF_LED_FLASH)
+      if (i == ISP_ROLLOFF_LED_FLASH) {
         inTbl = &(rolloffPtr->chromatix_mesh_rolloff_table_LED);
-      else if (i == ISP_ROLLOFF_STROBE_FLASH)
+      } else if (i == ISP_ROLLOFF_STROBE_FLASH) {
         inTbl = &(rolloffPtr->chromatix_mesh_rolloff_table_Strobe);
-      else
+      } else if (i == ISP_ROLLOFF_TL84_LOW_LIGHT) {
+        inTbl = &(rolloffPtr->chromatix_mesh_rolloff_table_lowlight[ROLLOFF_TL84_LIGHT]);
+      } else if (i == ISP_ROLLOFF_A_LOW_LIGHT) {
+        inTbl = &(rolloffPtr->chromatix_mesh_rolloff_table_lowlight[ROLLOFF_A_LIGHT]);
+      } else if (i == ISP_ROLLOFF_D65_LOW_LIGHT) {
+        inTbl = &(rolloffPtr->chromatix_mesh_rolloff_table_lowlight[ROLLOFF_D65_LIGHT]);
+      } else {
         inTbl = &(rolloffPtr->chromatix_mesh_rolloff_table[i]);
-
+      }
       /* RED Channel */
       outTbl->r_gain[j] = inTbl->r_gain[j] * deltaTbl->r_gain[j];
       if (outTbl->r_gain[j] < min_value)
@@ -183,10 +191,12 @@ static void rolloff_normalize_table(isp_pca_rolloff_mod_t *mod,
 static int rolloff_tintless_prepare_tables(isp_pca_rolloff_mod_t *mod,
   isp_hw_pix_setting_params_t *in_params, isp_tintless_mesh_config_t *isp_mesh_cfg)
 {
-  int i, k, j;
-
-  tintless_mesh_rolloff_array_t *downscaledTable;
-
+  int i, k;
+  tintless_mesh_rolloff_array_t *low_light_table;
+  chromatix_VFE_common_type *chrComPtr = NULL;
+  chrComPtr = in_params->chromatix_ptrs.chromatixComPtr;
+  chromatix_rolloff_type *chromatix_rolloff =
+    &chrComPtr->chromatix_rolloff;
 
   /* Todo: Remove this once Sensor Provides Delta Tables */
     for (k = 0; k < ISP_ROLLOFF_MAX_LIGHT; k++) {
@@ -206,6 +216,22 @@ static int rolloff_tintless_prepare_tables(isp_pca_rolloff_mod_t *mod,
     return -1;
   }
 
+  low_light_table = &chromatix_rolloff->chromatix_mesh_rolloff_table_lowlight[ROLLOFF_TL84_LIGHT];
+
+  for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+     if (isp_mesh_cfg->mesh_fixed.gr_gain[i] != 0) {
+       mod->tintless_lowlight_adjust[i] =
+         low_light_table->gr_gain[i] / isp_mesh_cfg->mesh_fixed.gr_gain[i];
+     } else {
+       CDBG_ERROR("%s: normal light ratio = 0! rc = -1\n", __func__);
+       return -1;
+     }
+  }
+
+  for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+    mod->tintless_current_adjust[i] = 1.0;
+  }
+
   isp_mesh_cfg->mesh_hw = isp_mesh_cfg->mesh_fixed;
 
   return 0;
@@ -222,7 +248,7 @@ static int rolloff_prepare_tables(isp_pca_rolloff_mod_t *mod,
 
 #if 1
   /* Todo: Remove this once Sensor Provides Delta Tables */
-  for (k = 0; k < 6; k++) {
+  for (k = 0; k < ISP_ROLLOFF_MAX_LIGHT; k++) {
     for (i = 0; i < 221; i++) {
       mod->rolloff_calibration_table.left[k].r_gain[i] = 1.0;
       mod->rolloff_calibration_table.left[k].b_gain[i] = 1.0;
@@ -258,9 +284,9 @@ static void pca_rolloff_table_debug(PCA_RolloffStruct *in, int compare,
   CONV_STATIC_TAB(in->coeff_table_B, 3);
 #endif
 
-  CDBG("%s: PCA Bases Table\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: PCA Bases Table\n", __func__);
   for (i = 0; i < PCA_ROLLOFF_NUMBER_BASE; i++)
-    CDBG("%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n",
       in->PCA_basis_table[i][0], in->PCA_basis_table[i][1],
       in->PCA_basis_table[i][2], in->PCA_basis_table[i][3],
       in->PCA_basis_table[i][4], in->PCA_basis_table[i][5],
@@ -271,9 +297,9 @@ static void pca_rolloff_table_debug(PCA_RolloffStruct *in, int compare,
       in->PCA_basis_table[i][14], in->PCA_basis_table[i][15],
       in->PCA_basis_table[i][16]);
 
-  CDBG("%s: PCA Channel R Coeff tables\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: PCA Channel R Coeff tables\n", __func__);
   for (i = 0; i < PCA_ROLLOFF_NUMBER_ROWS; i++) {
-    CDBG("%f %f %f %f %f %f %f %f\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%f %f %f %f %f %f %f %f\n",
       in->coeff_table_R[i][0], in->coeff_table_R[i][1],
       in->coeff_table_R[i][2], in->coeff_table_R[i][3],
       in->coeff_table_R[i][4], in->coeff_table_R[i][5],
@@ -284,9 +310,9 @@ static void pca_rolloff_table_debug(PCA_RolloffStruct *in, int compare,
     MESH_MATRIX_DIFF(orig_mesh->r_gain, mesh);
   }
 
-  CDBG("%s: PCA Channel GR Coeff tables\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: PCA Channel GR Coeff tables\n", __func__);
   for (i = 0; i < PCA_ROLLOFF_NUMBER_ROWS; i++) {
-    CDBG("%f %f %f %f %f %f %f %f\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%f %f %f %f %f %f %f %f\n",
       in->coeff_table_Gr[i][0], in->coeff_table_Gr[i][1],
       in->coeff_table_Gr[i][2], in->coeff_table_Gr[i][3],
       in->coeff_table_Gr[i][4], in->coeff_table_Gr[i][5],
@@ -297,9 +323,9 @@ static void pca_rolloff_table_debug(PCA_RolloffStruct *in, int compare,
     MESH_MATRIX_DIFF(orig_mesh->gr_gain, mesh);
   }
 
-  CDBG("%s: PCA Channel GB Coeff tables\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: PCA Channel GB Coeff tables\n", __func__);
   for (i = 0; i < PCA_ROLLOFF_NUMBER_ROWS; i++) {
-    CDBG("%f %f %f %f %f %f %f %f\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%f %f %f %f %f %f %f %f\n",
       in->coeff_table_Gb[i][0], in->coeff_table_Gb[i][1],
       in->coeff_table_Gb[i][2], in->coeff_table_Gb[i][3],
       in->coeff_table_Gb[i][4], in->coeff_table_Gb[i][5],
@@ -310,9 +336,9 @@ static void pca_rolloff_table_debug(PCA_RolloffStruct *in, int compare,
     MESH_MATRIX_DIFF(orig_mesh->gb_gain, mesh);
   }
 
-  CDBG("%s: PCA Channel B Coeff tables\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: PCA Channel B Coeff tables\n", __func__);
   for (i = 0; i < PCA_ROLLOFF_NUMBER_ROWS; i++) {
-    CDBG("%f %f %f %f %f %f %f %f\n",
+    ISP_DBG(ISP_MOD_ROLLOFF, "%f %f %f %f %f %f %f %f\n",
       in->coeff_table_B[i][0], in->coeff_table_B[i][1],
       in->coeff_table_B[i][2], in->coeff_table_B[i][3],
       in->coeff_table_B[i][4], in->coeff_table_B[i][5],
@@ -333,37 +359,37 @@ static void pca_rolloff_cmd_debug(PCA_RollOffConfigCmdType *cmd)
 {
   int i;
 
-  CDBG("%s: pixelOffset=0x%x, pcaLutBankSel=0x%x\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: pixelOffset=0x%x, pcaLutBankSel=0x%x\n", __func__,
     cmd->CfgParams.pixelOffset, cmd->CfgParams.pcaLutBankSel);
-  CDBG("%s: xDelta=0x%x, yDelta=0x%x\n", __func__, cmd->CfgParams.xDelta,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: xDelta=0x%x, yDelta=0x%x\n", __func__, cmd->CfgParams.xDelta,
     cmd->CfgParams.yDelta);
-  CDBG("%s: gridWidth=0x%x, gridHeight=0x%x\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: gridWidth=0x%x, gridHeight=0x%x\n", __func__,
     cmd->CfgParams.gridWidth, cmd->CfgParams.gridHeight);
-  CDBG("%s: xDeltaRight=0x%x, yDeltaRight=0x%x\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: xDeltaRight=0x%x, yDeltaRight=0x%x\n", __func__,
     cmd->CfgParams.xDeltaRight, cmd->CfgParams.yDeltaRight);
-  CDBG("%s: gridWidthRight=0x%x, gridHeightRight=0x%x\n", __func__,
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: gridWidthRight=0x%x, gridHeightRight=0x%x\n", __func__,
     cmd->CfgParams.gridWidthRight, cmd->CfgParams.gridHeightRight);
-  CDBG("%s: gridXIndex=0x%x, gridYIndex=0x%x, gridPixelXIndex=0x%x, "
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: gridXIndex=0x%x, gridYIndex=0x%x, gridPixelXIndex=0x%x, "
     "gridPixelYIndex=0x%x\n", __func__, cmd->CfgParams.gridXIndex,
     cmd->CfgParams.gridYIndex, cmd->CfgParams.gridPixelXIndex,
     cmd->CfgParams.gridPixelYIndex);
-  CDBG("%s: yDeltaAccum=0x%x\n", __func__, cmd->CfgParams.yDeltaAccum);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: yDeltaAccum=0x%x\n", __func__, cmd->CfgParams.yDeltaAccum);
 
   if (PCA_ROLLOFF_TABLE_DEBUG) {
     for (i=0; i<(PCA_ROLLOFF_BASIS_TABLE_SIZE); i++) {
-      CDBG("%s: ram0_bases[%d]=0x%016llx\n", __func__, i,
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: ram0_bases[%d]=0x%016llx\n", __func__, i,
         cmd->ram0.basisTable[i]);
     }
     for (i=0; i<(PCA_ROLLOFF_COEFF_TABLE_SIZE); i++) {
-      CDBG("%s: ram0_coeff[%d]=0x%016llx\n", __func__, i,
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: ram0_coeff[%d]=0x%016llx\n", __func__, i,
         cmd->ram0.coeffTable[i]);
     }
     for (i=0; i<(PCA_ROLLOFF_BASIS_TABLE_SIZE); i++) {
-      CDBG("%s: ram1_bases[%d]=0x%016llx\n", __func__, i,
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: ram1_bases[%d]=0x%016llx\n", __func__, i,
         cmd->ram1.basisTable[i]);
     }
     for (i=0; i<(PCA_ROLLOFF_COEFF_TABLE_SIZE); i++) {
-      CDBG("%s: ram1_coeff[%d]=0x%016llx\n", __func__, i,
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: ram1_coeff[%d]=0x%016llx\n", __func__, i,
         cmd->ram1.coeffTable[i]);
     }
   }
@@ -676,7 +702,7 @@ static void pca_rolloff_calc_awb_trigger(isp_pca_rolloff_mod_t *mod,
   cct_type = isp_util_get_awb_cct_type(mod->notify_ops->parent, &trigger_info,
     chrPtr);
 
-  CDBG("%s: cct_type = %d\n", __func__, cct_type);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: cct_type = %d\n", __func__, cct_type);
   switch (cct_type) {
   case AWB_CCT_TYPE_A:
     *tblOut = pca_rolloff_ctrl->pca_tbls.left_table[ISP_ROLLOFF_A_LIGHT];
@@ -723,6 +749,7 @@ static void pca_rolloff_calc_flash_trigger(PCA_RolloffStruct *tblCCT,
   float flash_start, flash_end;
   PCA_RolloffStruct *tblFlash = NULL;
   isp_flash_params_t *flash_params = &(trigger_params->cfg.flash_params);
+  cam_flash_mode_t *flash_mode = &(trigger_params->trigger_input.flash_mode);
   chromatix_parms_type *chrPtr =
    (chromatix_parms_type *)trigger_params->cfg.chromatix_ptrs.chromatixPtr;
   chromatix_VFE_common_type *chrComPtr =
@@ -743,17 +770,35 @@ static void pca_rolloff_calc_flash_trigger(PCA_RolloffStruct *tblCCT,
     tblFlash =
       &(pca_rolloff_ctrl->pca_tbls.left_table[ISP_ROLLOFF_LED_FLASH]);
   }
-
-  CDBG("%s: flash_start %5.2f flash_end %5.2f \n", __func__, flash_start,
+  /*sanity check, if input is invalid, then use flash table directly*/
+  if (*flash_mode == CAM_FLASH_MODE_TORCH) {
+    /*estimation default use flash table if input is invalid*/
+    if (flash_params->sensitivity_led_low != 0) {
+      ratio = flash_params->sensitivity_led_off / flash_params->sensitivity_led_low;
+    }
+    else {
+      ratio = flash_end;
+    }
+  } else if (*flash_mode == CAM_FLASH_MODE_ON) {
+    if (flash_params->sensitivity_led_hi != 0) {
+      ratio = flash_params->sensitivity_led_off / flash_params->sensitivity_led_hi;
+    }
+    else {
+      ratio = flash_end;
+    }
+  } else //assume flash off. To be changed when AUTO mode is added
+      ratio = flash_start;
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: flash_start %5.2f flash_end %5.2f \n", __func__, flash_start,
     flash_end);
 
   if (ratio >= flash_end)
     *tblOut = *tblFlash;
   else if (ratio <= flash_start)
     *tblOut = *tblCCT;
-  else
-    pca_rolloff_table_interpolate(tblCCT, tblFlash, tblOut,
-       ratio/(flash_end - flash_start));
+  else {
+    ratio = GET_INTERPOLATION_RATIO(ratio, flash_start, flash_end);
+    pca_rolloff_table_interpolate(tblCCT, tblFlash, tblOut, ratio);
+  }
 } /* pca_rolloff_calc_flash_trigger */
 
 /*==============================================================================
@@ -788,10 +833,10 @@ static int pca_rolloff_allocate_scratch_mem(double ***out,
  * DESCRIPTION: This routine genrerates PCA bases and coefficients.
  *============================================================================*/
 static int pca_rolloff_convert_tables(isp_rolloff_info_t *mesh_tbls,
-  isp_pca_rolloff_mod_t* pca_rolloff_ctrl, int is_left_frame)
+  isp_pca_rolloff_mod_t* pca_rolloff_ctrl, int is_left_frame, int n_tbl, int n_idxtbl)
 {
   int i, j, k, x, y;
-  int w = 17, h = 13, nbases = 8, nch = 4, ntbl = 6;
+  int w = 17, h = 13, nbases = 8, nch = 4, ntbl = n_tbl;
   double **bases = NULL;
   double **illu_tbls = NULL, **illu_coeffs = NULL;
   double **flash_tbls = NULL, **flash_coeffs = NULL;
@@ -812,10 +857,17 @@ static int pca_rolloff_convert_tables(isp_rolloff_info_t *mesh_tbls,
   }
 
   for(i = 0; i < (ntbl); i++) {
-    if (is_left_frame)
-      temp = &(mesh_tbls->left[i]);
-    else
-      temp = &(mesh_tbls->right[i]);
+    if (ntbl == PCA_ROLLOFF_TINTLESS_CONVERT_TABLE_SIZE) {
+      if (is_left_frame)
+        temp = &(mesh_tbls->left[n_idxtbl]);
+      else
+        temp = &(mesh_tbls->right[n_idxtbl]);
+    } else{
+      if (is_left_frame)
+        temp = &(mesh_tbls->left[i]);
+      else
+        temp = &(mesh_tbls->right[i]);
+    }
     /* Red channel */
     for(j = 0; j < h; j++)
       for(k = 0; k < w; k++)
@@ -875,10 +927,18 @@ static int pca_rolloff_convert_tables(isp_rolloff_info_t *mesh_tbls,
 
   /* Write PCA bases and coefficients of TL84, D65, A, Low light, LED, Strobe */
   for (i = 0; i < (ntbl); i++) {
-    if (is_left_frame)
-      dest = &(pca_rolloff_ctrl->pca_tbls.left_table[i]);
-    else
-      dest = &(pca_rolloff_ctrl->pca_tbls.right_table[i]);
+    if (ntbl == PCA_ROLLOFF_TINTLESS_CONVERT_TABLE_SIZE) {
+      if (is_left_frame)
+        dest = &(pca_rolloff_ctrl->pca_tbls.left_table[n_idxtbl]);
+      else
+        dest = &(pca_rolloff_ctrl->pca_tbls.right_table[n_idxtbl]);
+      } else {
+        if (is_left_frame)
+          dest = &(pca_rolloff_ctrl->pca_tbls.left_table[i]);
+        else
+          dest = &(pca_rolloff_ctrl->pca_tbls.right_table[i]);
+      }
+
 
     for(j = 0; j < nbases; j++)
       for(k = 0; k < w; k++)
@@ -903,6 +963,55 @@ static int pca_rolloff_convert_tables(isp_rolloff_info_t *mesh_tbls,
   return 0;
 } /* pca_rolloff_convert_tables */
 
+/** pca_rolloff_tintless_lowlight_adjust:
+ *
+ *    @mod:
+ *    @output_mesh_table:
+ *
+ *  adjust tintless output table
+ *
+ *  Return 0 on Success, negative on ERROR
+ **/
+static void pca_rolloff_tintless_lowlight_adjust(isp_pca_rolloff_mod_t *mod,
+  tintless_mesh_rolloff_array_t *output_mesh_table)
+{
+  int i;
+  int j;
+  float min_gain = 1.0;
+  float correction_gain;
+
+  /*adjust rolloff table for low light, also get normalize ratio by min gain*/
+  for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+    output_mesh_table->r_gain[i] *= mod->tintless_current_adjust[i];
+    min_gain =
+      MIN(min_gain, output_mesh_table->r_gain[i]);
+
+    output_mesh_table->gb_gain[i] *= mod->tintless_current_adjust[i];
+      min_gain =
+        MIN(min_gain, output_mesh_table->gb_gain[i]);
+
+    output_mesh_table->gr_gain[i] *= mod->tintless_current_adjust[i];
+    min_gain =
+      MIN(min_gain, output_mesh_table->gr_gain[i]);
+
+    output_mesh_table->b_gain[i] *= mod->tintless_current_adjust[i];
+    min_gain =
+      MIN(min_gain, output_mesh_table->b_gain[i]);
+  }
+
+  if (min_gain < 1.0 && min_gain > 0.0) {
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: min_gain = %f, Normalize rolloff table!\n", __func__, min_gain);
+    correction_gain =  1/min_gain;
+    for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+      output_mesh_table->r_gain[i] *= correction_gain;
+      output_mesh_table->gb_gain[i] *= correction_gain;
+      output_mesh_table->gr_gain[i] *= correction_gain;
+      output_mesh_table->b_gain[i] *= correction_gain;
+    }
+  }
+
+} /* mesh_rolloff_tintless_lowlight_adjust */
+
 /** pca_rolloff_tintless_trigger_update:
  *
  *    @mod: Pointer to rolloff module struct
@@ -914,11 +1023,31 @@ static int pca_rolloff_tintless_trigger_update(isp_pca_rolloff_mod_t *mod,
   isp_pix_trigger_update_input_t *trigger_params)
 {
   int rc = 0;
+  chromatix_VFE_common_type *chrComPtr =
+   (chromatix_VFE_common_type *)
+    trigger_params->cfg.chromatix_ptrs.chromatixComPtr;
+  chromatix_rolloff_type *chromatix_rolloff = &chrComPtr->chromatix_rolloff;
   PCA_RollOffConfigCmdType* cmd = &mod->pca_rolloff_cmd;
   int is_burst = IS_BURST_STREAMING(&(trigger_params->cfg));
   camera_flash_type flash_type = trigger_params->cfg.flash_params.flash_type;
   isp_rolloff_info_t meshtbls;
   int i;
+  float aec_ratio = 0.0;
+
+  aec_ratio = isp_util_get_aec_ratio(mod->notify_ops->parent,
+    chromatix_rolloff->control_rolloff,
+    &(chromatix_rolloff->rolloff_lowlight_trigger),
+    &trigger_params->trigger_input.stats_update.aec_update, is_burst);
+
+  /*determine low light condition for low light ratio adjust
+    only pure low light will go into tintless lowlight mode*/
+  if (F_EQUAL(aec_ratio, 0.0)) {
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: tintless low light mode\n", __func__);
+    mod->tintless_low_light_mode = 1;
+  } else if (F_EQUAL(aec_ratio, 1.0)) {
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: tintless normal light \n", __func__);
+    mod->tintless_low_light_mode = 0;
+  }
 
   if (!is_burst) {
     isp_tintless_notify_data_t tintless_data;
@@ -936,11 +1065,29 @@ static int pca_rolloff_tintless_trigger_update(isp_pca_rolloff_mod_t *mod,
      CDBG_ERROR("%s: Unable to config tintless rc = %d\n", __func__, rc);
      rc = -1;
     }
-    for (i = 0; i < ISP_ROLLOFF_MAX_LIGHT; i++) {
-      memcpy(&mod->rolloff_tbls.left[i], &mesh_hw, sizeof (tintless_mesh_rolloff_array_t));
+
+    if (mod->tintless_low_light_mode == 1) {
+      for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+        mod->tintless_current_adjust[i] =
+          mod->tintless_lowlight_adjust[i]* (TINTLESS_TEMPORAL_RATIO)  +
+          mod->tintless_current_adjust[i] * (1 - TINTLESS_TEMPORAL_RATIO);
+      }
+      pca_rolloff_tintless_lowlight_adjust(mod, &mesh_hw);
+    } else {
+      for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+        mod->tintless_current_adjust[i] =
+          1 * TINTLESS_TEMPORAL_RATIO  +
+          mod->tintless_current_adjust[i] * (1 - TINTLESS_TEMPORAL_RATIO);
+      }
+      pca_rolloff_tintless_lowlight_adjust(mod, &mesh_hw);
     }
-   // memcpy(&mod->mesh_hw, &mesh_hw, sizeof (tintless_mesh_rolloff_array_t));
-    pca_rolloff_convert_tables((isp_rolloff_info_t *)&mod->rolloff_tbls, mod, TRUE);
+
+    /* for tintless, we will have only one output table. */
+    memcpy(&mod->rolloff_tbls.left[ISP_ROLLOFF_TL84_LIGHT], &mesh_hw, sizeof (tintless_mesh_rolloff_array_t));
+
+    /* for tintless,we need to convert only one table. */
+    pca_rolloff_convert_tables((isp_rolloff_info_t *)&mod->rolloff_tbls, mod, TRUE,
+                               PCA_ROLLOFF_TINTLESS_CONVERT_TABLE_SIZE,ISP_ROLLOFF_TL84_LIGHT);
     /* Q10 and packing */
   } else { // burst_mode
      if (flash_type != CAMERA_FLASH_NONE) {
@@ -991,22 +1138,31 @@ static int pca_rolloff_trigger_update(isp_pca_rolloff_mod_t *mod,
   }
 
   if (!mod->pca_rolloff_enable) {
-    CDBG("%s: Pca Rolloff is disabled. Skip the trigger.\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Pca Rolloff is disabled. Skip the trigger.\n", __func__);
     return 0;
   }
 
   if (!mod->pca_rolloff_trigger_enable) {
-    CDBG("%s: Trigger is disable. Skip the trigger update.\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Trigger is disable. Skip the trigger update.\n", __func__);
     return 0;
   }
 
+  if (trigger_params->trigger_input.stats_update.awb_update.color_temp == 0) {
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Skip trigger update, Color Temperature is 0.\n", __func__);
+    return 0;
+  }
   /*TODO: discuss this logic to check if it is necessory*/
   if (is_burst) {
     new_real_gain = trigger_params->trigger_input.stats_update.aec_update.real_gain;
   } else {
     new_real_gain = trigger_params->trigger_input.stats_update.aec_update.real_gain;
-    if (!isp_util_aec_check_settled(&(trigger_params->trigger_input.stats_update.aec_update))) {
-      CDBG("%s: AEC is not setteled. Skip the trigger\n", __func__);
+    /*Skip trigger update if AEC is not settled and also tintless is disabled.
+      Tintless if enabled needs to be applied to every frame irrespective of
+      AEC settle*/
+    if (!isp_util_aec_check_settled(&(trigger_params->trigger_input.stats_update.aec_update))
+        && !trigger_params->cfg.tintless_data->is_enabled) {
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: AEC is not setteled. Tintless disabled. Skip Trigger\n",
+        __func__);
       return 0;
     }
   }
@@ -1017,7 +1173,7 @@ static int pca_rolloff_trigger_update(isp_pca_rolloff_mod_t *mod,
   new_flash_mode = trigger_params->trigger_input.flash_mode;
   new_mired_color_temp = MIRED(trigger_params->trigger_input.stats_update.awb_update.color_temp);
 
-  CDBG("%s: cur_gain %f new_gain %f cur_flash %d new_flash %d mode %d\n",
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s: cur_gain %f new_gain %f cur_flash %d new_flash %d mode %d\n",
     __func__, cur_real_gain, new_real_gain, cur_flash_mode, new_flash_mode,
     mod->old_streaming_mode);
 
@@ -1026,20 +1182,26 @@ static int pca_rolloff_trigger_update(isp_pca_rolloff_mod_t *mod,
       (cur_flash_mode == new_flash_mode) &&
       (!mod->pca_rolloff_reload_params) &&
       (mod->old_streaming_mode == trigger_params->cfg.streaming_mode)) {
-    CDBG("%s: No change in trigger. Nothing to update\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: No change in trigger. Nothing to update\n", __func__);
     return 0;
   } else {
-    CDBG("%s: Change in trigger. Update roll-off tables.\n", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Change in trigger. Update roll-off tables.\n", __func__);
     cur_real_gain = new_real_gain;
     cur_lux_idx = new_lux_idx;
     cur_mired_color_temp = new_mired_color_temp;
-    cur_flash_mode = new_flash_mode;
     mod->old_streaming_mode = trigger_params->cfg.streaming_mode;
   }
 
   mod->hw_update_pending = TRUE;
   if (trigger_params->cfg.tintless_data->is_supported &&
       trigger_params->cfg.tintless_data->is_enabled) {
+    /*if TORCH(LED LOW), then save the non flash table before fetch new table*/
+    if (cur_flash_mode != CAM_FLASH_MODE_TORCH &&
+        new_flash_mode == CAM_FLASH_MODE_TORCH) {
+      memcpy(&(mod->last_non_flash_tbl),
+        &(mod->pca_rolloff_param.left_input_table),
+        sizeof(PCA_RolloffStruct));
+    }
     rc = pca_rolloff_tintless_trigger_update(mod, trigger_params);
     if (rc < 0) {
       CDBG_ERROR("%s: error: tintless Trigger update failed", __func__);
@@ -1055,31 +1217,43 @@ static int pca_rolloff_trigger_update(isp_pca_rolloff_mod_t *mod,
                                &pcaRolloffLeftTableCCT, trigger_params,
                                mod, TRUE);
 
+  cur_flash_mode = new_flash_mode;
   /* interpolate table based on flash mode */
   if (new_flash_mode != CAM_FLASH_MODE_OFF) {
     /* Left frame */
-    pca_rolloff_calc_flash_trigger(&pcaRolloffLeftTableCCT,
-      pcaRolloffLeftTableFinal, trigger_params, mod, TRUE);
+    if (trigger_params->cfg.tintless_data->is_supported &&
+        trigger_params->cfg.tintless_data->is_enabled) {
+      pca_rolloff_calc_flash_trigger(&mod->last_non_flash_tbl,
+        pcaRolloffLeftTableFinal, trigger_params, mod, TRUE);
+    } else
+      pca_rolloff_calc_flash_trigger(&pcaRolloffLeftTableCCT,
+        pcaRolloffLeftTableFinal, trigger_params, mod, TRUE);
   } else {
+    if (trigger_params->cfg.tintless_data->is_supported &&
+        trigger_params->cfg.tintless_data->is_enabled) {
+      *pcaRolloffLeftTableFinal =
+        mod->pca_tbls.left_table[ISP_ROLLOFF_TL84_LIGHT];
+    } else {
     aec_ratio = isp_util_get_aec_ratio(mod->notify_ops->parent,
       rolloffPtr->control_rolloff, &(rolloffPtr->rolloff_lowlight_trigger),
       &trigger_params->trigger_input.stats_update.aec_update, is_burst);
     if (F_EQUAL(aec_ratio, 0.0)) {
-      CDBG("%s: Low Light \n", __func__);
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: Low Light \n", __func__);
       /* Left frame */
       *pcaRolloffLeftTableFinal =
         mod->pca_tbls.left_table[ISP_ROLLOFF_TL84_LOW_LIGHT];
     } else if (F_EQUAL(aec_ratio, 1.0)) {
-      CDBG("%s: Bright Light \n", __func__);
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: Bright Light \n", __func__);
       /* Left frame */
       *pcaRolloffLeftTableFinal = pcaRolloffLeftTableCCT;
     } else {
-      CDBG("%s: Interpolate between CCT and Low Light \n", __func__);
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: Interpolate between CCT and Low Light \n", __func__);
       /* Left frame */
       pca_rolloff_table_interpolate(&pcaRolloffLeftTableCCT,
         &(mod->pca_tbls.left_table[ISP_ROLLOFF_TL84_LOW_LIGHT]),
         pcaRolloffLeftTableFinal, aec_ratio);
     }
+   }
   }
   /* prepare HW pca table by bit packing, left frame only */
   pca_rolloff_update_basis_table(&(mod->pca_rolloff_param.left_input_table),
@@ -1101,11 +1275,17 @@ static int pca_rolloff_init(void *mod_ctrl, void *in_params,
 {
   isp_pca_rolloff_mod_t *pca_rolloff = mod_ctrl;
   isp_hw_mod_init_params_t *init_params = in_params;
+  int i = 0;
 
   pca_rolloff->fd = init_params->fd;
   pca_rolloff->notify_ops = notify_ops;
   pca_rolloff->old_streaming_mode = CAM_STREAMING_MODE_MAX;
   pca_rolloff->hw_update_pending = FALSE;
+  pca_rolloff->tintless_low_light_mode = 0;
+
+  for (i = 0; i < TINTLESS_ROLLOFF_TABLE_SIZE; i++) {
+    pca_rolloff->tintless_current_adjust[i] = 1.0;
+  }
   return 0;
 } /* pca_rolloff_init */
 
@@ -1144,10 +1324,14 @@ static int pca_rolloff_tintless_config(isp_pca_rolloff_mod_t *mesh_mod,
      CDBG_ERROR("%s: Unable to config tintless rc = %d\n", __func__, rc);
      rc = -1;
     }
-    for (i = 0; i < ISP_ROLLOFF_MAX_LIGHT; i++) {
-      memcpy(&mesh_mod->rolloff_tbls.left[i], &mesh_hw, sizeof (tintless_mesh_rolloff_array_t));
-    }
-    pca_rolloff_convert_tables((isp_rolloff_info_t *)&mesh_mod->rolloff_tbls, mesh_mod, TRUE);
+    /* for tintless, we will have only one output table. */
+    memcpy(&mesh_mod->rolloff_tbls.left[ISP_ROLLOFF_TL84_LIGHT], &mesh_hw, sizeof (tintless_mesh_rolloff_array_t));
+
+     /* for tintless,we need to convert only one table. */
+    pca_rolloff_convert_tables((isp_rolloff_info_t *)&mesh_mod->rolloff_tbls,
+                               mesh_mod, TRUE, PCA_ROLLOFF_TINTLESS_CONVERT_TABLE_SIZE,
+                               ISP_ROLLOFF_TL84_LIGHT);
+
     mesh_mod->pca_rolloff_param.left_input_table =
       mesh_mod->pca_tbls.left_table[ISP_ROLLOFF_TL84_LIGHT];
   }
@@ -1196,10 +1380,10 @@ static int pca_rolloff_config(isp_pca_rolloff_mod_t *mod,
   PCA_RollOffConfigCmdType cmdRight;
   chromatix_parms_type *chrPtr;
   int rc = 0;
-  int i;
+  int i,n_tbl = ISP_ROLLOFF_MAX_LIGHT,n_idxtbl = 0;
   int is_burst = IS_BURST_STREAMING(pix_settings);
 
-  CDBG("%s\n", __func__);
+  ISP_DBG(ISP_MOD_ROLLOFF, "%s\n", __func__);
   chrPtr = (chromatix_parms_type *)pix_settings->chromatix_ptrs.chromatixPtr;
 
   if (in_param_size != sizeof(isp_hw_pix_setting_params_t)) {
@@ -1213,6 +1397,13 @@ static int pca_rolloff_config(isp_pca_rolloff_mod_t *mod,
     CDBG_HIGH("%s: not Bayer Format, not support rolloff\n", __func__);
     return 0;
   }
+  if (pix_settings->tintless_data->is_supported &&
+        pix_settings->tintless_data->is_enabled)
+  {
+    n_tbl = PCA_ROLLOFF_TINTLESS_CONVERT_TABLE_SIZE;
+    /* We need to convert only LED flash table.*/
+    n_idxtbl = ISP_ROLLOFF_LED_FLASH;
+  }
 
   /*get mesh tables from chromatix*/
   if (0 != rolloff_prepare_tables(mod, pix_settings)) {
@@ -1224,7 +1415,7 @@ static int pca_rolloff_config(isp_pca_rolloff_mod_t *mod,
 
   /* convert MESH table into PCA table*/
   if (!is_burst) {
-    if (0 != pca_rolloff_convert_tables(&mod->rolloff_tbls, mod, TRUE)) {
+    if (0 != pca_rolloff_convert_tables(&mod->rolloff_tbls, mod, TRUE,n_tbl,n_idxtbl)) {
       CDBG_HIGH("%s: Mesh to PCA failed. Disable rollOff\n", __func__);
       mod->pca_rolloff_enable = FALSE;
       return -1;
@@ -1236,7 +1427,7 @@ static int pca_rolloff_config(isp_pca_rolloff_mod_t *mod,
   /*print out pca table content*/
   if (PCA_ROLLOFF_TABLE_DEBUG) {
     for (i = ISP_ROLLOFF_TL84_LIGHT; i < ISP_ROLLOFF_MAX_LIGHT; i++) {
-      CDBG("%s: PCA Rolloff left table %d values\n", __func__, i);
+      ISP_DBG(ISP_MOD_ROLLOFF, "%s: PCA Rolloff left table %d values\n", __func__, i);
       pca_rolloff_table_debug(&(mod->pca_tbls.left_table[i]), 1,
         &(mod->rolloff_tbls.left[i]));
     }
@@ -1376,7 +1567,7 @@ static int pca_rolloff_get_params (void *mod_ctrl, uint32_t param_id,
     vfe_diag->control_rolloff.enable = pca_rolloff->pca_rolloff_enable;
     vfe_diag->control_rolloff.cntrlenable = pca_rolloff->pca_rolloff_trigger_enable;
     /*Populate vfe_diag data*/
-    CDBG("%s: Populating vfe_diag data", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Populating vfe_diag data", __func__);
   }
     break;
 
@@ -1388,7 +1579,7 @@ static int pca_rolloff_get_params (void *mod_ctrl, uint32_t param_id,
       break;
     }
     /*Populate rolloff data */
-    CDBG("%s: Populating rolloff data", __func__);
+    ISP_DBG(ISP_MOD_ROLLOFF, "%s: Populating rolloff data", __func__);
     memcpy(rolloff, &pca_rolloff->mesh_hw, sizeof(tintless_mesh_rolloff_array_t));
   }
     break;

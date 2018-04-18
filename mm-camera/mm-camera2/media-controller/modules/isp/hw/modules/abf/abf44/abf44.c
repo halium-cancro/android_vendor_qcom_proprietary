@@ -7,10 +7,11 @@
 #include <unistd.h>
 #include "camera_dbg.h"
 #include "abf44.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_ABF_LOGGING
-  #undef CDBG
-  #define CDBG ALOGE
+  #undef ISP_DBG
+  #define ISP_DBG ALOGE
 #endif
 
 #define ABF_START_REG 0x02a4
@@ -248,48 +249,48 @@ static void abf_debug(ISP_DemosaicABF_CmdType* pCmd)
   ISP_DemosaicABF_Lut* rPLut = (pCmd->rPosLut);
   ISP_DemosaicABF_Lut* bPLut = (pCmd->bPosLut);
 
-  CDBG("%s: =====Green parametets ===============\n", __func__);
-  CDBG("%s: abf2 green: cutoff1=%d, cutoff2=%d,cutoff3=%d.\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s: =====Green parametets ===============\n", __func__);
+  ISP_DBG(ISP_MOD_ABF, "%s: abf2 green: cutoff1=%d, cutoff2=%d,cutoff3=%d.\n", __func__,
     gCfg->Cutoff1, gCfg->Cutoff2, gCfg->Cutoff3);
-  CDBG("%s: abf2 green: multiPositive=%d, multiNegative=%d.\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s: abf2 green: multiPositive=%d, multiNegative=%d.\n", __func__,
     gCfg->MultPositive, gCfg->MultNegative);
-  CDBG("%s: abf2 green: A0 = %d, A1 = %d.\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s: abf2 green: A0 = %d, A1 = %d.\n", __func__,
     gCfg->SpatialKernelA0,gCfg->SpatialKernelA1);
 
   for (i = 0; i < 8; i++)
-    CDBG("%s: Green PosLUT: coef%d=%d,coef%d=%d\n", __func__,
+    ISP_DBG(ISP_MOD_ABF, "%s: Green PosLUT: coef%d=%d,coef%d=%d\n", __func__,
       2*i, gPLut[i].LUT0, 2*i+1, gPLut[i].LUT1);
 
   for (i = 0; i < 4; i++)
-    CDBG("%s: Green NegLUT: coef%d=%d,coef%d=%d\n", __func__,
+    ISP_DBG(ISP_MOD_ABF, "%s: Green NegLUT: coef%d=%d,coef%d=%d\n", __func__,
       2*i, gNLut[i].LUT0, 2*i+1, gNLut[i].LUT1);
 
-  CDBG("%s:=====Red parametets ===============\n", __func__);
-  CDBG("%s: abf2 red: cutoff1=%d, cutoff2=%d,cutoff3=%d.\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s:=====Red parametets ===============\n", __func__);
+  ISP_DBG(ISP_MOD_ABF, "%s: abf2 red: cutoff1=%d, cutoff2=%d,cutoff3=%d.\n", __func__,
     rCfg->Cutoff1, rCfg->Cutoff2, rCfg->Cutoff3);
-  CDBG("%s: abf2 red: multiPositive=%d, multiNegative=%d.\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s: abf2 red: multiPositive=%d, multiNegative=%d.\n", __func__,
     rCfg->MultPositive, rCfg->MultNegative);
 
   for (i = 0; i < 8; i++)
-    CDBG("%s: Red PosLUT: coef%d=%d,coef%d=%d\n", __func__,
+    ISP_DBG(ISP_MOD_ABF, "%s: Red PosLUT: coef%d=%d,coef%d=%d\n", __func__,
       2*i, rPLut[i].LUT0, 2*i+1, rPLut[i].LUT1);
 
   for (i = 0; i < 4; i++)
-    CDBG("%s: Red NegLUT: coef%d=%d,coef%d=%d\n", __func__,
+    ISP_DBG(ISP_MOD_ABF, "%s: Red NegLUT: coef%d=%d,coef%d=%d\n", __func__,
       2*i, rNLut[i].LUT0, 2*i+1, rNLut[i].LUT1);
 
-  CDBG("%s:=====Blue parametets ===============\n", __func__);
-  CDBG("%s: abf2 blue: cutoff1=%d, cutoff2=%d,cutoff3=%d.\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s:=====Blue parametets ===============\n", __func__);
+  ISP_DBG(ISP_MOD_ABF, "%s: abf2 blue: cutoff1=%d, cutoff2=%d,cutoff3=%d.\n", __func__,
     bCfg->Cutoff1, bCfg->Cutoff2, bCfg->Cutoff3);
-  CDBG("%s:abf2 blue: multiPositive=%d, multiNegative=%d.\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s:abf2 blue: multiPositive=%d, multiNegative=%d.\n", __func__,
     bCfg->MultPositive, bCfg->MultNegative);
 
   for (i = 0; i < 8; i++)
-    CDBG("%s: Blue PosLUT: coef%d=%d,coef%d=%d\n", __func__,
+    ISP_DBG(ISP_MOD_ABF, "%s: Blue PosLUT: coef%d=%d,coef%d=%d\n", __func__,
       2*i, bPLut[i].LUT0, 2*i+1, bPLut[i].LUT1);
 
   for (i = 0; i < 4; i++)
-    CDBG("%s: Blue NegLUT: coef%d=%d,coef%d=%d\n", __func__,
+    ISP_DBG(ISP_MOD_ABF, "%s: Blue NegLUT: coef%d=%d,coef%d=%d\n", __func__,
       2*i, bNLut[i].LUT0, 2*i+1, bNLut[i].LUT1);
 } /* abf_debug */
 
@@ -332,7 +333,7 @@ static int abf_config(isp_abf_mod_t *mod,
   chromatix_ABF2_type *chromatix_ABF2 =
     &chroma_ptr->chromatix_VFE.chromatix_ABF2;
 
-  CDBG("%s: enter", __func__);
+  ISP_DBG(ISP_MOD_ABF, "%s: enter", __func__);
 
   if (!mod->enable) {
     CDBG_HIGH("%s: abf not enabled, returns\n", __func__);
@@ -437,14 +438,14 @@ static int abf_trigger_update(isp_abf_mod_t *mod,
   uint8_t is_burst = IS_BURST_STREAMING((&trigger_params->cfg));
 
   if (!mod->enable || !mod->trigger_enable) {
-    CDBG("%s: no trigger for ABF, enable = %d, trigger_ena = %d\n",
+    ISP_DBG(ISP_MOD_ABF, "%s: no trigger for ABF, enable = %d, trigger_ena = %d\n",
       __func__, mod->enable, mod->trigger_enable);
     return 0;
   }
 
   if (!isp_util_aec_check_settled(
          &trigger_params->trigger_input.stats_update.aec_update)) {
-    CDBG("%s: AEC not settled", __func__);
+    ISP_DBG(ISP_MOD_ABF, "%s: AEC not settled", __func__);
     return 0;
   }
 
@@ -464,7 +465,7 @@ static int abf_trigger_update(isp_abf_mod_t *mod,
 
   /* this condition is:  if first time, or either ratio/lighting
      != previous ones, then we need update. */
-  CDBG("%s: OLD: lighting = %d, ratio = %f. NEW: lighting = %d, ratio %f\n",
+  ISP_DBG(ISP_MOD_ABF, "%s: OLD: lighting = %d, ratio = %f. NEW: lighting = %d, ratio %f\n",
     __func__, mod->aec_ratio.lighting, mod->aec_ratio.ratio,
     trigger_ratio.lighting, trigger_ratio.ratio);
 
@@ -607,7 +608,7 @@ static int abf_do_hw_update(isp_abf_mod_t *abf_mod)
   ISP_DemosaicABF_Cfg cfg_enable;
   ISP_DemosaicABF_Cfg cfg_mask;
 
-  CDBG("%s: do hw update: %d, abf_enable = %d\n", __func__,
+  ISP_DBG(ISP_MOD_ABF, "%s: do hw update: %d, abf_enable = %d\n", __func__,
     abf_mod->hw_update_pending,abf_mod->enable);
 
   if (abf_mod->hw_update_pending) {
@@ -693,7 +694,7 @@ isp_ops_t *abf44_open(uint32_t version)
 {
   isp_abf_mod_t *mod = malloc(sizeof(isp_abf_mod_t));
 
-  CDBG("%s: E", __func__);
+  ISP_DBG(ISP_MOD_ABF, "%s: E", __func__);
 
   if (!mod) {
     CDBG_ERROR("%s: fail to allocate memory",  __func__);

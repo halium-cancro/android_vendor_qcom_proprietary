@@ -10,6 +10,9 @@
 #include "q3a_stats.h"
 
 #define ASD_AEC_STATS_NUM_MAX 256
+#define ASD_UI_UPDATE_FRAME_INTERVAL 10
+
+typedef q3a_operation_mode_t asd_operation_mode_t;
 
 /** asd_get_parameter_type: type of asd get parameters
 **/
@@ -27,8 +30,14 @@ typedef enum {
   ASD_SET_BESTSHOT,
   ASD_SET_UI_FRAME_DIM,
   ASD_SET_STATS_DEBUG_MASK,
+  ASD_SET_PARAM_OP_MODE,
   ASD_SET_PARAM_MAX
 } asd_set_parameter_type;
+
+typedef enum {
+  ASD_UPDATE = 1,
+  ASD_SEND_EVENT,
+} asd_output_type_t;
 
 /** _asd_get_params:
 *
@@ -80,6 +89,7 @@ typedef struct {
   void *comm_chromatix;
   uint32_t preview_width;
   uint32_t preview_height;
+  asd_operation_mode_t op_mode;
 } asd_set_parameter_init_t;
 
 /** _asd_set_parameter: Used for setting ASD parameters
@@ -133,7 +143,7 @@ typedef struct _asd_set_parameter {
 *    @severity[] - array of severity of each scene type
 **/
 typedef struct _asd_output_data {
-  boolean updated;
+  asd_output_type_t type;
   uint32_t backlight_luma_target_offset;
   uint32_t snow_or_cloudy_luma_target_offset;
   boolean  backlight_detected;
@@ -143,13 +153,14 @@ typedef struct _asd_output_data {
   uint32_t landscape_severity;
   uint32_t portrait_severity;
   float    soft_focus_dgr;
-  boolean mixed_light;
+  boolean  mixed_light;
   cam_auto_scene_t scene;
   uint32_t severity[S_MAX];
-  boolean bcast_decision;
   uint32_t is_hdr_scene;
   float    hdr_confidence;
-  boolean asd_enable;
+  boolean  asd_enable;
+  char     asd_debug_data_array[ASD_DEBUG_DATA_SIZE];
+  uint32_t asd_debug_data_size;
 } asd_output_data_t;
 
 /** asd_roi_type: type of ROI received
@@ -297,6 +308,7 @@ typedef struct _asd_process_data {
   asd_data_from_awb_t awb_data;
   asd_data_face_info_t face_data;
   uint64_t frame_count;
+  uint64_t ui_update_count;
 } asd_process_data_t;
 
 

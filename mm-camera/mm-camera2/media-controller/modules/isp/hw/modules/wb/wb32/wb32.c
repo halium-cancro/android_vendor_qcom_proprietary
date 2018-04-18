@@ -8,10 +8,11 @@
 #include <math.h>
 #include "camera_dbg.h"
 #include "wb32.h"
+#include "isp_log.h"
 
 #ifdef ENABLE_WB_LOGGING
-  #undef CDBG
-  #define CDBG LOGE
+  #undef ISP_DBG
+  #define ISP_DBG LOGE
 #endif
 
 /** wb_debug:
@@ -25,9 +26,9 @@
  **/
 static void wb_debug(ISP_WhiteBalanceConfigCmdType* p_cmd)
 {
-  CDBG("ISP_WhiteBalanceCfgCmd.ch0Gain = %d\n", p_cmd->ch0Gain);
-  CDBG("ISP_WhiteBalanceCfgCmd.ch1Gain = %d\n", p_cmd->ch1Gain);
-  CDBG("ISP_WhiteBalanceCfgCmd.ch2Gain = %d\n", p_cmd->ch2Gain);
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch0Gain = %d\n", p_cmd->ch0Gain);
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch1Gain = %d\n", p_cmd->ch1Gain);
+  ISP_DBG(ISP_MOD_WB, "ISP_WhiteBalanceCfgCmd.ch2Gain = %d\n", p_cmd->ch2Gain);
 } /*wb_debug*/
 
 /** wb_update_hw_gain_reg:
@@ -120,7 +121,7 @@ static int wb_trigger_update(isp_wb_mod_t *wb_mod,
   }
 
   if (!wb_mod->enable || !wb_mod->trigger_enable) {
-    CDBG("%s: enable = %d, trigger_enable = %d, manual_wb = %d", __func__,
+    ISP_DBG(ISP_MOD_WB, "%s: enable = %d, trigger_enable = %d, manual_wb = %d", __func__,
       wb_mod->enable, wb_mod->trigger_enable,
       trigger_params->trigger_input.stats_update.awb_update.wb_mode);
     return 0;
@@ -391,6 +392,22 @@ static int wb_get_params(void *mod_ctrl, uint32_t param_id, void *in_params,
     enable->enable = wb->enable;
     break;
   }
+
+  case ISP_HW_MOD_GET_VFE_DIAG_INFO_USER: {
+    vfe_diagnostics_t *vfe_diag = (vfe_diagnostics_t *)out_params;
+    if (sizeof(vfe_diagnostics_t) != out_param_size) {
+      CDBG_ERROR("%s: error, out_param_size mismatch, param_id = %d",
+        __func__, param_id);
+      break;
+    }
+    vfe_diag->control_wb.enable = wb->enable;
+    vfe_diag->control_wb.cntrlenable = wb->trigger_enable;
+
+    /*Populate vfe_diag data*/
+    ISP_DBG(ISP_MOD_WB, "%s: Populating vfe_diag data", __func__);
+  }
+    break;
+
   default:
     rc = -EPERM;
     break;

@@ -18,6 +18,7 @@
 #include "isp_hw_module_ops.h"
 #include "isp_pipeline.h"
 #include "isp_tintless_interface.h"
+#include "isp_log.h"
 
 static tintless_rolloff_ops_t tintless_ops;
 void tintless_interface_open(tintless_rolloff_ops_t *ops);
@@ -26,7 +27,8 @@ void tintless_bg_pca_interface_open(tintless_rolloff_ops_t *ops);
 void isp_tintless_open_version(uint32_t version)
 {
 
-  CDBG_ERROR("isp_tintless_open_version: E: %d\n", GET_ISP_MAIN_VERSION(version));
+  CDBG_HIGH("isp_tintless_open_version: E: %d\n",
+    GET_ISP_MAIN_VERSION(version));
   switch(GET_ISP_MAIN_VERSION(version)) {
   case ISP_VERSION_40: {
     return tintless_interface_open(&tintless_ops);
@@ -36,12 +38,14 @@ void isp_tintless_open_version(uint32_t version)
     return tintless_bg_pca_interface_open(&tintless_ops);
   }
  }
-  CDBG_ERROR("isp_tintless_open_version: X: %d\n", GET_ISP_MAIN_VERSION(version));
+  CDBG_HIGH("isp_tintless_open_version: X: %d\n",
+    GET_ISP_MAIN_VERSION(version));
 }
 
 tintless_return_t isp_tintless_open(void ** const res, uint32_t * updates_needed)
 {
-    CDBG_ERROR("isp_tintless_open: E: %x\n", (unsigned int)tintless_ops.isp_tintless_open);
+  CDBG_HIGH("isp_tintless_open: E: %x\n",
+    (unsigned int)tintless_ops.isp_tintless_open);
     if (tintless_ops.isp_tintless_open)
       return tintless_ops.isp_tintless_open(res, updates_needed);
 

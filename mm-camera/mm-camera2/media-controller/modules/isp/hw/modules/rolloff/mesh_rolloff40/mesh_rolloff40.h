@@ -102,7 +102,9 @@ typedef struct {
   uint16_t af_infinity;
   isp_tintless_mesh_config_t tintless_cfg;
   float tintless_lowlight_adjust[TINTLESS_ROLLOFF_TABLE_SIZE];
+  float tintless_current_adjust[TINTLESS_ROLLOFF_TABLE_SIZE];
   uint32_t tintless_low_light_mode;
+  MESH_RollOffTable_V4 led_rolloff_stored;
 }isp_mesh_rolloff_mod_t;
 
 typedef struct {

@@ -60,7 +60,7 @@ typedef struct {
   af_fdprio_face_info_t active_face;
   mct_face_info_t   *pface_info;
   q3a_thread_data_t *thread_data;
-  af_tune_parms_t *tuning_info;
+  af_algo_tune_parms_t *tuning_info;
   int preview_fps;
 } af_fdprio_t;
 

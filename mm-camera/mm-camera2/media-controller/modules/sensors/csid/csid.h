@@ -12,7 +12,7 @@
 typedef struct {
   int                            fd;
   uint32_t                       csid_version;
-  struct msm_camera_csid_params *cur_csid_params;
+  struct msm_camera_csid_params  cur_csid_params;
   struct csi_lane_params_t      *csi_lane_params;
 } sensor_csid_data_t;
 

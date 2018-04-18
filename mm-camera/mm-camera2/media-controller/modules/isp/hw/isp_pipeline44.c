@@ -22,6 +22,7 @@ Qualcomm Technologies Proprietary and Confidential.
 #include "isp_pipeline.h"
 #include "isp_pipeline_util.h"
 #include "isp_pipeline44.h"
+#include "isp_log.h"
 
 #ifdef _ANDROID_
 #include <cutils/properties.h>
@@ -143,7 +144,7 @@ static void isp_hw_pix_dump_sub_stats_enable(ISP_OperationConfigCmdType *op_cmd,
 {
     uint8_t enb = 0;
 
-    CDBG("%s:config sub_stats_enable, stats_mod_enb = %d, stats mask = 0x%x\n",
+    ISP_DBG(ISP_MOD_COM,"%s:config sub_stats_enable, stats_mod_enb = %d, stats mask = 0x%x\n",
          __func__, stats_enb, current_stats_mask);
 
     /* only show enabled stats module,
@@ -151,35 +152,35 @@ static void isp_hw_pix_dump_sub_stats_enable(ISP_OperationConfigCmdType *op_cmd,
        kernel set the hw bit when each sub-stats module request stream during streamon*/
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_AWB))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: AWB enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: AWB enb = %d\n", __func__, enb);
 
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_RS))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: RS enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: RS enb = %d\n", __func__, enb);
 
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_CS))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: CS enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: CS enb = %d\n", __func__, enb);
 
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_IHIST))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: IHIST enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: IHIST enb = %d\n", __func__, enb);
 
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_BG))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: BG enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: BG enb = %d\n", __func__, enb);
 
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_BE))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: BE enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: BE enb = %d\n", __func__, enb);
 
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_BF))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: BF enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: BF enb = %d\n", __func__, enb);
 
     enb = (current_stats_mask & (1 << MSM_ISP_STATS_BHIST))? 1 : 0;
     enb = enb & stats_enb;
-    CDBG("%s: BHIST enb = %d\n", __func__, enb);
+    ISP_DBG(ISP_MOD_COM,"%s: BHIST enb = %d\n", __func__, enb);
 
 }
 
@@ -389,7 +390,7 @@ int isp_pipeline44_operation_config(void *pix_ptr, int is_bayer_input)
  **/
 static void isp_pix_dump_ISP_ModuleCfgPacked(ISP_ModuleCfgPacked *module_cfg)
 {
-  CDBG("%s: "
+  ISP_DBG(ISP_MOD_COM,"%s: "
        "blackLevelCorrectionEnable = %d,\n"
        "lensRollOffEnable = %d,\n"
        "demuxEnable = %d,\n"
@@ -563,7 +564,7 @@ int isp_pipeline44_module_start(void *pix_ptr)
 
   /*ISP44_REALIGN_BUF_CFG*/
   module_cfg = (uint32_t *)((uint8_t *)cfg_cmd.cfg_data + data_offset);
-  CDBG("%s: module_cfg = 0x%x\n", __func__, *module_cfg);
+  ISP_DBG(ISP_MOD_COM,"%s: module_cfg = 0x%x\n", __func__, *module_cfg);
   data_offset += reg_cfg_cmd[1].u.rw_info.len;
   reg_cfg_cmd[2].u.rw_info.reg_offset = ISP44_REALIGN_BUF_CFG;
   reg_cfg_cmd[2].u.rw_info.cmd_data_offset = data_offset;
@@ -591,7 +592,7 @@ int isp_pipeline44_module_start(void *pix_ptr)
     return rc;
   }
 
-  CDBG("%s: X, rc = %d", __func__, rc);
+  ISP_DBG(ISP_MOD_COM,"%s: X, rc = %d", __func__, rc);
 
   return rc;
 }
@@ -743,7 +744,7 @@ static int isp44_util_get_aec_ratio_bright_low(unsigned char tuning_type,
   rt->ratio = 0.0;
   rt->lighting = TRIGGER_NORMAL;
 
-  CDBG("lux_idx %f, current_real_gain %f\n",
+  ISP_DBG(ISP_MOD_COM,"lux_idx %f, current_real_gain %f\n",
     aec_out->lux_idx, aec_out->real_gain);
 
   /* 0 is Lux Index based, 1 is gain base */
@@ -806,7 +807,7 @@ static awb_cct_type isp44_util_get_awb_cct_type(cct_trigger_info* trigger,
   chromatix_parms_type *p_chromatix = chromatix_ptr;
   awb_cct_type cct_type = AWB_CCT_TYPE_TL84;
 
-  CDBG("%s: CCT %f D65 %f %f A %f %f", __func__,
+  ISP_DBG(ISP_MOD_COM,"%s: CCT %f D65 %f %f A %f %f", __func__,
     trigger->mired_color_temp,
     trigger->trigger_d65.mired_end,
     trigger->trigger_d65.mired_start,
@@ -940,7 +941,7 @@ static int isp_pipeline44_get_roi_map(void *pipeline_ptr,
   /* fill in roi info into all the zoom entries corresponding to stream*/
   for (i = 0; i < ISP_ZOOM_MAX_ENTRY_NUM; i++) {
     if (hw_zoom_entry[i].stream_id == 0) {
-        CDBG("%s: no stream on zoom entry [%d], stream id = %d\n",
+        ISP_DBG(ISP_MOD_COM,"%s: no stream on zoom entry [%d], stream id = %d\n",
           __func__, i, hw_zoom_entry[i].stream_id);
         continue;
     }
@@ -976,7 +977,7 @@ static int isp_pipeline44_get_roi_map(void *pipeline_ptr,
       ((fov_output[path_idx].last_line - fov_output[path_idx].first_line + 1) *
       scaler_output[path_idx].scaling_factor) - 1;
 
-    CDBG("%s: ROI[%d]: first pix %d, last pix %d, first ln %d, last line %d\n",
+    ISP_DBG(ISP_MOD_COM,"%s: ROI[%d]: first pix %d, last pix %d, first ln %d, last line %d\n",
       __func__, i, hw_zoom_entry[i].roi_map_info.first_pixel,
       hw_zoom_entry[i].roi_map_info.last_pixel,
       hw_zoom_entry[i].roi_map_info.first_line,
@@ -1152,7 +1153,7 @@ static int isp_pipeline44_read_dmi_tbl_user(isp_pipeline_t *pipeline,
     module_id = ISP_MOD_LINEARIZATION;
     break;
   default:
-    CDBG("%s: no supported dump type, read_channel = %x\n",
+    ISP_DBG(ISP_MOD_COM,"%s: no supported dump type, read_channel = %x\n",
       __func__, dmi_read_info->read_bank);
     return rc;
   }
@@ -1181,11 +1182,11 @@ static int isp_pipeline44_read_dmi_tbl(void *pipeline_ptr,
    isp_pipeline_t *pipeline = (isp_pipeline_t *)pipeline_ptr;
 
    if (dmi_read_info->is_kernel_dump == 1) {
-      CDBG("%s: dump kernel DMI\n", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: dump kernel DMI\n", __func__);
       rc = isp_pipeline44_read_dmi_tbl_kernel(pipeline,
         dmi_read_info, dump_entry);
    } else {
-      CDBG("%s: dump USERSPACE DMI\n", __func__);
+      ISP_DBG(ISP_MOD_COM,"%s: dump USERSPACE DMI\n", __func__);
       rc = isp_pipeline44_read_dmi_tbl_user(pipeline,
         dmi_read_info, dump_entry);
    }
@@ -1216,7 +1217,7 @@ static void isp_pipeline44_destroy(isp_hw_pix_dep_t *dep)
 static void isp44_util_get_params(void *in_params, uint32_t in_params_size,
   uint32_t param_id, void* out_param, uint32_t out_params_size, void *ctrl)
 {
-  CDBG("%s:E, param_id %d", __func__, param_id);
+  ISP_DBG(ISP_MOD_COM,"%s:E, param_id %d", __func__, param_id);
   switch (param_id) {
   case ISP_PIPELINE_GET_CDS_TRIGGER_VAL: {
     modulesChromatix_t *chromatix_ptr = (modulesChromatix_t *)in_params;
@@ -1240,7 +1241,7 @@ static void isp44_util_get_params(void *in_params, uint32_t in_params_size,
         uv_subsample_ctrl->trigger_B = 330;
         /*chromatix_CDS->lux_index_trigger_value_B;*/
       /*}*/
-      CDBG("%s: chromatix %x got trigger A= %ld, B= %ld ", __func__,
+      ISP_DBG(ISP_MOD_COM,"%s: chromatix %x got trigger A= %ld, B= %ld ", __func__,
         (unsigned int)chromatix_ptr, uv_subsample_ctrl->trigger_A,
         uv_subsample_ctrl->trigger_B);
     }
@@ -1248,7 +1249,7 @@ static void isp44_util_get_params(void *in_params, uint32_t in_params_size,
     break;
 
   default: {
-    CDBG("%s: param_id %d not supported ", __func__, param_id);
+    ISP_DBG(ISP_MOD_COM,"%s: param_id %d not supported ", __func__, param_id);
   }
     break;
   }

@@ -34,6 +34,10 @@
 #define CPP_HW_VERSION_1_1_0  0x10010000
 #define CPP_HW_VERSION_1_1_1  0x10010001
 #define CPP_HW_VERSION_2_0_0  0x20000000
+#define CPP_HW_VERSION_4_0_0  0x40000000
+#define CPP_HW_VERSION_4_1_0  0x40010000
+#define CPP_HW_VERSION_4_2_0  0x40020000
+
 
 #define CPP_CAPS_DENOISE      (1 << 0)
 #define CPP_CAPS_SCALE        (1 << 1)
@@ -107,8 +111,10 @@ typedef struct _cpp_hardware_event_subscribe_info {
 } cpp_hardware_event_subscribe_info_t;
 
 typedef struct _cpp_hardware_info_t {
-	uint32_t version;
-	uint32_t caps;
+  uint32_t version;
+  uint32_t caps;
+  unsigned long freq_tbl[MAX_FREQ_TBL];
+  uint32_t freq_tbl_count;
 } cpp_hardware_info_t;
 
 typedef struct _cpp_hardware_stream_status_t {
@@ -127,10 +133,12 @@ typedef struct _cpp_hardware_t {
   cpp_hardware_caps_t                 caps;
   cpp_hardware_info_t                 hwinfo;
   cpp_hardware_status_t               status;
+  uint32_t                            fw_version;
   cpp_hardware_event_subscribe_info_t event_subs_info;
   cpp_hardware_stream_status_t        stream_status[CPP_HARDWARE_MAX_STREAMS];
   pthread_cond_t                      no_pending_cond;
   pthread_mutex_t                     mutex;
+  int                                 num_iommu_cnt;
 } cpp_hardware_t;
 
 typedef enum {
@@ -144,6 +152,8 @@ typedef enum {
   CPP_HW_CMD_PROCESS_FRAME,
   CPP_HW_CMD_QUEUE_BUF,
   CPP_HW_CMD_GET_CUR_DIAG,
+  CPP_HW_CMD_BUF_UPDATE,
+  CPP_HW_CMD_SET_CLK
 } cpp_hardware_cmd_type_t;
 
 typedef struct _cpp_hardware_event_data_t {
@@ -162,6 +172,12 @@ typedef struct _cpp_hardware_streamoff_event{
   uint32_t                         duplicate_identity;
 } cpp_hardware_streamoff_event_t;
 
+typedef struct _cpp_hardware_clock_settings_t {
+  long                             clock_rate;
+  uint64_t                         avg;
+  uint64_t                         inst;
+} cpp_hardware_clock_settings_t;
+
 typedef struct _cpp_hardware_cmd_t {
   cpp_hardware_cmd_type_t type;
   union {
@@ -169,7 +185,7 @@ typedef struct _cpp_hardware_cmd_t {
     cpp_hardware_event_data_t       *event_data;
     cpp_hardware_params_t           *hw_params;
     cpp_hardware_stream_buff_info_t *stream_buff_list;
-
+    cpp_hardware_clock_settings_t   clock_settings;
   } u;
 } cpp_hardware_cmd_t;
 
