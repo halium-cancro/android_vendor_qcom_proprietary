@@ -206,8 +206,8 @@ serv_proc_ret_t server_process_hal_event(struct v4l2_event *event)
   ret.ret_to_hal.ret       = FALSE;
   ret.ret_to_hal.ret_type  = SERV_RET_TO_HAL_CMDACK;
   ret.ret_to_hal.ret_event = *event;
-  ret_data->v4l2_event_type   = event->type;
-  ret_data->v4l2_event_id     = event->id;
+  //ret_data->v4l2_event_type   = event->type;
+  //ret_data->v4l2_event_id     = event->id;
   ret.result               = RESULT_SUCCESS;
 
   result = sysinfo(&info);
@@ -362,7 +362,7 @@ serv_proc_ret_t server_process_hal_ds_packet(const int fd,
   ret.ret_to_hal.ret         = TRUE;
   ret.ret_to_hal.ret_type    = SERV_RET_TO_HAL_NOTIFY;
   ret.ret_to_hal.ret_event.type  = MSM_CAMERA_V4L2_EVENT_TYPE;
-  ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
+  //ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
   ret.result = RESULT_SUCCESS;
 
   if (server_process_read_ds_packet(fd, &packet) == FALSE) {
@@ -461,8 +461,8 @@ serv_proc_ret_t server_process_mct_msg(const int fd, const unsigned int session)
 
       ret.ret_to_hal.ret_type  = SERV_RET_TO_HAL_CMDACK;
       ret.ret_to_hal.ret_event = *msg;
-      ret_data->v4l2_event_type   = msg->type;
-      ret_data->v4l2_event_id     = msg->id;
+      //ret_data->v4l2_event_type   = msg->type;
+      //ret_data->v4l2_event_id     = msg->id;
 
       ret_data->status         = (mct_ret.u.serv_msg_ret.error == TRUE) ?
         MSM_CAMERA_CMD_SUCESS : MSM_CAMERA_ERR_CMD_FAIL;
@@ -478,8 +478,8 @@ serv_proc_ret_t server_process_mct_msg(const int fd, const unsigned int session)
       ret.ret_to_hal.ret_type       = SERV_RET_TO_HAL_NOTIFY;
       ret.ret_to_hal.ret_event.type = MSM_CAMERA_V4L2_EVENT_TYPE;
       ret.ret_to_hal.ret_event.id = MSM_CAMERA_MSM_NOTIFY;
-      ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
-      ret_data->v4l2_event_id     = MSM_CAMERA_MSM_NOTIFY;
+      //ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
+      //ret_data->v4l2_event_id     = MSM_CAMERA_MSM_NOTIFY;
       ret_data->command           = CAM_EVENT_TYPE_MAP_UNMAP_DONE;
       ret_data->session_id        = msg->session;
       ret_data->stream_id         = msg->stream;
@@ -499,8 +499,8 @@ serv_proc_ret_t server_process_mct_msg(const int fd, const unsigned int session)
     ret.ret_to_hal.ret_type       = SERV_RET_TO_HAL_NOTIFY;
     ret.ret_to_hal.ret_event.type = MSM_CAMERA_V4L2_EVENT_TYPE;
     ret.ret_to_hal.ret_event.id   = MSM_CAMERA_MSM_NOTIFY;
-    ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
-    ret_data->v4l2_event_id     = MSM_CAMERA_MSM_NOTIFY;
+    //ret_data->v4l2_event_type   = MSM_CAMERA_V4L2_EVENT_TYPE;
+    //ret_data->v4l2_event_id     = MSM_CAMERA_MSM_NOTIFY;
 
     if (mct_ret.u.bus_msg_ret.msg_type == MCT_BUS_MSG_REPROCESS_STAGE_DONE) {
       ret_data->command = CAM_EVENT_TYPE_REPROCESS_STAGE_DONE;

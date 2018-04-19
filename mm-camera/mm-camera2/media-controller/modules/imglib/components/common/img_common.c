@@ -767,7 +767,7 @@ int img_alloc_ion(img_mmap_info_ion *mapion_list, int num, uint32_t ionheapid,
 
   alloc.len = mapion_list->bufsize;
   alloc.align = 4096;
-  alloc.heap_id_mask = ionheapid;
+  alloc.heap_mask = ionheapid;
   alloc.flags = 0;
   if (ION_HEAP(ION_CP_MM_HEAP_ID) == ionheapid) {
     alloc.flags |= ION_SECURE;

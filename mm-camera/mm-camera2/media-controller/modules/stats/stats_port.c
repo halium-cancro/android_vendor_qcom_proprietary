@@ -664,7 +664,7 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
           stats_parm->u.q3a_param.u.awb_param.u.awb_current_wb);
       }
         break;
-      case CAM_INTF_PARM_WB_MANUAL: {
+     /* case CAM_INTF_PARM_WB_MANUAL: {
         port_event.cap_flag = MCT_PORT_CAP_STATS_AWB;
         stats_parm->param_type = STATS_SET_Q3A_PARAM;
         stats_parm->u.q3a_param.type = Q3A_SET_AWB_PARAM;
@@ -675,7 +675,7 @@ static boolean stats_port_proc_downstream_set_parm(mct_port_t *port,
         CDBG("%s wb manual mode type: %d", __func__,
           stats_parm->u.q3a_param.u.awb_param.u.manual_wb_params.type);
       }
-        break;
+        break;*/
       case CAM_INTF_PARM_ISO: {
         port_event.cap_flag = MCT_PORT_CAP_STATS_AEC;
         stats_parm->param_type = STATS_SET_Q3A_PARAM;

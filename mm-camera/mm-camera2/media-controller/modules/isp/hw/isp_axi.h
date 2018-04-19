@@ -46,9 +46,9 @@ typedef struct {
     struct msm_isp_event_data buf_event;
     struct msm_vfe_axi_stream_cfg_cmd stream_start_stop_cmd; /* start/stop */
     struct msm_vfe_input_cfg vfe_input_cfg;
-    struct msm_vfe_axi_halt_cmd halt_cmd;
-    struct msm_vfe_axi_reset_cmd reset_cmd;
-    struct msm_vfe_axi_restart_cmd restart_cmd;
+    //struct msm_vfe_axi_halt_cmd halt_cmd;
+    //struct msm_vfe_axi_reset_cmd reset_cmd;
+    //struct msm_vfe_axi_restart_cmd restart_cmd;
   } u;
 } isp_hw_axi_work_struct_t;
 

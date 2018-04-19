@@ -162,9 +162,9 @@ static void awb_port_update_awb_info(mct_port_t *port,
   bus_msg.size = (int)sizeof(cam_awb_params_t);
   memset(&awb_info, 0, bus_msg.size);
   awb_info.cct_value= stats_update->awb_update.color_temp;
-  awb_info.rgb_gains.r_gain = stats_update->awb_update.gain.r_gain;
-  awb_info.rgb_gains.g_gain = stats_update->awb_update.gain.g_gain;
-  awb_info.rgb_gains.b_gain = stats_update->awb_update.gain.b_gain;
+  //awb_info.rgb_gains.r_gain = stats_update->awb_update.gain.r_gain;
+  //awb_info.rgb_gains.g_gain = stats_update->awb_update.gain.g_gain;
+  //awb_info.rgb_gains.b_gain = stats_update->awb_update.gain.b_gain;
   awb_info.decision = stats_update->awb_update.decision;
   CDBG("%s: cct:%d, decision: %d", __func__, awb_info.cct_value, awb_info.decision);
   event.direction = MCT_EVENT_UPSTREAM;

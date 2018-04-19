@@ -116,7 +116,7 @@ static void aec_port_send_exif_info_update(mct_port_t *port,
   aec_info.exp_index = stats_update->aec_update.exp_index;
   aec_info.line_count = stats_update->aec_update.linecount;
   aec_info.real_gain = stats_update->aec_update.real_gain;
-
+/*
   switch (stats_update->aec_update.metering_type) {
   default:
     aec_info.metering_mode = CAM_METERING_MODE_UNKNOWN;
@@ -148,11 +148,13 @@ static void aec_port_send_exif_info_update(mct_port_t *port,
     aec_info.scenetype = 0xFFFF;
   }
   aec_info.brightness = stats_update->aec_update.Bv;
+
   CDBG("%s: exp_Time:%f, iso:%d, flash:%d, exp idx:%d, line cnt:%d, gain:%f,\
     metering mode: %d, brightness: %f",
     __func__, aec_info.exp_time, aec_info.iso_value, aec_info.flash_needed,
     aec_info.exp_index, aec_info.line_count, aec_info.real_gain,
     aec_info.metering_mode, aec_info.brightness);
+*/
   event.direction = MCT_EVENT_UPSTREAM;
   event.identity = private->reserved_id;
   event.type = MCT_EVENT_MODULE_EVENT;

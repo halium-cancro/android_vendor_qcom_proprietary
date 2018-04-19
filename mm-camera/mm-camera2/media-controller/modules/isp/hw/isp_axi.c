@@ -739,7 +739,7 @@ static int isp_axi_streamon(isp_axi_t *axi, start_stop_stream_t *params,
         || stream->cfg.isp_output_interface == ISP_INTF_RDI2)) {
         src_state.input_src = (enum msm_vfe_input_src)stream->cfg.isp_output_interface;
         params->frame_id += 1;
-        src_state.src_frame_id = params->frame_id;
+        //src_state.src_frame_id = params->frame_id;
         rc = ioctl(axi->fd, VIDIOC_MSM_ISP_SET_SRC_STATE, &src_state);
         if (rc < 0) {
          CDBG_ERROR("%s: VIDIOC_MSM_ISP_SET_SRC_STATE error = %d, start_straem = %d\n",
@@ -997,14 +997,14 @@ void *isp_hw_create_axi(int fd, uint32_t isp_version, int dev_idx,
 int isp_axi_halt(isp_axi_t *axi)
 {
   int rc = 0;
-  struct msm_vfe_axi_halt_cmd *halt_cmd;
+  //struct msm_vfe_axi_halt_cmd *halt_cmd;
 
-  halt_cmd = &axi->work_struct.u.halt_cmd;
-  memset(halt_cmd, 0, sizeof(struct msm_vfe_axi_halt_cmd));
-  halt_cmd->stop_camif = 1;
-  halt_cmd->overflow_detected = 1;
+  //halt_cmd = &axi->work_struct.u.halt_cmd;
+  //memset(halt_cmd, 0, sizeof(struct msm_vfe_axi_halt_cmd));
+  //halt_cmd->stop_camif = 1;
+  //halt_cmd->overflow_detected = 1;
 
-  rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_HALT, halt_cmd);
+  //rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_HALT, halt_cmd);
   if (rc < 0) {
     CDBG_ERROR("%s ioctl VIDIOC_MSM_ISP_AXI_HALT failed \n", __func__);
   }
@@ -1016,7 +1016,7 @@ int isp_axi_reset(isp_axi_t *axi, void *action_data,
   uint32_t action_data_size)
 {
   int rc = 0;
-  struct msm_vfe_axi_reset_cmd *reset_cmd;
+  //struct msm_vfe_axi_reset_cmd *reset_cmd;
   uint32_t *frame_id = NULL;
 
   if (!action_data) {
@@ -1029,11 +1029,11 @@ int isp_axi_reset(isp_axi_t *axi, void *action_data,
   }
 
   frame_id = (uint32_t *)action_data;
-  reset_cmd = &axi->work_struct.u.reset_cmd;
-  memset(reset_cmd, 0, sizeof(struct msm_vfe_axi_reset_cmd));
-  reset_cmd->blocking = 1;
-  reset_cmd->frame_id = (unsigned long)(*frame_id);
-  rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_RESET, reset_cmd);
+  //reset_cmd = &axi->work_struct.u.reset_cmd;
+  //memset(reset_cmd, 0, sizeof(struct msm_vfe_axi_reset_cmd));
+  //reset_cmd->blocking = 1;
+  //reset_cmd->frame_id = (unsigned long)(*frame_id);
+  //rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_RESET, reset_cmd);
   if (rc < 0) {
     CDBG_ERROR("%s ioctl VIDIOC_MSM_ISP_AXI_RESET failed \n", __func__);
   }
@@ -1043,13 +1043,13 @@ int isp_axi_reset(isp_axi_t *axi, void *action_data,
 int isp_axi_restart(isp_axi_t *axi)
 {
   int rc = 0;
-  struct msm_vfe_axi_restart_cmd *restart_cmd;
+  //struct msm_vfe_axi_restart_cmd *restart_cmd;
 
-  restart_cmd = &axi->work_struct.u.restart_cmd;
-  memset(restart_cmd, 0, sizeof(struct msm_vfe_axi_restart_cmd));
-  restart_cmd->enable_camif = 1;
+  //restart_cmd = &axi->work_struct.u.restart_cmd;
+  //memset(restart_cmd, 0, sizeof(struct msm_vfe_axi_restart_cmd));
+  //restart_cmd->enable_camif = 1;
 
-  rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_RESTART, restart_cmd);
+  //rc = ioctl(axi->fd, VIDIOC_MSM_ISP_AXI_RESTART, restart_cmd);
   if (rc < 0) {
     CDBG_ERROR("%s ioctl VIDIOC_MSM_ISP_AXI_RESTART failed \n", __func__);
   }

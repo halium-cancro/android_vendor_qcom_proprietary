@@ -123,7 +123,7 @@ int isp_init_native_buffer(isp_frame_buffer_t *buf, int buf_idx,
     buf->ion_alloc[0].flags = 0;
   }
 
-  buf->ion_alloc[0].heap_id_mask = 0x1 << ION_IOMMU_HEAP_ID;
+  buf->ion_alloc[0].heap_mask = 0x1 << ION_IOMMU_HEAP_ID;
   buf->ion_alloc[0].align = 4096;
   current_addr = (unsigned long) isp_do_mmap_ion(ion_fd,
     &(buf->ion_alloc[0]), &(buf->fd_data[0]), &current_fd);

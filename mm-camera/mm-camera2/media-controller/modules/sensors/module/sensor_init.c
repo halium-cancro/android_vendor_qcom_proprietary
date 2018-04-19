@@ -10,18 +10,27 @@
 
 #if defined(MSM8984_SENSORS)
 #define BOARD_SENSORS \
+  "imx134", \
   "imx135", \
-  "ov5648_q5v22e", \
-  "S5K4E1_13P1BA", \
-  "ov2680", \
-  "ov2680_5987fhq", \
-  "ov16825", \
+  "s5k3l1yx", \
   "imx214", \
-  "ov13850", \
-  "ov13850_q13v06k",\
-  "ov8858", \
-  "ov5670_q5v41b", \
-  "ov8825",
+  "imx215", \
+  "imx224", \
+  "imx132", \
+  "ov2720", \
+  "SKUAA_ST_gc0339", \
+  "ov8825", \
+  "ov9724", \
+  "ov8865_q8v18a", \
+  "ov5648_oty5f03", \
+  "skuf_ov12830_p12v01c", \
+  "skuf_ov5648_p5v23c", \
+  "SKUAB_ST_s5k4e1", \
+  "skuab_shinetech_gc0339", \
+  "oem_camera1", \
+  "oem_camera2", \
+  "oem_camera3", \
+  "oem_camera4",
 #elif defined(MSM8916_SENSORS)
 #define BOARD_SENSORS \
   "imx135", \

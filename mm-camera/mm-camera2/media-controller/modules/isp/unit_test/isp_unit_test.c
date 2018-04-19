@@ -120,7 +120,7 @@ int isp_init_buffer(struct isp_frame_buffer *buf,
     {
       buf->ion_alloc[i].len = alloc_info->plane_info[i].len;
       buf->ion_alloc[i].flags = 0;
-      buf->ion_alloc[i].heap_id_mask = 0x1 << ION_IOMMU_HEAP_ID;
+      buf->ion_alloc[i].heap_mask = 0x1 << ION_IOMMU_HEAP_ID;
       buf->ion_alloc[i].align = 4096;
       current_addr = (unsigned long) do_mmap_ion(ion_fd,
         &(buf->ion_alloc[i]), &(buf->fd_data[i]), &current_fd);

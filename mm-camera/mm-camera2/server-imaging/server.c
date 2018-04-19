@@ -461,8 +461,8 @@ check_proc_ret:
          *   BUS message.
          */
         case SERV_RET_TO_KERNEL_NOTIFY_POSSIBLE_FREEZE:
-          ioctl(hal_fd->fd[0], MSM_CAM_V4L2_IOCTL_NOTIFY_FREEZE,
-            &(proc_ret.ret_to_hal.ret_event.u.data));
+          //ioctl(hal_fd->fd[0], MSM_CAM_V4L2_IOCTL_NOTIFY_FREEZE,
+          //  &(proc_ret.ret_to_hal.ret_event.u.data));
           break;
         case SERV_RET_TO_HAL_NOTIFY_ERROR:
           ioctl(hal_fd->fd[0], MSM_CAM_V4L2_IOCTL_NOTIFY_ERROR,

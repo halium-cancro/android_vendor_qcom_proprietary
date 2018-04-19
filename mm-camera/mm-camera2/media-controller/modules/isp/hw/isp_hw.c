@@ -748,9 +748,9 @@ static void isp_hw_fill_output_cfg(isp_hw_t *isp_hw, isp_hw_session_t *session,
     }
   }
     break;
-  case ISP_VERSION_44:
-    output_cfg->burst_len = VFE44_BURST_LEN;
-    break;
+  //case ISP_VERSION_44:
+  //  output_cfg->burst_len = VFE44_BURST_LEN;
+  //  break;
   default:
     output_cfg->burst_len = VFE40_BURST_LEN_1;
     break;
@@ -982,10 +982,10 @@ static int isp_hw_proc_action_stream_start(isp_hw_t *isp_hw,
       }
     }
     break;
-  case ISP_VERSION_44:
-      ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
-         VFE44_STATS_BURST_LEN;
-    break;
+  //case ISP_VERSION_44:
+   //   ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
+   //      VFE44_STATS_BURST_LEN;
+   // break;
   default:
       ((isp_pipeline_t *)isp_hw->pipeline.private_data)->stats_burst_len =
          VFE40_STATS_BURST_LEN_1;
@@ -1404,8 +1404,8 @@ int isp_hw_proc_hw_request_reg_update(  isp_hw_t *isp_hw ,void *session_ptr)
     CDBG_ERROR("%s: Session is NULL\n", __func__);
     return -1;
   }
-  rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_REG_UPDATE_CMD,
-       &frame_src);
+  //rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_REG_UPDATE_CMD,
+   //    &frame_src);
   if (rc < 0) {
      CDBG_ERROR("failed: ret %d", ret);
      ret = FALSE;
@@ -2235,9 +2235,9 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
 
     case ISP_EVENT_BUF_DIVERT: {
       /* is_skip_pproc is TRUE if LowPowerMode is enable,So ISP will do buf_done.*/
-        isp_event_data->is_skip_pproc = isp_util_is_lowpowermode_feature_enable(
-           (void *)isp_hw->notify_ops->parent,
-           isp_event_data->u.buf_done.session_id);
+        //isp_event_data->is_skip_pproc = isp_util_is_lowpowermode_feature_enable(
+         //  (void *)isp_hw->notify_ops->parent,
+         //  isp_event_data->u.buf_done.session_id);
 
         mct_bus_msg_meta_valid meta_valid;
         mct_bus_msg_t bus_msg;
@@ -2258,7 +2258,7 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
       isp_t *isp = (isp_t*)isp_hw->notify_ops->parent;
       int j = 0;
       isp_hw_session_t *session = NULL;
-      if (error_event->u.error_info.error_mask == (1 << ISP_WM_BUS_OVERFLOW)) {
+     /* if (error_event->u.error_info.error_mask == (1 << ISP_WM_BUS_OVERFLOW)) {
         CDBG_ERROR("%s Overflow detected. Notify ISPIF to reset \n", __func__);
         isp_hw->is_overflow = 1;
         for (j = 0; j < ISP_MAX_SESSIONS; j++) {
@@ -2280,7 +2280,7 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
             }
           }
         }
-      } else {
+      } else { */
         mct_bus_msg_t bus_msg;
         bus_msg.type = MCT_BUS_MSG_SEND_HW_ERROR;
         bus_msg.msg = NULL;
@@ -2288,7 +2288,7 @@ void isp_hw_proc_subdev_event(isp_hw_t *isp_hw, isp_thread_t *thread_data)
         bus_msg.sessionid = (int)isp_hw->pipeline.session_id;
         if (TRUE != mct_module_post_bus_msg(isp->module, &bus_msg))
          CDBG_ERROR("%s: MCT_BUS_MSG_ERROR_MESSAGE to bus error\n", __func__);
-      }
+     // }
     }
       break;
     default: {
@@ -3702,7 +3702,7 @@ static int isp_hw_destroy(void *ctrl)
 {
   int i, len, rc = 0;
   isp_hw_t *isp_hw = ctrl;
-  struct msm_vfe_smmu_attach_cmd cmd;
+  //struct msm_vfe_smmu_attach_cmd cmd;
 
   rc = isp_hw_destroy_thread(&isp_hw->thread_poll);
   if(rc < 0)
@@ -3720,11 +3720,11 @@ static int isp_hw_destroy(void *ctrl)
   for (i = 0; i < ISP_META_MAX; i++) {
     free(isp_hw->dump_info.meta_data.meta_entry[i].isp_meta_dump);
   }
-  memset(&cmd, 0, sizeof(cmd));
+  //memset(&cmd, 0, sizeof(cmd));
 
-  cmd.security_mode = NON_SECURE_MODE;
-  cmd.iommu_attach_mode = IOMMU_DETACH;
-  rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_SMMU_ATTACH, &cmd);
+  //cmd.security_mode = NON_SECURE_MODE;
+  //cmd.iommu_attach_mode = IOMMU_DETACH;
+  //rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_SMMU_ATTACH, &cmd);
   if (rc < 0) {
     CDBG_ERROR("%s: isp smmu detach error = %d\n", __func__, rc);
     return -1;
@@ -3870,9 +3870,9 @@ static int isp_hw_get_params(void *ctrl, uint32_t params_id, void *in_params,
 static int isp_hw_open(isp_hw_t *isp_hw, char *dev_name)
 {
   int rc = 0;
-  struct msm_vfe_smmu_attach_cmd cmd;
+  //struct msm_vfe_smmu_attach_cmd cmd;
 
-  memset(&cmd, 0, sizeof(cmd));
+  //memset(&cmd, 0, sizeof(cmd));
   switch (isp_hw->hw_state) {
   case ISP_HW_STATE_INVALID: {
     isp_hw->fd = open(dev_name, O_RDWR | O_NONBLOCK);
@@ -3888,9 +3888,9 @@ static int isp_hw_open(isp_hw_t *isp_hw, char *dev_name)
       return -1;
     }
 
-    cmd.security_mode = NON_SECURE_MODE;
-    cmd.iommu_attach_mode = IOMMU_ATTACH;
-    rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_SMMU_ATTACH, &cmd);
+    //cmd.security_mode = NON_SECURE_MODE;
+    //cmd.iommu_attach_mode = IOMMU_ATTACH;
+    //rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_SMMU_ATTACH, &cmd);
     if (rc < 0) {
       CDBG_ERROR("%s: isp smmu attach error = %d\n", __func__, rc);
       return -1;
@@ -4385,9 +4385,9 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
       ub_policy = VFE40_UB_SLICING_POLICY_EQUAL;
     }
     break;
-  case ISP_VERSION_44:
-    wm_ub_size = VFE44_UB_SIZE;
-    break;
+  //case ISP_VERSION_44:
+   // wm_ub_size = VFE44_UB_SIZE;
+   // break;
   default:
     wm_ub_size = VFE40_UB_SIZE_24KB;
     break;
@@ -4411,7 +4411,7 @@ int isp_hw_query_caps(const char *dev_name, uint32_t *isp_version,
   }
   memset(&cmd2, 0, sizeof(cmd2));
   memset(&reg_cfg_cmd, 0, sizeof(reg_cfg_cmd));
-  reg_cfg_cmd.cmd_type = SET_UB_POLICY;
+  //reg_cfg_cmd.cmd_type = SET_UB_POLICY;
   cmd2.cfg_cmd = (void *)&reg_cfg_cmd;
   cmd2.cfg_data = (void *)&ub_policy;
   cmd2.cmd_len = sizeof(ub_policy);

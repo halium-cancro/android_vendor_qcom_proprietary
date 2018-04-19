@@ -3576,7 +3576,7 @@ int isp_ch_util_buf_divert_notify(
   idx = buf_divert->u.buf_done.buf_idx;
   /* Assign the below value to PProc which can be used for buf_done event*/
 
-  pp_divert.is_skip_pproc = buf_divert->is_skip_pproc;
+  //pp_divert.is_skip_pproc = buf_divert->is_skip_pproc;
   pp_divert.handle = buf_divert->u.buf_done.handle;
   pp_divert.output_format = buf_divert->u.buf_done.output_format;
   pp_divert.input_intf = buf_divert->input_intf;
@@ -3672,7 +3672,7 @@ int isp_ch_util_buf_divert_notify(
            buf_event.u.buf_done.handle =
               pp_divert.handle;
 
-           rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_BUF_DONE, &buf_event);
+           //rc = ioctl(isp_hw->fd, VIDIOC_MSM_ISP_BUF_DONE, &buf_event);
            if (rc < 0) {
              CDBG_ERROR("%s: VIDIOC_MSM_ISP_BUF_DONE error = %d\n", __func__, rc);
              return rc;

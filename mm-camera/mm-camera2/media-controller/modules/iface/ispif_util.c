@@ -961,7 +961,7 @@ int ispif_util_proc_reset(ispif_t *ispif, mct_event_t *event)
   }
   /* Stop finished. Now restart */
   if (cfg_cmd->params.num > 0) {
-    cfg_cmd->cfg_type = ISPIF_RESTART_FRAME_BOUNDARY;
+    cfg_cmd->cfg_type = ISPIF_START_FRAME_BOUNDARY;
     rc = ioctl(ispif->fd, VIDIOC_MSM_ISPIF_CFG, cfg_cmd);
     if (rc != 0) {
       if (errno == ETIMEDOUT) {

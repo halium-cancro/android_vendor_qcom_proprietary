@@ -170,7 +170,7 @@ boolean awb_module_query_mod(mct_module_t *module, mct_pipeline_cap_t *query_buf
   query_buf->stats_cap.supported_white_balances[6] = CAM_WB_MODE_CLOUDY_DAYLIGHT;
   query_buf->stats_cap.supported_white_balances[7] = CAM_WB_MODE_TWILIGHT;
   query_buf->stats_cap.supported_white_balances[8] = CAM_WB_MODE_SHADE;
-  query_buf->stats_cap.supported_white_balances[9] = CAM_WB_MODE_MANUAL;
+  //query_buf->stats_cap.supported_white_balances[9] = CAM_WB_MODE_MANUAL;
 
   if (query_buf->sensor_cap.sensor_format != FORMAT_YCBCR)
     query_buf->stats_cap.supported_scene_modes_cnt = 20;
