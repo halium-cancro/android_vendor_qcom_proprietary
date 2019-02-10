@@ -114,7 +114,7 @@ static struct msm_camera_sensor_slave_info sensor_slave_info = {
     .power_setting = power_setting,
     .size = ARRAY_SIZE(power_setting),
   },
-  .is_flash_supported = SENSOR_FLASH_SUPPORTED,
+  //.is_flash_supported = SENSOR_FLASH_SUPPORTED,
 };
 
 static struct msm_sensor_init_params sensor_init_params = {

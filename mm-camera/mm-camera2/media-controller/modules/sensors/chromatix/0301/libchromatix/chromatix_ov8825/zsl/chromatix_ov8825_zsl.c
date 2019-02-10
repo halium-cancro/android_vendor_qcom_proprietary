@@ -1,6 +1,6 @@
 /*============================================================================
 
-  Copyright (c) 2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/
@@ -18,7 +18,6 @@ static chromatix_parms_type chromatix_ov8825_parms = {
 /*============================================================================
  * FUNCTION    - load_chromatix -
  *
- * DESCRIPTION:
  * DESCRIPTION:
  *==========================================================================*/
 void *load_chromatix(void)

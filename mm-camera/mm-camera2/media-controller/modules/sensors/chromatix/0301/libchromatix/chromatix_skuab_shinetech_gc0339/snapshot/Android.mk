@@ -1,11 +1,11 @@
-GC0339_CHROMATIX_snapshot_PATH := $(call my-dir)
+SKUAB_SHINETECH_GC0339_CHROMATIX_SNAPSHOT_PATH := $(call my-dir)
 
 # ---------------------------------------------------------------------------
-#                      Make the shared library (libchromatix_SKUAA_ST_gc0339_snapshot)
+#                      Make the shared library (libchromatix_skuab_shinetech_gc0339_snapshot)
 # ---------------------------------------------------------------------------
 
 include $(CLEAR_VARS)
-LOCAL_PATH := $(GC0339_CHROMATIX_snapshot_PATH)
+LOCAL_PATH := $(SKUAB_SHINETECH_GC0339_CHROMATIX_SNAPSHOT_PATH)
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
@@ -15,9 +15,9 @@ LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../../../
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../../../../../common/
-LOCAL_C_INCLUDES += chromatix_gc0339_snapshot.h
+LOCAL_C_INCLUDES += chromatix_skuab_shinetech_gc0339_snapshot.h
 
-LOCAL_SRC_FILES:= chromatix_gc0339_snapshot.c
+LOCAL_SRC_FILES:= chromatix_skuab_shinetech_gc0339_snapshot.c
 
 LOCAL_MODULE           := libchromatix_skuab_shinetech_gc0339_snapshot
 LOCAL_SHARED_LIBRARIES := libcutils
@@ -26,8 +26,7 @@ include $(LOCAL_PATH)/../../../../../../../../../local_additional_dependency.mk
 ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
-LOCAL_MODULE_OWNER := qcom 
-LOCAL_32_BIT_ONLY := true
+LOCAL_MODULE_OWNER := qti
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

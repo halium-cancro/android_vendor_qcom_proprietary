@@ -1,4 +1,3 @@
-
 /*============================================================================
 
   Copyright (c) 2014 Qualcomm Technologies, Inc. All Rights Reserved.
@@ -26,4 +25,3 @@ void *load_chromatix(void)
   SLOW("chromatix ptr %p", &chromatix_imx214_parms);
   return &chromatix_imx214_parms;
 }
-

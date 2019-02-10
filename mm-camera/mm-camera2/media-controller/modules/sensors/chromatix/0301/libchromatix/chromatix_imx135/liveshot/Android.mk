@@ -14,12 +14,10 @@ LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
         -include camera_defs_i.h
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../../../
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../module/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../../../../../common/
 LOCAL_C_INCLUDES += chromatix_imx135_liveshot.h
 
 LOCAL_SRC_FILES:= chromatix_imx135_liveshot.c
-LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_MODULE           := libchromatix_imx135_liveshot
 LOCAL_SHARED_LIBRARIES := libcutils
@@ -28,5 +26,7 @@ include $(LOCAL_PATH)/../../../../../../../../../local_additional_dependency.mk
 ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
+LOCAL_MODULE_OWNER := qti
+LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

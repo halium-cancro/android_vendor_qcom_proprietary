@@ -1,7 +1,6 @@
-
 /*============================================================================
 
-  Copyright (c) 2012-2013 Qualcomm Technologies, Inc. All Rights Reserved.
+  Copyright (c) 2014 Qualcomm Technologies, Inc. All Rights Reserved.
   Qualcomm Technologies Proprietary and Confidential.
 
 ============================================================================*/

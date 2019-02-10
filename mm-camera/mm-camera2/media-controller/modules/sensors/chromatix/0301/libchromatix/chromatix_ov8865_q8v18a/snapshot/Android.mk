@@ -14,7 +14,6 @@ LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
         -include camera_defs_i.h
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../../../
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../module/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../../../../../common/
 LOCAL_C_INCLUDES += chromatix_ov8865_q8v18a_snapshot.h
 
@@ -27,9 +26,7 @@ include $(LOCAL_PATH)/../../../../../../../../../local_additional_dependency.mk
 ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
-
-LOCAL_MODULE_OWNER := qcom 
-LOCAL_32_BIT_ONLY := true
+LOCAL_MODULE_OWNER := qti
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

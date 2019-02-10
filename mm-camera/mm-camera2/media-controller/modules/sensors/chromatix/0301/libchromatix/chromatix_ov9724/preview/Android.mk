@@ -26,8 +26,7 @@ include $(LOCAL_PATH)/../../../../../../../../../local_additional_dependency.mk
 ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
-LOCAL_MODULE_OWNER := qcom 
-LOCAL_32_BIT_ONLY := true
+LOCAL_MODULE_OWNER := qti
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)

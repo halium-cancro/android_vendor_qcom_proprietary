@@ -1,11 +1,11 @@
-IMX214_CHROMATIX_SNAPSHOT_PATH := $(call my-dir)
+IMX214_CHROMATIX_VIDEO_HDR_PATH := $(call my-dir)
 
 # ---------------------------------------------------------------------------
 #                      Make the shared library (libchromatix_imx214_video_hdr)
 # ---------------------------------------------------------------------------
 
 include $(CLEAR_VARS)
-LOCAL_PATH := $(IMX214_CHROMATIX_SNAPSHOT_PATH)
+LOCAL_PATH := $(IMX214_CHROMATIX_VIDEO_HDR_PATH)
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
@@ -14,7 +14,6 @@ LOCAL_CFLAGS:= -DAMSS_VERSION=$(AMSS_VERSION) \
         -include camera_defs_i.h
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../../../
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../module/
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../../../../../common/
 LOCAL_C_INCLUDES += chromatix_imx214_video_hdr.h
 
@@ -27,7 +26,6 @@ include $(LOCAL_PATH)/../../../../../../../../../local_additional_dependency.mk
 ifeq ($(MM_DEBUG),true)
 LOCAL_SHARED_LIBRARIES += liblog
 endif
-
 LOCAL_MODULE_OWNER := qti
 LOCAL_PROPRIETARY_MODULE := true
 
