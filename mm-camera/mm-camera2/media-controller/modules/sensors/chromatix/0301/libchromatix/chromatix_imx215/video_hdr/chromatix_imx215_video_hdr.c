@@ -9,7 +9,7 @@
  *                      INCLUDE FILES
  *===========================================================================*/
 #include "chromatix.h"
-#include "sensor_dbg.h"
+#include "camera_dbg.h"
 
 static chromatix_parms_type chromatix_imx215_parms = {
 #include "chromatix_imx215_video_hdr.h"
@@ -22,6 +22,6 @@ static chromatix_parms_type chromatix_imx215_parms = {
  *==========================================================================*/
 void *load_chromatix(void)
 {
-  SLOW("chromatix ptr %p", &chromatix_imx215_parms);
+  CDBG("%s:%d%d\n", __func__, __LINE__);
   return &chromatix_imx215_parms;
 }

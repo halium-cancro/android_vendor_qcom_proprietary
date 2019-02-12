@@ -9,7 +9,7 @@
  *                      INCLUDE FILES
  *===========================================================================*/
 #include "chromatix.h"
-#include "sensor_dbg.h"
+#include "camera_dbg.h"
 
 static chromatix_parms_type chromatix_skuf_ov12830_p12v01c_parms = {
 #include "chromatix_skuf_ov12830_p12v01c_default_video.h"
@@ -22,6 +22,6 @@ static chromatix_parms_type chromatix_skuf_ov12830_p12v01c_parms = {
  *==========================================================================*/
 void *load_chromatix(void)
 {
-  SLOW("chromatix ptr %p", &chromatix_skuf_ov12830_p12v01c_parms);
+  CDBG("%s:%d%d\n", __func__, __LINE__);
   return &chromatix_skuf_ov12830_p12v01c_parms;
 }
