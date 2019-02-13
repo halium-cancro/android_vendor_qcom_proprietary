@@ -344,7 +344,7 @@ static struct sensor_lib_reg_settings_array res_settings_array = {
   .size = ARRAY_SIZE(res_settings),
 };
 
-static struct msm_camera_csi2_params* csi_params[] = {
+static struct msm_camera_csi2_params *csi_params[] = {
 #ifdef _FULL_RES_30FPS
   &imx135_csi_params, /* RES 0 */
 #else
