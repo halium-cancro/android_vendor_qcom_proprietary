@@ -245,11 +245,6 @@ typedef struct {
       .modules[0] = {MOD_IMGLIB_MULTI_TOUCH_FOCUS}, \
       .session_params = {CAM_INTF_PARM_MULTI_TOUCH_FOCUS_BRACKETING, CAM_INTF_PARM_MAX}, \
     }, \
-    { .feature_mask = CAM_QCOM_FEATURE_REFOCUS, \
-      .stream_type = CAM_STREAM_TYPE_OFFLINE_PROC, \
-      .modules[0] = {MOD_IMGLIB_REFOCUS}, \
-      .session_params = {CAM_INTF_PARM_MAX}, \
-    }, \
   } \
 
 #endif //__MODULE_IMGLIB_DEFS_H__

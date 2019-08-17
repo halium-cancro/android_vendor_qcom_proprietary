@@ -2760,11 +2760,11 @@ int isp_set_hal_param(isp_t *isp, isp_port_t *isp_sink_port,
   }
     break;
 
-  case CAM_INTF_PARM_LOW_POWER_ENABLE: {
+/*  case CAM_INTF_PARM_LOW_POWER_ENABLE: {
     rc = isp_util_set_lowpowermode(isp, session_id,
          param->parm_data);
   }
-    break;
+    break;*/
 
   case CAM_INTF_PARM_ISP_DEBUG_MASK: {
     ISP_MOD_COM = ISP_MOD_MAX_NUM;

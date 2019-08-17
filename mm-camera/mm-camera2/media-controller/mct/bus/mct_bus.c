@@ -216,9 +216,9 @@ static boolean msg_bus_post_msg(mct_bus_t *bus, mct_bus_msg_t *bus_msg)
    case MCT_BUS_MSG_SET_AF_STATE:
       payload_size = sizeof(int32_t);
       break;
-    case MCT_BUS_MSG_UPDATE_AF_FOCUS_POS:
+/*    case MCT_BUS_MSG_UPDATE_AF_FOCUS_POS:
       payload_size = sizeof(cam_focus_pos_info_t);
-      break;
+      break;*/
    case MCT_BUS_MSG_SET_AF_TRIGGER_ID:
       payload_size = sizeof(int32_t);
     case MCT_BUS_MSG_AUTO_SCENE_DECISION:

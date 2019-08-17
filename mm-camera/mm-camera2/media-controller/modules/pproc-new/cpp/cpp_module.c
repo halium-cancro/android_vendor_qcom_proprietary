@@ -397,17 +397,17 @@ boolean cpp_module_query_mod(mct_module_t *module, void *buf,
     pp_cap->feature_mask |= CAM_QCOM_FEATURE_SHARPNESS;
     pp_cap->feature_mask |= CAM_QCOM_FEATURE_EFFECT;
   }
-  pp_cap->feature_mask |= CAM_QCOM_FEATURE_ROTATION;
+  //pp_cap->feature_mask |= CAM_QCOM_FEATURE_ROTATION;
 #ifndef CAMERA_FEATURE_WNR_SW
   if (query_buf->sensor_cap.sensor_format != FORMAT_YCBCR) {
     pp_cap->feature_mask |= CAM_QCOM_FEATURE_DENOISE2D;
   }
   pp_cap->feature_mask |= (CAM_QCOM_FEATURE_CROP |
-    CAM_QCOM_FEATURE_ROTATION |
+    //CAM_QCOM_FEATURE_ROTATION |
     CAM_QCOM_FEATURE_FLIP | CAM_QCOM_FEATURE_SCALE);
 #else
   pp_cap->feature_mask |= (CAM_QCOM_FEATURE_CROP |
-    CAM_QCOM_FEATURE_ROTATION | CAM_QCOM_FEATURE_FLIP | CAM_QCOM_FEATURE_SCALE);
+     CAM_QCOM_FEATURE_FLIP | CAM_QCOM_FEATURE_SCALE);
 #endif
 
   for(i = 0; i < CPP_MODULE_MAX_SESSIONS; i++) {

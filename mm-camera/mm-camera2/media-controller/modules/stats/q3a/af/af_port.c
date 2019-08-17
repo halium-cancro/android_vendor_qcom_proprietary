@@ -1220,7 +1220,7 @@ static void af_port_callback(af_output_data_t *af_out, void *p)
       af_update.check_led = af_out->check_led;
       send_update = TRUE;
     }
-    if (af_out->type & AF_OUTPUT_UPDATE_FOCUS_POS){
+/*    if (af_out->type & AF_OUTPUT_UPDATE_FOCUS_POS){
       cam_focus_pos_info_t cur_pos;
       cur_pos.scale = af_out->cur_lens_pos.scale;
       cur_pos.diopter = af_out->cur_lens_pos.diopter;
@@ -1228,7 +1228,7 @@ static void af_port_callback(af_output_data_t *af_out, void *p)
         __func__,cur_pos.scale,cur_pos.diopter);
       af_send_bus_msg(port, MCT_BUS_MSG_UPDATE_AF_FOCUS_POS,
         &cur_pos,sizeof(cam_focus_pos_info_t),private->sof_id);
-    }
+    }*/
   }
   af_send_bus_msg(port, MCT_BUS_MSG_SET_AF_STATE, &private->af_trans.af_state,
     sizeof(cam_af_state_t), private->sof_id);

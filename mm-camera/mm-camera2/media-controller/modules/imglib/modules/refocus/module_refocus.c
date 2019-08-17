@@ -139,7 +139,7 @@ mct_module_t *module_refocus_init(const char *name)
     NULL,
     &g_caps,
     "libmmcamera_ubifocus_lib.so",
-    CAM_QCOM_FEATURE_REFOCUS,
+    (1U<<16),
     &g_params);
 }
 

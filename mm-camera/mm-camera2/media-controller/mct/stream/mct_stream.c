@@ -535,8 +535,8 @@ static boolean mct_stream_start_link(mct_stream_t *stream)
         & CAM_QCOM_FEATURE_SHARPNESS
       || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
         & CAM_QCOM_FEATURE_EFFECT
-      || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
-        & CAM_QCOM_FEATURE_ROTATION
+//      || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
+//        & CAM_QCOM_FEATURE_ROTATION
       || stream->streaminfo.reprocess_config.pp_feature_config.feature_mask
         & CAM_QCOM_FEATURE_CROP
 #ifdef CAMERA_FEATURE_WNR_SW
@@ -1044,7 +1044,7 @@ static void mct_stream_fill_metadata_v1(cam_metadata_info_t *pdst,
     break;
 
   case MCT_BUS_MSG_UPDATE_AF_FOCUS_POS:{
-    cam_focus_pos_info_t *af_msg = (cam_focus_pos_info_t *)psrc;
+    //cam_focus_pos_info_t *af_msg = (cam_focus_pos_info_t *)psrc;
     //pdst->cur_pos_info.diopter = af_msg->diopter;
     //pdst->cur_pos_info.scale = af_msg->scale;
     //pdst->is_focus_pos_info_valid = TRUE;

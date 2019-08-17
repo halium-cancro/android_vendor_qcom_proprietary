@@ -1482,7 +1482,7 @@ int32_t c2d_module_handle_set_parm_event(mct_module_t* module,
     }
     break;
   }
-  case CAM_INTF_PARM_LOW_POWER_ENABLE: {
+/*  case CAM_INTF_PARM_LOW_POWER_ENABLE: {
     if(!(ctrl_parm->parm_data)) {
       CDBG_ERROR("%s:%d, failed", __func__, __LINE__);
       return -EFAULT;
@@ -1495,7 +1495,7 @@ int32_t c2d_module_handle_set_parm_event(mct_module_t* module,
       return rc;
     }
     break;
-  }
+  }*/
   case CAM_INTF_PARM_DIS_ENABLE: {
     if (!(ctrl_parm->parm_data)) {
       CDBG_ERROR("%s:%d, failed", __func__, __LINE__);

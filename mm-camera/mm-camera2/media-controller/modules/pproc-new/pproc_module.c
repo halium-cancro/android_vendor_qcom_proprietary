@@ -1308,7 +1308,7 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
     }
   }
 
-  /* check for rotation in feature mask */
+  /* check for rotation in feature mask 
   if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_ROTATION) {
     rc = pproc_module_send_set_param_event(port, identity, pp_feature_config,
        CAM_INTF_PARM_ROTATION);
@@ -1317,7 +1317,7 @@ static boolean pproc_module_handle_reprocess_online(mct_module_t *module,
          __LINE__);
        goto ERROR;
     }
-  }
+  }*/
 #ifdef USE_PREVIEW_FD_INFO_FOR_TP
   /* check if trueportrait is enabled */
   if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_TRUEPORTRAIT) {
@@ -1594,7 +1594,7 @@ static boolean pproc_module_handle_reprocess_offline(mct_module_t *module,
     }
   }
 
-  /* check for rotation in feature mask */
+  /* check for rotation in feature mask 
   if (pp_feature_config->feature_mask & CAM_QCOM_FEATURE_ROTATION) {
     rc = pproc_module_send_set_param_event(port, identity, pp_feature_config,
       CAM_INTF_PARM_ROTATION);
@@ -1603,7 +1603,7 @@ static boolean pproc_module_handle_reprocess_offline(mct_module_t *module,
        __LINE__);
       goto ERROR;
     }
-  }
+  }*/
   /* Pick Input buffer from different stream */
   buf_holder = pproc_module_get_offline_input_buffer(module, parm_buf,
     identity);

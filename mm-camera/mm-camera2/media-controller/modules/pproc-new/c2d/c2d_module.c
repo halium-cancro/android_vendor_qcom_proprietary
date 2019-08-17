@@ -338,7 +338,7 @@ boolean c2d_module_query_mod(mct_module_t *module, void *buf,
   }
   pp_cap->min_num_pp_bufs += MODULE_C2D_MIN_NUM_PP_BUFS;
   pp_cap->feature_mask |= (CAM_QCOM_FEATURE_CROP | CAM_QCOM_FEATURE_FLIP|
-    CAM_QCOM_FEATURE_SCALE | CAM_QCOM_FEATURE_ROTATION);
+    CAM_QCOM_FEATURE_SCALE );
   return TRUE;
 }
 
